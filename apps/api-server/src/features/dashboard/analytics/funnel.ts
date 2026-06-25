@@ -1,7 +1,7 @@
 import type { CustomerSegment, FunnelStep, NamedPerformance } from "@loopad/shared";
-import type { EventRecord, SegmentStats } from "../models/events.js";
-import { fmt, ratio, round } from "../utils/format.js";
-import { categoryLabel, genderLabel, segmentName } from "../utils/labels.js";
+import type { EventRecord, SegmentStats } from "../model/events.js";
+import { fmt, ratio, round } from "../../../shared/format.js";
+import { categoryLabel, genderLabel, segmentName } from "../lib/labels.js";
 
 const funnelSteps = [
   ["page_view", "페이지 방문"],

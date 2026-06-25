@@ -1,6 +1,6 @@
 import { EventNameSchema } from "@loopad/shared";
-import { clickhouse } from "../db/clickhouse.js";
-import type { EventRecord, EventRow } from "../models/events.js";
+import { clickhouse } from "../../../infra/database/clickhouse.js";
+import type { EventRecord, EventRow } from "../model/events.js";
 
 export async function readEvents(project: string): Promise<EventRecord[]> {
   const result = await clickhouse.query({

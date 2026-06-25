@@ -1,5 +1,5 @@
 import { createClient } from "@clickhouse/client";
-import { env } from "../config/env.js";
+import { env } from "../env/env.js";
 
 export const clickhouse = createClient({
   url: env.clickhouse.url,

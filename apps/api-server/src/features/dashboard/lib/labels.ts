@@ -1,4 +1,4 @@
-import type { SegmentStats } from "../models/events.js";
+import type { SegmentStats } from "../model/events.js";
 
 export function categoryLabel(value: string) {
   return (

@@ -1,5 +1,5 @@
-import type { EventRecord } from "../models/events.js";
-import { fmt, money } from "../utils/format.js";
+import type { EventRecord } from "../model/events.js";
+import { fmt, money } from "../../../shared/format.js";
 
 export function series(events: EventRecord[]) {
   const max = Math.max(...events.map((event) => Date.parse(event.timestamp)), Date.now());

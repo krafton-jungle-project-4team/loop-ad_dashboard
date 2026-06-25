@@ -1,6 +1,6 @@
-import { env } from "../config/env.js";
-import { clickhouse } from "../db/clickhouse.js";
-import { toClickHouseDateTime } from "../utils/time.js";
+import { clickhouse } from "../../../infra/database/clickhouse.js";
+import { env } from "../../../infra/env/env.js";
+import { toClickHouseDateTime } from "../../../shared/time.js";
 import { demoEvents } from "./demo-events.js";
 
 export async function seedClickHouse() {

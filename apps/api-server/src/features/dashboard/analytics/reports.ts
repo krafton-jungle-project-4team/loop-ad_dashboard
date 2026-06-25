@@ -10,8 +10,8 @@ import {
   segments
 } from "./funnel.js";
 import { pipeline, projection, recentEvents, series, signals, sum } from "./metrics.js";
-import { fmt, money, ratio, round } from "../utils/format.js";
-import { categoryLabel, genderLabel, segmentName } from "../utils/labels.js";
+import { fmt, money, ratio, round } from "../../../shared/format.js";
+import { categoryLabel, genderLabel, segmentName } from "../lib/labels.js";
 
 export async function overview(project: string) {
   const events = await readEvents(project);

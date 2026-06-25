@@ -1,10 +1,7 @@
 import crypto from "node:crypto";
-import type express from "express";
 
-export function projectId(request: express.Request, defaultProjectId: string) {
-  return typeof request.query.projectId === "string" && request.query.projectId
-    ? request.query.projectId
-    : defaultProjectId;
+export function projectId(value: unknown, defaultProjectId: string) {
+  return typeof value === "string" && value ? value : defaultProjectId;
 }
 
 export function success<T>(data: T) {
