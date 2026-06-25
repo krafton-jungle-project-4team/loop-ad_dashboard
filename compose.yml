@@ -1,0 +1,93 @@
+name: loopad-dashboard
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: loopad-postgres
+    environment:
+      POSTGRES_DB: ${LOOPAD_POSTGRES_DATABASE:-loopad}
+      POSTGRES_USER: ${LOOPAD_POSTGRES_USER:-loopad}
+      POSTGRES_PASSWORD: ${LOOPAD_POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "${LOOPAD_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.11-alpine
+    container_name: loopad-clickhouse
+    environment:
+      CLICKHOUSE_DB: ${LOOPAD_CLICKHOUSE_DATABASE:-loopad}
+      CLICKHOUSE_USER: ${LOOPAD_CLICKHOUSE_USER:-loopad}
+      CLICKHOUSE_PASSWORD: ${LOOPAD_CLICKHOUSE_PASSWORD:-change-me}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "${LOOPAD_CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${LOOPAD_CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api-server:
+    build:
+      context: .
+      dockerfile: apps/api-server/Dockerfile
+      target: development
+    command: sh -c "npm run build -w @loopad/shared && npm run dev -w @loopad/api-server"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      LOOPAD_WEB_ORIGIN: ${LOOPAD_WEB_ORIGIN:-http://localhost:5173}
+      LOOPAD_PROJECT_ID: ${LOOPAD_PROJECT_ID:-loopad-demo-shop}
+      LOOPAD_SEED_DEMO_DATA: ${LOOPAD_SEED_DEMO_DATA:-true}
+      LOOPAD_POSTGRES_HOST: ${LOOPAD_POSTGRES_HOST:-postgres}
+      LOOPAD_POSTGRES_PORT: ${LOOPAD_POSTGRES_PORT:-5432}
+      LOOPAD_POSTGRES_USER: ${LOOPAD_POSTGRES_USER:-loopad}
+      LOOPAD_POSTGRES_PASSWORD: ${LOOPAD_POSTGRES_PASSWORD:-change-me}
+      LOOPAD_POSTGRES_DATABASE: ${LOOPAD_POSTGRES_DATABASE:-loopad}
+      LOOPAD_CLICKHOUSE_URL: ${LOOPAD_CLICKHOUSE_URL:-http://clickhouse:8123}
+      LOOPAD_CLICKHOUSE_DATABASE: ${LOOPAD_CLICKHOUSE_DATABASE:-loopad}
+      LOOPAD_CLICKHOUSE_USER: ${LOOPAD_CLICKHOUSE_USER:-loopad}
+      LOOPAD_CLICKHOUSE_PASSWORD: ${LOOPAD_CLICKHOUSE_PASSWORD:-change-me}
+    ports:
+      - "${LOOPAD_API_HOST_PORT:-3100}:3000"
+    volumes:
+      - .:/app
+      - api_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+  web-client:
+    build:
+      context: .
+      dockerfile: apps/web-client/Dockerfile
+      target: development
+    command: sh -c "npm run build -w @loopad/shared && npm run dev -w @loopad/web-client"
+    environment:
+      VITE_PROJECT_ID: ${LOOPAD_PROJECT_ID:-loopad-demo-shop}
+      VITE_DASHBOARD_API_BASE_URL: ${VITE_DASHBOARD_API_BASE_URL:-http://localhost:3100/api}
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+    depends_on:
+      - api-server
+
+volumes:
+  api_node_modules:
+  web_node_modules:
+  postgres_data:
+  clickhouse_data:

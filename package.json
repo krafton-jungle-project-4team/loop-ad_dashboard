@@ -1,0 +1,32 @@
+{
+  "name": "@loopad/root",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev:all",
+    "dev:all": "npm run build -w @loopad/shared && concurrently -n api,web \"npm run dev -w @loopad/api-server\" \"npm run dev -w @loopad/web-client\"",
+    "dev:docker": "docker compose up --build",
+    "dev:db": "docker compose up -d postgres clickhouse",
+    "build": "npm run build -w @loopad/shared && npm run build -w @loopad/api-server && npm run build -w @loopad/web-client",
+    "typecheck": "npm run typecheck -w @loopad/shared && npm run build -w @loopad/shared && npm run typecheck -w @loopad/api-server && npm run typecheck -w @loopad/web-client",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "npm run lint && npm run format:check && npm run typecheck && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^25.0.3",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.3",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.60.1"
+  }
+}
