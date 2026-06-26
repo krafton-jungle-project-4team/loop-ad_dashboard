@@ -19,6 +19,7 @@ import {
   dashboardTitles
 } from "../../features/dashboard/model/dashboard-navigation.js";
 import type { DashboardTab } from "../../features/dashboard/model/dashboard-types.js";
+import { useDashboardAiJob } from "../../features/dashboard/model/use-dashboard-ai-job.js";
 import { useDashboardResources } from "../../features/dashboard/model/use-dashboard-resources.js";
 import { LoadingState } from "../../features/dashboard/ui/LoadingState.js";
 import { renderDashboardPanel } from "../../features/dashboard/ui/render-dashboard-panel.js";
@@ -27,6 +28,7 @@ export function DashboardPage() {
   const [opened, { toggle }] = useDisclosure();
   const [tab, setTab] = useState<DashboardTab>("overview");
   const state = useDashboardResources();
+  const aiJobState = useDashboardAiJob(aiJobKindByTab[tab]);
 
   return (
     <AppShell
@@ -99,7 +101,9 @@ export function DashboardPage() {
               </div>
               {state.status === "loading" ? <LoadingState /> : null}
               {state.status === "error" ? <Text c="red">{state.error.message}</Text> : null}
-              {state.status === "success" ? renderDashboardPanel(tab, state.data) : null}
+              {state.status === "success"
+                ? renderDashboardPanel(tab, state.data, aiJobState)
+                : null}
             </Stack>
           </Box>
         </ScrollArea>
@@ -107,3 +111,11 @@ export function DashboardPage() {
     </AppShell>
   );
 }
+
+const aiJobKindByTab = {
+  overview: undefined,
+  conversion: undefined,
+  insights: "insight",
+  recommendations: "recommendation",
+  creatives: "creative"
+} as const;

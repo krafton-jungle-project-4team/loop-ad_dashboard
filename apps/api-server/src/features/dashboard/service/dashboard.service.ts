@@ -1,33 +1,38 @@
 import { Injectable } from "@nestjs/common";
-import {
-  conversion,
-  creatives,
-  insights,
-  overview,
-  recommendations
-} from "../analytics/reports.js";
+import type { AiJobKind } from "@loopad/shared";
+import { conversion, overview } from "../analytics/reports.js";
 import { env } from "../../../infra/env/env.js";
 import { projectId } from "../../../infra/http/api-response.js";
+import { ClickHouseDashboardDataSource } from "../data-sources/clickhouse-dashboard.data-source.js";
+import { DecisionServerDataSource } from "../data-sources/decision-server.data-source.js";
+import { PostgresDashboardDataSource } from "../data-sources/postgres-dashboard.data-source.js";
 
 @Injectable()
 export class DashboardService {
-  overview(project?: string) {
-    return overview(projectId(project, env.projectId));
+  constructor(
+    private readonly clickHouseDataSource: ClickHouseDashboardDataSource,
+    private readonly postgresDataSource: PostgresDashboardDataSource,
+    private readonly decisionServerDataSource: DecisionServerDataSource
+  ) {}
+
+  async overview(project?: string) {
+    const events = await this.clickHouseDataSource.readEvents(projectId(project, env.projectId));
+    return overview(events);
   }
 
-  conversion(project?: string) {
-    return conversion(projectId(project, env.projectId));
+  async conversion(project?: string) {
+    const events = await this.clickHouseDataSource.readEvents(projectId(project, env.projectId));
+    return conversion(events);
   }
 
-  insights(project?: string) {
-    return insights(projectId(project, env.projectId));
+  createAiJob(input: { kind: AiJobKind; projectId?: string }) {
+    return this.decisionServerDataSource.createJob({
+      kind: input.kind,
+      projectId: projectId(input.projectId, env.projectId)
+    });
   }
 
-  recommendations(project?: string) {
-    return recommendations(projectId(project, env.projectId));
-  }
-
-  creatives(project?: string) {
-    return creatives(projectId(project, env.projectId));
+  getAiResult(resultId: string) {
+    return this.postgresDataSource.getAiResult(resultId);
   }
 }

@@ -15,5 +15,8 @@ export const env = {
     database: process.env.LOOPAD_CLICKHOUSE_DATABASE ?? "loopad",
     username: process.env.LOOPAD_CLICKHOUSE_USER ?? "loopad",
     password: process.env.LOOPAD_CLICKHOUSE_PASSWORD ?? "change-me"
+  },
+  decisionServer: {
+    url: process.env.LOOPAD_DECISION_SERVER_URL ?? ""
   }
 };

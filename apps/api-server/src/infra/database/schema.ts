@@ -18,6 +18,17 @@ export async function ensurePostgres() {
       name text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS recommendation_results (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_id text NOT NULL REFERENCES projects(id),
+      kind text NOT NULL CHECK (kind IN ('insight', 'recommendation', 'creative')),
+      status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+      request_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+      result_payload jsonb,
+      error_message text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      completed_at timestamptz
+    );
   `);
   await postgres.query(
     `INSERT INTO admin_accounts (email, display_name) VALUES ($1, $2) ON CONFLICT DO NOTHING`,

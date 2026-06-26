@@ -1,32 +1,62 @@
 import {
+  AiJobAcceptedSchema,
+  AiJobResultSchema,
   ConversionReportSchema,
-  CreativeReportSchema,
   DashboardOverviewSchema,
-  InsightReportSchema,
-  RecommendationReportSchema,
   createApiSuccessResponseSchema
 } from "@loopad/shared";
+import type { AiJobKind } from "@loopad/shared";
 import type { z } from "zod";
 import { apiBaseUrl, projectId } from "../model/dashboard-config.js";
 import type { DashboardResources } from "../model/dashboard-types.js";
 
 export async function fetchDashboardResources(signal: AbortSignal): Promise<DashboardResources> {
-  const [overview, conversion, insights, recommendations, creatives] = await Promise.all([
+  const [overview, conversion] = await Promise.all([
     request("/dashboard/overview", DashboardOverviewSchema, signal),
-    request("/dashboard/conversion", ConversionReportSchema, signal),
-    request("/dashboard/ai-insights", InsightReportSchema, signal),
-    request("/dashboard/ai-recommendations", RecommendationReportSchema, signal),
-    request("/creatives/generated", CreativeReportSchema, signal)
+    request("/dashboard/conversion", ConversionReportSchema, signal)
   ]);
 
-  return { overview, conversion, insights, recommendations, creatives };
+  return { overview, conversion };
 }
 
-async function request<T>(path: string, schema: z.ZodType<T>, signal: AbortSignal): Promise<T> {
-  const url = new URL(`${apiBaseUrl}${path}`, window.location.origin);
-  url.searchParams.set("projectId", projectId);
+export async function createDashboardAiJob(kind: AiJobKind, signal: AbortSignal) {
+  return request(
+    "/dashboard/ai-jobs",
+    AiJobAcceptedSchema,
+    signal,
+    {
+      method: "POST",
+      body: JSON.stringify({ kind, projectId })
+    },
+    false
+  );
+}
 
-  const response = await fetch(url, { headers: { Accept: "application/json" }, signal });
+export async function fetchDashboardAiResult(resultId: string, signal: AbortSignal) {
+  return request(`/dashboard/ai-results/${resultId}`, AiJobResultSchema, signal, undefined, false);
+}
+
+async function request<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  signal: AbortSignal,
+  init?: RequestInit,
+  includeProjectId = true
+): Promise<T> {
+  const url = new URL(`${apiBaseUrl}${path}`, window.location.origin);
+  if (includeProjectId) {
+    url.searchParams.set("projectId", projectId);
+  }
+
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      Accept: "application/json",
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers
+    },
+    signal
+  });
   if (!response.ok) {
     throw new Error(`API 요청 실패: ${response.status}`);
   }

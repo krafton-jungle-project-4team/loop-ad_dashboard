@@ -1,10 +1,19 @@
-import { Controller, Get, Inject, Query } from "@nestjs/common";
 import {
-  CreativeReportSchema,
+  Body,
+  Controller,
+  Get,
+  Inject,
+  NotFoundException,
+  Param,
+  Post,
+  Query
+} from "@nestjs/common";
+import {
+  AiJobAcceptedSchema,
+  AiJobRequestSchema,
+  AiJobResultSchema,
   ConversionReportSchema,
-  DashboardOverviewSchema,
-  InsightReportSchema,
-  RecommendationReportSchema
+  DashboardOverviewSchema
 } from "@loopad/shared";
 import { success } from "../../../infra/http/api-response.js";
 import { DashboardService } from "../service/dashboard.service.js";
@@ -23,20 +32,18 @@ export class DashboardController {
     return success(ConversionReportSchema.parse(await this.dashboardService.conversion(projectId)));
   }
 
-  @Get("dashboard/ai-insights")
-  async insights(@Query("projectId") projectId?: string) {
-    return success(InsightReportSchema.parse(await this.dashboardService.insights(projectId)));
+  @Post("dashboard/ai-jobs")
+  async createAiJob(@Body() body: unknown) {
+    const request = AiJobRequestSchema.parse(body);
+    return success(AiJobAcceptedSchema.parse(await this.dashboardService.createAiJob(request)));
   }
 
-  @Get("dashboard/ai-recommendations")
-  async recommendations(@Query("projectId") projectId?: string) {
-    return success(
-      RecommendationReportSchema.parse(await this.dashboardService.recommendations(projectId))
-    );
-  }
-
-  @Get("creatives/generated")
-  async creatives(@Query("projectId") projectId?: string) {
-    return success(CreativeReportSchema.parse(await this.dashboardService.creatives(projectId)));
+  @Get("dashboard/ai-results/:resultId")
+  async aiResult(@Param("resultId") resultId: string) {
+    const result = await this.dashboardService.getAiResult(resultId);
+    if (!result) {
+      throw new NotFoundException("AI result not found.");
+    }
+    return success(AiJobResultSchema.parse(result));
   }
 }

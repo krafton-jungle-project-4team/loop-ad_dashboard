@@ -1,3 +1,4 @@
+export * from "./ai-jobs.js";
 export * from "./funnel.js";
 export * from "./metrics.js";
 export * from "./reports.js";
