@@ -41,7 +41,6 @@ export async function ensurePostgres() {
 }
 
 export async function ensureClickHouse() {
-  await clickhouse.command({ query: `CREATE DATABASE IF NOT EXISTS ${env.clickhouse.database}` });
   await clickhouse.command({
     query: `
       CREATE TABLE IF NOT EXISTS events (

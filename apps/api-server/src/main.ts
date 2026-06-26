@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { RequestMethod } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { seedClickHouse } from "./features/dashboard/seed/seed-clickhouse.js";
@@ -14,9 +15,11 @@ async function bootstrap() {
   await seedClickHouse();
 
   const app = await NestFactory.create(AppModule);
-  app.enableCors({ origin: env.webOrigin, credentials: true });
-  app.setGlobalPrefix("api");
+  app.enableCors({ origin: env.webOrigins, credentials: true });
+  app.setGlobalPrefix("api", {
+    exclude: [{ path: "health", method: RequestMethod.GET }]
+  });
   app.useGlobalFilters(new ApiExceptionFilter());
-  await app.listen(env.port);
-  console.log(`LoopAd API listening on ${env.port}`);
+  await app.listen(env.port, "0.0.0.0");
+  console.log(`LoopAd API listening on 0.0.0.0:${env.port}`);
 }

@@ -1,6 +1,9 @@
-export const projectId = import.meta.env.VITE_PROJECT_ID ?? "loopad-demo-shop";
+export const projectId = "loopad-demo-shop";
 
-export const apiBaseUrl = (import.meta.env.VITE_DASHBOARD_API_BASE_URL ?? "/api").replace(
+const localApiBaseUrl = "/api";
+const devPublicApiBaseUrl = "https://api.dev.loop-ad.org/api";
+
+export const apiBaseUrl = (import.meta.env.DEV ? localApiBaseUrl : devPublicApiBaseUrl).replace(
   /\/$/,
   ""
 );

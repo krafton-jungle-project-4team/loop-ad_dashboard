@@ -15,7 +15,7 @@ LoopAd SaaS MVP 대시보드입니다. 로컬 개발에서는 Docker Postgres가
 
 ```bash
 npm install
-docker compose up --build
+docker compose --env-file .env.local up --build
 ```
 
 Web: `http://localhost:5173`

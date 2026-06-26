@@ -1,9 +1,9 @@
 FROM node:25-alpine AS base
 WORKDIR /app
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 COPY apps/web-client/package.json apps/web-client/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN npm install
+RUN npm ci
 COPY . .
 
 FROM base AS development
