@@ -15,5 +15,13 @@ async function bootstrap() {
   });
   app.useGlobalFilters(new ApiExceptionFilter());
   await app.listen(env.port, "0.0.0.0");
-  console.log(`LoopAd API listening on 0.0.0.0:${env.port}`);
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: "info",
+      service: env.serviceId,
+      message: "LoopAd API listening",
+      port: env.port
+    })
+  );
 }
