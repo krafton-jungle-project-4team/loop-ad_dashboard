@@ -11,6 +11,14 @@ endpoint를 env로 받아 Dashboard API와 Web client를 실행합니다.
 - `packages/shared`: API contract와 공통 타입
 - `compose.yml`: API, Web live server
 
+## Work Units
+
+이 repo는 monorepo이므로 작업 기준은 repo가 아니라 path와 배포 대상입니다.
+
+- Dashboard API 작업: `apps/api-server/**` -> ECS `dev-dashboard-api`
+- Dashboard Web 작업: `apps/web-client/**` -> S3/CloudFront `dashboard-web`
+- Shared contract 작업: `packages/shared/**` -> API와 Web 모두 영향
+
 ## Run
 
 로컬 데이터 소스는 `loop-ad_local-data-source_contract` repo에서 먼저 준비합니다.
