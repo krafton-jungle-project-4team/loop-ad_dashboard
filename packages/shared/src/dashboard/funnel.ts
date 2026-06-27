@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const FunnelStepKeySchema = z.enum([
+  "impression",
+  "click",
   "page_view",
   "product_view",
   "add_to_cart",

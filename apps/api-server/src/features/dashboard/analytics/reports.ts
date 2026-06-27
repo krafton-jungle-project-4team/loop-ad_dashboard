@@ -6,31 +6,31 @@ import type { EventRecord } from "../model/events.js";
 
 export function overview(events: EventRecord[]) {
   const funnel = buildFunnel(events);
-  const purchases = events.filter((event) => event.event_name === "purchase");
+  const clicks = events.filter((event) => event.event_name === "click");
   const recent = recentEvents(events);
-  const revenue = sum(purchases);
-  const expected = revenue + pipeline(events);
+  const clickCount = clicks.length;
+  const expected = clickCount + pipeline(events);
   return {
     metrics: {
       purchaseConversionRate: {
-        label: "전체 구매 전환율",
+        label: "전체 광고 클릭률",
         value: `${purchaseRate(events)}%`,
-        description: "페이지 방문 대비 구매 완료"
+        description: "광고 노출 대비 클릭"
       },
       checkoutDropOffRate: {
-        label: "결제 직전 이탈률",
-        value: `${funnel[3]?.dropOffRate ?? 0}%`,
-        description: "결제 시작 이후 구매 미완료"
+        label: "노출 후 미클릭률",
+        value: `${funnel[1]?.dropOffRate ?? 0}%`,
+        description: "노출 이후 클릭 미발생"
       },
       realtimePurchases: {
-        label: "실시간 구매 건수",
-        value: fmt(purchases.length),
-        description: "ClickHouse 구매 이벤트 기준"
+        label: "실시간 클릭 수",
+        value: fmt(clickCount),
+        description: "ClickHouse click 이벤트 기준"
       },
       forecastRevenue: {
-        label: "예상 매출",
-        value: money(expected),
-        description: "구매 완료와 결제 파이프라인 합산"
+        label: "관측 이벤트 수",
+        value: fmt(expected),
+        description: "클릭과 미클릭 노출 합산"
       },
       recentEventCount: {
         label: "최근 15분 행동 이벤트 수",
@@ -38,17 +38,17 @@ export function overview(events: EventRecord[]) {
         description: "최근 수집 이벤트"
       },
       recentPurchaseCount: {
-        label: "최근 15분 구매 수",
-        value: fmt(recent.filter((event) => event.event_name === "purchase").length),
-        description: "최근 구매 완료"
+        label: "최근 15분 클릭 수",
+        value: fmt(recent.filter((event) => event.event_name === "click").length),
+        description: "최근 광고 클릭"
       }
     },
     recentBehaviorEvents: series(recent),
-    recentPurchases: series(recent.filter((event) => event.event_name === "purchase")),
+    recentPurchases: series(recent.filter((event) => event.event_name === "click")),
     forecast: {
-      title: `예상 매출은 현재 매출 대비 ${ratio(expected, Math.max(revenue, 1))}% 페이스입니다.`,
+      title: `관측 이벤트는 현재 클릭 대비 ${ratio(expected, Math.max(clickCount, 1))}% 수준입니다.`,
       plannedRevenue: projection(expected),
-      actualRevenue: projection(revenue)
+      actualRevenue: projection(clickCount)
     },
     segmentPerformance: {
       channels: rank(events, "channel"),
@@ -70,7 +70,7 @@ export function conversion(events: EventRecord[]) {
       conversionRate: `${segmentRate(segment)}%`,
       dropOffRate: `${round(100 - segmentRate(segment))}%`,
       forecastRevenue: money(
-        sum(segment.events.filter((event) => event.event_name === "purchase")) +
+        sum(segment.events.filter((event) => event.event_name === "click")) +
           pipeline(segment.events)
       ),
       observedSignals: signals(segment.events)

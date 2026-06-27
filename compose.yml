@@ -1,39 +1,6 @@
 name: loopad-dashboard
 
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: loopad-postgres
-    environment:
-      POSTGRES_DB: ${LOOPAD_AURORA_DATABASE:?LOOPAD_AURORA_DATABASE is required}
-      POSTGRES_USER: ${LOOPAD_AURORA_USERNAME:?LOOPAD_AURORA_USERNAME is required}
-      POSTGRES_PASSWORD: ${LOOPAD_AURORA_PASSWORD:?LOOPAD_AURORA_PASSWORD is required}
-    ports:
-      - "${LOOPAD_AURORA_HOST_PORT:?LOOPAD_AURORA_HOST_PORT is required}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-
-  clickhouse:
-    image: clickhouse/clickhouse-server:25.11-alpine
-    container_name: loopad-clickhouse
-    environment:
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-    ports:
-      - "${LOOPAD_CLICKHOUSE_HTTP_PORT:?LOOPAD_CLICKHOUSE_HTTP_PORT is required}:8123"
-      - "${LOOPAD_CLICKHOUSE_NATIVE_PORT:?LOOPAD_CLICKHOUSE_NATIVE_PORT is required}:9000"
-    volumes:
-      - clickhouse_data:/var/lib/clickhouse
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:8123/ping || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   api-server:
     build:
       context: .
@@ -45,26 +12,20 @@ services:
       LOOPAD_ENV: ${LOOPAD_ENV:?LOOPAD_ENV is required}
       LOOPAD_SERVICE_ID: ${LOOPAD_SERVICE_ID:?LOOPAD_SERVICE_ID is required}
       PORT: ${PORT:?PORT is required}
-      LOOPAD_SEED_DEMO_DATA: ${LOOPAD_SEED_DEMO_DATA:?LOOPAD_SEED_DEMO_DATA is required}
-      LOOPAD_AURORA_HOST: ${LOOPAD_AURORA_HOST:?LOOPAD_AURORA_HOST is required}
+      LOOPAD_AURORA_HOST: host.docker.internal
       LOOPAD_AURORA_PORT: ${LOOPAD_AURORA_PORT:?LOOPAD_AURORA_PORT is required}
       LOOPAD_AURORA_USERNAME: ${LOOPAD_AURORA_USERNAME:?LOOPAD_AURORA_USERNAME is required}
       LOOPAD_AURORA_PASSWORD: ${LOOPAD_AURORA_PASSWORD:?LOOPAD_AURORA_PASSWORD is required}
       LOOPAD_AURORA_DATABASE: ${LOOPAD_AURORA_DATABASE:?LOOPAD_AURORA_DATABASE is required}
-      LOOPAD_CLICKHOUSE_URL: ${LOOPAD_CLICKHOUSE_URL:?LOOPAD_CLICKHOUSE_URL is required}
+      LOOPAD_CLICKHOUSE_URL: http://host.docker.internal:${LOOPAD_CLICKHOUSE_HTTP_PORT:?LOOPAD_CLICKHOUSE_HTTP_PORT is required}
       LOOPAD_CLICKHOUSE_USERNAME: ${LOOPAD_CLICKHOUSE_USERNAME:?LOOPAD_CLICKHOUSE_USERNAME is required}
       LOOPAD_DATA_STORAGE_BUCKET: ${LOOPAD_DATA_STORAGE_BUCKET:?LOOPAD_DATA_STORAGE_BUCKET is required}
       LOOPAD_GENAI_GENERATED_ASSETS_PREFIX: ${LOOPAD_GENAI_GENERATED_ASSETS_PREFIX:?LOOPAD_GENAI_GENERATED_ASSETS_PREFIX is required}
     ports:
-      - "${LOOPAD_API_HOST_PORT:?LOOPAD_API_HOST_PORT is required}:${PORT:?PORT is required}"
+      - "${PORT:?PORT is required}:${PORT:?PORT is required}"
     volumes:
       - .:/app
       - api_node_modules:/app/node_modules
-    depends_on:
-      postgres:
-        condition: service_healthy
-      clickhouse:
-        condition: service_healthy
 
   web-client:
     build:
@@ -73,7 +34,7 @@ services:
       target: development
     command: sh -c "npm run build -w @loopad/shared && npm run dev -w @loopad/web-client"
     environment:
-      LOOPAD_API_PROXY_TARGET: ${LOOPAD_API_PROXY_TARGET:?LOOPAD_API_PROXY_TARGET is required}
+      LOOPAD_API_PROXY_TARGET: http://api-server:${PORT:?PORT is required}
     ports:
       - "5173:5173"
     volumes:
@@ -85,5 +46,3 @@ services:
 volumes:
   api_node_modules:
   web_node_modules:
-  postgres_data:
-  clickhouse_data:

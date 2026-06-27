@@ -20,6 +20,13 @@ type RecommendationResultRow = {
 @Injectable()
 export class PostgresDashboardDataSource {
   async getAiResult(resultId: string): Promise<AiJobResult | undefined> {
+    const table = await postgres.query<{ exists: boolean }>(
+      "SELECT to_regclass('public.recommendation_results') IS NOT NULL AS exists"
+    );
+    if (!table.rows[0]?.exists) {
+      return undefined;
+    }
+
     const result = await postgres.query<RecommendationResultRow>(
       `
         SELECT id, kind, status, result_payload, error_message, created_at, completed_at

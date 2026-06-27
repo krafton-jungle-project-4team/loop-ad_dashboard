@@ -23,6 +23,7 @@ export type EventProperties = {
   signal?: string;
   page_url?: string;
   referrer?: string;
+  slot?: string;
 };
 
 export type EventRecord = Omit<EventRow, "properties"> & {

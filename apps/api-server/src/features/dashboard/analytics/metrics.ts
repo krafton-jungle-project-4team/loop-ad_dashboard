@@ -44,8 +44,8 @@ export function signals(events: EventRecord[]) {
 
 export function pipeline(events: EventRecord[]) {
   return Math.max(
-    sum(events.filter((event) => event.event_name === "checkout_start")) -
-      sum(events.filter((event) => event.event_name === "purchase")),
+    events.filter((event) => event.event_name === "impression").length -
+      events.filter((event) => event.event_name === "click").length,
     0
   );
 }

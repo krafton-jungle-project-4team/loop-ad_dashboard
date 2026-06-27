@@ -1,5 +1,8 @@
+import { config as loadDotenv } from "dotenv";
+
+loadDotenv({ path: ".env.local", quiet: true });
+
 const DASHBOARD_SERVICE_ID = "dashboard-api";
-const LOCAL_ENV = "local";
 
 const DASHBOARD_WEB_ORIGINS = Object.freeze([
   "https://dashboard.dev.loop-ad.org",
@@ -23,17 +26,6 @@ function requiredIntegerEnv(name: string): number {
     throw new Error(`${name} must be a positive integer`);
   }
   return value;
-}
-
-function requiredBooleanEnv(name: string): boolean {
-  const value = requiredEnv(name);
-  if (value === "true") {
-    return true;
-  }
-  if (value === "false") {
-    return false;
-  }
-  throw new Error(`${name} must be true or false`);
 }
 
 function requiredHttpUrlEnv(name: string): string {
@@ -69,7 +61,6 @@ export const env = Object.freeze({
   port: requiredIntegerEnv("PORT"),
   webOrigins: DASHBOARD_WEB_ORIGINS,
   projectId: DEFAULT_PROJECT_ID,
-  seedDemoData: loopadEnv === LOCAL_ENV ? requiredBooleanEnv("LOOPAD_SEED_DEMO_DATA") : false,
   postgres: {
     host: requiredEnv("LOOPAD_AURORA_HOST"),
     port: requiredIntegerEnv("LOOPAD_AURORA_PORT"),

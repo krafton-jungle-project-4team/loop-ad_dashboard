@@ -1,22 +1,32 @@
 # LoopAd Dashboard
 
-LoopAd SaaS MVP 대시보드입니다. 로컬 개발에서는 Docker Postgres가 AuroraPostgres
-역할을, Docker ClickHouse가 분석 이벤트 저장소 역할을 합니다. 운영에서는 env만
-실제 AuroraPostgres/ClickHouse 주소로 바꿔 붙입니다.
+LoopAd SaaS MVP 대시보드입니다. 로컬 개발 데이터 소스는
+`loop-ad_local-data-source_contract` repo에서 관리하고, 이 repo는 해당 contract의
+endpoint를 env로 받아 Dashboard API와 Web client를 실행합니다.
 
 ## Structure
 
 - `apps/web-client`: Mantine 기반 React 대시보드
 - `apps/api-server`: Dashboard API 서버
 - `packages/shared`: API contract와 공통 타입
-- `compose.yml`: Postgres, ClickHouse, API, Web live server
+- `compose.yml`: API, Web live server
 
 ## Run
 
+로컬 데이터 소스는 `loop-ad_local-data-source_contract` repo에서 먼저 준비합니다.
+
+```bash
+./scripts/init.sh local
+./scripts/dummy.sh local
+```
+
+팀 공통 로컬 endpoint는 Postgres `localhost:15432`, ClickHouse HTTP
+`http://localhost:18123`, Redis `localhost:16379`입니다.
+
 ```bash
 npm install
-docker compose --env-file .env.local up --build
+npm run dev
 ```
 
 Web: `http://localhost:5173`
-API: `http://localhost:3100/api`
+API: `http://localhost:8080/api`

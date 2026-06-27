@@ -4,11 +4,8 @@ import { fmt, ratio, round } from "../../../shared/format.js";
 import { categoryLabel, genderLabel, segmentName } from "../lib/labels.js";
 
 const funnelSteps = [
-  ["page_view", "페이지 방문"],
-  ["product_view", "상품 상세 조회"],
-  ["add_to_cart", "장바구니 추가"],
-  ["checkout_start", "결제 시작"],
-  ["purchase", "구매 완료"]
+  ["impression", "광고 노출"],
+  ["click", "광고 클릭"]
 ] as const;
 
 export function buildFunnel(events: EventRecord[]): FunnelStep[] {
@@ -78,7 +75,7 @@ export function rank(
   key: "channel" | "region" | "ageGender" | "device" | "category"
 ): NamedPerformance[] {
   const counts = new Map<string, number>();
-  for (const event of events.filter((item) => item.event_name === "purchase")) {
+  for (const event of events.filter((item) => item.event_name === "click")) {
     const name =
       key === "region"
         ? (event.properties.region ?? "미확인")
@@ -105,7 +102,7 @@ export function segmentRate(segment: SegmentStats) {
   return ratio(
     new Set(
       segment.events
-        .filter((event) => event.event_name === "purchase")
+        .filter((event) => event.event_name === "click")
         .map((event) => event.session_id)
     ).size,
     new Set(segment.events.map((event) => event.session_id)).size
@@ -114,11 +111,10 @@ export function segmentRate(segment: SegmentStats) {
 
 export function purchaseRate(events: EventRecord[]) {
   return ratio(
+    new Set(events.filter((event) => event.event_name === "click").map((event) => event.session_id))
+      .size,
     new Set(
-      events.filter((event) => event.event_name === "purchase").map((event) => event.session_id)
-    ).size,
-    new Set(
-      events.filter((event) => event.event_name === "page_view").map((event) => event.session_id)
+      events.filter((event) => event.event_name === "impression").map((event) => event.session_id)
     ).size
   );
 }
