@@ -7,7 +7,7 @@ RUN npm ci
 COPY . .
 
 FROM base AS development
-EXPOSE 3000
+EXPOSE 8080
 CMD ["npm", "run", "dev", "-w", "@loopad/api-server"]
 
 FROM base AS build
@@ -22,5 +22,5 @@ COPY packages/shared/package.json packages/shared/package.json
 RUN npm ci --omit=dev
 COPY --from=build /app/apps/api-server/dist apps/api-server/dist
 COPY --from=build /app/packages/shared/dist packages/shared/dist
-EXPOSE 80
+EXPOSE 8080
 CMD ["npm", "run", "start", "-w", "@loopad/api-server"]
