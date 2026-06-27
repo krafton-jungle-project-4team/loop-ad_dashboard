@@ -28,5 +28,9 @@ npm install
 npm run dev
 ```
 
+`npm run dev`는 shell, Docker Compose, 또는 배포 환경에서 주입된 env를 읽습니다.
+로컬 개인 값은 `.env.local`이나 개인 shell 환경에서 관리하되, 앱 코드는 env 파일을
+직접 로드하지 않습니다. 
+
 Web: `http://localhost:5173`
 API: `http://localhost:8080/api`

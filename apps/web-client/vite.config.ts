@@ -1,16 +1,15 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 
-function requiredEnv(env: Record<string, string>, name: string): string {
-  const value = env[name];
+function requiredEnv(name: string): string {
+  const value = process.env[name];
   if (!value) {
     throw new Error(`${name} is required`);
   }
   return value;
 }
 
-export default defineConfig(({ command, mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+export default defineConfig(({ command }) => {
   return {
     plugins: [react()],
     server:
@@ -18,7 +17,7 @@ export default defineConfig(({ command, mode }) => {
         ? {
             proxy: {
               "/api": {
-                target: requiredEnv(env, "LOOPAD_API_PROXY_TARGET"),
+                target: requiredEnv("LOOPAD_API_PROXY_TARGET"),
                 changeOrigin: true
               }
             }

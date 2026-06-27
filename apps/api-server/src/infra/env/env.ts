@@ -1,7 +1,3 @@
-import { config as loadDotenv } from "dotenv";
-
-loadDotenv({ path: ".env.local", quiet: true });
-
 const DASHBOARD_SERVICE_ID = "dashboard-api";
 
 const DASHBOARD_WEB_ORIGINS = Object.freeze([
