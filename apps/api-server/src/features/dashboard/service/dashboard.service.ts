@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { AiJobAccepted, AiJobKind, AiJobResult } from "@loopad/shared";
 import { conversion, overview } from "../analytics/reports.js";
 import { env } from "../../../infra/env/env.js";
@@ -17,8 +17,11 @@ export class DashboardService {
   private readonly pendingAiJobs = new Map<string, PendingAiJob>();
 
   constructor(
+    @Inject(ClickHouseDashboardDataSource)
     private readonly clickHouseDataSource: ClickHouseDashboardDataSource,
+    @Inject(PostgresDashboardDataSource)
     private readonly postgresDataSource: PostgresDashboardDataSource,
+    @Inject(DecisionServerDataSource)
     private readonly decisionServerDataSource: DecisionServerDataSource
   ) {}
 
