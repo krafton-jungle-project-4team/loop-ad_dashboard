@@ -1,13 +1,5 @@
 const DASHBOARD_SERVICE_ID = "dashboard-api";
 
-const DASHBOARD_WEB_ORIGINS = Object.freeze([
-  "https://dashboard.dev.loop-ad.org",
-  "http://localhost:5173"
-]);
-
-const DECISION_API_BASE_URL = "http://decision-api.dev.loop-ad.local";
-const DEFAULT_PROJECT_ID = "loopad-demo-shop";
-
 function requiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -33,12 +25,16 @@ function requiredHttpUrlEnv(name: string): string {
   return value;
 }
 
-function requiredS3PrefixEnv(name: string): string {
+function requiredCsvEnv(name: string): string[] {
   const value = requiredEnv(name);
-  if (!value.endsWith("/")) {
-    throw new Error(`${name} must end with /`);
+  const entries = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (entries.length === 0) {
+    throw new Error(`${name} must include at least one value`);
   }
-  return value;
+  return entries;
 }
 
 function requiredServiceIdEnv(): string {
@@ -55,8 +51,7 @@ export const env = Object.freeze({
   env: loopadEnv,
   serviceId: requiredServiceIdEnv(),
   port: requiredIntegerEnv("PORT"),
-  webOrigins: DASHBOARD_WEB_ORIGINS,
-  projectId: DEFAULT_PROJECT_ID,
+  webOrigins: requiredCsvEnv("LOOPAD_WEB_ORIGINS"),
   postgres: {
     host: requiredEnv("LOOPAD_AURORA_HOST"),
     port: requiredIntegerEnv("LOOPAD_AURORA_PORT"),
@@ -67,12 +62,5 @@ export const env = Object.freeze({
   clickhouse: {
     url: requiredHttpUrlEnv("LOOPAD_CLICKHOUSE_URL"),
     username: requiredEnv("LOOPAD_CLICKHOUSE_USERNAME")
-  },
-  dataStorage: {
-    bucket: requiredEnv("LOOPAD_DATA_STORAGE_BUCKET"),
-    generatedAssetsPrefix: requiredS3PrefixEnv("LOOPAD_GENAI_GENERATED_ASSETS_PREFIX")
-  },
-  decisionServer: {
-    url: DECISION_API_BASE_URL
   }
 });
