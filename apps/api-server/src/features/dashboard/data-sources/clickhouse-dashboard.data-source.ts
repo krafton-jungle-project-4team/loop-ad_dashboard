@@ -1,62 +1,158 @@
 import { Injectable } from "@nestjs/common";
 import { EventNameSchema } from "@loopad/shared";
 import { clickhouse } from "../../../infra/database/clickhouse.js";
-import type { EventRecord } from "../model/events.js";
+import type {
+  DashboardEventRow,
+  ExperimentActionCounts,
+  FunnelCounts,
+  SegmentFunnelCounts
+} from "../model/events.js";
 
-type RawEventRow = {
-  event_id: string;
-  user_id: string;
-  campaign_id: string;
-  creative_id: string;
-  event_type: string;
-  occurred_at: string;
-  request_id: string;
-  payload: string;
+type RawEventCountRow = {
+  event_name: string;
+  count: number | string;
 };
 
 @Injectable()
 export class ClickHouseDashboardDataSource {
-  async readEvents(_project: string): Promise<EventRecord[]> {
-    void _project;
-
+  async readEventCounts(projectId: string): Promise<RawEventCountRow[]> {
     const result = await clickhouse.query({
       query: `
-        SELECT event_id, user_id, campaign_id, creative_id, event_type, occurred_at, request_id, payload
-        FROM loopad.raw_events
-        ORDER BY occurred_at ASC
+        SELECT event_name, count() AS count
+        FROM events
+        WHERE project_id = {projectId:String}
+          AND event_name IN (
+            'page_view',
+            'product_view',
+            'add_to_cart',
+            'purchase',
+            'ad_impression',
+            'ad_click'
+          )
+        GROUP BY event_name
+        ORDER BY event_name ASC
       `,
-      format: "JSONEachRow"
+      format: "JSONEachRow",
+      query_params: { projectId }
     });
-    const rows = await result.json<RawEventRow>();
-    return rows.map(toEventRecord);
+    return result.json<RawEventCountRow>();
+  }
+
+  async readRecentEvents(projectId: string): Promise<DashboardEventRow[]> {
+    const result = await clickhouse.query({
+      query: `
+        SELECT
+          event_time,
+          project_id,
+          user_id,
+          session_id,
+          event_name,
+          nullIf(segment_id, '') AS segment_id,
+          nullIf(experiment_id, '') AS experiment_id,
+          nullIf(recommendation_id, '') AS recommendation_id,
+          nullIf(action_id, '') AS action_id,
+          nullIf(content_id, '') AS content_id,
+          nullIf(decision_id, '') AS decision_id,
+          nullIf(page_url, '') AS page_url,
+          nullIf(product_id, '') AS product_id,
+          nullIf(category, '') AS category,
+          nullIf(device, '') AS device
+        FROM events
+        WHERE project_id = {projectId:String}
+          AND event_name IN (
+            'page_view',
+            'product_view',
+            'add_to_cart',
+            'purchase',
+            'ad_impression',
+            'ad_click'
+          )
+        ORDER BY event_time DESC
+        LIMIT 30
+      `,
+      format: "JSONEachRow",
+      query_params: { projectId }
+    });
+    const rows = await result.json<DashboardEventRow>();
+    return rows.map((row) => ({ ...row, event_name: EventNameSchema.parse(row.event_name) }));
+  }
+
+  async readFunnel(projectId: string): Promise<FunnelCounts> {
+    const result = await clickhouse.query({
+      query: `
+        SELECT
+          countIf(event_name = 'product_view') AS product_view_count,
+          countIf(event_name = 'add_to_cart') AS add_to_cart_count,
+          countIf(event_name = 'purchase') AS purchase_count
+        FROM events
+        WHERE project_id = {projectId:String}
+      `,
+      format: "JSONEachRow",
+      query_params: { projectId }
+    });
+    const rows = await result.json<FunnelCounts>();
+    return numericFunnelCounts(rows[0]);
+  }
+
+  async readSegmentFunnels(projectId: string): Promise<SegmentFunnelCounts[]> {
+    const result = await clickhouse.query({
+      query: `
+        SELECT
+          segment_id,
+          countIf(event_name = 'product_view') AS product_view_count,
+          countIf(event_name = 'add_to_cart') AS add_to_cart_count,
+          countIf(event_name = 'purchase') AS purchase_count
+        FROM events
+        WHERE project_id = {projectId:String}
+          AND segment_id != ''
+        GROUP BY segment_id
+        ORDER BY purchase_count DESC, segment_id ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { projectId }
+    });
+    const rows = await result.json<SegmentFunnelCounts>();
+    return rows.map((row) => ({
+      segment_id: row.segment_id,
+      ...numericFunnelCounts(row)
+    }));
+  }
+
+  async readExperimentActionCounts(
+    projectId: string,
+    experimentId: string
+  ): Promise<ExperimentActionCounts[]> {
+    const result = await clickhouse.query({
+      query: `
+        SELECT
+          action_id,
+          countIf(event_name = 'ad_impression') AS impressions,
+          countIf(event_name = 'ad_click') AS clicks,
+          countIf(event_name = 'purchase') AS purchases
+        FROM events
+        WHERE project_id = {projectId:String}
+          AND experiment_id = {experimentId:String}
+          AND action_id != ''
+        GROUP BY action_id
+        ORDER BY action_id ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { projectId, experimentId }
+    });
+    const rows = await result.json<ExperimentActionCounts>();
+    return rows.map((row) => ({
+      action_id: row.action_id,
+      impressions: Number(row.impressions),
+      clicks: Number(row.clicks),
+      purchases: Number(row.purchases)
+    }));
   }
 }
 
-function toEventRecord(row: RawEventRow): EventRecord {
-  const properties = parseProperties(row.payload);
+function numericFunnelCounts(row: FunnelCounts | undefined): FunnelCounts {
   return {
-    project_id: "loopad",
-    user_id: row.user_id,
-    session_id: row.request_id,
-    event_name: EventNameSchema.parse(row.event_type),
-    timestamp: row.occurred_at,
-    channel: String(properties.slot ?? "unknown"),
-    campaign_id: row.campaign_id,
-    product_id: row.creative_id,
-    category: row.campaign_id,
-    age_group: "unknown",
-    gender: "unknown",
-    device: "unknown",
-    price: 0,
-    inventory_status: "unknown",
-    properties
+    product_view_count: Number(row?.product_view_count ?? 0),
+    add_to_cart_count: Number(row?.add_to_cart_count ?? 0),
+    purchase_count: Number(row?.purchase_count ?? 0)
   };
-}
-
-function parseProperties(value: string): EventRecord["properties"] {
-  try {
-    return JSON.parse(value) as EventRecord["properties"];
-  } catch {
-    return {};
-  }
 }

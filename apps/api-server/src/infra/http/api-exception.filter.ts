@@ -1,4 +1,10 @@
-import { Catch, type ArgumentsHost, type ExceptionFilter } from "@nestjs/common";
+import {
+  Catch,
+  HttpException,
+  HttpStatus,
+  type ArgumentsHost,
+  type ExceptionFilter
+} from "@nestjs/common";
 import { errorResponse } from "./api-response.js";
 
 type JsonResponse = {
@@ -11,6 +17,33 @@ type JsonResponse = {
 export class ApiExceptionFilter implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse<JsonResponse>();
-    response.status(500).json(errorResponse(error));
+    if (error instanceof HttpException) {
+      response.status(error.getStatus()).json(
+        errorResponse({
+          code: error.name,
+          message: safeHttpMessage(error)
+        })
+      );
+      return;
+    }
+
+    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
+      errorResponse({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "API request failed."
+      })
+    );
   }
+}
+
+function safeHttpMessage(error: HttpException): string {
+  const response = error.getResponse();
+  if (typeof response === "string") {
+    return response;
+  }
+  if (response && typeof response === "object" && "message" in response) {
+    const message = response.message;
+    return Array.isArray(message) ? message.join(", ") : String(message);
+  }
+  return error.message;
 }

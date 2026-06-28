@@ -1,19 +1,10 @@
+import { BadRequestException, Controller, Get, Inject, Param, Query } from "@nestjs/common";
 import {
-  Body,
-  Controller,
-  Get,
-  Inject,
-  NotFoundException,
-  Param,
-  Post,
-  Query
-} from "@nestjs/common";
-import {
-  AiJobAcceptedSchema,
-  AiJobRequestSchema,
-  AiJobResultSchema,
-  ConversionReportSchema,
-  DashboardOverviewSchema
+  DashboardEventsSummarySchema,
+  DashboardExperimentPerformanceSchema,
+  DashboardExperimentSchema,
+  DashboardFunnelSchema,
+  DashboardRecommendationsSchema
 } from "@loopad/shared";
 import { success } from "../../../infra/http/api-response.js";
 import { DashboardService } from "../service/dashboard.service.js";
@@ -22,28 +13,64 @@ import { DashboardService } from "../service/dashboard.service.js";
 export class DashboardController {
   constructor(@Inject(DashboardService) private readonly dashboardService: DashboardService) {}
 
-  @Get("dashboard/overview")
-  async overview(@Query("projectId") projectId?: string) {
-    return success(DashboardOverviewSchema.parse(await this.dashboardService.overview(projectId)));
+  @Get("dashboard/events/summary")
+  async eventsSummary(@Query("projectId") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return success(
+      DashboardEventsSummarySchema.parse(
+        await this.dashboardService.eventsSummary(requiredProjectId)
+      )
+    );
   }
 
-  @Get("dashboard/conversion")
-  async conversion(@Query("projectId") projectId?: string) {
-    return success(ConversionReportSchema.parse(await this.dashboardService.conversion(projectId)));
+  @Get("dashboard/funnel")
+  async funnel(@Query("projectId") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return success(
+      DashboardFunnelSchema.parse(await this.dashboardService.funnel(requiredProjectId))
+    );
   }
 
-  @Post("dashboard/ai-jobs")
-  async createAiJob(@Body() body: unknown) {
-    const request = AiJobRequestSchema.parse(body);
-    return success(AiJobAcceptedSchema.parse(await this.dashboardService.createAiJob(request)));
+  @Get("dashboard/recommendations")
+  async recommendations(@Query("projectId") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return success(
+      DashboardRecommendationsSchema.parse(
+        await this.dashboardService.recommendations(requiredProjectId)
+      )
+    );
   }
 
-  @Get("dashboard/ai-results/:resultId")
-  async aiResult(@Param("resultId") resultId: string) {
-    const result = await this.dashboardService.getAiResult(resultId);
-    if (!result) {
-      throw new NotFoundException("AI result not found.");
-    }
-    return success(AiJobResultSchema.parse(result));
+  @Get("dashboard/experiments/:experiment_id")
+  async experiment(
+    @Param("experiment_id") experimentId: string,
+    @Query("projectId") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return success(
+      DashboardExperimentSchema.parse(
+        await this.dashboardService.experiment(requiredProjectId, experimentId)
+      )
+    );
   }
+
+  @Get("dashboard/experiments/:experiment_id/performance")
+  async experimentPerformance(
+    @Param("experiment_id") experimentId: string,
+    @Query("projectId") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return success(
+      DashboardExperimentPerformanceSchema.parse(
+        await this.dashboardService.experimentPerformance(requiredProjectId, experimentId)
+      )
+    );
+  }
+}
+
+function requireProjectId(projectId: string | undefined): string {
+  if (!projectId) {
+    throw new BadRequestException("projectId query param is required.");
+  }
+  return projectId;
 }
