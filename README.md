@@ -1,8 +1,9 @@
 # LoopAd Dashboard
 
-LoopAd SaaS MVP 대시보드입니다. 로컬 개발 데이터 소스는
-`loop-ad_local-data-source_contract` repo에서 관리하고, 이 repo는 해당 contract의
-endpoint를 env로 받아 Dashboard API와 Web client를 실행합니다.
+LoopAd SaaS MVP 대시보드입니다. 이 대시보드는 조회 전용이며, 분석 실행,
+추천 생성, 콘텐츠 생성, 광고 선택, 실험 업데이트를 직접 수행하지 않습니다.
+외부 DB/API 연결 실패는 mock success나 fallback 데이터로 숨기지 않고 에러로
+드러냅니다.
 
 ## Structure
 
@@ -10,6 +11,28 @@ endpoint를 env로 받아 Dashboard API와 Web client를 실행합니다.
 - `apps/api-server`: Dashboard API 서버
 - `packages/shared`: API contract와 공통 타입
 - `compose.yml`: API, Web live server
+
+## MVP Dashboard Contract
+
+Dashboard API는 Nest global prefix `/api` 아래에서 아래 5개 조회 endpoint만
+사용합니다.
+
+- `GET /api/dashboard/events/summary?projectId=demo_project`
+- `GET /api/dashboard/funnel?projectId=demo_project`
+- `GET /api/dashboard/recommendations?projectId=demo_project`
+- `GET /api/dashboard/experiments/exp_001?projectId=demo_project`
+- `GET /api/dashboard/experiments/exp_001/performance?projectId=demo_project`
+
+MVP 데모 계약 ID는 fallback이 아니라 명시적으로 요청에 포함하는 값입니다.
+
+- `project_id`: `demo_project`
+- `experiment_id`: `exp_001`
+- `segment_id`: `seg_30m_mobile_fresh`
+- `recommendation_id`: `rec_001`
+
+`projectId`가 없으면 API는 `400`을 반환합니다. 존재하지 않는 experiment는
+`404`를 반환합니다. `generated_contents`가 없는 action은 `content: null`로
+반환하며, Web client는 fallback 이미지 없이 `콘텐츠 미생성` 상태로 표시합니다.
 
 ## Run
 
@@ -32,5 +55,22 @@ npm run dev
 로컬 개인 값은 `.env.local`이나 개인 shell 환경에서 관리하되, 앱 코드는 env 파일을
 직접 로드하지 않습니다.
 
+필수 앱 env 예시는 `.env.example`을 참고하세요. Web client는
+`VITE_LOOPAD_API_BASE_URL=/api`처럼 public API base URL을 build-time에
+검증합니다.
+
 Web: `http://localhost:5173`
 API: `http://localhost:8080/api`
+
+## Smoke Checks
+
+외부 PostgreSQL/ClickHouse와 API env가 준비된 상태에서 아래 URL을 확인합니다.
+
+- `/api/dashboard/events/summary?projectId=demo_project`
+- `/api/dashboard/funnel?projectId=demo_project`
+- `/api/dashboard/recommendations?projectId=demo_project`
+- `/api/dashboard/experiments/exp_001?projectId=demo_project`
+- `/api/dashboard/experiments/exp_001/performance?projectId=demo_project`
+
+Web UI는 Mantine 컴포넌트를 기본으로 사용하고, Apple-style dashboard 기준에 맞춰
+Action Blue, parchment/white surfaces, 조용한 hairline border를 사용합니다.
