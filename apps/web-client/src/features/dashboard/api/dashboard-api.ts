@@ -1,60 +1,45 @@
 import {
-  AiJobAcceptedSchema,
-  AiJobResultSchema,
-  ConversionReportSchema,
-  DashboardOverviewSchema,
-  createApiSuccessResponseSchema
+  createApiSuccessResponseSchema,
+  DashboardEventsSummarySchema,
+  DashboardExperimentPerformanceSchema,
+  DashboardExperimentSchema,
+  DashboardFunnelSchema,
+  DashboardRecommendationsSchema
 } from "@loopad/shared";
-import type { AiJobKind } from "@loopad/shared";
 import type { z } from "zod";
-import { apiBaseUrl, projectId } from "../model/dashboard-config.js";
+import { dashboardConfig } from "../model/dashboard-config.js";
 import type { DashboardResources } from "../model/dashboard-types.js";
 
 export async function fetchDashboardResources(signal: AbortSignal): Promise<DashboardResources> {
-  const [overview, conversion] = await Promise.all([
-    request("/dashboard/overview", DashboardOverviewSchema, signal),
-    request("/dashboard/conversion", ConversionReportSchema, signal)
-  ]);
+  const { experimentId } = dashboardConfig;
+  const [eventsSummary, funnel, recommendations, experiment, experimentPerformance] =
+    await Promise.all([
+      request("/dashboard/events/summary", DashboardEventsSummarySchema, signal),
+      request("/dashboard/funnel", DashboardFunnelSchema, signal),
+      request("/dashboard/recommendations", DashboardRecommendationsSchema, signal),
+      request(`/dashboard/experiments/${experimentId}`, DashboardExperimentSchema, signal),
+      request(
+        `/dashboard/experiments/${experimentId}/performance`,
+        DashboardExperimentPerformanceSchema,
+        signal
+      )
+    ]);
 
-  return { overview, conversion };
+  return {
+    eventsSummary,
+    funnel,
+    recommendations,
+    experiment,
+    experimentPerformance
+  };
 }
 
-export async function createDashboardAiJob(kind: AiJobKind, signal: AbortSignal) {
-  return request(
-    "/dashboard/ai-jobs",
-    AiJobAcceptedSchema,
-    signal,
-    {
-      method: "POST",
-      body: JSON.stringify({ kind, projectId })
-    },
-    false
-  );
-}
-
-export async function fetchDashboardAiResult(resultId: string, signal: AbortSignal) {
-  return request(`/dashboard/ai-results/${resultId}`, AiJobResultSchema, signal, undefined, false);
-}
-
-async function request<T>(
-  path: string,
-  schema: z.ZodType<T>,
-  signal: AbortSignal,
-  init?: RequestInit,
-  includeProjectId = true
-): Promise<T> {
-  const url = new URL(`${apiBaseUrl}${path}`, window.location.origin);
-  if (includeProjectId) {
-    url.searchParams.set("projectId", projectId);
-  }
+async function request<T>(path: string, schema: z.ZodType<T>, signal: AbortSignal): Promise<T> {
+  const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
+  url.searchParams.set("projectId", dashboardConfig.projectId);
 
   const response = await fetch(url, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...init?.headers
-    },
+    headers: { Accept: "application/json" },
     signal
   });
   if (!response.ok) {

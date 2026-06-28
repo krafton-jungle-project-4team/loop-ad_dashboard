@@ -1,50 +1,81 @@
-import { Stack, Table } from "@mantine/core";
-import type { RecommendationReport } from "@loopad/shared";
-import { CompactFlow } from "./FunnelViews.js";
+import { Anchor, Badge, Group, Stack, Table, Text } from "@mantine/core";
+import type { DashboardRecommendations } from "@loopad/shared";
+import { formatDateTime } from "../model/dashboard-format.js";
+import { EmptyState } from "./EmptyState.js";
 import { Section } from "./Section.js";
 
 export function RecommendationsPanel({
   recommendations
 }: {
-  recommendations: RecommendationReport;
+  recommendations: DashboardRecommendations;
 }) {
   return (
     <Stack gap="xl">
-      <Section title="고객군 목록">
-        <Table.ScrollContainer minWidth={960}>
-          <Table verticalSpacing="md">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>고객군</Table.Th>
-                <Table.Th>추천 액션</Table.Th>
-                <Table.Th>추천 근거</Table.Th>
-                <Table.Th>예상 전환율 상승</Table.Th>
-                <Table.Th>예상 매출</Table.Th>
-                <Table.Th>우선순위</Table.Th>
-                <Table.Th>적용 채널</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {recommendations.actions.map((action) => (
-                <Table.Tr key={action.id}>
-                  <Table.Td fw={700}>{action.segment.name}</Table.Td>
-                  <Table.Td>{action.action}</Table.Td>
-                  <Table.Td>{action.rationale}</Table.Td>
-                  <Table.Td>{action.expectedConversionLift}</Table.Td>
-                  <Table.Td>{action.forecastRevenue}</Table.Td>
-                  <Table.Td>{action.priority}</Table.Td>
-                  <Table.Td>{action.channels.join(", ")}</Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
-      </Section>
-      {recommendations.actions[0] ? (
-        <Section title="구매 단계 흐름">
-          <CompactFlow steps={recommendations.actions[0].purchaseFlow} />
-        </Section>
-      ) : null}
+      {recommendations.recommendations.length > 0 ? (
+        recommendations.recommendations.map((recommendation) => (
+          <Section key={recommendation.recommendation_id} title={recommendation.title}>
+            <Stack gap="lg">
+              <Group gap="sm">
+                <Badge color="actionBlue.6" radius="xl" variant="light">
+                  {recommendation.status}
+                </Badge>
+                <Text c="appleInk.5" size="sm">
+                  {recommendation.segment_id}
+                </Text>
+                <Text c="appleInk.5" size="sm">
+                  {formatDateTime(recommendation.created_at)}
+                </Text>
+              </Group>
+              <Text c="appleInk.7">{recommendation.reason}</Text>
+              {recommendation.actions.length > 0 ? (
+                <Table.ScrollContainer minWidth={920}>
+                  <Table verticalSpacing="md">
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>action_id</Table.Th>
+                        <Table.Th>type</Table.Th>
+                        <Table.Th>name</Table.Th>
+                        <Table.Th>description</Table.Th>
+                        <Table.Th>content</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {recommendation.actions.map((action) => (
+                        <Table.Tr key={action.action_id}>
+                          <Table.Td fw={600}>{action.action_id}</Table.Td>
+                          <Table.Td>{action.action_type}</Table.Td>
+                          <Table.Td>{action.action_name}</Table.Td>
+                          <Table.Td>{action.description}</Table.Td>
+                          <Table.Td>
+                            {action.content ? (
+                              <Anchor
+                                c="actionBlue.6"
+                                href={action.content.content_url}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                {action.content.content_id}
+                              </Anchor>
+                            ) : (
+                              <Badge color="gray" radius="xl" variant="light">
+                                콘텐츠 미생성
+                              </Badge>
+                            )}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              ) : (
+                <EmptyState message="추천 액션이 없습니다." />
+              )}
+            </Stack>
+          </Section>
+        ))
+      ) : (
+        <EmptyState message="추천 결과가 없습니다." />
+      )}
     </Stack>
   );
 }

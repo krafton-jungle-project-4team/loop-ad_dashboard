@@ -1,25 +1,22 @@
 import {
-  Bot,
+  Activity,
   ChartNoAxesCombined,
-  LayoutDashboard,
-  Megaphone,
+  FlaskConical,
   Sparkles,
   type LucideIcon
 } from "lucide-react";
 import type { DashboardTab } from "./dashboard-types.js";
 
 export const dashboardTabs: Array<{ value: DashboardTab; label: string; icon: LucideIcon }> = [
-  { value: "overview", label: "메인 대시보드", icon: LayoutDashboard },
-  { value: "conversion", label: "구매전환", icon: ChartNoAxesCombined },
-  { value: "insights", label: "AI 분석", icon: Bot },
-  { value: "recommendations", label: "AI 추천", icon: Sparkles },
-  { value: "creatives", label: "컨텐츠 생성", icon: Megaphone }
+  { value: "events", label: "수집 현황", icon: Activity },
+  { value: "funnel", label: "퍼널/세그먼트 분석", icon: ChartNoAxesCombined },
+  { value: "recommendations", label: "추천/콘텐츠 생성 결과", icon: Sparkles },
+  { value: "experiment", label: "실험 성과", icon: FlaskConical }
 ];
 
 export const dashboardTitles: Record<DashboardTab, string> = {
-  overview: "메인 대시보드",
-  conversion: "구매전환",
-  insights: "AI 분석",
-  recommendations: "AI 추천",
-  creatives: "컨텐츠 생성"
+  events: "수집 현황",
+  funnel: "퍼널/세그먼트 분석",
+  recommendations: "추천/콘텐츠 생성 결과",
+  experiment: "실험 성과"
 };
