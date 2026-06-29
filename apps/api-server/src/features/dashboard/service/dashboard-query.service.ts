@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardEventsSummary,
   DashboardExperiment,
@@ -8,12 +9,13 @@ import type {
   DashboardRecommendations
 } from "@loopad/shared";
 import { EventNameSchema } from "@loopad/shared";
+import { type PgTypedTransactionalAdapter } from "../../../infra/database/index.js";
+import { DashboardMetricsDomain } from "../domain/index.js";
 import {
   DashboardEventQuery,
   DashboardExperimentReader,
   DashboardRecommendationReader
 } from "../repository/index.js";
-import type { ExperimentActionCounts, FunnelCounts } from "../repository/read-models.js";
 
 @Injectable()
 export class DashboardQueryService {
@@ -45,15 +47,10 @@ export class DashboardQueryService {
       this.eventQuery.readSegmentFunnels(projectId)
     ]);
 
-    return {
-      ...withRates(funnel),
-      segment_funnels: segmentFunnels.map((segment) => ({
-        segment_id: segment.segment_id,
-        ...withRates(segment)
-      }))
-    };
+    return DashboardMetricsDomain.toFunnel(funnel, segmentFunnels);
   }
 
+  @Transactional<PgTypedTransactionalAdapter>({ readOnly: true })
   async recommendations(
     projectId: string,
     recommendationResultId?: string
@@ -66,7 +63,36 @@ export class DashboardQueryService {
     };
   }
 
+  @Transactional<PgTypedTransactionalAdapter>({ readOnly: true })
   async experiment(projectId: string, experimentId: string): Promise<DashboardExperiment> {
+    return this.readExperimentOrThrow(projectId, experimentId);
+  }
+
+  @Transactional<PgTypedTransactionalAdapter>({ readOnly: true })
+  async experimentPerformance(
+    projectId: string,
+    experimentId: string
+  ): Promise<DashboardExperimentPerformance> {
+    const experiment = await this.readExperimentOrThrow(projectId, experimentId);
+
+    return this.buildExperimentPerformance(projectId, experimentId, experiment);
+  }
+
+  @Transactional<PgTypedTransactionalAdapter>({ readOnly: true })
+  async experimentPerformancePage(
+    projectId: string,
+    experimentId: string
+  ): Promise<DashboardExperimentPerformancePage> {
+    const experiment = await this.readExperimentOrThrow(projectId, experimentId);
+    const performance = await this.buildExperimentPerformance(projectId, experimentId, experiment);
+
+    return { experiment, performance };
+  }
+
+  private async readExperimentOrThrow(
+    projectId: string,
+    experimentId: string
+  ): Promise<DashboardExperiment> {
     const experiment = await this.experimentReader.readExperiment(projectId, experimentId);
     if (!experiment) {
       throw new NotFoundException("Experiment not found.");
@@ -74,66 +100,13 @@ export class DashboardQueryService {
     return experiment;
   }
 
-  async experimentPerformance(
+  private async buildExperimentPerformance(
     projectId: string,
-    experimentId: string
+    experimentId: string,
+    experiment: DashboardExperiment
   ): Promise<DashboardExperimentPerformance> {
-    const [experiment, actionCounts] = await Promise.all([
-      this.experiment(projectId, experimentId),
-      this.eventQuery.readExperimentActionCounts(projectId, experimentId)
-    ]);
-    const actionCountsById = new Map(actionCounts.map((counts) => [counts.action_id, counts]));
+    const actionCounts = await this.eventQuery.readExperimentActionCounts(projectId, experimentId);
 
-    return {
-      experiment_id: experiment.experiment_id,
-      actions: experiment.action_probabilities.map((action) => {
-        const counts =
-          actionCountsById.get(action.action_id) ?? emptyActionCounts(action.action_id);
-        return {
-          action_id: action.action_id,
-          action_name: action.action_name,
-          probability: action.probability,
-          impressions: counts.impressions,
-          clicks: counts.clicks,
-          purchases: counts.purchases,
-          ctr: rate(counts.clicks, counts.impressions),
-          cvr: rate(counts.purchases, counts.impressions)
-        };
-      })
-    };
+    return DashboardMetricsDomain.toExperimentPerformance(experiment, actionCounts);
   }
-
-  async experimentPerformancePage(
-    projectId: string,
-    experimentId: string
-  ): Promise<DashboardExperimentPerformancePage> {
-    const [experiment, performance] = await Promise.all([
-      this.experiment(projectId, experimentId),
-      this.experimentPerformance(projectId, experimentId)
-    ]);
-
-    return { experiment, performance };
-  }
-}
-
-function withRates(counts: FunnelCounts) {
-  return {
-    ...counts,
-    view_to_cart_rate: rate(counts.add_to_cart_count, counts.product_view_count),
-    cart_to_purchase_rate: rate(counts.purchase_count, counts.add_to_cart_count),
-    view_to_purchase_rate: rate(counts.purchase_count, counts.product_view_count)
-  };
-}
-
-function rate(numerator: number, denominator: number) {
-  return denominator > 0 ? numerator / denominator : 0;
-}
-
-function emptyActionCounts(actionId: string): ExperimentActionCounts {
-  return {
-    action_id: actionId,
-    impressions: 0,
-    clicks: 0,
-    purchases: 0
-  };
 }

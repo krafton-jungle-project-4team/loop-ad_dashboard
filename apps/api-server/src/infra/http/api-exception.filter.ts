@@ -5,6 +5,7 @@ import {
   type ArgumentsHost,
   type ExceptionFilter
 } from "@nestjs/common";
+import { AppError } from "../../app-errors.js";
 import { errorResponse } from "./api-response.js";
 
 type JsonResponse = {
@@ -22,6 +23,16 @@ export class ApiExceptionFilter implements ExceptionFilter {
         errorResponse({
           code: error.name,
           message: safeHttpMessage(error)
+        })
+      );
+      return;
+    }
+
+    if (error instanceof AppError) {
+      response.status(error.statusCode).json(
+        errorResponse({
+          code: error.code,
+          message: error.message
         })
       );
       return;
