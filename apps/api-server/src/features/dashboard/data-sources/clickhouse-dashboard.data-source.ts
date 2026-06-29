@@ -25,9 +25,13 @@ export class ClickHouseDashboardDataSource {
             'page_view',
             'product_view',
             'add_to_cart',
+            'checkout_start',
             'purchase',
+            'coupon_shown',
+            'action_exposed',
             'ad_impression',
-            'ad_click'
+            'ad_click',
+            'coupon_click'
           )
         GROUP BY event_name
         ORDER BY event_name ASC
@@ -42,18 +46,25 @@ export class ClickHouseDashboardDataSource {
     const result = await clickhouse.query({
       query: `
         SELECT
-          event_time,
+          toString(event_time) AS event_time,
           project_id,
           user_id,
           session_id,
           event_name,
-          nullIf(segment_id, '') AS segment_id,
+          nullIf(
+            if(
+              JSONExtractString(properties_json, 'segment_hash') != '',
+              JSONExtractString(properties_json, 'segment_hash'),
+              mapping_id
+            ),
+            ''
+          ) AS segment_id,
           nullIf(experiment_id, '') AS experiment_id,
-          nullIf(recommendation_id, '') AS recommendation_id,
+          NULL AS recommendation_id,
           nullIf(action_id, '') AS action_id,
-          nullIf(content_id, '') AS content_id,
-          nullIf(decision_id, '') AS decision_id,
-          nullIf(page_url, '') AS page_url,
+          nullIf(creative_id, '') AS content_id,
+          nullIf(bandit_decision_id, '') AS decision_id,
+          NULL AS page_url,
           nullIf(product_id, '') AS product_id,
           nullIf(category, '') AS category,
           nullIf(device, '') AS device
@@ -63,9 +74,13 @@ export class ClickHouseDashboardDataSource {
             'page_view',
             'product_view',
             'add_to_cart',
+            'checkout_start',
             'purchase',
+            'coupon_shown',
+            'action_exposed',
             'ad_impression',
-            'ad_click'
+            'ad_click',
+            'coupon_click'
           )
         ORDER BY event_time DESC
         LIMIT 30
@@ -102,9 +117,18 @@ export class ClickHouseDashboardDataSource {
           countIf(event_name = 'product_view') AS product_view_count,
           countIf(event_name = 'add_to_cart') AS add_to_cart_count,
           countIf(event_name = 'purchase') AS purchase_count
-        FROM events
-        WHERE project_id = {projectId:String}
-          AND segment_id != ''
+        FROM (
+          SELECT
+            event_name,
+            if(
+              JSONExtractString(properties_json, 'segment_hash') != '',
+              JSONExtractString(properties_json, 'segment_hash'),
+              mapping_id
+            ) AS segment_id
+          FROM events
+          WHERE project_id = {projectId:String}
+        )
+        WHERE segment_id != ''
         GROUP BY segment_id
         ORDER BY purchase_count DESC, segment_id ASC
       `,
@@ -126,8 +150,8 @@ export class ClickHouseDashboardDataSource {
       query: `
         SELECT
           action_id,
-          countIf(event_name = 'ad_impression') AS impressions,
-          countIf(event_name = 'ad_click') AS clicks,
+          countIf(event_name IN ('coupon_shown', 'action_exposed', 'ad_impression')) AS impressions,
+          countIf(event_name IN ('ad_click', 'coupon_click')) AS clicks,
           countIf(event_name = 'purchase') AS purchases
         FROM events
         WHERE project_id = {projectId:String}

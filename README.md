@@ -17,22 +17,35 @@ LoopAd SaaS MVP 대시보드입니다. 이 대시보드는 조회 전용이며, 
 Dashboard API는 Nest global prefix `/api` 아래에서 아래 5개 조회 endpoint만
 사용합니다.
 
-- `GET /api/dashboard/events/summary?projectId=demo_project`
-- `GET /api/dashboard/funnel?projectId=demo_project`
-- `GET /api/dashboard/recommendations?projectId=demo_project`
-- `GET /api/dashboard/experiments/exp_001?projectId=demo_project`
-- `GET /api/dashboard/experiments/exp_001/performance?projectId=demo_project`
+- `GET /api/dashboard/events/summary?projectId=google-ga4-demo-commerce`
+- `GET /api/dashboard/funnel?projectId=google-ga4-demo-commerce`
+- `GET /api/dashboard/recommendations?projectId=google-ga4-demo-commerce`
+- `GET /api/dashboard/experiments/1?projectId=google-ga4-demo-commerce`
+- `GET /api/dashboard/experiments/1/performance?projectId=google-ga4-demo-commerce`
 
 MVP 데모 계약 ID는 fallback이 아니라 명시적으로 요청에 포함하는 값입니다.
 
-- `project_id`: `demo_project`
-- `experiment_id`: `exp_001`
-- `segment_id`: `seg_30m_mobile_fresh`
-- `recommendation_id`: `rec_001`
+- `project_id`: `google-ga4-demo-commerce`
+- `recommendation_result_id`: `1`
+- `action_id`: `act_free_shipping_coupon`
+- `experiment_id`: `1`
+- `creative_id`: `1`
+- `mapping_id`: `1`
+- `bandit_policy_id`: `1`
+- `bandit_arm_id`: `1`
 
 `projectId`가 없으면 API는 `400`을 반환합니다. 존재하지 않는 experiment는
-`404`를 반환합니다. `generated_contents`가 없는 action은 `content: null`로
-반환하며, Web client는 fallback 이미지 없이 `콘텐츠 미생성` 상태로 표시합니다.
+`404`를 반환합니다. 대시보드는 `loop-ad_local-data-source_contract`의 실제
+PostgreSQL/ClickHouse schema를 기준으로 읽고, 화면 응답에서만 MVP 이름으로
+매핑합니다.
+
+- `recommendation_id` = `recommendation_results.id`
+- `content_id` = `ad_creatives.id` / ClickHouse `events.creative_id`
+- `content_url` = `ad_creatives.image_url`
+- `decision_id` = ClickHouse `events.bandit_decision_id`
+- action probability = `bandit_arms.alpha/beta` 기반 normalized score
+- 성과 로그 = ClickHouse `events`의 `action_id`, `mapping_id`, `creative_id`,
+  `bandit_policy_id`, `bandit_arm_id`, `bandit_decision_id`
 
 ## Run
 
@@ -66,11 +79,11 @@ API: `http://localhost:8080/api`
 
 외부 PostgreSQL/ClickHouse와 API env가 준비된 상태에서 아래 URL을 확인합니다.
 
-- `/api/dashboard/events/summary?projectId=demo_project`
-- `/api/dashboard/funnel?projectId=demo_project`
-- `/api/dashboard/recommendations?projectId=demo_project`
-- `/api/dashboard/experiments/exp_001?projectId=demo_project`
-- `/api/dashboard/experiments/exp_001/performance?projectId=demo_project`
+- `/api/dashboard/events/summary?projectId=google-ga4-demo-commerce`
+- `/api/dashboard/funnel?projectId=google-ga4-demo-commerce`
+- `/api/dashboard/recommendations?projectId=google-ga4-demo-commerce`
+- `/api/dashboard/experiments/1?projectId=google-ga4-demo-commerce`
+- `/api/dashboard/experiments/1/performance?projectId=google-ga4-demo-commerce`
 
 Web UI는 Mantine 컴포넌트를 기본으로 사용하고, Apple-style dashboard 기준에 맞춰
 Action Blue, parchment/white surfaces, 조용한 hairline border를 사용합니다.

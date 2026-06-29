@@ -29,13 +29,20 @@ export function ExperimentPanel({
           </Group>
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <DashboardMetric label="목표 지표" value={experiment.goal_metric} />
-            <DashboardMetric label="목표값" value={formatPercent(experiment.target_value)} />
             <DashboardMetric
-              label="승자 액션"
-              value={experiment.winner_action_id ?? "-"}
-              description={`시작 ${formatDateTime(experiment.started_at)}`}
+              label="액션"
+              value={experiment.action_id}
+              description={experiment.action_type}
+            />
+            <DashboardMetric
+              label="밴딧 정책"
+              value={experiment.bandit_policy_id ?? "-"}
+              description={`arm ${experiment.bandit_arm_id ?? "-"}`}
             />
           </SimpleGrid>
+          <Text c="appleInk.5" size="sm">
+            시작 {formatDateTime(experiment.started_at)}
+          </Text>
         </Stack>
       </Section>
 

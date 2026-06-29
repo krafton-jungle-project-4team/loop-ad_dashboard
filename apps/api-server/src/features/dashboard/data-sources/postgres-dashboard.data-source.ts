@@ -9,8 +9,8 @@ import { postgres } from "../../../infra/database/postgres.js";
 type RecommendationRow = {
   recommendation_id: string;
   segment_id: string;
-  title: string;
-  reason: string;
+  title: string | null;
+  reason: string | null;
   status: string;
   created_at: Date;
   action_id: string | null;
@@ -26,11 +26,15 @@ type ExperimentRow = {
   experiment_id: string;
   project_id: string;
   segment_id: string;
+  segment_hash: string;
   recommendation_id: string;
+  recommendation_action_id: string;
+  bandit_policy_id: string | null;
+  bandit_arm_id: string | null;
+  action_id: string;
+  action_type: string;
   status: string;
-  goal_metric: string;
-  target_value: number | string;
-  winner_action_id: string | null;
+  goal_metric: string | null;
   started_at: Date | null;
   ended_at: Date | null;
   created_at: Date;
@@ -52,33 +56,30 @@ export class PostgresDashboardDataSource {
     const result = await postgres.query<RecommendationRow>(
       `
         SELECT
-          r.id AS recommendation_id,
-          r.segment_id,
-          r.title,
-          r.reason,
-          r.status,
-          r.created_at,
-          ra.id AS action_id,
+          rr.id::text AS recommendation_id,
+          rr.segment_hash AS segment_id,
+          rr.summary_message AS title,
+          COALESCE(ra.rationale, rr.root_causes_json::text) AS reason,
+          rr.status,
+          rr.created_at,
+          ra.action_id,
           ra.action_type,
-          ra.action_name,
-          ra.description,
-          gc.id AS content_id,
-          gc.content_url,
-          gc.created_at AS content_created_at
-        FROM recommendations r
+          COALESCE(ra.title, ac.title, ra.action_id) AS action_name,
+          COALESCE(ra.description, ac.description, '') AS description,
+          adc.id::text AS content_id,
+          adc.image_url AS content_url,
+          adc.created_at AS content_created_at
+        FROM recommendation_results rr
         LEFT JOIN recommendation_actions ra
-          ON ra.recommendation_id = r.id
-        LEFT JOIN LATERAL (
-          SELECT id, content_url, created_at
-          FROM generated_contents
-          WHERE project_id = r.project_id
-            AND recommendation_id = r.id
-            AND action_id = ra.id
-          ORDER BY created_at DESC
-          LIMIT 1
-        ) gc ON true
-        WHERE r.project_id = $1
-        ORDER BY r.created_at DESC, ra.created_at ASC
+          ON ra.recommendation_result_id = rr.id
+        LEFT JOIN action_catalog ac
+          ON ac.action_id = ra.action_id
+        LEFT JOIN segment_ad_mappings sam
+          ON sam.recommendation_action_id = ra.id
+        LEFT JOIN ad_creatives adc
+          ON adc.id = sam.creative_id
+        WHERE rr.project_id = $1
+        ORDER BY rr.created_at DESC, ra.created_at ASC
       `,
       [projectId]
     );
@@ -89,19 +90,19 @@ export class PostgresDashboardDataSource {
       const recommendation = recommendations.get(row.recommendation_id) ?? {
         recommendation_id: row.recommendation_id,
         segment_id: row.segment_id,
-        title: row.title,
-        reason: row.reason,
+        title: row.title ?? `Recommendation ${row.recommendation_id}`,
+        reason: row.reason ?? "",
         status: row.status,
         created_at: row.created_at.toISOString(),
         actions: []
       };
 
-      if (row.action_id && row.action_type && row.action_name && row.description) {
+      if (row.action_id && row.action_type && row.action_name) {
         recommendation.actions.push({
           action_id: row.action_id,
           action_type: row.action_type,
           action_name: row.action_name,
-          description: row.description,
+          description: row.description ?? "",
           content:
             row.content_id && row.content_url && row.content_created_at
               ? {
@@ -126,20 +127,24 @@ export class PostgresDashboardDataSource {
     const experiment = await postgres.query<ExperimentRow>(
       `
         SELECT
-          id AS experiment_id,
-          project_id,
-          segment_id,
-          recommendation_id,
-          status,
-          goal_metric,
-          target_value,
-          winner_action_id,
-          started_at,
-          ended_at,
-          created_at
-        FROM experiments
-        WHERE project_id = $1
-          AND id = $2
+          e.id::text AS experiment_id,
+          e.project_id,
+          e.segment_hash AS segment_id,
+          e.segment_hash,
+          e.recommendation_result_id::text AS recommendation_id,
+          e.recommendation_action_id::text AS recommendation_action_id,
+          e.bandit_policy_id::text AS bandit_policy_id,
+          e.bandit_arm_id::text AS bandit_arm_id,
+          e.action_id,
+          e.action_type,
+          e.status,
+          e.primary_metric AS goal_metric,
+          e.started_at,
+          e.ended_at,
+          e.created_at
+        FROM experiments e
+        WHERE e.project_id = $1
+          AND e.id::text = $2
       `,
       [projectId, experimentId]
     );
@@ -152,43 +157,59 @@ export class PostgresDashboardDataSource {
       experiment_id: row.experiment_id,
       project_id: row.project_id,
       segment_id: row.segment_id,
+      segment_hash: row.segment_hash,
       recommendation_id: row.recommendation_id,
+      recommendation_action_id: row.recommendation_action_id,
+      bandit_policy_id: row.bandit_policy_id,
+      bandit_arm_id: row.bandit_arm_id,
+      action_id: row.action_id,
+      action_type: row.action_type,
       status: row.status,
-      goal_metric: row.goal_metric,
-      target_value: Number(row.target_value),
-      winner_action_id: row.winner_action_id,
+      goal_metric: row.goal_metric ?? "purchase_rate",
       started_at: row.started_at?.toISOString() ?? null,
       ended_at: row.ended_at?.toISOString() ?? null,
       created_at: row.created_at.toISOString(),
-      action_probabilities: await this.readExperimentActionProbabilities(
-        row.recommendation_id,
-        row.experiment_id
-      )
+      action_probabilities: row.bandit_policy_id
+        ? await this.readExperimentActionProbabilities(row.bandit_policy_id)
+        : []
     };
   }
 
   private async readExperimentActionProbabilities(
-    recommendationId: string,
-    experimentId: string
+    banditPolicyId: string
   ): Promise<DashboardExperimentActionProbability[]> {
     const result = await postgres.query<ExperimentActionProbabilityRow>(
       `
+        WITH arm_scores AS (
+          SELECT
+            ba.action_id,
+            COALESCE(ac.title, ba.action_id) AS action_name,
+            ba.alpha / NULLIF(ba.alpha + ba.beta, 0) AS score,
+            ba.impressions,
+            0::bigint AS clicks,
+            ba.conversions AS purchases,
+            ba.updated_at
+          FROM bandit_arms ba
+          LEFT JOIN action_catalog ac
+            ON ac.action_id = ba.action_id
+          WHERE ba.bandit_policy_id::text = $1
+            AND ba.status = 'active'
+        )
         SELECT
-          eap.action_id,
-          ra.action_name,
-          eap.probability,
-          eap.impressions,
-          eap.clicks,
-          eap.purchases,
-          eap.updated_at
-        FROM experiment_action_probs eap
-        INNER JOIN recommendation_actions ra
-          ON ra.id = eap.action_id
-          AND ra.recommendation_id = $1
-        WHERE eap.experiment_id = $2
-        ORDER BY eap.probability DESC, eap.action_id ASC
+          action_id,
+          action_name,
+          CASE
+            WHEN SUM(score) OVER () > 0 THEN score / SUM(score) OVER ()
+            ELSE 0
+          END AS probability,
+          impressions,
+          clicks,
+          purchases,
+          updated_at
+        FROM arm_scores
+        ORDER BY probability DESC, action_id ASC
       `,
-      [recommendationId, experimentId]
+      [banditPolicyId]
     );
 
     return result.rows.map((row) => ({
