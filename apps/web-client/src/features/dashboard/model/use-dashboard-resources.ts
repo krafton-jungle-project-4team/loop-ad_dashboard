@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
 import { fetchDashboardResources } from "../api/dashboard-api.js";
-import type { DashboardResourceState } from "./dashboard-types.js";
+import type { DashboardQuery, DashboardResourceState } from "./dashboard-types.js";
 
-export function useDashboardResources() {
-  const [state, setState] = useState<DashboardResourceState>({ status: "loading" });
+export function useDashboardResources(query: DashboardQuery | null) {
+  const [state, setState] = useState<DashboardResourceState>(
+    query ? { status: "loading" } : { status: "idle" }
+  );
 
   useEffect(() => {
-    const controller = new AbortController();
+    if (!query) {
+      setState({ status: "idle" });
+      return;
+    }
 
-    fetchDashboardResources(controller.signal)
+    const controller = new AbortController();
+    setState({ status: "loading" });
+
+    fetchDashboardResources(query, controller.signal)
       .then((data) => setState({ status: "success", data }))
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
@@ -20,7 +28,7 @@ export function useDashboardResources() {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [query]);
 
   return state;
 }

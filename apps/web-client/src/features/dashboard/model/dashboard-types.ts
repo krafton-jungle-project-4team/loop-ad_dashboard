@@ -16,7 +16,13 @@ export type DashboardResources = {
   experimentPerformance: DashboardExperimentPerformance;
 };
 
+export type DashboardQuery = {
+  projectId: string;
+  experimentId: string;
+};
+
 export type DashboardResourceState =
+  | { status: "idle"; data?: undefined; error?: undefined }
   | { status: "loading"; data?: undefined; error?: undefined }
   | { status: "success"; data: DashboardResources; error?: undefined }
   | { status: "error"; data?: undefined; error: Error };

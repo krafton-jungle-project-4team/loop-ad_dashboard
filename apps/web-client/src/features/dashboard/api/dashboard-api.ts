@@ -8,19 +8,27 @@ import {
 } from "@loopad/shared";
 import type { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
-import type { DashboardResources } from "../model/dashboard-types.js";
+import type { DashboardQuery, DashboardResources } from "../model/dashboard-types.js";
 
-export async function fetchDashboardResources(signal: AbortSignal): Promise<DashboardResources> {
-  const { experimentId } = dashboardConfig;
+export async function fetchDashboardResources(
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<DashboardResources> {
   const [eventsSummary, funnel, recommendations, experiment, experimentPerformance] =
     await Promise.all([
-      request("/dashboard/events/summary", DashboardEventsSummarySchema, signal),
-      request("/dashboard/funnel", DashboardFunnelSchema, signal),
-      request("/dashboard/recommendations", DashboardRecommendationsSchema, signal),
-      request(`/dashboard/experiments/${experimentId}`, DashboardExperimentSchema, signal),
+      request("/dashboard/events/summary", DashboardEventsSummarySchema, query, signal),
+      request("/dashboard/funnel", DashboardFunnelSchema, query, signal),
+      request("/dashboard/recommendations", DashboardRecommendationsSchema, query, signal),
       request(
-        `/dashboard/experiments/${experimentId}/performance`,
+        `/dashboard/experiments/${query.experimentId}`,
+        DashboardExperimentSchema,
+        query,
+        signal
+      ),
+      request(
+        `/dashboard/experiments/${query.experimentId}/performance`,
         DashboardExperimentPerformanceSchema,
+        query,
         signal
       )
     ]);
@@ -34,9 +42,14 @@ export async function fetchDashboardResources(signal: AbortSignal): Promise<Dash
   };
 }
 
-async function request<T>(path: string, schema: z.ZodType<T>, signal: AbortSignal): Promise<T> {
+async function request<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<T> {
   const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
-  url.searchParams.set("projectId", dashboardConfig.projectId);
+  url.searchParams.set("projectId", query.projectId);
 
   const response = await fetch(url, {
     headers: { Accept: "application/json" },

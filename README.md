@@ -75,6 +75,13 @@ npm run dev
 Web: `http://localhost:5173`
 API: `http://localhost:8080/api`
 
+Dashboard 화면은 조회 대상을 fallback으로 채우지 않습니다. URL에 명시적으로
+`projectId`와 `experimentId`를 포함해야 API 요청을 시작합니다.
+
+```text
+http://localhost:5173/?projectId=google-ga4-demo-commerce&experimentId=1
+```
+
 ## Smoke Checks
 
 외부 PostgreSQL/ClickHouse와 API env가 준비된 상태에서 아래 URL을 확인합니다.

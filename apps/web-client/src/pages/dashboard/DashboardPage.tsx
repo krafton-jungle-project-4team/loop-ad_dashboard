@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   AppShell,
@@ -12,11 +12,11 @@ import {
   Title
 } from "@mantine/core";
 import { Gauge } from "lucide-react";
-import { dashboardConfig } from "../../features/dashboard/model/dashboard-config.js";
 import {
   dashboardTabs,
   dashboardTitles
 } from "../../features/dashboard/model/dashboard-navigation.js";
+import { parseDashboardQuery } from "../../features/dashboard/model/dashboard-query.js";
 import type { DashboardTab } from "../../features/dashboard/model/dashboard-types.js";
 import { useDashboardResources } from "../../features/dashboard/model/use-dashboard-resources.js";
 import { LoadingState } from "../../features/dashboard/ui/LoadingState.js";
@@ -24,7 +24,11 @@ import { renderDashboardPanel } from "../../features/dashboard/ui/render-dashboa
 
 export function DashboardPage() {
   const [tab, setTab] = useState<DashboardTab>("events");
-  const state = useDashboardResources();
+  const query = useMemo(
+    () => parseDashboardQuery(typeof window === "undefined" ? "" : window.location.search),
+    []
+  );
+  const state = useDashboardResources(query);
 
   return (
     <AppShell header={{ height: 72 }} padding={0}>
@@ -45,10 +49,10 @@ export function DashboardPage() {
           </Group>
           <Group gap="xs" visibleFrom="sm">
             <Badge color="actionBlue.6" radius="xl" variant="light">
-              {dashboardConfig.projectId}
+              {query?.projectId ?? "projectId 필요"}
             </Badge>
             <Badge color="actionBlue.6" radius="xl" variant="outline">
-              {dashboardConfig.experimentId}
+              {query?.experimentId ?? "experimentId 필요"}
             </Badge>
           </Group>
         </Group>
@@ -93,6 +97,16 @@ export function DashboardPage() {
                 </Tabs>
               </Stack>
 
+              {state.status === "idle" ? (
+                <Alert
+                  color="actionBlue.6"
+                  radius="lg"
+                  title="조회 컨텍스트가 필요합니다"
+                  variant="light"
+                >
+                  URL에 projectId와 experimentId를 명시해주세요.
+                </Alert>
+              ) : null}
               {state.status === "loading" ? <LoadingState /> : null}
               {state.status === "error" ? (
                 <Alert color="red" radius="lg" title="대시보드 API 요청 실패" variant="light">
