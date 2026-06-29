@@ -73,7 +73,8 @@ export const env = Object.freeze({
   },
   clickhouse: {
     url: requiredHttpUrlEnv("LOOPAD_CLICKHOUSE_URL"),
-    username: requiredEnv("LOOPAD_CLICKHOUSE_USERNAME")
+    username: requiredEnv("LOOPAD_CLICKHOUSE_USERNAME"),
+    password: requiredEnv("LOOPAD_CLICKHOUSE_PASSWORD")
   },
   workflow: {
     aiServerUrl: optionalHttpUrlEnv("LOOPAD_AI_SERVER_URL"),

@@ -2,6 +2,7 @@ import { createClient } from "@clickhouse/client";
 import { env } from "../env/env.js";
 
 export const clickhouse = createClient({
+  password: env.clickhouse.password,
   url: env.clickhouse.url,
   username: env.clickhouse.username
 });
