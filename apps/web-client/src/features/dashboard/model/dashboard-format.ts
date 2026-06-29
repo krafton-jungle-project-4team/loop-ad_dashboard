@@ -9,6 +9,16 @@ export function formatPercent(rate: number): string {
   }).format(rate);
 }
 
+export function formatMoney(value: number): string {
+  if (value >= 100000000) {
+    return `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 }).format(value / 100000000)}억`;
+  }
+  if (value >= 10000) {
+    return `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 }).format(value / 10000)}만`;
+  }
+  return new Intl.NumberFormat("ko-KR").format(value);
+}
+
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) {
     return "-";

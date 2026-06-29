@@ -1,34 +1,27 @@
 import type {
-  DashboardEventsSummary,
-  DashboardExperiment,
-  DashboardExperimentPerformance,
-  DashboardFunnel,
-  DashboardRecommendations
+  DashboardAiAnalysis,
+  DashboardAiGeneration,
+  DashboardAiRecommendation,
+  DashboardMain,
+  DashboardPurchaseConversion
 } from "@loopad/shared";
 
 export type DashboardTab =
-  | "dashboard"
-  | "funnelSegments"
-  | "recommendationResults"
-  | "contentResults"
-  | "experimentPerformance";
-
-export type DashboardExperimentPerformancePage = {
-  experiment: DashboardExperiment;
-  performance: DashboardExperimentPerformance;
-};
+  | "main"
+  | "purchaseConversion"
+  | "aiAnalysis"
+  | "aiRecommendation"
+  | "aiGeneration";
 
 export type DashboardPageResource =
-  | { tab: "dashboard"; data: DashboardEventsSummary }
-  | { tab: "funnelSegments"; data: DashboardFunnel }
-  | { tab: "recommendationResults"; data: DashboardRecommendations }
-  | { tab: "contentResults"; data: DashboardRecommendations }
-  | { tab: "experimentPerformance"; data: DashboardExperimentPerformancePage };
+  | { tab: "main"; data: DashboardMain }
+  | { tab: "purchaseConversion"; data: DashboardPurchaseConversion }
+  | { tab: "aiAnalysis"; data: DashboardAiAnalysis }
+  | { tab: "aiRecommendation"; data: DashboardAiRecommendation }
+  | { tab: "aiGeneration"; data: DashboardAiGeneration };
 
 export type DashboardQuery = {
   projectId: string;
-  experimentId: string;
-  recommendationResultId?: string;
 };
 
 export type DashboardResourceState =
@@ -36,9 +29,3 @@ export type DashboardResourceState =
   | { status: "loading"; data?: undefined; error?: undefined }
   | { status: "success"; data: DashboardPageResource; error?: undefined }
   | { status: "error"; data?: undefined; error: Error };
-
-export type DashboardActionState =
-  | { status: "idle"; error?: undefined }
-  | { status: "running"; error?: undefined }
-  | { status: "success"; error?: undefined }
-  | { status: "error"; error: Error };
