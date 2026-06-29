@@ -29,14 +29,25 @@ import { LoadingState } from "../../features/dashboard/ui/LoadingState.js";
 import { renderDashboardPanel } from "../../features/dashboard/ui/render-dashboard-panel.js";
 
 export function DashboardPage() {
-  const [tab, setTab] = useState<DashboardTab>("collectionStatus");
+  const [tab, setTab] = useState<DashboardTab>("dashboard");
   const [refreshKey, setRefreshKey] = useState(0);
   const [actionState, setActionState] = useState<DashboardActionState>({ status: "idle" });
+  const [recommendationResultId, setRecommendationResultId] = useState<string | undefined>();
   const query = useMemo(
     () => parseDashboardQuery(typeof window === "undefined" ? "" : window.location.search),
     []
   );
-  const state = useDashboardResources(tab, query, refreshKey);
+  const activeQuery = useMemo(
+    () =>
+      query
+        ? {
+            ...query,
+            recommendationResultId: recommendationResultId ?? query.recommendationResultId
+          }
+        : null,
+    [query, recommendationResultId]
+  );
+  const state = useDashboardResources(tab, activeQuery, refreshKey);
   const actionLabel = dashboardActionLabels[tab];
 
   useEffect(() => {
@@ -44,13 +55,16 @@ export function DashboardPage() {
   }, [tab]);
 
   async function handleRunAction() {
-    if (!query || !actionLabel) {
+    if (!activeQuery || !actionLabel) {
       return;
     }
 
     setActionState({ status: "running" });
     try {
-      await runDashboardAction(tab, query);
+      const result = await runDashboardAction(tab, activeQuery);
+      if (result.recommendation_result_id) {
+        setRecommendationResultId(String(result.recommendation_result_id));
+      }
       setActionState({ status: "success" });
       setRefreshKey((current) => current + 1);
     } catch (error: unknown) {

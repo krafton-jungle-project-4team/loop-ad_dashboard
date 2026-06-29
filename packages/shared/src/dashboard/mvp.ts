@@ -137,3 +137,24 @@ export const DashboardExperimentPerformanceSchema = z.object({
   actions: z.array(DashboardExperimentPerformanceActionSchema)
 });
 export type DashboardExperimentPerformance = z.infer<typeof DashboardExperimentPerformanceSchema>;
+
+export const DashboardExperimentPerformancePageSchema = z.object({
+  experiment: DashboardExperimentSchema,
+  performance: DashboardExperimentPerformanceSchema
+});
+export type DashboardExperimentPerformancePage = z.infer<
+  typeof DashboardExperimentPerformancePageSchema
+>;
+
+export const DashboardActionResultSchema = z
+  .object({
+    status: z.string(),
+    project_id: z.string().optional(),
+    recommendation_result_id: z.union([z.string(), z.number()]).optional(),
+    experiment_id: z.union([z.string(), z.number()]).optional(),
+    experiment_status: z.string().optional(),
+    winner_action_id: z.string().nullable().optional(),
+    creative_ids: z.array(z.union([z.string(), z.number()])).optional()
+  })
+  .passthrough();
+export type DashboardActionResult = z.infer<typeof DashboardActionResultSchema>;

@@ -7,7 +7,7 @@ import { RecommendationsPanel } from "./RecommendationsPanel.js";
 
 export function renderDashboardPanel(resource: DashboardPageResource) {
   switch (resource.tab) {
-    case "collectionStatus":
+    case "dashboard":
       return <EventsSummaryPanel summary={resource.data} />;
     case "funnelSegments":
       return <FunnelPanel funnel={resource.data} />;

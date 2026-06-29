@@ -9,7 +9,7 @@ import {
 import type { DashboardTab } from "./dashboard-types.js";
 
 export const dashboardTabs: Array<{ value: DashboardTab; label: string; icon: LucideIcon }> = [
-  { value: "collectionStatus", label: "수집 현황", icon: Activity },
+  { value: "dashboard", label: "대시보드", icon: Activity },
   { value: "funnelSegments", label: "퍼널/세그먼트 분석", icon: ChartNoAxesCombined },
   { value: "recommendationResults", label: "추천 생성 결과", icon: Sparkles },
   { value: "contentResults", label: "콘텐츠 생성 결과", icon: Image },
@@ -17,7 +17,7 @@ export const dashboardTabs: Array<{ value: DashboardTab; label: string; icon: Lu
 ];
 
 export const dashboardTitles: Record<DashboardTab, string> = {
-  collectionStatus: "수집 현황",
+  dashboard: "대시보드",
   funnelSegments: "퍼널/세그먼트 분석",
   recommendationResults: "추천 생성 결과",
   contentResults: "콘텐츠 생성 결과",

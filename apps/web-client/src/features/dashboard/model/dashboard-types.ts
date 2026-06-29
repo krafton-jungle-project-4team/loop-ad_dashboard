@@ -25,13 +25,10 @@ export type DashboardPageResource =
   | { tab: "contentResults"; data: DashboardRecommendations }
   | { tab: "experimentPerformance"; data: DashboardExperimentPerformancePage };
 
-export type DashboardActionResult = {
-  status: string;
-};
-
 export type DashboardQuery = {
   projectId: string;
   experimentId: string;
+  recommendationResultId?: string;
 };
 
 export type DashboardResourceState =

@@ -1,20 +1,30 @@
-import { BadRequestException, Controller, Get, Inject, Param, Query } from "@nestjs/common";
 import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Post,
+  Query
+} from "@nestjs/common";
+import {
+  DashboardActionResultSchema,
   DashboardEventsSummarySchema,
-  DashboardExperimentPerformanceSchema,
-  DashboardExperimentSchema,
+  DashboardExperimentPerformancePageSchema,
   DashboardFunnelSchema,
   DashboardRecommendationsSchema
 } from "@loopad/shared";
 import { success } from "../../../infra/http/api-response.js";
+import type { DashboardActionRequest } from "../service/dashboard.service.js";
 import { DashboardService } from "../service/dashboard.service.js";
 
 @Controller()
 export class DashboardController {
   constructor(@Inject(DashboardService) private readonly dashboardService: DashboardService) {}
 
-  @Get("dashboard/events/summary")
-  async eventsSummary(@Query("projectId") projectId?: string) {
+  @Get("dashboard/overview")
+  async overview(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return success(
       DashboardEventsSummarySchema.parse(
@@ -23,46 +33,83 @@ export class DashboardController {
     );
   }
 
-  @Get("dashboard/funnel")
-  async funnel(@Query("projectId") projectId?: string) {
+  @Get("dashboard/funnel-segments")
+  async funnelSegments(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return success(
       DashboardFunnelSchema.parse(await this.dashboardService.funnel(requiredProjectId))
     );
   }
 
-  @Get("dashboard/recommendations")
-  async recommendations(@Query("projectId") projectId?: string) {
+  @Get("dashboard/recommendation-results")
+  async recommendationResults(
+    @Query("projectId") projectId?: string,
+    @Query("recommendationResultId") recommendationResultId?: string
+  ) {
     const requiredProjectId = requireProjectId(projectId);
     return success(
       DashboardRecommendationsSchema.parse(
-        await this.dashboardService.recommendations(requiredProjectId)
+        await this.dashboardService.recommendations(requiredProjectId, recommendationResultId)
       )
     );
   }
 
-  @Get("dashboard/experiments/:experiment_id")
-  async experiment(
-    @Param("experiment_id") experimentId: string,
-    @Query("projectId") projectId?: string
+  @Get("dashboard/content-results")
+  async contentResults(
+    @Query("projectId") projectId?: string,
+    @Query("recommendationResultId") recommendationResultId?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
     return success(
-      DashboardExperimentSchema.parse(
-        await this.dashboardService.experiment(requiredProjectId, experimentId)
+      DashboardRecommendationsSchema.parse(
+        await this.dashboardService.recommendations(requiredProjectId, recommendationResultId)
       )
     );
   }
 
-  @Get("dashboard/experiments/:experiment_id/performance")
+  @Get("dashboard/experiment-performance")
   async experimentPerformance(
-    @Param("experiment_id") experimentId: string,
+    @Query("experimentId") experimentId: string | undefined,
     @Query("projectId") projectId?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
+    const requiredExperimentId = requireExperimentId(experimentId);
     return success(
-      DashboardExperimentPerformanceSchema.parse(
-        await this.dashboardService.experimentPerformance(requiredProjectId, experimentId)
+      DashboardExperimentPerformancePageSchema.parse(
+        await this.dashboardService.experimentPerformancePage(
+          requiredProjectId,
+          requiredExperimentId
+        )
+      )
+    );
+  }
+
+  @Post("dashboard/recommendations/generate")
+  async generateRecommendations(@Body() body: DashboardActionRequest) {
+    return success(
+      DashboardActionResultSchema.parse(
+        await this.dashboardService.generateRecommendations(requireActionBody(body))
+      )
+    );
+  }
+
+  @Post("dashboard/contents/generate")
+  async generateContents(@Body() body: DashboardActionRequest) {
+    return success(
+      DashboardActionResultSchema.parse(
+        await this.dashboardService.generateContents(requireContentActionBody(body))
+      )
+    );
+  }
+
+  @Post("dashboard/experiments/:experimentId/evaluate")
+  async evaluateExperiment(
+    @Param("experimentId") experimentId: string,
+    @Body() body: DashboardActionRequest
+  ) {
+    return success(
+      DashboardActionResultSchema.parse(
+        await this.dashboardService.evaluateExperiment(experimentId, requireActionBody(body))
       )
     );
   }
@@ -73,4 +120,28 @@ function requireProjectId(projectId: string | undefined): string {
     throw new BadRequestException("projectId query param is required.");
   }
   return projectId;
+}
+
+function requireExperimentId(experimentId: string | undefined): string {
+  if (!experimentId) {
+    throw new BadRequestException("experimentId query param is required.");
+  }
+  return experimentId;
+}
+
+function requireActionBody(body: DashboardActionRequest | undefined): DashboardActionRequest {
+  if (!body?.project_id) {
+    throw new BadRequestException("project_id body field is required.");
+  }
+  return body;
+}
+
+function requireContentActionBody(
+  body: DashboardActionRequest | undefined
+): DashboardActionRequest {
+  const requiredBody = requireActionBody(body);
+  if (!requiredBody.recommendation_result_id) {
+    throw new BadRequestException("recommendation_result_id body field is required.");
+  }
+  return requiredBody;
 }

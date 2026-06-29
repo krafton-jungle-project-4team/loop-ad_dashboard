@@ -52,7 +52,10 @@ type ExperimentActionProbabilityRow = {
 
 @Injectable()
 export class PostgresDashboardDataSource {
-  async readRecommendations(projectId: string): Promise<DashboardRecommendation[]> {
+  async readRecommendations(
+    projectId: string,
+    recommendationResultId?: string
+  ): Promise<DashboardRecommendation[]> {
     const result = await postgres.query<RecommendationRow>(
       `
         SELECT
@@ -79,9 +82,10 @@ export class PostgresDashboardDataSource {
         LEFT JOIN ad_creatives adc
           ON adc.id = sam.creative_id
         WHERE rr.project_id = $1
+          AND ($2::text IS NULL OR rr.id::text = $2)
         ORDER BY rr.created_at DESC, ra.created_at ASC
       `,
-      [projectId]
+      [projectId, recommendationResultId ?? null]
     );
 
     const recommendations = new Map<string, DashboardRecommendation>();
