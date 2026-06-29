@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type {
   DashboardAiAnalysis,
   DashboardAiGeneration,
@@ -26,7 +26,9 @@ import type { RecommendationContextRow } from "../repository/dashboard-recommend
 @Injectable()
 export class DashboardQueryService {
   constructor(
+    @Inject(DashboardEventQuery)
     private readonly eventQuery: DashboardEventQuery,
+    @Inject(DashboardRecommendationReader)
     private readonly recommendationReader: DashboardRecommendationReader
   ) {}
 

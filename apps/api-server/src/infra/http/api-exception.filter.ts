@@ -38,6 +38,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return;
     }
 
+    console.error(error);
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse({
         code: "INTERNAL_SERVER_ERROR",

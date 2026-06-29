@@ -25,6 +25,15 @@ function requiredHttpUrlEnv(name: string): string {
   return value;
 }
 
+function requiredPostgresUrlEnv(name: string): string {
+  const value = requiredEnv(name);
+  const url = new URL(value);
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
+    throw new Error(`${name} must be a postgres or postgresql URL`);
+  }
+  return value;
+}
+
 function requiredCsvEnv(name: string): string[] {
   const value = requiredEnv(name);
   const entries = value
@@ -53,11 +62,7 @@ export const env = Object.freeze({
   port: requiredIntegerEnv("PORT"),
   webOrigins: requiredCsvEnv("LOOPAD_WEB_ORIGINS"),
   postgres: {
-    host: requiredEnv("LOOPAD_AURORA_HOST"),
-    port: requiredIntegerEnv("LOOPAD_AURORA_PORT"),
-    user: requiredEnv("LOOPAD_AURORA_USERNAME"),
-    password: requiredEnv("LOOPAD_AURORA_PASSWORD"),
-    database: requiredEnv("LOOPAD_AURORA_DATABASE")
+    url: requiredPostgresUrlEnv("LOOPAD_POSTGRES_URL")
   },
   clickhouse: {
     url: requiredHttpUrlEnv("LOOPAD_CLICKHOUSE_URL"),

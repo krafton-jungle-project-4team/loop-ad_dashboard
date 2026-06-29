@@ -8,7 +8,7 @@ import { CLICKHOUSE_CLIENT, PG_POOL } from "./database.tokens.js";
   providers: [
     {
       provide: PG_POOL,
-      useFactory: () => new Pool({ ...env.postgres, max: 5 })
+      useFactory: () => new Pool({ connectionString: env.postgres.url, max: 5 })
     },
     {
       provide: CLICKHOUSE_CLIENT,

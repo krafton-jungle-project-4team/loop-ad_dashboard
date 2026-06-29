@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Query } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Inject, Query } from "@nestjs/common";
 import {
   DashboardAiAnalysisSchema,
   DashboardAiGenerationSchema,
@@ -11,7 +11,10 @@ import { DashboardQueryService } from "../service/index.js";
 
 @Controller()
 export class DashboardController {
-  constructor(private readonly dashboardQuery: DashboardQueryService) {}
+  constructor(
+    @Inject(DashboardQueryService)
+    private readonly dashboardQuery: DashboardQueryService
+  ) {}
 
   @Get("dashboard/main")
   async main(@Query("projectId") projectId?: string) {
