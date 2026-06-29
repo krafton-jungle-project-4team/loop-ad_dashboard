@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AppShell,
   Badge,
   Box,
+  Button,
   Group,
   ScrollArea,
   Stack,
@@ -11,24 +12,54 @@ import {
   Text,
   Title
 } from "@mantine/core";
-import { Gauge } from "lucide-react";
+import { Gauge, Play } from "lucide-react";
+import { runDashboardAction } from "../../features/dashboard/api/dashboard-api.js";
 import {
+  dashboardActionLabels,
   dashboardTabs,
   dashboardTitles
 } from "../../features/dashboard/model/dashboard-navigation.js";
 import { parseDashboardQuery } from "../../features/dashboard/model/dashboard-query.js";
-import type { DashboardTab } from "../../features/dashboard/model/dashboard-types.js";
+import type {
+  DashboardActionState,
+  DashboardTab
+} from "../../features/dashboard/model/dashboard-types.js";
 import { useDashboardResources } from "../../features/dashboard/model/use-dashboard-resources.js";
 import { LoadingState } from "../../features/dashboard/ui/LoadingState.js";
 import { renderDashboardPanel } from "../../features/dashboard/ui/render-dashboard-panel.js";
 
 export function DashboardPage() {
-  const [tab, setTab] = useState<DashboardTab>("events");
+  const [tab, setTab] = useState<DashboardTab>("collectionStatus");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [actionState, setActionState] = useState<DashboardActionState>({ status: "idle" });
   const query = useMemo(
     () => parseDashboardQuery(typeof window === "undefined" ? "" : window.location.search),
     []
   );
-  const state = useDashboardResources(query);
+  const state = useDashboardResources(tab, query, refreshKey);
+  const actionLabel = dashboardActionLabels[tab];
+
+  useEffect(() => {
+    setActionState({ status: "idle" });
+  }, [tab]);
+
+  async function handleRunAction() {
+    if (!query || !actionLabel) {
+      return;
+    }
+
+    setActionState({ status: "running" });
+    try {
+      await runDashboardAction(tab, query);
+      setActionState({ status: "success" });
+      setRefreshKey((current) => current + 1);
+    } catch (error: unknown) {
+      setActionState({
+        status: "error",
+        error: error instanceof Error ? error : new Error("작업 요청 실패")
+      });
+    }
+  }
 
   return (
     <AppShell header={{ height: 72 }} padding={0}>
@@ -43,7 +74,7 @@ export function DashboardPage() {
                 LoopAd
               </Title>
               <Text c="appleInk.5" size="xs">
-                Read-only MVP Dashboard
+                MVP Dashboard
               </Text>
             </div>
           </Group>
@@ -97,6 +128,33 @@ export function DashboardPage() {
                 </Tabs>
               </Stack>
 
+              {actionLabel ? (
+                <Group justify="flex-end">
+                  <Button
+                    color="actionBlue.6"
+                    disabled={!query}
+                    leftSection={<Play size={16} />}
+                    loading={actionState.status === "running"}
+                    onClick={() => {
+                      void handleRunAction();
+                    }}
+                    radius="xl"
+                    variant="filled"
+                  >
+                    {actionLabel}
+                  </Button>
+                </Group>
+              ) : null}
+              {actionState.status === "success" ? (
+                <Alert color="green" radius="lg" title="작업 완료" variant="light">
+                  최신 데이터를 다시 불러왔습니다.
+                </Alert>
+              ) : null}
+              {actionState.status === "error" ? (
+                <Alert color="red" radius="lg" title="작업 요청 실패" variant="light">
+                  {actionState.error.message}
+                </Alert>
+              ) : null}
               {state.status === "idle" ? (
                 <Alert
                   color="actionBlue.6"
@@ -113,7 +171,7 @@ export function DashboardPage() {
                   {state.error.message}
                 </Alert>
               ) : null}
-              {state.status === "success" ? renderDashboardPanel(tab, state.data) : null}
+              {state.status === "success" ? renderDashboardPanel(state.data) : null}
             </Stack>
           </Box>
         </ScrollArea>

@@ -1,4 +1,4 @@
-import { Anchor, Badge, Group, Stack, Table, Text } from "@mantine/core";
+import { Badge, Group, Stack, Table, Text } from "@mantine/core";
 import type { DashboardRecommendations } from "@loopad/shared";
 import { formatDateTime } from "../model/dashboard-format.js";
 import { EmptyState } from "./EmptyState.js";
@@ -36,7 +36,6 @@ export function RecommendationsPanel({
                         <Table.Th>type</Table.Th>
                         <Table.Th>name</Table.Th>
                         <Table.Th>description</Table.Th>
-                        <Table.Th>content</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
@@ -46,22 +45,6 @@ export function RecommendationsPanel({
                           <Table.Td>{action.action_type}</Table.Td>
                           <Table.Td>{action.action_name}</Table.Td>
                           <Table.Td>{action.description}</Table.Td>
-                          <Table.Td>
-                            {action.content ? (
-                              <Anchor
-                                c="actionBlue.6"
-                                href={action.content.content_url}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                {action.content.content_id}
-                              </Anchor>
-                            ) : (
-                              <Badge color="gray" radius="xl" variant="light">
-                                콘텐츠 미생성
-                              </Badge>
-                            )}
-                          </Table.Td>
                         </Table.Tr>
                       ))}
                     </Table.Tbody>
