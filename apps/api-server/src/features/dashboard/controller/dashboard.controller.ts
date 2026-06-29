@@ -1,13 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Inject,
-  Param,
-  Post,
-  Query
-} from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import {
   DashboardActionResultSchema,
   DashboardEventsSummarySchema,
@@ -16,20 +7,24 @@ import {
   DashboardRecommendationsSchema
 } from "@loopad/shared";
 import { success } from "../../../infra/http/api-response.js";
-import type { DashboardActionRequest } from "../service/dashboard.service.js";
-import { DashboardService } from "../service/dashboard.service.js";
+import {
+  DashboardCommandService,
+  DashboardQueryService,
+  type DashboardActionRequest
+} from "../service/index.js";
 
 @Controller()
 export class DashboardController {
-  constructor(@Inject(DashboardService) private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardQuery: DashboardQueryService,
+    private readonly dashboardCommand: DashboardCommandService
+  ) {}
 
   @Get("dashboard/overview")
   async overview(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return success(
-      DashboardEventsSummarySchema.parse(
-        await this.dashboardService.eventsSummary(requiredProjectId)
-      )
+      DashboardEventsSummarySchema.parse(await this.dashboardQuery.eventsSummary(requiredProjectId))
     );
   }
 
@@ -37,7 +32,7 @@ export class DashboardController {
   async funnelSegments(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return success(
-      DashboardFunnelSchema.parse(await this.dashboardService.funnel(requiredProjectId))
+      DashboardFunnelSchema.parse(await this.dashboardQuery.funnel(requiredProjectId))
     );
   }
 
@@ -49,7 +44,7 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return success(
       DashboardRecommendationsSchema.parse(
-        await this.dashboardService.recommendations(requiredProjectId, recommendationResultId)
+        await this.dashboardQuery.recommendations(requiredProjectId, recommendationResultId)
       )
     );
   }
@@ -62,7 +57,7 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return success(
       DashboardRecommendationsSchema.parse(
-        await this.dashboardService.recommendations(requiredProjectId, recommendationResultId)
+        await this.dashboardQuery.recommendations(requiredProjectId, recommendationResultId)
       )
     );
   }
@@ -76,10 +71,7 @@ export class DashboardController {
     const requiredExperimentId = requireExperimentId(experimentId);
     return success(
       DashboardExperimentPerformancePageSchema.parse(
-        await this.dashboardService.experimentPerformancePage(
-          requiredProjectId,
-          requiredExperimentId
-        )
+        await this.dashboardQuery.experimentPerformancePage(requiredProjectId, requiredExperimentId)
       )
     );
   }
@@ -88,7 +80,7 @@ export class DashboardController {
   async generateRecommendations(@Body() body: DashboardActionRequest) {
     return success(
       DashboardActionResultSchema.parse(
-        await this.dashboardService.generateRecommendations(requireActionBody(body))
+        await this.dashboardCommand.generateRecommendations(requireActionBody(body))
       )
     );
   }
@@ -97,7 +89,7 @@ export class DashboardController {
   async generateContents(@Body() body: DashboardActionRequest) {
     return success(
       DashboardActionResultSchema.parse(
-        await this.dashboardService.generateContents(requireContentActionBody(body))
+        await this.dashboardCommand.generateContents(requireContentActionBody(body))
       )
     );
   }
@@ -109,7 +101,7 @@ export class DashboardController {
   ) {
     return success(
       DashboardActionResultSchema.parse(
-        await this.dashboardService.evaluateExperiment(experimentId, requireActionBody(body))
+        await this.dashboardCommand.evaluateExperiment(experimentId, requireActionBody(body))
       )
     );
   }

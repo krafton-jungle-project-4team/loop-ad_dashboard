@@ -1,11 +1,22 @@
 import { Module } from "@nestjs/common";
+import { DatabaseModule } from "../../infra/database/index.js";
 import { DashboardController } from "./controller/dashboard.controller.js";
-import { ClickHouseDashboardDataSource } from "./data-sources/clickhouse-dashboard.data-source.js";
-import { PostgresDashboardDataSource } from "./data-sources/postgres-dashboard.data-source.js";
-import { DashboardService } from "./service/dashboard.service.js";
+import {
+  DashboardEventQuery,
+  DashboardExperimentReader,
+  DashboardRecommendationReader
+} from "./repository/index.js";
+import { DashboardCommandService, DashboardQueryService } from "./service/index.js";
 
 @Module({
+  imports: [DatabaseModule],
   controllers: [DashboardController],
-  providers: [DashboardService, ClickHouseDashboardDataSource, PostgresDashboardDataSource]
+  providers: [
+    DashboardQueryService,
+    DashboardCommandService,
+    DashboardEventQuery,
+    DashboardRecommendationReader,
+    DashboardExperimentReader
+  ]
 })
 export class DashboardModule {}

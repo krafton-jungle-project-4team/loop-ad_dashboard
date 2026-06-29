@@ -1,6 +1,7 @@
-import { Injectable } from "@nestjs/common";
 import { EventNameSchema } from "@loopad/shared";
-import { clickhouse } from "../../../infra/database/clickhouse.js";
+import { type ClickHouseClient } from "@clickhouse/client";
+import { Inject, Injectable } from "@nestjs/common";
+import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import type {
   DashboardEventRow,
   ExperimentActionCounts,
@@ -14,9 +15,14 @@ type RawEventCountRow = {
 };
 
 @Injectable()
-export class ClickHouseDashboardDataSource {
+export class DashboardEventQuery {
+  constructor(
+    @Inject(CLICKHOUSE_CLIENT)
+    private readonly clickhouse: ClickHouseClient
+  ) {}
+
   async readEventCounts(projectId: string): Promise<RawEventCountRow[]> {
-    const result = await clickhouse.query({
+    const result = await this.clickhouse.query({
       query: `
         SELECT event_name, count() AS count
         FROM events
@@ -43,7 +49,7 @@ export class ClickHouseDashboardDataSource {
   }
 
   async readRecentEvents(projectId: string): Promise<DashboardEventRow[]> {
-    const result = await clickhouse.query({
+    const result = await this.clickhouse.query({
       query: `
         SELECT
           toString(event_time) AS event_time,
@@ -93,7 +99,7 @@ export class ClickHouseDashboardDataSource {
   }
 
   async readFunnel(projectId: string): Promise<FunnelCounts> {
-    const result = await clickhouse.query({
+    const result = await this.clickhouse.query({
       query: `
         SELECT
           countIf(event_name = 'product_view') AS product_view_count,
@@ -110,7 +116,7 @@ export class ClickHouseDashboardDataSource {
   }
 
   async readSegmentFunnels(projectId: string): Promise<SegmentFunnelCounts[]> {
-    const result = await clickhouse.query({
+    const result = await this.clickhouse.query({
       query: `
         SELECT
           segment_id,
@@ -146,7 +152,7 @@ export class ClickHouseDashboardDataSource {
     projectId: string,
     experimentId: string
   ): Promise<ExperimentActionCounts[]> {
-    const result = await clickhouse.query({
+    const result = await this.clickhouse.query({
       query: `
         SELECT
           action_id,
