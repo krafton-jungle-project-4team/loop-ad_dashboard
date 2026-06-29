@@ -7,7 +7,7 @@ import type {
   ExperimentActionCounts,
   FunnelCounts,
   SegmentFunnelCounts
-} from "../model/events.js";
+} from "./read-models.js";
 
 type RawEventCountRow = {
   event_name: string;

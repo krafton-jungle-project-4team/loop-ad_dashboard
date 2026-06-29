@@ -13,7 +13,7 @@ import {
   DashboardExperimentReader,
   DashboardRecommendationReader
 } from "../repository/index.js";
-import type { ExperimentActionCounts, FunnelCounts } from "../model/events.js";
+import type { ExperimentActionCounts, FunnelCounts } from "../repository/read-models.js";
 
 @Injectable()
 export class DashboardQueryService {
