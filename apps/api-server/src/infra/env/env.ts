@@ -8,18 +8,6 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-function optionalHttpUrlEnv(name: string): string | undefined {
-  const value = process.env[name];
-  if (!value) {
-    return undefined;
-  }
-  const url = new URL(value);
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`${name} must be an http or https URL`);
-  }
-  return value;
-}
-
 function requiredIntegerEnv(name: string): number {
   const value = Number(requiredEnv(name));
   if (!Number.isInteger(value) || value <= 0) {
@@ -75,9 +63,5 @@ export const env = Object.freeze({
     url: requiredHttpUrlEnv("LOOPAD_CLICKHOUSE_URL"),
     username: requiredEnv("LOOPAD_CLICKHOUSE_USERNAME"),
     password: requiredEnv("LOOPAD_CLICKHOUSE_PASSWORD")
-  },
-  workflow: {
-    aiServerUrl: optionalHttpUrlEnv("LOOPAD_AI_SERVER_URL"),
-    contentServerUrl: optionalHttpUrlEnv("LOOPAD_CONTENT_SERVER_URL")
   }
 });
