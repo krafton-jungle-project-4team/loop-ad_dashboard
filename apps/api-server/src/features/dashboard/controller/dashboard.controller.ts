@@ -1,49 +1,72 @@
+import { Controller, Get, Inject, Query } from "@nestjs/common";
 import {
-  Body,
-  Controller,
-  Get,
-  Inject,
-  NotFoundException,
-  Param,
-  Post,
-  Query
-} from "@nestjs/common";
-import {
-  AiJobAcceptedSchema,
-  AiJobRequestSchema,
-  AiJobResultSchema,
-  ConversionReportSchema,
-  DashboardOverviewSchema
+  DashboardAiAnalysisSchema,
+  DashboardAiGenerationSchema,
+  DashboardAiRecommendationSchema,
+  DashboardMainSchema,
+  DashboardPurchaseConversionSchema
 } from "@loopad/shared";
-import { success } from "../../../infra/http/api-response.js";
-import { DashboardService } from "../service/dashboard.service.js";
+import { dashboardErrors } from "../dashboard-errors.js";
+import { DashboardQueryService } from "../service/index.js";
 
 @Controller()
 export class DashboardController {
-  constructor(@Inject(DashboardService) private readonly dashboardService: DashboardService) {}
+  constructor(
+    @Inject(DashboardQueryService)
+    private readonly dashboardQuery: DashboardQueryService
+  ) {}
 
-  @Get("dashboard/overview")
-  async overview(@Query("projectId") projectId?: string) {
-    return success(DashboardOverviewSchema.parse(await this.dashboardService.overview(projectId)));
+  @Get("dashboard/main")
+  async main(@Query("projectId") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardMainSchema.parse(await this.dashboardQuery.main(requiredProjectId));
   }
 
-  @Get("dashboard/conversion")
-  async conversion(@Query("projectId") projectId?: string) {
-    return success(ConversionReportSchema.parse(await this.dashboardService.conversion(projectId)));
+  @Get("dashboard/purchase-conversion")
+  async purchaseConversion(@Query("projectId") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardPurchaseConversionSchema.parse(
+      await this.dashboardQuery.purchaseConversion(requiredProjectId)
+    );
   }
 
-  @Post("dashboard/ai-jobs")
-  async createAiJob(@Body() body: unknown) {
-    const request = AiJobRequestSchema.parse(body);
-    return success(AiJobAcceptedSchema.parse(await this.dashboardService.createAiJob(request)));
+  @Get("dashboard/ai-analysis")
+  async aiAnalysis(
+    @Query("projectId") projectId?: string,
+    @Query("selectedCustomerId") selectedCustomerId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardAiAnalysisSchema.parse(
+      await this.dashboardQuery.aiAnalysis(requiredProjectId, selectedCustomerId)
+    );
   }
 
-  @Get("dashboard/ai-results/:resultId")
-  async aiResult(@Param("resultId") resultId: string) {
-    const result = await this.dashboardService.getAiResult(resultId);
-    if (!result) {
-      throw new NotFoundException("AI result not found.");
-    }
-    return success(AiJobResultSchema.parse(result));
+  @Get("dashboard/ai-recommendation")
+  async aiRecommendation(
+    @Query("projectId") projectId?: string,
+    @Query("selectedCustomerId") selectedCustomerId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardAiRecommendationSchema.parse(
+      await this.dashboardQuery.aiRecommendation(requiredProjectId, selectedCustomerId)
+    );
   }
+
+  @Get("dashboard/ai-generation")
+  async aiGeneration(
+    @Query("projectId") projectId?: string,
+    @Query("selectedCustomerId") selectedCustomerId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardAiGenerationSchema.parse(
+      await this.dashboardQuery.aiGeneration(requiredProjectId, selectedCustomerId)
+    );
+  }
+}
+
+function requireProjectId(projectId: string | undefined): string {
+  if (!projectId) {
+    throw dashboardErrors.projectIdRequired();
+  }
+  return projectId;
 }

@@ -1,0 +1,36 @@
+name: Deploy Dashboard Web
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/web-client/**
+      - packages/shared/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/deploy-dashboard-web.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    uses: krafton-jungle-project-4team/loop-ad_infra/.github/workflows/frontend-deploy.yml@main
+    with:
+      environment: dev
+      aws_region: ${{ vars.LOOPAD_DEV_AWS_REGION }}
+      role_arn: ${{ vars.LOOPAD_DEV_DEPLOY_ROLE_ARN }}
+      node_version: "25"
+      working_directory: .
+      install_command: npm ci
+      build_command: npm run build -w @loopad/shared && VITE_LOOPAD_API_BASE_URL=https://dashboard.api.dev.loop-ad.org/api npm run build -w @loopad/web-client
+      build_output_dir: apps/web-client/dist
+      s3_bucket: loop-ad-dev-dashboard-web
+      s3_prefix: .
+      cloudfront_distribution_id: ${{ vars.LOOPAD_DASHBOARD_WEB_CLOUDFRONT_DISTRIBUTION_ID }}
+      cloudfront_invalidation_paths: "/*"
+      asset_cache_control: public, max-age=31536000, immutable
+      html_cache_control: no-cache

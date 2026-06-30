@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@loopad/ui/charts": ["charts/index.ts"],
+      "@loopad/ui/charts/*": ["charts/*"],
+      "@loopad/ui/shadcn": ["shadcn/index.ts"],
+      "@loopad/ui/shadcn/*": ["shadcn/*"]
+    }
+  },
+  "include": ["charts", "shadcn"]
+}

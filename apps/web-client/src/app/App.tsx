@@ -1,5 +1,11 @@
-import { DashboardPage } from "../pages/dashboard/DashboardPage.js";
+import { RouterProvider } from "@tanstack/react-router";
+import { AppProviders } from "./providers.js";
+import { router } from "./router.js";
 
 export function App() {
-  return <DashboardPage />;
+  return (
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
+  );
 }

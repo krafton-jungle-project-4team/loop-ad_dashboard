@@ -1,12 +1,119 @@
-import { Center, Loader, Stack, Text } from "@mantine/core";
+import { Card, CardContent, CardHeader } from "@loopad/ui/shadcn/card";
+import { Skeleton } from "@loopad/ui/shadcn/skeleton";
+import type { DashboardTab } from "../model/dashboard-types.js";
 
-export function LoadingState() {
+export function LoadingState({ tab }: { tab: DashboardTab }) {
+  if (tab === "main") {
+    return <MainSkeleton />;
+  }
+  if (tab === "purchaseConversion") {
+    return <PurchaseSkeleton />;
+  }
+  if (tab === "aiAnalysis" || tab === "aiRecommendation") {
+    return <InsightSkeleton mode={tab === "aiAnalysis" ? "analysis" : "recommendation"} />;
+  }
+  return <GenerationSkeleton />;
+}
+
+function MainSkeleton() {
   return (
-    <Center h={420}>
-      <Stack align="center">
-        <Loader color="actionBlue.6" />
-        <Text c="dimmed">데이터를 불러오는 중입니다.</Text>
-      </Stack>
-    </Center>
+    <div className="grid gap-8">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <MetricSkeleton key={index} />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {Array.from({ length: 2 }, (_, index) => (
+          <Card key={index}>
+            <CardHeader>
+              <Skeleton className="h-5 w-56" />
+              <Skeleton className="h-4 w-36" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-[260px] w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Skeleton className="h-10 w-60" />
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <SectionSkeleton key={index} rows={4} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PurchaseSkeleton() {
+  return (
+    <div className="grid gap-6">
+      <Card className="w-full min-w-0">
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-5 w-14" />
+        </CardHeader>
+        <CardContent className="grid w-full min-w-0 gap-4 md:grid-cols-5">
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton className="h-36 w-full" key={index} />
+          ))}
+        </CardContent>
+      </Card>
+      <SectionSkeleton rows={6} />
+      <Skeleton className="h-10 w-72" />
+      <SectionSkeleton rows={6} />
+    </div>
+  );
+}
+
+function InsightSkeleton({ mode }: { mode: "analysis" | "recommendation" }) {
+  return (
+    <div className="grid gap-8">
+      <SectionSkeleton rows={7} />
+      <SectionSkeleton rows={4} />
+      {mode === "recommendation" ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <SectionSkeleton rows={4} />
+          <SectionSkeleton rows={4} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function GenerationSkeleton() {
+  return (
+    <div className="grid gap-8">
+      <SectionSkeleton rows={2} />
+      <SectionSkeleton rows={3} />
+    </div>
+  );
+}
+
+function MetricSkeleton() {
+  return (
+    <Card className="w-full min-w-0">
+      <CardContent className="w-full min-w-0">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="mt-3 h-9 w-32" />
+        <Skeleton className="mt-3 h-4 w-48" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function SectionSkeleton({ rows }: { rows: number }) {
+  return (
+    <Card className="w-full min-w-0">
+      <CardHeader>
+        <Skeleton className="h-6 w-48" />
+      </CardHeader>
+      <CardContent className="grid w-full min-w-0 gap-3">
+        {Array.from({ length: rows }, (_, index) => (
+          <Skeleton className="h-10 w-full" key={index} />
+        ))}
+      </CardContent>
+    </Card>
   );
 }

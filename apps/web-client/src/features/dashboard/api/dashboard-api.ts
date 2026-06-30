@@ -1,60 +1,84 @@
 import {
-  AiJobAcceptedSchema,
-  AiJobResultSchema,
-  ConversionReportSchema,
-  DashboardOverviewSchema,
-  createApiSuccessResponseSchema
+  createApiSuccessResponseSchema,
+  DashboardAiAnalysisSchema,
+  DashboardAiGenerationSchema,
+  DashboardAiRecommendationSchema,
+  DashboardMainSchema,
+  DashboardPurchaseConversionSchema
 } from "@loopad/shared";
-import type { AiJobKind } from "@loopad/shared";
-import type { z } from "zod";
-import { apiBaseUrl, projectId } from "../model/dashboard-config.js";
-import type { DashboardResources } from "../model/dashboard-types.js";
+import { z } from "zod";
+import { dashboardConfig } from "../model/dashboard-config.js";
+import type {
+  DashboardPageResource,
+  DashboardQuery,
+  DashboardTab
+} from "../model/dashboard-types.js";
 
-export async function fetchDashboardResources(signal: AbortSignal): Promise<DashboardResources> {
-  const [overview, conversion] = await Promise.all([
-    request("/dashboard/overview", DashboardOverviewSchema, signal),
-    request("/dashboard/conversion", ConversionReportSchema, signal)
-  ]);
-
-  return { overview, conversion };
-}
-
-export async function createDashboardAiJob(kind: AiJobKind, signal: AbortSignal) {
-  return request(
-    "/dashboard/ai-jobs",
-    AiJobAcceptedSchema,
-    signal,
-    {
-      method: "POST",
-      body: JSON.stringify({ kind, projectId })
-    },
-    false
-  );
-}
-
-export async function fetchDashboardAiResult(resultId: string, signal: AbortSignal) {
-  return request(`/dashboard/ai-results/${resultId}`, AiJobResultSchema, signal, undefined, false);
+export async function fetchDashboardPageResource(
+  tab: DashboardTab,
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<DashboardPageResource> {
+  switch (tab) {
+    case "main":
+      return {
+        tab,
+        data: await request("/dashboard/main", DashboardMainSchema, query, signal)
+      };
+    case "purchaseConversion":
+      return {
+        tab,
+        data: await request(
+          "/dashboard/purchase-conversion",
+          DashboardPurchaseConversionSchema,
+          query,
+          signal
+        )
+      };
+    case "aiAnalysis":
+      return {
+        tab,
+        data: await request("/dashboard/ai-analysis", DashboardAiAnalysisSchema, query, signal)
+      };
+    case "aiRecommendation":
+      return {
+        tab,
+        data: await request(
+          "/dashboard/ai-recommendation",
+          DashboardAiRecommendationSchema,
+          query,
+          signal
+        )
+      };
+    case "aiGeneration":
+      return {
+        tab,
+        data: await request("/dashboard/ai-generation", DashboardAiGenerationSchema, query, signal)
+      };
+  }
 }
 
 async function request<T>(
   path: string,
   schema: z.ZodType<T>,
-  signal: AbortSignal,
-  init?: RequestInit,
-  includeProjectId = true
+  query: DashboardQuery,
+  signal: AbortSignal
 ): Promise<T> {
-  const url = new URL(`${apiBaseUrl}${path}`, window.location.origin);
-  if (includeProjectId) {
-    url.searchParams.set("projectId", projectId);
+  const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
+  url.searchParams.set("projectId", query.projectId);
+  url.searchParams.set("dateRange", query.dateRange);
+  url.searchParams.set("excludeInternalTraffic", String(query.excludeInternalTraffic));
+  url.searchParams.set("excludeBotTraffic", String(query.excludeBotTraffic));
+  url.searchParams.set("userScope", query.userScope);
+  url.searchParams.set("conversionEvent", query.conversionEvent);
+  url.searchParams.set("selectedCustomerId", query.selectedCustomerId);
+  url.searchParams.set("sort", query.sort);
+  if (query.filter) {
+    url.searchParams.set("filter", query.filter);
   }
 
   const response = await fetch(url, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...init?.headers
-    },
+    headers: { Accept: "application/json" },
     signal
   });
   if (!response.ok) {

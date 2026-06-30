@@ -1,39 +1,52 @@
-import type { AiJobKind, AiJobResult, ConversionReport, DashboardOverview } from "@loopad/shared";
+import type {
+  DashboardAiAnalysis,
+  DashboardAiGeneration,
+  DashboardAiRecommendation,
+  DashboardMain,
+  DashboardPurchaseConversion
+} from "@loopad/shared";
 
-export type DashboardTab = "overview" | "conversion" | "insights" | "recommendations" | "creatives";
-export type DashboardAiTab = Extract<DashboardTab, "insights" | "recommendations" | "creatives">;
+export const dashboardTabValues = [
+  "main",
+  "purchaseConversion",
+  "aiAnalysis",
+  "aiRecommendation",
+  "aiGeneration"
+] as const;
 
-export type DashboardResources = {
-  overview: DashboardOverview;
-  conversion: ConversionReport;
+export type DashboardTab = (typeof dashboardTabValues)[number];
+
+export type DashboardDateRange = "today" | "last-7-days" | "last-30-days" | "campaign";
+
+export type DashboardSort =
+  | "conversion-asc"
+  | "conversion-desc"
+  | "engagement-desc"
+  | "dropoff-desc";
+
+export type DashboardUserScope = "all" | "active" | "new" | "returning" | "at-risk";
+
+export type DashboardConversionEvent =
+  | "purchase-complete"
+  | "sign-up"
+  | "add-to-cart"
+  | "contact";
+
+export type DashboardPageResource =
+  | { tab: "main"; data: DashboardMain }
+  | { tab: "purchaseConversion"; data: DashboardPurchaseConversion }
+  | { tab: "aiAnalysis"; data: DashboardAiAnalysis }
+  | { tab: "aiRecommendation"; data: DashboardAiRecommendation }
+  | { tab: "aiGeneration"; data: DashboardAiGeneration };
+
+export type DashboardQuery = {
+  projectId: string;
+  dateRange: DashboardDateRange;
+  excludeInternalTraffic: boolean;
+  excludeBotTraffic: boolean;
+  userScope: DashboardUserScope;
+  conversionEvent: DashboardConversionEvent;
+  selectedCustomerId: string;
+  sort: DashboardSort;
+  filter: string;
 };
-
-export type DashboardResourceState =
-  | { status: "loading"; data?: undefined; error?: undefined }
-  | { status: "success"; data: DashboardResources; error?: undefined }
-  | { status: "error"; data?: undefined; error: Error };
-
-export type DashboardAiJobState =
-  | {
-      status: "idle";
-      kind?: undefined;
-      resultId?: undefined;
-      error?: undefined;
-      result?: undefined;
-    }
-  | {
-      status: "requesting";
-      kind: AiJobKind;
-      resultId?: undefined;
-      error?: undefined;
-      result?: undefined;
-    }
-  | {
-      status: "polling";
-      kind: AiJobKind;
-      resultId: string;
-      error?: undefined;
-      result?: undefined;
-    }
-  | { status: "success"; kind: AiJobKind; resultId: string; result: AiJobResult; error?: undefined }
-  | { status: "error"; kind: AiJobKind; resultId?: string; error: Error; result?: undefined };
