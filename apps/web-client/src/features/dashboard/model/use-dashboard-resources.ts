@@ -1,17 +1,14 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchDashboardPageResource } from "../api/dashboard-api.js";
-import { createDashboardViewModel } from "../vm/dashboard-view-model.js";
 import type { DashboardQuery, DashboardTab } from "./dashboard-types.js";
 
-export function useDashboardResources(tab: DashboardTab, query: DashboardQuery) {
-  const enabled = query.projectId.length > 0;
-  const queryKey = useMemo(() => ["dashboard", tab, query] as const, [query, tab]);
-
-  return useQuery({
-    enabled,
+export function dashboardPageQueryOptions(tab: DashboardTab, query: DashboardQuery) {
+  return queryOptions({
     queryFn: ({ signal }) => fetchDashboardPageResource(tab, query, signal),
-    queryKey,
-    select: (resource) => createDashboardViewModel(resource, query)
+    queryKey: ["dashboard", tab, query] as const
   });
+}
+
+export function useSuspenseDashboardResources(tab: DashboardTab, query: DashboardQuery) {
+  return useSuspenseQuery(dashboardPageQueryOptions(tab, query));
 }

@@ -1,79 +1,34 @@
-import {
-  Activity,
-  ChartNoAxesCombined,
-  Image,
-  Lightbulb,
-  Sparkles,
-  type LucideIcon
-} from "lucide-react";
+import { Activity, ChartNoAxesCombined, Image, Sparkles, type LucideIcon } from "lucide-react";
 import type { DashboardTab } from "./dashboard-types.js";
 
 export type DashboardNavItem = {
   icon: LucideIcon;
   label: string;
-  path: `/dashboard/${string}`;
   pathSegment: string;
-  shortLabel: string;
-  title: string;
   value: DashboardTab;
 };
 
 export const dashboardTabs = [
+  { value: "main", label: "메인 대시보드", icon: Activity, pathSegment: "main" },
   {
-    icon: Activity,
-    label: "메인 대시보드",
-    path: "/dashboard/main",
-    pathSegment: "main",
-    shortLabel: "메인",
-    title: "loop-ad analytics",
-    value: "main"
-  },
-  {
+    value: "purchaseConversion",
+    label: "구매 전환",
     icon: ChartNoAxesCombined,
-    label: "전환 여정",
-    path: "/dashboard/purchase-conversion",
-    pathSegment: "purchase-conversion",
-    shortLabel: "전환",
-    title: "Conversion Journey",
-    value: "purchaseConversion"
+    pathSegment: "purchase-conversion"
   },
-  {
-    icon: Sparkles,
-    label: "세그먼트 분석",
-    path: "/dashboard/ai-analysis",
-    pathSegment: "ai-analysis",
-    shortLabel: "분석",
-    title: "Segment Insights",
-    value: "aiAnalysis"
-  },
-  {
-    icon: Lightbulb,
-    label: "기회 분석",
-    path: "/dashboard/ai-recommendation",
-    pathSegment: "ai-recommendation",
-    shortLabel: "기회",
-    title: "Opportunity Insights",
-    value: "aiRecommendation"
-  },
-  {
-    icon: Image,
-    label: "인사이트 기록",
-    path: "/dashboard/ai-generation",
-    pathSegment: "ai-generation",
-    shortLabel: "기록",
-    title: "Insight Library",
-    value: "aiGeneration"
-  }
+  { value: "aiAnalysis", label: "AI 분석", icon: Sparkles, pathSegment: "ai-analysis" },
+  { value: "aiRecommendation", label: "AI 추천", icon: Sparkles, pathSegment: "ai-recommendation" },
+  { value: "aiGeneration", label: "AI 생성", icon: Image, pathSegment: "ai-generation" }
 ] satisfies DashboardNavItem[];
 
-export const dashboardTitles = Object.fromEntries(
-  dashboardTabs.map((item) => [item.value, item.title])
-) as Record<DashboardTab, string>;
+export const dashboardTitles: Record<DashboardTab, string> = {
+  main: "Food Black Friday",
+  purchaseConversion: "Purchase Journey",
+  aiAnalysis: "AI Insight",
+  aiRecommendation: "AI Insight",
+  aiGeneration: "AI Insight"
+};
 
 export function getDashboardTabByPath(path: string): DashboardTab | null {
   return dashboardTabs.find((item) => item.pathSegment === path)?.value ?? null;
-}
-
-export function getDashboardPath(tab: DashboardTab): DashboardNavItem["path"] {
-  return dashboardTabs.find((item) => item.value === tab)?.path ?? "/dashboard/main";
 }

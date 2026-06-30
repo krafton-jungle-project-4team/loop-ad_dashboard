@@ -1,3 +1,4 @@
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
@@ -13,7 +14,7 @@ function requiredEnv(name: string): string {
 
 export default defineConfig(({ command }) => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [tanstackRouter({ autoCodeSplitting: true }), react(), tailwindcss()],
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url))

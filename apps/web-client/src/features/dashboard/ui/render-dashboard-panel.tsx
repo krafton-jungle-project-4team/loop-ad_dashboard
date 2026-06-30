@@ -1,49 +1,20 @@
-import type { DashboardViewModel } from "../vm/dashboard-view-model.js";
+import type { DashboardPageResource } from "../model/dashboard-types.js";
 import { AiGenerationPanel } from "./AiGenerationPanel.js";
 import { AiInsightPanel } from "./AiInsightPanel.js";
 import { MainDashboardPanel } from "./MainDashboardPanel.js";
 import { PurchaseConversionPanel } from "./PurchaseConversionPanel.js";
-import type { DashboardSort } from "../model/dashboard-types.js";
 
-export function renderDashboardPanel(
-  viewModel: DashboardViewModel,
-  handlers: {
-    filter: string;
-    onSelectCustomer: (customerId: string) => void;
-    onTableFilterChange: (filter: string) => void;
-    onTableSortChange: (sort: DashboardSort) => void;
-    sort: DashboardSort;
-  }
-) {
-  const tableControls = {
-    filter: handlers.filter,
-    onFilterChange: handlers.onTableFilterChange,
-    onSortChange: handlers.onTableSortChange,
-    sort: handlers.sort
-  };
-
-  switch (viewModel.tab) {
+export function renderDashboardPanel(resource: DashboardPageResource) {
+  switch (resource.tab) {
     case "main":
-      return <MainDashboardPanel viewModel={viewModel} />;
+      return <MainDashboardPanel data={resource.data} />;
     case "purchaseConversion":
-      return <PurchaseConversionPanel controls={tableControls} viewModel={viewModel} />;
+      return <PurchaseConversionPanel data={resource.data} />;
     case "aiAnalysis":
-      return (
-        <AiInsightPanel
-          controls={tableControls}
-          onSelectCustomer={handlers.onSelectCustomer}
-          viewModel={viewModel}
-        />
-      );
+      return <AiInsightPanel data={resource.data} mode="analysis" />;
     case "aiRecommendation":
-      return (
-        <AiInsightPanel
-          controls={tableControls}
-          onSelectCustomer={handlers.onSelectCustomer}
-          viewModel={viewModel}
-        />
-      );
+      return <AiInsightPanel data={resource.data} mode="recommendation" />;
     case "aiGeneration":
-      return <AiGenerationPanel viewModel={viewModel} />;
+      return <AiGenerationPanel data={resource.data} />;
   }
 }

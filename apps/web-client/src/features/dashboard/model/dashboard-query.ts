@@ -42,7 +42,7 @@ export const defaultDashboardQuery: DashboardQuery = {
   excludeBotTraffic: true,
   excludeInternalTraffic: true,
   filter: "",
-  projectId: "food-black-friday-2026",
+  projectId: "",
   selectedCustomerId: "cg-low-mobile",
   sort: "conversion-asc",
   userScope: "all"

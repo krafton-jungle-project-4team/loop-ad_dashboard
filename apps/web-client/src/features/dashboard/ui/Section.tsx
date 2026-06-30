@@ -1,11 +1,34 @@
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@loopad/ui/shadcn/card";
 import type { ReactNode } from "react";
-import { Card } from "@/components/dashboard-ui/primitives";
 
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({
+  title,
+  children,
+  action,
+  contentClassName,
+  description
+}: {
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
+  contentClassName?: string;
+  description?: string;
+}) {
   return (
-    <Card className="p-5">
-      <h2 className="mb-4 text-base font-semibold text-slate-950">{title}</h2>
-      {children}
+    <Card className="w-full min-w-0">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {description ? <CardDescription>{description}</CardDescription> : null}
+        {action ? <CardAction>{action}</CardAction> : null}
+      </CardHeader>
+      <CardContent className={`w-full min-w-0 ${contentClassName ?? ""}`}>{children}</CardContent>
     </Card>
   );
 }

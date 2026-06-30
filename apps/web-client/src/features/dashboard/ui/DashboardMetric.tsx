@@ -1,4 +1,4 @@
-import { Card } from "@/components/dashboard-ui/primitives";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 
 export function DashboardMetric({
   label,
@@ -10,11 +10,15 @@ export function DashboardMetric({
   description?: string;
 }) {
   return (
-    <Card className="p-5">
-      <p className="text-sm font-semibold text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-slate-950">{value}</p>
+    <Card className="w-full min-w-0" size="sm">
+      <CardHeader className="gap-2">
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="text-3xl tabular-nums">{value}</CardTitle>
+      </CardHeader>
       {description ? (
-        <p className="mt-2 text-sm text-slate-500">{description}</p>
+        <CardContent className="w-full min-w-0">
+          <CardDescription>{description}</CardDescription>
+        </CardContent>
       ) : null}
     </Card>
   );
