@@ -5,13 +5,13 @@ export const dashboardDateRangeOptions = [
   { label: "오늘", value: "today" },
   { label: "최근 7일", value: "last-7-days" },
   { label: "최근 30일", value: "last-30-days" },
-  { label: "캠페인 전체", value: "campaign" }
+  { label: "전체 기간", value: "campaign" }
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardDateRange }>;
 
 export const dashboardSortOptions = [
   { label: "전환율 낮은순", value: "conversion-asc" },
   { label: "전환율 높은순", value: "conversion-desc" },
-  { label: "예상 매출 높은순", value: "revenue-desc" },
+  { label: "참여도 높은순", value: "engagement-desc" },
   { label: "이탈 위험 높은순", value: "dropoff-desc" }
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardSort }>;
 

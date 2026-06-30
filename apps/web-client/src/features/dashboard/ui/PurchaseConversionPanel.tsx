@@ -25,7 +25,7 @@ const deviceColumns: ColumnDef<DeviceConversionRowViewModel>[] = [
 ];
 
 const customerColumns: ColumnDef<CustomerBehaviorRowViewModel>[] = [
-  { accessorKey: "name", header: "고객군", cell: ({ row }) => <strong>{row.original.name}</strong> },
+  { accessorKey: "name", header: "사용자군", cell: ({ row }) => <strong>{row.original.name}</strong> },
   { accessorKey: "conversionRate", header: "구매 전환율" },
   { accessorKey: "majorDropOffRate", header: "주요 이탈률" },
   { accessorKey: "expectedRevenue", header: "예상 매출" },
@@ -114,7 +114,7 @@ export function PurchaseConversionPanel({
         <Card className="p-5">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="text-base font-semibold text-slate-950">고객군별 구매 행동</h2>
+              <h2 className="text-base font-semibold text-slate-950">사용자군별 전환 행동</h2>
               <p className="text-sm text-slate-500">채널, 연령, 성별, 지역, 기기, 카테고리 조합</p>
             </div>
             <CustomerTableToolbar {...controls} />
@@ -122,7 +122,7 @@ export function PurchaseConversionPanel({
           <DataTable
             columns={customerColumns}
             data={viewModel.customerRows}
-            emptyMessage="고객군별 구매 행동 데이터가 없습니다."
+            emptyMessage="사용자군별 전환 행동 데이터가 없습니다."
           />
         </Card>
       </div>

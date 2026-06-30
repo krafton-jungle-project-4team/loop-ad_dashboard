@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "@tanstack/react-router";
-import { CalendarDays, Gauge, Plus, RefreshCw } from "lucide-react";
+import { CalendarDays, Gauge, RefreshCw } from "lucide-react";
 import { DevProfiler } from "../../app/DevProfiler.js";
 import {
   Badge,
@@ -31,21 +31,22 @@ import { LoadingState } from "../../features/dashboard/ui/LoadingState.js";
 import { renderDashboardPanel } from "../../features/dashboard/ui/render-dashboard-panel.js";
 
 const comparisonSegments = [
-  { id: "all", label: "전체 고객군" },
-  { id: "low-conversion", label: "저전환 고객군" },
-  { id: "high-conversion", label: "고전환 고객군" },
-  { id: "ai-targets", label: "AI 추천 대상" },
-  { id: "generated", label: "콘텐츠 생성 완료" },
-  { id: "cart-abandon", label: "장바구니 이탈군" },
-  { id: "checkout-abandon", label: "결제 시작 이탈군" }
+  { id: "all-users", label: "전체 사용자" },
+  { id: "new-users", label: "신규 사용자" },
+  { id: "returning-users", label: "재방문 사용자" },
+  { id: "converted-users", label: "전환 사용자" },
+  { id: "non-converted-users", label: "미전환 사용자" },
+  { id: "high-engagement-users", label: "상위 참여 사용자" },
+  { id: "at-risk-users", label: "이탈 가능 사용자" }
 ] as const;
 
-const breakdownOptions = ["채널", "기기", "지역", "카테고리", "연령", "성별"] as const;
+const breakdownOptions = ["채널", "기기", "지역", "카테고리", "연령", "성별", "이벤트", "페이지"] as const;
 
 const globalFilterChips = [
-  "캠페인: Food Black Friday",
-  "테스트/내부 제외",
-  "재고 가능 상품"
+  "내부 트래픽 제외",
+  "봇 트래픽 제외",
+  "활성 사용자",
+  "전환 이벤트 포함"
 ] as const;
 
 export function DashboardPage() {
@@ -55,9 +56,9 @@ export function DashboardPage() {
   const query = useMemo(() => normalizeDashboardQuery(queryState), [queryState]);
   const dashboardState = useDashboardResources(tab ?? "main", query);
   const [activeComparisonIds, setActiveComparisonIds] = useState<string[]>([
-    "all",
-    "low-conversion",
-    "ai-targets"
+    "all-users",
+    "new-users",
+    "converted-users"
   ]);
   const [breakdownBy, setBreakdownBy] = useState<(typeof breakdownOptions)[number]>("채널");
 
@@ -82,7 +83,7 @@ export function DashboardPage() {
               <div className="flex min-h-16 flex-col gap-3 px-4 py-3 md:px-6 xl:px-8">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold text-slate-500">loop-ad dashboard</p>
+                    <p className="text-xs font-semibold text-slate-500">loop-ad analytics</p>
                     <h1 className="text-xl font-semibold text-slate-950 md:text-2xl">
                       {dashboardTitles[tab]}
                     </h1>
@@ -171,14 +172,14 @@ function ScopeControls({
   onDateRangeChange: (dateRange: (typeof dashboardDateRangeOptions)[number]["value"]) => void;
   onRefresh: () => void;
 }) {
-  const campaignName = getCampaignName(projectId);
+  const projectName = getProjectName(projectId);
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       <div className="flex h-10 min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3">
         <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold leading-4 text-slate-950">{campaignName}</p>
+          <p className="truncate text-sm font-semibold leading-4 text-slate-950">{projectName}</p>
           <p className="truncate text-xs leading-4 text-slate-500">
             {projectId || "projectId 필요"}
           </p>
@@ -250,8 +251,7 @@ function ComparisonControls({
       })}
 
       <GhostButton className="h-8 rounded-full px-3" disabled={!hasInactiveComparison} onClick={onAddComparison}>
-        <Plus className="h-4 w-4" />
-        비교 추가
+        + 비교 추가
       </GhostButton>
     </div>
   );
@@ -305,7 +305,7 @@ function BrandBlock() {
       </div>
       <div>
         <p className="text-base font-semibold text-slate-950">loop-ad</p>
-        <p className="text-xs text-slate-500">operational dashboard</p>
+        <p className="text-xs text-slate-500">analytics workspace</p>
       </div>
     </div>
   );
@@ -360,9 +360,9 @@ function EmptyProjectCard({ onUseDefaultProject }: { onUseDefaultProject: () => 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-sm font-semibold text-slate-900">조회 컨텍스트가 필요합니다</p>
-          <p className="mt-1 text-sm text-slate-500">캠페인 스코프를 선택하면 대시보드 조회를 시작합니다.</p>
+          <p className="mt-1 text-sm text-slate-500">프로젝트 스코프를 선택하면 대시보드 조회를 시작합니다.</p>
         </div>
-        <GhostButton onClick={onUseDefaultProject}>Food Black Friday로 보기</GhostButton>
+        <GhostButton onClick={onUseDefaultProject}>Demo property로 보기</GhostButton>
       </div>
     </Card>
   );
@@ -384,9 +384,9 @@ function ErrorCard({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
-function getCampaignName(projectId: string) {
+function getProjectName(projectId: string) {
   if (!projectId || projectId === defaultDashboardQuery.projectId || projectId === "food-black-friday") {
-    return "Food Black Friday";
+    return "Demo property";
   }
 
   return projectId;

@@ -10,12 +10,13 @@
   - `/dashboard/ai-recommendation`
   - `/dashboard/ai-generation`
 - Added Nuqs-managed URL state for `projectId`, `dateRange`, `selectedCustomerId`, `sort`, and `filter`.
-- Redesigned analytics controls around a GA/PostHog-style model: campaign/date/refresh live in the sticky scope header, comparison chips and breakdown/filter chips sit below the header, and customer search/sort controls moved into the customer table panels.
+- Redesigned analytics controls around a GA/PostHog-style model: project/date/refresh live in the sticky scope header, comparison chips and breakdown/filter chips sit below the header, and user segment search/sort controls moved into the local table panels.
+- Generalized visible controls and fixture copy around reusable analytics concepts: Demo property scope, date range, 전체/신규/재방문/전환/미전환/상위 참여/이탈 가능 사용자 comparisons, generic breakdowns, traffic filters, and engagement/conversion/drop-off sorting.
 - Added a data source boundary in `features/dashboard/api/dashboard-api.ts`. TanStack Query calls `fetchDashboardPageResource`, which chooses fixture or HTTP behind the same function.
 - Added fixture resources in `features/dashboard/data/dashboard-fixtures.ts` so the variant runs without backend availability.
 - Added a ViewModel layer in `features/dashboard/vm/dashboard-view-model.ts`. Screen components consume ViewModels and callbacks, not raw API response types.
 - Server state is TanStack Query cache, URL state is Nuqs, and transient UI state remains local to components.
-- Main, purchase conversion, AI analysis, AI recommendation, and AI generation all route through the shared dashboard shell.
+- Main, conversion journey, segment insights, opportunity insights, and insight library views all route through the shared dashboard shell.
 - Loading, empty, error, and success states are represented. Loading skeletons are panel-owned and use the same broad grid/height structure as the success panels.
 
 ## Profiler placement and verification
@@ -29,7 +30,7 @@ Profiler ids:
 - `DashboardNavigation`: wraps the tab navigation.
 - `MainOverviewPanel`: wraps the main dashboard panel.
 - `PurchaseConversionPanel`: wraps the purchase conversion panel.
-- `InsightPanel`: wraps AI analysis and AI recommendation panels.
+- `InsightPanel`: wraps segment and opportunity insight panels.
 - `LoadingSkeleton`: wraps the routed loading skeleton.
 
 Verification:
@@ -67,4 +68,4 @@ Build result:
 - React Profiler 기준 loading -> success 렌더링 안정성: 4/5
 - dependency 비용과 장기 유지 리스크: 3/5
 - total: 84/100
-- recommendation: 부분 채택 추천
+- adoption guidance: partial adoption

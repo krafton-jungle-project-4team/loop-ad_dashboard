@@ -25,43 +25,43 @@ export const dashboardTabs = [
     path: "/dashboard/main",
     pathSegment: "main",
     shortLabel: "메인",
-    title: "Food Black Friday",
+    title: "loop-ad analytics",
     value: "main"
   },
   {
     icon: ChartNoAxesCombined,
-    label: "구매 전환",
+    label: "전환 여정",
     path: "/dashboard/purchase-conversion",
     pathSegment: "purchase-conversion",
     shortLabel: "전환",
-    title: "Purchase Journey",
+    title: "Conversion Journey",
     value: "purchaseConversion"
   },
   {
     icon: Sparkles,
-    label: "AI 분석",
+    label: "세그먼트 분석",
     path: "/dashboard/ai-analysis",
     pathSegment: "ai-analysis",
     shortLabel: "분석",
-    title: "AI Insight",
+    title: "Segment Insights",
     value: "aiAnalysis"
   },
   {
     icon: Lightbulb,
-    label: "AI 추천",
+    label: "기회 분석",
     path: "/dashboard/ai-recommendation",
     pathSegment: "ai-recommendation",
-    shortLabel: "추천",
-    title: "AI Action",
+    shortLabel: "기회",
+    title: "Opportunity Insights",
     value: "aiRecommendation"
   },
   {
     icon: Image,
-    label: "AI 생성",
+    label: "인사이트 기록",
     path: "/dashboard/ai-generation",
     pathSegment: "ai-generation",
-    shortLabel: "생성",
-    title: "AI Creative",
+    shortLabel: "기록",
+    title: "Insight Library",
     value: "aiGeneration"
   }
 ] satisfies DashboardNavItem[];

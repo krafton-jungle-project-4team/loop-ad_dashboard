@@ -36,7 +36,7 @@ export function MainDashboardPanel({ viewModel }: { viewModel: MainOverviewViewM
             badge="LIVE"
             data={viewModel.behaviorSeries}
             id="behavior-events"
-            subtitle="피크타임 클릭, 조회, 장바구니 이벤트"
+            subtitle="피크타임 이벤트와 전환 이벤트"
             title="행동 이벤트 흐름"
           />
           <SeriesPanel

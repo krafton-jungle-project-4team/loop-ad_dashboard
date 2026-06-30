@@ -21,7 +21,7 @@ export type DashboardDateRange = "today" | "last-7-days" | "last-30-days" | "cam
 export type DashboardSort =
   | "conversion-asc"
   | "conversion-desc"
-  | "revenue-desc"
+  | "engagement-desc"
   | "dropoff-desc";
 
 export type DashboardPageResource =

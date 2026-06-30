@@ -5,11 +5,11 @@ export function AiGenerationPanel({ viewModel }: { viewModel: GenerationViewMode
   return (
     <div className="space-y-5">
       {viewModel.isEmpty ? (
-        <EmptyState message="조회 조건에 맞는 생성 콘텐츠가 없습니다." title="데이터 없음" />
+        <EmptyState message="조회 조건에 맞는 인사이트 기록이 없습니다." title="데이터 없음" />
       ) : null}
 
       <Card className="p-5">
-        <h2 className="text-base font-semibold text-slate-950">선택 고객군</h2>
+        <h2 className="text-base font-semibold text-slate-950">선택 사용자군</h2>
         {viewModel.selectedCustomer ? (
           <div className="mt-3">
             <p className="text-lg font-semibold text-slate-950">{viewModel.selectedCustomer.name}</p>
@@ -29,14 +29,14 @@ export function AiGenerationPanel({ viewModel }: { viewModel: GenerationViewMode
             </div>
           </div>
         ) : (
-          <EmptyState message="선택된 고객군이 없습니다." />
+          <EmptyState message="선택된 사용자군이 없습니다." />
         )}
       </Card>
 
       <div>
         <div className="mb-3">
-          <h2 className="text-lg font-semibold text-slate-950">생성 콘텐츠</h2>
-          <p className="text-sm text-slate-500">추천 액션을 기반으로 생성된 카피와 소재 후보</p>
+          <h2 className="text-lg font-semibold text-slate-950">저장된 인사이트</h2>
+          <p className="text-sm text-slate-500">선택된 분석 기회에서 저장된 요약과 관찰 메모</p>
         </div>
         {viewModel.cards.length > 0 ? (
           <div className="grid gap-4 lg:grid-cols-3">
@@ -45,7 +45,7 @@ export function AiGenerationPanel({ viewModel }: { viewModel: GenerationViewMode
             ))}
           </div>
         ) : (
-          <EmptyState message="저장된 생성 콘텐츠가 없습니다." />
+          <EmptyState message="저장된 인사이트가 없습니다." />
         )}
       </div>
     </div>
@@ -63,7 +63,7 @@ function GeneratedContentCard({ card }: { card: GeneratedContentViewModel }) {
       </div>
       <div className="p-5">
         <div className="flex items-center justify-between gap-3">
-          <Badge tone={card.contentStatus === "generated" ? "emerald" : "amber"}>
+          <Badge tone={card.contentStatus === "saved" ? "emerald" : "amber"}>
             {card.contentStatus}
           </Badge>
           {card.createdAt ? <span className="text-xs text-slate-500">{formatDate(card.createdAt)}</span> : null}

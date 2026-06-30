@@ -18,10 +18,10 @@ export const fixtureCustomers: DashboardCustomerSegment[] = [
   {
     age_group: "25-34",
     category: "밀키트",
-    channel: "Paid Social",
+    channel: "Social",
     conversion_rate: 0.021,
     customer_group_id: "cg-low-mobile",
-    customer_group_name: "모바일 첫구매 대기군",
+    customer_group_name: "모바일 신규 사용자군",
     device: "Mobile",
     expected_revenue: 82000000,
     gender: "여성",
@@ -34,7 +34,7 @@ export const fixtureCustomers: DashboardCustomerSegment[] = [
     channel: "Search",
     conversion_rate: 0.036,
     customer_group_id: "cg-cart-leaver",
-    customer_group_name: "장바구니 고가 이탈군",
+    customer_group_name: "결제 단계 이탈 가능 사용자군",
     device: "Desktop",
     expected_revenue: 124000000,
     gender: "남성",
@@ -44,10 +44,10 @@ export const fixtureCustomers: DashboardCustomerSegment[] = [
   {
     age_group: "18-24",
     category: "디저트",
-    channel: "Influencer",
+    channel: "Referral",
     conversion_rate: 0.047,
     customer_group_id: "cg-video-browse",
-    customer_group_name: "숏폼 탐색 고객군",
+    customer_group_name: "콘텐츠 탐색 사용자군",
     device: "Mobile",
     expected_revenue: 57000000,
     gender: "여성",
@@ -60,7 +60,7 @@ export const fixtureCustomers: DashboardCustomerSegment[] = [
     channel: "CRM",
     conversion_rate: 0.112,
     customer_group_id: "cg-loyal-crm",
-    customer_group_name: "충성 재구매 고객군",
+    customer_group_name: "충성 재방문 사용자군",
     device: "Tablet",
     expected_revenue: 176000000,
     gender: "여성",
@@ -70,10 +70,10 @@ export const fixtureCustomers: DashboardCustomerSegment[] = [
   {
     age_group: "35-44",
     category: "간편식",
-    channel: "Retargeting",
+    channel: "Organic",
     conversion_rate: 0.139,
     customer_group_id: "cg-retarget-high",
-    customer_group_name: "리타겟 고전환 고객군",
+    customer_group_name: "상위 참여 사용자군",
     device: "Mobile",
     expected_revenue: 221000000,
     gender: "남성",
@@ -83,10 +83,10 @@ export const fixtureCustomers: DashboardCustomerSegment[] = [
   {
     age_group: "55+",
     category: "선물세트",
-    channel: "Display",
+    channel: "Email",
     conversion_rate: 0.086,
     customer_group_id: "cg-gift-planner",
-    customer_group_name: "선물 기획 고객군",
+    customer_group_name: "선물 기획 사용자군",
     device: "Desktop",
     expected_revenue: 149000000,
     gender: "여성",
@@ -119,9 +119,9 @@ export const fixtureMain: DashboardMain = DashboardMainSchema.parse({
       value_type: "count"
     },
     {
-      description: "캠페인 예산 대비 71% 소진",
+      description: "최근 7일 목표 대비 71% 달성",
       key: "gross_revenue",
-      label: "예상 매출",
+      label: "매출",
       value: 485000000,
       value_type: "money"
     },
@@ -133,9 +133,9 @@ export const fixtureMain: DashboardMain = DashboardMainSchema.parse({
       value_type: "rate"
     },
     {
-      description: "자동 액션 후보 7개 포함",
+      description: "주요 세그먼트 7개 포함",
       key: "ai_ready_segments",
-      label: "AI 분석 고객군",
+      label: "활성 사용자군",
       value: 18,
       value_type: "count"
     }
@@ -157,9 +157,9 @@ export const fixtureMain: DashboardMain = DashboardMainSchema.parse({
   segment_status: [
     {
       items: [
-        { label: "Paid Social", share: 0.36, value: 46300 },
+        { label: "Social", share: 0.36, value: 46300 },
         { label: "Search", share: 0.24, value: 30940 },
-        { label: "Retargeting", share: 0.19, value: 24500 },
+        { label: "Organic", share: 0.19, value: 24500 },
         { label: "CRM", share: 0.14, value: 18080 }
       ],
       key: "channel",
@@ -211,8 +211,8 @@ export const fixturePurchaseConversion: DashboardPurchaseConversion =
         customer.conversion_rate < 0.05
           ? "가격/혜택 비교"
           : customer.conversion_rate > 0.1
-            ? "재방문 후 구매"
-            : "구매 의도 보류"
+            ? "재방문 후 전환"
+            : "전환 의도 보류"
     })),
     device_rows: [
       {
@@ -319,7 +319,7 @@ export const fixtureCustomerDetails: Record<string, DashboardCustomerDetail> = {
   "cg-gift-planner": createCustomerDetail("cg-gift-planner", {
     analysis: [
       "상품 비교 기간은 길지만 구매 단가는 높습니다.",
-      "선물 포장/배송일 안내 콘텐츠에 강하게 반응합니다."
+      "선물 포장/배송일 안내 페이지에 강하게 반응합니다."
     ],
     purchaseHistory: [
       { label: "선물세트", share: 0.48, value: 920 },
@@ -350,8 +350,8 @@ export const fixtureCustomerDetails: Record<string, DashboardCustomerDetail> = {
   }),
   "cg-low-mobile": createCustomerDetail("cg-low-mobile", {
     analysis: [
-      "숏폼 광고 클릭 후 상세 페이지에서 가격 비교 이탈이 반복됩니다.",
-      "첫구매 쿠폰 노출 전후 장바구니 추가율 차이가 큽니다."
+      "숏폼 콘텐츠 유입 후 상세 페이지에서 가격 비교 이탈이 반복됩니다.",
+      "신규 사용자 혜택 안내 전후 장바구니 추가율 차이가 큽니다."
     ],
     purchaseHistory: [
       { label: "밀키트", share: 0.39, value: 880 },
@@ -360,13 +360,13 @@ export const fixtureCustomerDetails: Record<string, DashboardCustomerDetail> = {
     ],
     rationale: [
       "Mobile 상품 이미지 확대한 뒤 뒤로가기 발생률이 높습니다.",
-      "광고 유입 대비 장바구니 전환이 캠페인 평균의 절반 수준입니다."
+      "유입 세션 대비 장바구니 전환이 전체 평균의 절반 수준입니다."
     ],
     stage: [1, 0.55, 0.21, 0.08, 0.021]
   }),
   "cg-retarget-high": createCustomerDetail("cg-retarget-high", {
     analysis: [
-      "리타겟 노출 2회 이내 구매 전환이 빠르게 발생합니다.",
+      "재방문 2회 이내 구매 전환이 빠르게 발생합니다.",
       "한정 수량 메시지와 번들 할인에 반응합니다."
     ],
     purchaseHistory: [
@@ -382,8 +382,8 @@ export const fixtureCustomerDetails: Record<string, DashboardCustomerDetail> = {
   }),
   "cg-video-browse": createCustomerDetail("cg-video-browse", {
     analysis: [
-      "영상 소재 완주율은 높지만 상세 페이지 진입이 약합니다.",
-      "디저트 카테고리에서 후기/비주얼 콘텐츠 클릭이 많습니다."
+      "영상 콘텐츠 완주율은 높지만 상세 페이지 진입이 약합니다.",
+      "디저트 카테고리에서 후기/비주얼 페이지 클릭이 많습니다."
     ],
     purchaseHistory: [
       { label: "디저트", share: 0.45, value: 730 },
@@ -391,7 +391,7 @@ export const fixtureCustomerDetails: Record<string, DashboardCustomerDetail> = {
       { label: "밀키트", share: 0.16, value: 260 }
     ],
     rationale: [
-      "Influencer 채널 유입 대비 상품 조회 전환이 낮습니다.",
+      "Referral 채널 유입 대비 상품 조회 전환이 낮습니다.",
       "구매 버튼보다 리뷰 영역 체류 시간이 긴 편입니다."
     ],
     stage: [1, 0.49, 0.26, 0.11, 0.047]
@@ -407,48 +407,48 @@ export const fixtureAnalysis: DashboardAiAnalysis = DashboardAiAnalysisSchema.pa
 export const fixtureRecommendationActions: DashboardRecommendationAction[] = [
   {
     action_id: "act-mobile-coupon",
-    action_type: "offer",
-    description: "모바일 첫구매 대기군에 첫구매 쿠폰과 배송 임계값 안내를 함께 노출합니다.",
+    action_type: "cohort",
+    description: "모바일 신규 사용자군에서 혜택 조회와 배송 임계값 확인 흐름을 함께 관찰합니다.",
     probability: 0.76,
     rationale: "가격 비교 이탈과 쿠폰 조회 행동이 동시에 관측됩니다.",
     status: "ready",
-    title: "첫구매 쿠폰+배송 혜택"
+    title: "신규 사용자 혜택 민감도"
   },
   {
     action_id: "act-cart-threshold",
-    action_type: "cart",
-    description: "장바구니 고가 이탈군에 무료배송까지 남은 금액과 번들 추천을 표시합니다.",
+    action_type: "funnel",
+    description: "결제 단계 이탈 가능 사용자군의 무료배송 임계값 구간과 번들 탐색 비중을 추적합니다.",
     probability: 0.68,
     rationale: "무료배송 임계값 근처에서 이탈하는 세션이 집중됩니다.",
     status: "review",
-    title: "무료배송 임계값 리마인드"
+    title: "배송 임계값 구간 분석"
   },
   {
     action_id: "act-retarget-bundle",
-    action_type: "retargeting",
-    description: "리타겟 고전환 고객군에는 한정 수량 번들 소재를 우선 집행합니다.",
+    action_type: "retention",
+    description: "상위 참여 사용자군에서는 재방문 이후 빠른 전환 흐름을 별도 모니터링합니다.",
     probability: 0.84,
-    rationale: "재방문 후 즉시 구매 흐름이 강해 고의도 메시지 효율이 높습니다.",
+    rationale: "재방문 후 즉시 구매 흐름이 강해 상위 참여 신호가 안정적으로 반복됩니다.",
     status: "ready",
-    title: "한정 수량 번들 리타겟"
+    title: "재방문 상위 참여 흐름"
   },
   {
     action_id: "act-video-review",
-    action_type: "creative",
-    description: "숏폼 탐색 고객군을 후기 중심 랜딩으로 연결하는 영상 소재를 생성합니다.",
+    action_type: "content",
+    description: "콘텐츠 탐색 사용자군의 후기 중심 랜딩 흐름을 일반 상세 페이지 흐름과 비교합니다.",
     probability: 0.59,
     rationale: "영상 완주율은 높지만 상품 상세 진입률이 낮습니다.",
     status: "draft",
-    title: "리뷰형 숏폼 랜딩"
+    title: "후기형 페이지 탐색 흐름"
   }
 ];
 
 export const fixtureRecommendation: DashboardAiRecommendation = DashboardAiRecommendationSchema.parse({
   customers: [...fixtureCustomers].sort((a, b) => b.conversion_rate - a.conversion_rate),
   recommendation_rationale: [
-    "고전환 고객군은 리타겟/CRM에서 구매 직전 신호가 뚜렷합니다.",
-    "저전환 고객군은 가격/배송 혜택을 명확히 재노출할 때 개선 여지가 큽니다.",
-    "소재 자동 생성은 후기형 영상과 배송 보장 메시지부터 실험하는 것이 안전합니다."
+    "상위 참여 사용자군은 재방문/CRM에서 전환 직전 신호가 뚜렷합니다.",
+    "미전환 사용자군은 가격/배송 혜택 페이지를 확인한 뒤 이탈하는 흐름이 많습니다.",
+    "콘텐츠 탐색 사용자군은 후기형 페이지와 배송 안내 페이지를 먼저 비교하는 것이 좋습니다."
   ],
   recommended_actions: fixtureRecommendationActions,
   selected_customer: fixtureCustomerDetails["cg-retarget-high"] ?? null,
@@ -464,9 +464,9 @@ export const fixtureGeneration: DashboardAiGeneration = DashboardAiGenerationSch
         content_type: "copy",
         content_url: null,
         created_at: "2026-06-30T07:10:00.000Z",
-        message: "첫 주문이라면 오늘만 배송비 부담 없이. 장바구니에서 바로 적용되는 쿠폰을 확인하세요.",
-        status: "generated",
-        title: "모바일 첫구매 쿠폰 카피"
+        message: "혜택 조회 이후 전환율이 상승하는 구간을 신규 사용자군에서 별도 추적합니다.",
+        status: "saved",
+        title: "신규 사용자 혜택 요약"
       }
     },
     {
@@ -476,9 +476,9 @@ export const fixtureGeneration: DashboardAiGeneration = DashboardAiGenerationSch
         content_type: "image",
         content_url: null,
         created_at: "2026-06-30T07:18:00.000Z",
-        message: "무료배송까지 남은 금액을 명확히 보여주는 장바구니 배너 시안",
+        message: "무료배송 임계값 근처 세션의 단계별 이탈률 시각화",
         status: "review",
-        title: "무료배송 임계값 배너"
+        title: "배송 임계값 관찰 메모"
       }
     },
     {
@@ -552,7 +552,7 @@ function createCustomerDetail(
         value_type: "rate"
       },
       {
-        label: "캠페인 평균 대비",
+        label: "전체 평균 대비",
         value: customer.conversion_rate - 0.084,
         value_type: "delta"
       },

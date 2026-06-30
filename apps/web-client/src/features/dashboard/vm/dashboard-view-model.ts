@@ -72,6 +72,7 @@ export type DeviceConversionRowViewModel = {
 export type CustomerBehaviorRowViewModel = {
   conversionRate: string;
   conversionRateValue: number;
+  engagementValue: number;
   expectedRevenue: string;
   expectedRevenueValue: number;
   id: string;
@@ -96,6 +97,7 @@ export type CustomerRowViewModel = {
   conversionRate: string;
   conversionRateValue: number;
   device: string;
+  engagementValue: number;
   expectedRevenue: string;
   expectedRevenueValue: number;
   gender: string;
@@ -197,6 +199,7 @@ export function createDashboardViewModel(
             .map((row) => ({
               conversionRate: formatPercent(row.conversion_rate),
               conversionRateValue: row.conversion_rate,
+              engagementValue: row.conversion_rate * (1 - row.major_drop_off_rate),
               expectedRevenue: formatMoney(row.expected_revenue),
               expectedRevenueValue: row.expected_revenue,
               id: row.customer_group_id,
@@ -244,8 +247,8 @@ export function createDashboardViewModel(
         cards: resource.data.generated_items
           .map((item) => ({
             actionDescription: item.action.description,
-            contentStatus: item.content?.status ?? "queued",
-            contentType: item.content?.content_type ?? item.action.action_type,
+            contentStatus: formatContentStatus(item.content?.status ?? "queued"),
+            contentType: formatContentType(item.content?.content_type ?? item.action.action_type),
             createdAt: item.content?.created_at ?? null,
             id: item.content?.content_id ?? item.action.action_id,
             message: item.content?.message ?? null,
@@ -363,6 +366,8 @@ function toCustomerRow(
     conversionRate: formatPercent(customer.conversion_rate),
     conversionRateValue: customer.conversion_rate,
     device: customer.device,
+    engagementValue:
+      customer.conversion_rate * 100 + Math.log10(Math.max(customer.expected_revenue, 1)),
     expectedRevenue: formatMoney(customer.expected_revenue),
     expectedRevenueValue: customer.expected_revenue,
     gender: customer.gender,
@@ -425,8 +430,8 @@ function sortCustomerRows(rows: CustomerRowViewModel[], sort: DashboardSort) {
         return b.conversionRateValue - a.conversionRateValue;
       case "dropoff-desc":
         return getDropOffStageRisk(b.majorDropOffStage) - getDropOffStageRisk(a.majorDropOffStage);
-      case "revenue-desc":
-        return b.expectedRevenueValue - a.expectedRevenueValue;
+      case "engagement-desc":
+        return b.engagementValue - a.engagementValue;
     }
   });
 }
@@ -440,8 +445,8 @@ function sortCustomerBehaviorRows(rows: CustomerBehaviorRowViewModel[], sort: Da
         return b.conversionRateValue - a.conversionRateValue;
       case "dropoff-desc":
         return b.majorDropOffRateValue - a.majorDropOffRateValue;
-      case "revenue-desc":
-        return b.expectedRevenueValue - a.expectedRevenueValue;
+      case "engagement-desc":
+        return b.engagementValue - a.engagementValue;
     }
   });
 }
@@ -473,4 +478,43 @@ function getDropOffStageRisk(stage: string) {
   }
 
   return 0;
+}
+
+function formatContentType(type: string) {
+  switch (type) {
+    case "copy":
+      return "summary";
+    case "image":
+      return "visual";
+    case "video":
+      return "journey";
+    case "landing":
+      return "page";
+    case "cohort":
+      return "cohort";
+    case "funnel":
+      return "funnel";
+    case "retention":
+      return "retention";
+    case "content":
+      return "content";
+    default:
+      return "insight";
+  }
+}
+
+function formatContentStatus(status: string) {
+  switch (status) {
+    case "generated":
+    case "saved":
+      return "saved";
+    case "review":
+      return "review";
+    case "draft":
+      return "draft";
+    case "queued":
+      return "queued";
+    default:
+      return status;
+  }
 }
