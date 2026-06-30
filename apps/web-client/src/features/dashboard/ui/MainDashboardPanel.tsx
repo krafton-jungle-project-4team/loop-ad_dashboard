@@ -54,8 +54,8 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">세그먼트 현황</h2>
+      <div className="flex items-center justify-between gap-4 pt-2">
+        <h2 className="text-3xl font-semibold tracking-tight text-[#1d1d1f]">세그먼트 현황</h2>
       </div>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {data.segment_status.map((group) => (
@@ -105,27 +105,35 @@ function SeriesCard({
 }) {
   const config = {
     value: {
-      color: "var(--chart-1)",
+      color: "#0066cc",
       label: summary
     }
   };
 
   return (
-    <Card className="w-full min-w-0">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{summary}</CardDescription>
+    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+      <CardHeader className="gap-1.5 px-5">
+        <CardTitle className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
+          {title}
+        </CardTitle>
+        <CardDescription className="text-sm leading-relaxed">{summary}</CardDescription>
         {badge ? (
           <CardAction>
-            <Badge variant="secondary">{badge}</Badge>
+            <Badge className="bg-[#0066cc] text-white hover:bg-[#0066cc]" variant="default">
+              {badge}
+            </Badge>
           </CardAction>
         ) : null}
       </CardHeader>
-      <CardContent className="w-full min-w-0">
+      <CardContent className="w-full min-w-0 px-5">
         {points.length > 0 ? (
           <ChartContainer className="aspect-auto h-[260px] w-full" config={config}>
             {chartType === "area" ? (
-              <AreaChart accessibilityLayer data={points} margin={{ bottom: 0, left: 0, right: 12, top: 12 }}>
+                <AreaChart
+                  accessibilityLayer
+                  data={points}
+                  margin={{ bottom: 0, left: 0, right: 12, top: 12 }}
+                >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis axisLine={false} dataKey="label" tickLine={false} />
                 <YAxis
@@ -135,16 +143,10 @@ function SeriesCard({
                   width={44}
                 />
                 <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
-                <defs>
-                  <linearGradient id="event-series-fill" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
                 <Area
                   dataKey="value"
-                  fill="url(#event-series-fill)"
-                  fillOpacity={1}
+                  fill="var(--color-value)"
+                  fillOpacity={0.08}
                   isAnimationActive={false}
                   stroke="var(--color-value)"
                   strokeWidth={2}
@@ -152,7 +154,11 @@ function SeriesCard({
                 />
               </AreaChart>
             ) : (
-              <BarChart accessibilityLayer data={points} margin={{ bottom: 0, left: 0, right: 12, top: 12 }}>
+              <BarChart
+                accessibilityLayer
+                data={points}
+                margin={{ bottom: 0, left: 0, right: 12, top: 12 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis axisLine={false} dataKey="label" tickLine={false} />
                 <YAxis

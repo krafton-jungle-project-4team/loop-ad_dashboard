@@ -22,13 +22,19 @@ export function Section({
   description?: string;
 }) {
   return (
-    <Card className="w-full min-w-0">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
+    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+      <CardHeader className="gap-1.5 px-5">
+        <CardTitle className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
+          {title}
+        </CardTitle>
+        {description ? (
+          <CardDescription className="text-sm leading-relaxed">{description}</CardDescription>
+        ) : null}
         {action ? <CardAction>{action}</CardAction> : null}
       </CardHeader>
-      <CardContent className={`w-full min-w-0 ${contentClassName ?? ""}`}>{children}</CardContent>
+      <CardContent className={`w-full min-w-0 px-5 ${contentClassName ?? ""}`}>
+        {children}
+      </CardContent>
     </Card>
   );
 }

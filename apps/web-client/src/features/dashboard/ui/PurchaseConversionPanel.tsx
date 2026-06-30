@@ -1,6 +1,13 @@
 import type { DashboardPurchaseConversion } from "@loopad/shared";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis
+} from "@loopad/ui/charts";
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { Progress } from "@loopad/ui/shadcn/progress";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
 import {
   Table,
   TableBody,
@@ -14,35 +21,20 @@ import { EmptyState } from "./EmptyState.js";
 import { Section } from "./Section.js";
 
 export function PurchaseConversionPanel({ data }: { data: DashboardPurchaseConversion }) {
-  const maxFunnelCount = Math.max(...data.funnel_steps.map((step) => step.count), 1);
+  const funnelChartData = data.funnel_steps.map((step, index) => ({
+    count: step.count,
+    label: `${index + 1}. ${step.label}`
+  }));
 
   return (
     <div className="grid gap-6">
       <Section
         action={<Badge variant="outline">{data.funnel_steps.length}단계</Badge>}
-        contentClassName="grid gap-4 md:grid-cols-5"
+        contentClassName="grid gap-4"
         title="개방형 유입경로"
       >
         {data.funnel_steps.length > 0 ? (
-          data.funnel_steps.map((step, index) => (
-            <div className="grid gap-3 rounded-lg border p-4" key={step.key}>
-              <div className="flex items-center justify-between gap-3">
-                <Badge variant="secondary">단계 {index + 1}</Badge>
-                <span className="font-medium tabular-nums">{formatPercent(step.rate_from_previous)}</span>
-              </div>
-              <div className="grid gap-1">
-                <h3 className="font-medium">{step.label}</h3>
-                <span className="text-sm text-muted-foreground tabular-nums">
-                  {formatInteger(step.count)}
-                </span>
-              </div>
-              <Progress value={(step.count / maxFunnelCount) * 100} />
-              <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-                <span>이탈률</span>
-                <span className="tabular-nums text-foreground">{formatPercent(step.drop_off_rate)}</span>
-              </div>
-            </div>
-          ))
+          <SimpleFunnelBarChart data={funnelChartData} />
         ) : (
           <EmptyState message="유입경로 데이터가 없습니다." />
         )}
@@ -121,5 +113,39 @@ export function PurchaseConversionPanel({ data }: { data: DashboardPurchaseConve
         )}
       </Section>
     </div>
+  );
+}
+
+function SimpleFunnelBarChart({
+  data
+}: {
+  data: Array<{ count: number; label: string }>;
+}) {
+  const config = {
+    count: {
+      color: "#0066cc",
+      label: "이벤트 수"
+    }
+  };
+
+  return (
+    <ChartContainer className="aspect-auto h-[320px] w-full" config={config}>
+      <BarChart
+        accessibilityLayer
+        data={data}
+        margin={{ bottom: 8, left: 0, right: 12, top: 12 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis axisLine={false} dataKey="label" tickLine={false} />
+        <YAxis
+          axisLine={false}
+          tickFormatter={(value) => formatInteger(Number(value))}
+          tickLine={false}
+          width={56}
+        />
+        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={false} />
+        <Bar dataKey="count" fill="var(--color-count)" isAnimationActive={false} />
+      </BarChart>
+    </ChartContainer>
   );
 }

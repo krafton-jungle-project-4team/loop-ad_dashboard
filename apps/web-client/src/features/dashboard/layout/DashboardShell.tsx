@@ -59,8 +59,8 @@ export function DashboardShell({
         } as CSSProperties
       }
     >
-      <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader className="p-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:p-2">
+      <Sidebar className="border-r border-black/10" collapsible="icon">
+        <SidebarHeader className="p-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:p-2">
           <BrandBlock />
         </SidebarHeader>
         <SidebarContent>
@@ -76,7 +76,7 @@ export function DashboardShell({
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
           <div className="flex h-full min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1" />
             <div className="flex h-6 items-center">
@@ -86,8 +86,8 @@ export function DashboardShell({
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-auto">
-          <div className="mx-auto grid w-full max-w-[1360px] gap-6 px-4 py-6 md:px-6 lg:py-8">
+        <main className="min-w-0 flex-1 overflow-auto bg-[#f5f5f7]">
+          <div className="mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8">
             {children}
           </div>
         </main>
@@ -98,12 +98,14 @@ export function DashboardShell({
 
 function BrandBlock() {
   return (
-    <div className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+    <div className="flex w-full items-center gap-3 rounded-lg px-1 py-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#0066cc] text-white">
         <Gauge size={18} />
       </div>
       <div className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
-        <span className="truncate font-medium">loop-ad</span>
+        <span className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
+          loop-ad
+        </span>
         <span className="truncate text-xs text-muted-foreground">Dashboard</span>
       </div>
     </div>
@@ -125,7 +127,16 @@ function DashboardNavigation({
 
         return (
           <SidebarMenuItem key={item.value}>
-            <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+            <SidebarMenuButton
+              asChild
+              className={
+                isActive
+                  ? "rounded-full bg-[#0066cc] text-white hover:bg-[#0066cc] hover:text-white data-[active=true]:bg-[#0066cc] data-[active=true]:text-white"
+                  : "rounded-full text-sidebar-foreground/80"
+              }
+              isActive={isActive}
+              tooltip={item.label}
+            >
               <Link
                 params={{ projectId, tabPath: item.pathSegment }}
                 to="/dashboard/$projectId/$tabPath"
@@ -146,7 +157,7 @@ function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: Dash
     <Breadcrumb>
       <BreadcrumbList className="min-w-0 flex-nowrap text-xs">
         <BreadcrumbItem className="hidden sm:inline-flex">
-          <BreadcrumbLink asChild className="text-xs text-muted-foreground">
+          <BreadcrumbLink asChild className="text-xs text-muted-foreground hover:text-[#0066cc]">
             <Link params={{ projectId, tabPath: "main" }} to="/dashboard/$projectId/$tabPath">
               Dashboard
             </Link>
@@ -154,7 +165,7 @@ function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: Dash
         </BreadcrumbItem>
         <BreadcrumbSeparator className="hidden sm:inline-flex" />
         <BreadcrumbItem className="min-w-0">
-          <BreadcrumbPage className="truncate text-sm font-medium leading-none text-foreground">
+          <BreadcrumbPage className="truncate text-sm font-semibold leading-none tracking-tight text-[#1d1d1f]">
             {projectId} · {getDashboardTabLabel(tab)}
           </BreadcrumbPage>
         </BreadcrumbItem>
