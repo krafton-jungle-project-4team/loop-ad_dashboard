@@ -147,7 +147,6 @@ function createService(repository: FakeAdsRepository) {
 function candidate(overrides: Partial<AdServingCandidateRow> = {}): AdServingCandidateRow {
   return {
     mappingId: "mapping-1",
-    placementKey: "C1_MAIN_TOP",
     priority: 100,
     trafficWeight: 1,
     experimentId: "",

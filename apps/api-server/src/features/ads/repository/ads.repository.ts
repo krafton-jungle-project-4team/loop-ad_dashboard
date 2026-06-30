@@ -48,7 +48,6 @@ export class AdsRepository {
 function toServingCandidate(row: IListAdServingCandidatesResult): AdServingCandidateRow {
   return {
     mappingId: requiredString(row.mappingId, "mappingId"),
-    placementKey: requiredString(row.placementKey, "placementKey"),
     priority: numberValue(row.priority),
     trafficWeight: numberValue(row.trafficWeight),
     experimentId: row.experimentId ?? "",

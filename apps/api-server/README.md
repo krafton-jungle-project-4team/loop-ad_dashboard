@@ -80,7 +80,8 @@ Dashboard FE
 - 목적: 고객사/데모 프론트에서 단일 placement 광고를 조회한다.
 - 공개 범위: 인증 없는 public browser API이며 secret, JWT, API key를 요구하지 않는다.
 - CORS: `https://loop-ad.org` 및 `https://*.loop-ad.org` origin만 허용한다. 로컬 개발은 프록시로 해결하며 `localhost`와 `127.0.0.1`은 CORS 허용 목록에 넣지 않는다.
-- 조회하는 DB: Aurora Postgres contract DB의 `projects`, `latest_user_primary_segments`, `segments`, `segment_ad_mappings`, `generated_contents`, `experiments`, `experiment_variants`, `recommendation_actions`.
+- 조회하는 DB: Aurora Postgres contract DB의 `projects`, `latest_user_primary_segments`, `segments`, `active_ad_serving_rules`.
+- `active_ad_serving_rules`는 광고 응답에 필요한 `mapping_id`, `action_id`, `experiment_variant_id`, `generated_content_id`를 제공해야 한다.
 - serving 흐름: `projectId`로 project를 확인하고, 사용자의 latest primary segment가 없으면 default segment로 fallback한 뒤, `placementKey` 후보 중 최고 priority를 고르고 같은 priority에서는 `projectId:userId:placementKey` hash와 `traffic_weight`로 deterministic weighted pick을 수행한다.
 - 응답 형식: 전역 `{ requestId, data }` envelope를 유지하고 외부 JSON 필드는 camelCase를 사용한다.
 - no-fill: 오류가 아니므로 `200 OK`와 `status: "empty"`, `ad: null`, `tracking: null`을 반환한다.

@@ -29,34 +29,21 @@ LIMIT 1;
 /* Purpose: List active serving candidates for one segment and placement. */
 /* @name ListAdServingCandidates */
 SELECT
-  m.id::text AS "mappingId",
-  m.placement_key AS "placementKey",
-  m.priority,
-  m.traffic_weight::float8 AS "trafficWeight",
-  COALESCE(e.id::text, '') AS "experimentId",
-  COALESCE(ev.id::text, '') AS "variantId",
-  c.id::text AS "creativeId",
-  c.content_type AS "contentType",
-  c.title,
-  COALESCE(c.body, '') AS body,
-  COALESCE(c.cta_label, '') AS "ctaLabel",
-  COALESCE(c.image_url, '') AS "imageUrl",
-  COALESCE(c.landing_url, '') AS "landingUrl",
-  COALESCE(ra.id::text, '') AS "actionId"
-FROM segment_ad_mappings m
-LEFT JOIN experiment_variants ev
-  ON ev.id = m.experiment_variant_id
-LEFT JOIN experiments e
-  ON e.id = COALESCE(m.experiment_id, ev.experiment_id)
-JOIN generated_contents c
-  ON c.id = COALESCE(m.generated_content_id, ev.generated_content_id)
-LEFT JOIN recommendation_actions ra
-  ON ra.id = COALESCE(e.recommendation_action_id, c.recommendation_action_id)
-WHERE m.project_id = :projectDbId::bigint
-  AND m.segment_id = :segmentDbId::bigint
-  AND m.placement_key = :placementKey
-  AND m.is_active = true
-  AND now() >= m.valid_from
-  AND (m.valid_until IS NULL OR now() < m.valid_until)
-  AND c.generation_status IN ('generated', 'approved')
-ORDER BY m.priority DESC, m.id ASC;
+  mapping_id::text AS "mappingId",
+  priority,
+  traffic_weight::float8 AS "trafficWeight",
+  COALESCE(experiment_id::text, '') AS "experimentId",
+  COALESCE(experiment_variant_id::text, '') AS "variantId",
+  generated_content_id::text AS "creativeId",
+  content_type AS "contentType",
+  title,
+  COALESCE(body, '') AS body,
+  COALESCE(cta_label, '') AS "ctaLabel",
+  COALESCE(image_url, '') AS "imageUrl",
+  COALESCE(landing_url, '') AS "landingUrl",
+  COALESCE(action_id::text, '') AS "actionId"
+FROM active_ad_serving_rules
+WHERE project_id = :projectDbId::bigint
+  AND segment_id = :segmentDbId::bigint
+  AND placement_key = :placementKey
+ORDER BY priority DESC, mapping_id ASC;

@@ -9,7 +9,6 @@ export interface AdsSegmentRow {
 
 export interface AdServingCandidateRow {
   mappingId: string;
-  placementKey: string;
   priority: number;
   trafficWeight: number;
   experimentId: string;
