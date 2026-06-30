@@ -69,8 +69,8 @@ npm run dev
 직접 로드하지 않습니다.
 
 필수 앱 env 예시는 `.env.example`을 참고하세요. Web client는
-`VITE_LOOPAD_API_BASE_URL=/api`처럼 public API base URL을 build-time에
-검증합니다.
+`VITE_LOOPAD_API_BASE_URL=http://localhost:8080/api`처럼 public API base URL을
+build-time에 검증합니다.
 
 Web: `http://localhost:5173`
 API: `http://localhost:8080/api`
