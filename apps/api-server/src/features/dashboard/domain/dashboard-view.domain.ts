@@ -149,21 +149,23 @@ export const DashboardViewDomain = {
   },
   toAiAnalysis(
     customerGroups: CustomerGroupEventView[],
-    recommendationRows: RecommendationContextRow[]
+    recommendationRows: RecommendationContextRow[],
+    selectedCustomerId: string | undefined
   ): DashboardAiAnalysis {
+    const selectedGroup = selectCustomerGroup(customerGroups, selectedCustomerId);
+
     return {
       sort: "low",
       customers: customerGroups.map(toCustomerSegment),
-      selected_customer: customerGroups[0]
-        ? toCustomerDetail(customerGroups[0], recommendationRows)
-        : null
+      selected_customer: selectedGroup ? toCustomerDetail(selectedGroup, recommendationRows) : null
     };
   },
   toAiRecommendation(
     customerGroups: CustomerGroupEventView[],
-    recommendationRows: RecommendationContextRow[]
+    recommendationRows: RecommendationContextRow[],
+    selectedCustomerId: string | undefined
   ): DashboardAiRecommendation {
-    const selectedGroup = customerGroups[0];
+    const selectedGroup = selectCustomerGroup(customerGroups, selectedCustomerId);
     const selectedRows = rowsForSegment(recommendationRows, selectedGroup?.customer_group_id);
 
     return {
@@ -178,12 +180,14 @@ export const DashboardViewDomain = {
   },
   toAiGeneration(
     customerGroups: CustomerGroupEventView[],
-    recommendationRows: RecommendationContextRow[]
+    recommendationRows: RecommendationContextRow[],
+    selectedCustomerId: string | undefined
   ): DashboardAiGeneration {
-    const selectedGroup = customerGroups[0];
+    const selectedGroup = selectCustomerGroup(customerGroups, selectedCustomerId);
     const selectedRows = rowsForSegment(recommendationRows, selectedGroup?.customer_group_id);
 
     return {
+      customers: customerGroups.map(toCustomerSegment),
       selected_customer: selectedGroup ? toCustomerSegment(selectedGroup) : null,
       generated_items: toGenerationItems(selectedRows)
     };
@@ -324,6 +328,24 @@ function getCustomerGroupViews(events: AnalyzedDashboardEventView[]): CustomerGr
   }
 
   return [...groups.values()].filter((group) => group.product_view_count > 0);
+}
+
+function selectCustomerGroup(
+  customerGroups: CustomerGroupEventView[],
+  selectedCustomerId: string | undefined
+): CustomerGroupEventView | undefined {
+  const normalizedSelectedCustomerId = selectedCustomerId?.trim();
+
+  if (normalizedSelectedCustomerId) {
+    const selectedGroup = customerGroups.find(
+      (group) => group.customer_group_id === normalizedSelectedCustomerId
+    );
+    if (selectedGroup) {
+      return selectedGroup;
+    }
+  }
+
+  return customerGroups[0];
 }
 
 function sortCustomerGroupViews(

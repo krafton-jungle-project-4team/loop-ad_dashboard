@@ -32,17 +32,27 @@ export class DashboardQueryService {
     );
   }
 
-  async aiAnalysis(projectId: string): Promise<DashboardAiAnalysis> {
+  async aiAnalysis(
+    projectId: string,
+    selectedCustomerId: string | undefined
+  ): Promise<DashboardAiAnalysis> {
     const [eventViews, recommendationRows] = await Promise.all([
       this.eventQuery.queryEventViews(projectId),
       this.recommendationReader.readRecommendationContexts(projectId)
     ]);
     const eventAnalysis = DashboardViewDomain.analyzeEventViews(eventViews);
 
-    return DashboardViewDomain.toAiAnalysis(eventAnalysis.customerGroupsLow, recommendationRows);
+    return DashboardViewDomain.toAiAnalysis(
+      eventAnalysis.customerGroupsLow,
+      recommendationRows,
+      selectedCustomerId
+    );
   }
 
-  async aiRecommendation(projectId: string): Promise<DashboardAiRecommendation> {
+  async aiRecommendation(
+    projectId: string,
+    selectedCustomerId: string | undefined
+  ): Promise<DashboardAiRecommendation> {
     const [eventViews, recommendationRows] = await Promise.all([
       this.eventQuery.queryEventViews(projectId),
       this.recommendationReader.readRecommendationContexts(projectId)
@@ -51,18 +61,26 @@ export class DashboardQueryService {
 
     return DashboardViewDomain.toAiRecommendation(
       eventAnalysis.customerGroupsHigh,
-      recommendationRows
+      recommendationRows,
+      selectedCustomerId
     );
   }
 
-  async aiGeneration(projectId: string): Promise<DashboardAiGeneration> {
+  async aiGeneration(
+    projectId: string,
+    selectedCustomerId: string | undefined
+  ): Promise<DashboardAiGeneration> {
     const [eventViews, recommendationRows] = await Promise.all([
       this.eventQuery.queryEventViews(projectId),
       this.recommendationReader.readRecommendationContexts(projectId)
     ]);
     const eventAnalysis = DashboardViewDomain.analyzeEventViews(eventViews);
 
-    return DashboardViewDomain.toAiGeneration(eventAnalysis.customerGroupsHigh, recommendationRows);
+    return DashboardViewDomain.toAiGeneration(
+      eventAnalysis.customerGroupsHigh,
+      recommendationRows,
+      selectedCustomerId
+    );
   }
 
   private async queryEventAnalysis(projectId: string) {

@@ -164,6 +164,7 @@ export const DashboardGenerationItemSchema = z.object({
 export type DashboardGenerationItem = z.infer<typeof DashboardGenerationItemSchema>;
 
 export const DashboardAiGenerationSchema = z.object({
+  customers: z.array(DashboardCustomerSegmentSchema),
   selected_customer: DashboardCustomerSegmentSchema.nullable(),
   generated_items: z.array(DashboardGenerationItemSchema)
 });

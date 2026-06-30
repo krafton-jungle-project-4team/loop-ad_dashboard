@@ -31,24 +31,35 @@ export class DashboardController {
   }
 
   @Get("dashboard/ai-analysis")
-  async aiAnalysis(@Query("projectId") projectId?: string) {
+  async aiAnalysis(
+    @Query("projectId") projectId?: string,
+    @Query("selectedCustomerId") selectedCustomerId?: string
+  ) {
     const requiredProjectId = requireProjectId(projectId);
-    return DashboardAiAnalysisSchema.parse(await this.dashboardQuery.aiAnalysis(requiredProjectId));
+    return DashboardAiAnalysisSchema.parse(
+      await this.dashboardQuery.aiAnalysis(requiredProjectId, selectedCustomerId)
+    );
   }
 
   @Get("dashboard/ai-recommendation")
-  async aiRecommendation(@Query("projectId") projectId?: string) {
+  async aiRecommendation(
+    @Query("projectId") projectId?: string,
+    @Query("selectedCustomerId") selectedCustomerId?: string
+  ) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardAiRecommendationSchema.parse(
-      await this.dashboardQuery.aiRecommendation(requiredProjectId)
+      await this.dashboardQuery.aiRecommendation(requiredProjectId, selectedCustomerId)
     );
   }
 
   @Get("dashboard/ai-generation")
-  async aiGeneration(@Query("projectId") projectId?: string) {
+  async aiGeneration(
+    @Query("projectId") projectId?: string,
+    @Query("selectedCustomerId") selectedCustomerId?: string
+  ) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardAiGenerationSchema.parse(
-      await this.dashboardQuery.aiGeneration(requiredProjectId)
+      await this.dashboardQuery.aiGeneration(requiredProjectId, selectedCustomerId)
     );
   }
 }

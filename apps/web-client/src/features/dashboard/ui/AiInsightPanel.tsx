@@ -14,17 +14,25 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
+import type { KeyboardEvent } from "react";
 import { formatMoney, formatPercent } from "../model/dashboard-format.js";
 import { EmptyState } from "./EmptyState.js";
 import { Section } from "./Section.js";
 
 export function AiInsightPanel({
   data,
-  mode
+  mode,
+  onSelectedCustomerIdChange,
+  selectedCustomerId
 }: {
   data: DashboardAiAnalysis | DashboardAiRecommendation;
   mode: "analysis" | "recommendation";
+  onSelectedCustomerIdChange: (selectedCustomerId: string) => void;
+  selectedCustomerId: string;
 }) {
+  const activeCustomerId =
+    data.selected_customer?.customer_group.customer_group_id ?? selectedCustomerId;
+
   return (
     <div className="grid gap-6">
       <Section title={`전환율 ${mode === "analysis" ? "하위" : "상위"} 고객군`}>
@@ -44,8 +52,24 @@ export function AiInsightPanel({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.customers.map((customer, index) => (
-                <TableRow data-state={index === 0 ? "selected" : undefined} key={customer.customer_group_id}>
+              {data.customers.map((customer) => (
+                <TableRow
+                  className="cursor-pointer"
+                  data-state={
+                    customer.customer_group_id === activeCustomerId ? "selected" : undefined
+                  }
+                  key={customer.customer_group_id}
+                  onClick={() => onSelectedCustomerIdChange(customer.customer_group_id)}
+                  onKeyDown={(event) =>
+                    handleCustomerRowKeyDown(
+                      event,
+                      customer.customer_group_id,
+                      onSelectedCustomerIdChange
+                    )
+                  }
+                  role="button"
+                  tabIndex={0}
+                >
                   <TableCell className="font-medium">{customer.customer_group_name}</TableCell>
                   <TableCell>{customer.channel}</TableCell>
                   <TableCell>{customer.age_group}</TableCell>
@@ -68,7 +92,9 @@ export function AiInsightPanel({
         )}
       </Section>
 
-      {data.selected_customer ? <CustomerDetail detail={data.selected_customer} /> : null}
+      {mode === "analysis" && data.selected_customer ? (
+        <CustomerDetail detail={data.selected_customer} />
+      ) : null}
 
       {mode === "recommendation" && "recommended_actions" in data ? (
         <div className="grid gap-6 lg:grid-cols-2">
@@ -123,6 +149,19 @@ export function AiInsightPanel({
       ) : null}
     </div>
   );
+}
+
+function handleCustomerRowKeyDown(
+  event: KeyboardEvent<HTMLTableRowElement>,
+  customerGroupId: string,
+  onSelectedCustomerIdChange: (selectedCustomerId: string) => void
+) {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  onSelectedCustomerIdChange(customerGroupId);
 }
 
 function CustomerDetail({ detail }: { detail: DashboardCustomerDetail }) {
