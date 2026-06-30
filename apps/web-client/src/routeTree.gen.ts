@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
-import { Route as DashboardTabPathRouteImport } from './routes/dashboard.$tabPath'
+import { Route as DashboardProjectIdRouteImport } from './routes/dashboard.$projectId'
+import { Route as DashboardProjectIdIndexRouteImport } from './routes/dashboard.$projectId.index'
+import { Route as DashboardProjectIdTabPathRouteImport } from './routes/dashboard.$projectId.$tabPath'
 
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
@@ -29,36 +31,69 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardTabPathRoute = DashboardTabPathRouteImport.update({
-  id: '/$tabPath',
-  path: '/$tabPath',
+const DashboardProjectIdRoute = DashboardProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardProjectIdIndexRoute = DashboardProjectIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardProjectIdRoute,
+} as any)
+const DashboardProjectIdTabPathRoute =
+  DashboardProjectIdTabPathRouteImport.update({
+    id: '/$tabPath',
+    path: '/$tabPath',
+    getParentRoute: () => DashboardProjectIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
-  '/dashboard/$tabPath': typeof DashboardTabPathRoute
+  '/dashboard/$projectId': typeof DashboardProjectIdRouteWithChildren
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/$projectId/$tabPath': typeof DashboardProjectIdTabPathRoute
+  '/dashboard/$projectId/': typeof DashboardProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard/$tabPath': typeof DashboardTabPathRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/$projectId/$tabPath': typeof DashboardProjectIdTabPathRoute
+  '/dashboard/$projectId': typeof DashboardProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
-  '/dashboard/$tabPath': typeof DashboardTabPathRoute
+  '/dashboard/$projectId': typeof DashboardProjectIdRouteWithChildren
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/$projectId/$tabPath': typeof DashboardProjectIdTabPathRoute
+  '/dashboard/$projectId/': typeof DashboardProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/dashboard/$tabPath' | '/dashboard/'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/dashboard/$projectId'
+    | '/dashboard/'
+    | '/dashboard/$projectId/$tabPath'
+    | '/dashboard/$projectId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard/$tabPath' | '/dashboard'
-  id: '__root__' | '/' | '/dashboard' | '/dashboard/$tabPath' | '/dashboard/'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/dashboard/$projectId/$tabPath'
+    | '/dashboard/$projectId'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/dashboard/$projectId'
+    | '/dashboard/'
+    | '/dashboard/$projectId/$tabPath'
+    | '/dashboard/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -89,23 +124,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/$tabPath': {
-      id: '/dashboard/$tabPath'
-      path: '/$tabPath'
-      fullPath: '/dashboard/$tabPath'
-      preLoaderRoute: typeof DashboardTabPathRouteImport
+    '/dashboard/$projectId': {
+      id: '/dashboard/$projectId'
+      path: '/$projectId'
+      fullPath: '/dashboard/$projectId'
+      preLoaderRoute: typeof DashboardProjectIdRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/$projectId/': {
+      id: '/dashboard/$projectId/'
+      path: '/'
+      fullPath: '/dashboard/$projectId/'
+      preLoaderRoute: typeof DashboardProjectIdIndexRouteImport
+      parentRoute: typeof DashboardProjectIdRoute
+    }
+    '/dashboard/$projectId/$tabPath': {
+      id: '/dashboard/$projectId/$tabPath'
+      path: '/$tabPath'
+      fullPath: '/dashboard/$projectId/$tabPath'
+      preLoaderRoute: typeof DashboardProjectIdTabPathRouteImport
+      parentRoute: typeof DashboardProjectIdRoute
     }
   }
 }
 
+interface DashboardProjectIdRouteChildren {
+  DashboardProjectIdTabPathRoute: typeof DashboardProjectIdTabPathRoute
+  DashboardProjectIdIndexRoute: typeof DashboardProjectIdIndexRoute
+}
+
+const DashboardProjectIdRouteChildren: DashboardProjectIdRouteChildren = {
+  DashboardProjectIdTabPathRoute: DashboardProjectIdTabPathRoute,
+  DashboardProjectIdIndexRoute: DashboardProjectIdIndexRoute,
+}
+
+const DashboardProjectIdRouteWithChildren =
+  DashboardProjectIdRoute._addFileChildren(DashboardProjectIdRouteChildren)
+
 interface DashboardRouteChildren {
-  DashboardTabPathRoute: typeof DashboardTabPathRoute
+  DashboardProjectIdRoute: typeof DashboardProjectIdRouteWithChildren
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
-  DashboardTabPathRoute: DashboardTabPathRoute,
+  DashboardProjectIdRoute: DashboardProjectIdRouteWithChildren,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

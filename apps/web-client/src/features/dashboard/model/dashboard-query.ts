@@ -1,4 +1,10 @@
-import { parseAsBoolean, parseAsString, parseAsStringLiteral, throttle, useQueryStates } from "nuqs";
+import {
+  parseAsBoolean,
+  parseAsString,
+  parseAsStringLiteral,
+  throttle,
+  useQueryStates
+} from "nuqs";
 import type {
   DashboardConversionEvent,
   DashboardDateRange,
@@ -36,35 +42,44 @@ export const dashboardConversionEventOptions = [
   { label: "문의", value: "contact" }
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardConversionEvent }>;
 
-export const defaultDashboardQuery: DashboardQuery = {
+export const defaultDashboardProjectId = "food-black-friday-2026";
+
+export type DashboardSearchQuery = Omit<DashboardQuery, "projectId">;
+
+export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   conversionEvent: "purchase-complete",
   dateRange: "last-7-days",
   excludeBotTraffic: true,
   excludeInternalTraffic: true,
   filter: "",
-  projectId: "",
   selectedCustomerId: "cg-low-mobile",
   sort: "conversion-asc",
   userScope: "all"
 };
 
+export const defaultDashboardQuery: DashboardQuery = {
+  projectId: defaultDashboardProjectId,
+  ...defaultDashboardSearchQuery
+};
+
 export const dashboardQueryParsers = {
-  conversionEvent: parseAsStringLiteral(dashboardConversionEventOptions.map((item) => item.value)).withDefault(
-    defaultDashboardQuery.conversionEvent
-  ),
+  conversionEvent: parseAsStringLiteral(
+    dashboardConversionEventOptions.map((item) => item.value)
+  ).withDefault(defaultDashboardSearchQuery.conversionEvent),
   dateRange: parseAsStringLiteral(dashboardDateRangeOptions.map((item) => item.value)).withDefault(
-    defaultDashboardQuery.dateRange
+    defaultDashboardSearchQuery.dateRange
   ),
-  excludeBotTraffic: parseAsBoolean.withDefault(defaultDashboardQuery.excludeBotTraffic),
-  excludeInternalTraffic: parseAsBoolean.withDefault(defaultDashboardQuery.excludeInternalTraffic),
-  filter: parseAsString.withDefault(defaultDashboardQuery.filter),
-  projectId: parseAsString.withDefault(defaultDashboardQuery.projectId),
-  selectedCustomerId: parseAsString.withDefault(defaultDashboardQuery.selectedCustomerId),
+  excludeBotTraffic: parseAsBoolean.withDefault(defaultDashboardSearchQuery.excludeBotTraffic),
+  excludeInternalTraffic: parseAsBoolean.withDefault(
+    defaultDashboardSearchQuery.excludeInternalTraffic
+  ),
+  filter: parseAsString.withDefault(defaultDashboardSearchQuery.filter),
+  selectedCustomerId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCustomerId),
   sort: parseAsStringLiteral(dashboardSortOptions.map((item) => item.value)).withDefault(
-    defaultDashboardQuery.sort
+    defaultDashboardSearchQuery.sort
   ),
   userScope: parseAsStringLiteral(dashboardUserScopeOptions.map((item) => item.value)).withDefault(
-    defaultDashboardQuery.userScope
+    defaultDashboardSearchQuery.userScope
   )
 };
 
@@ -77,11 +92,14 @@ export function useDashboardQueryState() {
   });
 }
 
-export function normalizeDashboardQuery(query: DashboardQuery): DashboardQuery {
+export function normalizeDashboardQuery(
+  query: DashboardSearchQuery,
+  projectId: string
+): DashboardQuery {
   return {
     ...query,
     filter: query.filter.trim(),
-    projectId: query.projectId.trim(),
+    projectId: projectId.trim(),
     selectedCustomerId: query.selectedCustomerId.trim()
   };
 }
