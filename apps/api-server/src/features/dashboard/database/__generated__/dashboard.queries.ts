@@ -27,6 +27,99 @@ function scalarParam(statement: string, name: string, required = false): QueryPa
   };
 }
 
+export interface IListSegmentDailyMetricRowsParams {
+  analysisDate: string | null;
+  projectId: string;
+}
+
+export interface IListSegmentDailyMetricRowsResult {
+  ad_click_count: number | string | null;
+  ad_impression_count: number | string | null;
+  add_to_cart_count: number | string | null;
+  analysis_date: Date;
+  cart_to_checkout_rate: number | string | null;
+  checkout_start_count: number | string | null;
+  checkout_to_purchase_rate: number | string | null;
+  ctr: number | string | null;
+  cvr: number | string | null;
+  metric_json: Record<string, unknown>;
+  page_view_count: number | string | null;
+  product_view_count: number | string | null;
+  purchase_count: number | string | null;
+  revenue: number | string | null;
+  rule_json: Record<string, unknown>;
+  segment_id: string;
+  segment_key: string;
+  segment_name: string | null;
+  session_count: number | string | null;
+  user_count: number | string | null;
+  view_to_cart_rate: number | string | null;
+  view_to_purchase_rate: number | string | null;
+}
+
+const listSegmentDailyMetricRowsStatement = `
+WITH latest_metric_date AS (
+  SELECT MAX(m.analysis_date) AS analysis_date
+  FROM segment_daily_metrics m
+  JOIN projects p
+    ON p.id = m.project_id
+  WHERE p.project_key = :projectId
+),
+selected_metric_date AS (
+  SELECT COALESCE(:analysisDate::date, analysis_date) AS analysis_date
+  FROM latest_metric_date
+)
+SELECT
+  s.id::text AS segment_id,
+  s.segment_key,
+  s.name AS segment_name,
+  s.rule_json,
+  m.analysis_date,
+  m.user_count,
+  m.session_count,
+  m.page_view_count,
+  m.product_view_count,
+  m.add_to_cart_count,
+  m.checkout_start_count,
+  m.purchase_count,
+  m.ad_impression_count,
+  m.ad_click_count,
+  m.revenue,
+  m.view_to_cart_rate,
+  m.cart_to_checkout_rate,
+  m.checkout_to_purchase_rate,
+  m.view_to_purchase_rate,
+  m.ctr,
+  m.cvr,
+  m.metric_json
+FROM segment_daily_metrics m
+JOIN segments s
+  ON s.id = m.segment_id
+JOIN projects p
+  ON p.id = m.project_id
+WHERE p.project_key = :projectId
+  AND m.analysis_date = (SELECT analysis_date FROM selected_metric_date)
+  AND s.is_default = false
+ORDER BY
+  COALESCE(m.view_to_purchase_rate, 0) DESC,
+  m.product_view_count DESC,
+  m.user_count DESC
+`;
+
+const listSegmentDailyMetricRowsIR = {
+  usedParamSet: { analysisDate: true, projectId: true },
+  params: [
+    scalarParam(listSegmentDailyMetricRowsStatement, "projectId", true),
+    scalarParam(listSegmentDailyMetricRowsStatement, "analysisDate")
+  ],
+  statement: listSegmentDailyMetricRowsStatement
+} as unknown as SQLQueryIR;
+
+export const listSegmentDailyMetricRows = new PreparedQuery<
+  IListSegmentDailyMetricRowsParams,
+  IListSegmentDailyMetricRowsResult
+>(listSegmentDailyMetricRowsIR);
+
 export interface IListRecommendationRowsParams {
   projectId: string;
   recommendationResultId: string | null;
@@ -288,38 +381,30 @@ export interface IListExperimentActionProbabilitiesResult {
   actionId: string;
   actionName: string;
   clicks: number | string;
+  conversionRate: number | string | null;
+  ctr: number | string | null;
   impressions: number | string;
   probability: number | string;
   purchases: number | string;
+  status: string;
   updatedAt: Date;
 }
 
 const listExperimentActionProbabilitiesStatement = `
-WITH arm_scores AS (
-  SELECT
-    ev.variant_key AS "actionId",
-    ev.name AS "actionName",
-    ev.alpha / NULLIF(ev.alpha + ev.beta, 0) AS score,
-    ev.impression_count AS impressions,
-    ev.click_count AS clicks,
-    ev.conversion_count AS purchases,
-    ev.updated_at AS "updatedAt"
-  FROM experiment_variants ev
-  WHERE ev.experiment_id::text = :banditPolicyId
-    AND ev.status = 'active'
-)
 SELECT
-  "actionId",
-  "actionName",
-  CASE
-    WHEN SUM(score) OVER () > 0 THEN score / SUM(score) OVER ()
-    ELSE 0
-  END AS probability,
-  impressions,
-  clicks,
-  purchases,
-  "updatedAt"
-FROM arm_scores
+  ev.variant_key AS "actionId",
+  ev.name AS "actionName",
+  COALESCE(ev.traffic_weight, 0)::float8 AS probability,
+  ev.impression_count AS impressions,
+  ev.click_count AS clicks,
+  ev.conversion_count AS purchases,
+  ev.ctr::float8 AS ctr,
+  ev.conversion_rate::float8 AS "conversionRate",
+  ev.status,
+  ev.updated_at AS "updatedAt"
+FROM experiment_variants ev
+WHERE ev.experiment_id::text = :banditPolicyId
+  AND ev.status IN ('active', 'paused', 'winner', 'loser')
 ORDER BY probability DESC, "actionId" ASC
 `;
 
