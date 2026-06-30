@@ -31,7 +31,7 @@ src
 - Clean React: 프론트 변경은 화면별 응답 렌더링에 집중하고 불필요한 상태와 mutation 흐름을 만들지 않는다.
 - Apple Design Guidelines: Action Blue, 조용한 카드 표면, 큰 지표 타이포그래피를 대시보드 밀도에 맞게 적용한다.
 - Env validation: 서버 시작 시 필수 외부 DB 연결 정보를 즉시 검증한다.
-- 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer 계층만 ClickHouse/Postgres를 조회한다.
+- 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer/view query 계층만 ClickHouse/Postgres를 조회한다.
 
 ## 개발 규칙
 
@@ -39,8 +39,8 @@ src
 - Dashboard API는 GET 조회 전용이다.
 - Controller는 요청/응답 경계를 담당한다.
 - Service는 화면 단위 use case 조율과 계산 책임을 가진다.
-- DB 접근 class는 읽기 `XxxReader`, 쓰기 `XxxWriter`, 성능 특화 조회 `XxxViewQuery` 이름을 사용한다.
-- Repository 폴더의 reader/writer는 ClickHouse/Postgres 조회를 담당하고, DB row를 그대로 service 밖으로 노출하지 않는다.
+- DB 접근 class는 Postgres 읽기 `XxxReader`, Postgres 쓰기 `XxxWriter`, ClickHouse 조회 `XxxViewQuery` 이름을 사용한다.
+- Repository 폴더의 reader/writer/view query는 ClickHouse/Postgres 조회를 담당하고, DB row를 그대로 service 밖으로 노출하지 않는다.
 - 도메인 동작과 응답 조립은 class 대신 snapshot type과 `XxxDomain` 순수 함수로 둔다.
 - 프론트는 DB에 직접 접근하지 않는다.
 - 프론트는 백엔드 API 응답을 받아 Mantine UI로 렌더링한다.
