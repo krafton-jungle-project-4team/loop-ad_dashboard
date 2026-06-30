@@ -43,6 +43,7 @@ const DASHBOARD_BEHAVIOR_EVENT_NAMES = new Set([
   "ad_impression",
   "ad_click"
 ]);
+const SEVERITY_ONLY_VALUES = new Set(["low", "medium", "high", "critical"]);
 
 export type DashboardMainSnapshot = {
   counts: MainMetricCountsView;
@@ -549,7 +550,7 @@ function toCustomerDetail(
 ): DashboardCustomerDetail {
   const matchingRows = rowsForSegment(recommendationRows, row.customer_group_id);
   const rootCauses = matchingRows.flatMap((item) => jsonTextList(item.root_causes_json));
-  const anomalyReasons = matchingRows.flatMap((item) => jsonTextList(item.anomaly_json));
+  const anomalyHypotheses = uniqueAnomalyHypotheses(matchingRows);
   const expectedRate = expectedConversionRate(matchingRows, row);
   const actualRate = customerConversionRate(row);
 
@@ -574,12 +575,7 @@ function toCustomerDetail(
         share: rate(row.product_view_count, row.session_start_count)
       }
     ],
-    rationale:
-      anomalyReasons.length > 0
-        ? anomalyReasons
-        : matchingRows
-            .map((item) => item.summary_message)
-            .filter((message): message is string => Boolean(message)),
+    rationale: anomalyHypotheses,
     stage_flow: toStageFlow(row)
   };
 }
@@ -735,9 +731,42 @@ function jsonTextList(value: Record<string, unknown>): string[] {
     .filter((item): item is string => typeof item === "string" && item.length > 0);
 }
 
+function uniqueAnomalyHypotheses(rows: RecommendationContextRow[]): string[] {
+  const seen = new Set<string>();
+  const hypotheses: string[] = [];
+
+  for (const row of rows) {
+    const hypothesis = textFromJson(row.anomaly_json, "hypothesis");
+
+    if (!hypothesis || isSeverityOnly(hypothesis) || seen.has(hypothesis)) {
+      continue;
+    }
+
+    seen.add(hypothesis);
+    hypotheses.push(hypothesis);
+  }
+
+  return hypotheses;
+}
+
+function textFromJson(value: Record<string, unknown>, key: string): string | null {
+  const rawValue = value[key];
+
+  if (typeof rawValue !== "string") {
+    return null;
+  }
+
+  const trimmed = rawValue.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function numberFromJson(value: Record<string, unknown>, key: string): number | null {
   const rawValue = value[key];
   return typeof rawValue === "number" ? rawValue : null;
+}
+
+function isSeverityOnly(value: string) {
+  return SEVERITY_ONLY_VALUES.has(value.trim().toLowerCase());
 }
 
 function rate(numerator: number, denominator: number) {

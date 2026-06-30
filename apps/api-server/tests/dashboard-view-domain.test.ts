@@ -138,6 +138,90 @@ test("matches recommendation and generated content rows by segment key", () => {
   assert.equal(generation.generated_items[0]?.content?.content_id, "creative-vip");
 });
 
+test("uses anomaly hypothesis as customer rationale without severity strings", () => {
+  const customerGroups = DashboardViewDomain.toAiCustomerGroups([
+    segmentMetric({ customer_group_id: "vip", customer_group_name: "VIP 고객군" })
+  ]);
+  const response = DashboardViewDomain.toAiAnalysis(
+    customerGroups,
+    [
+      recommendationContext({
+        segment_key: "vip",
+        anomaly_json: {
+          severity: "low",
+          hypothesis: "실제 구매 전환율이 목표 전환율보다 낮습니다."
+        },
+        root_causes_json: {
+          title: "상품 조회 후 장바구니 전환 낮음",
+          description: "product_view_to_add_to_cart 구간의 전환율이 가장 낮습니다."
+        },
+        summary_message: "추천 요약 문장"
+      })
+    ],
+    "vip"
+  );
+
+  assert.deepEqual(response.selected_customer?.rationale, [
+    "실제 구매 전환율이 목표 전환율보다 낮습니다."
+  ]);
+  assert.deepEqual(response.selected_customer?.case_analysis, [
+    "상품 조회 후 장바구니 전환 낮음",
+    "product_view_to_add_to_cart 구간의 전환율이 가장 낮습니다."
+  ]);
+});
+
+test("keeps customer rationale empty when anomaly only has severity or summary", () => {
+  const customerGroups = DashboardViewDomain.toAiCustomerGroups([
+    segmentMetric({ customer_group_id: "vip", customer_group_name: "VIP 고객군" })
+  ]);
+  const response = DashboardViewDomain.toAiAnalysis(
+    customerGroups,
+    [
+      recommendationContext({
+        segment_key: "vip",
+        anomaly_json: {
+          severity: "low",
+          hypothesis: null
+        },
+        summary_message: "추천 요약 문장"
+      })
+    ],
+    "vip"
+  );
+
+  assert.deepEqual(response.selected_customer?.rationale, []);
+});
+
+test("dedupes repeated anomaly hypotheses in customer rationale", () => {
+  const customerGroups = DashboardViewDomain.toAiCustomerGroups([
+    segmentMetric({ customer_group_id: "vip", customer_group_name: "VIP 고객군" })
+  ]);
+  const response = DashboardViewDomain.toAiAnalysis(
+    customerGroups,
+    [
+      recommendationContext({
+        segment_key: "vip",
+        anomaly_json: {
+          severity: "low",
+          hypothesis: " 실제 구매 전환율이 목표 전환율보다 낮습니다. "
+        }
+      }),
+      recommendationContext({
+        segment_key: "vip",
+        anomaly_json: {
+          severity: "medium",
+          hypothesis: "실제 구매 전환율이 목표 전환율보다 낮습니다."
+        }
+      })
+    ],
+    "vip"
+  );
+
+  assert.deepEqual(response.selected_customer?.rationale, [
+    "실제 구매 전환율이 목표 전환율보다 낮습니다."
+  ]);
+});
+
 function event(overrides: Partial<DashboardEventView> = {}): DashboardEventView {
   return {
     event_name: "page_view",
