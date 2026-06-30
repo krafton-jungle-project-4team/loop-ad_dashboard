@@ -3,9 +3,9 @@ import { Link, Navigate, useParams } from "@tanstack/react-router";
 import { CalendarDays, Gauge, RefreshCw } from "lucide-react";
 import { DevProfiler } from "../../app/DevProfiler.js";
 import {
-  Badge,
   Card,
   GhostButton,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -15,7 +15,9 @@ import {
 } from "../../components/ui/primitives.js";
 import { cn } from "../../lib/utils.js";
 import {
+  dashboardConversionEventOptions,
   dashboardDateRangeOptions,
+  dashboardUserScopeOptions,
   defaultDashboardQuery,
   normalizeDashboardQuery,
   useDashboardQueryState
@@ -25,7 +27,12 @@ import {
   dashboardTitles,
   getDashboardTabByPath
 } from "../../features/dashboard/model/dashboard-navigation.js";
-import type { DashboardTab } from "../../features/dashboard/model/dashboard-types.js";
+import type {
+  DashboardConversionEvent,
+  DashboardQuery,
+  DashboardTab,
+  DashboardUserScope
+} from "../../features/dashboard/model/dashboard-types.js";
 import { useDashboardResources } from "../../features/dashboard/model/use-dashboard-resources.js";
 import { LoadingState } from "../../features/dashboard/ui/LoadingState.js";
 import { renderDashboardPanel } from "../../features/dashboard/ui/render-dashboard-panel.js";
@@ -41,13 +48,6 @@ const comparisonSegments = [
 ] as const;
 
 const breakdownOptions = ["채널", "기기", "지역", "카테고리", "연령", "성별", "이벤트", "페이지"] as const;
-
-const globalFilterChips = [
-  "내부 트래픽 제외",
-  "봇 트래픽 제외",
-  "활성 사용자",
-  "전환 이벤트 포함"
-] as const;
 
 export function DashboardPage() {
   const params = useParams({ strict: false }) as { tabPath?: string };
@@ -123,7 +123,17 @@ export function DashboardPage() {
                   }
                 />
 
-                <AnalysisControls breakdownBy={breakdownBy} onBreakdownChange={setBreakdownBy} />
+                <AnalysisControls
+                  breakdownBy={breakdownBy}
+                  criteria={{
+                    conversionEvent: query.conversionEvent,
+                    excludeBotTraffic: query.excludeBotTraffic,
+                    excludeInternalTraffic: query.excludeInternalTraffic,
+                    userScope: query.userScope
+                  }}
+                  onBreakdownChange={setBreakdownBy}
+                  onCriteriaChange={(criteria) => void setQueryState(criteria)}
+                />
               </div>
             </header>
 
@@ -259,13 +269,24 @@ function ComparisonControls({
 
 function AnalysisControls({
   breakdownBy,
-  onBreakdownChange
+  criteria,
+  onBreakdownChange,
+  onCriteriaChange
 }: {
   breakdownBy: (typeof breakdownOptions)[number];
+  criteria: Pick<
+    DashboardQuery,
+    "conversionEvent" | "excludeBotTraffic" | "excludeInternalTraffic" | "userScope"
+  >;
   onBreakdownChange: (value: (typeof breakdownOptions)[number]) => void;
+  onCriteriaChange: (
+    criteria: Partial<
+      Pick<DashboardQuery, "conversionEvent" | "excludeBotTraffic" | "excludeInternalTraffic" | "userScope">
+    >
+  ) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex flex-col gap-3 border-t border-slate-100 pt-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-xs font-semibold text-slate-500">기준별 보기</span>
         {breakdownOptions.map((option) => (
@@ -286,13 +307,117 @@ function AnalysisControls({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {globalFilterChips.map((chip, index) => (
-          <Badge key={chip} tone={index === 0 ? "sky" : "slate"}>
-            {chip}
-          </Badge>
-        ))}
-      </div>
+      <section
+        aria-label="데이터 기준"
+        className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white px-3 py-3 xl:flex-row xl:items-center xl:justify-between"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-semibold text-slate-500">데이터 기준</span>
+          <CriteriaToggle
+            checked={criteria.excludeInternalTraffic}
+            id="exclude-internal-traffic"
+            label="내부 트래픽 제외"
+            onCheckedChange={(excludeInternalTraffic) => onCriteriaChange({ excludeInternalTraffic })}
+          />
+          <CriteriaToggle
+            checked={criteria.excludeBotTraffic}
+            id="exclude-bot-traffic"
+            label="봇 트래픽 제외"
+            onCheckedChange={(excludeBotTraffic) => onCriteriaChange({ excludeBotTraffic })}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <CriteriaSelect
+            label="사용자 범위"
+            onValueChange={(userScope) => onCriteriaChange({ userScope })}
+            options={dashboardUserScopeOptions}
+            value={criteria.userScope}
+          />
+          <CriteriaSelect
+            label="전환 이벤트"
+            onValueChange={(conversionEvent) => onCriteriaChange({ conversionEvent })}
+            options={dashboardConversionEventOptions}
+            value={criteria.conversionEvent}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CriteriaToggle({
+  checked,
+  id,
+  label,
+  onCheckedChange
+}: {
+  checked: boolean;
+  id: string;
+  label: string;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      className={cn(
+        "inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border px-2.5 text-xs font-semibold transition",
+        checked
+          ? "border-sky-200 bg-sky-50 text-sky-800"
+          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+      )}
+      htmlFor={id}
+    >
+      <input
+        checked={checked}
+        className="peer sr-only"
+        id={id}
+        onChange={(event) => onCheckedChange(event.currentTarget.checked)}
+        type="checkbox"
+      />
+      <span
+        className={cn(
+          "relative h-4 w-7 rounded-full transition",
+          checked ? "bg-sky-600" : "bg-slate-300"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition",
+            checked ? "left-3.5" : "left-0.5"
+          )}
+        />
+      </span>
+      {label}
+    </label>
+  );
+}
+
+function CriteriaSelect<TValue extends DashboardUserScope | DashboardConversionEvent>({
+  label,
+  onValueChange,
+  options,
+  value
+}: {
+  label: string;
+  onValueChange: (value: TValue) => void;
+  options: ReadonlyArray<{ label: string; value: TValue }>;
+  value: TValue;
+}) {
+  return (
+    <div className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 pl-2.5">
+      <Label className="shrink-0">{label}</Label>
+      <Select onValueChange={(nextValue) => onValueChange(nextValue as TValue)} value={value}>
+        <SelectTrigger aria-label={label} className="h-9 min-w-32 border-0 bg-white shadow-none">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

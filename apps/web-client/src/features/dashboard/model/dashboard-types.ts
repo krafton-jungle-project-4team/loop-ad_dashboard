@@ -24,6 +24,14 @@ export type DashboardSort =
   | "engagement-desc"
   | "dropoff-desc";
 
+export type DashboardUserScope = "all" | "active" | "new" | "returning" | "at-risk";
+
+export type DashboardConversionEvent =
+  | "purchase-complete"
+  | "sign-up"
+  | "add-to-cart"
+  | "contact";
+
 export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
   | { tab: "purchaseConversion"; data: DashboardPurchaseConversion }
@@ -34,6 +42,10 @@ export type DashboardPageResource =
 export type DashboardQuery = {
   projectId: string;
   dateRange: DashboardDateRange;
+  excludeInternalTraffic: boolean;
+  excludeBotTraffic: boolean;
+  userScope: DashboardUserScope;
+  conversionEvent: DashboardConversionEvent;
   selectedCustomerId: string;
   sort: DashboardSort;
   filter: string;
