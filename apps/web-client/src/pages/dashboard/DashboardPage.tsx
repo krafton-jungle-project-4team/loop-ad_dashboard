@@ -267,7 +267,7 @@ function AnalysisControls({
   return (
     <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 xl:flex-row xl:items-center xl:justify-between">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs font-semibold text-slate-500">Breakdown by</span>
+        <span className="mr-1 text-xs font-semibold text-slate-500">기준별 보기</span>
         {breakdownOptions.map((option) => (
           <button
             aria-pressed={breakdownBy === option}

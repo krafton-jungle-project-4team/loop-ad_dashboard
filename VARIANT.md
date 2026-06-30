@@ -10,8 +10,8 @@
   - `/dashboard/ai-recommendation`
   - `/dashboard/ai-generation`
 - Added Nuqs-managed URL state for `projectId`, `dateRange`, `selectedCustomerId`, `sort`, and `filter`.
-- Redesigned analytics controls around a GA/PostHog-style model: project/date/refresh live in the sticky scope header, comparison chips and breakdown/filter chips sit below the header, and user segment search/sort controls moved into the local table panels.
-- Generalized visible controls and fixture copy around reusable analytics concepts: Demo property scope, date range, 전체/신규/재방문/전환/미전환/상위 참여/이탈 가능 사용자 comparisons, generic breakdowns, traffic filters, and engagement/conversion/drop-off sorting.
+- Redesigned analytics controls around a GA/PostHog-style model: project/date/refresh live in the sticky scope header, comparison chips and `기준별 보기`/filter chips sit below the header, and user segment search/sort controls moved into the local table panels.
+- Generalized visible controls and fixture copy around reusable analytics concepts: Demo property scope, date range, 전체/신규/재방문/전환/미전환/상위 참여/이탈 가능 사용자 comparisons, generic `기준별 보기` options, traffic filters, and engagement/conversion/drop-off sorting.
 - Added a data source boundary in `features/dashboard/api/dashboard-api.ts`. TanStack Query calls `fetchDashboardPageResource`, which chooses fixture or HTTP behind the same function.
 - Added fixture resources in `features/dashboard/data/dashboard-fixtures.ts` so the variant runs without backend availability.
 - Added a ViewModel layer in `features/dashboard/vm/dashboard-view-model.ts`. Screen components consume ViewModels and callbacks, not raw API response types.
