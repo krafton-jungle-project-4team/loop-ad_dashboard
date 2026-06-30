@@ -1,3 +1,52 @@
+/* Purpose: Read segment daily metric rows for AI dashboard customer lists. */
+/* @name ListSegmentDailyMetricRows */
+WITH latest_metric_date AS (
+  SELECT MAX(m.analysis_date) AS analysis_date
+  FROM segment_daily_metrics m
+  JOIN projects p
+    ON p.id = m.project_id
+  WHERE p.project_key = :projectId
+),
+selected_metric_date AS (
+  SELECT COALESCE(:analysisDate::date, analysis_date) AS analysis_date
+  FROM latest_metric_date
+)
+SELECT
+  s.id::text AS segment_id,
+  s.segment_key,
+  s.name AS segment_name,
+  s.rule_json,
+  m.analysis_date,
+  m.user_count,
+  m.session_count,
+  m.page_view_count,
+  m.product_view_count,
+  m.add_to_cart_count,
+  m.checkout_start_count,
+  m.purchase_count,
+  m.ad_impression_count,
+  m.ad_click_count,
+  m.revenue,
+  m.view_to_cart_rate,
+  m.cart_to_checkout_rate,
+  m.checkout_to_purchase_rate,
+  m.view_to_purchase_rate,
+  m.ctr,
+  m.cvr,
+  m.metric_json
+FROM segment_daily_metrics m
+JOIN segments s
+  ON s.id = m.segment_id
+JOIN projects p
+  ON p.id = m.project_id
+WHERE p.project_key = :projectId
+  AND m.analysis_date = (SELECT analysis_date FROM selected_metric_date)
+  AND s.is_default = false
+ORDER BY
+  COALESCE(m.view_to_purchase_rate, 0) DESC,
+  m.product_view_count DESC,
+  m.user_count DESC;
+
 /* Purpose: List recommendation result rows for dashboard recommendation and content views. */
 /* @name ListRecommendationRows */
 SELECT
@@ -40,6 +89,17 @@ ORDER BY rr.created_at DESC, ra.created_at ASC;
 
 /* Purpose: Read recommendation context rows for AI analysis, recommendation, and generation views. */
 /* @name ListRecommendationContexts */
+WITH latest_metric_date AS (
+  SELECT MAX(m.analysis_date) AS analysis_date
+  FROM segment_daily_metrics m
+  JOIN projects p
+    ON p.id = m.project_id
+  WHERE p.project_key = :projectId
+),
+selected_metric_date AS (
+  SELECT COALESCE(:analysisDate::date, analysis_date) AS analysis_date
+  FROM latest_metric_date
+)
 SELECT
   rr.id::text AS recommendation_result_id,
   s.segment_key AS segment_key,
@@ -105,6 +165,7 @@ LEFT JOIN LATERAL (
   LIMIT 1
 ) gc ON true
 WHERE p.project_key = :projectId
+  AND rr.analysis_date = (SELECT analysis_date FROM selected_metric_date)
 ORDER BY rr.created_at DESC, ra.priority ASC, ra.created_at ASC;
 
 /* Purpose: Read one experiment for dashboard experiment detail and performance views. */
@@ -141,29 +202,18 @@ WHERE p.project_key = :projectId
 
 /* Purpose: List action probability rows for a bandit policy. */
 /* @name ListExperimentActionProbabilities */
-WITH arm_scores AS (
-  SELECT
-    ev.variant_key AS "actionId",
-    ev.name AS "actionName",
-    ev.alpha / NULLIF(ev.alpha + ev.beta, 0) AS score,
-    ev.impression_count AS impressions,
-    ev.click_count AS clicks,
-    ev.conversion_count AS purchases,
-    ev.updated_at AS "updatedAt"
-  FROM experiment_variants ev
-  WHERE ev.experiment_id::text = :banditPolicyId
-    AND ev.status = 'active'
-)
 SELECT
-  "actionId",
-  "actionName",
-  CASE
-    WHEN SUM(score) OVER () > 0 THEN score / SUM(score) OVER ()
-    ELSE 0
-  END AS probability,
-  impressions,
-  clicks,
-  purchases,
-  "updatedAt"
-FROM arm_scores
+  ev.variant_key AS "actionId",
+  ev.name AS "actionName",
+  COALESCE(ev.traffic_weight, 0)::float8 AS probability,
+  ev.impression_count AS impressions,
+  ev.click_count AS clicks,
+  ev.conversion_count AS purchases,
+  ev.ctr::float8 AS ctr,
+  ev.conversion_rate::float8 AS "conversionRate",
+  ev.status,
+  ev.updated_at AS "updatedAt"
+FROM experiment_variants ev
+WHERE ev.experiment_id::text = :banditPolicyId
+  AND ev.status IN ('active', 'paused', 'winner', 'loser')
 ORDER BY probability DESC, "actionId" ASC;

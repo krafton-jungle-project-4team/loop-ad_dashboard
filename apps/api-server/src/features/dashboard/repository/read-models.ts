@@ -50,4 +50,17 @@ export type CustomerGroupEventView = FunnelCountsView & {
   region: string;
   device: string;
   revenue: number;
+  view_to_cart_rate?: number;
+  cart_to_checkout_rate?: number;
+  checkout_to_purchase_rate?: number;
+  view_to_purchase_rate?: number;
+};
+
+export type DashboardSegmentMetricView = CustomerGroupEventView & {
+  segment_id: string;
+  analysis_date: string;
+  user_count: number;
+  page_view_count: number;
+  ad_impression_count: number;
+  ad_click_count: number;
 };

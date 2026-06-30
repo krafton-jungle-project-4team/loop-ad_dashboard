@@ -15,7 +15,20 @@ export class DashboardRecommendationReader {
     private readonly db: Transaction<PgTypedTransactionalAdapter>
   ) {}
 
-  async readRecommendationContexts(projectId: string): Promise<RecommendationContextRow[]> {
-    return this.db.query(listRecommendationContexts, { projectId }).multiple();
+  async readRecommendationContexts(
+    projectId: string,
+    analysisDate: string | undefined
+  ): Promise<RecommendationContextRow[]> {
+    return this.db
+      .query(listRecommendationContexts, {
+        analysisDate: normalizeAnalysisDate(analysisDate),
+        projectId
+      })
+      .multiple();
   }
+}
+
+function normalizeAnalysisDate(value: string | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }

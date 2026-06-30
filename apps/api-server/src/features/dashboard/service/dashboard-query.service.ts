@@ -7,7 +7,11 @@ import type {
   DashboardPurchaseConversion
 } from "@loopad/shared";
 import { DashboardViewDomain } from "../domain/index.js";
-import { DashboardEventQuery, DashboardRecommendationReader } from "../repository/index.js";
+import {
+  DashboardEventQuery,
+  DashboardRecommendationReader,
+  DashboardSegmentMetricsReader
+} from "../repository/index.js";
 
 @Injectable()
 export class DashboardQueryService {
@@ -15,7 +19,9 @@ export class DashboardQueryService {
     @Inject(DashboardEventQuery)
     private readonly eventQuery: DashboardEventQuery,
     @Inject(DashboardRecommendationReader)
-    private readonly recommendationReader: DashboardRecommendationReader
+    private readonly recommendationReader: DashboardRecommendationReader,
+    @Inject(DashboardSegmentMetricsReader)
+    private readonly segmentMetricsReader: DashboardSegmentMetricsReader
   ) {}
 
   async main(projectId: string): Promise<DashboardMain> {
@@ -34,33 +40,31 @@ export class DashboardQueryService {
 
   async aiAnalysis(
     projectId: string,
-    selectedCustomerId: string | undefined
+    selectedCustomerId: string | undefined,
+    analysisDate: string | undefined
   ): Promise<DashboardAiAnalysis> {
-    const [eventViews, recommendationRows] = await Promise.all([
-      this.eventQuery.queryEventViews(projectId),
-      this.recommendationReader.readRecommendationContexts(projectId)
+    const [segmentMetrics, recommendationRows] = await Promise.all([
+      this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
+      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
     ]);
-    const eventAnalysis = DashboardViewDomain.analyzeEventViews(eventViews);
+    const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
 
-    return DashboardViewDomain.toAiAnalysis(
-      eventAnalysis.customerGroupsHigh,
-      recommendationRows,
-      selectedCustomerId
-    );
+    return DashboardViewDomain.toAiAnalysis(customerGroups, recommendationRows, selectedCustomerId);
   }
 
   async aiRecommendation(
     projectId: string,
-    selectedCustomerId: string | undefined
+    selectedCustomerId: string | undefined,
+    analysisDate: string | undefined
   ): Promise<DashboardAiRecommendation> {
-    const [eventViews, recommendationRows] = await Promise.all([
-      this.eventQuery.queryEventViews(projectId),
-      this.recommendationReader.readRecommendationContexts(projectId)
+    const [segmentMetrics, recommendationRows] = await Promise.all([
+      this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
+      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
     ]);
-    const eventAnalysis = DashboardViewDomain.analyzeEventViews(eventViews);
+    const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
 
     return DashboardViewDomain.toAiRecommendation(
-      eventAnalysis.customerGroupsHigh,
+      customerGroups,
       recommendationRows,
       selectedCustomerId
     );
@@ -68,16 +72,17 @@ export class DashboardQueryService {
 
   async aiGeneration(
     projectId: string,
-    selectedCustomerId: string | undefined
+    selectedCustomerId: string | undefined,
+    analysisDate: string | undefined
   ): Promise<DashboardAiGeneration> {
-    const [eventViews, recommendationRows] = await Promise.all([
-      this.eventQuery.queryEventViews(projectId),
-      this.recommendationReader.readRecommendationContexts(projectId)
+    const [segmentMetrics, recommendationRows] = await Promise.all([
+      this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
+      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
     ]);
-    const eventAnalysis = DashboardViewDomain.analyzeEventViews(eventViews);
+    const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
 
     return DashboardViewDomain.toAiGeneration(
-      eventAnalysis.customerGroupsHigh,
+      customerGroups,
       recommendationRows,
       selectedCustomerId
     );

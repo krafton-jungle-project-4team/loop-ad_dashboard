@@ -33,33 +33,40 @@ export class DashboardController {
   @Get("dashboard/ai-analysis")
   async aiAnalysis(
     @Query("projectId") projectId?: string,
-    @Query("selectedCustomerId") selectedCustomerId?: string
+    @Query("selectedCustomerId") selectedCustomerId?: string,
+    @Query("analysisDate") analysisDate?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardAiAnalysisSchema.parse(
-      await this.dashboardQuery.aiAnalysis(requiredProjectId, selectedCustomerId)
+      await this.dashboardQuery.aiAnalysis(requiredProjectId, selectedCustomerId, analysisDate)
     );
   }
 
   @Get("dashboard/ai-recommendation")
   async aiRecommendation(
     @Query("projectId") projectId?: string,
-    @Query("selectedCustomerId") selectedCustomerId?: string
+    @Query("selectedCustomerId") selectedCustomerId?: string,
+    @Query("analysisDate") analysisDate?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardAiRecommendationSchema.parse(
-      await this.dashboardQuery.aiRecommendation(requiredProjectId, selectedCustomerId)
+      await this.dashboardQuery.aiRecommendation(
+        requiredProjectId,
+        selectedCustomerId,
+        analysisDate
+      )
     );
   }
 
   @Get("dashboard/ai-generation")
   async aiGeneration(
     @Query("projectId") projectId?: string,
-    @Query("selectedCustomerId") selectedCustomerId?: string
+    @Query("selectedCustomerId") selectedCustomerId?: string,
+    @Query("analysisDate") analysisDate?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardAiGenerationSchema.parse(
-      await this.dashboardQuery.aiGeneration(requiredProjectId, selectedCustomerId)
+      await this.dashboardQuery.aiGeneration(requiredProjectId, selectedCustomerId, analysisDate)
     );
   }
 }
