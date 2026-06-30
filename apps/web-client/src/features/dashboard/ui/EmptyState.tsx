@@ -1,11 +1,12 @@
-import { Card, Text } from "@mantine/core";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@loopad/ui/shadcn/empty";
 
 export function EmptyState({ message }: { message: string }) {
   return (
-    <Card bg="appleInk.0" p="xl" radius="lg" withBorder>
-      <Text c="appleInk.5" ta="center">
-        {message}
-      </Text>
-    </Card>
+    <Empty className="min-h-32 border">
+      <EmptyHeader>
+        <EmptyTitle>표시할 데이터가 없습니다</EmptyTitle>
+        <EmptyDescription>{message}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }

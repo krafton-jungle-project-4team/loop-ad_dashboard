@@ -1,38 +1,14 @@
-import { useEffect, useState } from "react";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchDashboardPageResource } from "../api/dashboard-api.js";
-import type { DashboardQuery, DashboardResourceState, DashboardTab } from "./dashboard-types.js";
+import type { DashboardQuery, DashboardTab } from "./dashboard-types.js";
 
-export function useDashboardResources(
-  tab: DashboardTab,
-  query: DashboardQuery | null,
-  refreshKey: number
-) {
-  const [state, setState] = useState<DashboardResourceState>(
-    query ? { status: "loading" } : { status: "idle" }
-  );
+export function dashboardPageQueryOptions(tab: DashboardTab, query: DashboardQuery) {
+  return queryOptions({
+    queryFn: ({ signal }) => fetchDashboardPageResource(tab, query, signal),
+    queryKey: ["dashboard", tab, query] as const
+  });
+}
 
-  useEffect(() => {
-    if (!query) {
-      setState({ status: "idle" });
-      return;
-    }
-
-    const controller = new AbortController();
-    setState({ status: "loading" });
-
-    fetchDashboardPageResource(tab, query, controller.signal)
-      .then((data) => setState({ status: "success", data }))
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) {
-          setState({
-            status: "error",
-            error: error instanceof Error ? error : new Error("데이터 요청 실패")
-          });
-        }
-      });
-
-    return () => controller.abort();
-  }, [query, refreshKey, tab]);
-
-  return state;
+export function useSuspenseDashboardResources(tab: DashboardTab, query: DashboardQuery) {
+  return useSuspenseQuery(dashboardPageQueryOptions(tab, query));
 }

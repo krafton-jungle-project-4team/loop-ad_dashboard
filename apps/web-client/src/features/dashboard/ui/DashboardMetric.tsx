@@ -1,4 +1,4 @@
-import { Card, Text, Title } from "@mantine/core";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 
 export function DashboardMetric({
   label,
@@ -10,17 +10,15 @@ export function DashboardMetric({
   description?: string;
 }) {
   return (
-    <Card bg="white" p="xl" radius="lg" withBorder>
-      <Text c="appleInk.5" size="sm">
-        {label}
-      </Text>
-      <Title c="appleInk.9" mt={6} order={3} size={34}>
-        {value}
-      </Title>
+    <Card className="w-full min-w-0" size="sm">
+      <CardHeader className="gap-2">
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="text-3xl tabular-nums">{value}</CardTitle>
+      </CardHeader>
       {description ? (
-        <Text c="appleInk.5" mt="xs" size="sm">
-          {description}
-        </Text>
+        <CardContent className="w-full min-w-0">
+          <CardDescription>{description}</CardDescription>
+        </CardContent>
       ) : null}
     </Card>
   );

@@ -1,5 +1,24 @@
-import { Badge, Card, Group, Progress, SimpleGrid, Stack, Text, Title } from "@mantine/core";
 import type { DashboardKpiCard, DashboardMain } from "@loopad/shared";
+import { Badge } from "@loopad/ui/shadcn/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@loopad/ui/shadcn/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
+import { Progress } from "@loopad/ui/shadcn/progress";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis
+} from "@loopad/ui/charts";
 import { formatInteger, formatMoney, formatPercent } from "../model/dashboard-format.js";
 import { DashboardMetric } from "./DashboardMetric.js";
 import { EmptyState } from "./EmptyState.js";
@@ -7,8 +26,8 @@ import { Section } from "./Section.js";
 
 export function MainDashboardPanel({ data }: { data: DashboardMain }) {
   return (
-    <Stack gap="xl">
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+    <div className="grid gap-6">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {data.kpis.map((kpi) => (
           <DashboardMetric
             key={kpi.key}
@@ -17,92 +36,145 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
             value={formatKpiValue(kpi)}
           />
         ))}
-      </SimpleGrid>
+      </div>
 
-      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+      <div className="grid gap-6 lg:grid-cols-2">
         <SeriesCard
           badge="LIVE"
+          chartType="area"
           points={data.behavior_event_series}
+          summary="시간대별 행동 이벤트"
           title="피크타임 행동 이벤트와 실시간 구매"
         />
-        <SeriesCard points={data.purchase_series} title="실시간 구매 건수" />
-      </SimpleGrid>
+        <SeriesCard
+          chartType="bar"
+          points={data.purchase_series}
+          summary="시간대별 구매 건수"
+          title="실시간 구매 건수"
+        />
+      </div>
 
-      <Title c="appleInk.9" order={2} size={34}>
-        세그먼트 현황
-      </Title>
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-2xl font-semibold">세그먼트 현황</h2>
+      </div>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {data.segment_status.map((group) => (
-          <Section key={group.key} title={group.title}>
-            <Stack gap="md">
+          <Section
+            action={<Badge variant="outline">{group.items.length}개</Badge>}
+            contentClassName="grid gap-4"
+            key={group.key}
+            title={group.title}
+          >
+            <>
               {group.items.length > 0 ? (
                 group.items.map((item) => (
-                  <Stack key={item.label} gap={6}>
-                    <Group justify="space-between">
-                      <Text fw={600} size="sm">
-                        {item.label}
-                      </Text>
-                      <Text c="appleInk.7" fw={600} size="sm">
-                        {formatInteger(item.value)}
-                      </Text>
-                    </Group>
-                    <Progress color="actionBlue.6" radius="xl" value={item.share * 100} />
-                  </Stack>
+                  <div className="grid gap-2" key={item.label}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium">{item.label}</span>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>{formatPercent(item.share)}</span>
+                        <span className="tabular-nums text-foreground">{formatInteger(item.value)}</span>
+                      </div>
+                    </div>
+                    <Progress value={item.share * 100} />
+                  </div>
                 ))
               ) : (
                 <EmptyState message="표시할 세그먼트가 없습니다." />
               )}
-            </Stack>
+            </>
           </Section>
         ))}
-      </SimpleGrid>
-    </Stack>
+      </div>
+    </div>
   );
 }
 
 function SeriesCard({
   title,
   points,
-  badge
+  badge,
+  chartType,
+  summary
 }: {
   title: string;
   points: DashboardMain["behavior_event_series"];
   badge?: string;
+  chartType: "area" | "bar";
+  summary: string;
 }) {
-  const maxValue = Math.max(...points.map((point) => point.value), 1);
+  const config = {
+    value: {
+      color: "var(--chart-1)",
+      label: summary
+    }
+  };
 
   return (
-    <Card bg="white" p="xl" radius="lg" withBorder>
-      <Group justify="space-between" mb="xl">
-        <Title c="appleInk.9" order={3} size="h4">
-          {title}
-        </Title>
+    <Card className="w-full min-w-0">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{summary}</CardDescription>
         {badge ? (
-          <Badge color="actionBlue.6" radius="xl" variant="light">
-            {badge}
-          </Badge>
+          <CardAction>
+            <Badge variant="secondary">{badge}</Badge>
+          </CardAction>
         ) : null}
-      </Group>
-      {points.length > 0 ? (
-        <Group align="end" gap="xs" h={220} wrap="nowrap">
-          {points.map((point) => (
-            <Stack key={point.label} align="center" gap="xs" justify="end" style={{ flex: 1 }}>
-              <Card
-                bg="actionBlue.6"
-                h={`${Math.max((point.value / maxValue) * 180, 4)}px`}
-                p={0}
-                radius="sm"
-                w="100%"
-              />
-              <Text c="appleInk.5" size="xs">
-                {point.label}
-              </Text>
-            </Stack>
-          ))}
-        </Group>
-      ) : (
-        <EmptyState message="차트 데이터가 없습니다." />
-      )}
+      </CardHeader>
+      <CardContent className="w-full min-w-0">
+        {points.length > 0 ? (
+          <ChartContainer className="aspect-auto h-[260px] w-full" config={config}>
+            {chartType === "area" ? (
+              <AreaChart accessibilityLayer data={points} margin={{ bottom: 0, left: 0, right: 12, top: 12 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis axisLine={false} dataKey="label" tickLine={false} />
+                <YAxis
+                  axisLine={false}
+                  tickFormatter={(value) => compactNumber(Number(value))}
+                  tickLine={false}
+                  width={44}
+                />
+                <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
+                <defs>
+                  <linearGradient id="event-series-fill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <Area
+                  dataKey="value"
+                  fill="url(#event-series-fill)"
+                  fillOpacity={1}
+                  isAnimationActive={false}
+                  stroke="var(--color-value)"
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              </AreaChart>
+            ) : (
+              <BarChart accessibilityLayer data={points} margin={{ bottom: 0, left: 0, right: 12, top: 12 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis axisLine={false} dataKey="label" tickLine={false} />
+                <YAxis
+                  axisLine={false}
+                  tickFormatter={(value) => compactNumber(Number(value))}
+                  tickLine={false}
+                  width={44}
+                />
+                <ChartTooltip content={<ChartTooltipContent hideLabel indicator="dot" />} cursor={false} />
+                <Bar
+                  dataKey="value"
+                  fill="var(--color-value)"
+                  isAnimationActive={false}
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            )}
+          </ChartContainer>
+        ) : (
+          <EmptyState message="차트 데이터가 없습니다." />
+        )}
+      </CardContent>
     </Card>
   );
 }
@@ -118,4 +190,11 @@ function formatKpiValue(kpi: DashboardKpiCard): string {
     case "text":
       return String(kpi.value);
   }
+}
+
+function compactNumber(value: number) {
+  return new Intl.NumberFormat("ko-KR", {
+    maximumFractionDigits: value >= 10000 ? 1 : 0,
+    notation: value >= 10000 ? "compact" : "standard"
+  }).format(value);
 }

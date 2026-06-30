@@ -1,12 +1,20 @@
-import { Badge, Group, List, Progress, SimpleGrid, Stack, Table, Text } from "@mantine/core";
 import type {
   DashboardAiAnalysis,
   DashboardAiRecommendation,
   DashboardCustomerDetail,
   DashboardMetricValue
 } from "@loopad/shared";
+import { Badge } from "@loopad/ui/shadcn/badge";
+import { Progress } from "@loopad/ui/shadcn/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@loopad/ui/shadcn/table";
 import { formatMoney, formatPercent } from "../model/dashboard-format.js";
-import { DashboardMetric } from "./DashboardMetric.js";
 import { EmptyState } from "./EmptyState.js";
 import { Section } from "./Section.js";
 
@@ -18,43 +26,43 @@ export function AiInsightPanel({
   mode: "analysis" | "recommendation";
 }) {
   return (
-    <Stack gap="xl">
+    <div className="grid gap-6">
       <Section title={`전환율 ${mode === "analysis" ? "하위" : "상위"} 고객군`}>
         {data.customers.length > 0 ? (
-          <Table.ScrollContainer minWidth={1120}>
-            <Table verticalSpacing="md">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>고객군</Table.Th>
-                  <Table.Th>채널</Table.Th>
-                  <Table.Th>연령</Table.Th>
-                  <Table.Th>성별</Table.Th>
-                  <Table.Th>카테고리</Table.Th>
-                  <Table.Th>지역</Table.Th>
-                  <Table.Th>기기</Table.Th>
-                  <Table.Th>전환율</Table.Th>
-                  <Table.Th>주요 이탈 단계</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {data.customers.map((customer, index) => (
-                  <Table.Tr key={customer.customer_group_id} bg={index === 0 ? "red.0" : undefined}>
-                    <Table.Td fw={700}>{customer.customer_group_name}</Table.Td>
-                    <Table.Td>{customer.channel}</Table.Td>
-                    <Table.Td>{customer.age_group}</Table.Td>
-                    <Table.Td>{customer.gender}</Table.Td>
-                    <Table.Td>{customer.category}</Table.Td>
-                    <Table.Td>{customer.region}</Table.Td>
-                    <Table.Td>{customer.device}</Table.Td>
-                    <Table.Td c={mode === "analysis" ? "actionBlue.6" : "red.5"} fw={700}>
-                      {formatPercent(customer.conversion_rate)}
-                    </Table.Td>
-                    <Table.Td>{customer.major_drop_off_stage}</Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+          <Table className="min-w-[940px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>고객군</TableHead>
+                <TableHead>채널</TableHead>
+                <TableHead>연령</TableHead>
+                <TableHead>성별</TableHead>
+                <TableHead>카테고리</TableHead>
+                <TableHead>지역</TableHead>
+                <TableHead>기기</TableHead>
+                <TableHead>전환율</TableHead>
+                <TableHead>주요 이탈 단계</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.customers.map((customer, index) => (
+                <TableRow data-state={index === 0 ? "selected" : undefined} key={customer.customer_group_id}>
+                  <TableCell className="font-medium">{customer.customer_group_name}</TableCell>
+                  <TableCell>{customer.channel}</TableCell>
+                  <TableCell>{customer.age_group}</TableCell>
+                  <TableCell>{customer.gender}</TableCell>
+                  <TableCell>{customer.category}</TableCell>
+                  <TableCell>{customer.region}</TableCell>
+                  <TableCell>{customer.device}</TableCell>
+                  <TableCell className="font-medium tabular-nums">
+                    {formatPercent(customer.conversion_rate)}
+                  </TableCell>
+                  <TableCell className="max-w-[180px] whitespace-normal text-sm text-muted-foreground">
+                    {customer.major_drop_off_stage}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         ) : (
           <EmptyState message="고객군 데이터가 없습니다." />
         )}
@@ -63,27 +71,36 @@ export function AiInsightPanel({
       {data.selected_customer ? <CustomerDetail detail={data.selected_customer} /> : null}
 
       {mode === "recommendation" && "recommended_actions" in data ? (
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-          <Section title="추천하는 광고 액션">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Section
+            action={<Badge variant="outline">{data.recommended_actions.length}개</Badge>}
+            title="추천하는 광고 액션"
+          >
             {data.recommended_actions.length > 0 ? (
-              <Stack gap="md">
+              <div className="grid gap-4">
                 {data.recommended_actions.map((action) => (
-                  <Stack key={action.action_id} gap={4}>
-                    <Group justify="space-between">
-                      <Text fw={700}>{action.title}</Text>
-                      <Badge color="actionBlue.6" radius="xl" variant="light">
-                        {action.status}
-                      </Badge>
-                    </Group>
-                    <Text c="appleInk.5" size="sm">
-                      {action.description}
-                    </Text>
+                  <div className="grid gap-3 rounded-lg border p-4" key={action.action_id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="grid gap-1">
+                        <span className="font-medium">{action.title}</span>
+                        <p className="text-sm text-muted-foreground">{action.description}</p>
+                      </div>
+                      <Badge variant="secondary">{action.status}</Badge>
+                    </div>
                     {action.probability !== null ? (
-                      <Progress color="actionBlue.6" value={action.probability * 100} />
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>예상 반응 확률</span>
+                          <span className="tabular-nums text-foreground">
+                            {formatPercent(action.probability)}
+                          </span>
+                        </div>
+                        <Progress value={action.probability * 100} />
+                      </div>
                     ) : null}
-                  </Stack>
+                  </div>
                 ))}
-              </Stack>
+              </div>
             ) : (
               <EmptyState message="저장된 추천 액션이 없습니다." />
             )}
@@ -91,75 +108,81 @@ export function AiInsightPanel({
 
           <Section title="추천 근거">
             {data.recommendation_rationale.length > 0 ? (
-              <List spacing="sm">
+              <ul className="grid gap-3">
                 {data.recommendation_rationale.map((item) => (
-                  <List.Item key={item}>{item}</List.Item>
+                  <li className="rounded-lg border px-4 py-3 text-sm" key={item}>
+                    {item}
+                  </li>
                 ))}
-              </List>
+              </ul>
             ) : (
               <EmptyState message="저장된 추천 근거가 없습니다." />
             )}
           </Section>
-        </SimpleGrid>
+        </div>
       ) : null}
-    </Stack>
+    </div>
   );
 }
 
 function CustomerDetail({ detail }: { detail: DashboardCustomerDetail }) {
   return (
-    <Stack gap="lg">
-      <Section title={detail.customer_group.customer_group_name}>
-        <Group gap="xs">
-          <Badge color="actionBlue.6" radius="xl" variant="light">
-            {detail.customer_group.channel}
-          </Badge>
-          <Text c="appleInk.5" size="sm">
-            {detail.customer_group.age_group} · {detail.customer_group.gender} ·{" "}
-            {detail.customer_group.category} · {detail.customer_group.region} ·{" "}
-            {detail.customer_group.device}
-          </Text>
-        </Group>
+    <div className="grid gap-6">
+      <Section
+        action={<Badge variant="secondary">{detail.customer_group.channel}</Badge>}
+        title={detail.customer_group.customer_group_name}
+      >
+        <div className="grid gap-6">
+          <div className="flex flex-wrap gap-2">
+            <span className="text-sm text-muted-foreground">
+              {detail.customer_group.age_group} · {detail.customer_group.gender} ·{" "}
+              {detail.customer_group.category} · {detail.customer_group.region} ·{" "}
+              {detail.customer_group.device}
+            </span>
+          </div>
 
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
-          {detail.metrics.map((metric) => (
-            <DashboardMetric key={metric.label} label={metric.label} value={formatMetric(metric)} />
-          ))}
-        </SimpleGrid>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {detail.metrics.map((metric) => (
+              <MetricTile key={metric.label} label={metric.label} value={formatMetric(metric)} />
+            ))}
+          </div>
+        </div>
       </Section>
 
-      <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
+      <div className="grid gap-6 lg:grid-cols-3">
         <TextList title="케이스 분석" values={detail.case_analysis} />
         <Section title="과거 구매이력">
-          <Stack gap="md">
-            {detail.purchase_history.map((item) => (
-              <Stack key={item.label} gap={6}>
-                <Group justify="space-between">
-                  <Text fw={600}>{item.label}</Text>
-                  <Text c="appleInk.5">{formatPercent(item.share)}</Text>
-                </Group>
-                <Progress color="actionBlue.6" value={item.share * 100} />
-              </Stack>
-            ))}
-          </Stack>
+          <div className="grid gap-4">
+            {detail.purchase_history.length > 0 ? (
+              detail.purchase_history.map((item) => (
+                <div className="grid gap-2" key={item.label}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">{item.label}</span>
+                    <span className="tabular-nums text-muted-foreground">{formatPercent(item.share)}</span>
+                  </div>
+                  <Progress value={item.share * 100} />
+                </div>
+              ))
+            ) : (
+              <EmptyState message="과거 구매이력이 없습니다." />
+            )}
+          </div>
         </Section>
         <TextList title="판단 근거" values={detail.rationale} />
-      </SimpleGrid>
+      </div>
 
       <Section title="구매 단계 흐름">
-        <SimpleGrid cols={{ base: 1, md: 5 }} spacing="md">
+        <div className="grid gap-6 md:grid-cols-5">
           {detail.stage_flow.map((stage) => (
-            <Stack key={stage.key} gap="xs">
-              <Text c="appleInk.5" size="sm">
-                {stage.label}
-              </Text>
-              <Text fw={700}>{formatPercent(stage.rate)}</Text>
-              <Progress color="actionBlue.6" value={stage.rate * 100} />
-            </Stack>
+            <div className="grid gap-2 rounded-lg border p-3" key={stage.key}>
+              <span className="text-sm text-muted-foreground">{stage.label}</span>
+              <span className="font-medium tabular-nums">{formatPercent(stage.rate)}</span>
+              <Progress value={stage.rate * 100} />
+            </div>
           ))}
-        </SimpleGrid>
+        </div>
       </Section>
-    </Stack>
+    </div>
   );
 }
 
@@ -167,15 +190,26 @@ function TextList({ title, values }: { title: string; values: string[] }) {
   return (
     <Section title={title}>
       {values.length > 0 ? (
-        <List spacing="sm">
+        <ul className="grid gap-3">
           {values.map((value) => (
-            <List.Item key={value}>{value}</List.Item>
+            <li className="rounded-lg border px-4 py-3 text-sm" key={value}>
+              {value}
+            </li>
           ))}
-        </List>
+        </ul>
       ) : (
         <EmptyState message="저장된 내용이 없습니다." />
       )}
     </Section>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-2 rounded-lg border p-4">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-2xl font-semibold tabular-nums">{value}</span>
+    </div>
   );
 }
 
