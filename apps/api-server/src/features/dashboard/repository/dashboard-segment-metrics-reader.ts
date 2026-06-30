@@ -79,7 +79,12 @@ function normalizeAnalysisDate(value: string | undefined): string | null {
   return normalized ? normalized : null;
 }
 
-function dimensionValue(ruleJson: JsonObject, dimensions: JsonObject, key: string, fallbackKey = key) {
+function dimensionValue(
+  ruleJson: JsonObject,
+  dimensions: JsonObject,
+  key: string,
+  fallbackKey = key
+) {
   return (
     nonEmptyString(ruleJson[key]) ??
     nonEmptyString(ruleJson[fallbackKey]) ??

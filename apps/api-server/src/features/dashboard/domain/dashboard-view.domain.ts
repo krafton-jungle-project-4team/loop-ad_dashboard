@@ -20,6 +20,7 @@ import type {
   ChartPointView,
   CustomerGroupEventView,
   DashboardEventView,
+  DashboardSegmentMetricView,
   DeviceFunnelView,
   FunnelCountsView,
   MainMetricCountsView,
@@ -92,6 +93,9 @@ export const DashboardViewDomain = {
       customerGroupsHigh: sortCustomerGroupViews(customerGroups)
     };
   },
+  toAiCustomerGroups(segmentMetrics: DashboardSegmentMetricView[]): CustomerGroupEventView[] {
+    return sortCustomerGroupViews(segmentMetrics);
+  },
   toMain(snapshot: DashboardMainSnapshot): DashboardMain {
     return {
       kpis: [
@@ -145,7 +149,7 @@ export const DashboardViewDomain = {
       customer_behavior_rows: customerGroups.slice(0, 8).map((group) => ({
         customer_group_id: group.customer_group_id,
         customer_group_name: group.customer_group_name,
-        conversion_rate: rate(group.purchase_count, group.product_view_count),
+        conversion_rate: customerConversionRate(group),
         major_drop_off_rate: majorDropOff(group).rate,
         expected_revenue: group.revenue,
         observed_signal: majorDropOff(group).label
@@ -388,9 +392,7 @@ function selectCustomerGroup(
 
 function sortCustomerGroupViews(groups: CustomerGroupEventView[]): CustomerGroupEventView[] {
   return [...groups].sort((left, right) => {
-    const conversionDiff =
-      rate(left.purchase_count, left.product_view_count) -
-      rate(right.purchase_count, right.product_view_count);
+    const conversionDiff = customerConversionRate(left) - customerConversionRate(right);
 
     if (conversionDiff !== 0) {
       return conversionDiff * -1;
@@ -535,7 +537,7 @@ function toCustomerSegment(row: CustomerGroupEventView): DashboardCustomerSegmen
     category: row.category,
     region: row.region,
     device: row.device,
-    conversion_rate: rate(row.purchase_count, row.product_view_count),
+    conversion_rate: customerConversionRate(row),
     major_drop_off_stage: majorDropOff(row).label,
     expected_revenue: row.revenue
   };
@@ -549,7 +551,7 @@ function toCustomerDetail(
   const rootCauses = matchingRows.flatMap((item) => jsonTextList(item.root_causes_json));
   const anomalyReasons = matchingRows.flatMap((item) => jsonTextList(item.anomaly_json));
   const expectedRate = expectedConversionRate(matchingRows, row);
-  const actualRate = rate(row.purchase_count, row.product_view_count);
+  const actualRate = customerConversionRate(row);
 
   return {
     customer_group: toCustomerSegment(row),
@@ -564,7 +566,7 @@ function toCustomerDetail(
       {
         label: row.category,
         value: row.purchase_count,
-        share: rate(row.purchase_count, row.product_view_count)
+        share: customerConversionRate(row)
       },
       {
         label: row.channel,
@@ -657,18 +659,58 @@ function expectedConversionRate(
     .map((row) => numberFromJson(row.anomaly_json, "expected_conversion_rate"))
     .find((value) => value !== null);
 
-  return fromPolicy ?? rate(current.purchase_count, current.product_view_count);
+  return fromPolicy ?? customerConversionRate(current);
 }
 
 function majorDropOff(row: FunnelCountsView): { label: string; rate: number } {
   const candidates = [
     { label: "제품 보기", rate: 1 - rate(row.product_view_count, row.session_start_count) },
-    { label: "장바구니 추가", rate: 1 - rate(row.add_to_cart_count, row.product_view_count) },
-    { label: "결제 시작", rate: 1 - rate(row.checkout_start_count, row.add_to_cart_count) },
-    { label: "구매", rate: 1 - rate(row.purchase_count, row.checkout_start_count) }
+    {
+      label: "장바구니 추가",
+      rate:
+        1 -
+        funnelTransitionRate(row, "view_to_cart_rate", "add_to_cart_count", "product_view_count")
+    },
+    {
+      label: "결제 시작",
+      rate:
+        1 -
+        funnelTransitionRate(
+          row,
+          "cart_to_checkout_rate",
+          "checkout_start_count",
+          "add_to_cart_count"
+        )
+    },
+    {
+      label: "구매",
+      rate:
+        1 -
+        funnelTransitionRate(
+          row,
+          "checkout_to_purchase_rate",
+          "purchase_count",
+          "checkout_start_count"
+        )
+    }
   ];
 
   return candidates.sort((a, b) => b.rate - a.rate)[0] ?? { label: "구매", rate: 0 };
+}
+
+function customerConversionRate(row: CustomerGroupEventView): number {
+  return row.view_to_purchase_rate ?? rate(row.purchase_count, row.product_view_count);
+}
+
+function funnelTransitionRate(
+  row: FunnelCountsView,
+  rateKey: "view_to_cart_rate" | "cart_to_checkout_rate" | "checkout_to_purchase_rate",
+  numeratorKey: keyof FunnelCountsView,
+  denominatorKey: keyof FunnelCountsView
+): number {
+  const contractRate = (row as Partial<CustomerGroupEventView>)[rateKey];
+
+  return contractRate ?? rate(row[numeratorKey], row[denominatorKey]);
 }
 
 function metric(
