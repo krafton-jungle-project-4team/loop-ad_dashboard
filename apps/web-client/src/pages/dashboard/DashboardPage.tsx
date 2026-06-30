@@ -1,13 +1,11 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "@tanstack/react-router";
-import { Filter, Gauge, RefreshCw } from "lucide-react";
+import { CalendarDays, Gauge, Plus, RefreshCw } from "lucide-react";
 import { DevProfiler } from "../../app/DevProfiler.js";
 import {
   Badge,
   Card,
   GhostButton,
-  Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -18,7 +16,7 @@ import {
 import { cn } from "../../lib/utils.js";
 import {
   dashboardDateRangeOptions,
-  dashboardSortOptions,
+  defaultDashboardQuery,
   normalizeDashboardQuery,
   useDashboardQueryState
 } from "../../features/dashboard/model/dashboard-query.js";
@@ -32,12 +30,36 @@ import { useDashboardResources } from "../../features/dashboard/model/use-dashbo
 import { LoadingState } from "../../features/dashboard/ui/LoadingState.js";
 import { renderDashboardPanel } from "../../features/dashboard/ui/render-dashboard-panel.js";
 
+const comparisonSegments = [
+  { id: "all", label: "전체 고객군" },
+  { id: "low-conversion", label: "저전환 고객군" },
+  { id: "high-conversion", label: "고전환 고객군" },
+  { id: "ai-targets", label: "AI 추천 대상" },
+  { id: "generated", label: "콘텐츠 생성 완료" },
+  { id: "cart-abandon", label: "장바구니 이탈군" },
+  { id: "checkout-abandon", label: "결제 시작 이탈군" }
+] as const;
+
+const breakdownOptions = ["채널", "기기", "지역", "카테고리", "연령", "성별"] as const;
+
+const globalFilterChips = [
+  "캠페인: Food Black Friday",
+  "테스트/내부 제외",
+  "재고 가능 상품"
+] as const;
+
 export function DashboardPage() {
   const params = useParams({ strict: false }) as { tabPath?: string };
   const tab = getDashboardTabByPath(params.tabPath ?? "");
   const [queryState, setQueryState] = useDashboardQueryState();
   const query = useMemo(() => normalizeDashboardQuery(queryState), [queryState]);
   const dashboardState = useDashboardResources(tab ?? "main", query);
+  const [activeComparisonIds, setActiveComparisonIds] = useState<string[]>([
+    "all",
+    "low-conversion",
+    "ai-targets"
+  ]);
+  const [breakdownBy, setBreakdownBy] = useState<(typeof breakdownOptions)[number]>("채널");
 
   if (!tab) {
     return <Navigate params={{ tabPath: "main" }} replace to="/dashboard/$tabPath" />;
@@ -45,8 +67,6 @@ export function DashboardPage() {
 
   const selectedDateRange =
     dashboardDateRangeOptions.find((item) => item.value === query.dateRange)?.label ?? query.dateRange;
-  const selectedSort =
-    dashboardSortOptions.find((item) => item.value === query.sort)?.label ?? query.sort;
 
   return (
     <DevProfiler id="DashboardRoute">
@@ -67,100 +87,65 @@ export function DashboardPage() {
                       {dashboardTitles[tab]}
                     </h1>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="sky">{query.projectId || "projectId 필요"}</Badge>
-                    <Badge tone="emerald">{selectedDateRange}</Badge>
-                    <Tooltip content="데이터 새로고침">
-                      <GhostButton
-                        aria-label="새로고침"
-                        className="h-9 w-9 px-0"
-                        onClick={() => void dashboardState.refetch()}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </GhostButton>
-                    </Tooltip>
-                  </div>
+                  <ScopeControls
+                    dateRange={query.dateRange}
+                    isRefreshing={dashboardState.isFetching}
+                    projectId={query.projectId}
+                    selectedDateRange={selectedDateRange}
+                    onDateRangeChange={(dateRange) => void setQueryState({ dateRange })}
+                    onRefresh={() => void dashboardState.refetch()}
+                  />
                 </div>
 
                 <div className="lg:hidden">
                   <DashboardNavigation activeTab={tab} compact />
                 </div>
 
-                <Card className="grid gap-3 p-3 md:grid-cols-[minmax(160px,1fr)_160px_160px_minmax(180px,1fr)]">
-                  <ControlField label="Project">
-                    <Input
-                      aria-label="projectId"
-                      onChange={(event) => void setQueryState({ projectId: event.target.value })}
-                      value={queryState.projectId}
-                    />
-                  </ControlField>
+                <ComparisonControls
+                  activeIds={activeComparisonIds}
+                  onAddComparison={() => {
+                    const nextInactive = comparisonSegments.find(
+                      (segment) => !activeComparisonIds.includes(segment.id)
+                    );
+                    if (nextInactive) {
+                      setActiveComparisonIds((current) => [...current, nextInactive.id]);
+                    }
+                  }}
+                  onToggle={(segmentId) =>
+                    setActiveComparisonIds((current) =>
+                      current.includes(segmentId)
+                        ? current.length === 1
+                          ? current
+                          : current.filter((id) => id !== segmentId)
+                        : [...current, segmentId]
+                    )
+                  }
+                />
 
-                  <ControlField label="Date range">
-                    <Select
-                      onValueChange={(value) =>
-                        void setQueryState({ dateRange: value as typeof query.dateRange })
-                      }
-                      value={query.dateRange}
-                    >
-                      <SelectTrigger aria-label="dateRange">
-                        <SelectValue>{selectedDateRange}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {dashboardDateRangeOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </ControlField>
-
-                  <ControlField label="Sort">
-                    <Select
-                      onValueChange={(value) =>
-                        void setQueryState({ sort: value as typeof query.sort })
-                      }
-                      value={query.sort}
-                    >
-                      <SelectTrigger aria-label="sort">
-                        <SelectValue>{selectedSort}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {dashboardSortOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </ControlField>
-
-                  <ControlField label="Filter">
-                    <div className="relative">
-                      <Filter className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                      <Input
-                        aria-label="filter"
-                        className="pl-9"
-                        onChange={(event) => void setQueryState({ filter: event.target.value })}
-                        placeholder="고객군, 채널, 지역"
-                        value={queryState.filter}
-                      />
-                    </div>
-                  </ControlField>
-                </Card>
+                <AnalysisControls breakdownBy={breakdownBy} onBreakdownChange={setBreakdownBy} />
               </div>
             </header>
 
             <main className="mx-auto w-full max-w-[1440px] px-4 py-5 md:px-6 xl:px-8">
-              {!query.projectId ? <EmptyProjectCard /> : null}
+              {!query.projectId ? (
+                <EmptyProjectCard
+                  onUseDefaultProject={() =>
+                    void setQueryState({ projectId: defaultDashboardQuery.projectId })
+                  }
+                />
+              ) : null}
               {query.projectId && dashboardState.isPending ? <LoadingState tab={tab} /> : null}
               {query.projectId && dashboardState.isError ? (
                 <ErrorCard error={dashboardState.error} onRetry={() => void dashboardState.refetch()} />
               ) : null}
               {query.projectId && dashboardState.isSuccess
                 ? renderDashboardPanel(dashboardState.data, {
+                    filter: queryState.filter,
                     onSelectCustomer: (customerId) =>
-                      void setQueryState({ selectedCustomerId: customerId })
+                      void setQueryState({ selectedCustomerId: customerId }),
+                    onTableFilterChange: (filter) => void setQueryState({ filter }),
+                    onTableSortChange: (sort) => void setQueryState({ sort }),
+                    sort: query.sort
                   })
                 : null}
             </main>
@@ -168,6 +153,147 @@ export function DashboardPage() {
         </div>
       </DevProfiler>
     </DevProfiler>
+  );
+}
+
+function ScopeControls({
+  dateRange,
+  isRefreshing,
+  projectId,
+  selectedDateRange,
+  onDateRangeChange,
+  onRefresh
+}: {
+  dateRange: (typeof dashboardDateRangeOptions)[number]["value"];
+  isRefreshing: boolean;
+  projectId: string;
+  selectedDateRange: string;
+  onDateRangeChange: (dateRange: (typeof dashboardDateRangeOptions)[number]["value"]) => void;
+  onRefresh: () => void;
+}) {
+  const campaignName = getCampaignName(projectId);
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex h-10 min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3">
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold leading-4 text-slate-950">{campaignName}</p>
+          <p className="truncate text-xs leading-4 text-slate-500">
+            {projectId || "projectId 필요"}
+          </p>
+        </div>
+      </div>
+
+      <Select onValueChange={(value) => onDateRangeChange(value as typeof dateRange)} value={dateRange}>
+        <SelectTrigger aria-label="dateRange" className="h-10 w-[9.75rem] bg-white">
+          <span className="flex min-w-0 items-center gap-2">
+            <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
+            <SelectValue>{selectedDateRange}</SelectValue>
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          {dashboardDateRangeOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Tooltip content="데이터 새로고침">
+        <GhostButton
+          aria-label="새로고침"
+          className="h-10 w-10 px-0"
+          disabled={isRefreshing}
+          onClick={onRefresh}
+        >
+          <RefreshCw className={cn("h-4 w-4", isRefreshing ? "animate-spin" : undefined)} />
+        </GhostButton>
+      </Tooltip>
+    </div>
+  );
+}
+
+function ComparisonControls({
+  activeIds,
+  onAddComparison,
+  onToggle
+}: {
+  activeIds: string[];
+  onAddComparison: () => void;
+  onToggle: (segmentId: string) => void;
+}) {
+  const hasInactiveComparison = comparisonSegments.some((segment) => !activeIds.includes(segment.id));
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+      {comparisonSegments.map((segment) => {
+        const isActive = activeIds.includes(segment.id);
+
+        return (
+          <button
+            aria-pressed={isActive}
+            className={cn(
+              "inline-flex h-8 items-center rounded-full border px-3 text-sm font-semibold transition",
+              isActive
+                ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+            )}
+            key={segment.id}
+            onClick={() => onToggle(segment.id)}
+            type="button"
+          >
+            {segment.label}
+          </button>
+        );
+      })}
+
+      <GhostButton className="h-8 rounded-full px-3" disabled={!hasInactiveComparison} onClick={onAddComparison}>
+        <Plus className="h-4 w-4" />
+        비교 추가
+      </GhostButton>
+    </div>
+  );
+}
+
+function AnalysisControls({
+  breakdownBy,
+  onBreakdownChange
+}: {
+  breakdownBy: (typeof breakdownOptions)[number];
+  onBreakdownChange: (value: (typeof breakdownOptions)[number]) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-xs font-semibold text-slate-500">Breakdown by</span>
+        {breakdownOptions.map((option) => (
+          <button
+            aria-pressed={breakdownBy === option}
+            className={cn(
+              "inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-semibold transition",
+              breakdownBy === option
+                ? "border-sky-200 bg-sky-50 text-sky-800"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            )}
+            key={option}
+            onClick={() => onBreakdownChange(option)}
+            type="button"
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {globalFilterChips.map((chip, index) => (
+          <Badge key={chip} tone={index === 0 ? "sky" : "slate"}>
+            {chip}
+          </Badge>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -228,20 +354,16 @@ function DashboardNavigation({
   );
 }
 
-function ControlField({ children, label }: { children: ReactNode; label: string }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
-    </div>
-  );
-}
-
-function EmptyProjectCard() {
+function EmptyProjectCard({ onUseDefaultProject }: { onUseDefaultProject: () => void }) {
   return (
     <Card className="p-6">
-      <p className="text-sm font-semibold text-slate-900">조회 컨텍스트가 필요합니다</p>
-      <p className="mt-1 text-sm text-slate-500">projectId를 입력하면 대시보드 조회를 시작합니다.</p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">조회 컨텍스트가 필요합니다</p>
+          <p className="mt-1 text-sm text-slate-500">캠페인 스코프를 선택하면 대시보드 조회를 시작합니다.</p>
+        </div>
+        <GhostButton onClick={onUseDefaultProject}>Food Black Friday로 보기</GhostButton>
+      </div>
     </Card>
   );
 }
@@ -260,4 +382,12 @@ function ErrorCard({ error, onRetry }: { error: Error; onRetry: () => void }) {
       </div>
     </Card>
   );
+}
+
+function getCampaignName(projectId: string) {
+  if (!projectId || projectId === defaultDashboardQuery.projectId || projectId === "food-black-friday") {
+    return "Food Black Friday";
+  }
+
+  return projectId;
 }

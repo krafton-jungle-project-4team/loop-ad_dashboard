@@ -2,6 +2,10 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 
 import { DevProfiler } from "../../../app/DevProfiler.js";
 import { DataTable, type ColumnDef } from "../../../components/ui/data-table.js";
 import { Badge, Card, EmptyState, Progress } from "../../../components/ui/primitives.js";
+import {
+  CustomerTableToolbar,
+  type CustomerTableControlProps
+} from "./CustomerTableToolbar.js";
 import type {
   CustomerBehaviorRowViewModel,
   DeviceConversionRowViewModel,
@@ -33,8 +37,10 @@ const customerColumns: ColumnDef<CustomerBehaviorRowViewModel>[] = [
 ];
 
 export function PurchaseConversionPanel({
+  controls,
   viewModel
 }: {
+  controls: CustomerTableControlProps;
   viewModel: PurchaseConversionViewModel;
 }) {
   return (
@@ -106,9 +112,12 @@ export function PurchaseConversionPanel({
         </div>
 
         <Card className="p-5">
-          <div className="mb-4">
-            <h2 className="text-base font-semibold text-slate-950">고객군별 구매 행동</h2>
-            <p className="text-sm text-slate-500">채널, 연령, 성별, 지역, 기기, 카테고리 조합</p>
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">고객군별 구매 행동</h2>
+              <p className="text-sm text-slate-500">채널, 연령, 성별, 지역, 기기, 카테고리 조합</p>
+            </div>
+            <CustomerTableToolbar {...controls} />
           </div>
           <DataTable
             columns={customerColumns}

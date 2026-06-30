@@ -10,6 +10,7 @@
   - `/dashboard/ai-recommendation`
   - `/dashboard/ai-generation`
 - Added Nuqs-managed URL state for `projectId`, `dateRange`, `selectedCustomerId`, `sort`, and `filter`.
+- Redesigned analytics controls around a GA/PostHog-style model: campaign/date/refresh live in the sticky scope header, comparison chips and breakdown/filter chips sit below the header, and customer search/sort controls moved into the customer table panels.
 - Added a data source boundary in `features/dashboard/api/dashboard-api.ts`. TanStack Query calls `fetchDashboardPageResource`, which chooses fixture or HTTP behind the same function.
 - Added fixture resources in `features/dashboard/data/dashboard-fixtures.ts` so the variant runs without backend availability.
 - Added a ViewModel layer in `features/dashboard/vm/dashboard-view-model.ts`. Screen components consume ViewModels and callbacks, not raw API response types.

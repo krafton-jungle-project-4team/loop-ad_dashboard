@@ -63,7 +63,16 @@ function PurchaseSkeleton() {
         <Skeleton className="mt-5 h-72 w-full" />
       </Card>
       <Card className="p-5">
-        <Skeleton className="h-5 w-52" />
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Skeleton className="h-5 w-52" />
+            <Skeleton className="mt-2 h-4 w-72" />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-9 w-44" />
+          </div>
+        </div>
         <Skeleton className="mt-5 h-72 w-full" />
       </Card>
     </div>
@@ -74,7 +83,17 @@ function InsightSkeleton() {
   return (
     <div className="space-y-5">
       <Card className="p-5">
-        <Skeleton className="h-5 w-56" />
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Skeleton className="h-5 w-56" />
+            <Skeleton className="mt-2 h-4 w-80" />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-9 w-44" />
+            <Skeleton className="h-6 w-20" />
+          </div>
+        </div>
         <Skeleton className="mt-5 h-80 w-full" />
       </Card>
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">

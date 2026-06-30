@@ -9,16 +9,16 @@ export const dashboardDateRangeOptions = [
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardDateRange }>;
 
 export const dashboardSortOptions = [
-  { label: "전환 낮은순", value: "conversion-asc" },
-  { label: "전환 높은순", value: "conversion-desc" },
-  { label: "예상 매출순", value: "revenue-desc" },
-  { label: "이탈 위험순", value: "dropoff-desc" }
+  { label: "전환율 낮은순", value: "conversion-asc" },
+  { label: "전환율 높은순", value: "conversion-desc" },
+  { label: "예상 매출 높은순", value: "revenue-desc" },
+  { label: "이탈 위험 높은순", value: "dropoff-desc" }
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardSort }>;
 
 export const defaultDashboardQuery: DashboardQuery = {
   dateRange: "last-7-days",
   filter: "",
-  projectId: "food-black-friday",
+  projectId: "food-black-friday-2026",
   selectedCustomerId: "cg-low-mobile",
   sort: "conversion-asc"
 };

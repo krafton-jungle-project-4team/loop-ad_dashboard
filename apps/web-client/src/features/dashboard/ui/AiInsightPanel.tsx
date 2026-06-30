@@ -2,6 +2,10 @@ import { DataTable, type ColumnDef } from "../../../components/ui/data-table.js"
 import { DevProfiler } from "../../../app/DevProfiler.js";
 import { Badge, Card, EmptyState, Progress } from "../../../components/ui/primitives.js";
 import { cn } from "../../../lib/utils.js";
+import {
+  CustomerTableToolbar,
+  type CustomerTableControlProps
+} from "./CustomerTableToolbar.js";
 import type {
   CustomerDetailViewModel,
   CustomerRowViewModel,
@@ -26,9 +30,11 @@ const customerColumns: ColumnDef<CustomerRowViewModel>[] = [
 ];
 
 export function AiInsightPanel({
+  controls,
   onSelectCustomer,
   viewModel
 }: {
+  controls: CustomerTableControlProps;
   onSelectCustomer: (customerId: string) => void;
   viewModel: InsightViewModel;
 }) {
@@ -42,14 +48,17 @@ export function AiInsightPanel({
         ) : null}
 
         <Card className="p-5">
-          <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-base font-semibold text-slate-950">{title}</h2>
               <p className="text-sm text-slate-500">선택 고객군 기준으로 단계 흐름과 근거를 비교합니다.</p>
             </div>
-            <Badge tone={viewModel.mode === "analysis" ? "rose" : "emerald"}>
-              {viewModel.mode === "analysis" ? "risk scan" : "growth scan"}
-            </Badge>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <CustomerTableToolbar {...controls} />
+              <Badge tone={viewModel.mode === "analysis" ? "rose" : "emerald"}>
+                {viewModel.mode === "analysis" ? "risk scan" : "growth scan"}
+              </Badge>
+            </div>
           </div>
           <DataTable
             columns={customerColumns}

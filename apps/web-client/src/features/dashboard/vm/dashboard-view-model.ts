@@ -177,14 +177,12 @@ export function createDashboardViewModel(
         purchaseSeries: resource.data.purchase_series.map(toChartPoint),
         segmentGroups: resource.data.segment_status.map((group) => ({
           id: group.key,
-          items: group.items
-            .filter((item) => matchesFilter([item.label], query.filter))
-            .map((item) => ({
-              displayValue: formatInteger(item.value),
-              id: `${group.key}-${item.label}`,
-              label: item.label,
-              share: item.share
-            })),
+          items: group.items.map((item) => ({
+            displayValue: formatInteger(item.value),
+            id: `${group.key}-${item.label}`,
+            label: item.label,
+            share: item.share
+          })),
           title: group.title
         })),
         tab: "main"
@@ -210,7 +208,6 @@ export function createDashboardViewModel(
           query.sort
         ),
         deviceRows: resource.data.device_rows
-          .filter((row) => matchesFilter([row.device], query.filter))
           .map((row) => ({
             addToCart: formatInteger(row.add_to_cart_count),
             cartToPurchaseRate: formatPercent(row.cart_to_purchase_rate),
@@ -245,17 +242,6 @@ export function createDashboardViewModel(
     case "aiGeneration":
       return {
         cards: resource.data.generated_items
-          .filter((item) =>
-            matchesFilter(
-              [
-                item.action.title,
-                item.action.description,
-                item.content?.title ?? "",
-                item.content?.message ?? ""
-              ],
-              query.filter
-            )
-          )
           .map((item) => ({
             actionDescription: item.action.description,
             contentStatus: item.content?.status ?? "queued",
@@ -438,7 +424,7 @@ function sortCustomerRows(rows: CustomerRowViewModel[], sort: DashboardSort) {
       case "conversion-desc":
         return b.conversionRateValue - a.conversionRateValue;
       case "dropoff-desc":
-        return a.majorDropOffStage.localeCompare(b.majorDropOffStage, "ko-KR");
+        return getDropOffStageRisk(b.majorDropOffStage) - getDropOffStageRisk(a.majorDropOffStage);
       case "revenue-desc":
         return b.expectedRevenueValue - a.expectedRevenueValue;
     }
@@ -467,4 +453,24 @@ function matchesFilter(values: string[], filter: string) {
 
   const normalizedFilter = filter.toLowerCase();
   return values.some((value) => value.toLowerCase().includes(normalizedFilter));
+}
+
+function getDropOffStageRisk(stage: string) {
+  if (stage.includes("결제 시작 -> 구매")) {
+    return 4;
+  }
+
+  if (stage.includes("장바구니 -> 결제 시작")) {
+    return 3;
+  }
+
+  if (stage.includes("상품 조회 -> 장바구니")) {
+    return 2;
+  }
+
+  if (stage.includes("세션 시작 -> 상품 조회")) {
+    return 1;
+  }
+
+  return 0;
 }
