@@ -2,7 +2,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Check, ChevronDown } from "lucide-react";
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef, type ReactNode } from "react";
-import { cn } from "../../lib/utils.js";
+import { cn } from "./utils.js";
 
 export function Card({ className, ...props }: ComponentPropsWithoutRef<"section">) {
   return (

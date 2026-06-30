@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "../../../components/ui/primitives.js";
+import { Card } from "@loopad/ui/shadcn/primitives";
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (

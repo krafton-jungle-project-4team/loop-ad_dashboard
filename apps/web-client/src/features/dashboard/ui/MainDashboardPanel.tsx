@@ -8,8 +8,8 @@ import {
   YAxis
 } from "recharts";
 import { DevProfiler } from "../../../app/DevProfiler.js";
-import { Badge, Card, EmptyState, Progress } from "../../../components/ui/primitives.js";
-import { cn } from "../../../lib/utils.js";
+import { Badge, Card, EmptyState, Progress } from "@loopad/ui/shadcn/primitives";
+import { cn } from "@loopad/ui/shadcn/utils";
 import type {
   ChartPointViewModel,
   KpiCardViewModel,

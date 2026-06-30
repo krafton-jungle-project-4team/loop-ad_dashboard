@@ -5,8 +5,8 @@ import {
   type ColumnDef,
   type Row
 } from "@tanstack/react-table";
-import { cn } from "../../lib/utils.js";
 import { EmptyState } from "./primitives.js";
+import { cn } from "./utils.js";
 
 export type { ColumnDef } from "@tanstack/react-table";
 

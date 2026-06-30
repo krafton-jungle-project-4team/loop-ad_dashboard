@@ -12,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
   Tooltip
-} from "../../components/ui/primitives.js";
-import { cn } from "../../lib/utils.js";
+} from "@loopad/ui/shadcn/primitives";
+import { cn } from "@loopad/ui/shadcn/utils";
 import {
   dashboardConversionEventOptions,
   dashboardDateRangeOptions,

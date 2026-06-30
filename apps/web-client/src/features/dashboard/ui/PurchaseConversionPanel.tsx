@@ -1,7 +1,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { DevProfiler } from "../../../app/DevProfiler.js";
-import { DataTable, type ColumnDef } from "../../../components/ui/data-table.js";
-import { Badge, Card, EmptyState, Progress } from "../../../components/ui/primitives.js";
+import { DataTable, type ColumnDef } from "@loopad/ui/shadcn/data-table";
+import { Badge, Card, EmptyState, Progress } from "@loopad/ui/shadcn/primitives";
 import {
   CustomerTableToolbar,
   type CustomerTableControlProps

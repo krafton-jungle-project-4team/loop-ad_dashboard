@@ -1,5 +1,5 @@
 import { DevProfiler } from "../../../app/DevProfiler.js";
-import { Card, Skeleton } from "../../../components/ui/primitives.js";
+import { Card, Skeleton } from "@loopad/ui/shadcn/primitives";
 import type { DashboardTab } from "../model/dashboard-types.js";
 
 export function LoadingState({ tab }: { tab: DashboardTab }) {

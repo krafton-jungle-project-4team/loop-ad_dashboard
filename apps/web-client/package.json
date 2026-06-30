@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@loopad/shared": "file:../../packages/shared",
+    "@loopad/ui": "file:../../packages/ui",
     "@mantine/core": "^8.3.9",
     "@mantine/hooks": "^8.3.9",
     "@radix-ui/react-dialog": "^1.1.17",

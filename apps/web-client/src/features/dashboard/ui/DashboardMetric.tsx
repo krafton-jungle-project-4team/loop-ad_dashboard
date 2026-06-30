@@ -1,4 +1,4 @@
-import { Card } from "../../../components/ui/primitives.js";
+import { Card } from "@loopad/ui/shadcn/primitives";
 
 export function DashboardMetric({
   label,

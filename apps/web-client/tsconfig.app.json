@@ -5,6 +5,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
+      "@loopad/ui/shadcn/*": ["../../packages/ui/shadcn/*"],
       "@/*": ["src/*"]
     }
   },
