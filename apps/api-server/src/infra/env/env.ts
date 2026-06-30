@@ -25,27 +25,6 @@ function requiredHttpUrlEnv(name: string): string {
   return value;
 }
 
-function requiredPostgresUrlEnv(name: string): string {
-  const value = requiredEnv(name);
-  const url = new URL(value);
-  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
-    throw new Error(`${name} must be a postgres or postgresql URL`);
-  }
-  return value;
-}
-
-function requiredCsvEnv(name: string): string[] {
-  const value = requiredEnv(name);
-  const entries = value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  if (entries.length === 0) {
-    throw new Error(`${name} must include at least one value`);
-  }
-  return entries;
-}
-
 function requiredServiceIdEnv(): string {
   const value = requiredEnv("LOOPAD_SERVICE_ID");
   if (value !== DASHBOARD_SERVICE_ID) {
@@ -60,12 +39,16 @@ export const env = Object.freeze({
   env: loopadEnv,
   serviceId: requiredServiceIdEnv(),
   port: requiredIntegerEnv("PORT"),
-  webOrigins: requiredCsvEnv("LOOPAD_WEB_ORIGINS"),
   postgres: {
-    url: requiredPostgresUrlEnv("LOOPAD_POSTGRES_URL")
+    host: requiredEnv("LOOPAD_AURORA_HOST"),
+    port: requiredIntegerEnv("LOOPAD_AURORA_PORT"),
+    database: requiredEnv("LOOPAD_AURORA_DATABASE"),
+    username: requiredEnv("LOOPAD_AURORA_USERNAME"),
+    password: requiredEnv("LOOPAD_AURORA_PASSWORD")
   },
   clickhouse: {
     url: requiredHttpUrlEnv("LOOPAD_CLICKHOUSE_URL"),
+    database: requiredEnv("LOOPAD_CLICKHOUSE_DATABASE"),
     username: requiredEnv("LOOPAD_CLICKHOUSE_USERNAME"),
     password: requiredEnv("LOOPAD_CLICKHOUSE_PASSWORD")
   }

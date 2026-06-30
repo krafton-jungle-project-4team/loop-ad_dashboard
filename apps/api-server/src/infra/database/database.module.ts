@@ -8,7 +8,15 @@ import { CLICKHOUSE_CLIENT, PG_POOL } from "./database.tokens.js";
   providers: [
     {
       provide: PG_POOL,
-      useFactory: () => new Pool({ connectionString: env.postgres.url, max: 5 })
+      useFactory: () =>
+        new Pool({
+          database: env.postgres.database,
+          host: env.postgres.host,
+          max: 5,
+          password: env.postgres.password,
+          port: env.postgres.port,
+          user: env.postgres.username
+        })
     },
     {
       provide: CLICKHOUSE_CLIENT,
@@ -16,7 +24,8 @@ import { CLICKHOUSE_CLIENT, PG_POOL } from "./database.tokens.js";
         createClient({
           password: env.clickhouse.password,
           url: env.clickhouse.url,
-          username: env.clickhouse.username
+          username: env.clickhouse.username,
+          database: env.clickhouse.database
         })
     }
   ],

@@ -5,11 +5,13 @@ import { AppModule } from "./app.module.js";
 import { env } from "./infra/env/env.js";
 import { ApiExceptionFilter } from "./infra/http/api-exception.filter.js";
 
+const DASHBOARD_WEB_ORIGIN = "https://dashboard.dev.loop-ad.org";
+
 await bootstrap();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors({ origin: env.webOrigins, credentials: true });
+  app.enableCors({ origin: DASHBOARD_WEB_ORIGIN, credentials: true });
   app.setGlobalPrefix("api", {
     exclude: [{ path: "health", method: RequestMethod.GET }]
   });
