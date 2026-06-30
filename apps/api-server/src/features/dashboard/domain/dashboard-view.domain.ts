@@ -50,7 +50,6 @@ export type DashboardEventAnalysisView = DashboardMainSnapshot & {
   funnel: FunnelCountsView;
   deviceFunnels: DeviceFunnelView[];
   customerGroupsHigh: CustomerGroupEventView[];
-  customerGroupsLow: CustomerGroupEventView[];
 };
 
 export const DashboardViewDomain = {
@@ -83,8 +82,7 @@ export const DashboardViewDomain = {
       ),
       funnel: counts,
       deviceFunnels: getDeviceFunnelViews(events),
-      customerGroupsHigh: sortCustomerGroupViews(customerGroups, "high").slice(0, 20),
-      customerGroupsLow: sortCustomerGroupViews(customerGroups, "low").slice(0, 20)
+      customerGroupsHigh: sortCustomerGroupViews(customerGroups)
     };
   },
   toMain(snapshot: DashboardMainSnapshot): DashboardMain {
@@ -155,7 +153,7 @@ export const DashboardViewDomain = {
     const selectedGroup = selectCustomerGroup(customerGroups, selectedCustomerId);
 
     return {
-      sort: "low",
+      sort: "high",
       customers: customerGroups.map(toCustomerSegment),
       selected_customer: selectedGroup ? toCustomerDetail(selectedGroup, recommendationRows) : null
     };
@@ -348,19 +346,14 @@ function selectCustomerGroup(
   return customerGroups[0];
 }
 
-function sortCustomerGroupViews(
-  groups: CustomerGroupEventView[],
-  sort: "high" | "low"
-): CustomerGroupEventView[] {
-  const direction = sort === "high" ? -1 : 1;
-
+function sortCustomerGroupViews(groups: CustomerGroupEventView[]): CustomerGroupEventView[] {
   return [...groups].sort((left, right) => {
     const conversionDiff =
       rate(left.purchase_count, left.product_view_count) -
       rate(right.purchase_count, right.product_view_count);
 
     if (conversionDiff !== 0) {
-      return conversionDiff * direction;
+      return conversionDiff * -1;
     }
 
     return right.product_view_count - left.product_view_count;

@@ -5,6 +5,7 @@ import type {
   DashboardMetricValue
 } from "@loopad/shared";
 import { Badge } from "@loopad/ui/shadcn/badge";
+import { Button } from "@loopad/ui/shadcn/button";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import {
   Table,
@@ -14,10 +15,14 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { KeyboardEvent } from "react";
+import { useMemo, useState } from "react";
 import { formatMoney, formatPercent } from "../model/dashboard-format.js";
 import { EmptyState } from "./EmptyState.js";
 import { Section } from "./Section.js";
+
+const CUSTOMER_PAGE_SIZE = 10;
 
 export function AiInsightPanel({
   data,
@@ -32,61 +37,92 @@ export function AiInsightPanel({
 }) {
   const activeCustomerId =
     data.selected_customer?.customer_group.customer_group_id ?? selectedCustomerId;
+  const [requestedCustomerPage, setRequestedCustomerPage] = useState(() =>
+    getCustomerPageForId(data.customers, activeCustomerId)
+  );
+  const customerPageCount = Math.max(Math.ceil(data.customers.length / CUSTOMER_PAGE_SIZE), 1);
+  const customerPage = clampPage(requestedCustomerPage, customerPageCount);
+  const visibleCustomers = useMemo(
+    () =>
+      data.customers.slice(
+        (customerPage - 1) * CUSTOMER_PAGE_SIZE,
+        customerPage * CUSTOMER_PAGE_SIZE
+      ),
+    [customerPage, data.customers]
+  );
+  const customerStart = data.customers.length > 0 ? (customerPage - 1) * CUSTOMER_PAGE_SIZE + 1 : 0;
+  const customerEnd = Math.min(customerPage * CUSTOMER_PAGE_SIZE, data.customers.length);
 
   return (
     <div className="grid gap-6">
-      <Section title={`전환율 ${mode === "analysis" ? "하위" : "상위"} 고객군`}>
+      <Section title={`전환율 ${mode === "analysis" ? "" : "상위 "}고객군`}>
         {data.customers.length > 0 ? (
-          <Table className="min-w-[940px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>고객군</TableHead>
-                <TableHead>채널</TableHead>
-                <TableHead>연령</TableHead>
-                <TableHead>성별</TableHead>
-                <TableHead>카테고리</TableHead>
-                <TableHead>지역</TableHead>
-                <TableHead>기기</TableHead>
-                <TableHead>전환율</TableHead>
-                <TableHead>주요 이탈 단계</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.customers.map((customer) => (
-                <TableRow
-                  className="cursor-pointer"
-                  data-state={
-                    customer.customer_group_id === activeCustomerId ? "selected" : undefined
-                  }
-                  key={customer.customer_group_id}
-                  onClick={() => onSelectedCustomerIdChange(customer.customer_group_id)}
-                  onKeyDown={(event) =>
-                    handleCustomerRowKeyDown(
-                      event,
-                      customer.customer_group_id,
-                      onSelectedCustomerIdChange
-                    )
-                  }
-                  role="button"
-                  tabIndex={0}
-                >
-                  <TableCell className="font-medium">{customer.customer_group_name}</TableCell>
-                  <TableCell>{customer.channel}</TableCell>
-                  <TableCell>{customer.age_group}</TableCell>
-                  <TableCell>{customer.gender}</TableCell>
-                  <TableCell>{customer.category}</TableCell>
-                  <TableCell>{customer.region}</TableCell>
-                  <TableCell>{customer.device}</TableCell>
-                  <TableCell className="font-medium tabular-nums">
-                    {formatPercent(customer.conversion_rate)}
-                  </TableCell>
-                  <TableCell className="max-w-[180px] whitespace-normal text-sm text-muted-foreground">
-                    {customer.major_drop_off_stage}
-                  </TableCell>
+          <div className="grid gap-4">
+            <Table className="min-w-[940px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>고객군</TableHead>
+                  <TableHead>채널</TableHead>
+                  <TableHead>연령</TableHead>
+                  <TableHead>성별</TableHead>
+                  <TableHead>카테고리</TableHead>
+                  <TableHead>지역</TableHead>
+                  <TableHead>기기</TableHead>
+                  <TableHead>전환율</TableHead>
+                  <TableHead>주요 이탈 단계</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {visibleCustomers.map((customer) => (
+                  <TableRow
+                    className="cursor-pointer"
+                    data-state={
+                      customer.customer_group_id === activeCustomerId ? "selected" : undefined
+                    }
+                    key={customer.customer_group_id}
+                    onClick={() => onSelectedCustomerIdChange(customer.customer_group_id)}
+                    onKeyDown={(event) =>
+                      handleCustomerRowKeyDown(
+                        event,
+                        customer.customer_group_id,
+                        onSelectedCustomerIdChange
+                      )
+                    }
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <TableCell className="font-medium">{customer.customer_group_name}</TableCell>
+                    <TableCell>{customer.channel}</TableCell>
+                    <TableCell>{customer.age_group}</TableCell>
+                    <TableCell>{customer.gender}</TableCell>
+                    <TableCell>{customer.category}</TableCell>
+                    <TableCell>{customer.region}</TableCell>
+                    <TableCell>{customer.device}</TableCell>
+                    <TableCell className="font-medium tabular-nums">
+                      {formatPercent(customer.conversion_rate)}
+                    </TableCell>
+                    <TableCell className="max-w-[180px] whitespace-normal text-sm text-muted-foreground">
+                      {customer.major_drop_off_stage}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            <CustomerPagination
+              end={customerEnd}
+              onNext={() =>
+                setRequestedCustomerPage((current) => clampPage(current + 1, customerPageCount))
+              }
+              onPrevious={() =>
+                setRequestedCustomerPage((current) => clampPage(current - 1, customerPageCount))
+              }
+              page={customerPage}
+              pageCount={customerPageCount}
+              start={customerStart}
+              total={data.customers.length}
+            />
+          </div>
         ) : (
           <EmptyState message="고객군 데이터가 없습니다." />
         )}
@@ -151,6 +187,57 @@ export function AiInsightPanel({
   );
 }
 
+function CustomerPagination({
+  end,
+  onNext,
+  onPrevious,
+  page,
+  pageCount,
+  start,
+  total
+}: {
+  end: number;
+  onNext: () => void;
+  onPrevious: () => void;
+  page: number;
+  pageCount: number;
+  start: number;
+  total: number;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+      <span>
+        {start}-{end} / {total}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button
+          aria-label="이전 고객군 페이지"
+          disabled={page <= 1}
+          onClick={onPrevious}
+          size="icon-sm"
+          type="button"
+          variant="outline"
+        >
+          <ChevronLeft />
+        </Button>
+        <span className="min-w-12 text-center tabular-nums">
+          {page} / {pageCount}
+        </span>
+        <Button
+          aria-label="다음 고객군 페이지"
+          disabled={page >= pageCount}
+          onClick={onNext}
+          size="icon-sm"
+          type="button"
+          variant="outline"
+        >
+          <ChevronRight />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function handleCustomerRowKeyDown(
   event: KeyboardEvent<HTMLTableRowElement>,
   customerGroupId: string,
@@ -162,6 +249,18 @@ function handleCustomerRowKeyDown(
 
   event.preventDefault();
   onSelectedCustomerIdChange(customerGroupId);
+}
+
+function getCustomerPageForId(
+  customers: Array<{ customer_group_id: string }>,
+  customerGroupId: string
+) {
+  const index = customers.findIndex((customer) => customer.customer_group_id === customerGroupId);
+  return index >= 0 ? Math.floor(index / CUSTOMER_PAGE_SIZE) + 1 : 1;
+}
+
+function clampPage(page: number, pageCount: number) {
+  return Math.min(Math.max(page, 1), pageCount);
 }
 
 function CustomerDetail({ detail }: { detail: DashboardCustomerDetail }) {

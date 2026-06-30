@@ -34,8 +34,7 @@ services:
       target: development
     command: sh -c "npm run build -w @loopad/shared && npm run dev -w @loopad/web-client"
     environment:
-      LOOPAD_API_PROXY_TARGET: http://api-server:${PORT:?PORT is required}
-      VITE_LOOPAD_API_BASE_URL: /api
+      VITE_LOOPAD_API_BASE_URL: http://localhost:${PORT:?PORT is required}/api
     ports:
       - "5173:5173"
     volumes:
