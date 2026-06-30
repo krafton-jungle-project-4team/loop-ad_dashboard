@@ -403,8 +403,8 @@ function emptyFunnelCounts(): FunnelCountsView {
 }
 
 function getCustomerGroupId(event: DashboardEventView) {
-  if (event.segment_hash) {
-    return event.segment_hash;
+  if (event.segment_key) {
+    return event.segment_key;
   }
 
   return createHash("md5")
@@ -601,7 +601,7 @@ function rowsForSegment(
   rows: RecommendationContextRow[],
   customerGroupId: string
 ): RecommendationContextRow[] {
-  return rows.filter((row) => row.segment_hash === customerGroupId);
+  return rows.filter((row) => row.segment_key === customerGroupId);
 }
 
 function expectedConversionRate(

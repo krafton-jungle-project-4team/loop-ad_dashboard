@@ -7,7 +7,7 @@ export type DashboardEventView = {
   category: string;
   region: string;
   device: string;
-  segment_hash: string;
+  segment_key: string;
   revenue: number;
 };
 
