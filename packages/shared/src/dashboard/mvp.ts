@@ -120,7 +120,7 @@ export const DashboardCustomerDetailSchema = z.object({
 export type DashboardCustomerDetail = z.infer<typeof DashboardCustomerDetailSchema>;
 
 export const DashboardAiAnalysisSchema = z.object({
-  sort: z.literal("low"),
+  sort: z.literal("high"),
   customers: z.array(DashboardCustomerSegmentSchema),
   selected_customer: DashboardCustomerDetailSchema.nullable()
 });

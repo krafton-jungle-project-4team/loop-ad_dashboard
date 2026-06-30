@@ -43,7 +43,7 @@ export class DashboardQueryService {
     const eventAnalysis = DashboardViewDomain.analyzeEventViews(eventViews);
 
     return DashboardViewDomain.toAiAnalysis(
-      eventAnalysis.customerGroupsLow,
+      eventAnalysis.customerGroupsHigh,
       recommendationRows,
       selectedCustomerId
     );

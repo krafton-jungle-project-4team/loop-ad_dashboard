@@ -109,10 +109,10 @@ Dashboard FE
 
 `GET /api/dashboard/ai-analysis`
 
-- 목적: 전환율 하위 고객군과 저장된 분석 근거를 조회한다.
+- 목적: 전환율 내림차순 고객군과 저장된 분석 근거를 조회한다.
 - 조회하는 DB: ClickHouse events, Aurora Postgres recommendation_results.
 - 주요 응답 필드: `customers`, `selected_customer.metrics`, `case_analysis`, `rationale`, `stage_flow`.
-- 프론트 화면 요소: 하위 고객군 테이블, 선택 고객군 상세 분석, 판단 근거, 구매 단계 흐름.
+- 프론트 화면 요소: 고객군 테이블, 선택 고객군 상세 분석, 판단 근거, 구매 단계 흐름.
 - 실패 시 동작: AI 서버를 호출하지 않고 API 에러를 반환한다.
 
 `GET /api/dashboard/ai-recommendation`
@@ -127,8 +127,8 @@ Dashboard FE
 
 - 목적: 저장된 광고 문구/이미지/영상/랜딩 콘텐츠 상태를 조회한다.
 - 조회하는 DB: Aurora Postgres recommendation_actions, segment_ad_mappings, ad_creatives.
-- 주요 응답 필드: `selected_customer`, `generated_items`, `content`.
-- 프론트 화면 요소: 선택 고객군, 액션별 콘텐츠 카드, content_url 링크/이미지, 콘텐츠 미생성 상태.
+- 주요 응답 필드: `customers`, `selected_customer`, `generated_items`, `content`.
+- 프론트 화면 요소: 고객군 선택, 선택 고객군, 액션별 콘텐츠 카드, content_url 링크/이미지, 콘텐츠 미생성 상태.
 - 실패 시 동작: 콘텐츠 생성 POST 없이 API 에러를 반환한다.
 
 ## Dashboard 페이지별 데이터 흐름
@@ -162,7 +162,7 @@ Dashboard FE
 프론트:
 
 - `GET /api/dashboard/ai-analysis`를 호출한다.
-- 전환율 하위 고객군과 선택 고객군 상세를 렌더링한다.
+- 전환율 내림차순 고객군과 선택 고객군 상세를 렌더링한다.
 
 백엔드:
 
