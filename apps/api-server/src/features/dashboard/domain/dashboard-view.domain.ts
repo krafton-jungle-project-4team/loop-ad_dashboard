@@ -164,7 +164,9 @@ export const DashboardViewDomain = {
     selectedCustomerId: string | undefined
   ): DashboardAiRecommendation {
     const selectedGroup = selectCustomerGroup(customerGroups, selectedCustomerId);
-    const selectedRows = rowsForSegment(recommendationRows, selectedGroup?.customer_group_id);
+    const selectedRows = selectedGroup
+      ? rowsForSegment(recommendationRows, selectedGroup.customer_group_id)
+      : [];
 
     return {
       sort: "high",
@@ -182,7 +184,9 @@ export const DashboardViewDomain = {
     selectedCustomerId: string | undefined
   ): DashboardAiGeneration {
     const selectedGroup = selectCustomerGroup(customerGroups, selectedCustomerId);
-    const selectedRows = rowsForSegment(recommendationRows, selectedGroup?.customer_group_id);
+    const selectedRows = selectedGroup
+      ? rowsForSegment(recommendationRows, selectedGroup.customer_group_id)
+      : [];
 
     return {
       customers: customerGroups.map(toCustomerSegment),
@@ -510,8 +514,7 @@ function toCustomerDetail(
       metric("전환 차이", actualRate - expectedRate, "delta"),
       metric("예상 매출", row.revenue, "money")
     ],
-    case_analysis:
-      rootCauses.length > 0 ? rootCauses : [`주요 이탈 단계: ${majorDropOff(row).label}`],
+    case_analysis: rootCauses,
     purchase_history: [
       {
         label: row.category,
@@ -596,14 +599,9 @@ function toGenerationItems(rows: RecommendationContextRow[]): DashboardGeneratio
 
 function rowsForSegment(
   rows: RecommendationContextRow[],
-  customerGroupId: string | undefined
+  customerGroupId: string
 ): RecommendationContextRow[] {
-  if (!customerGroupId) {
-    return rows.slice(0, 8);
-  }
-
-  const matchedRows = rows.filter((row) => row.segment_hash === customerGroupId);
-  return matchedRows.length > 0 ? matchedRows : rows.slice(0, 8);
+  return rows.filter((row) => row.segment_hash === customerGroupId);
 }
 
 function expectedConversionRate(

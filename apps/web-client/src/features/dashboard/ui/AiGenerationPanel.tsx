@@ -12,6 +12,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useMemo, useState } from "react";
+import { dashboardEmptyStateMessages } from "../model/dashboard-empty-state.js";
 import { formatPercent } from "../model/dashboard-format.js";
 import { EmptyState } from "./EmptyState.js";
 import { Section } from "./Section.js";
@@ -111,7 +112,7 @@ export function AiGenerationPanel({
             />
           </div>
         ) : (
-          <EmptyState message="고객군 데이터가 없습니다." />
+          <EmptyState message={dashboardEmptyStateMessages.aiCustomersMissing} />
         )}
       </Section>
 
@@ -133,7 +134,7 @@ export function AiGenerationPanel({
             </p>
           </div>
         ) : (
-          <EmptyState message="선택된 고객군이 없습니다." />
+          <EmptyState message={dashboardEmptyStateMessages.aiSelectedCustomerMissing} />
         )}
       </Section>
 
@@ -150,7 +151,10 @@ export function AiGenerationPanel({
               >
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-medium">{item.action.title}</h3>
-                  <Badge variant="secondary">{item.content?.status ?? "콘텐츠 미생성"}</Badge>
+                  <Badge variant="secondary">
+                    {item.content?.status ??
+                      dashboardEmptyStateMessages.aiGenerationItemContentMissing}
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">{item.action.description}</p>
                 {item.content ? (
@@ -185,13 +189,15 @@ export function AiGenerationPanel({
                     )}
                   </div>
                 ) : (
-                  <EmptyState message="콘텐츠 미생성" />
+                  <EmptyState
+                    message={dashboardEmptyStateMessages.aiGenerationItemContentMissing}
+                  />
                 )}
               </article>
             ))}
           </div>
         ) : (
-          <EmptyState message="저장된 생성 콘텐츠가 없습니다." />
+          <EmptyState message={dashboardEmptyStateMessages.aiGenerationContentMissing} />
         )}
       </Section>
     </div>
