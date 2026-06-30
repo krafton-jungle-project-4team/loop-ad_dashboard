@@ -32,7 +32,7 @@ import {
   type PointerEvent,
   type ReactNode
 } from "react";
-import { dashboardTabs, dashboardTitles } from "../model/dashboard-navigation.js";
+import { dashboardTabs, getDashboardTabLabel } from "../model/dashboard-navigation.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
@@ -155,7 +155,7 @@ function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: Dash
         <BreadcrumbSeparator className="hidden sm:inline-flex" />
         <BreadcrumbItem className="min-w-0">
           <BreadcrumbPage className="truncate text-sm font-medium leading-none text-foreground">
-            {dashboardTitles[tab]}
+            {projectId} · {getDashboardTabLabel(tab)}
           </BreadcrumbPage>
         </BreadcrumbItem>
       </BreadcrumbList>

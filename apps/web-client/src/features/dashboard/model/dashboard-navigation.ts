@@ -21,14 +21,10 @@ export const dashboardTabs = [
   { value: "aiGeneration", label: "AI 생성", icon: Image, pathSegment: "ai-generation" }
 ] satisfies DashboardNavItem[];
 
-export const dashboardTitles: Record<DashboardTab, string> = {
-  main: "Food Black Friday",
-  purchaseConversion: "Purchase Journey",
-  aiAnalysis: "AI Insight",
-  aiRecommendation: "AI Insight",
-  aiGeneration: "AI Insight"
-};
-
 export function getDashboardTabByPath(path: string): DashboardTab | null {
   return dashboardTabs.find((item) => item.pathSegment === path)?.value ?? null;
+}
+
+export function getDashboardTabLabel(tab: DashboardTab): string {
+  return dashboardTabs.find((item) => item.value === tab)?.label ?? "대시보드";
 }
