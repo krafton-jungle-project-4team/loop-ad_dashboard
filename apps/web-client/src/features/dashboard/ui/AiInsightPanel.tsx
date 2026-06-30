@@ -1,7 +1,7 @@
-import { DataTable, type ColumnDef } from "@loopad/ui/shadcn/data-table";
+import { DataTable, type ColumnDef } from "@/components/dashboard-ui/data-table";
 import { DevProfiler } from "../../../app/DevProfiler.js";
-import { Badge, Card, EmptyState, Progress } from "@loopad/ui/shadcn/primitives";
-import { cn } from "@loopad/ui/shadcn/utils";
+import { Badge, Card, EmptyState, Progress } from "@/components/dashboard-ui/primitives";
+import { cn } from "@/components/dashboard-ui/utils";
 import {
   CustomerTableToolbar,
   type CustomerTableControlProps

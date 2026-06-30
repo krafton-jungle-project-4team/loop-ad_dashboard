@@ -1,7 +1,7 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "@loopad/ui/charts";
 import { DevProfiler } from "../../../app/DevProfiler.js";
-import { DataTable, type ColumnDef } from "@loopad/ui/shadcn/data-table";
-import { Badge, Card, EmptyState, Progress } from "@loopad/ui/shadcn/primitives";
+import { DataTable, type ColumnDef } from "@/components/dashboard-ui/data-table";
+import { Badge, Card, EmptyState, Progress } from "@/components/dashboard-ui/primitives";
 import {
   CustomerTableToolbar,
   type CustomerTableControlProps

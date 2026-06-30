@@ -6,10 +6,10 @@ import {
   Tooltip as RechartsTooltip,
   XAxis,
   YAxis
-} from "recharts";
+} from "@loopad/ui/charts";
 import { DevProfiler } from "../../../app/DevProfiler.js";
-import { Badge, Card, EmptyState, Progress } from "@loopad/ui/shadcn/primitives";
-import { cn } from "@loopad/ui/shadcn/utils";
+import { Badge, Card, EmptyState, Progress } from "@/components/dashboard-ui/primitives";
+import { cn } from "@/components/dashboard-ui/utils";
 import type {
   ChartPointViewModel,
   KpiCardViewModel,

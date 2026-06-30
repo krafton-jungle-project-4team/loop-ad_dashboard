@@ -1,4 +1,4 @@
-import { Badge, Card, EmptyState } from "@loopad/ui/shadcn/primitives";
+import { Badge, Card, EmptyState } from "@/components/dashboard-ui/primitives";
 import type { GenerationViewModel, GeneratedContentViewModel } from "../vm/dashboard-view-model.js";
 
 export function AiGenerationPanel({ viewModel }: { viewModel: GenerationViewModel }) {

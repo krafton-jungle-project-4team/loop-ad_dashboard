@@ -5,6 +5,9 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
+      "@loopad/ui/charts": ["../../packages/ui/charts/index.ts"],
+      "@loopad/ui/charts/*": ["../../packages/ui/charts/*"],
+      "@loopad/ui/shadcn": ["../../packages/ui/shadcn/index.ts"],
       "@loopad/ui/shadcn/*": ["../../packages/ui/shadcn/*"],
       "@/*": ["src/*"]
     }

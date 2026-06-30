@@ -6,7 +6,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from "@loopad/ui/shadcn/primitives";
+} from "@/components/dashboard-ui/primitives";
 import { dashboardSortOptions } from "../model/dashboard-query.js";
 import type { DashboardSort } from "../model/dashboard-types.js";
 
