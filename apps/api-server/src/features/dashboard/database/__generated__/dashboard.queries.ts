@@ -196,6 +196,7 @@ export const listRecommendationRows = new PreparedQuery<
 >(listRecommendationRowsIR);
 
 export interface IListRecommendationContextsParams {
+  analysisDate: string | null;
   projectId: string;
 }
 
@@ -226,6 +227,17 @@ export interface IListRecommendationContextsResult {
 }
 
 const listRecommendationContextsStatement = `
+WITH latest_metric_date AS (
+  SELECT MAX(m.analysis_date) AS analysis_date
+  FROM segment_daily_metrics m
+  JOIN projects p
+    ON p.id = m.project_id
+  WHERE p.project_key = :projectId
+),
+selected_metric_date AS (
+  SELECT COALESCE(:analysisDate::date, analysis_date) AS analysis_date
+  FROM latest_metric_date
+)
 SELECT
   rr.id::text AS recommendation_result_id,
   s.segment_key AS segment_key,
@@ -291,12 +303,16 @@ LEFT JOIN LATERAL (
   LIMIT 1
 ) gc ON true
 WHERE p.project_key = :projectId
+  AND rr.analysis_date = (SELECT analysis_date FROM selected_metric_date)
 ORDER BY rr.created_at DESC, ra.priority ASC, ra.created_at ASC
 `;
 
 const listRecommendationContextsIR = {
-  usedParamSet: { projectId: true },
-  params: [scalarParam(listRecommendationContextsStatement, "projectId", true)],
+  usedParamSet: { analysisDate: true, projectId: true },
+  params: [
+    scalarParam(listRecommendationContextsStatement, "projectId", true),
+    scalarParam(listRecommendationContextsStatement, "analysisDate")
+  ],
   statement: listRecommendationContextsStatement
 } as unknown as SQLQueryIR;
 

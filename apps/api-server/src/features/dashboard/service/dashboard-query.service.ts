@@ -45,7 +45,7 @@ export class DashboardQueryService {
   ): Promise<DashboardAiAnalysis> {
     const [segmentMetrics, recommendationRows] = await Promise.all([
       this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
-      this.recommendationReader.readRecommendationContexts(projectId)
+      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
     ]);
     const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
 
@@ -59,7 +59,7 @@ export class DashboardQueryService {
   ): Promise<DashboardAiRecommendation> {
     const [segmentMetrics, recommendationRows] = await Promise.all([
       this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
-      this.recommendationReader.readRecommendationContexts(projectId)
+      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
     ]);
     const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
 
@@ -77,7 +77,7 @@ export class DashboardQueryService {
   ): Promise<DashboardAiGeneration> {
     const [segmentMetrics, recommendationRows] = await Promise.all([
       this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
-      this.recommendationReader.readRecommendationContexts(projectId)
+      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
     ]);
     const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
 
