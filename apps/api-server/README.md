@@ -15,6 +15,7 @@ src
     │   ├── controller
     │   ├── service
     │   ├── repository
+    │   ├── domain
     │   ├── database
     │   └── dashboard.module.ts
     └── health
@@ -22,7 +23,7 @@ src
 
 ## 기술 선택
 
-- NestJS: Dashboard API의 controller, service, repository 경계를 명확하게 나눈다.
+- NestJS: Dashboard API의 controller, service, reader/writer, domain 경계를 명확하게 나눈다.
 - Zod/shared schema: API 서버와 웹 클라이언트가 같은 응답 contract를 사용한다.
 - PostgreSQL / Aurora Postgres: 추천 결과, 액션, 세그먼트 매핑, 광고 소재 운영 상태를 조회한다.
 - ClickHouse: 사용자 행동 이벤트, 퍼널, 전환율, 세그먼트 집계를 조회한다.
@@ -30,7 +31,7 @@ src
 - Clean React: 프론트 변경은 화면별 응답 렌더링에 집중하고 불필요한 상태와 mutation 흐름을 만들지 않는다.
 - Apple Design Guidelines: Action Blue, 조용한 카드 표면, 큰 지표 타이포그래피를 대시보드 밀도에 맞게 적용한다.
 - Env validation: 서버 시작 시 필수 외부 DB 연결 정보를 즉시 검증한다.
-- 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 repository 계층만 ClickHouse/Postgres를 조회한다.
+- 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer/view query 계층만 ClickHouse/Postgres를 조회한다.
 
 ## 개발 규칙
 
@@ -38,7 +39,9 @@ src
 - Dashboard API는 GET 조회 전용이다.
 - Controller는 요청/응답 경계를 담당한다.
 - Service는 화면 단위 use case 조율과 계산 책임을 가진다.
-- Repository 계층은 ClickHouse/Postgres 조회를 담당한다.
+- DB 접근 class는 Postgres 읽기 `XxxReader`, Postgres 쓰기 `XxxWriter`, ClickHouse 조회 `XxxViewQuery` 이름을 사용한다.
+- Repository 폴더의 reader/writer/view query는 ClickHouse/Postgres 조회를 담당하고, DB row를 그대로 service 밖으로 노출하지 않는다.
+- 도메인 동작과 응답 조립은 class 대신 snapshot type과 `XxxDomain` 순수 함수로 둔다.
 - 프론트는 DB에 직접 접근하지 않는다.
 - 프론트는 백엔드 API 응답을 받아 Mantine UI로 렌더링한다.
 - DB 조회, 조인, 이벤트 count, 퍼널 계산, CTR/CVR 계산은 백엔드에서 수행한다.
@@ -74,6 +77,19 @@ Dashboard FE
 ```
 
 ## Dashboard API 계약
+
+`POST /api/ads/serve`
+
+- 목적: 고객사/데모 프론트에서 단일 placement 광고를 조회한다.
+- 공개 범위: 인증 없는 public browser API이며 secret, JWT, API key를 요구하지 않는다.
+- CORS: `https://loop-ad.org` 및 `https://*.loop-ad.org` origin만 허용한다. 로컬 개발은 프록시로 해결하며 `localhost`와 `127.0.0.1`은 CORS 허용 목록에 넣지 않는다.
+- 조회하는 DB: Aurora Postgres contract DB의 `projects`, `latest_user_primary_segments`, `segments`, `active_ad_serving_rules`.
+- `active_ad_serving_rules`는 광고 응답에 필요한 `mapping_id`, `action_id`, `experiment_variant_id`, `generated_content_id`를 제공해야 한다.
+- serving 흐름: `projectId`로 project를 확인하고, 사용자의 latest primary segment가 없으면 default segment로 fallback한 뒤, `placementKey` 후보 중 최고 priority를 고르고 같은 priority에서는 `projectId:userId:placementKey` hash와 `traffic_weight`로 deterministic weighted pick을 수행한다.
+- 응답 형식: 전역 `{ requestId, data }` envelope를 유지하고 외부 JSON 필드는 camelCase를 사용한다.
+- no-fill: 오류가 아니므로 `200 OK`와 `status: "empty"`, `ad: null`, `tracking: null`을 반환한다.
+- 실패: 필수 필드 누락은 `400`, 존재하지 않는 `projectId`는 `404`, DB 장애는 `500`으로 반환한다.
+- DB 전제: 이번 MVP는 `segment_ad_mappings.placement_key`에 `C1_MAIN_TOP`, `W1_WING` 값이 존재한다고 가정한다.
 
 `GET /api/dashboard/main`
 

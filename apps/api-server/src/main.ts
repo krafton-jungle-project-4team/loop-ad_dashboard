@@ -5,17 +5,16 @@ import { env } from "./infra/env/env.js";
 import { AppModule } from "./app.module.js";
 import { ApiExceptionFilter } from "./infra/http/api-exception.filter.js";
 import { ApiResponseInterceptor } from "./infra/http/api-response.interceptor.js";
+import { createCorsOriginResolver } from "./infra/http/cors-origin.js";
 import { requestLoggingMiddleware } from "./infra/http/request-logging.middleware.js";
 import { logWithContext } from "./infra/logger/index.js";
-
-const DASHBOARD_WEB_ORIGIN = "https://dashboard.dev.loop-ad.org";
 
 await bootstrap();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(requestLoggingMiddleware);
-  app.enableCors({ origin: DASHBOARD_WEB_ORIGIN, credentials: true });
+  app.enableCors({ origin: createCorsOriginResolver() });
   app.setGlobalPrefix("api", {
     exclude: [{ path: "health", method: RequestMethod.GET }]
   });

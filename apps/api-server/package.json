@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "db:generate": "pgtyped -c pgtyped.config.json",
     "start": "node dist/main.js",
+    "test": "npm run build -w @loopad/shared && tsx --test \"tests/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
