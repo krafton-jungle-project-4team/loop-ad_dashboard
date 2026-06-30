@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { normalizeDashboardQuery, useDashboardQueryState } from "../model/dashboard-query.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { useSuspenseDashboardResources } from "../model/use-dashboard-resources.js";
-import { renderDashboardPanel } from "../ui/render-dashboard-panel.js";
+import { DashboardPanelRenderer } from "../ui/DashboardPanelRenderer.js";
 
 export function DashboardProjectPage({ projectId, tab }: { projectId: string; tab: DashboardTab }) {
   const [queryState] = useDashboardQueryState();
@@ -27,5 +27,5 @@ export function DashboardProjectPage({ projectId, tab }: { projectId: string; ta
 function DashboardResourcePanel({ query, tab }: { query: DashboardQuery; tab: DashboardTab }) {
   const { data } = useSuspenseDashboardResources(tab, query);
 
-  return renderDashboardPanel(data);
+  return <DashboardPanelRenderer resource={data} />;
 }

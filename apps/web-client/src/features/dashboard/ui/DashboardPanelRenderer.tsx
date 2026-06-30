@@ -4,7 +4,7 @@ import { AiInsightPanel } from "./AiInsightPanel.js";
 import { MainDashboardPanel } from "./MainDashboardPanel.js";
 import { PurchaseConversionPanel } from "./PurchaseConversionPanel.js";
 
-export function renderDashboardPanel(resource: DashboardPageResource) {
+export function DashboardPanelRenderer({ resource }: { resource: DashboardPageResource }) {
   switch (resource.tab) {
     case "main":
       return <MainDashboardPanel data={resource.data} />;
