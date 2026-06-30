@@ -42,7 +42,7 @@ ORDER BY rr.created_at DESC, ra.created_at ASC;
 /* @name ListRecommendationContexts */
 SELECT
   rr.id::text AS recommendation_result_id,
-  s.segment_key AS segment_hash,
+  s.segment_key AS segment_key,
   s.rule_json AS segment_json,
   rr.status,
   COALESCE(
@@ -113,7 +113,7 @@ SELECT
   e.id::text AS "experimentId",
   p.project_key AS "projectId",
   s.segment_key AS "segmentId",
-  s.segment_key AS "segmentHash",
+  s.segment_key AS "segmentKey",
   rr.id::text AS "recommendationId",
   e.recommendation_action_id::text AS "recommendationActionId",
   e.id::text AS "banditPolicyId",

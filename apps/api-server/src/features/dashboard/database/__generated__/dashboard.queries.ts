@@ -126,7 +126,7 @@ export interface IListRecommendationContextsResult {
   recommendation_result_id: string;
   root_causes_json: Record<string, unknown>;
   sampled_value: number | string | null;
-  segment_hash: string;
+  segment_key: string;
   segment_json: Record<string, unknown>;
   status: string;
   summary_message: string | null;
@@ -135,7 +135,7 @@ export interface IListRecommendationContextsResult {
 const listRecommendationContextsStatement = `
 SELECT
   rr.id::text AS recommendation_result_id,
-  s.segment_key AS segment_hash,
+  s.segment_key AS segment_key,
   s.rule_json AS segment_json,
   rr.status,
   COALESCE(
@@ -229,7 +229,7 @@ export interface IGetExperimentResult {
   projectId: string;
   recommendationActionId: string;
   recommendationId: string;
-  segmentHash: string;
+  segmentKey: string;
   segmentId: string;
   startedAt: Date | null;
   status: string;
@@ -240,7 +240,7 @@ SELECT
   e.id::text AS "experimentId",
   p.project_key AS "projectId",
   s.segment_key AS "segmentId",
-  s.segment_key AS "segmentHash",
+  s.segment_key AS "segmentKey",
   rr.id::text AS "recommendationId",
   e.recommendation_action_id::text AS "recommendationActionId",
   e.id::text AS "banditPolicyId",

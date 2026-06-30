@@ -27,7 +27,7 @@ export class DashboardEventQuery {
           if(category = '', '미상', category) AS category,
           if(device = '', '미상', device) AS device,
           if(JSONExtractString(properties_json, 'region') = '', '미상', JSONExtractString(properties_json, 'region')) AS region,
-          JSONExtractString(properties_json, 'segment_hash') AS segment_hash,
+          JSONExtractString(properties_json, 'segment_key') AS segment_key,
           toFloat64(revenue) AS revenue
         FROM events
         WHERE project_id = {projectId:String}
@@ -57,7 +57,7 @@ function normalizeEventView(row: DashboardEventView): DashboardEventView {
     category: row.category || "미상",
     region: row.region || "미상",
     device: row.device || "미상",
-    segment_hash: row.segment_hash || "",
+    segment_key: row.segment_key || "",
     revenue: Number(row.revenue ?? 0)
   };
 }

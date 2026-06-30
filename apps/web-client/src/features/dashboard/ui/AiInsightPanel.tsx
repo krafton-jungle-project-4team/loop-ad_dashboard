@@ -26,6 +26,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useMemo, useState } from "react";
+import { dashboardEmptyStateMessages } from "../model/dashboard-empty-state.js";
 import { formatMoney, formatPercent } from "../model/dashboard-format.js";
 import { EmptyState } from "./EmptyState.js";
 import { Section } from "./Section.js";
@@ -132,7 +133,7 @@ export function AiInsightPanel({
             />
           </div>
         ) : (
-          <EmptyState message="고객군 데이터가 없습니다." />
+          <EmptyState message={dashboardEmptyStateMessages.aiCustomersMissing} />
         )}
       </Section>
 
@@ -172,7 +173,7 @@ export function AiInsightPanel({
                 ))}
               </div>
             ) : (
-              <EmptyState message="저장된 추천 액션이 없습니다." />
+              <EmptyState message={dashboardEmptyStateMessages.aiRecommendationActionsMissing} />
             )}
           </Section>
 
@@ -186,7 +187,7 @@ export function AiInsightPanel({
                 ))}
               </ul>
             ) : (
-              <EmptyState message="저장된 추천 근거가 없습니다." />
+              <EmptyState message={dashboardEmptyStateMessages.aiRecommendationRationaleMissing} />
             )}
           </Section>
         </div>
@@ -296,7 +297,11 @@ function CustomerDetail({ detail }: { detail: DashboardCustomerDetail }) {
       </Section>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <TextList title="케이스 분석" values={detail.case_analysis} />
+        <TextList
+          emptyMessage={dashboardEmptyStateMessages.aiCaseAnalysisMissing}
+          title="케이스 분석"
+          values={detail.case_analysis}
+        />
         <Section title="과거 구매이력">
           <div className="grid gap-4">
             {detail.purchase_history.length > 0 ? (
@@ -314,7 +319,11 @@ function CustomerDetail({ detail }: { detail: DashboardCustomerDetail }) {
             )}
           </div>
         </Section>
-        <TextList title="판단 근거" values={detail.rationale} />
+        <TextList
+          emptyMessage={dashboardEmptyStateMessages.aiRationaleMissing}
+          title="판단 근거"
+          values={detail.rationale}
+        />
       </div>
 
       <Section title="구매 단계 흐름">
@@ -364,7 +373,15 @@ function SimpleStageFlowBarChart({ data }: { data: Array<{ label: string; rate: 
   );
 }
 
-function TextList({ title, values }: { title: string; values: string[] }) {
+function TextList({
+  title,
+  values,
+  emptyMessage = dashboardEmptyStateMessages.generic
+}: {
+  title: string;
+  values: string[];
+  emptyMessage?: string;
+}) {
   return (
     <Section title={title}>
       {values.length > 0 ? (
@@ -376,7 +393,7 @@ function TextList({ title, values }: { title: string; values: string[] }) {
           ))}
         </ul>
       ) : (
-        <EmptyState message="저장된 내용이 없습니다." />
+        <EmptyState message={emptyMessage} />
       )}
     </Section>
   );
