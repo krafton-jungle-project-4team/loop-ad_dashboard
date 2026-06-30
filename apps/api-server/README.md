@@ -15,6 +15,7 @@ src
     │   ├── controller
     │   ├── service
     │   ├── repository
+    │   ├── domain
     │   ├── database
     │   └── dashboard.module.ts
     └── health
@@ -22,7 +23,7 @@ src
 
 ## 기술 선택
 
-- NestJS: Dashboard API의 controller, service, repository 경계를 명확하게 나눈다.
+- NestJS: Dashboard API의 controller, service, reader/writer, domain 경계를 명확하게 나눈다.
 - Zod/shared schema: API 서버와 웹 클라이언트가 같은 응답 contract를 사용한다.
 - PostgreSQL / Aurora Postgres: 추천 결과, 액션, 세그먼트 매핑, 광고 소재 운영 상태를 조회한다.
 - ClickHouse: 사용자 행동 이벤트, 퍼널, 전환율, 세그먼트 집계를 조회한다.
@@ -30,7 +31,7 @@ src
 - Clean React: 프론트 변경은 화면별 응답 렌더링에 집중하고 불필요한 상태와 mutation 흐름을 만들지 않는다.
 - Apple Design Guidelines: Action Blue, 조용한 카드 표면, 큰 지표 타이포그래피를 대시보드 밀도에 맞게 적용한다.
 - Env validation: 서버 시작 시 필수 외부 DB 연결 정보를 즉시 검증한다.
-- 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 repository 계층만 ClickHouse/Postgres를 조회한다.
+- 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer 계층만 ClickHouse/Postgres를 조회한다.
 
 ## 개발 규칙
 
@@ -38,7 +39,9 @@ src
 - Dashboard API는 GET 조회 전용이다.
 - Controller는 요청/응답 경계를 담당한다.
 - Service는 화면 단위 use case 조율과 계산 책임을 가진다.
-- Repository 계층은 ClickHouse/Postgres 조회를 담당한다.
+- DB 접근 class는 읽기 `XxxReader`, 쓰기 `XxxWriter`, 성능 특화 조회 `XxxViewQuery` 이름을 사용한다.
+- Repository 폴더의 reader/writer는 ClickHouse/Postgres 조회를 담당하고, DB row를 그대로 service 밖으로 노출하지 않는다.
+- 도메인 동작과 응답 조립은 class 대신 snapshot type과 `XxxDomain` 순수 함수로 둔다.
 - 프론트는 DB에 직접 접근하지 않는다.
 - 프론트는 백엔드 API 응답을 받아 Mantine UI로 렌더링한다.
 - DB 조회, 조인, 이벤트 count, 퍼널 계산, CTR/CVR 계산은 백엔드에서 수행한다.

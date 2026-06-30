@@ -1,51 +1,89 @@
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
+import type {
+  AdServingCandidateSnapshot,
+  AdServingProjectSnapshot,
+  AdServingSegmentSnapshot
+} from "../domain/index.js";
 import {
   getAdProject,
   getDefaultSegment,
   getLatestPrimarySegment,
   listAdServingCandidates,
+  type IGetAdProjectResult,
+  type IGetDefaultSegmentResult,
+  type IGetLatestPrimarySegmentResult,
   type IListAdServingCandidatesResult
 } from "../database/__generated__/ads.queries.js";
-import type { AdsProjectRow, AdsSegmentRow, AdServingCandidateRow } from "./read-models.js";
 
+/**
+ * 광고 serving에 필요한 Postgres read model을 PgTyped query로 읽는다.
+ *
+ * public 광고 API가 project, segment, serving 후보를 조회할 때 사용한다.
+ * DB row는 repository boundary 안에서 domain snapshot으로 변환한다.
+ */
 @Injectable()
-export class AdsRepository {
+export class AdsReader {
   constructor(
     @InjectTransaction()
     private readonly db: Transaction<PgTypedTransactionalAdapter>
   ) {}
 
-  async findProject(projectId: string): Promise<AdsProjectRow | null> {
-    return this.db.query(getAdProject, { projectId }).singleOrNull();
+  async findProject(projectId: string): Promise<AdServingProjectSnapshot | null> {
+    const project = await this.db.query(getAdProject, { projectId }).singleOrNull();
+
+    return project ? toProjectSnapshot(project) : null;
   }
 
   async findLatestPrimarySegment(
     projectDbId: string,
     userId: string
-  ): Promise<AdsSegmentRow | null> {
-    return this.db.query(getLatestPrimarySegment, { projectDbId, userId }).singleOrNull();
+  ): Promise<AdServingSegmentSnapshot | null> {
+    const segment = await this.db
+      .query(getLatestPrimarySegment, { projectDbId, userId })
+      .singleOrNull();
+
+    return segment ? toSegmentSnapshot(segment) : null;
   }
 
-  async findDefaultSegment(projectDbId: string): Promise<AdsSegmentRow | null> {
-    return this.db.query(getDefaultSegment, { projectDbId }).singleOrNull();
+  async findDefaultSegment(projectDbId: string): Promise<AdServingSegmentSnapshot | null> {
+    const segment = await this.db.query(getDefaultSegment, { projectDbId }).singleOrNull();
+
+    return segment ? toSegmentSnapshot(segment) : null;
   }
 
   async listServingCandidates(
     projectDbId: string,
     segmentDbId: string,
     placementKey: string
-  ): Promise<AdServingCandidateRow[]> {
+  ): Promise<AdServingCandidateSnapshot[]> {
     const rows = await this.db
       .query(listAdServingCandidates, { projectDbId, segmentDbId, placementKey })
       .multiple();
 
-    return rows.map(toServingCandidate);
+    return rows.map(toServingCandidateSnapshot);
   }
 }
 
-function toServingCandidate(row: IListAdServingCandidatesResult): AdServingCandidateRow {
+function toProjectSnapshot(project: IGetAdProjectResult): AdServingProjectSnapshot {
+  return {
+    projectDbId: project.projectDbId,
+    projectId: project.projectId
+  };
+}
+
+function toSegmentSnapshot(
+  segment: IGetLatestPrimarySegmentResult | IGetDefaultSegmentResult
+): AdServingSegmentSnapshot {
+  return {
+    segmentDbId: segment.segmentDbId
+  };
+}
+
+function toServingCandidateSnapshot(
+  row: IListAdServingCandidatesResult
+): AdServingCandidateSnapshot {
   return {
     mappingId: requiredString(row.mappingId, "mappingId"),
     priority: numberValue(row.priority),
