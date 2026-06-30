@@ -4,8 +4,16 @@ import type {
   DashboardCustomerDetail,
   DashboardMetricValue
 } from "@loopad/shared";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis
+} from "@loopad/ui/charts";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import {
   Table,
@@ -310,17 +318,49 @@ function CustomerDetail({ detail }: { detail: DashboardCustomerDetail }) {
       </div>
 
       <Section title="구매 단계 흐름">
-        <div className="grid gap-6 md:grid-cols-5">
-          {detail.stage_flow.map((stage) => (
-            <div className="grid gap-2 rounded-lg border p-3" key={stage.key}>
-              <span className="text-sm text-muted-foreground">{stage.label}</span>
-              <span className="font-medium tabular-nums">{formatPercent(stage.rate)}</span>
-              <Progress value={stage.rate * 100} />
-            </div>
-          ))}
-        </div>
+        {detail.stage_flow.length > 0 ? (
+          <SimpleStageFlowBarChart
+            data={detail.stage_flow.map((stage) => ({
+              label: stage.label,
+              rate: stage.rate * 100
+            }))}
+          />
+        ) : (
+          <EmptyState message="구매 단계 흐름 데이터가 없습니다." />
+        )}
       </Section>
     </div>
+  );
+}
+
+function SimpleStageFlowBarChart({ data }: { data: Array<{ label: string; rate: number }> }) {
+  const config = {
+    rate: {
+      color: "#0066cc",
+      label: "전환율"
+    }
+  };
+
+  return (
+    <ChartContainer className="aspect-auto h-[300px] w-full" config={config}>
+      <BarChart
+        accessibilityLayer
+        data={data}
+        margin={{ bottom: 8, left: 0, right: 12, top: 12 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis axisLine={false} dataKey="label" tickLine={false} />
+        <YAxis
+          axisLine={false}
+          domain={[0, 100]}
+          tickFormatter={(value) => `${value}%`}
+          tickLine={false}
+          width={48}
+        />
+        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={false} />
+        <Bar dataKey="rate" fill="var(--color-rate)" isAnimationActive={false} />
+      </BarChart>
+    </ChartContainer>
   );
 }
 
