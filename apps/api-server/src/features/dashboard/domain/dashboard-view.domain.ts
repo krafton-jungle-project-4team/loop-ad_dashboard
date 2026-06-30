@@ -27,6 +27,13 @@ import type {
 } from "../repository/read-models.js";
 
 const RECENT_WINDOW_MS = 15 * 60 * 1000;
+const DASHBOARD_TIME_ZONE = "Asia/Seoul";
+const dashboardMinuteFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: DASHBOARD_TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23"
+});
 const DASHBOARD_BEHAVIOR_EVENT_NAMES = new Set([
   "page_view",
   "product_view",
@@ -426,8 +433,11 @@ function isRecentEvent(event: AnalyzedDashboardEventView) {
 }
 
 function formatMinuteLabel(timestampMs: number) {
-  const date = new Date(timestampMs);
-  return `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
+  const parts = dashboardMinuteFormatter.formatToParts(new Date(timestampMs));
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "00";
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
+
+  return `${hour}:${minute}`;
 }
 
 function parseEventTime(value: string) {
@@ -435,10 +445,6 @@ function parseEventTime(value: string) {
   const timestamp = Date.parse(normalized);
 
   return Number.isFinite(timestamp) ? timestamp : 0;
-}
-
-function pad2(value: number) {
-  return value.toString().padStart(2, "0");
 }
 
 function segmentGroup(

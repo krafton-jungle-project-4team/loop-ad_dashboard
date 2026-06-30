@@ -1,3 +1,5 @@
+const DASHBOARD_TIME_ZONE = "Asia/Seoul";
+
 export function formatInteger(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(value);
 }
@@ -29,6 +31,7 @@ export function formatDateTime(value: string | null | undefined): string {
   }
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium",
-    timeStyle: "short"
+    timeStyle: "short",
+    timeZone: DASHBOARD_TIME_ZONE
   }).format(date);
 }
