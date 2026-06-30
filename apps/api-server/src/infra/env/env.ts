@@ -1,55 +1,68 @@
+import { z } from "zod";
+
 const DASHBOARD_SERVICE_ID = "dashboard-api";
 
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is required`);
-  }
-  return value;
-}
+const requiredString = z.string().trim().min(1);
+const positivePort = z.coerce.number().int().min(1).max(65535);
+const httpUrl = requiredString.url().refine(
+  (value) => {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  },
+  { message: "must be an http or https URL" }
+);
 
-function requiredIntegerEnv(name: string): number {
-  const value = Number(requiredEnv(name));
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-  return value;
-}
+const envSchema = z.object({
+  LOOPAD_ENV: requiredString,
+  LOOPAD_SERVICE_ID: z.literal(DASHBOARD_SERVICE_ID),
+  PORT: positivePort,
+  LOOPAD_AURORA_HOST: requiredString,
+  LOOPAD_AURORA_PORT: positivePort,
+  LOOPAD_AURORA_DATABASE: requiredString,
+  LOOPAD_AURORA_USERNAME: requiredString,
+  LOOPAD_AURORA_PASSWORD: requiredString,
+  LOOPAD_CLICKHOUSE_URL: httpUrl,
+  LOOPAD_CLICKHOUSE_DATABASE: requiredString,
+  LOOPAD_CLICKHOUSE_USERNAME: requiredString,
+  LOOPAD_CLICKHOUSE_PASSWORD: requiredString
+});
 
-function requiredHttpUrlEnv(name: string): string {
-  const value = requiredEnv(name);
-  const url = new URL(value);
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`${name} must be an http or https URL`);
-  }
-  return value;
-}
-
-function requiredServiceIdEnv(): string {
-  const value = requiredEnv("LOOPAD_SERVICE_ID");
-  if (value !== DASHBOARD_SERVICE_ID) {
-    throw new Error(`LOOPAD_SERVICE_ID must be ${DASHBOARD_SERVICE_ID}`);
-  }
-  return value;
-}
-
-const loopadEnv = requiredEnv("LOOPAD_ENV");
+const parsedEnv = parseEnv(process.env);
 
 export const env = Object.freeze({
-  env: loopadEnv,
-  serviceId: requiredServiceIdEnv(),
-  port: requiredIntegerEnv("PORT"),
+  env: parsedEnv.LOOPAD_ENV,
+  serviceId: parsedEnv.LOOPAD_SERVICE_ID,
+  port: parsedEnv.PORT,
   postgres: {
-    host: requiredEnv("LOOPAD_AURORA_HOST"),
-    port: requiredIntegerEnv("LOOPAD_AURORA_PORT"),
-    database: requiredEnv("LOOPAD_AURORA_DATABASE"),
-    username: requiredEnv("LOOPAD_AURORA_USERNAME"),
-    password: requiredEnv("LOOPAD_AURORA_PASSWORD")
+    host: parsedEnv.LOOPAD_AURORA_HOST,
+    port: parsedEnv.LOOPAD_AURORA_PORT,
+    database: parsedEnv.LOOPAD_AURORA_DATABASE,
+    username: parsedEnv.LOOPAD_AURORA_USERNAME,
+    password: parsedEnv.LOOPAD_AURORA_PASSWORD
   },
   clickhouse: {
-    url: requiredHttpUrlEnv("LOOPAD_CLICKHOUSE_URL"),
-    database: requiredEnv("LOOPAD_CLICKHOUSE_DATABASE"),
-    username: requiredEnv("LOOPAD_CLICKHOUSE_USERNAME"),
-    password: requiredEnv("LOOPAD_CLICKHOUSE_PASSWORD")
+    url: parsedEnv.LOOPAD_CLICKHOUSE_URL,
+    database: parsedEnv.LOOPAD_CLICKHOUSE_DATABASE,
+    username: parsedEnv.LOOPAD_CLICKHOUSE_USERNAME,
+    password: parsedEnv.LOOPAD_CLICKHOUSE_PASSWORD
   }
 });
+
+function parseEnv(source: NodeJS.ProcessEnv): z.infer<typeof envSchema> {
+  const result = envSchema.safeParse(source);
+
+  if (!result.success) {
+    throw new Error(`Invalid API server environment:\n${formatEnvErrors(result.error)}`);
+  }
+
+  return result.data;
+}
+
+function formatEnvErrors(error: z.ZodError) {
+  return error.issues
+    .map((issue) => {
+      const name = issue.path.join(".") || "env";
+      return `- ${name}: ${issue.message}`;
+    })
+    .join("\n");
+}

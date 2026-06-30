@@ -1,8 +1,8 @@
 import "reflect-metadata";
 import { RequestMethod } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module.js";
 import { env } from "./infra/env/env.js";
+import { AppModule } from "./app.module.js";
 import { ApiExceptionFilter } from "./infra/http/api-exception.filter.js";
 import { ApiResponseInterceptor } from "./infra/http/api-response.interceptor.js";
 import { requestLoggingMiddleware } from "./infra/http/request-logging.middleware.js";
