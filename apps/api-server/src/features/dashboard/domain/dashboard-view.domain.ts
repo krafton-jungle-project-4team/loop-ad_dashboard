@@ -200,6 +200,15 @@ type AnalyzedDashboardEventView = DashboardEventView & {
   timestampMs: number;
 };
 
+type DeviceFunnelAccumulator = {
+  counts: FunnelCountsView;
+  sessionIds: Set<string>;
+};
+
+type CustomerGroupAccumulator = CustomerGroupEventView & {
+  sessionIds: Set<string>;
+};
+
 function toAnalyzedEventView(event: DashboardEventView): AnalyzedDashboardEventView {
   return {
     ...event,
@@ -209,23 +218,24 @@ function toAnalyzedEventView(event: DashboardEventView): AnalyzedDashboardEventV
 
 function countFunnel(events: AnalyzedDashboardEventView[]): FunnelCountsView {
   const counts = emptyFunnelCounts();
+  const sessionIds = new Set<string>();
 
   for (const event of events) {
-    incrementFunnelCounts(counts, event);
+    addSessionId(sessionIds, event);
+    incrementFunnelEventCounts(counts, event);
   }
 
-  return counts;
+  return {
+    ...counts,
+    session_start_count: sessionIds.size
+  };
 }
 
-function incrementFunnelCounts(
+function incrementFunnelEventCounts(
   counts: FunnelCountsView,
   event: Pick<DashboardEventView, "event_name">
 ) {
   switch (event.event_name) {
-    case "session_start":
-    case "page_view":
-      counts.session_start_count += 1;
-      return;
     case "product_view":
       counts.product_view_count += 1;
       return;
@@ -238,6 +248,14 @@ function incrementFunnelCounts(
     case "purchase":
       counts.purchase_count += 1;
       return;
+  }
+}
+
+function addSessionId(sessionIds: Set<string>, event: Pick<DashboardEventView, "session_id">) {
+  const sessionId = event.session_id?.trim() ?? "";
+
+  if (sessionId) {
+    sessionIds.add(sessionId);
   }
 }
 
@@ -293,18 +311,26 @@ function getSegmentStatusViews(
 }
 
 function getDeviceFunnelViews(events: AnalyzedDashboardEventView[]): DeviceFunnelView[] {
-  const countsByDevice = new Map<string, FunnelCountsView>();
+  const countsByDevice = new Map<string, DeviceFunnelAccumulator>();
 
   for (const event of events) {
     const device = event.device || "미상";
-    const counts = countsByDevice.get(device) ?? emptyFunnelCounts();
+    const accumulator = countsByDevice.get(device) ?? {
+      counts: emptyFunnelCounts(),
+      sessionIds: new Set<string>()
+    };
 
-    incrementFunnelCounts(counts, event);
-    countsByDevice.set(device, counts);
+    addSessionId(accumulator.sessionIds, event);
+    incrementFunnelEventCounts(accumulator.counts, event);
+    countsByDevice.set(device, accumulator);
   }
 
   return [...countsByDevice.entries()]
-    .map(([device, counts]) => ({ device, ...counts }))
+    .map(([device, accumulator]) => ({
+      device,
+      ...accumulator.counts,
+      session_start_count: accumulator.sessionIds.size
+    }))
     .sort(
       (left, right) =>
         right.purchase_count - left.purchase_count ||
@@ -314,14 +340,15 @@ function getDeviceFunnelViews(events: AnalyzedDashboardEventView[]): DeviceFunne
 }
 
 function getCustomerGroupViews(events: AnalyzedDashboardEventView[]): CustomerGroupEventView[] {
-  const groups = new Map<string, CustomerGroupEventView>();
+  const groups = new Map<string, CustomerGroupAccumulator>();
 
   for (const event of events) {
     const customerGroupId = getCustomerGroupId(event);
     const group =
       groups.get(customerGroupId) ?? createCustomerGroupEventView(customerGroupId, event);
 
-    incrementFunnelCounts(group, event);
+    addSessionId(group.sessionIds, event);
+    incrementFunnelEventCounts(group, event);
     if (event.event_name === "purchase") {
       group.revenue += event.revenue;
     }
@@ -329,7 +356,9 @@ function getCustomerGroupViews(events: AnalyzedDashboardEventView[]): CustomerGr
     groups.set(customerGroupId, group);
   }
 
-  return [...groups.values()].filter((group) => group.product_view_count > 0);
+  return [...groups.values()]
+    .map(finalizeCustomerGroup)
+    .filter((group) => group.product_view_count > 0);
 }
 
 function selectCustomerGroup(
@@ -367,7 +396,7 @@ function sortCustomerGroupViews(groups: CustomerGroupEventView[]): CustomerGroup
 function createCustomerGroupEventView(
   customerGroupId: string,
   event: DashboardEventView
-): CustomerGroupEventView {
+): CustomerGroupAccumulator {
   const base = {
     customer_group_id: customerGroupId,
     customer_group_name: [
@@ -388,7 +417,17 @@ function createCustomerGroupEventView(
 
   return {
     ...base,
-    ...emptyFunnelCounts()
+    ...emptyFunnelCounts(),
+    sessionIds: new Set<string>()
+  };
+}
+
+function finalizeCustomerGroup(group: CustomerGroupAccumulator): CustomerGroupEventView {
+  const { sessionIds, ...view } = group;
+
+  return {
+    ...view,
+    session_start_count: sessionIds.size
   };
 }
 

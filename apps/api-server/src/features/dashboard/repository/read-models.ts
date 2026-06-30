@@ -1,5 +1,6 @@
 export type DashboardEventView = {
   event_name: string;
+  session_id: string;
   event_time: string;
   channel: string;
   age_group: string;

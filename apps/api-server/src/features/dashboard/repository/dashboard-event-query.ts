@@ -20,6 +20,7 @@ export class DashboardEventQuery {
       query: `
         SELECT
           event_name,
+          toString(session_id) AS session_id,
           toString(event_time) AS event_time,
           if(channel = '', '미상', channel) AS channel,
           if(age_group = '', '미상', age_group) AS age_group,
@@ -50,6 +51,7 @@ function normalizedLimit(limit: number) {
 function normalizeEventView(row: DashboardEventView): DashboardEventView {
   return {
     event_name: row.event_name,
+    session_id: row.session_id || "",
     event_time: row.event_time,
     channel: row.channel || "미상",
     age_group: row.age_group || "미상",
