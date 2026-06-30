@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 function requiredEnv(name: string): string {
@@ -11,7 +12,7 @@ function requiredEnv(name: string): string {
 
 export default defineConfig(({ command }) => {
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     server:
       command === "serve"
         ? {

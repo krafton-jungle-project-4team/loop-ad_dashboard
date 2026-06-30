@@ -6,12 +6,23 @@ import type {
   DashboardPurchaseConversion
 } from "@loopad/shared";
 
-export type DashboardTab =
-  | "main"
-  | "purchaseConversion"
-  | "aiAnalysis"
-  | "aiRecommendation"
-  | "aiGeneration";
+export const dashboardTabValues = [
+  "main",
+  "purchaseConversion",
+  "aiAnalysis",
+  "aiRecommendation",
+  "aiGeneration"
+] as const;
+
+export type DashboardTab = (typeof dashboardTabValues)[number];
+
+export type DashboardDateRange = "today" | "last-7-days" | "last-30-days" | "campaign";
+
+export type DashboardSort =
+  | "conversion-asc"
+  | "conversion-desc"
+  | "revenue-desc"
+  | "dropoff-desc";
 
 export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
@@ -22,10 +33,8 @@ export type DashboardPageResource =
 
 export type DashboardQuery = {
   projectId: string;
+  dateRange: DashboardDateRange;
+  selectedCustomerId: string;
+  sort: DashboardSort;
+  filter: string;
 };
-
-export type DashboardResourceState =
-  | { status: "idle"; data?: undefined; error?: undefined }
-  | { status: "loading"; data?: undefined; error?: undefined }
-  | { status: "success"; data: DashboardPageResource; error?: undefined }
-  | { status: "error"; data?: undefined; error: Error };

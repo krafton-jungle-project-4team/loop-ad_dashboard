@@ -1,15 +1,54 @@
-import { z } from "zod";
-import type { DashboardQuery } from "./dashboard-types.js";
+import { parseAsString, parseAsStringLiteral, throttle, useQueryStates } from "nuqs";
+import type { DashboardDateRange, DashboardQuery, DashboardSort } from "./dashboard-types.js";
 
-const DashboardQuerySchema = z.object({
-  projectId: z.string().trim().min(1)
-});
+export const dashboardDateRangeOptions = [
+  { label: "오늘", value: "today" },
+  { label: "최근 7일", value: "last-7-days" },
+  { label: "최근 30일", value: "last-30-days" },
+  { label: "캠페인 전체", value: "campaign" }
+] as const satisfies ReadonlyArray<{ label: string; value: DashboardDateRange }>;
 
-export function parseDashboardQuery(search: string): DashboardQuery | null {
-  const params = new URLSearchParams(search);
-  const parsed = DashboardQuerySchema.safeParse({
-    projectId: params.get("projectId")
+export const dashboardSortOptions = [
+  { label: "전환 낮은순", value: "conversion-asc" },
+  { label: "전환 높은순", value: "conversion-desc" },
+  { label: "예상 매출순", value: "revenue-desc" },
+  { label: "이탈 위험순", value: "dropoff-desc" }
+] as const satisfies ReadonlyArray<{ label: string; value: DashboardSort }>;
+
+export const defaultDashboardQuery: DashboardQuery = {
+  dateRange: "last-7-days",
+  filter: "",
+  projectId: "food-black-friday",
+  selectedCustomerId: "cg-low-mobile",
+  sort: "conversion-asc"
+};
+
+export const dashboardQueryParsers = {
+  dateRange: parseAsStringLiteral(dashboardDateRangeOptions.map((item) => item.value)).withDefault(
+    defaultDashboardQuery.dateRange
+  ),
+  filter: parseAsString.withDefault(defaultDashboardQuery.filter),
+  projectId: parseAsString.withDefault(defaultDashboardQuery.projectId),
+  selectedCustomerId: parseAsString.withDefault(defaultDashboardQuery.selectedCustomerId),
+  sort: parseAsStringLiteral(dashboardSortOptions.map((item) => item.value)).withDefault(
+    defaultDashboardQuery.sort
+  )
+};
+
+export function useDashboardQueryState() {
+  return useQueryStates(dashboardQueryParsers, {
+    history: "push",
+    limitUrlUpdates: throttle(120),
+    scroll: false,
+    shallow: true
   });
+}
 
-  return parsed.success ? parsed.data : null;
+export function normalizeDashboardQuery(query: DashboardQuery): DashboardQuery {
+  return {
+    ...query,
+    filter: query.filter.trim(),
+    projectId: query.projectId.trim(),
+    selectedCustomerId: query.selectedCustomerId.trim()
+  };
 }

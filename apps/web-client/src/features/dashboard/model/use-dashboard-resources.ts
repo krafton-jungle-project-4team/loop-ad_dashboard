@@ -1,38 +1,17 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchDashboardPageResource } from "../api/dashboard-api.js";
-import type { DashboardQuery, DashboardResourceState, DashboardTab } from "./dashboard-types.js";
+import { createDashboardViewModel } from "../vm/dashboard-view-model.js";
+import type { DashboardQuery, DashboardTab } from "./dashboard-types.js";
 
-export function useDashboardResources(
-  tab: DashboardTab,
-  query: DashboardQuery | null,
-  refreshKey: number
-) {
-  const [state, setState] = useState<DashboardResourceState>(
-    query ? { status: "loading" } : { status: "idle" }
-  );
+export function useDashboardResources(tab: DashboardTab, query: DashboardQuery) {
+  const enabled = query.projectId.length > 0;
+  const queryKey = useMemo(() => ["dashboard", tab, query] as const, [query, tab]);
 
-  useEffect(() => {
-    if (!query) {
-      setState({ status: "idle" });
-      return;
-    }
-
-    const controller = new AbortController();
-    setState({ status: "loading" });
-
-    fetchDashboardPageResource(tab, query, controller.signal)
-      .then((data) => setState({ status: "success", data }))
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) {
-          setState({
-            status: "error",
-            error: error instanceof Error ? error : new Error("데이터 요청 실패")
-          });
-        }
-      });
-
-    return () => controller.abort();
-  }, [query, refreshKey, tab]);
-
-  return state;
+  return useQuery({
+    enabled,
+    queryFn: ({ signal }) => fetchDashboardPageResource(tab, query, signal),
+    queryKey,
+    select: (resource) => createDashboardViewModel(resource, query)
+  });
 }

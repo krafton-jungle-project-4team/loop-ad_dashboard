@@ -1,20 +1,23 @@
-import type { DashboardPageResource } from "../model/dashboard-types.js";
+import type { DashboardViewModel } from "../vm/dashboard-view-model.js";
 import { AiGenerationPanel } from "./AiGenerationPanel.js";
 import { AiInsightPanel } from "./AiInsightPanel.js";
 import { MainDashboardPanel } from "./MainDashboardPanel.js";
 import { PurchaseConversionPanel } from "./PurchaseConversionPanel.js";
 
-export function renderDashboardPanel(resource: DashboardPageResource) {
-  switch (resource.tab) {
+export function renderDashboardPanel(
+  viewModel: DashboardViewModel,
+  handlers: { onSelectCustomer: (customerId: string) => void }
+) {
+  switch (viewModel.tab) {
     case "main":
-      return <MainDashboardPanel data={resource.data} />;
+      return <MainDashboardPanel viewModel={viewModel} />;
     case "purchaseConversion":
-      return <PurchaseConversionPanel data={resource.data} />;
+      return <PurchaseConversionPanel viewModel={viewModel} />;
     case "aiAnalysis":
-      return <AiInsightPanel data={resource.data} mode="analysis" />;
+      return <AiInsightPanel onSelectCustomer={handlers.onSelectCustomer} viewModel={viewModel} />;
     case "aiRecommendation":
-      return <AiInsightPanel data={resource.data} mode="recommendation" />;
+      return <AiInsightPanel onSelectCustomer={handlers.onSelectCustomer} viewModel={viewModel} />;
     case "aiGeneration":
-      return <AiGenerationPanel data={resource.data} />;
+      return <AiGenerationPanel viewModel={viewModel} />;
   }
 }

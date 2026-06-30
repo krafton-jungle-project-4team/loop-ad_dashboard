@@ -1,4 +1,4 @@
-import { Card, Text, Title } from "@mantine/core";
+import { Card } from "../../../components/ui/primitives.js";
 
 export function DashboardMetric({
   label,
@@ -10,17 +10,11 @@ export function DashboardMetric({
   description?: string;
 }) {
   return (
-    <Card bg="white" p="xl" radius="lg" withBorder>
-      <Text c="appleInk.5" size="sm">
-        {label}
-      </Text>
-      <Title c="appleInk.9" mt={6} order={3} size={34}>
-        {value}
-      </Title>
+    <Card className="p-5">
+      <p className="text-sm font-semibold text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-slate-950">{value}</p>
       {description ? (
-        <Text c="appleInk.5" mt="xs" size="sm">
-          {description}
-        </Text>
+        <p className="mt-2 text-sm text-slate-500">{description}</p>
       ) : null}
     </Card>
   );

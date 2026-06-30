@@ -1,86 +1,84 @@
-import { Anchor, Badge, Card, Group, Image, SimpleGrid, Stack, Text, Title } from "@mantine/core";
-import type { DashboardAiGeneration } from "@loopad/shared";
-import { EmptyState } from "./EmptyState.js";
-import { Section } from "./Section.js";
+import { Badge, Card, EmptyState } from "../../../components/ui/primitives.js";
+import type { GenerationViewModel, GeneratedContentViewModel } from "../vm/dashboard-view-model.js";
 
-export function AiGenerationPanel({ data }: { data: DashboardAiGeneration }) {
+export function AiGenerationPanel({ viewModel }: { viewModel: GenerationViewModel }) {
   return (
-    <Stack gap="xl">
-      <Section title="선택 고객군">
-        {data.selected_customer ? (
-          <Stack gap="xs">
-            <Title c="appleInk.9" order={2} size="h3">
-              {data.selected_customer.customer_group_name}
-            </Title>
-            <Text c="appleInk.5">
-              {data.selected_customer.channel} · {data.selected_customer.age_group} ·{" "}
-              {data.selected_customer.gender} · {data.selected_customer.category} ·{" "}
-              {data.selected_customer.region} · {data.selected_customer.device}
-            </Text>
-          </Stack>
+    <div className="space-y-5">
+      {viewModel.isEmpty ? (
+        <EmptyState message="조회 조건에 맞는 생성 콘텐츠가 없습니다." title="데이터 없음" />
+      ) : null}
+
+      <Card className="p-5">
+        <h2 className="text-base font-semibold text-slate-950">선택 고객군</h2>
+        {viewModel.selectedCustomer ? (
+          <div className="mt-3">
+            <p className="text-lg font-semibold text-slate-950">{viewModel.selectedCustomer.name}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[
+                viewModel.selectedCustomer.channel,
+                viewModel.selectedCustomer.ageGroup,
+                viewModel.selectedCustomer.gender,
+                viewModel.selectedCustomer.category,
+                viewModel.selectedCustomer.region,
+                viewModel.selectedCustomer.device
+              ].map((attribute) => (
+                <Badge key={attribute} tone="slate">
+                  {attribute}
+                </Badge>
+              ))}
+            </div>
+          </div>
         ) : (
           <EmptyState message="선택된 고객군이 없습니다." />
         )}
-      </Section>
+      </Card>
 
-      <Section title="생성 콘텐츠">
-        {data.generated_items.length > 0 ? (
-          <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
-            {data.generated_items.map((item) => (
-              <Card key={item.action.action_id} bg="appleInk.0" p="lg" radius="lg" withBorder>
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <Title c="appleInk.9" order={3} size="h4">
-                      {item.action.title}
-                    </Title>
-                    <Badge color="actionBlue.6" radius="xl" variant="light">
-                      {item.content?.status ?? "콘텐츠 미생성"}
-                    </Badge>
-                  </Group>
-                  <Text c="appleInk.5" size="sm">
-                    {item.action.description}
-                  </Text>
-                  {item.content ? (
-                    <Stack gap="md">
-                      <Badge color="actionBlue.6" radius="xl" variant="outline" w="fit-content">
-                        {item.content.content_type}
-                      </Badge>
-                      {item.content.message ? <Text>{item.content.message}</Text> : null}
-                      {item.content.content_url ? (
-                        item.content.content_type === "image" ? (
-                          <Image
-                            alt={item.content.title}
-                            fit="cover"
-                            radius="md"
-                            src={item.content.content_url}
-                          />
-                        ) : (
-                          <Anchor
-                            c="actionBlue.6"
-                            href={item.content.content_url}
-                            rel="noreferrer"
-                            target="_blank"
-                          >
-                            {item.content.content_url}
-                          </Anchor>
-                        )
-                      ) : (
-                        <Badge color="gray" radius="xl" variant="light">
-                          content_url 없음
-                        </Badge>
-                      )}
-                    </Stack>
-                  ) : (
-                    <EmptyState message="콘텐츠 미생성" />
-                  )}
-                </Stack>
-              </Card>
+      <div>
+        <div className="mb-3">
+          <h2 className="text-lg font-semibold text-slate-950">생성 콘텐츠</h2>
+          <p className="text-sm text-slate-500">추천 액션을 기반으로 생성된 카피와 소재 후보</p>
+        </div>
+        {viewModel.cards.length > 0 ? (
+          <div className="grid gap-4 lg:grid-cols-3">
+            {viewModel.cards.map((card) => (
+              <GeneratedContentCard card={card} key={card.id} />
             ))}
-          </SimpleGrid>
+          </div>
         ) : (
           <EmptyState message="저장된 생성 콘텐츠가 없습니다." />
         )}
-      </Section>
-    </Stack>
+      </div>
+    </div>
   );
+}
+
+function GeneratedContentCard({ card }: { card: GeneratedContentViewModel }) {
+  return (
+    <Card className="min-h-80 overflow-hidden">
+      <div className="h-36 bg-[linear-gradient(135deg,#0f172a_0%,#0e7490_55%,#f59e0b_100%)] p-5 text-white">
+        <Badge className="border-white/20 bg-white/15 text-white" tone="slate">
+          {card.contentType}
+        </Badge>
+        <p className="mt-8 max-w-[14rem] text-lg font-semibold leading-6">{card.title}</p>
+      </div>
+      <div className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <Badge tone={card.contentStatus === "generated" ? "emerald" : "amber"}>
+            {card.contentStatus}
+          </Badge>
+          {card.createdAt ? <span className="text-xs text-slate-500">{formatDate(card.createdAt)}</span> : null}
+        </div>
+        <p className="mt-4 text-sm leading-6 text-slate-600">
+          {card.message ?? card.actionDescription}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }

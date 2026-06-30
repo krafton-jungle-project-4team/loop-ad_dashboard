@@ -1,191 +1,223 @@
-import { Badge, Group, List, Progress, SimpleGrid, Stack, Table, Text } from "@mantine/core";
+import { DataTable, type ColumnDef } from "../../../components/ui/data-table.js";
+import { DevProfiler } from "../../../app/DevProfiler.js";
+import { Badge, Card, EmptyState, Progress } from "../../../components/ui/primitives.js";
+import { cn } from "../../../lib/utils.js";
 import type {
-  DashboardAiAnalysis,
-  DashboardAiRecommendation,
-  DashboardCustomerDetail,
-  DashboardMetricValue
-} from "@loopad/shared";
-import { formatMoney, formatPercent } from "../model/dashboard-format.js";
-import { DashboardMetric } from "./DashboardMetric.js";
-import { EmptyState } from "./EmptyState.js";
-import { Section } from "./Section.js";
+  CustomerDetailViewModel,
+  CustomerRowViewModel,
+  InsightViewModel,
+  RecommendationActionViewModel
+} from "../vm/dashboard-view-model.js";
+
+const customerColumns: ColumnDef<CustomerRowViewModel>[] = [
+  { accessorKey: "name", header: "고객군", cell: ({ row }) => <strong>{row.original.name}</strong> },
+  { accessorKey: "channel", header: "채널" },
+  { accessorKey: "ageGroup", header: "연령" },
+  { accessorKey: "gender", header: "성별" },
+  { accessorKey: "category", header: "카테고리" },
+  { accessorKey: "region", header: "지역" },
+  { accessorKey: "device", header: "기기" },
+  {
+    accessorKey: "conversionRate",
+    header: "전환율",
+    cell: ({ row }) => <strong className="text-sky-700">{row.original.conversionRate}</strong>
+  },
+  { accessorKey: "majorDropOffStage", header: "주요 이탈 단계" }
+];
 
 export function AiInsightPanel({
-  data,
-  mode
+  onSelectCustomer,
+  viewModel
 }: {
-  data: DashboardAiAnalysis | DashboardAiRecommendation;
-  mode: "analysis" | "recommendation";
+  onSelectCustomer: (customerId: string) => void;
+  viewModel: InsightViewModel;
 }) {
+  const title = viewModel.mode === "analysis" ? "전환율 하위 고객군" : "전환율 상위 고객군";
+
   return (
-    <Stack gap="xl">
-      <Section title={`전환율 ${mode === "analysis" ? "하위" : "상위"} 고객군`}>
-        {data.customers.length > 0 ? (
-          <Table.ScrollContainer minWidth={1120}>
-            <Table verticalSpacing="md">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>고객군</Table.Th>
-                  <Table.Th>채널</Table.Th>
-                  <Table.Th>연령</Table.Th>
-                  <Table.Th>성별</Table.Th>
-                  <Table.Th>카테고리</Table.Th>
-                  <Table.Th>지역</Table.Th>
-                  <Table.Th>기기</Table.Th>
-                  <Table.Th>전환율</Table.Th>
-                  <Table.Th>주요 이탈 단계</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {data.customers.map((customer, index) => (
-                  <Table.Tr key={customer.customer_group_id} bg={index === 0 ? "red.0" : undefined}>
-                    <Table.Td fw={700}>{customer.customer_group_name}</Table.Td>
-                    <Table.Td>{customer.channel}</Table.Td>
-                    <Table.Td>{customer.age_group}</Table.Td>
-                    <Table.Td>{customer.gender}</Table.Td>
-                    <Table.Td>{customer.category}</Table.Td>
-                    <Table.Td>{customer.region}</Table.Td>
-                    <Table.Td>{customer.device}</Table.Td>
-                    <Table.Td c={mode === "analysis" ? "actionBlue.6" : "red.5"} fw={700}>
-                      {formatPercent(customer.conversion_rate)}
-                    </Table.Td>
-                    <Table.Td>{customer.major_drop_off_stage}</Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+    <DevProfiler id="InsightPanel">
+      <div className="space-y-5">
+        {viewModel.isEmpty ? (
+          <EmptyState message="조회 조건에 맞는 AI 분석 데이터가 없습니다." title="데이터 없음" />
+        ) : null}
+
+        <Card className="p-5">
+          <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+              <p className="text-sm text-slate-500">선택 고객군 기준으로 단계 흐름과 근거를 비교합니다.</p>
+            </div>
+            <Badge tone={viewModel.mode === "analysis" ? "rose" : "emerald"}>
+              {viewModel.mode === "analysis" ? "risk scan" : "growth scan"}
+            </Badge>
+          </div>
+          <DataTable
+            columns={customerColumns}
+            data={viewModel.customers}
+            emptyMessage="고객군 데이터가 없습니다."
+            getRowClassName={(row) =>
+              row.original.isSelected ? "bg-sky-50 ring-1 ring-inset ring-sky-200" : undefined
+            }
+            onRowClick={(row) => onSelectCustomer(row.id)}
+          />
+        </Card>
+
+        {viewModel.selectedCustomer ? (
+          <CustomerDetailPanel detail={viewModel.selectedCustomer} />
         ) : (
-          <EmptyState message="고객군 데이터가 없습니다." />
+          <EmptyState message="선택된 고객군이 없습니다." title="고객군 미선택" />
         )}
-      </Section>
 
-      {data.selected_customer ? <CustomerDetail detail={data.selected_customer} /> : null}
-
-      {mode === "recommendation" && "recommended_actions" in data ? (
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-          <Section title="추천하는 광고 액션">
-            {data.recommended_actions.length > 0 ? (
-              <Stack gap="md">
-                {data.recommended_actions.map((action) => (
-                  <Stack key={action.action_id} gap={4}>
-                    <Group justify="space-between">
-                      <Text fw={700}>{action.title}</Text>
-                      <Badge color="actionBlue.6" radius="xl" variant="light">
-                        {action.status}
-                      </Badge>
-                    </Group>
-                    <Text c="appleInk.5" size="sm">
-                      {action.description}
-                    </Text>
-                    {action.probability !== null ? (
-                      <Progress color="actionBlue.6" value={action.probability * 100} />
-                    ) : null}
-                  </Stack>
-                ))}
-              </Stack>
-            ) : (
-              <EmptyState message="저장된 추천 액션이 없습니다." />
-            )}
-          </Section>
-
-          <Section title="추천 근거">
-            {data.recommendation_rationale.length > 0 ? (
-              <List spacing="sm">
-                {data.recommendation_rationale.map((item) => (
-                  <List.Item key={item}>{item}</List.Item>
-                ))}
-              </List>
-            ) : (
-              <EmptyState message="저장된 추천 근거가 없습니다." />
-            )}
-          </Section>
-        </SimpleGrid>
-      ) : null}
-    </Stack>
+        {viewModel.mode === "recommendation" ? (
+          <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+            <RecommendationPanel actions={viewModel.actions} />
+            <RationalePanel rationale={viewModel.rationale} />
+          </div>
+        ) : null}
+      </div>
+    </DevProfiler>
   );
 }
 
-function CustomerDetail({ detail }: { detail: DashboardCustomerDetail }) {
+function CustomerDetailPanel({ detail }: { detail: CustomerDetailViewModel }) {
   return (
-    <Stack gap="lg">
-      <Section title={detail.customer_group.customer_group_name}>
-        <Group gap="xs">
-          <Badge color="actionBlue.6" radius="xl" variant="light">
-            {detail.customer_group.channel}
-          </Badge>
-          <Text c="appleInk.5" size="sm">
-            {detail.customer_group.age_group} · {detail.customer_group.gender} ·{" "}
-            {detail.customer_group.category} · {detail.customer_group.region} ·{" "}
-            {detail.customer_group.device}
-          </Text>
-        </Group>
+    <div className="space-y-5">
+      <Card className="p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">{detail.name}</h2>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {detail.attributes.map((attribute) => (
+                <Badge key={attribute} tone="slate">
+                  {attribute}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
 
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {detail.metrics.map((metric) => (
-            <DashboardMetric key={metric.label} label={metric.label} value={formatMetric(metric)} />
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4" key={metric.id}>
+              <p className="text-sm font-semibold text-slate-500">{metric.label}</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{metric.value}</p>
+            </div>
           ))}
-        </SimpleGrid>
-      </Section>
+        </div>
+      </Card>
 
-      <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
-        <TextList title="케이스 분석" values={detail.case_analysis} />
-        <Section title="과거 구매이력">
-          <Stack gap="md">
-            {detail.purchase_history.map((item) => (
-              <Stack key={item.label} gap={6}>
-                <Group justify="space-between">
-                  <Text fw={600}>{item.label}</Text>
-                  <Text c="appleInk.5">{formatPercent(item.share)}</Text>
-                </Group>
-                <Progress color="actionBlue.6" value={item.share * 100} />
-              </Stack>
-            ))}
-          </Stack>
-        </Section>
-        <TextList title="판단 근거" values={detail.rationale} />
-      </SimpleGrid>
+      <div className="grid gap-5 xl:grid-cols-3">
+        <TextListPanel items={detail.caseAnalysis} title="케이스 분석" />
+        <Card className="p-5">
+          <h3 className="text-base font-semibold text-slate-950">과거 구매이력</h3>
+          <div className="mt-4 space-y-4">
+            {detail.purchaseHistory.length > 0 ? (
+              detail.purchaseHistory.map((item) => (
+                <div key={item.id}>
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-700">{item.label}</p>
+                    <p className="text-sm text-slate-500">{item.displayValue}</p>
+                  </div>
+                  <Progress value={item.share * 100} />
+                </div>
+              ))
+            ) : (
+              <EmptyState message="구매 이력이 없습니다." />
+            )}
+          </div>
+        </Card>
+        <TextListPanel items={detail.rationale} title="판단 근거" />
+      </div>
 
-      <Section title="구매 단계 흐름">
-        <SimpleGrid cols={{ base: 1, md: 5 }} spacing="md">
-          {detail.stage_flow.map((stage) => (
-            <Stack key={stage.key} gap="xs">
-              <Text c="appleInk.5" size="sm">
-                {stage.label}
-              </Text>
-              <Text fw={700}>{formatPercent(stage.rate)}</Text>
-              <Progress color="actionBlue.6" value={stage.rate * 100} />
-            </Stack>
+      <Card className="p-5">
+        <h3 className="text-base font-semibold text-slate-950">구매 단계 흐름</h3>
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
+          {detail.stageFlow.map((stage) => (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4" key={stage.id}>
+              <p className="text-sm font-semibold text-slate-500">{stage.label}</p>
+              <p className="mt-2 text-xl font-semibold text-slate-950">{stage.rateLabel}</p>
+              <Progress className="mt-3" value={stage.rate * 100} />
+            </div>
           ))}
-        </SimpleGrid>
-      </Section>
-    </Stack>
+        </div>
+      </Card>
+    </div>
   );
 }
 
-function TextList({ title, values }: { title: string; values: string[] }) {
+function RecommendationPanel({ actions }: { actions: RecommendationActionViewModel[] }) {
   return (
-    <Section title={title}>
-      {values.length > 0 ? (
-        <List spacing="sm">
-          {values.map((value) => (
-            <List.Item key={value}>{value}</List.Item>
+    <Card className="p-5">
+      <h2 className="text-base font-semibold text-slate-950">추천하는 광고 액션</h2>
+      <div className="mt-4 space-y-4">
+        {actions.length > 0 ? (
+          actions.map((action) => (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4" key={action.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-950">{action.title}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{action.description}</p>
+                </div>
+                <Badge tone={action.status === "ready" ? "emerald" : "amber"}>{action.status}</Badge>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">{action.rationale}</p>
+              {action.probabilityValue !== null ? (
+                <div className="mt-3">
+                  <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500">
+                    <span>성공 가능성</span>
+                    <strong className="text-slate-700">{action.probabilityLabel}</strong>
+                  </div>
+                  <Progress value={action.probabilityValue * 100} />
+                </div>
+              ) : null}
+            </div>
+          ))
+        ) : (
+          <EmptyState message="저장된 추천 액션이 없습니다." />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function RationalePanel({ rationale }: { rationale: string[] }) {
+  return (
+    <Card className="p-5">
+      <h2 className="text-base font-semibold text-slate-950">추천 근거</h2>
+      {rationale.length > 0 ? (
+        <ol className="mt-4 space-y-3">
+          {rationale.map((item, index) => (
+            <li className="flex gap-3" key={item}>
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-950 text-xs font-semibold text-white">
+                {index + 1}
+              </span>
+              <p className="text-sm leading-6 text-slate-600">{item}</p>
+            </li>
           ))}
-        </List>
+        </ol>
+      ) : (
+        <EmptyState message="저장된 추천 근거가 없습니다." />
+      )}
+    </Card>
+  );
+}
+
+function TextListPanel({ items, title }: { items: string[]; title: string }) {
+  return (
+    <Card className="p-5">
+      <h3 className="text-base font-semibold text-slate-950">{title}</h3>
+      {items.length > 0 ? (
+        <ul className="mt-4 space-y-3">
+          {items.map((item) => (
+            <li className="flex gap-2 text-sm leading-6 text-slate-600" key={item}>
+              <span className={cn("mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-600")} />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
       ) : (
         <EmptyState message="저장된 내용이 없습니다." />
       )}
-    </Section>
+    </Card>
   );
-}
-
-function formatMetric(metric: DashboardMetricValue): string {
-  switch (metric.value_type) {
-    case "money":
-      return formatMoney(metric.value);
-    case "rate":
-      return formatPercent(metric.value);
-    case "delta":
-      return `${metric.value >= 0 ? "+" : ""}${formatPercent(metric.value)}`;
-  }
 }
