@@ -1,7 +1,7 @@
 import type { DashboardAiGeneration } from "@loopad/shared";
-import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
+import { MarkerIcon } from "@loopad/ui/shadcn/marker";
 import {
   Table,
   TableBody,
@@ -30,7 +30,6 @@ export function AiGenerationPanel({
   selectedCustomerId: string;
 }) {
   const activeCustomerId = data.selected_customer?.customer_group_id ?? selectedCustomerId;
-  const hasGeneratedContent = data.generated_items.length > 0;
   const [requestedCustomerPage, setRequestedCustomerPage] = useState(() =>
     getCustomerPageForId(data.customers, activeCustomerId)
   );
@@ -49,13 +48,13 @@ export function AiGenerationPanel({
 
   return (
     <div className="grid gap-6">
-
       <Section title="고객군 선택">
         {data.customers.length > 0 ? (
           <div className="grid gap-4">
             <Table className="min-w-[840px]">
               <TableHeader>
                 <TableRow>
+                  <TableHead aria-label="이상징후 상태" className="w-8" />
                   <TableHead>고객군</TableHead>
                   <TableHead>채널</TableHead>
                   <TableHead>연령</TableHead>
@@ -85,6 +84,7 @@ export function AiGenerationPanel({
                     role="button"
                     tabIndex={0}
                   >
+                    <TableCell> <AnomalyStatusDot hasAnomaly={customer.has_anomaly} /> </TableCell>
                     <TableCell className="font-medium">{customer.customer_group_name}</TableCell>
                     <TableCell>{customer.channel}</TableCell>
                     <TableCell>{customer.age_group}</TableCell>
@@ -118,7 +118,6 @@ export function AiGenerationPanel({
           <EmptyState message={dashboardEmptyStateMessages.aiCustomersMissing} />
         )}
       </Section>
-      {hasGeneratedContent ? <AnomalyDetectedAlert /> : null}
 
       <Section
         action={
@@ -208,12 +207,16 @@ export function AiGenerationPanel({
   );
 }
 
-function AnomalyDetectedAlert() {
+function AnomalyStatusDot({ hasAnomaly }: { hasAnomaly: boolean }) {
   return (
-    <Alert>
-      <AlertTitle className="text-red-600">주의가 필요한 고객군입니다</AlertTitle>
-      <AlertDescription>전환 흐름에서 이상징후가 감지되어 생성 콘텐츠가 준비되었습니다.</AlertDescription>
-    </Alert>
+    <MarkerIcon
+      className="flex size-4 items-center justify-center"
+      title={hasAnomaly ? "이상징후가 감지되었습니다" : "이상징후가 없습니다"}
+    >
+      <span
+        className={`size-2.5 rounded-full ${hasAnomaly ? "bg-red-500" : "bg-emerald-500"}`}
+      />
+    </MarkerIcon>
   );
 }
 

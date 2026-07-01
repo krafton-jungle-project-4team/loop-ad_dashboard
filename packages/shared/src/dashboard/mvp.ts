@@ -89,6 +89,7 @@ export const DashboardCustomerSegmentSchema = z.object({
   category: z.string(),
   region: z.string(),
   device: z.string(),
+  has_anomaly: z.boolean(),
   conversion_rate: RateSchema,
   major_drop_off_stage: z.string(),
   expected_revenue: MoneySchema

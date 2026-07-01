@@ -166,7 +166,9 @@ export const DashboardViewDomain = {
 
     return {
       sort: "high",
-      customers: customerGroups.map(toCustomerSegment),
+      customers: customerGroups.map((group) =>
+        toCustomerSegmentWithAnomaly(group, recommendationRows)
+      ),
       selected_customer: selectedGroup ? toCustomerDetail(selectedGroup, recommendationRows) : null
     };
   },
@@ -182,7 +184,9 @@ export const DashboardViewDomain = {
 
     return {
       sort: "high",
-      customers: customerGroups.map(toCustomerSegment),
+      customers: customerGroups.map((group) =>
+        toCustomerSegmentWithAnomaly(group, recommendationRows)
+      ),
       selected_customer: selectedGroup ? toCustomerDetail(selectedGroup, recommendationRows) : null,
       recommended_actions: toRecommendationActions(selectedRows),
       recommendation_rationale: selectedRows
@@ -201,8 +205,12 @@ export const DashboardViewDomain = {
       : [];
 
     return {
-      customers: customerGroups.map(toCustomerSegment),
-      selected_customer: selectedGroup ? toCustomerSegment(selectedGroup) : null,
+      customers: customerGroups.map((group) =>
+        toCustomerSegmentWithAnomaly(group, recommendationRows)
+      ),
+      selected_customer: selectedGroup
+        ? toCustomerSegmentWithAnomaly(selectedGroup, recommendationRows)
+        : null,
       generated_items: toGenerationItems(selectedRows)
     };
   }
@@ -529,7 +537,10 @@ function toDeviceConversionRow(row: DeviceFunnelView): DashboardDeviceConversion
   };
 }
 
-function toCustomerSegment(row: CustomerGroupEventView): DashboardCustomerSegment {
+function toCustomerSegment(
+  row: CustomerGroupEventView,
+  hasAnomaly: boolean
+): DashboardCustomerSegment {
   return {
     customer_group_id: row.customer_group_id,
     customer_group_name: row.customer_group_name,
@@ -539,10 +550,21 @@ function toCustomerSegment(row: CustomerGroupEventView): DashboardCustomerSegmen
     category: row.category,
     region: row.region,
     device: row.device,
+    has_anomaly: hasAnomaly,
     conversion_rate: customerConversionRate(row),
     major_drop_off_stage: majorDropOff(row).label,
     expected_revenue: row.revenue
   };
+}
+
+function toCustomerSegmentWithAnomaly(
+  row: CustomerGroupEventView,
+  recommendationRows: RecommendationContextRow[]
+): DashboardCustomerSegment {
+  return toCustomerSegment(
+    row,
+    rowsForSegment(recommendationRows, row.customer_group_id).length > 0
+  );
 }
 
 function toCustomerDetail(
@@ -556,7 +578,7 @@ function toCustomerDetail(
   const actualRate = customerConversionRate(row);
 
   return {
-    customer_group: toCustomerSegment(row),
+    customer_group: toCustomerSegment(row, matchingRows.length > 0),
     metrics: [
       metric("실제 전환율", actualRate, "rate"),
       metric("예상 전환율", expectedRate, "rate"),
