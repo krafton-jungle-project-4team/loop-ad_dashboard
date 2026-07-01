@@ -14,6 +14,7 @@ import {
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
+import { MarkerIcon } from "@loopad/ui/shadcn/marker";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import {
   Table,
@@ -70,6 +71,7 @@ export function AiInsightPanel({
             <Table className="min-w-[940px]">
               <TableHeader>
                 <TableRow>
+                  <TableHead aria-label="이상징후 상태" className="w-8" />
                   <TableHead>고객군</TableHead>
                   <TableHead>채널</TableHead>
                   <TableHead>연령</TableHead>
@@ -100,6 +102,7 @@ export function AiInsightPanel({
                     role="button"
                     tabIndex={0}
                   >
+                    <TableCell><AnomalyStatusDot hasAnomaly={customer.has_anomaly} /></TableCell>
                     <TableCell className="font-medium">{customer.customer_group_name}</TableCell>
                     <TableCell>{customer.channel}</TableCell>
                     <TableCell>{customer.age_group}</TableCell>
@@ -193,6 +196,19 @@ export function AiInsightPanel({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function AnomalyStatusDot({ hasAnomaly }: { hasAnomaly: boolean }) {
+  return (
+    <MarkerIcon
+      className="flex size-4 items-center justify-center"
+      title={hasAnomaly ? "이상징후가 감지되었습니다" : "이상징후가 없습니다"}
+    >
+      <span
+        className={`size-2.5 rounded-full ${hasAnomaly ? "bg-red-500" : "bg-emerald-500"}`}
+      />
+    </MarkerIcon>
   );
 }
 
