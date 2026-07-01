@@ -413,6 +413,7 @@ function createCustomerGroupEventView(
       event.channel,
       event.age_group,
       event.gender,
+      event.region,
       event.device,
       event.category
     ].join(" · "),

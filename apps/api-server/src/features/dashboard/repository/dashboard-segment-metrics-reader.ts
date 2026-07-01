@@ -50,7 +50,7 @@ function toSegmentMetricView(row: SegmentMetricRow): DashboardSegmentMetricView 
     customer_group_id: row.segment_key,
     customer_group_name:
       nonEmptyString(row.segment_name) ??
-      [channel, ageGroup, gender, device, category].filter(Boolean).join(" · "),
+      [channel, ageGroup, gender, region, device, category].filter(Boolean).join(" · "),
     channel,
     age_group: ageGroup,
     gender,
