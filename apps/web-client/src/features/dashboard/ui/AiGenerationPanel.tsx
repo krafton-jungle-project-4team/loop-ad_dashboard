@@ -1,4 +1,5 @@
 import type { DashboardAiGeneration } from "@loopad/shared";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import {
@@ -29,6 +30,7 @@ export function AiGenerationPanel({
   selectedCustomerId: string;
 }) {
   const activeCustomerId = data.selected_customer?.customer_group_id ?? selectedCustomerId;
+  const hasGeneratedContent = data.generated_items.length > 0;
   const [requestedCustomerPage, setRequestedCustomerPage] = useState(() =>
     getCustomerPageForId(data.customers, activeCustomerId)
   );
@@ -47,6 +49,7 @@ export function AiGenerationPanel({
 
   return (
     <div className="grid gap-6">
+
       <Section title="고객군 선택">
         {data.customers.length > 0 ? (
           <div className="grid gap-4">
@@ -115,6 +118,7 @@ export function AiGenerationPanel({
           <EmptyState message={dashboardEmptyStateMessages.aiCustomersMissing} />
         )}
       </Section>
+      {hasGeneratedContent ? <AnomalyDetectedAlert /> : null}
 
       <Section
         action={
@@ -201,6 +205,15 @@ export function AiGenerationPanel({
         )}
       </Section>
     </div>
+  );
+}
+
+function AnomalyDetectedAlert() {
+  return (
+    <Alert>
+      <AlertTitle className="text-red-600">주의가 필요한 고객군입니다</AlertTitle>
+      <AlertDescription>전환 흐름에서 이상징후가 감지되어 생성 콘텐츠가 준비되었습니다.</AlertDescription>
+    </Alert>
   );
 }
 

@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis
 } from "@loopad/ui/charts";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
@@ -142,57 +143,72 @@ export function AiInsightPanel({
       ) : null}
 
       {mode === "recommendation" && "recommended_actions" in data ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Section
-            action={<Badge variant="outline">{data.recommended_actions.length}개</Badge>}
-            title="추천하는 광고 액션"
-          >
-            {data.recommended_actions.length > 0 ? (
-              <div className="grid gap-4">
-                {data.recommended_actions.map((action) => (
-                  <div className="grid gap-3 rounded-lg border p-4" key={action.action_id}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="grid gap-1">
-                        <span className="font-medium">{action.title}</span>
-                        <p className="text-sm text-muted-foreground">{action.description}</p>
-                      </div>
-                      <Badge variant="secondary">{action.status}</Badge>
-                    </div>
-                    {action.probability !== null ? (
-                      <div className="grid gap-2">
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>예상 반응 확률</span>
-                          <span className="tabular-nums text-foreground">
-                            {formatPercent(action.probability)}
-                          </span>
-                        </div>
-                        <Progress value={action.probability * 100} />
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message={dashboardEmptyStateMessages.aiRecommendationActionsMissing} />
-            )}
-          </Section>
+        <div className="grid gap-6">
+          {data.recommended_actions.length > 0 || data.recommendation_rationale.length > 0 ? (
+            <AnomalyDetectedAlert />
+          ) : null}
 
-          <Section title="추천 근거">
-            {data.recommendation_rationale.length > 0 ? (
-              <ul className="grid gap-3">
-                {data.recommendation_rationale.map((item) => (
-                  <li className="rounded-lg border px-4 py-3 text-sm" key={item}>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState message={dashboardEmptyStateMessages.aiRecommendationRationaleMissing} />
-            )}
-          </Section>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Section
+              action={<Badge variant="outline">{data.recommended_actions.length}개</Badge>}
+              title="추천하는 광고 액션"
+            >
+              {data.recommended_actions.length > 0 ? (
+                <div className="grid gap-4">
+                  {data.recommended_actions.map((action) => (
+                    <div className="grid gap-3 rounded-lg border p-4" key={action.action_id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="grid gap-1">
+                          <span className="font-medium">{action.title}</span>
+                          <p className="text-sm text-muted-foreground">{action.description}</p>
+                        </div>
+                        <Badge variant="secondary">{action.status}</Badge>
+                      </div>
+                      {action.probability !== null ? (
+                        <div className="grid gap-2">
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>예상 반응 확률</span>
+                            <span className="tabular-nums text-foreground">
+                              {formatPercent(action.probability)}
+                            </span>
+                          </div>
+                          <Progress value={action.probability * 100} />
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState message={dashboardEmptyStateMessages.aiRecommendationActionsMissing} />
+              )}
+            </Section>
+
+            <Section title="추천 근거">
+              {data.recommendation_rationale.length > 0 ? (
+                <ul className="grid gap-3">
+                  {data.recommendation_rationale.map((item) => (
+                    <li className="rounded-lg border px-4 py-3 text-sm" key={item}>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState message={dashboardEmptyStateMessages.aiRecommendationRationaleMissing} />
+              )}
+            </Section>
+          </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+function AnomalyDetectedAlert() {
+  return (
+    <Alert>
+      <AlertTitle className="text-red-600">주의가 필요한 고객군입니다</AlertTitle>
+      <AlertDescription>이상징후가 감지됐습니다.</AlertDescription>
+    </Alert>
   );
 }
 
@@ -273,8 +289,12 @@ function clampPage(page: number, pageCount: number) {
 }
 
 function CustomerDetail({ detail }: { detail: DashboardCustomerDetail }) {
+  const hasAnomalyInsight = detail.case_analysis.length > 0 || detail.rationale.length > 0;
+
   return (
     <div className="grid gap-6">
+      {hasAnomalyInsight ? <AnomalyDetectedAlert /> : null}
+
       <Section
         action={<Badge variant="secondary">{detail.customer_group.channel}</Badge>}
         title={detail.customer_group.customer_group_name}
