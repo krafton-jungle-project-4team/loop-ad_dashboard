@@ -6,22 +6,13 @@ import type {
   DataExplorerObjectDdl,
   DataExplorerObjectDetail,
   DataExplorerObjectRef,
-  DataExplorerObjectSummary,
-  DataExplorerResultColumn,
-  DataExplorerSemanticType
+  DataExplorerObjectSummary
 } from "@loopad/shared";
 import type { Pool, PoolClient } from "pg";
 import { PG_POOL } from "../../../infra/database/index.js";
 import { DataExplorerDomain } from "../domain/index.js";
 import { dataExplorerErrors } from "../errors.js";
-import { applyQueryLimit } from "../sql/query-limiter.js";
-import { bindPostgresNamedParams } from "../sql/query-params.js";
-import type {
-  AdapterQueryExecutionResult,
-  DataSourceAdapter,
-  ExecuteReadOnlyQueryInput,
-  ListObjectsInput
-} from "./data-source-adapter.js";
+import type { DataExplorerSourceReader, ListObjectsInput } from "./data-explorer-source-reader.js";
 
 const SCHEMA_QUERY_TIMEOUT_MS = 5000;
 const LIST_OBJECTS_LIMIT = 1000;
@@ -56,8 +47,14 @@ type PgConstraintRow = {
   definition: string;
 };
 
+/**
+ * Reads PostgreSQL contract schema metadata for Data Explorer.
+ *
+ * This reader uses fixed catalog queries inside a readonly transaction and does
+ * not expose user-provided SQL execution.
+ */
 @Injectable()
-export class PostgresContractAdapter implements DataSourceAdapter {
+export class PostgresContractReader implements DataExplorerSourceReader {
   readonly sourceId = "postgres_contract" as const;
   readonly source = DataExplorerDomain.sourceById(this.sourceId)!;
 
@@ -103,10 +100,6 @@ export class PostgresContractAdapter implements DataSourceAdapter {
       .slice(0, LIST_OBJECTS_LIMIT);
   }
 
-  async searchObjects(input: ListObjectsInput): Promise<DataExplorerObjectSummary[]> {
-    return this.listObjects(input);
-  }
-
   async getObjectDetail(ref: DataExplorerObjectRef): Promise<DataExplorerObjectDetail> {
     const object = await this.getObjectSummary(ref);
     const [columns, indexes, constraints] = await this.withReadOnlyClient(
@@ -143,27 +136,6 @@ export class PostgresContractAdapter implements DataSourceAdapter {
       ddl,
       ...DataExplorerDomain.freshLiveMetadata()
     };
-  }
-
-  async executeReadOnlyQuery(
-    input: ExecuteReadOnlyQueryInput
-  ): Promise<AdapterQueryExecutionResult> {
-    const startedAt = performance.now();
-    const limitedSql = applyQueryLimit(input.sqlText, input.rowLimit);
-    const bound = bindPostgresNamedParams(limitedSql, input.params);
-
-    return this.withReadOnlyClient(input.timeoutMs, async (client) => {
-      const result = await client.query(bound.text, bound.values);
-      const rows = result.rows.map((row) => normalizeRecord(row));
-      const columns = result.fields.map(toResultColumn);
-
-      return {
-        columns,
-        rows,
-        durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-        truncated: rows.length >= input.rowLimit
-      };
-    });
   }
 
   private async getObjectSummary(ref: DataExplorerObjectRef): Promise<DataExplorerObjectSummary> {
@@ -391,53 +363,6 @@ function buildLiveSchemaSummary(detail: DataExplorerObjectDetail) {
     "Constraints:",
     constraints
   ].join("\n");
-}
-
-function toResultColumn(field: { name: string; dataTypeID: number }): DataExplorerResultColumn {
-  const semanticType = semanticTypeFromPostgresOid(field.dataTypeID, field.name);
-  return {
-    name: field.name,
-    type: String(field.dataTypeID),
-    semantic_type: semanticType
-  };
-}
-
-function semanticTypeFromPostgresOid(oid: number, name: string): DataExplorerSemanticType {
-  const lowerName = name.toLowerCase();
-  if (
-    ["date", "time", "timestamp", "day", "hour", "month"].some((part) => lowerName.includes(part))
-  ) {
-    return "time";
-  }
-  if ([20, 21, 23, 26, 700, 701, 790, 1700].includes(oid)) {
-    return "measure";
-  }
-  if ([16].includes(oid)) {
-    return "boolean";
-  }
-  if ([1082, 1083, 1114, 1184, 1266].includes(oid)) {
-    return "time";
-  }
-  if ([114, 3802].includes(oid)) {
-    return "json";
-  }
-  return "dimension";
-}
-
-function normalizeRecord(row: Record<string, unknown>) {
-  return Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [key, normalizeValue(value)])
-  );
-}
-
-function normalizeValue(value: unknown): unknown {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof value === "bigint") {
-    return Number(value);
-  }
-  return value;
 }
 
 function safeTimeoutMs(timeoutMs: number) {

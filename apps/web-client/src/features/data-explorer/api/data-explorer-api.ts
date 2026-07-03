@@ -1,20 +1,11 @@
 import {
   createApiSuccessResponseSchema,
-  DataExplorerAiChatResponseSchema,
-  DataExplorerAiQueryPlanResponseSchema,
   DataExplorerObjectDdlSchema,
   DataExplorerObjectDetailSchema,
   DataExplorerObjectsResponseSchema,
-  DataExplorerQueryRunResponseSchema,
-  DataExplorerQueryRunsResponseSchema,
-  DataExplorerQueryValidateResponseSchema,
   DataExplorerSourcesResponseSchema,
-  type DataExplorerAiQueryPlanRequest,
-  type DataExplorerAiChatRequest,
   type DataExplorerObjectRef,
   type DataExplorerObjectType,
-  type DataExplorerQueryRunRequest,
-  type DataExplorerQueryValidateRequest,
   type DataExplorerSourceId
 } from "@loopad/shared";
 import { z } from "zod";
@@ -77,75 +68,15 @@ export function fetchDataExplorerObjectDdl(input: {
   );
 }
 
-export function validateDataExplorerQuery(body: DataExplorerQueryValidateRequest) {
-  return request(
-    `${DATA_EXPLORER_BASE_PATH}/queries/validate`,
-    DataExplorerQueryValidateResponseSchema,
-    {
-      body,
-      method: "POST"
-    }
-  );
-}
-
-export function runDataExplorerQuery(body: DataExplorerQueryRunRequest) {
-  return request(`${DATA_EXPLORER_BASE_PATH}/queries/run`, DataExplorerQueryRunResponseSchema, {
-    body,
-    method: "POST"
-  });
-}
-
-export function createDataExplorerAiQueryPlan(body: DataExplorerAiQueryPlanRequest) {
-  return request(
-    `${DATA_EXPLORER_BASE_PATH}/ai/query-plan`,
-    DataExplorerAiQueryPlanResponseSchema,
-    {
-      body,
-      method: "POST"
-    }
-  );
-}
-
-export function runDataExplorerAiQuery(body: DataExplorerQueryRunRequest) {
-  return request(`${DATA_EXPLORER_BASE_PATH}/ai/query-run`, DataExplorerQueryRunResponseSchema, {
-    body,
-    method: "POST"
-  });
-}
-
-export function runDataExplorerAiChat(body: DataExplorerAiChatRequest) {
-  return request(`${DATA_EXPLORER_BASE_PATH}/ai/chat`, DataExplorerAiChatResponseSchema, {
-    body,
-    method: "POST"
-  });
-}
-
-export function fetchDataExplorerQueryRuns(input: {
-  projectId: string;
-  sourceId?: DataExplorerSourceId;
-  signal: AbortSignal;
-}) {
-  const searchParams = new URLSearchParams({ project_id: input.projectId });
-  setOptionalSearchParam(searchParams, "source_id", input.sourceId);
-
-  return request(
-    `${DATA_EXPLORER_BASE_PATH}/queries/runs?${searchParams.toString()}`,
-    DataExplorerQueryRunsResponseSchema,
-    { method: "GET", signal: input.signal }
-  );
-}
-
 async function request<T>(
   path: string,
   schema: z.ZodType<T>,
-  init: { body?: unknown; method: "GET" | "POST"; signal?: AbortSignal }
+  init: { method: "GET"; signal?: AbortSignal }
 ): Promise<T> {
   const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
   const response = await fetch(url, {
-    body: init.body ? JSON.stringify(init.body) : undefined,
     headers: {
-      Accept: "application/json",
-      ...(init.body ? { "Content-Type": "application/json" } : {})
+      Accept: "application/json"
     },
     method: init.method,
     signal: init.signal

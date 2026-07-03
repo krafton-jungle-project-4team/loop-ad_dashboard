@@ -6,21 +6,13 @@ import type {
   DataExplorerObjectDetail,
   DataExplorerObjectRef,
   DataExplorerObjectSummary,
-  DataExplorerObjectType,
-  DataExplorerResultColumn,
-  DataExplorerSemanticType
+  DataExplorerObjectType
 } from "@loopad/shared";
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { env } from "../../../infra/env/env.js";
 import { DataExplorerDomain } from "../domain/index.js";
 import { dataExplorerErrors } from "../errors.js";
-import { applyQueryLimit } from "../sql/query-limiter.js";
-import type {
-  AdapterQueryExecutionResult,
-  DataSourceAdapter,
-  ExecuteReadOnlyQueryInput,
-  ListObjectsInput
-} from "./data-source-adapter.js";
+import type { DataExplorerSourceReader, ListObjectsInput } from "./data-explorer-source-reader.js";
 
 const SCHEMA_QUERY_TIMEOUT_SECONDS = 5;
 const LIST_OBJECTS_LIMIT = 1000;
@@ -52,13 +44,14 @@ type ClickHouseTableRow = {
   total_rows: number | null;
 };
 
-type ClickHouseJsonResponse = {
-  meta?: Array<{ name: string; type: string }>;
-  data?: Array<Record<string, unknown>>;
-};
-
+/**
+ * Reads ClickHouse event-store schema metadata for Data Explorer.
+ *
+ * This reader uses fixed system-table queries with readonly settings and does
+ * not accept arbitrary SQL from the client.
+ */
 @Injectable()
-export class ClickHouseEventsAdapter implements DataSourceAdapter {
+export class ClickHouseEventsReader implements DataExplorerSourceReader {
   readonly sourceId = "clickhouse_events" as const;
   readonly source = DataExplorerDomain.sourceById(this.sourceId)!;
 
@@ -101,10 +94,6 @@ export class ClickHouseEventsAdapter implements DataSourceAdapter {
       .map(toObjectSummary)
       .filter((object) => objectMatchesInput(object, input))
       .slice(0, LIST_OBJECTS_LIMIT);
-  }
-
-  async searchObjects(input: ListObjectsInput): Promise<DataExplorerObjectSummary[]> {
-    return this.listObjects(input);
   }
 
   async getObjectDetail(ref: DataExplorerObjectRef): Promise<DataExplorerObjectDetail> {
@@ -150,34 +139,6 @@ export class ClickHouseEventsAdapter implements DataSourceAdapter {
       },
       ddl: String(ddl),
       ...DataExplorerDomain.freshLiveMetadata()
-    };
-  }
-
-  async executeReadOnlyQuery(
-    input: ExecuteReadOnlyQueryInput
-  ): Promise<AdapterQueryExecutionResult> {
-    const startedAt = performance.now();
-    const limitedSql = applyQueryLimit(input.sqlText, input.rowLimit);
-    const result = await this.clickhouse.query({
-      query: limitedSql,
-      format: "JSON",
-      query_params: input.params,
-      clickhouse_settings: {
-        max_execution_time: Math.ceil(input.timeoutMs / 1000),
-        max_result_rows: String(input.rowLimit),
-        result_overflow_mode: "break",
-        readonly: "1"
-      }
-    });
-    const body = await result.json<ClickHouseJsonResponse>();
-    const rows = body.data ?? [];
-    const columns = (body.meta ?? []).map(toResultColumn);
-
-    return {
-      columns,
-      rows,
-      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-      truncated: rows.length >= input.rowLimit
     };
   }
 
@@ -305,36 +266,6 @@ function objectMatchesInput(object: DataExplorerObjectSummary, input: ListObject
     : true;
 
   return matchesType && matchesQuery;
-}
-
-function toResultColumn(column: { name: string; type: string }): DataExplorerResultColumn {
-  return {
-    name: column.name,
-    type: column.type,
-    semantic_type: semanticTypeFromClickHouseType(column.type, column.name)
-  };
-}
-
-function semanticTypeFromClickHouseType(type: string, name: string): DataExplorerSemanticType {
-  const lowerType = type.toLowerCase();
-  const lowerName = name.toLowerCase();
-
-  if (
-    lowerType.includes("date") ||
-    ["date", "time", "timestamp", "day", "hour", "month"].some((part) => lowerName.includes(part))
-  ) {
-    return "time";
-  }
-  if (lowerType.includes("int") || lowerType.includes("float") || lowerType.includes("decimal")) {
-    return "measure";
-  }
-  if (lowerType.includes("bool")) {
-    return "boolean";
-  }
-  if (lowerType.includes("json") || lowerType.includes("map") || lowerType.includes("array")) {
-    return "json";
-  }
-  return "dimension";
 }
 
 function splitExpression(value: string | null | undefined) {

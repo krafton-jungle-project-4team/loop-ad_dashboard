@@ -1,16 +1,10 @@
 import type { DataExplorerObjectRef, DataExplorerSourceId } from "@loopad/shared";
-import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import {
-  createDataExplorerAiQueryPlan,
   fetchDataExplorerObjectDdl,
   fetchDataExplorerObjectDetail,
   fetchDataExplorerObjects,
-  fetchDataExplorerQueryRuns,
-  fetchDataExplorerSources,
-  runDataExplorerAiChat,
-  runDataExplorerAiQuery,
-  runDataExplorerQuery,
-  validateDataExplorerQuery
+  fetchDataExplorerSources
 } from "../api/data-explorer-api.js";
 
 export function dataExplorerSourcesQueryOptions() {
@@ -61,31 +55,6 @@ export function dataExplorerObjectDdlQueryOptions(ref: DataExplorerObjectRef | n
     },
     queryKey: ["data-explorer", "object-ddl", ref] as const
   });
-}
-
-export function dataExplorerQueryRunsQueryOptions(input: {
-  projectId: string;
-  sourceId?: DataExplorerSourceId;
-}) {
-  return queryOptions({
-    queryFn: ({ signal }) =>
-      fetchDataExplorerQueryRuns({
-        projectId: input.projectId,
-        sourceId: input.sourceId,
-        signal
-      }),
-    queryKey: ["data-explorer", "query-runs", input] as const
-  });
-}
-
-export function useDataExplorerMutations() {
-  return {
-    chat: useMutation({ mutationFn: runDataExplorerAiChat }),
-    createPlan: useMutation({ mutationFn: createDataExplorerAiQueryPlan }),
-    runAiQuery: useMutation({ mutationFn: runDataExplorerAiQuery }),
-    runQuery: useMutation({ mutationFn: runDataExplorerQuery }),
-    validateQuery: useMutation({ mutationFn: validateDataExplorerQuery })
-  };
 }
 
 export function useDataExplorerSources() {
