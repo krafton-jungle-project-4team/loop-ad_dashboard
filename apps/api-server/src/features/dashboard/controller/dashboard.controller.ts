@@ -9,26 +9,26 @@ import {
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
 
-@Controller()
+@Controller("dashboard/v1")
 export class DashboardController {
   constructor(
     @Inject(DashboardQueryService)
     private readonly dashboardQuery: DashboardQueryService
   ) {}
 
-  @Get("api/dashboard/v1/main")
+  @Get("main")
   async main(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardMainSchema.parse(await this.dashboardQuery.main(requiredProjectId));
   }
 
-  @Get("api/dashboard/v1/funnels")
+  @Get("funnels")
   async funnels(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardFunnelListSchema.parse(await this.dashboardQuery.funnels(requiredProjectId));
   }
 
-  @Get("api/dashboard/v1/event-catalog")
+  @Get("event-catalog")
   async eventCatalog(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardEventCatalogSchema.parse(
@@ -36,7 +36,7 @@ export class DashboardController {
     );
   }
 
-  @Post("api/dashboard/v1/funnels")
+  @Post("funnels")
   async createFunnel(@Query("projectId") projectId: string | undefined, @Body() body: unknown) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardCreateFunnelRequestSchema.parse(body);

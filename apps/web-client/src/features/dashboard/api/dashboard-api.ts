@@ -28,12 +28,12 @@ export async function fetchDashboardPageResource(
     case "main":
       return {
         tab,
-        data: await request("/api/dashboard/v1/main", DashboardMainSchema, query, signal)
+        data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
     case "funnels":
       return {
         tab,
-        data: await request("/api/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)
+        data: await request("/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)
       };
   }
 }
@@ -44,7 +44,7 @@ export async function createDashboardFunnel(
 ): Promise<DashboardFunnel> {
   const parsedBody = DashboardCreateFunnelRequestSchema.parse(requestBody);
   const url = new URL(
-    `${dashboardConfig.apiBaseUrl}/api/dashboard/v1/funnels`,
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels`,
     window.location.origin
   );
   url.searchParams.set("projectId", query.projectId);
@@ -65,7 +65,7 @@ export async function fetchDashboardEventCatalog(
   query: DashboardQuery,
   signal: AbortSignal
 ): Promise<DashboardEventCatalog> {
-  return request("/api/dashboard/v1/event-catalog", DashboardEventCatalogSchema, query, signal);
+  return request("/dashboard/v1/event-catalog", DashboardEventCatalogSchema, query, signal);
 }
 
 async function request<T>(
