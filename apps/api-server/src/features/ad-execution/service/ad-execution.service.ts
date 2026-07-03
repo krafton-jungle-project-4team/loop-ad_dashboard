@@ -6,6 +6,7 @@ import type {
   PromotionRunDispatchResponse
 } from "@loopad/shared";
 import { env } from "../../../infra/env/env.js";
+import { logWithContext } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
 import {
   DispatchSender,
@@ -164,7 +165,7 @@ export class AdExecutionService {
       promotionRunId: context.promotionRunId,
       adExperimentId: first.adExperimentId,
       channel: context.channel,
-      provider: this.dispatchSender.providerName,
+      provider: this.dispatchSender.providerNameFor(context.channel),
       targetCount: assignments.length,
       metadata: {
         segment_id: first.segmentId,
@@ -192,6 +193,9 @@ export class AdExecutionService {
     assignment: ActiveAssignmentSnapshot
   ): Promise<DispatchAttemptSnapshot> {
     const redirectId = await this.createRedirectLink(assignment);
+    const provider = this.dispatchSender.providerNameFor(channel);
+
+    logDispatchAttempt(channel, provider, assignment, redirectId);
 
     try {
       const resolution = await this.recipientResolver.resolve({
@@ -201,26 +205,37 @@ export class AdExecutionService {
       });
 
       if (!resolution) {
-        return {
+        const attempt = {
           userId: assignment.userId,
           redirectId,
           status: "failed",
           errorCode: "RECIPIENT_NOT_FOUND"
-        };
+        } satisfies DispatchAttemptSnapshot;
+
+        logDispatchResult(channel, provider, assignment, attempt);
+
+        return attempt;
       }
 
       const sendResult = await this.dispatchSender.send(
         toDispatchSendInput(channel, assignment, resolution.recipient, redirectUrl(redirectId))
       );
+      const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
 
-      return toSentAttempt(assignment.userId, redirectId, sendResult);
-    } catch {
-      return {
+      logDispatchResult(channel, sendResult.provider, assignment, attempt);
+
+      return attempt;
+    } catch (error) {
+      const attempt = {
         userId: assignment.userId,
         redirectId,
         status: "failed",
         errorCode: "PROVIDER_SEND_FAILED"
-      };
+      } satisfies DispatchAttemptSnapshot;
+
+      logDispatchResult(channel, provider, assignment, attempt, getErrorName(error));
+
+      return attempt;
     }
   }
 
@@ -304,6 +319,59 @@ function daysFromNow(days: number) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() + days);
   return date;
+}
+
+function logDispatchAttempt(
+  channel: DispatchChannel,
+  provider: string,
+  assignment: ActiveAssignmentSnapshot,
+  redirectId: string
+) {
+  logWithContext("info", "Ad dispatch send attempt", {
+    channel,
+    provider,
+    projectId: assignment.projectId,
+    campaignId: assignment.campaignId,
+    promotionId: assignment.promotionId,
+    promotionRunId: assignment.promotionRunId,
+    adExperimentId: assignment.adExperimentId,
+    segmentId: assignment.segmentId,
+    contentId: assignment.contentId,
+    contentOptionId: assignment.contentOptionId,
+    userId: assignment.userId,
+    redirectId
+  });
+}
+
+function logDispatchResult(
+  channel: DispatchChannel,
+  provider: string,
+  assignment: ActiveAssignmentSnapshot,
+  attempt: DispatchAttemptSnapshot,
+  errorName?: string
+) {
+  logWithContext(attempt.status === "sent" ? "info" : "warn", "Ad dispatch send result", {
+    channel,
+    provider,
+    projectId: assignment.projectId,
+    campaignId: assignment.campaignId,
+    promotionId: assignment.promotionId,
+    promotionRunId: assignment.promotionRunId,
+    adExperimentId: assignment.adExperimentId,
+    segmentId: assignment.segmentId,
+    contentId: assignment.contentId,
+    contentOptionId: assignment.contentOptionId,
+    userId: attempt.userId,
+    redirectId: attempt.redirectId,
+    status: attempt.status,
+    errorCode: attempt.errorCode,
+    providerMessageId: attempt.providerMessageId,
+    errorName
+  });
+}
+
+function getErrorName(error: unknown) {
+  return error instanceof Error ? error.name : "UnknownError";
 }
 
 function requireFirstAssignment(assignments: readonly ActiveAssignmentSnapshot[]) {

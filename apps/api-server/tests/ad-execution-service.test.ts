@@ -39,7 +39,9 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
     assignment({ userId: "user-missing" })
   ];
 
-  const response = await service.dispatchPromotionRun("run-1");
+  const { result: response, logs } = await captureDispatchLogs(() =>
+    service.dispatchPromotionRun("run-1")
+  );
 
   assert.equal(response.promotion_run_id, "run-1");
   assert.equal(response.channel, "email");
@@ -52,6 +54,23 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
   assert.equal(writer.finishes[0]?.status, "failed");
   assert.equal(writer.finishes[0]?.failedCount, 1);
   assert.equal(sender.sent.length, 1);
+  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
+  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
+  assert.deepEqual(
+    logs
+      .filter((entry) => entry.message === "Ad dispatch send result")
+      .map((entry) => entry.status)
+      .sort(),
+    ["failed", "sent"]
+  );
+  assert.equal(
+    logs.some((entry) => JSON.stringify(entry).includes("@example.test")),
+    false
+  );
+  assert.equal(
+    logs.some((entry) => JSON.stringify(entry).includes("+1555")),
+    false
+  );
 });
 
 test("dispatch rejects onsite banner promotion runs", async () => {
@@ -253,13 +272,16 @@ class FakeRecipientResolver {
 }
 
 class FakeDispatchSender {
-  providerName = "fake";
+  providerNameFor() {
+    return "fake";
+  }
+
   sent: unknown[] = [];
 
   async send(input: unknown) {
     this.sent.push(input);
     return {
-      provider: this.providerName,
+      provider: "fake",
       providerMessageId: "provider-message-1"
     };
   }
@@ -271,4 +293,33 @@ class FakePromotionEventCollector {
   async trackRedirectClick(link: RedirectLinkSnapshot) {
     this.links.push(link);
   }
+}
+
+async function captureDispatchLogs<T>(callback: () => Promise<T>) {
+  const logs: Array<Record<string, unknown>> = [];
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+
+  console.log = (line?: unknown) => {
+    pushJsonLog(logs, line);
+  };
+  console.warn = (line?: unknown) => {
+    pushJsonLog(logs, line);
+  };
+
+  try {
+    const result = await callback();
+    return { result, logs };
+  } finally {
+    console.log = originalLog;
+    console.warn = originalWarn;
+  }
+}
+
+function pushJsonLog(logs: Array<Record<string, unknown>>, line: unknown) {
+  if (typeof line !== "string") {
+    return;
+  }
+
+  logs.push(JSON.parse(line) as Record<string, unknown>);
 }

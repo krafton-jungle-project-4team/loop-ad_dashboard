@@ -1,6 +1,16 @@
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infra/database/index.js";
-import { DispatchSender, MockDispatchSender } from "./adapters/dispatch-sender.js";
+import { env } from "../../infra/env/env.js";
+import {
+  AwsSesEmailSender,
+  AwsSnsSmsSender,
+  ChannelDispatchSender,
+  DispatchSender,
+  EmailSender,
+  MockEmailSender,
+  MockSmsSender,
+  SmsSender
+} from "./adapters/dispatch-sender.js";
 import {
   HttpPromotionEventCollector,
   PromotionEventCollector
@@ -19,7 +29,17 @@ import { AdExecutionService } from "./service/index.js";
     AdExecutionReader,
     AdExecutionWriter,
     { provide: RecipientResolver, useClass: MockRecipientResolver },
-    { provide: DispatchSender, useClass: MockDispatchSender },
+    {
+      provide: EmailSender,
+      useFactory: () =>
+        env.adDispatch.provider === "aws" ? new AwsSesEmailSender() : new MockEmailSender()
+    },
+    {
+      provide: SmsSender,
+      useFactory: () =>
+        env.adDispatch.provider === "aws" ? new AwsSnsSmsSender() : new MockSmsSender()
+    },
+    { provide: DispatchSender, useClass: ChannelDispatchSender },
     { provide: PromotionEventCollector, useClass: HttpPromotionEventCollector }
   ]
 })

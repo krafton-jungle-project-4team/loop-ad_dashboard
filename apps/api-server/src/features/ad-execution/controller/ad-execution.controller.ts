@@ -7,7 +7,7 @@ import {
 } from "@loopad/shared";
 import { AdExecutionService } from "../service/index.js";
 
-@Controller("ad/v1")
+@Controller("ad")
 export class AdExecutionController {
   constructor(
     @Inject(AdExecutionService)
