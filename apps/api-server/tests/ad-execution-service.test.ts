@@ -120,6 +120,22 @@ test("dispatch rejects onsite banner promotion runs", async () => {
   );
 });
 
+test("dispatch rejects unknown promotion channels before sender selection", async () => {
+  const reader = new FakeAdExecutionReader();
+  reader.promotion = {
+    ...reader.promotion,
+    channel: "push" as unknown as typeof reader.promotion.channel
+  };
+
+  await assert.rejects(
+    () => createDispatchService(reader).dispatchPromotionRun("run-1"),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 409 &&
+      error.code === "UNSUPPORTED_DISPATCH_CHANNEL"
+  );
+});
+
 test("banner resolve returns the precomputed segment content", async () => {
   const reader = new FakeAdExecutionReader();
   reader.bannerAssignment = {
@@ -149,6 +165,28 @@ test("banner resolve returns the precomputed segment content", async () => {
     cta: "Book now",
     target_url: "https://loop-ad.example/landing"
   });
+});
+
+test("banner resolve rejects non-banner assignment channels", async () => {
+  const reader = new FakeAdExecutionReader();
+  reader.bannerAssignment = {
+    ...assignment(),
+    channel: "email"
+  };
+
+  await assert.rejects(
+    () =>
+      createBannerService(reader).resolveBanner({
+        project_id: "project-1",
+        promotion_run_id: "run-1",
+        user_id: "user-1",
+        placement_id: "hero"
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 409 &&
+      error.code === "UNSUPPORTED_BANNER_CHANNEL"
+  );
 });
 
 test("redirect returns an SDK handoff page with ad_experiment_id context", async () => {

@@ -32,6 +32,13 @@ export class BannerResolveService {
       throw adExecutionErrors.bannerAssignmentNotFound(request.promotion_run_id, request.user_id);
     }
 
+    if (assignment.channel !== "onsite_banner") {
+      throw adExecutionErrors.unsupportedBannerChannel(
+        request.promotion_run_id,
+        assignment.channel
+      );
+    }
+
     return assignment;
   }
 }

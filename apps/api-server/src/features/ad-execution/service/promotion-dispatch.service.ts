@@ -164,7 +164,7 @@ export class PromotionDispatchService {
       promotionRunId: context.promotionRun.promotionRunId,
       adExperimentId: first.adExperimentId,
       channel: context.channel,
-      provider: this.providerNameFor(context.channel),
+      provider: this.providerNameFor(context.channel, context.promotionRun.promotionRunId),
       targetCount: assignments.length,
       request: {
         segment_id: first.segmentId,
@@ -192,7 +192,7 @@ export class PromotionDispatchService {
     assignment: ActiveAdServingAssignmentEntity
   ): Promise<DispatchAttemptSnapshot> {
     const redirectId = await this.createRedirectLink(assignment);
-    const provider = this.providerNameFor(channel);
+    const provider = this.providerNameFor(channel, assignment.promotionRunId);
 
     logDispatchAttempt(channel, provider, assignment, redirectId);
 
@@ -219,11 +219,14 @@ export class PromotionDispatchService {
   ): Promise<DispatchSendResult> {
     const targetUrl = redirectUrl(redirectId);
 
-    if (channel === "email") {
-      return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl));
+    switch (channel) {
+      case "email":
+        return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl));
+      case "sms":
+        return this.smsSender.sendSms(toSmsSendInput(assignment, targetUrl));
+      default:
+        return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
     }
-
-    return this.smsSender.sendSms(toSmsSendInput(assignment, targetUrl));
   }
 
   private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
@@ -272,8 +275,15 @@ export class PromotionDispatchService {
     }
   }
 
-  private providerNameFor(channel: DispatchChannel) {
-    return channel === "email" ? this.emailSender.providerName : this.smsSender.providerName;
+  private providerNameFor(channel: DispatchChannel, promotionRunId: string) {
+    switch (channel) {
+      case "email":
+        return this.emailSender.providerName;
+      case "sms":
+        return this.smsSender.providerName;
+      default:
+        return throwUnsupportedDispatchChannel(promotionRunId, channel);
+    }
   }
 }
 
@@ -419,4 +429,11 @@ function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentE
   }
 
   return first;
+}
+
+function throwUnsupportedDispatchChannel(
+  promotionRunId: string,
+  channel: never
+): never {
+  throw adExecutionErrors.unsupportedDispatchChannel(promotionRunId, String(channel));
 }

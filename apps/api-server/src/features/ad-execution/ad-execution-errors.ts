@@ -26,6 +26,12 @@ export const adExecutionErrors = {
       code: "UNSUPPORTED_DISPATCH_CHANNEL",
       message: `Promotion run '${promotionRunId}' uses channel '${channel}', but dispatch only supports email or sms.`
     }),
+  unsupportedBannerChannel: (promotionRunId: string, channel: string) =>
+    createDomainError({
+      statusCode: HttpStatus.CONFLICT,
+      code: "UNSUPPORTED_BANNER_CHANNEL",
+      message: `Promotion run '${promotionRunId}' uses channel '${channel}', but banner resolve only supports onsite_banner.`
+    }),
   inconsistentAssignment: (message: string) =>
     createDomainError({
       statusCode: HttpStatus.CONFLICT,

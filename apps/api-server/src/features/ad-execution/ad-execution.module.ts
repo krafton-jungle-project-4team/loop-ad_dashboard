@@ -44,9 +44,27 @@ const DISPATCH_PROVIDER: DispatchProviderName = "mock";
 export class AdExecutionModule {}
 
 function createEmailSender(provider: DispatchProviderName) {
-  return provider === "aws" ? new AwsSesEmailSender() : new MockEmailSender();
+  switch (provider) {
+    case "mock":
+      return new MockEmailSender();
+    case "aws":
+      return new AwsSesEmailSender();
+    default:
+      return throwUnsupportedDispatchProvider(provider);
+  }
 }
 
 function createSmsSender(provider: DispatchProviderName) {
-  return provider === "aws" ? new AwsSnsSmsSender() : new MockSmsSender();
+  switch (provider) {
+    case "mock":
+      return new MockSmsSender();
+    case "aws":
+      return new AwsSnsSmsSender();
+    default:
+      return throwUnsupportedDispatchProvider(provider);
+  }
+}
+
+function throwUnsupportedDispatchProvider(provider: never): never {
+  throw new Error(`Unsupported ad dispatch provider '${String(provider)}'.`);
 }
