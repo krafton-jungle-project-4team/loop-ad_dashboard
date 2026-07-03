@@ -1,4 +1,4 @@
-import { Activity, ChartNoAxesCombined, Image, Sparkles, type LucideIcon } from "lucide-react";
+import { Activity, type LucideIcon } from "lucide-react";
 import type { DashboardTab } from "./dashboard-types.js";
 
 export type DashboardNavItem = {
@@ -9,16 +9,7 @@ export type DashboardNavItem = {
 };
 
 export const dashboardTabs = [
-  { value: "main", label: "메인 대시보드", icon: Activity, pathSegment: "main" },
-  {
-    value: "purchaseConversion",
-    label: "구매 전환",
-    icon: ChartNoAxesCombined,
-    pathSegment: "purchase-conversion"
-  },
-  { value: "aiAnalysis", label: "AI 분석", icon: Sparkles, pathSegment: "ai-analysis" },
-  { value: "aiRecommendation", label: "AI 추천", icon: Sparkles, pathSegment: "ai-recommendation" },
-  { value: "aiGeneration", label: "AI 생성", icon: Image, pathSegment: "ai-generation" }
+  { value: "main", label: "메인 대시보드", icon: Activity, pathSegment: "main" }
 ] satisfies DashboardNavItem[];
 
 export function getDashboardTabByPath(path: string): DashboardTab | null {

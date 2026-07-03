@@ -1,10 +1,6 @@
 import {
   createApiSuccessResponseSchema,
-  DashboardAiAnalysisSchema,
-  DashboardAiGenerationSchema,
-  DashboardAiRecommendationSchema,
-  DashboardMainSchema,
-  DashboardPurchaseConversionSchema
+  DashboardMainSchema
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -24,36 +20,6 @@ export async function fetchDashboardPageResource(
       return {
         tab,
         data: await request("/api/dashboard/v1/main", DashboardMainSchema, query, signal)
-      };
-    case "purchaseConversion":
-      return {
-        tab,
-        data: await request(
-          "/dashboard/purchase-conversion",
-          DashboardPurchaseConversionSchema,
-          query,
-          signal
-        )
-      };
-    case "aiAnalysis":
-      return {
-        tab,
-        data: await request("/dashboard/ai-analysis", DashboardAiAnalysisSchema, query, signal)
-      };
-    case "aiRecommendation":
-      return {
-        tab,
-        data: await request(
-          "/dashboard/ai-recommendation",
-          DashboardAiRecommendationSchema,
-          query,
-          signal
-        )
-      };
-    case "aiGeneration":
-      return {
-        tab,
-        data: await request("/dashboard/ai-generation", DashboardAiGenerationSchema, query, signal)
       };
   }
 }
