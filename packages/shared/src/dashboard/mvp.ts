@@ -62,14 +62,42 @@ export const DashboardFunnelListSchema = z.object({
 });
 export type DashboardFunnelList = z.infer<typeof DashboardFunnelListSchema>;
 
-export const DashboardCreateFunnelRequestSchema = z.object({
-  funnel_name: z.string().min(1),
-  steps: z.array(
-    z.object({
-      step_name: z.string().min(1),
-      event_name: DashboardFunnelEventNameSchema
-    })
-  ).min(2)
+export const DashboardCustomerSegmentSchema = z.object({
+  customer_group_id: z.string(),
+  customer_group_name: z.string(),
+  channel: z.string(),
+  age_group: z.string(),
+  gender: z.string(),
+  category: z.string(),
+  region: z.string(),
+  device: z.string(),
+  conversion_rate: RateSchema,
+  major_drop_off_stage: z.string(),
+  expected_revenue: MoneySchema
+});
+export type DashboardCustomerSegment = z.infer<typeof DashboardCustomerSegmentSchema>;
+
+export const DashboardMetricValueSchema = z.object({
+  label: z.string(),
+  value: z.number(),
+  value_type: z.enum(["money", "rate", "delta"])
+});
+export type DashboardMetricValue = z.infer<typeof DashboardMetricValueSchema>;
+
+export const DashboardStageFlowSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  rate: RateSchema
+});
+export type DashboardStageFlow = z.infer<typeof DashboardStageFlowSchema>;
+
+export const DashboardCustomerDetailSchema = z.object({
+  customer_group: DashboardCustomerSegmentSchema,
+  metrics: z.array(DashboardMetricValueSchema),
+  case_analysis: z.array(z.string()),
+  purchase_history: z.array(DashboardSegmentItemSchema),
+  rationale: z.array(z.string()),
+  stage_flow: z.array(DashboardStageFlowSchema)
 });
 export type DashboardCreateFunnelRequest = z.infer<typeof DashboardCreateFunnelRequestSchema>;
 
