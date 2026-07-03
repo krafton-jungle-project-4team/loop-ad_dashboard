@@ -17,19 +17,19 @@ export class DashboardController {
   ) {}
 
   @Get("main")
-  async main(@Query("projectId") projectId?: string) {
+  async main(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardMainSchema.parse(await this.dashboardQuery.main(requiredProjectId));
   }
 
   @Get("funnels")
-  async funnels(@Query("projectId") projectId?: string) {
+  async funnels(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardFunnelListSchema.parse(await this.dashboardQuery.funnels(requiredProjectId));
   }
 
   @Get("event-catalog")
-  async eventCatalog(@Query("projectId") projectId?: string) {
+  async eventCatalog(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardEventCatalogSchema.parse(
       await this.dashboardQuery.eventCatalog(requiredProjectId)
@@ -37,7 +37,7 @@ export class DashboardController {
   }
 
   @Post("funnels")
-  async createFunnel(@Query("projectId") projectId: string | undefined, @Body() body: unknown) {
+  async createFunnel(@Query("project_id") projectId: string | undefined, @Body() body: unknown) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardCreateFunnelRequestSchema.parse(body);
     return DashboardFunnelSchema.parse(

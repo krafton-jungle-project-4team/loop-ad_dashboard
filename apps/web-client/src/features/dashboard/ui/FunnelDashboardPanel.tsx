@@ -1,5 +1,6 @@
 import {
   type DashboardCreateFunnelRequest,
+  DashboardFunnelEventNameSchema,
   type DashboardFunnelList
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
@@ -28,7 +29,12 @@ import {
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
-const DEFAULT_STEPS: DashboardCreateFunnelRequest["steps"] = [
+type FunnelDraftStep = {
+  step_name: string;
+  event_name: string;
+};
+
+const DEFAULT_STEPS: FunnelDraftStep[] = [
   { step_name: "", event_name: "" },
   { step_name: "", event_name: "" }
 ];
@@ -49,7 +55,7 @@ export function FunnelDashboardPanel({
   });
   const eventOptions = eventCatalog.data?.events ?? [];
   const createMutation = useMutation({
-    mutationFn: () => createDashboardFunnel(query, { funnel_name: funnelName, steps }),
+    mutationFn: () => createDashboardFunnel(query, createFunnelRequest(funnelName, steps)),
     onSuccess: async () => {
       setFunnelName("");
       setSteps(createDefaultSteps());
@@ -220,8 +226,21 @@ export function FunnelDashboardPanel({
   }
 }
 
-function createDefaultSteps(): DashboardCreateFunnelRequest["steps"] {
+function createDefaultSteps(): FunnelDraftStep[] {
   return DEFAULT_STEPS.map((step) => ({ ...step }));
+}
+
+function createFunnelRequest(
+  funnelName: string,
+  steps: FunnelDraftStep[]
+): DashboardCreateFunnelRequest {
+  return {
+    funnel_name: funnelName,
+    steps: steps.map((step) => ({
+      step_name: step.step_name,
+      event_name: DashboardFunnelEventNameSchema.parse(step.event_name)
+    }))
+  };
 }
 
 function eventPlaceholder(isLoading: boolean, isEmpty: boolean): string {

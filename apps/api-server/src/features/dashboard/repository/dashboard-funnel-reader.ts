@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { DashboardFunnelEventNameSchema } from "@loopad/shared";
 import type {
   DashboardCreateFunnelRequest,
   DashboardEventCatalogItem,
@@ -56,11 +57,14 @@ export class DashboardFunnelReader {
     });
     const rows = await result.json<EventCatalogRow>();
 
-    return rows.map((row) => ({
-      event_name: row.event_name,
-      display_name: eventDisplayName(row.event_name),
-      event_count: countValue(row.event_count)
-    }));
+    return rows.map((row) => {
+      const eventName = DashboardFunnelEventNameSchema.parse(row.event_name);
+      return {
+        event_name: eventName,
+        display_name: eventDisplayName(eventName),
+        event_count: countValue(row.event_count)
+      };
+    });
   }
 
   async listFunnels(projectId: string): Promise<DashboardFunnel[]> {

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { AppError } from "../src/app-errors.js";
 import type { DashboardQueryService } from "../src/features/dashboard/service/dashboard-query.service.js";
 
-test("dashboard controller requires projectId for event catalog", async () => {
+test("dashboard controller requires project_id for event catalog", async () => {
   setRequiredEnv();
   const { DashboardController } =
     await import("../src/features/dashboard/controller/dashboard.controller.js");
@@ -63,6 +63,25 @@ test("dashboard controller rejects invalid funnel create body", async () => {
       controller.createFunnel("hotel-client-a", {
         funnel_name: "숙소 예약 퍼널",
         steps: [{ step_name: "숙소 상세 조회", event_name: "hotel_detail_view" }]
+      }),
+    (error) => error instanceof z.ZodError
+  );
+});
+
+test("dashboard controller rejects unsupported funnel event names", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const controller = new DashboardController(emptyDashboardQuery());
+
+  await assert.rejects(
+    () =>
+      controller.createFunnel("hotel-client-a", {
+        funnel_name: "숙소 예약 퍼널",
+        steps: [
+          { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
+          { step_name: "임의 이벤트", event_name: "unknown_event" }
+        ]
       }),
     (error) => error instanceof z.ZodError
   );

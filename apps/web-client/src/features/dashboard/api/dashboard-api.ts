@@ -47,7 +47,7 @@ export async function createDashboardFunnel(
     `${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels`,
     window.location.origin
   );
-  url.searchParams.set("projectId", query.projectId);
+  url.searchParams.set("project_id", query.projectId);
 
   const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
@@ -75,7 +75,7 @@ async function request<T>(
   signal: AbortSignal
 ): Promise<T> {
   const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
-  url.searchParams.set("projectId", query.projectId);
+  url.searchParams.set("project_id", query.projectId);
   url.searchParams.set("dateRange", query.dateRange);
   url.searchParams.set("excludeInternalTraffic", String(query.excludeInternalTraffic));
   url.searchParams.set("excludeBotTraffic", String(query.excludeBotTraffic));

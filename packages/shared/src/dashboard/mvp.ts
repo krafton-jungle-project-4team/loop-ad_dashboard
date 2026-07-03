@@ -24,7 +24,19 @@ export const DashboardMainSchema = z.object({
 });
 export type DashboardMain = z.infer<typeof DashboardMainSchema>;
 
-export const DashboardFunnelEventNameSchema = z.string().min(1);
+export const DashboardFunnelEventNameSchema = z.enum([
+  "page_view",
+  "promotion_impression",
+  "promotion_click",
+  "campaign_redirect_click",
+  "campaign_landing",
+  "hotel_search",
+  "hotel_click",
+  "hotel_detail_view",
+  "booking_start",
+  "booking_complete",
+  "booking_cancel"
+]);
 export type DashboardFunnelEventName = z.infer<typeof DashboardFunnelEventNameSchema>;
 
 export const DashboardFunnelStepSchema = z.object({
