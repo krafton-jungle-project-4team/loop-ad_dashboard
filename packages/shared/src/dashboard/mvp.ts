@@ -2,83 +2,65 @@ import { z } from "zod";
 
 const RateSchema = z.number().min(0).max(1);
 const CountSchema = z.number().int().nonnegative();
-const MoneySchema = z.number().nonnegative();
 
-export const DashboardKpiCardSchema = z.object({
-  key: z.string(),
-  label: z.string(),
-  value: z.number(),
-  value_type: z.enum(["count", "money", "rate", "text"]),
-  description: z.string().nullable()
+export const DashboardCampaignSummarySchema = z.object({
+  campaign_id: z.string(),
+  campaign_name: z.string(),
+  objective: z.string().nullable(),
+  primary_metric: z.string().nullable(),
+  status: z.string(),
+  start_date: z.string().nullable(),
+  end_date: z.string().nullable(),
+  promotion_count: CountSchema,
+  segment_count: CountSchema,
+  ad_experiment_count: CountSchema,
+  latest_goal_achievement_rate: RateSchema.nullable(),
+  updated_at: z.string()
 });
-export type DashboardKpiCard = z.infer<typeof DashboardKpiCardSchema>;
-
-export const DashboardChartPointSchema = z.object({
-  label: z.string(),
-  value: z.number()
-});
-export type DashboardChartPoint = z.infer<typeof DashboardChartPointSchema>;
-
-export const DashboardSegmentItemSchema = z.object({
-  label: z.string(),
-  value: z.number(),
-  share: RateSchema
-});
-export type DashboardSegmentItem = z.infer<typeof DashboardSegmentItemSchema>;
-
-export const DashboardSegmentGroupSchema = z.object({
-  key: z.string(),
-  title: z.string(),
-  items: z.array(DashboardSegmentItemSchema)
-});
-export type DashboardSegmentGroup = z.infer<typeof DashboardSegmentGroupSchema>;
+export type DashboardCampaignSummary = z.infer<typeof DashboardCampaignSummarySchema>;
 
 export const DashboardMainSchema = z.object({
-  kpis: z.array(DashboardKpiCardSchema),
-  behavior_event_series: z.array(DashboardChartPointSchema),
-  purchase_series: z.array(DashboardChartPointSchema),
-  segment_status: z.array(DashboardSegmentGroupSchema)
+  campaigns: z.array(DashboardCampaignSummarySchema)
 });
 export type DashboardMain = z.infer<typeof DashboardMainSchema>;
 
+export const DashboardFunnelEventNameSchema = z.enum([
+  "page_view",
+  "promotion_impression",
+  "promotion_click",
+  "campaign_redirect_click",
+  "campaign_landing",
+  "hotel_search",
+  "hotel_click",
+  "hotel_detail_view",
+  "booking_start",
+  "booking_complete",
+  "booking_cancel"
+]);
+export type DashboardFunnelEventName = z.infer<typeof DashboardFunnelEventNameSchema>;
+
 export const DashboardFunnelStepSchema = z.object({
-  key: z.string(),
-  label: z.string(),
-  count: CountSchema,
-  rate_from_previous: RateSchema,
-  drop_off_rate: RateSchema
+  step_order: CountSchema,
+  step_name: z.string(),
+  event_name: DashboardFunnelEventNameSchema
 });
 export type DashboardFunnelStep = z.infer<typeof DashboardFunnelStepSchema>;
 
-export const DashboardDeviceConversionRowSchema = z.object({
-  device: z.string(),
-  session_start_count: CountSchema,
-  product_view_count: CountSchema,
-  add_to_cart_count: CountSchema,
-  checkout_start_count: CountSchema,
-  purchase_count: CountSchema,
-  view_to_cart_rate: RateSchema,
-  cart_to_purchase_rate: RateSchema,
-  view_to_purchase_rate: RateSchema
+export const DashboardFunnelSchema = z.object({
+  funnel_id: z.string(),
+  funnel_name: z.string(),
+  domain_type: z.string(),
+  status: z.string(),
+  steps: z.array(DashboardFunnelStepSchema),
+  created_at: z.string(),
+  updated_at: z.string()
 });
-export type DashboardDeviceConversionRow = z.infer<typeof DashboardDeviceConversionRowSchema>;
+export type DashboardFunnel = z.infer<typeof DashboardFunnelSchema>;
 
-export const DashboardCustomerBehaviorRowSchema = z.object({
-  customer_group_id: z.string(),
-  customer_group_name: z.string(),
-  conversion_rate: RateSchema,
-  major_drop_off_rate: RateSchema,
-  expected_revenue: MoneySchema,
-  observed_signal: z.string()
+export const DashboardFunnelListSchema = z.object({
+  funnels: z.array(DashboardFunnelSchema)
 });
-export type DashboardCustomerBehaviorRow = z.infer<typeof DashboardCustomerBehaviorRowSchema>;
-
-export const DashboardPurchaseConversionSchema = z.object({
-  funnel_steps: z.array(DashboardFunnelStepSchema),
-  device_rows: z.array(DashboardDeviceConversionRowSchema),
-  customer_behavior_rows: z.array(DashboardCustomerBehaviorRowSchema)
-});
-export type DashboardPurchaseConversion = z.infer<typeof DashboardPurchaseConversionSchema>;
+export type DashboardFunnelList = z.infer<typeof DashboardFunnelListSchema>;
 
 export const DashboardCustomerSegmentSchema = z.object({
   customer_group_id: z.string(),
@@ -89,7 +71,6 @@ export const DashboardCustomerSegmentSchema = z.object({
   category: z.string(),
   region: z.string(),
   device: z.string(),
-  has_anomaly: z.boolean(),
   conversion_rate: RateSchema,
   major_drop_off_stage: z.string(),
   expected_revenue: MoneySchema
@@ -118,55 +99,16 @@ export const DashboardCustomerDetailSchema = z.object({
   rationale: z.array(z.string()),
   stage_flow: z.array(DashboardStageFlowSchema)
 });
-export type DashboardCustomerDetail = z.infer<typeof DashboardCustomerDetailSchema>;
+export type DashboardCreateFunnelRequest = z.infer<typeof DashboardCreateFunnelRequestSchema>;
 
-export const DashboardAiAnalysisSchema = z.object({
-  sort: z.literal("high"),
-  customers: z.array(DashboardCustomerSegmentSchema),
-  selected_customer: DashboardCustomerDetailSchema.nullable()
+export const DashboardEventCatalogItemSchema = z.object({
+  event_name: DashboardFunnelEventNameSchema,
+  display_name: z.string(),
+  event_count: CountSchema
 });
-export type DashboardAiAnalysis = z.infer<typeof DashboardAiAnalysisSchema>;
+export type DashboardEventCatalogItem = z.infer<typeof DashboardEventCatalogItemSchema>;
 
-export const DashboardRecommendationActionSchema = z.object({
-  action_id: z.string(),
-  action_type: z.string(),
-  title: z.string(),
-  description: z.string(),
-  rationale: z.string(),
-  probability: RateSchema.nullable(),
-  status: z.string()
+export const DashboardEventCatalogSchema = z.object({
+  events: z.array(DashboardEventCatalogItemSchema)
 });
-export type DashboardRecommendationAction = z.infer<typeof DashboardRecommendationActionSchema>;
-
-export const DashboardAiRecommendationSchema = z.object({
-  sort: z.literal("high"),
-  customers: z.array(DashboardCustomerSegmentSchema),
-  selected_customer: DashboardCustomerDetailSchema.nullable(),
-  recommended_actions: z.array(DashboardRecommendationActionSchema),
-  recommendation_rationale: z.array(z.string())
-});
-export type DashboardAiRecommendation = z.infer<typeof DashboardAiRecommendationSchema>;
-
-export const DashboardGeneratedContentSchema = z.object({
-  content_id: z.string(),
-  content_type: z.enum(["copy", "image", "video", "landing"]),
-  title: z.string(),
-  message: z.string().nullable(),
-  content_url: z.string().nullable(),
-  status: z.string(),
-  created_at: z.string()
-});
-export type DashboardGeneratedContent = z.infer<typeof DashboardGeneratedContentSchema>;
-
-export const DashboardGenerationItemSchema = z.object({
-  action: DashboardRecommendationActionSchema,
-  content: DashboardGeneratedContentSchema.nullable()
-});
-export type DashboardGenerationItem = z.infer<typeof DashboardGenerationItemSchema>;
-
-export const DashboardAiGenerationSchema = z.object({
-  customers: z.array(DashboardCustomerSegmentSchema),
-  selected_customer: DashboardCustomerSegmentSchema.nullable(),
-  generated_items: z.array(DashboardGenerationItemSchema)
-});
-export type DashboardAiGeneration = z.infer<typeof DashboardAiGenerationSchema>;
+export type DashboardEventCatalog = z.infer<typeof DashboardEventCatalogSchema>;
