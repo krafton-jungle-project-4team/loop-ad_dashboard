@@ -3,17 +3,11 @@ import { DatabaseModule } from "../../infra/database/index.js";
 import {
   AwsSesEmailSender,
   AwsSnsSmsSender,
-  ChannelDispatchSender,
-  DispatchSender,
   EmailSender,
   MockEmailSender,
   MockSmsSender,
   SmsSender
 } from "./adapters/dispatch-sender.js";
-import {
-  RecipientResolver,
-  UnconfiguredRecipientResolver
-} from "./adapters/recipient-resolver.js";
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
 import { RedirectController } from "./controller/redirect.controller.js";
 import { AdExecutionReader, AdExecutionWriter } from "./repository/index.js";
@@ -37,7 +31,6 @@ const DISPATCH_PROVIDER: DispatchProviderName = "mock";
     RedirectService,
     AdExecutionReader,
     AdExecutionWriter,
-    { provide: RecipientResolver, useClass: UnconfiguredRecipientResolver },
     {
       provide: EmailSender,
       useFactory: () => createEmailSender(DISPATCH_PROVIDER)
@@ -45,8 +38,7 @@ const DISPATCH_PROVIDER: DispatchProviderName = "mock";
     {
       provide: SmsSender,
       useFactory: () => createSmsSender(DISPATCH_PROVIDER)
-    },
-    { provide: DispatchSender, useClass: ChannelDispatchSender }
+    }
   ]
 })
 export class AdExecutionModule {}

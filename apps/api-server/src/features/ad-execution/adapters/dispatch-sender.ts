@@ -1,34 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { PublishCommand, SNSClient } from "@aws-sdk/client-sns";
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
-import { Inject, Injectable } from "@nestjs/common";
-import type { DispatchChannel } from "../domain/index.js";
+import { Injectable } from "@nestjs/common";
 
 const AWS_DISPATCH_REGION = "ap-northeast-2";
 const AWS_EMAIL_FROM_ADDRESS = "noreply@example.com";
 
-export interface DispatchSendInput {
-  channel: DispatchChannel;
+export interface EmailSendInput {
   recipient: string;
   subject: string;
   body: string;
   redirectUrl: string;
 }
 
+export type SmsSendInput = Omit<EmailSendInput, "subject">;
+
 export interface DispatchSendResult {
   provider: string;
   providerMessageId: string;
-}
-
-export type EmailSendInput = Omit<DispatchSendInput, "channel">;
-export type SmsSendInput = Omit<DispatchSendInput, "channel" | "subject">;
-
-/** 채널별 발송 provider 선택과 발송 호출을 담당하는 인터페이스입니다. */
-export abstract class DispatchSender {
-  /** 채널에 사용할 provider 이름을 반환합니다. */
-  abstract providerNameFor(channel: DispatchChannel): string;
-  /** Email/SMS 발송 요청을 실행합니다. */
-  abstract send(input: DispatchSendInput): Promise<DispatchSendResult>;
 }
 
 /** Email 발송 provider가 구현해야 하는 인터페이스입니다. */
@@ -43,42 +32,6 @@ export abstract class SmsSender {
   abstract readonly providerName: string;
   /** SMS 발송을 실행합니다. */
   abstract sendSms(input: SmsSendInput): Promise<DispatchSendResult>;
-}
-
-/** 채널에 따라 Email/SMS sender로 발송을 위임합니다. */
-@Injectable()
-export class ChannelDispatchSender extends DispatchSender {
-  constructor(
-    @Inject(EmailSender)
-    private readonly emailSender: EmailSender,
-    @Inject(SmsSender)
-    private readonly smsSender: SmsSender
-  ) {
-    super();
-  }
-
-  /** 채널에 연결된 sender의 provider 이름을 반환합니다. */
-  providerNameFor(channel: DispatchChannel): string {
-    return channel === "email" ? this.emailSender.providerName : this.smsSender.providerName;
-  }
-
-  /** 채널 값에 맞는 sender를 호출합니다. */
-  async send(input: DispatchSendInput): Promise<DispatchSendResult> {
-    if (input.channel === "email") {
-      return this.emailSender.sendEmail({
-        recipient: input.recipient,
-        subject: input.subject,
-        body: input.body,
-        redirectUrl: input.redirectUrl
-      });
-    }
-
-    return this.smsSender.sendSms({
-      recipient: input.recipient,
-      body: input.body,
-      redirectUrl: input.redirectUrl
-    });
-  }
 }
 
 /** 로컬/현재 배포에서 사용하는 Mock Email sender입니다. */

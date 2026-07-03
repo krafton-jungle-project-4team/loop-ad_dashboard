@@ -6,11 +6,12 @@ import { env } from "../../../infra/env/env.js";
 import { logWithContext } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
 import {
-  DispatchSender,
-  type DispatchSendInput,
-  type DispatchSendResult
+  EmailSender,
+  type DispatchSendResult,
+  type EmailSendInput,
+  SmsSender,
+  type SmsSendInput
 } from "../adapters/dispatch-sender.js";
-import { RecipientResolver } from "../adapters/recipient-resolver.js";
 import {
   AdExecutionDomain,
   type ActiveAdServingAssignmentEntity,
@@ -47,10 +48,10 @@ export class PromotionDispatchService {
     private readonly reader: AdExecutionReader,
     @Inject(AdExecutionWriter)
     private readonly writer: AdExecutionWriter,
-    @Inject(RecipientResolver)
-    private readonly recipientResolver: RecipientResolver,
-    @Inject(DispatchSender)
-    private readonly dispatchSender: DispatchSender
+    @Inject(EmailSender)
+    private readonly emailSender: EmailSender,
+    @Inject(SmsSender)
+    private readonly smsSender: SmsSender
   ) {}
 
   /** promotion_run_id 기준으로 Email/SMS 발송을 실행합니다. */
@@ -163,7 +164,7 @@ export class PromotionDispatchService {
       promotionRunId: context.promotionRun.promotionRunId,
       adExperimentId: first.adExperimentId,
       channel: context.channel,
-      provider: this.dispatchSender.providerNameFor(context.channel),
+      provider: this.providerNameFor(context.channel),
       targetCount: assignments.length,
       request: {
         segment_id: first.segmentId,
@@ -191,22 +192,12 @@ export class PromotionDispatchService {
     assignment: ActiveAdServingAssignmentEntity
   ): Promise<DispatchAttemptSnapshot> {
     const redirectId = await this.createRedirectLink(assignment);
-    const provider = this.dispatchSender.providerNameFor(channel);
+    const provider = this.providerNameFor(channel);
 
     logDispatchAttempt(channel, provider, assignment, redirectId);
 
     try {
-      const recipient = await this.resolveRecipient(channel, assignment);
-
-      if (!recipient) {
-        const attempt = toFailedAttempt(assignment.userId, redirectId, "RECIPIENT_NOT_FOUND");
-
-        logDispatchResult(channel, provider, assignment, attempt);
-
-        return attempt;
-      }
-
-      const sendResult = await this.sendDispatch(channel, assignment, recipient, redirectId);
+      const sendResult = await this.sendDispatch(channel, assignment, redirectId);
       const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
 
       logDispatchResult(channel, sendResult.provider, assignment, attempt);
@@ -221,28 +212,18 @@ export class PromotionDispatchService {
     }
   }
 
-  private async resolveRecipient(
-    channel: DispatchChannel,
-    assignment: ActiveAdServingAssignmentEntity
-  ): Promise<string | null> {
-    const resolution = await this.recipientResolver.resolve({
-      projectId: assignment.projectId,
-      userId: assignment.userId,
-      channel
-    });
-
-    return resolution?.recipient ?? null;
-  }
-
   private async sendDispatch(
     channel: DispatchChannel,
     assignment: ActiveAdServingAssignmentEntity,
-    recipient: string,
     redirectId: string
   ): Promise<DispatchSendResult> {
-    return this.dispatchSender.send(
-      toDispatchSendInput(channel, assignment, recipient, redirectUrl(redirectId))
-    );
+    const targetUrl = redirectUrl(redirectId);
+
+    if (channel === "email") {
+      return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl));
+    }
+
+    return this.smsSender.sendSms(toSmsSendInput(assignment, targetUrl));
   }
 
   private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
@@ -290,34 +271,36 @@ export class PromotionDispatchService {
       throw adExecutionErrors.inconsistentAssignment(conflicts.join(" "));
     }
   }
+
+  private providerNameFor(channel: DispatchChannel) {
+    return channel === "email" ? this.emailSender.providerName : this.smsSender.providerName;
+  }
 }
 
-function toDispatchSendInput(
-  channel: DispatchChannel,
+function toEmailSendInput(
   assignment: ActiveAdServingAssignmentEntity,
-  recipient: string,
   targetUrl: string
-): DispatchSendInput {
-  if (channel === "email") {
-    const content = emailContentSchema.parse(assignment);
+): EmailSendInput {
+  const content = emailContentSchema.parse(assignment);
 
-    return {
-      channel,
-      recipient,
-      subject: content.subject,
-      body: [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
-        .filter(Boolean)
-        .join("\n\n"),
-      redirectUrl: targetUrl
-    };
-  }
+  return {
+    recipient: assignment.userId,
+    subject: content.subject,
+    body: [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
+      .filter(Boolean)
+      .join("\n\n"),
+    redirectUrl: targetUrl
+  };
+}
 
+function toSmsSendInput(
+  assignment: ActiveAdServingAssignmentEntity,
+  targetUrl: string
+): SmsSendInput {
   const content = smsContentSchema.parse(assignment);
 
   return {
-    channel,
-    recipient,
-    subject: "",
+    recipient: assignment.userId,
     body: [content.message, targetUrl].join(" "),
     redirectUrl: targetUrl
   };

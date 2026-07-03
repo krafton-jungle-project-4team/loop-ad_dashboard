@@ -4,7 +4,6 @@ import { AppError } from "../src/app-errors.js";
 import type {
   ActiveAdServingAssignmentEntity,
   AdExperimentEntity,
-  DispatchChannel,
   PromotionEntity,
   PromotionRunEntity,
   RedirectLinkEntity
@@ -32,14 +31,13 @@ const { RedirectService } =
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
 
-test("dispatch uses stored assignments and keeps resolver failures visible", async () => {
+test("dispatch uses stored assignments and keeps sender failures visible", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
-  const resolver = new FakeRecipientResolver();
-  const sender = new FakeDispatchSender();
-  const service = createDispatchService(reader, writer, resolver, sender);
+  const emailSender = new FakeEmailSender();
+  const service = createDispatchService(reader, writer, emailSender);
 
-  resolver.missingUserIds.add("user-missing");
+  emailSender.failedRecipients.add("user-missing");
   reader.dispatchAssignments = [
     assignment({ userId: "user-ok" }),
     assignment({ userId: "user-missing" })
@@ -59,7 +57,7 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
   assert.equal(writer.redirectLinks[0]?.adExperimentId, "exp-1");
   assert.equal(writer.finishes[0]?.status, "failed");
   assert.equal(writer.finishes[0]?.failedCount, 1);
-  assert.equal(sender.sent.length, 1);
+  assert.equal(emailSender.sent.length, 1);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
   assert.deepEqual(
@@ -78,7 +76,7 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
     false
   );
   assert.equal(
-    (sender.sent[0] as { redirectUrl: string } | undefined)?.redirectUrl.startsWith(
+    (emailSender.sent[0] as { redirectUrl: string } | undefined)?.redirectUrl.startsWith(
       "http://localhost:8080/r/"
     ),
     true
@@ -88,7 +86,7 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
 test("dispatch fails invalid email content instead of synthesizing fallbacks", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
-  const sender = new FakeDispatchSender();
+  const emailSender = new FakeEmailSender();
 
   reader.dispatchAssignments = [
     assignment({
@@ -102,12 +100,7 @@ test("dispatch fails invalid email content instead of synthesizing fallbacks", a
   ];
 
   const { result: response } = await captureDispatchLogs(() =>
-    createDispatchService(
-      reader,
-      writer,
-      new FakeRecipientResolver(),
-      sender
-    ).dispatchPromotionRun("run-1")
+    createDispatchService(reader, writer, emailSender).dispatchPromotionRun("run-1")
   );
 
   assert.equal(response.dispatched_count, 0);
@@ -119,7 +112,7 @@ test("dispatch fails invalid email content instead of synthesizing fallbacks", a
       ?.attempts[0]?.errorCode,
     "CONTENT_INVALID"
   );
-  assert.equal(sender.sent.length, 0);
+  assert.equal(emailSender.sent.length, 0);
 });
 
 test("dispatch rejects onsite banner promotion runs", async () => {
@@ -230,14 +223,14 @@ test("redirect page escapes script data and fallback href with stable libraries"
 function createDispatchService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
-  resolver = new FakeRecipientResolver(),
-  sender = new FakeDispatchSender()
+  emailSender = new FakeEmailSender(),
+  smsSender = new FakeSmsSender()
 ) {
   return new PromotionDispatchService(
     reader as ConstructorParameters<typeof PromotionDispatchService>[0],
     writer as ConstructorParameters<typeof PromotionDispatchService>[1],
-    resolver as ConstructorParameters<typeof PromotionDispatchService>[2],
-    sender as ConstructorParameters<typeof PromotionDispatchService>[3]
+    emailSender as ConstructorParameters<typeof PromotionDispatchService>[2],
+    smsSender as ConstructorParameters<typeof PromotionDispatchService>[3]
   );
 }
 
@@ -427,31 +420,34 @@ class FakeAdExecutionWriter {
   }
 }
 
-class FakeRecipientResolver {
-  missingUserIds = new Set<string>();
+class FakeEmailSender {
+  providerName = "fake-email";
+  failedRecipients = new Set<string>();
 
-  async resolve(input: { userId: string; channel: DispatchChannel }) {
-    if (this.missingUserIds.has(input.userId)) {
-      return null;
+  sent: unknown[] = [];
+
+  async sendEmail(input: { recipient: string }) {
+    if (this.failedRecipients.has(input.recipient)) {
+      throw new Error("Email send failed.");
     }
 
+    this.sent.push(input);
     return {
-      recipient: input.channel === "email" ? `${input.userId}@example.test` : "+15551234567"
+      provider: this.providerName,
+      providerMessageId: "provider-message-1"
     };
   }
 }
 
-class FakeDispatchSender {
-  providerNameFor() {
-    return "fake";
-  }
+class FakeSmsSender {
+  providerName = "fake-sms";
 
   sent: unknown[] = [];
 
-  async send(input: unknown) {
+  async sendSms(input: unknown) {
     this.sent.push(input);
     return {
-      provider: "fake",
+      provider: this.providerName,
       providerMessageId: "provider-message-1"
     };
   }

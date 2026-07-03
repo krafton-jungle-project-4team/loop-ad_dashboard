@@ -161,7 +161,7 @@ VALUES (
 RETURNING
   dispatch_job_id AS "dispatchJobId";
 
-/* Purpose: Finish one dispatch job without hiding provider or resolver failures. */
+/* Purpose: Finish one dispatch job without hiding provider failures. */
 /* @name UpdateDispatchJobResult */
 UPDATE ad_dispatch_jobs
 SET
