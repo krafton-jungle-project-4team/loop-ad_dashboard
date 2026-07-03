@@ -51,6 +51,7 @@ export const env = Object.freeze({
     apiKey: parsedEnv.LOOPAD_OPENAI_API_KEY
   }
 });
+export type AppEnv = typeof env;
 
 function parseEnv(source: NodeJS.ProcessEnv): z.infer<typeof envSchema> {
   const result = envSchema.safeParse(source);

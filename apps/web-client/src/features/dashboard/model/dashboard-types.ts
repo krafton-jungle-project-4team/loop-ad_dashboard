@@ -1,19 +1,6 @@
-import type {
-  DashboardAiAnalysis,
-  DashboardAiGeneration,
-  DashboardAiRecommendation,
-  DashboardMain,
-  DashboardPurchaseConversion
-} from "@loopad/shared";
+import type { DashboardFunnelList, DashboardMain } from "@loopad/shared";
 
-export const dashboardTabValues = [
-  "main",
-  "purchaseConversion",
-  "aiAnalysis",
-  "aiRecommendation",
-  "aiGeneration",
-  "dataExplorer"
-] as const;
+export const dashboardTabValues = ["main", "funnels", "dataExplorer"] as const;
 
 export type DashboardTab = (typeof dashboardTabValues)[number];
 
@@ -35,10 +22,7 @@ export type DashboardConversionEvent =
 
 export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
-  | { tab: "purchaseConversion"; data: DashboardPurchaseConversion }
-  | { tab: "aiAnalysis"; data: DashboardAiAnalysis }
-  | { tab: "aiRecommendation"; data: DashboardAiRecommendation }
-  | { tab: "aiGeneration"; data: DashboardAiGeneration };
+  | { tab: "funnels"; data: DashboardFunnelList };
 
 export type DashboardQuery = {
   projectId: string;

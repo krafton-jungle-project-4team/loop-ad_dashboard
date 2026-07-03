@@ -1,93 +1,140 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { DashboardEventQuery } from "../src/features/dashboard/repository/dashboard-event-query.js";
-import type { DashboardRecommendationReader } from "../src/features/dashboard/repository/dashboard-recommendation-reader.js";
-import type { DashboardSegmentMetricsReader } from "../src/features/dashboard/repository/dashboard-segment-metrics-reader.js";
-import type { DashboardSegmentMetricView } from "../src/features/dashboard/repository/read-models.js";
+import type { TransactionHost } from "@nestjs-cls/transactional";
+import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
+import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
+import type { PgTypedTransactionalAdapter } from "../src/infra/database/pgtyped-transactional.adapter.js";
 
-test("AI dashboard queries use segment metrics without calling ClickHouse events", async () => {
+test("dashboard main returns campaign summaries from the campaign reader", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
-  const metricReads: Array<{ projectId: string; analysisDate: string | undefined }> = [];
-  const recommendationReads: Array<{ projectId: string; analysisDate: string | undefined }> = [];
-  let clickHouseCalls = 0;
+  const reads: string[] = [];
   const service = new DashboardQueryService(
     {
-      queryEventViews: async () => {
-        clickHouseCalls += 1;
-        throw new Error("AI dashboard query must not read ClickHouse events.");
+      listCampaigns: async (projectId: string) => {
+        reads.push(projectId);
+        return [
+          {
+            campaign_id: "camp_summer_2026",
+            campaign_name: "2026 여름 특가 세일",
+            objective: "기존 유저의 여름 숙박 예약 전환 증가",
+            primary_metric: "booking_conversion_rate",
+            status: "active",
+            start_date: "2026-07-15",
+            end_date: "2026-08-31",
+            promotion_count: 3,
+            segment_count: 4,
+            ad_experiment_count: 4,
+            latest_goal_achievement_rate: 0.72,
+            updated_at: "2026-07-03T00:00:00.000Z"
+          }
+        ];
       }
-    } as unknown as DashboardEventQuery,
-    {
-      readRecommendationContexts: async (projectId: string, analysisDate: string | undefined) => {
-        recommendationReads.push({ projectId, analysisDate });
-        return [];
-      }
-    } as unknown as DashboardRecommendationReader,
-    {
-      readSegmentMetrics: async (projectId: string, analysisDate: string | undefined) => {
-        metricReads.push({ projectId, analysisDate });
-        return [];
-      }
-    } as unknown as DashboardSegmentMetricsReader
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    passthroughTransactionHost()
   );
 
-  const analysis = await service.aiAnalysis("demo-shop", "unknown", "2026-07-01");
-  const recommendation = await service.aiRecommendation("demo-shop", "unknown", "2026-07-01");
-  const generation = await service.aiGeneration("demo-shop", "unknown", "2026-07-01");
+  const main = await service.main("hotel-client-a");
 
-  assert.equal(clickHouseCalls, 0);
-  assert.deepEqual(
-    metricReads.map((read) => read.analysisDate),
-    ["2026-07-01", "2026-07-01", "2026-07-01"]
-  );
-  assert.deepEqual(
-    recommendationReads.map((read) => read.analysisDate),
-    ["2026-07-01", "2026-07-01", "2026-07-01"]
-  );
-  assert.deepEqual(analysis.customers, []);
-  assert.equal(analysis.selected_customer, null);
-  assert.deepEqual(recommendation.customers, []);
-  assert.equal(recommendation.selected_customer, null);
-  assert.deepEqual(recommendation.recommended_actions, []);
-  assert.deepEqual(recommendation.recommendation_rationale, []);
-  assert.deepEqual(generation.customers, []);
-  assert.equal(generation.selected_customer, null);
-  assert.deepEqual(generation.generated_items, []);
+  assert.deepEqual(reads, ["hotel-client-a"]);
+  assert.equal(main.campaigns.length, 1);
+  assert.equal(main.campaigns[0]?.campaign_id, "camp_summer_2026");
+  assert.equal(main.campaigns[0]?.segment_count, 4);
 });
 
-test("AI dashboard keeps segment metric customers when recommendations are empty for the date", async () => {
+test("dashboard event catalog returns collected funnel event options", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
-  const service = new DashboardQueryService(
-    {
-      queryEventViews: async () => {
-        throw new Error("AI dashboard query must not read ClickHouse events.");
-      }
-    } as unknown as DashboardEventQuery,
-    {
-      readRecommendationContexts: async () => []
-    } as unknown as DashboardRecommendationReader,
-    {
-      readSegmentMetrics: async () => [
-        segmentMetric({ customer_group_id: "vip", customer_group_name: "VIP 고객군" })
-      ]
-    } as unknown as DashboardSegmentMetricsReader
-  );
+  const reads: string[] = [];
+  const service = new DashboardQueryService(emptyCampaignReader(), {
+    ...emptyFunnelReader(),
+    listEventCatalog: async (projectId: string) => {
+      reads.push(projectId);
+      return [
+        {
+          event_name: "hotel_detail_view",
+          display_name: "숙소 상세 조회",
+          event_count: 32
+        }
+      ];
+    }
+  } as unknown as DashboardFunnelReader, passthroughTransactionHost());
 
-  const analysis = await service.aiAnalysis("demo-shop", "vip", "2026-07-01");
-  const recommendation = await service.aiRecommendation("demo-shop", "vip", "2026-07-01");
-  const generation = await service.aiGeneration("demo-shop", "vip", "2026-07-01");
+  const eventCatalog = await service.eventCatalog("hotel-client-a");
 
-  assert.equal(analysis.customers.length, 1);
-  assert.equal(analysis.selected_customer?.customer_group.customer_group_id, "vip");
-  assert.equal(recommendation.customers.length, 1);
-  assert.deepEqual(recommendation.recommended_actions, []);
-  assert.equal(generation.customers.length, 1);
-  assert.deepEqual(generation.generated_items, []);
+  assert.deepEqual(reads, ["hotel-client-a"]);
+  assert.deepEqual(eventCatalog.events, [
+    {
+      event_name: "hotel_detail_view",
+      display_name: "숙소 상세 조회",
+      event_count: 32
+    }
+  ]);
 });
+
+test("dashboard create funnel delegates selected events to the funnel reader", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const service = new DashboardQueryService(emptyCampaignReader(), {
+    ...emptyFunnelReader(),
+    createFunnel: async (projectId, request) => {
+      writes.push({ projectId, request });
+      return {
+        funnel_id: "funnel_hotel_booking",
+        funnel_name: request.funnel_name,
+        domain_type: "hotel",
+        status: "active",
+        steps: request.steps.map((step, index) => ({
+          step_order: index + 1,
+          step_name: step.step_name,
+          event_name: step.event_name
+        })),
+        created_at: "2026-07-03T00:00:00.000Z",
+        updated_at: "2026-07-03T00:00:00.000Z"
+      };
+    }
+  } as unknown as DashboardFunnelReader, passthroughTransactionHost());
+
+  const funnel = await service.createFunnel("hotel-client-a", {
+    funnel_name: "숙소 예약 퍼널",
+    steps: [
+      { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
+      { step_name: "예약 시작", event_name: "booking_start" },
+      { step_name: "예약 완료", event_name: "booking_complete" }
+    ]
+  });
+
+  assert.equal(writes.length, 1);
+  assert.equal(funnel.steps[0]?.event_name, "hotel_detail_view");
+  assert.equal(funnel.steps[2]?.step_name, "예약 완료");
+});
+
+function emptyCampaignReader(): DashboardCampaignReader {
+  return {
+    listCampaigns: async () => []
+  } as unknown as DashboardCampaignReader;
+}
+
+function emptyFunnelReader(): DashboardFunnelReader {
+  return {
+    createFunnel: async () => {
+      throw new Error("Unexpected createFunnel call.");
+    },
+    listEventCatalog: async () => [],
+    listFunnels: async () => []
+  } as unknown as DashboardFunnelReader;
+}
+
+function passthroughTransactionHost(): TransactionHost<PgTypedTransactionalAdapter> {
+  return {
+    withTransaction: async (callback: () => Promise<unknown>) => callback()
+  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
+}
 
 function setRequiredEnv() {
   process.env.LOOPAD_ENV ??= "local";
@@ -103,32 +150,4 @@ function setRequiredEnv() {
   process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
   process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
   process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
-}
-
-function segmentMetric(
-  overrides: Partial<DashboardSegmentMetricView> = {}
-): DashboardSegmentMetricView {
-  return {
-    segment_id: "1",
-    analysis_date: "2026-07-01",
-    customer_group_id: "segment-a",
-    customer_group_name: "기본 세그먼트",
-    channel: "organic",
-    age_group: "20s",
-    gender: "unknown",
-    category: "general",
-    region: "미상",
-    device: "desktop",
-    user_count: 10,
-    session_start_count: 10,
-    page_view_count: 20,
-    product_view_count: 10,
-    add_to_cart_count: 5,
-    checkout_start_count: 3,
-    purchase_count: 1,
-    ad_impression_count: 0,
-    ad_click_count: 0,
-    revenue: 120_000,
-    ...overrides
-  };
 }

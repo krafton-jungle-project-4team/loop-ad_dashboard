@@ -1,72 +1,47 @@
-import { Controller, Get, Inject, Query } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Post, Query } from "@nestjs/common";
 import {
-  DashboardAiAnalysisSchema,
-  DashboardAiGenerationSchema,
-  DashboardAiRecommendationSchema,
-  DashboardMainSchema,
-  DashboardPurchaseConversionSchema
+  DashboardCreateFunnelRequestSchema,
+  DashboardEventCatalogSchema,
+  DashboardFunnelListSchema,
+  DashboardFunnelSchema,
+  DashboardMainSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
 
-@Controller()
+@Controller("dashboard/v1")
 export class DashboardController {
   constructor(
     @Inject(DashboardQueryService)
     private readonly dashboardQuery: DashboardQueryService
   ) {}
 
-  @Get("dashboard/main")
-  async main(@Query("projectId") projectId?: string) {
+  @Get("main")
+  async main(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardMainSchema.parse(await this.dashboardQuery.main(requiredProjectId));
   }
 
-  @Get("dashboard/purchase-conversion")
-  async purchaseConversion(@Query("projectId") projectId?: string) {
+  @Get("funnels")
+  async funnels(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
-    return DashboardPurchaseConversionSchema.parse(
-      await this.dashboardQuery.purchaseConversion(requiredProjectId)
+    return DashboardFunnelListSchema.parse(await this.dashboardQuery.funnels(requiredProjectId));
+  }
+
+  @Get("event-catalog")
+  async eventCatalog(@Query("project_id") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardEventCatalogSchema.parse(
+      await this.dashboardQuery.eventCatalog(requiredProjectId)
     );
   }
 
-  @Get("dashboard/ai-analysis")
-  async aiAnalysis(
-    @Query("projectId") projectId?: string,
-    @Query("selectedCustomerId") selectedCustomerId?: string,
-    @Query("analysisDate") analysisDate?: string
-  ) {
+  @Post("funnels")
+  async createFunnel(@Query("project_id") projectId: string | undefined, @Body() body: unknown) {
     const requiredProjectId = requireProjectId(projectId);
-    return DashboardAiAnalysisSchema.parse(
-      await this.dashboardQuery.aiAnalysis(requiredProjectId, selectedCustomerId, analysisDate)
-    );
-  }
-
-  @Get("dashboard/ai-recommendation")
-  async aiRecommendation(
-    @Query("projectId") projectId?: string,
-    @Query("selectedCustomerId") selectedCustomerId?: string,
-    @Query("analysisDate") analysisDate?: string
-  ) {
-    const requiredProjectId = requireProjectId(projectId);
-    return DashboardAiRecommendationSchema.parse(
-      await this.dashboardQuery.aiRecommendation(
-        requiredProjectId,
-        selectedCustomerId,
-        analysisDate
-      )
-    );
-  }
-
-  @Get("dashboard/ai-generation")
-  async aiGeneration(
-    @Query("projectId") projectId?: string,
-    @Query("selectedCustomerId") selectedCustomerId?: string,
-    @Query("analysisDate") analysisDate?: string
-  ) {
-    const requiredProjectId = requireProjectId(projectId);
-    return DashboardAiGenerationSchema.parse(
-      await this.dashboardQuery.aiGeneration(requiredProjectId, selectedCustomerId, analysisDate)
+    const request = DashboardCreateFunnelRequestSchema.parse(body);
+    return DashboardFunnelSchema.parse(
+      await this.dashboardQuery.createFunnel(requiredProjectId, request)
     );
   }
 }
