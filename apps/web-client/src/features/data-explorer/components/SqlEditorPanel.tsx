@@ -1,101 +1,69 @@
-import type {
-  DataExplorerSource,
-  DataExplorerSourceId,
-  DataExplorerSqlValidation
-} from "@loopad/shared";
+import type { DataExplorerSqlValidation } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
-import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button } from "@loopad/ui/shadcn/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
-import { CheckCircle2, Loader2, Play } from "lucide-react";
-import { Section } from "../../dashboard/ui/Section.js";
+import { useLayoutEffect, useRef, useState } from "react";
+
+const MIN_EDITOR_HEIGHT = 400;
+const MAX_EDITOR_HEIGHT = 560;
 
 export function SqlEditorPanel({
-  pending,
-  onRun,
-  onSourceIdChange,
   onSqlTextChange,
-  sourceId,
-  sources,
   sqlText,
   validation
 }: {
-  pending: boolean;
-  onRun: () => void;
-  onSourceIdChange: (sourceId: DataExplorerSourceId) => void;
   onSqlTextChange: (value: string) => void;
-  sourceId: DataExplorerSourceId;
-  sources: DataExplorerSource[];
   sqlText: string;
   validation: DataExplorerSqlValidation | null;
 }) {
-  const hasInvalidValidation = validation?.status === "invalid";
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [editorHeight, setEditorHeight] = useState(MIN_EDITOR_HEIGHT);
+  const lineNumbers = Array.from(
+    { length: Math.max(sqlText.split("\n").length, 22) },
+    (_, index) => index + 1
+  );
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = `${MIN_EDITOR_HEIGHT}px`;
+    setEditorHeight(
+      Math.min(MAX_EDITOR_HEIGHT, Math.max(MIN_EDITOR_HEIGHT, textarea.scrollHeight))
+    );
+  }, [sqlText]);
 
   return (
-    <Section
-      action={
-        <div className="flex items-center gap-2">
-          <Button disabled={pending || !sqlText.trim()} onClick={onRun} type="button">
-            {pending ? <Loader2 className="animate-spin" /> : <Play />}
-            실행
-          </Button>
+    <div className="min-w-0 overflow-hidden bg-white">
+      <div className="relative overflow-hidden bg-[#fafafc]" style={{ height: editorHeight }}>
+        <div className="pointer-events-none absolute left-0 top-0 grid w-10 gap-0 border-r border-black/10 py-3 text-right font-mono text-xs leading-5 text-muted-foreground">
+          {lineNumbers.map((lineNumber) => (
+            <span className="pr-2.5" key={lineNumber}>
+              {lineNumber}
+            </span>
+          ))}
         </div>
-      }
-      contentClassName="grid gap-4"
-      title="SQL 쿼리"
-    >
-      <div className="flex flex-wrap items-center gap-3">
-        <Select
-          onValueChange={(value) => onSourceIdChange(value as DataExplorerSourceId)}
-          value={sourceId}
-        >
-          <SelectTrigger className="w-[260px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {sources.map((source) => (
-              <SelectItem key={source.source_id} value={source.source_id}>
-                {source.display_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {validation ? (
-          <Badge variant={hasInvalidValidation ? "destructive" : "outline"}>
-            {hasInvalidValidation ? "invalid" : "valid"}
-          </Badge>
-        ) : null}
-        {validation?.status === "valid" ? (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <CheckCircle2 className="size-3.5 text-[#0066cc]" />
-            limit {validation.effective_row_limit}, timeout {validation.effective_timeout_ms}ms
-          </span>
-        ) : null}
+        <Textarea
+          className="resize-none overflow-auto rounded-none border-0 bg-transparent py-3 pl-12 pr-4 font-mono text-xs leading-5 text-[#1d1d1f] shadow-none outline-none ring-0 ![field-sizing:fixed] placeholder:text-muted-foreground focus-visible:ring-0"
+          onChange={(event) => onSqlTextChange(event.target.value)}
+          placeholder="SELECT ..."
+          ref={textareaRef}
+          spellCheck={false}
+          style={{ height: editorHeight }}
+          value={sqlText}
+          wrap="off"
+        />
       </div>
 
-      <Textarea
-        className="min-h-72 resize-y font-mono text-sm leading-relaxed"
-        onChange={(event) => onSqlTextChange(event.target.value)}
-        placeholder="SELECT ..."
-        spellCheck={false}
-        value={sqlText}
-      />
-
       {validation?.errors.length ? (
-        <Alert variant="destructive">
+        <Alert className="m-4" variant="destructive">
           <AlertTitle>Validation error</AlertTitle>
           <AlertDescription>
             {validation.errors.map((error) => error.message).join(" ")}
           </AlertDescription>
         </Alert>
       ) : null}
-    </Section>
+    </div>
   );
 }

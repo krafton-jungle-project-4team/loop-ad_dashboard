@@ -1,5 +1,6 @@
 import type {
   DataExplorerAiChatCurrentResult,
+  DataExplorerObjectSummary,
   DataExplorerQueryRunMetadata,
   DataExplorerQueryRunResponse,
   DataExplorerSource,
@@ -8,22 +9,41 @@ import type {
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
+import { Button } from "@loopad/ui/shadcn/button";
+import { ScrollArea } from "@loopad/ui/shadcn/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useQuery } from "@tanstack/react-query";
-import type { Dispatch, SetStateAction } from "react";
-import { useCallback, useState } from "react";
+import { Loader2, Play } from "lucide-react";
+import type {
+  CSSProperties,
+  Dispatch,
+  PointerEvent as ReactPointerEvent,
+  SetStateAction
+} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChatKitQueryPanel, type ChatKitMessage } from "../components/ChatKitQueryPanel.js";
 import { QueryResultTable } from "../components/QueryResultTable.js";
+import { SchemaBrowserPanel } from "../components/SchemaBrowserPanel.js";
+import { SchemaInspectorPanel } from "../components/SchemaInspectorPanel.js";
 import { SqlEditorPanel } from "../components/SqlEditorPanel.js";
 import { VisualizationPanel } from "../components/VisualizationPanel.js";
 import {
+  dataExplorerObjectDetailQueryOptions,
+  dataExplorerObjectsQueryOptions,
   dataExplorerQueryRunsQueryOptions,
   useDataExplorerMutations,
   useDataExplorerSources
 } from "../hooks/use-data-explorer.js";
-import { Section } from "../../dashboard/ui/Section.js";
 
 const DEFAULT_SOURCE_ID: DataExplorerSourceId = "clickhouse_events";
+const DEFAULT_SCHEMA_PANEL_WIDTH = 280;
+const DEFAULT_CHAT_PANEL_WIDTH = 340;
+const MIN_MAIN_PANEL_WIDTH = 640;
+const MAX_CHAT_PANEL_WIDTH = 640;
+const MAX_SCHEMA_PANEL_WIDTH = 520;
+const MIN_CHAT_PANEL_WIDTH = 260;
+const MIN_SCHEMA_PANEL_WIDTH = 140;
+const PANEL_WIDTH_STORAGE_KEY = "loopad.dataExplorer.panelWidths";
 const FALLBACK_SOURCES: DataExplorerSource[] = [
   {
     capabilities: ["sql_query", "schema_browser", "ai_query"],
@@ -42,12 +62,22 @@ const FALLBACK_SOURCES: DataExplorerSource[] = [
 ];
 
 export function DataExplorerPage({ projectId }: { projectId: string }) {
+  const {
+    chatPanelWidth,
+    handleChatResizeStart,
+    handleSchemaResizeStart,
+    resetChatPanelWidth,
+    resetSchemaPanelWidth,
+    schemaPanelWidth
+  } = useResizableDataExplorerPanels();
   const [sourceId, setSourceId] = useState<DataExplorerSourceId>(DEFAULT_SOURCE_ID);
   const [sqlText, setSqlText] = useState(() => defaultSqlText(projectId));
   const [queryParams, setQueryParams] = useState<Record<string, unknown>>({
     project_id: projectId
   });
   const [validation, setValidation] = useState<DataExplorerSqlValidation | null>(null);
+  const [objectSearch, setObjectSearch] = useState("");
+  const [selectedObject, setSelectedObject] = useState<DataExplorerObjectSummary | null>(null);
   const [message, setMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatKitMessage[]>([
     {
@@ -58,10 +88,32 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   ]);
   const [queryResult, setQueryResult] = useState<DataExplorerQueryRunResponse | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
-  const [resultTab, setResultTab] = useState<"table" | "visualization" | "history">("table");
+  const [resultTab, setResultTab] = useState<"schema" | "result" | "visualization" | "history">(
+    "schema"
+  );
   const mutations = useDataExplorerMutations();
   const sourcesQuery = useDataExplorerSources();
+  const sources = sourcesQuery.data?.sources ?? FALLBACK_SOURCES;
+  const objectsQuery = useQuery(
+    dataExplorerObjectsQueryOptions({ projectId, q: objectSearch, sourceId })
+  );
+  const objects = objectsQuery.data?.objects ?? [];
+  const objectDetailQuery = useQuery(dataExplorerObjectDetailQueryOptions(selectedObject));
   const queryRunsQuery = useQuery(dataExplorerQueryRunsQueryOptions({ projectId, sourceId }));
+  const hasInvalidValidation = validation?.status === "invalid";
+
+  useEffect(() => {
+    if (!objects.length) {
+      setSelectedObject(null);
+      return;
+    }
+
+    const selectedObjectKey = selectedObject ? objectKey(selectedObject) : null;
+    const selectedObjectExists = objects.some((object) => objectKey(object) === selectedObjectKey);
+    if (!selectedObjectExists) {
+      setSelectedObject(preferredObject(objects, sourceId));
+    }
+  }, [objects, selectedObject, sourceId]);
 
   const handleRun = useCallback(async () => {
     try {
@@ -78,7 +130,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
 
       setValidation(response.validation);
       setQueryResult(response);
-      setResultTab("table");
+      setResultTab("result");
       void queryRunsQuery.refetch();
     } catch (error) {
       setQueryError(errorMessage(error));
@@ -87,6 +139,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
 
   const handleSourceIdChange = useCallback((nextSourceId: DataExplorerSourceId) => {
     setSourceId(nextSourceId);
+    setSelectedObject(null);
     setValidation(null);
   }, []);
 
@@ -164,74 +217,133 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight text-[#1d1d1f]">Data Explorer</h1>
-        <div className="text-sm text-muted-foreground">{projectId}</div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
-        <div className="grid min-w-0 gap-6">
-          <SqlEditorPanel
-            onRun={handleRun}
+    <div className="h-full min-h-0 overflow-x-auto overflow-y-hidden bg-white">
+      <div
+        className="grid h-full min-h-0 overflow-hidden border-t border-black/10 bg-white"
+        style={
+          {
+            gridTemplateColumns: `${schemaPanelWidth}px minmax(${MIN_MAIN_PANEL_WIDTH}px, 1fr) ${chatPanelWidth}px`,
+            minWidth: `${schemaPanelWidth + MIN_MAIN_PANEL_WIDTH + chatPanelWidth}px`
+          } as CSSProperties
+        }
+      >
+        <div className="relative min-h-0 min-w-0">
+          <SchemaBrowserPanel
+            isLoading={objectsQuery.isLoading}
+            objectSearch={objectSearch}
+            objects={objects}
+            onObjectSearchChange={setObjectSearch}
+            onSelectObject={setSelectedObject}
             onSourceIdChange={handleSourceIdChange}
-            onSqlTextChange={handleSqlTextChange}
-            pending={mutations.runQuery.isPending}
+            selectedObjectName={selectedObject?.object_name ?? null}
             sourceId={sourceId}
-            sources={sourcesQuery.data?.sources ?? FALLBACK_SOURCES}
+            sources={sources}
+          />
+          <DataExplorerResizeHandle
+            ariaLabel="스키마 목록 너비 조절"
+            onDoubleClick={resetSchemaPanelWidth}
+            onPointerDown={handleSchemaResizeStart}
+            side="right"
+          />
+        </div>
+
+        <main className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-y border-black/10 lg:border-x lg:border-y-0">
+          <SqlEditorPanel
+            onSqlTextChange={handleSqlTextChange}
             sqlText={sqlText}
             validation={validation}
           />
 
-          {queryError ? (
-            <Alert variant="destructive">
-              <AlertTitle>Data Explorer 요청 실패</AlertTitle>
-              <AlertDescription>{queryError}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <Section
-            action={
-              queryResult ? (
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{queryResult.query_run_id}</Badge>
-                  <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
-                    {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
-                  </Badge>
-                </div>
-              ) : null
-            }
-            contentClassName="grid gap-4"
-            title="결과"
-          >
+          <section className="flex min-h-0 flex-col border-t border-black/10 bg-white">
+            {queryError ? (
+              <Alert className="m-3 shrink-0" variant="destructive">
+                <AlertTitle>Data Explorer 요청 실패</AlertTitle>
+                <AlertDescription>{queryError}</AlertDescription>
+              </Alert>
+            ) : null}
             <Tabs
+              className="min-h-0 flex-1 gap-0 overflow-hidden"
               onValueChange={(value) =>
-                setResultTab(value as "table" | "visualization" | "history")
+                setResultTab(value as "schema" | "result" | "visualization" | "history")
               }
               value={resultTab}
             >
-              <TabsList>
-                <TabsTrigger value="table">테이블</TabsTrigger>
-                <TabsTrigger value="visualization">시각화</TabsTrigger>
-                <TabsTrigger value="history">쿼리 히스토리</TabsTrigger>
-              </TabsList>
-              <TabsContent value="table">
-                <QueryResultTable result={queryResult} />
-              </TabsContent>
-              <TabsContent value="visualization">
-                <VisualizationPanel result={queryResult} />
-              </TabsContent>
-              <TabsContent value="history">
-                <QueryHistoryList
-                  onSelectRun={handleSelectQueryRun}
-                  runs={queryRunsQuery.data?.query_runs ?? []}
-                />
-              </TabsContent>
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
+                <TabsList className="h-8">
+                  <TabsTrigger value="schema">Schema</TabsTrigger>
+                  <TabsTrigger value="result">Query Result</TabsTrigger>
+                  <TabsTrigger value="visualization">Visual Insights</TabsTrigger>
+                  <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+                <div className="flex items-center gap-2">
+                  {validation ? (
+                    <Badge variant={hasInvalidValidation ? "destructive" : "outline"}>
+                      {hasInvalidValidation ? "invalid" : "valid"}
+                    </Badge>
+                  ) : null}
+                  {queryResult ? (
+                    <>
+                      <Badge variant="outline">{queryResult.query_run_id}</Badge>
+                      <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
+                        {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
+                      </Badge>
+                    </>
+                  ) : null}
+                  <Button
+                    className="bg-[#0066cc] text-white hover:bg-[#0057ad]"
+                    disabled={mutations.runQuery.isPending || !sqlText.trim()}
+                    onClick={handleRun}
+                    size="sm"
+                    type="button"
+                  >
+                    {mutations.runQuery.isPending ? <Loader2 className="animate-spin" /> : <Play />}
+                    Run Query
+                  </Button>
+                </div>
+              </div>
+              <div className="min-h-0 flex-1 overflow-hidden p-4">
+                <TabsContent
+                  className="h-full min-h-0 data-[state=inactive]:hidden"
+                  value="schema"
+                >
+                  <SchemaInspectorPanel
+                    detail={objectDetailQuery.data ?? null}
+                    isLoading={objectDetailQuery.isLoading}
+                  />
+                </TabsContent>
+                <TabsContent
+                  className="h-full min-h-0 data-[state=inactive]:hidden"
+                  value="result"
+                >
+                  <QueryResultTable result={queryResult} />
+                </TabsContent>
+                <TabsContent
+                  className="h-full min-h-0 data-[state=inactive]:hidden"
+                  value="visualization"
+                >
+                  <VisualizationPanel result={queryResult} />
+                </TabsContent>
+                <TabsContent
+                  className="h-full min-h-0 data-[state=inactive]:hidden"
+                  value="history"
+                >
+                  <QueryHistoryList
+                    onSelectRun={handleSelectQueryRun}
+                    runs={queryRunsQuery.data?.query_runs ?? []}
+                  />
+                </TabsContent>
+              </div>
             </Tabs>
-          </Section>
-        </div>
+          </section>
+        </main>
 
-        <div className="min-w-0 xl:sticky xl:top-6">
+        <div className="relative min-h-0 min-w-0">
+          <DataExplorerResizeHandle
+            ariaLabel="AI 패널 너비 조절"
+            onDoubleClick={resetChatPanelWidth}
+            onPointerDown={handleChatResizeStart}
+            side="left"
+          />
           <ChatKitQueryPanel
             message={message}
             messages={chatMessages}
@@ -243,6 +355,198 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
       </div>
     </div>
   );
+}
+
+function DataExplorerResizeHandle({
+  ariaLabel,
+  onDoubleClick,
+  onPointerDown,
+  side
+}: {
+  ariaLabel: string;
+  onDoubleClick: () => void;
+  onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  side: "left" | "right";
+}) {
+  return (
+    <button
+      aria-label={ariaLabel}
+      className={`absolute inset-y-2 z-20 hidden w-3 cursor-col-resize items-center justify-center rounded-sm transition-colors hover:bg-muted md:flex ${
+        side === "left" ? "-left-1.5" : "-right-1.5"
+      }`}
+      onDoubleClick={onDoubleClick}
+      onPointerDown={onPointerDown}
+      type="button"
+    >
+      <span className="h-8 w-1 rounded-full bg-border" />
+    </button>
+  );
+}
+
+function useResizableDataExplorerPanels() {
+  const [schemaPanelWidth, setSchemaPanelWidth] = useState(() => {
+    if (typeof window === "undefined") {
+      return DEFAULT_SCHEMA_PANEL_WIDTH;
+    }
+
+    const stored = readStoredPanelWidths();
+    return clampPanelWidth(
+      stored?.schemaPanelWidth ?? DEFAULT_SCHEMA_PANEL_WIDTH,
+      MIN_SCHEMA_PANEL_WIDTH,
+      MAX_SCHEMA_PANEL_WIDTH
+    );
+  });
+  const [chatPanelWidth, setChatPanelWidth] = useState(() => {
+    if (typeof window === "undefined") {
+      return DEFAULT_CHAT_PANEL_WIDTH;
+    }
+
+    const stored = readStoredPanelWidths();
+    return clampPanelWidth(
+      stored?.chatPanelWidth ?? DEFAULT_CHAT_PANEL_WIDTH,
+      MIN_CHAT_PANEL_WIDTH,
+      MAX_CHAT_PANEL_WIDTH
+    );
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      PANEL_WIDTH_STORAGE_KEY,
+      JSON.stringify({ chatPanelWidth, schemaPanelWidth })
+    );
+  }, [chatPanelWidth, schemaPanelWidth]);
+
+  const resetSchemaPanelWidth = useCallback(() => {
+    setSchemaPanelWidth(DEFAULT_SCHEMA_PANEL_WIDTH);
+  }, []);
+  const resetChatPanelWidth = useCallback(() => {
+    setChatPanelWidth(DEFAULT_CHAT_PANEL_WIDTH);
+  }, []);
+  const handleSchemaResizeStart = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      startPanelResize({
+        event,
+        initialWidth: schemaPanelWidth,
+        maxWidth: MAX_SCHEMA_PANEL_WIDTH,
+        minWidth: MIN_SCHEMA_PANEL_WIDTH,
+        setWidth: setSchemaPanelWidth,
+        side: "left"
+      });
+    },
+    [schemaPanelWidth]
+  );
+  const handleChatResizeStart = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      startPanelResize({
+        event,
+        initialWidth: chatPanelWidth,
+        maxWidth: MAX_CHAT_PANEL_WIDTH,
+        minWidth: MIN_CHAT_PANEL_WIDTH,
+        setWidth: setChatPanelWidth,
+        side: "right"
+      });
+    },
+    [chatPanelWidth]
+  );
+
+  return {
+    chatPanelWidth,
+    handleChatResizeStart,
+    handleSchemaResizeStart,
+    resetChatPanelWidth,
+    resetSchemaPanelWidth,
+    schemaPanelWidth
+  };
+}
+
+function startPanelResize({
+  event,
+  initialWidth,
+  maxWidth,
+  minWidth,
+  setWidth,
+  side
+}: {
+  event: ReactPointerEvent<HTMLButtonElement>;
+  initialWidth: number;
+  maxWidth: number;
+  minWidth: number;
+  setWidth: (width: number) => void;
+  side: "left" | "right";
+}) {
+  if (event.button !== 0) {
+    return;
+  }
+
+  event.preventDefault();
+  const initialClientX = event.clientX;
+  const originalCursor = document.body.style.cursor;
+  const originalUserSelect = document.body.style.userSelect;
+
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+
+  function handlePointerMove(moveEvent: globalThis.PointerEvent) {
+    const delta = moveEvent.clientX - initialClientX;
+    const nextWidth = side === "left" ? initialWidth + delta : initialWidth - delta;
+    setWidth(clampPanelWidth(nextWidth, minWidth, maxWidth));
+  }
+
+  function stopResize() {
+    document.body.style.cursor = originalCursor;
+    document.body.style.userSelect = originalUserSelect;
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", stopResize);
+  }
+
+  window.addEventListener("pointermove", handlePointerMove);
+  window.addEventListener("pointerup", stopResize);
+}
+
+function clampPanelWidth(width: number, minWidth: number, maxWidth: number) {
+  return Math.min(maxWidth, Math.max(minWidth, Math.round(width)));
+}
+
+function readStoredPanelWidths() {
+  try {
+    const stored = window.localStorage.getItem(PANEL_WIDTH_STORAGE_KEY);
+    if (!stored) {
+      return null;
+    }
+    const parsed = JSON.parse(stored) as {
+      chatPanelWidth?: unknown;
+      schemaPanelWidth?: unknown;
+    };
+    return {
+      chatPanelWidth:
+        typeof parsed.chatPanelWidth === "number" ? parsed.chatPanelWidth : undefined,
+      schemaPanelWidth:
+        typeof parsed.schemaPanelWidth === "number" ? parsed.schemaPanelWidth : undefined
+    };
+  } catch {
+    return null;
+  }
+}
+
+function objectKey(object: DataExplorerObjectSummary) {
+  return [
+    object.source_id,
+    object.database_name ?? "",
+    object.schema_name ?? "",
+    object.object_type,
+    object.object_name
+  ].join(".");
+}
+
+function preferredObject(
+  objects: DataExplorerObjectSummary[],
+  sourceId: DataExplorerSourceId
+): DataExplorerObjectSummary | null {
+  if (sourceId === "clickhouse_events") {
+    return objects.find((object) => object.object_name === "raw_events") ?? objects[0] ?? null;
+  }
+
+  return objects[0] ?? null;
 }
 
 function QueryHistoryList({
@@ -257,26 +561,28 @@ function QueryHistoryList({
   }
 
   return (
-    <div className="max-h-80 overflow-auto rounded-lg border border-black/10">
-      {runs.map((run) => (
-        <button
-          className="grid w-full gap-1 border-b border-black/5 px-3 py-2 text-left text-sm transition-colors last:border-b-0 hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]"
-          key={run.query_run_id}
-          onClick={() => onSelectRun(run)}
-          type="button"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <span className="truncate font-mono text-xs">{run.query_run_id}</span>
-            <Badge variant={run.status === "succeeded" ? "outline" : "destructive"}>
-              {run.status}
-            </Badge>
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {run.row_count} rows · {run.duration_ms}ms · {run.origin}
-          </div>
-        </button>
-      ))}
-    </div>
+    <ScrollArea className="h-full rounded-lg border border-black/10">
+      <div className="min-w-0">
+        {runs.map((run) => (
+          <button
+            className="grid w-full gap-1 border-b border-black/5 px-3 py-2 text-left text-sm transition-colors last:border-b-0 hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]"
+            key={run.query_run_id}
+            onClick={() => onSelectRun(run)}
+            type="button"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="truncate font-mono text-xs">{run.query_run_id}</span>
+              <Badge variant={run.status === "succeeded" ? "outline" : "destructive"}>
+                {run.status}
+              </Badge>
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              {run.row_count} rows · {run.duration_ms}ms · {run.origin}
+            </div>
+          </button>
+        ))}
+      </div>
+    </ScrollArea>
   );
 }
 

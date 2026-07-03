@@ -15,9 +15,9 @@ export function QueryResultTable({ result }: { result: DataExplorerQueryRunRespo
   }
 
   return (
-    <div className="max-h-[520px] overflow-auto rounded-lg border border-black/10">
+    <div className="h-full min-h-0 overflow-auto rounded-lg border border-black/10">
       <Table>
-        <TableHeader className="sticky top-0 bg-white">
+        <TableHeader className="sticky top-0 bg-[#fafafc]">
           <TableRow>
             {result.columns.map((column) => (
               <TableHead key={column.name}>

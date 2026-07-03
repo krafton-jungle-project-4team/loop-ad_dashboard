@@ -50,6 +50,7 @@ export function DashboardShell({
   projectId: string;
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
+  const isDataExplorer = activeTab === "dataExplorer";
 
   return (
     <SidebarProvider
@@ -75,7 +76,7 @@ export function DashboardShell({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
           <div className="flex h-full min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1" />
@@ -86,8 +87,20 @@ export function DashboardShell({
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-auto bg-[#f5f5f7]">
-          <div className="mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8">
+        <main
+          className={
+            isDataExplorer
+              ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-[#f5f5f7]"
+              : "min-w-0 flex-1 overflow-auto bg-[#f5f5f7]"
+          }
+        >
+          <div
+            className={
+              isDataExplorer
+                ? "h-full min-h-0 w-full"
+                : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
+            }
+          >
             {children}
           </div>
         </main>
