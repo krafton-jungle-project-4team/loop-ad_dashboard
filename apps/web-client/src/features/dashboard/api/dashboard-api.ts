@@ -43,7 +43,10 @@ export async function createDashboardFunnel(
   requestBody: DashboardCreateFunnelRequest
 ): Promise<DashboardFunnel> {
   const parsedBody = DashboardCreateFunnelRequestSchema.parse(requestBody);
-  const url = new URL(`${dashboardConfig.apiBaseUrl}/api/dashboard/v1/funnels`, window.location.origin);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/api/dashboard/v1/funnels`,
+    window.location.origin
+  );
   url.searchParams.set("projectId", query.projectId);
 
   const response = await fetch(url, {

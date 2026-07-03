@@ -2,6 +2,7 @@ import {
   type DashboardCreateFunnelRequest,
   type DashboardFunnelList
 } from "@loopad/shared";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -37,19 +38,21 @@ export function FunnelDashboardPanel({
 }) {
   const queryClient = useQueryClient();
   const [funnelName, setFunnelName] = useState("");
-  const [steps, setSteps] = useState(DEFAULT_STEPS);
+  const [steps, setSteps] = useState(() => createDefaultSteps());
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
     queryKey: ["dashboard", "event-catalog", query.projectId]
   });
+  const eventOptions = eventCatalog.data?.events ?? [];
   const createMutation = useMutation({
     mutationFn: () => createDashboardFunnel(query, { funnel_name: funnelName, steps }),
     onSuccess: async () => {
       setFunnelName("");
-      setSteps(DEFAULT_STEPS);
+      setSteps(createDefaultSteps());
       await queryClient.invalidateQueries({ queryKey: ["dashboard", "funnels"] });
     }
   });
+  const isEventCatalogEmpty = eventCatalog.isSuccess && eventOptions.length === 0;
   const canSave =
     Boolean(funnelName.trim()) &&
     steps.length >= 2 &&
@@ -67,10 +70,33 @@ export function FunnelDashboardPanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 px-5">
+          {eventCatalog.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>이벤트 목록을 불러오지 못했습니다</AlertTitle>
+              <AlertDescription>
+                수집 이벤트 카탈로그 API 응답을 확인해주세요.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {isEventCatalogEmpty ? (
+            <Alert>
+              <AlertTitle>선택 가능한 이벤트가 없습니다</AlertTitle>
+              <AlertDescription>
+                ClickHouse에 수집된 퍼널 이벤트가 있어야 단계를 선택할 수 있습니다.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {createMutation.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>퍼널을 저장하지 못했습니다</AlertTitle>
+              <AlertDescription>{mutationErrorMessage(createMutation.error)}</AlertDescription>
+            </Alert>
+          ) : null}
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="funnel-name">퍼널 이름</FieldLabel>
               <Input
+                disabled={createMutation.isPending}
                 id="funnel-name"
                 onChange={(event) => setFunnelName(event.target.value)}
                 value={funnelName}
@@ -83,19 +109,23 @@ export function FunnelDashboardPanel({
                 <NativeSelect
                   aria-label={`${index + 1}번째 퍼널 이벤트`}
                   className="w-full"
-                  disabled={!eventCatalog.data?.events.length}
+                  disabled={
+                    eventCatalog.isLoading || !eventOptions.length || createMutation.isPending
+                  }
                   onChange={(event) => selectEvent(index, event.target.value)}
                   value={step.event_name}
                 >
-                  <NativeSelectOption value="">이벤트 선택</NativeSelectOption>
-                  {eventCatalog.data?.events.map((eventItem) => (
+                  <NativeSelectOption value="">
+                    {eventPlaceholder(eventCatalog.isLoading, isEventCatalogEmpty)}
+                  </NativeSelectOption>
+                  {eventOptions.map((eventItem) => (
                     <NativeSelectOption key={eventItem.event_name} value={eventItem.event_name}>
                       {eventItem.display_name} ({eventItem.event_name})
                     </NativeSelectOption>
                   ))}
                 </NativeSelect>
                 <Button
-                  disabled={steps.length <= 2}
+                  disabled={steps.length <= 2 || createMutation.isPending}
                   onClick={() => removeStep(index)}
                   size="icon"
                   type="button"
@@ -107,7 +137,12 @@ export function FunnelDashboardPanel({
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={addStep} type="button" variant="outline">
+            <Button
+              disabled={!eventOptions.length || createMutation.isPending}
+              onClick={addStep}
+              type="button"
+              variant="outline"
+            >
               <Plus data-icon="inline-start" />
               단계 추가
             </Button>
@@ -142,7 +177,7 @@ export function FunnelDashboardPanel({
                 {data.funnels.map((funnel) => (
                   <TableRow key={funnel.funnel_id}>
                     <TableCell>{funnel.funnel_name}</TableCell>
-                    <TableCell>{funnel.steps.map((step) => step.event_name).join(" -> ")}</TableCell>
+                    <TableCell>{funnel.steps.map(stepLabel).join(" -> ")}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{funnel.status}</Badge>
                     </TableCell>
@@ -167,7 +202,7 @@ export function FunnelDashboardPanel({
   }
 
   function selectEvent(index: number, eventName: string) {
-    const eventItem = eventCatalog.data?.events.find((item) => item.event_name === eventName);
+    const eventItem = eventOptions.find((item) => item.event_name === eventName);
     setSteps((current) =>
       current.map((step, currentIndex) =>
         currentIndex === index
@@ -179,4 +214,26 @@ export function FunnelDashboardPanel({
       )
     );
   }
+}
+
+function createDefaultSteps(): DashboardCreateFunnelRequest["steps"] {
+  return DEFAULT_STEPS.map((step) => ({ ...step }));
+}
+
+function eventPlaceholder(isLoading: boolean, isEmpty: boolean): string {
+  if (isLoading) {
+    return "이벤트 불러오는 중";
+  }
+  if (isEmpty) {
+    return "선택 가능한 이벤트 없음";
+  }
+  return "이벤트 선택";
+}
+
+function stepLabel(step: DashboardFunnelList["funnels"][number]["steps"][number]): string {
+  return `${step.step_name} (${step.event_name})`;
+}
+
+function mutationErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "API 요청 실패";
 }
