@@ -11,7 +11,8 @@ export const dashboardTabValues = [
   "purchaseConversion",
   "aiAnalysis",
   "aiRecommendation",
-  "aiGeneration"
+  "aiGeneration",
+  "dataExplorer"
 ] as const;
 
 export type DashboardTab = (typeof dashboardTabValues)[number];

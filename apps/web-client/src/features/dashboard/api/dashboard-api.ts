@@ -55,6 +55,8 @@ export async function fetchDashboardPageResource(
         tab,
         data: await request("/dashboard/ai-generation", DashboardAiGenerationSchema, query, signal)
       };
+    case "dataExplorer":
+      throw new Error("Data Explorer uses its own API resource flow.");
   }
 }
 

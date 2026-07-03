@@ -12,6 +12,9 @@ export function LoadingState({ tab }: { tab: DashboardTab }) {
   if (tab === "aiAnalysis" || tab === "aiRecommendation") {
     return <InsightSkeleton mode={tab === "aiAnalysis" ? "analysis" : "recommendation"} />;
   }
+  if (tab === "dataExplorer") {
+    return <DataExplorerSkeleton />;
+  }
   return <GenerationSkeleton />;
 }
 
@@ -87,6 +90,22 @@ function GenerationSkeleton() {
     <div className="grid gap-8">
       <SectionSkeleton rows={2} />
       <SectionSkeleton rows={3} />
+    </div>
+  );
+}
+
+function DataExplorerSkeleton() {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
+      <div className="grid gap-6">
+        <SectionSkeleton rows={3} />
+        <SectionSkeleton rows={6} />
+        <SectionSkeleton rows={5} />
+      </div>
+      <div className="grid content-start gap-6">
+        <SectionSkeleton rows={8} />
+        <SectionSkeleton rows={4} />
+      </div>
     </div>
   );
 }

@@ -24,7 +24,8 @@ const envSchema = z.object({
   LOOPAD_CLICKHOUSE_URL: httpUrl,
   LOOPAD_CLICKHOUSE_DATABASE: requiredString,
   LOOPAD_CLICKHOUSE_USERNAME: requiredString,
-  LOOPAD_CLICKHOUSE_PASSWORD: requiredString
+  LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
+  LOOPAD_OPENAI_API_KEY: requiredString
 });
 
 const parsedEnv = parseEnv(process.env);
@@ -45,6 +46,9 @@ export const env = Object.freeze({
     database: parsedEnv.LOOPAD_CLICKHOUSE_DATABASE,
     username: parsedEnv.LOOPAD_CLICKHOUSE_USERNAME,
     password: parsedEnv.LOOPAD_CLICKHOUSE_PASSWORD
+  },
+  openai: {
+    apiKey: parsedEnv.LOOPAD_OPENAI_API_KEY
   }
 });
 
