@@ -21,6 +21,7 @@ process.env.LOOPAD_CLICKHOUSE_URL ??= "http://localhost:18123";
 process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
+process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
 
 const { BannerResolveService } =
   await import("../src/features/ad-execution/service/banner-resolve.service.js");
@@ -265,9 +266,7 @@ function createDispatchService(
 }
 
 function createBannerService(reader = new FakeAdExecutionReader()) {
-  return new BannerResolveService(
-    reader as ConstructorParameters<typeof BannerResolveService>[0]
-  );
+  return new BannerResolveService(reader as ConstructorParameters<typeof BannerResolveService>[0]);
 }
 
 function createRedirectService(reader = new FakeAdExecutionReader()) {

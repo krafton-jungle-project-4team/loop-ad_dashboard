@@ -1,6 +1,10 @@
-import { Controller, Get, Inject, Param, Query } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
 import {
+  DataExplorerAiChatRequestSchema,
+  DataExplorerAiQueryPlanRequestSchema,
   DataExplorerObjectTypeSchema,
+  DataExplorerQueryRunRequestSchema,
+  DataExplorerQueryValidateRequestSchema,
   DataExplorerSourceIdSchema,
   type DataExplorerObjectRef,
   type DataExplorerObjectType,
@@ -10,10 +14,10 @@ import { dataExplorerErrors } from "../errors.js";
 import { DataExplorerService } from "../service/data-explorer.service.js";
 
 /**
- * Handles Data Explorer schema inspection HTTP requests.
+ * Handles Data Explorer HTTP requests.
  *
- * This controller only parses route/query inputs and delegates schema reads to
- * the service. It intentionally does not expose arbitrary SQL execution.
+ * The controller parses shared Zod contracts at the API boundary and delegates
+ * schema, validated SQL, and AI query use cases to the service.
  */
 @Controller("dashboard/v1/data-explorer")
 export class DataExplorerController {
@@ -71,6 +75,31 @@ export class DataExplorerController {
     return this.dataExplorer.getObjectDdl(
       toObjectRef(sourceId, databaseName, schemaName, objectType, objectName)
     );
+  }
+
+  @Post("queries/validate")
+  validateQuery(@Body() body: unknown) {
+    return this.dataExplorer.validateQuery(DataExplorerQueryValidateRequestSchema.parse(body));
+  }
+
+  @Post("queries/run")
+  runQuery(@Body() body: unknown) {
+    return this.dataExplorer.runQuery(DataExplorerQueryRunRequestSchema.parse(body));
+  }
+
+  @Post("ai/query-plan")
+  createAiQueryPlan(@Body() body: unknown) {
+    return this.dataExplorer.createAiQueryPlan(DataExplorerAiQueryPlanRequestSchema.parse(body));
+  }
+
+  @Post("ai/query-run")
+  runAiQuery(@Body() body: unknown) {
+    return this.dataExplorer.runAiQuery(DataExplorerQueryRunRequestSchema.parse(body));
+  }
+
+  @Post("ai/chat")
+  runAiChat(@Body() body: unknown) {
+    return this.dataExplorer.runAiChat(DataExplorerAiChatRequestSchema.parse(body));
   }
 }
 

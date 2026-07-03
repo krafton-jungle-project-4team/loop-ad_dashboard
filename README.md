@@ -70,7 +70,9 @@ npm run dev
 
 필수 앱 env 예시는 `.env.example`을 참고하세요. Web client는
 `VITE_LOOPAD_API_BASE_URL=http://localhost:8080/api`처럼 public API base URL을
-build-time에 검증합니다.
+build-time에 검증합니다. Data Explorer AI query plan은 API 서버의
+`LOOPAD_OPENAI_API_KEY`가 없으면 fallback 없이 실패합니다. OpenAI model은 앱 코드
+상수로 관리합니다.
 
 Web: `http://localhost:5173`
 API: `http://localhost:8080/api`

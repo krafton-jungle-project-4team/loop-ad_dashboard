@@ -6,7 +6,7 @@ export type DataExplorerSourceId = z.infer<typeof DataExplorerSourceIdSchema>;
 export const DataExplorerSourceKindSchema = z.enum(["postgres", "clickhouse"]);
 export type DataExplorerSourceKind = z.infer<typeof DataExplorerSourceKindSchema>;
 
-export const DataExplorerCapabilitySchema = z.enum(["schema_browser"]);
+export const DataExplorerCapabilitySchema = z.enum(["sql_query", "schema_browser", "ai_query"]);
 export type DataExplorerCapability = z.infer<typeof DataExplorerCapabilitySchema>;
 
 export const DataExplorerObjectTypeSchema = z.enum([
@@ -108,3 +108,163 @@ export const DataExplorerObjectsResponseSchema = z.object({
   cache_hit: z.boolean()
 });
 export type DataExplorerObjectsResponse = z.infer<typeof DataExplorerObjectsResponseSchema>;
+
+export const DataExplorerValidationIssueSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1)
+});
+export type DataExplorerValidationIssue = z.infer<typeof DataExplorerValidationIssueSchema>;
+
+export const DataExplorerSqlValidationSchema = z.object({
+  status: z.enum(["valid", "invalid"]),
+  errors: z.array(DataExplorerValidationIssueSchema),
+  warnings: z.array(DataExplorerValidationIssueSchema),
+  normalized_sql: z.string(),
+  effective_row_limit: z.number().int().positive(),
+  effective_timeout_ms: z.number().int().positive()
+});
+export type DataExplorerSqlValidation = z.infer<typeof DataExplorerSqlValidationSchema>;
+
+export const DataExplorerQueryValidateRequestSchema = z.object({
+  project_id: z.string().trim().min(1),
+  source_id: DataExplorerSourceIdSchema,
+  sql_text: z.string(),
+  params: z.record(z.string(), z.unknown()).default({}),
+  row_limit: z.number().int().positive().optional(),
+  timeout_ms: z.number().int().positive().optional()
+});
+export type DataExplorerQueryValidateRequest = z.infer<
+  typeof DataExplorerQueryValidateRequestSchema
+>;
+
+export const DataExplorerQueryValidateResponseSchema = z.object({
+  source_id: DataExplorerSourceIdSchema,
+  validation: DataExplorerSqlValidationSchema
+});
+export type DataExplorerQueryValidateResponse = z.infer<
+  typeof DataExplorerQueryValidateResponseSchema
+>;
+
+export const DataExplorerSemanticTypeSchema = z.enum([
+  "time",
+  "dimension",
+  "measure",
+  "boolean",
+  "json",
+  "unknown"
+]);
+export type DataExplorerSemanticType = z.infer<typeof DataExplorerSemanticTypeSchema>;
+
+export const DataExplorerResultColumnSchema = z.object({
+  name: z.string().min(1),
+  type: z.string().min(1),
+  semantic_type: DataExplorerSemanticTypeSchema
+});
+export type DataExplorerResultColumn = z.infer<typeof DataExplorerResultColumnSchema>;
+
+export const DataExplorerChartSpecSchema = z.object({
+  chart_type: z.enum(["line", "bar", "scatter"]),
+  x: z.object({
+    column: z.string().min(1),
+    type: DataExplorerSemanticTypeSchema
+  }),
+  y: z.array(
+    z.object({
+      column: z.string().min(1),
+      aggregation: z.enum(["none", "count", "sum", "avg"])
+    })
+  ),
+  series: z
+    .object({
+      column: z.string().min(1)
+    })
+    .nullable(),
+  options: z.object({
+    stack: z.boolean(),
+    show_legend: z.boolean()
+  })
+});
+export type DataExplorerChartSpec = z.infer<typeof DataExplorerChartSpecSchema>;
+
+export const DataExplorerQueryRunRequestSchema = DataExplorerQueryValidateRequestSchema.extend({
+  origin: z.enum(["manual", "chatkit", "system"]).default("manual"),
+  chat_session_id: z.string().trim().min(1).optional(),
+  action_run_id: z.string().trim().min(1).optional(),
+  schema_context: z.array(DataExplorerObjectDetailSchema).optional()
+});
+export type DataExplorerQueryRunRequest = z.infer<typeof DataExplorerQueryRunRequestSchema>;
+
+export const DataExplorerQueryRunResponseSchema = z.object({
+  query_run_id: z.string().min(1),
+  status: z.enum(["succeeded", "failed", "cancelled"]),
+  source_id: DataExplorerSourceIdSchema,
+  duration_ms: z.number().int().nonnegative(),
+  row_count: z.number().int().nonnegative(),
+  truncated: z.boolean(),
+  columns: z.array(DataExplorerResultColumnSchema),
+  rows: z.array(z.record(z.string(), z.unknown())),
+  suggested_visualizations: z.array(DataExplorerChartSpecSchema),
+  validation: DataExplorerSqlValidationSchema
+});
+export type DataExplorerQueryRunResponse = z.infer<typeof DataExplorerQueryRunResponseSchema>;
+
+export const DataExplorerTimeRangeSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1)
+});
+export type DataExplorerTimeRange = z.infer<typeof DataExplorerTimeRangeSchema>;
+
+export const DataExplorerAiQueryPlanRequestSchema = z.object({
+  project_id: z.string().trim().min(1),
+  source_id: DataExplorerSourceIdSchema.optional(),
+  natural_language_query: z.string().trim().min(1),
+  time_range: DataExplorerTimeRangeSchema.optional(),
+  force_live_schema: z.boolean().default(true)
+});
+export type DataExplorerAiQueryPlanRequest = z.infer<typeof DataExplorerAiQueryPlanRequestSchema>;
+
+export const DataExplorerSchemaContextSchema = z.object({
+  object_type: DataExplorerObjectTypeSchema,
+  object_name: z.string().min(1),
+  ddl_fetched_at: z.string().min(1),
+  ddl_source: DataExplorerDdlSourceSchema,
+  columns: z.array(z.string().min(1))
+});
+export type DataExplorerSchemaContext = z.infer<typeof DataExplorerSchemaContextSchema>;
+
+export const DataExplorerAiQueryPlanResponseSchema = z.object({
+  query_plan_id: z.string().min(1),
+  source_id: DataExplorerSourceIdSchema,
+  schema_context: z.array(DataExplorerSchemaContextSchema),
+  generated_sql: z.string(),
+  params: z.record(z.string(), z.unknown()),
+  referenced_objects: z.array(DataExplorerObjectRefSchema),
+  suggested_visualizations: z.array(DataExplorerChartSpecSchema),
+  validation: DataExplorerSqlValidationSchema
+});
+export type DataExplorerAiQueryPlanResponse = z.infer<typeof DataExplorerAiQueryPlanResponseSchema>;
+
+export const DataExplorerAiChatCurrentResultSchema = z.object({
+  query_run_id: z.string().min(1),
+  columns: z.array(DataExplorerResultColumnSchema),
+  rows: z.array(z.record(z.string(), z.unknown())),
+  row_count: z.number().int().nonnegative(),
+  truncated: z.boolean()
+});
+export type DataExplorerAiChatCurrentResult = z.infer<typeof DataExplorerAiChatCurrentResultSchema>;
+
+export const DataExplorerAiChatRequestSchema = z.object({
+  project_id: z.string().trim().min(1),
+  source_id: DataExplorerSourceIdSchema.optional(),
+  message: z.string().trim().min(1),
+  current_result: DataExplorerAiChatCurrentResultSchema.optional()
+});
+export type DataExplorerAiChatRequest = z.infer<typeof DataExplorerAiChatRequestSchema>;
+
+export const DataExplorerAiChatResponseSchema = z.object({
+  action: z.enum(["query_run", "result_analysis"]),
+  assistant_message: z.string().min(1),
+  query_plan: DataExplorerAiQueryPlanResponseSchema.nullable(),
+  query_result: DataExplorerQueryRunResponseSchema.nullable()
+});
+export type DataExplorerAiChatResponse = z.infer<typeof DataExplorerAiChatResponseSchema>;

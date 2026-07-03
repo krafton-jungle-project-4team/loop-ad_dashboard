@@ -1,10 +1,15 @@
 import type { DataExplorerObjectRef, DataExplorerSourceId } from "@loopad/shared";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import {
+  createDataExplorerAiQueryPlan,
   fetchDataExplorerObjectDdl,
   fetchDataExplorerObjectDetail,
   fetchDataExplorerObjects,
-  fetchDataExplorerSources
+  fetchDataExplorerSources,
+  runDataExplorerAiChat,
+  runDataExplorerAiQuery,
+  runDataExplorerQuery,
+  validateDataExplorerQuery
 } from "../api/data-explorer-api.js";
 
 export function dataExplorerSourcesQueryOptions() {
@@ -55,6 +60,16 @@ export function dataExplorerObjectDdlQueryOptions(ref: DataExplorerObjectRef | n
     },
     queryKey: ["data-explorer", "object-ddl", ref] as const
   });
+}
+
+export function useDataExplorerMutations() {
+  return {
+    chat: useMutation({ mutationFn: runDataExplorerAiChat }),
+    createPlan: useMutation({ mutationFn: createDataExplorerAiQueryPlan }),
+    runAiQuery: useMutation({ mutationFn: runDataExplorerAiQuery }),
+    runQuery: useMutation({ mutationFn: runDataExplorerQuery }),
+    validateQuery: useMutation({ mutationFn: validateDataExplorerQuery })
+  };
 }
 
 export function useDataExplorerSources() {

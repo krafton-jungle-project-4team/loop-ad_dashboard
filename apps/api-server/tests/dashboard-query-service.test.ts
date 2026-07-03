@@ -49,19 +49,23 @@ test("dashboard event catalog returns collected funnel event options", async () 
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const reads: string[] = [];
-  const service = new DashboardQueryService(emptyCampaignReader(), {
-    ...emptyFunnelReader(),
-    listEventCatalog: async (projectId: string) => {
-      reads.push(projectId);
-      return [
-        {
-          event_name: "hotel_detail_view",
-          display_name: "숙소 상세 조회",
-          event_count: 32
-        }
-      ];
-    }
-  } as unknown as DashboardFunnelReader, passthroughTransactionHost());
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    {
+      ...emptyFunnelReader(),
+      listEventCatalog: async (projectId: string) => {
+        reads.push(projectId);
+        return [
+          {
+            event_name: "hotel_detail_view",
+            display_name: "숙소 상세 조회",
+            event_count: 32
+          }
+        ];
+      }
+    } as unknown as DashboardFunnelReader,
+    passthroughTransactionHost()
+  );
 
   const eventCatalog = await service.eventCatalog("hotel-client-a");
 
@@ -80,25 +84,29 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
-  const service = new DashboardQueryService(emptyCampaignReader(), {
-    ...emptyFunnelReader(),
-    createFunnel: async (projectId, request) => {
-      writes.push({ projectId, request });
-      return {
-        funnel_id: "funnel_hotel_booking",
-        funnel_name: request.funnel_name,
-        domain_type: "hotel",
-        status: "active",
-        steps: request.steps.map((step, index) => ({
-          step_order: index + 1,
-          step_name: step.step_name,
-          event_name: step.event_name
-        })),
-        created_at: "2026-07-03T00:00:00.000Z",
-        updated_at: "2026-07-03T00:00:00.000Z"
-      };
-    }
-  } as unknown as DashboardFunnelReader, passthroughTransactionHost());
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    {
+      ...emptyFunnelReader(),
+      createFunnel: async (projectId, request) => {
+        writes.push({ projectId, request });
+        return {
+          funnel_id: "funnel_hotel_booking",
+          funnel_name: request.funnel_name,
+          domain_type: "hotel",
+          status: "active",
+          steps: request.steps.map((step, index) => ({
+            step_order: index + 1,
+            step_name: step.step_name,
+            event_name: step.event_name
+          })),
+          created_at: "2026-07-03T00:00:00.000Z",
+          updated_at: "2026-07-03T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardFunnelReader,
+    passthroughTransactionHost()
+  );
 
   const funnel = await service.createFunnel("hotel-client-a", {
     funnel_name: "숙소 예약 퍼널",
@@ -149,4 +157,5 @@ function setRequiredEnv() {
   process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
   process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
   process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
+  process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
 }

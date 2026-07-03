@@ -1,23 +1,26 @@
 import {
-  createApiSuccessResponseSchema,
+  DataExplorerAiChatResponseSchema,
+  DataExplorerAiQueryPlanResponseSchema,
   DataExplorerObjectDdlSchema,
   DataExplorerObjectDetailSchema,
   DataExplorerObjectsResponseSchema,
+  DataExplorerQueryRunResponseSchema,
+  DataExplorerQueryValidateResponseSchema,
   DataExplorerSourcesResponseSchema,
+  type DataExplorerAiQueryPlanRequest,
+  type DataExplorerAiChatRequest,
   type DataExplorerObjectRef,
   type DataExplorerObjectType,
+  type DataExplorerQueryRunRequest,
+  type DataExplorerQueryValidateRequest,
   type DataExplorerSourceId
 } from "@loopad/shared";
-import { z } from "zod";
-import { dashboardConfig } from "../../dashboard/model/dashboard-config.js";
+import { apiGet, apiPost } from "../../../shared/api/http-client.js";
 
 const DATA_EXPLORER_BASE_PATH = "/dashboard/v1/data-explorer";
 
 export function fetchDataExplorerSources(signal: AbortSignal) {
-  return request(`${DATA_EXPLORER_BASE_PATH}/sources`, DataExplorerSourcesResponseSchema, {
-    method: "GET",
-    signal
-  });
+  return apiGet(`${DATA_EXPLORER_BASE_PATH}/sources`, DataExplorerSourcesResponseSchema, signal);
 }
 
 export function fetchDataExplorerObjects(input: {
@@ -37,10 +40,10 @@ export function fetchDataExplorerObjects(input: {
   setOptionalSearchParam(searchParams, "type", input.objectType);
   setOptionalSearchParam(searchParams, "q", input.q);
 
-  return request(
+  return apiGet(
     `${DATA_EXPLORER_BASE_PATH}/sources/${input.sourceId}/objects?${searchParams.toString()}`,
     DataExplorerObjectsResponseSchema,
-    { method: "GET", signal: input.signal }
+    input.signal
   );
 }
 
@@ -49,10 +52,10 @@ export function fetchDataExplorerObjectDetail(input: {
   signal: AbortSignal;
 }) {
   const searchParams = objectRefSearchParams(input.ref);
-  return request(
+  return apiGet(
     `${DATA_EXPLORER_BASE_PATH}/sources/${input.ref.source_id}/objects/detail?${searchParams.toString()}`,
     DataExplorerObjectDetailSchema,
-    { method: "GET", signal: input.signal }
+    input.signal
   );
 }
 
@@ -61,32 +64,47 @@ export function fetchDataExplorerObjectDdl(input: {
   signal: AbortSignal;
 }) {
   const searchParams = objectRefSearchParams(input.ref);
-  return request(
+  return apiGet(
     `${DATA_EXPLORER_BASE_PATH}/sources/${input.ref.source_id}/objects/ddl?${searchParams.toString()}`,
     DataExplorerObjectDdlSchema,
-    { method: "GET", signal: input.signal }
+    input.signal
   );
 }
 
-async function request<T>(
-  path: string,
-  schema: z.ZodType<T>,
-  init: { method: "GET"; signal?: AbortSignal }
-): Promise<T> {
-  const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json"
-    },
-    method: init.method,
-    signal: init.signal
-  });
+export function validateDataExplorerQuery(body: DataExplorerQueryValidateRequest) {
+  return apiPost(
+    `${DATA_EXPLORER_BASE_PATH}/queries/validate`,
+    DataExplorerQueryValidateResponseSchema,
+    body
+  );
+}
 
-  if (!response.ok) {
-    throw new Error(`Data Explorer API 요청 실패: ${response.status}`);
-  }
+export function runDataExplorerQuery(body: DataExplorerQueryRunRequest) {
+  return apiPost(
+    `${DATA_EXPLORER_BASE_PATH}/queries/run`,
+    DataExplorerQueryRunResponseSchema,
+    body
+  );
+}
 
-  return createApiSuccessResponseSchema(schema).parse(await response.json()).data;
+export function createDataExplorerAiQueryPlan(body: DataExplorerAiQueryPlanRequest) {
+  return apiPost(
+    `${DATA_EXPLORER_BASE_PATH}/ai/query-plan`,
+    DataExplorerAiQueryPlanResponseSchema,
+    body
+  );
+}
+
+export function runDataExplorerAiQuery(body: DataExplorerQueryRunRequest) {
+  return apiPost(
+    `${DATA_EXPLORER_BASE_PATH}/ai/query-run`,
+    DataExplorerQueryRunResponseSchema,
+    body
+  );
+}
+
+export function runDataExplorerAiChat(body: DataExplorerAiChatRequest) {
+  return apiPost(`${DATA_EXPLORER_BASE_PATH}/ai/chat`, DataExplorerAiChatResponseSchema, body);
 }
 
 function objectRefSearchParams(ref: DataExplorerObjectRef) {

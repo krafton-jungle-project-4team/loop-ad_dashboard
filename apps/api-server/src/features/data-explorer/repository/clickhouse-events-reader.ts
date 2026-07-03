@@ -6,13 +6,22 @@ import type {
   DataExplorerObjectDetail,
   DataExplorerObjectRef,
   DataExplorerObjectSummary,
-  DataExplorerObjectType
+  DataExplorerObjectType,
+  DataExplorerResultColumn,
+  DataExplorerSemanticType
 } from "@loopad/shared";
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { env } from "../../../infra/env/env.js";
 import { DataExplorerDomain } from "../domain/index.js";
+import { applyQueryLimit } from "../domain/query-limiter.domain.js";
 import { dataExplorerErrors } from "../errors.js";
-import type { DataExplorerSourceReader, ListObjectsInput } from "./data-explorer-source-reader.js";
+import { createDataExplorerLiveMetadata } from "./data-explorer-live-metadata.js";
+import type {
+  DataExplorerQueryExecutionResult,
+  DataExplorerSourceReader,
+  ExecuteReadOnlyQueryInput,
+  ListObjectsInput
+} from "./data-explorer-source-reader.js";
 
 const SCHEMA_QUERY_TIMEOUT_SECONDS = 5;
 const LIST_OBJECTS_LIMIT = 1000;
@@ -44,11 +53,16 @@ type ClickHouseTableRow = {
   total_rows: number | null;
 };
 
+type ClickHouseJsonResponse = {
+  meta?: Array<{ name: string; type: string }>;
+  data?: Array<Record<string, unknown>>;
+};
+
 /**
- * Reads ClickHouse event-store schema metadata for Data Explorer.
+ * Reads ClickHouse event-store schema metadata and executes validated readonly queries.
  *
- * This reader uses fixed system-table queries with readonly settings and does
- * not accept arbitrary SQL from the client.
+ * This reader uses fixed schema queries and ClickHouse readonly settings. The
+ * service must validate user SQL before calling `executeReadOnlyQuery`.
  */
 @Injectable()
 export class ClickHouseEventsReader implements DataExplorerSourceReader {
@@ -96,6 +110,10 @@ export class ClickHouseEventsReader implements DataExplorerSourceReader {
       .slice(0, LIST_OBJECTS_LIMIT);
   }
 
+  async searchObjects(input: ListObjectsInput): Promise<DataExplorerObjectSummary[]> {
+    return this.listObjects(input);
+  }
+
   async getObjectDetail(ref: DataExplorerObjectRef): Promise<DataExplorerObjectDetail> {
     const databaseName = ref.database_name ?? env.clickhouse.database;
     const [table, columns] = await Promise.all([
@@ -112,7 +130,7 @@ export class ClickHouseEventsReader implements DataExplorerSourceReader {
       partition_key: splitExpression(table.partition_key),
       order_by: splitExpression(table.sorting_key),
       primary_key: splitExpression(table.primary_key),
-      ...DataExplorerDomain.freshLiveMetadata()
+      ...createDataExplorerLiveMetadata()
     };
   }
 
@@ -138,7 +156,35 @@ export class ClickHouseEventsReader implements DataExplorerSourceReader {
         database_name: databaseName
       },
       ddl: String(ddl),
-      ...DataExplorerDomain.freshLiveMetadata()
+      ...createDataExplorerLiveMetadata()
+    };
+  }
+
+  async executeReadOnlyQuery(
+    input: ExecuteReadOnlyQueryInput
+  ): Promise<DataExplorerQueryExecutionResult> {
+    const startedAt = performance.now();
+    const limitedSql = applyQueryLimit(input.sqlText, input.rowLimit);
+    const result = await this.clickhouse.query({
+      query: limitedSql,
+      format: "JSON",
+      query_params: input.params,
+      clickhouse_settings: {
+        max_execution_time: Math.ceil(input.timeoutMs / 1000),
+        max_result_rows: String(input.rowLimit),
+        result_overflow_mode: "break",
+        readonly: "1"
+      }
+    });
+    const body = await result.json<ClickHouseJsonResponse>();
+    const rows = body.data ?? [];
+    const columns = (body.meta ?? []).map(toResultColumn);
+
+    return {
+      columns,
+      rows,
+      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
+      truncated: rows.length >= input.rowLimit
     };
   }
 
@@ -266,6 +312,36 @@ function objectMatchesInput(object: DataExplorerObjectSummary, input: ListObject
     : true;
 
   return matchesType && matchesQuery;
+}
+
+function toResultColumn(column: { name: string; type: string }): DataExplorerResultColumn {
+  return {
+    name: column.name,
+    type: column.type,
+    semantic_type: semanticTypeFromClickHouseType(column.type, column.name)
+  };
+}
+
+function semanticTypeFromClickHouseType(type: string, name: string): DataExplorerSemanticType {
+  const lowerType = type.toLowerCase();
+  const lowerName = name.toLowerCase();
+
+  if (
+    lowerType.includes("date") ||
+    ["date", "time", "timestamp", "day", "hour", "month"].some((part) => lowerName.includes(part))
+  ) {
+    return "time";
+  }
+  if (lowerType.includes("int") || lowerType.includes("float") || lowerType.includes("decimal")) {
+    return "measure";
+  }
+  if (lowerType.includes("bool")) {
+    return "boolean";
+  }
+  if (lowerType.includes("json") || lowerType.includes("map") || lowerType.includes("array")) {
+    return "json";
+  }
+  return "dimension";
 }
 
 function splitExpression(value: string | null | undefined) {

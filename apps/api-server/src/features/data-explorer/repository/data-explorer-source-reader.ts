@@ -4,6 +4,7 @@ import type {
   DataExplorerObjectRef,
   DataExplorerObjectSummary,
   DataExplorerObjectType,
+  DataExplorerResultColumn,
   DataExplorerSource,
   DataExplorerSourceId
 } from "@loopad/shared";
@@ -17,6 +18,21 @@ export type ListObjectsInput = {
   q?: string;
 };
 
+export type ExecuteReadOnlyQueryInput = {
+  projectId: string;
+  sqlText: string;
+  params: Record<string, unknown>;
+  rowLimit: number;
+  timeoutMs: number;
+};
+
+export type DataExplorerQueryExecutionResult = {
+  columns: DataExplorerResultColumn[];
+  rows: Array<Record<string, unknown>>;
+  durationMs: number;
+  truncated: boolean;
+};
+
 export interface DataExplorerSourceReader {
   readonly source: DataExplorerSource;
   readonly sourceId: DataExplorerSourceId;
@@ -24,4 +40,6 @@ export interface DataExplorerSourceReader {
   listObjects(input: ListObjectsInput): Promise<DataExplorerObjectSummary[]>;
   getObjectDetail(ref: DataExplorerObjectRef): Promise<DataExplorerObjectDetail>;
   getObjectDdl(ref: DataExplorerObjectRef): Promise<DataExplorerObjectDdl>;
+  searchObjects(input: ListObjectsInput): Promise<DataExplorerObjectSummary[]>;
+  executeReadOnlyQuery(input: ExecuteReadOnlyQueryInput): Promise<DataExplorerQueryExecutionResult>;
 }

@@ -1,4 +1,9 @@
-import type { DataExplorerSource, DataExplorerSourceId } from "@loopad/shared";
+import type {
+  DataExplorerObjectDetail,
+  DataExplorerObjectSummary,
+  DataExplorerSource,
+  DataExplorerSourceId
+} from "@loopad/shared";
 
 export const DATA_EXPLORER_SOURCES = [
   {
@@ -6,14 +11,14 @@ export const DATA_EXPLORER_SOURCES = [
     kind: "postgres",
     display_name: "PostgreSQL Contract DB",
     purpose: "AI Decision 결과, Dashboard read model, serving assignment, Dashboard metadata",
-    capabilities: ["schema_browser"]
+    capabilities: ["sql_query", "schema_browser", "ai_query"]
   },
   {
     source_id: "clickhouse_events",
     kind: "clickhouse",
     display_name: "ClickHouse Event Store",
     purpose: "raw event source, hotel event analytics view",
-    capabilities: ["schema_browser"]
+    capabilities: ["sql_query", "schema_browser", "ai_query"]
   }
 ] as const satisfies readonly DataExplorerSource[];
 
@@ -26,11 +31,24 @@ export const DataExplorerDomain = {
     return DATA_EXPLORER_SOURCES.map((source) => ({ ...source }));
   },
 
-  freshLiveMetadata() {
+  toSchemaContext(detail: DataExplorerObjectDetail) {
     return {
-      cache_hit: false,
-      ddl_fetched_at: new Date().toISOString(),
-      ddl_source: "live" as const
+      object_name: detail.object.object_name,
+      object_type: detail.object.object_type,
+      ddl_fetched_at: detail.ddl_fetched_at,
+      ddl_source: detail.ddl_source,
+      columns: detail.columns.map((column) => column.column_name)
     };
+  },
+
+  pickReferencedObject(objects: DataExplorerObjectSummary[]): DataExplorerObjectSummary | null {
+    return (
+      objects.find((object) => object.object_name === "raw_events") ??
+      objects.find((object) => object.object_name === "events") ??
+      objects.find((object) => object.object_type === "table") ??
+      objects.find((object) => object.object_type === "view") ??
+      objects[0] ??
+      null
+    );
   }
 } as const;
