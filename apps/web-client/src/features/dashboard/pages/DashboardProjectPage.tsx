@@ -35,5 +35,5 @@ function DashboardResourcePanel({
 }) {
   const { data } = useSuspenseDashboardResources(tab, query);
 
-  return <DashboardPanelRenderer resource={data} />;
+  return <DashboardPanelRenderer query={query} resource={data} />;
 }

@@ -1,6 +1,15 @@
 import {
   createApiSuccessResponseSchema,
+  DashboardCreateFunnelRequestSchema,
+  DashboardEventCatalogSchema,
+  DashboardFunnelListSchema,
+  DashboardFunnelSchema,
   DashboardMainSchema
+} from "@loopad/shared";
+import type {
+  DashboardCreateFunnelRequest,
+  DashboardEventCatalog,
+  DashboardFunnel
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -21,7 +30,39 @@ export async function fetchDashboardPageResource(
         tab,
         data: await request("/api/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
+    case "funnels":
+      return {
+        tab,
+        data: await request("/api/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)
+      };
   }
+}
+
+export async function createDashboardFunnel(
+  query: DashboardQuery,
+  requestBody: DashboardCreateFunnelRequest
+): Promise<DashboardFunnel> {
+  const parsedBody = DashboardCreateFunnelRequestSchema.parse(requestBody);
+  const url = new URL(`${dashboardConfig.apiBaseUrl}/api/dashboard/v1/funnels`, window.location.origin);
+  url.searchParams.set("projectId", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardFunnelSchema).parse(await response.json()).data;
+}
+
+export async function fetchDashboardEventCatalog(
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<DashboardEventCatalog> {
+  return request("/api/dashboard/v1/event-catalog", DashboardEventCatalogSchema, query, signal);
 }
 
 async function request<T>(

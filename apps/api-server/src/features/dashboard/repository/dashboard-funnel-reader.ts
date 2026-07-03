@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type {
   DashboardCreateFunnelRequest,
+  DashboardEventCatalogItem,
   DashboardFunnel,
   DashboardFunnelStep
 } from "@loopad/shared";
+import { type ClickHouseClient } from "@clickhouse/client";
 import { Inject, Injectable } from "@nestjs/common";
 import type { Pool } from "pg";
-import { PG_POOL } from "../../../infra/database/index.js";
+import { CLICKHOUSE_CLIENT, PG_POOL } from "../../../infra/database/index.js";
 
 type FunnelRow = {
   funnel_id: string;
@@ -24,12 +26,42 @@ type FunnelStepRow = {
   event_name: DashboardFunnelStep["event_name"];
 };
 
+type EventCatalogRow = {
+  event_name: string;
+  event_count: number | string;
+};
+
 @Injectable()
 export class DashboardFunnelReader {
   constructor(
     @Inject(PG_POOL)
-    private readonly postgres: Pool
+    private readonly postgres: Pool,
+    @Inject(CLICKHOUSE_CLIENT)
+    private readonly clickhouse: ClickHouseClient
   ) {}
+
+  async listEventCatalog(projectId: string): Promise<DashboardEventCatalogItem[]> {
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          event_name,
+          count() AS event_count
+        FROM funnel_step_events
+        WHERE project_id = {projectId:String}
+        GROUP BY event_name
+        ORDER BY event_count DESC, event_name ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { projectId }
+    });
+    const rows = await result.json<EventCatalogRow>();
+
+    return rows.map((row) => ({
+      event_name: row.event_name,
+      display_name: eventDisplayName(row.event_name),
+      event_count: countValue(row.event_count)
+    }));
+  }
 
   async listFunnels(projectId: string): Promise<DashboardFunnel[]> {
     const [funnels, steps] = await Promise.all([
@@ -134,9 +166,32 @@ function formatDateTime(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : value;
 }
 
+function countValue(value: number | string): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
+}
+
+function eventDisplayName(eventName: string): string {
+  return EVENT_DISPLAY_NAMES[eventName] ?? eventName;
+}
+
 function requireRow<T>(row: T | undefined, label: string): T {
   if (!row) {
     throw new Error(`Failed to create ${label}.`);
   }
   return row;
 }
+
+const EVENT_DISPLAY_NAMES: Record<string, string> = {
+  booking_cancel: "예약 취소",
+  booking_complete: "예약 완료",
+  booking_start: "예약 시작",
+  campaign_landing: "캠페인 랜딩",
+  campaign_redirect_click: "캠페인 리다이렉트 클릭",
+  hotel_click: "숙소 클릭",
+  hotel_detail_view: "숙소 상세 조회",
+  hotel_search: "숙소 검색",
+  page_view: "페이지 조회",
+  promotion_click: "프로모션 클릭",
+  promotion_impression: "프로모션 노출"
+};

@@ -1,5 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { DashboardCreateFunnelRequest, DashboardFunnelList, DashboardMain } from "@loopad/shared";
+import type {
+  DashboardCreateFunnelRequest,
+  DashboardEventCatalog,
+  DashboardFunnelList,
+  DashboardMain
+} from "@loopad/shared";
 import { DashboardCampaignReader, DashboardFunnelReader } from "../repository/index.js";
 
 @Injectable()
@@ -17,6 +22,10 @@ export class DashboardQueryService {
 
   async funnels(projectId: string): Promise<DashboardFunnelList> {
     return { funnels: await this.funnelReader.listFunnels(projectId) };
+  }
+
+  async eventCatalog(projectId: string): Promise<DashboardEventCatalog> {
+    return { events: await this.funnelReader.listEventCatalog(projectId) };
   }
 
   async createFunnel(

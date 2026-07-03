@@ -24,19 +24,7 @@ export const DashboardMainSchema = z.object({
 });
 export type DashboardMain = z.infer<typeof DashboardMainSchema>;
 
-export const DashboardFunnelEventNameSchema = z.enum([
-  "page_view",
-  "promotion_impression",
-  "promotion_click",
-  "campaign_redirect_click",
-  "campaign_landing",
-  "hotel_search",
-  "hotel_click",
-  "hotel_detail_view",
-  "booking_start",
-  "booking_complete",
-  "booking_cancel"
-]);
+export const DashboardFunnelEventNameSchema = z.string().min(1);
 export type DashboardFunnelEventName = z.infer<typeof DashboardFunnelEventNameSchema>;
 
 export const DashboardFunnelStepSchema = z.object({
@@ -72,3 +60,15 @@ export const DashboardCreateFunnelRequestSchema = z.object({
   ).min(2)
 });
 export type DashboardCreateFunnelRequest = z.infer<typeof DashboardCreateFunnelRequestSchema>;
+
+export const DashboardEventCatalogItemSchema = z.object({
+  event_name: DashboardFunnelEventNameSchema,
+  display_name: z.string(),
+  event_count: CountSchema
+});
+export type DashboardEventCatalogItem = z.infer<typeof DashboardEventCatalogItemSchema>;
+
+export const DashboardEventCatalogSchema = z.object({
+  events: z.array(DashboardEventCatalogItemSchema)
+});
+export type DashboardEventCatalog = z.infer<typeof DashboardEventCatalogSchema>;

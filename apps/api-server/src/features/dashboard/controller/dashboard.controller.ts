@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Inject, Post, Query } from "@nestjs/common";
 import {
   DashboardCreateFunnelRequestSchema,
+  DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelSchema,
   DashboardMainSchema
@@ -25,6 +26,14 @@ export class DashboardController {
   async funnels(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardFunnelListSchema.parse(await this.dashboardQuery.funnels(requiredProjectId));
+  }
+
+  @Get("api/dashboard/v1/event-catalog")
+  async eventCatalog(@Query("projectId") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardEventCatalogSchema.parse(
+      await this.dashboardQuery.eventCatalog(requiredProjectId)
+    );
   }
 
   @Post("api/dashboard/v1/funnels")
