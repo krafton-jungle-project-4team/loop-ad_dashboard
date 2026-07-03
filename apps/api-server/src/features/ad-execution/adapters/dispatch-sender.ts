@@ -133,7 +133,7 @@ export class AwsSesEmailSender extends EmailSender {
 
     return {
       provider: this.providerName,
-      providerMessageId: output.MessageId ?? `aws_ses_${randomUUID()}`
+      providerMessageId: requiredProviderMessageId(output.MessageId, this.providerName)
     };
   }
 }
@@ -152,7 +152,15 @@ export class AwsSnsSmsSender extends SmsSender {
 
     return {
       provider: this.providerName,
-      providerMessageId: output.MessageId ?? `aws_sns_${randomUUID()}`
+      providerMessageId: requiredProviderMessageId(output.MessageId, this.providerName)
     };
   }
+}
+
+function requiredProviderMessageId(value: string | undefined, providerName: string) {
+  if (!value) {
+    throw new Error(`${providerName} did not return a message id.`);
+  }
+
+  return value;
 }

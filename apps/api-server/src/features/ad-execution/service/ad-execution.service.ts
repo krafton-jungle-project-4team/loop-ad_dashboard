@@ -16,11 +16,13 @@ import {
 import { RecipientResolver } from "../adapters/recipient-resolver.js";
 import {
   AdExecutionDomain,
-  type ActiveAssignmentSnapshot,
+  type ActiveAdServingAssignmentEntity,
+  type AdExperimentEntity,
   type DispatchAttemptSnapshot,
   type DispatchChannel,
   type DispatchJobStatus,
-  type PromotionRunExecutionContextSnapshot,
+  type PromotionEntity,
+  type PromotionRunEntity,
   type RedirectPageSnapshot
 } from "../domain/index.js";
 import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
@@ -34,6 +36,12 @@ const LOOPAD_EVENT_SDK = Object.freeze({
   url: LOOPAD_EVENT_SDK_URL,
   writeKey: LOOPAD_EVENT_WRITE_KEY
 });
+
+interface DispatchContext {
+  promotionRun: PromotionRunEntity;
+  promotion: PromotionEntity;
+  channel: DispatchChannel;
+}
 
 @Injectable()
 export class AdExecutionService {
@@ -71,7 +79,7 @@ export class AdExecutionService {
         status: toStoredDispatchJobStatus(summary.status),
         dispatchedCount: summary.dispatched_count,
         failedCount: summary.failed_count,
-        metadata: {
+        result: {
           status: summary.status,
           attempts
         }
@@ -108,40 +116,69 @@ export class AdExecutionService {
       throw adExecutionErrors.redirectExpired(redirectId);
     }
 
-    if (!isHttpUrl(link.targetUrl)) {
+    if (!isHttpUrl(link.destinationUrl)) {
       throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
     }
 
-    return AdExecutionDomain.toRedirectPage(link, LOOPAD_EVENT_SDK);
+    const adExperiment = await this.requireRedirectAdExperiment(link.adExperimentId);
+
+    return AdExecutionDomain.toRedirectPage(link, adExperiment.channel, LOOPAD_EVENT_SDK);
   }
 
-  private async requireDispatchContext(
-    promotionRunId: string
-  ): Promise<PromotionRunExecutionContextSnapshot & { channel: DispatchChannel }> {
-    const context = await this.reader.findPromotionRunContext(promotionRunId);
+  private async requireDispatchContext(promotionRunId: string): Promise<DispatchContext> {
+    const promotionRun = await this.reader.findPromotionRun(promotionRunId);
 
-    if (!context) {
+    if (!promotionRun) {
       throw adExecutionErrors.promotionRunNotFound(promotionRunId);
     }
 
-    const channel = context.channel;
+    const promotion = await this.reader.findPromotion(promotionRun.promotionId);
+
+    if (!promotion) {
+      throw adExecutionErrors.inconsistentAssignment(
+        `promotion_run_id '${promotionRun.promotionRunId}' references missing promotion_id '${promotionRun.promotionId}'.`
+      );
+    }
+
+    const channel = promotion.channel;
 
     if (!AdExecutionDomain.isDispatchChannel(channel)) {
       throw adExecutionErrors.unsupportedDispatchChannel(promotionRunId, channel);
     }
 
     return {
-      ...context,
+      promotionRun,
+      promotion,
       channel
     };
   }
 
+  private async requireRedirectAdExperiment(
+    adExperimentId: string | null
+  ): Promise<AdExperimentEntity> {
+    if (!adExperimentId) {
+      throw adExecutionErrors.inconsistentAssignment(
+        "redirect link is missing ad_experiment_id."
+      );
+    }
+
+    const adExperiment = await this.reader.findAdExperiment(adExperimentId);
+
+    if (!adExperiment) {
+      throw adExecutionErrors.inconsistentAssignment(
+        `redirect link references missing ad_experiment_id '${adExperimentId}'.`
+      );
+    }
+
+    return adExperiment;
+  }
+
   private assertDispatchAssignments(
-    context: PromotionRunExecutionContextSnapshot,
-    assignments: readonly ActiveAssignmentSnapshot[]
+    context: DispatchContext,
+    assignments: readonly ActiveAdServingAssignmentEntity[]
   ) {
     if (assignments.length === 0) {
-      throw adExecutionErrors.activeAssignmentNotFound(context.promotionRunId);
+      throw adExecutionErrors.activeAssignmentNotFound(context.promotionRun.promotionRunId);
     }
 
     const channelMismatch = assignments.find(
@@ -150,7 +187,7 @@ export class AdExecutionService {
 
     if (channelMismatch) {
       throw adExecutionErrors.inconsistentAssignment(
-        `promotion_run_id '${context.promotionRunId}' has assignment channel '${channelMismatch.channel}' but promotion channel is '${context.channel}'.`
+        `promotion_run_id '${context.promotionRun.promotionRunId}' has assignment channel '${channelMismatch.channel}' but promotion channel is '${context.channel}'.`
       );
     }
 
@@ -162,22 +199,22 @@ export class AdExecutionService {
   }
 
   private async createDispatchJob(
-    context: PromotionRunExecutionContextSnapshot & { channel: DispatchChannel },
-    assignments: readonly ActiveAssignmentSnapshot[]
+    context: DispatchContext,
+    assignments: readonly ActiveAdServingAssignmentEntity[]
   ) {
     const first = requireFirstAssignment(assignments);
 
     return this.writer.insertDispatchJob({
       dispatchJobId: randomUUID(),
-      projectId: context.projectId,
-      campaignId: context.campaignId,
-      promotionId: context.promotionId,
-      promotionRunId: context.promotionRunId,
+      projectId: context.promotionRun.projectId,
+      campaignId: context.promotionRun.campaignId,
+      promotionId: context.promotionRun.promotionId,
+      promotionRunId: context.promotionRun.promotionRunId,
       adExperimentId: first.adExperimentId,
       channel: context.channel,
       provider: this.dispatchSender.providerNameFor(context.channel),
       targetCount: assignments.length,
-      metadata: {
+      request: {
         segment_id: first.segmentId,
         content_id: first.contentId,
         content_option_id: first.contentOptionId
@@ -187,7 +224,7 @@ export class AdExecutionService {
 
   private async dispatchGroup(
     channel: DispatchChannel,
-    assignments: readonly ActiveAssignmentSnapshot[]
+    assignments: readonly ActiveAdServingAssignmentEntity[]
   ): Promise<DispatchAttemptSnapshot[]> {
     const attempts: DispatchAttemptSnapshot[] = [];
 
@@ -200,7 +237,7 @@ export class AdExecutionService {
 
   private async dispatchOne(
     channel: DispatchChannel,
-    assignment: ActiveAssignmentSnapshot
+    assignment: ActiveAdServingAssignmentEntity
   ): Promise<DispatchAttemptSnapshot> {
     const redirectId = await this.createRedirectLink(assignment);
     const provider = this.dispatchSender.providerNameFor(channel);
@@ -249,11 +286,12 @@ export class AdExecutionService {
     }
   }
 
-  private async createRedirectLink(assignment: ActiveAssignmentSnapshot): Promise<string> {
+  private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
     const redirectId = randomUUID();
 
     return this.writer.insertRedirectLink({
-      redirectId,
+      redirectLinkId: redirectId,
+      redirectToken: redirectId,
       projectId: assignment.projectId,
       campaignId: assignment.campaignId,
       promotionId: assignment.promotionId,
@@ -263,7 +301,8 @@ export class AdExecutionService {
       userId: assignment.userId,
       contentId: assignment.contentId,
       contentOptionId: assignment.contentOptionId,
-      targetUrl: assignment.targetUrl,
+      destinationUrl: requireAssignmentText(assignment.landingUrl, "landing_url"),
+      metadata: {},
       expiresAt: daysFromNow(7)
     });
   }
@@ -271,7 +310,7 @@ export class AdExecutionService {
 
 function toDispatchSendInput(
   channel: DispatchChannel,
-  assignment: ActiveAssignmentSnapshot,
+  assignment: ActiveAdServingAssignmentEntity,
   recipient: string,
   targetUrl: string
 ): DispatchSendInput {
@@ -279,7 +318,7 @@ function toDispatchSendInput(
     return {
       channel,
       recipient,
-      subject: assignment.subject || assignment.title || "LoopAd promotion",
+      subject: assignment.subject ?? "",
       body: [assignment.preheader, assignment.body, ctaLine(assignment.cta, targetUrl)]
         .filter(Boolean)
         .join("\n\n"),
@@ -291,9 +330,7 @@ function toDispatchSendInput(
     channel,
     recipient,
     subject: "",
-    body: [assignment.message || assignment.body || assignment.title, targetUrl]
-      .filter(Boolean)
-      .join(" "),
+    body: [assignment.message, targetUrl].filter(Boolean).join(" "),
     redirectUrl: targetUrl
   };
 }
@@ -317,7 +354,7 @@ function toStoredDispatchJobStatus(
   return status === "completed" ? "completed" : "failed";
 }
 
-function ctaLine(cta: string, targetUrl: string) {
+function ctaLine(cta: string | null, targetUrl: string) {
   return cta ? `${cta}: ${targetUrl}` : targetUrl;
 }
 
@@ -347,7 +384,7 @@ function daysFromNow(days: number) {
 function logDispatchAttempt(
   channel: DispatchChannel,
   provider: string,
-  assignment: ActiveAssignmentSnapshot,
+  assignment: ActiveAdServingAssignmentEntity,
   redirectId: string
 ) {
   logWithContext("info", "Ad dispatch send attempt", {
@@ -369,7 +406,7 @@ function logDispatchAttempt(
 function logDispatchResult(
   channel: DispatchChannel,
   provider: string,
-  assignment: ActiveAssignmentSnapshot,
+  assignment: ActiveAdServingAssignmentEntity,
   attempt: DispatchAttemptSnapshot,
   errorName?: string
 ) {
@@ -397,7 +434,7 @@ function getErrorName(error: unknown) {
   return error instanceof Error ? error.name : "UnknownError";
 }
 
-function requireFirstAssignment(assignments: readonly ActiveAssignmentSnapshot[]) {
+function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentEntity[]) {
   const first = assignments[0];
 
   if (!first) {
@@ -405,4 +442,12 @@ function requireFirstAssignment(assignments: readonly ActiveAssignmentSnapshot[]
   }
 
   return first;
+}
+
+function requireAssignmentText(value: string | null, field: string): string {
+  if (!value) {
+    throw adExecutionErrors.inconsistentAssignment(`Active assignment is missing ${field}.`);
+  }
+
+  return value;
 }

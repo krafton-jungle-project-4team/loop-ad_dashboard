@@ -7,62 +7,110 @@ import type {
 export type AdExecutionChannel = "email" | "sms" | "onsite_banner";
 export type DispatchChannel = Extract<AdExecutionChannel, "email" | "sms">;
 export type DispatchJobStatus = "completed" | "partial_failed" | "failed";
+export type JsonObject = Record<string, unknown>;
 
-export interface PromotionRunExecutionContextSnapshot {
-  promotionRunId: string;
+export interface PromotionEntity {
+  promotionId: string;
   projectId: string;
   campaignId: string;
-  promotionId: string;
-  promotionRunStatus: string;
+  name: string;
   channel: AdExecutionChannel;
+  targetAudience: string;
+  goalMetric: string;
+  targetValue: string;
+  goalBasis: string;
+  status: string;
+  metadataJson: JsonObject;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface ActiveAssignmentSnapshot {
+export interface PromotionRunEntity {
   promotionRunId: string;
   projectId: string;
   campaignId: string;
   promotionId: string;
+  analysisId: string;
+  generationId: string;
+  previousPromotionRunId: string | null;
+  loopCount: number;
+  operatorInstruction: string | null;
+  status: string;
+  summaryJson: JsonObject;
+  startedAt: Date | null;
+  endedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AdExperimentEntity {
+  adExperimentId: string;
+  projectId: string;
+  campaignId: string;
+  promotionId: string;
+  promotionRunId: string;
+  analysisId: string;
+  generationId: string;
+  segmentId: string;
+  segmentName: string | null;
+  contentId: string;
+  contentOptionId: string;
+  channel: AdExecutionChannel;
+  loopCount: number;
+  status: string;
+  goalMetric: string;
+  goalTargetValue: string;
+  goalBasis: string;
+  startedAt: Date | null;
+  endedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ActiveAdServingAssignmentEntity {
+  promotionRunId: string;
   userId: string;
   segmentId: string;
   adExperimentId: string;
   contentId: string;
   contentOptionId: string;
+  fallback: boolean;
+  similarityScore: string | null;
+  projectId: string;
+  campaignId: string;
+  promotionId: string;
   channel: AdExecutionChannel;
-  subject: string;
-  preheader: string;
-  title: string;
-  body: string;
-  cta: string;
-  message: string;
-  targetUrl: string;
+  subject: string | null;
+  preheader: string | null;
+  title: string | null;
+  body: string | null;
+  cta: string | null;
+  message: string | null;
+  imagePrompt: string | null;
+  landingUrl: string | null;
+  contentStatus: string;
+  adExperimentStatus: string;
 }
 
-export interface BannerAssignmentSnapshot {
-  promotionRunId: string;
-  segmentId: string;
-  adExperimentId: string;
-  contentId: string;
-  contentOptionId: string;
-  title: string;
-  body: string;
-  cta: string;
-  targetUrl: string;
-}
-
-export interface RedirectLinkSnapshot {
-  redirectId: string;
+export interface RedirectLinkEntity {
+  redirectLinkId: string;
   projectId: string;
   campaignId: string;
   promotionId: string;
   promotionRunId: string;
-  adExperimentId: string;
-  segmentId: string;
-  userId: string;
-  contentId: string;
-  contentOptionId: string;
-  targetUrl: string;
+  adExperimentId: string | null;
+  segmentId: string | null;
+  userId: string | null;
+  contentId: string | null;
+  contentOptionId: string | null;
+  redirectToken: string;
+  destinationUrl: string;
+  status: string;
+  metadataJson: JsonObject;
   expiresAt: Date | null;
-  promotionChannel: AdExecutionChannel;
+  clickedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface RedirectClickFields {
@@ -110,8 +158,8 @@ export const AdExecutionDomain = {
     return channel === "email" || channel === "sms";
   },
 
-  findAssignmentConflicts(assignments: readonly ActiveAssignmentSnapshot[]): string[] {
-    const bySegment = new Map<string, ActiveAssignmentSnapshot>();
+  findAssignmentConflicts(assignments: readonly ActiveAdServingAssignmentEntity[]): string[] {
+    const bySegment = new Map<string, ActiveAdServingAssignmentEntity>();
     const conflicts: string[] = [];
 
     for (const assignment of assignments) {
@@ -137,9 +185,9 @@ export const AdExecutionDomain = {
   },
 
   groupAssignmentsByAdExperiment(
-    assignments: readonly ActiveAssignmentSnapshot[]
-  ): ActiveAssignmentSnapshot[][] {
-    const groups = new Map<string, ActiveAssignmentSnapshot[]>();
+    assignments: readonly ActiveAdServingAssignmentEntity[]
+  ): ActiveAdServingAssignmentEntity[][] {
+    const groups = new Map<string, ActiveAdServingAssignmentEntity[]>();
 
     for (const assignment of assignments) {
       const current = groups.get(assignment.adExperimentId) ?? [];
@@ -150,17 +198,17 @@ export const AdExecutionDomain = {
     return [...groups.values()];
   },
 
-  toBannerResponse(assignment: BannerAssignmentSnapshot): BannerResolveResponse {
+  toBannerResponse(assignment: ActiveAdServingAssignmentEntity): BannerResolveResponse {
     return {
       promotion_run_id: assignment.promotionRunId,
       ad_experiment_id: assignment.adExperimentId,
       segment_id: assignment.segmentId,
       content_id: assignment.contentId,
       content_option_id: assignment.contentOptionId,
-      title: assignment.title,
-      body: assignment.body,
-      cta: assignment.cta,
-      target_url: assignment.targetUrl
+      title: assignment.title ?? "",
+      body: assignment.body ?? "",
+      cta: assignment.cta ?? "",
+      target_url: requiredText(assignment.landingUrl, "landing_url")
     };
   },
 
@@ -179,7 +227,7 @@ export const AdExecutionDomain = {
   toDispatchJobSummary(
     dispatchJobId: string,
     channel: DispatchChannel,
-    assignments: readonly ActiveAssignmentSnapshot[],
+    assignments: readonly ActiveAdServingAssignmentEntity[],
     attempts: readonly DispatchAttemptSnapshot[]
   ): DispatchJobSummary {
     const first = requireFirstAssignment(assignments);
@@ -214,46 +262,56 @@ export const AdExecutionDomain = {
     };
   },
 
-  toRedirectClickFields(link: RedirectLinkSnapshot): RedirectClickFields {
+  toRedirectClickFields(
+    link: RedirectLinkEntity,
+    promotionChannel: AdExecutionChannel
+  ): RedirectClickFields {
     return {
       campaignId: link.campaignId,
       promotionId: link.promotionId,
       promotionRunId: link.promotionRunId,
-      adExperimentId: link.adExperimentId,
-      segmentId: link.segmentId,
-      contentId: link.contentId,
-      contentOptionId: link.contentOptionId,
-      promotionChannel: link.promotionChannel,
-      redirectId: link.redirectId,
-      targetUrl: link.targetUrl
+      adExperimentId: requiredText(link.adExperimentId, "ad_experiment_id"),
+      segmentId: requiredText(link.segmentId, "segment_id"),
+      contentId: requiredText(link.contentId, "content_id"),
+      contentOptionId: requiredText(link.contentOptionId, "content_option_id"),
+      promotionChannel,
+      redirectId: link.redirectToken,
+      targetUrl: link.destinationUrl
     };
   },
 
-  toRedirectClickEvent(link: RedirectLinkSnapshot): RedirectClickEventSnapshot {
+  toRedirectClickEvent(
+    link: RedirectLinkEntity,
+    promotionChannel: AdExecutionChannel
+  ): RedirectClickEventSnapshot {
     return {
       name: "campaign_redirect_click",
       projectId: link.projectId,
       identity: {
-        userId: link.userId,
-        sessionId: `redirect:${link.redirectId}`
+        userId: requiredText(link.userId, "user_id"),
+        sessionId: `redirect:${link.redirectToken}`
       },
-      fields: AdExecutionDomain.toRedirectClickFields(link)
+      fields: AdExecutionDomain.toRedirectClickFields(link, promotionChannel)
     };
   },
 
   toRedirectPage(
-    link: RedirectLinkSnapshot,
+    link: RedirectLinkEntity,
+    promotionChannel: AdExecutionChannel,
     eventSdk: RedirectPageSnapshot["eventSdk"]
   ): RedirectPageSnapshot {
     return {
-      targetUrl: link.targetUrl,
+      targetUrl: link.destinationUrl,
       eventSdk,
-      event: AdExecutionDomain.toRedirectClickEvent(link)
+      event: AdExecutionDomain.toRedirectClickEvent(link, promotionChannel)
     };
   },
 
-  toRedirectClickProperties(link: RedirectLinkSnapshot): Record<string, string> {
-    const fields = AdExecutionDomain.toRedirectClickFields(link);
+  toRedirectClickProperties(
+    link: RedirectLinkEntity,
+    promotionChannel: AdExecutionChannel
+  ): Record<string, string> {
+    const fields = AdExecutionDomain.toRedirectClickFields(link, promotionChannel);
 
     return {
       campaign_id: fields.campaignId,
@@ -270,7 +328,7 @@ export const AdExecutionDomain = {
   }
 };
 
-function requireFirstAssignment(assignments: readonly ActiveAssignmentSnapshot[]) {
+function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentEntity[]) {
   const first = assignments[0];
 
   if (!first) {
@@ -278,6 +336,14 @@ function requireFirstAssignment(assignments: readonly ActiveAssignmentSnapshot[]
   }
 
   return first;
+}
+
+function requiredText(value: string | null | undefined, field: string): string {
+  if (!value) {
+    throw new Error(`Ad execution entity is missing ${field}.`);
+  }
+
+  return value;
 }
 
 function sum(

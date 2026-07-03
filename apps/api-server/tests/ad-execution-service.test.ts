@@ -3,10 +3,12 @@ import { test } from "node:test";
 import { AppError } from "../src/app-errors.js";
 import { AdExecutionDomain } from "../src/features/ad-execution/domain/index.js";
 import type {
-  ActiveAssignmentSnapshot,
-  BannerAssignmentSnapshot,
+  ActiveAdServingAssignmentEntity,
+  AdExperimentEntity,
   DispatchChannel,
-  RedirectLinkSnapshot
+  PromotionEntity,
+  PromotionRunEntity,
+  RedirectLinkEntity
 } from "../src/features/ad-execution/domain/index.js";
 
 process.env.LOOPAD_ENV ??= "test";
@@ -80,9 +82,49 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
   );
 });
 
+test("dispatch does not synthesize email content fallbacks", async () => {
+  const reader = new FakeAdExecutionReader();
+  const sender = new FakeDispatchSender();
+
+  reader.dispatchAssignments = [
+    assignment({
+      subject: null,
+      preheader: null,
+      title: "Ignored title",
+      body: null,
+      cta: null,
+      message: "Ignored message"
+    })
+  ];
+
+  const { result: response } = await captureDispatchLogs(() =>
+    createService(
+      reader,
+      new FakeAdExecutionWriter(),
+      new FakeRecipientResolver(),
+      sender
+    ).dispatchPromotionRun("run-1")
+  );
+
+  assert.equal(response.dispatched_count, 1);
+  assert.equal((sender.sent[0] as { subject: string } | undefined)?.subject, "");
+  assert.match(
+    (sender.sent[0] as { body: string } | undefined)?.body ?? "",
+    /^http:\/\/localhost:8080\/r\//
+  );
+  assert.equal(
+    ((sender.sent[0] as { body: string } | undefined)?.body ?? "").includes("Ignored title"),
+    false
+  );
+  assert.equal(
+    ((sender.sent[0] as { body: string } | undefined)?.body ?? "").includes("Ignored message"),
+    false
+  );
+});
+
 test("dispatch rejects onsite banner promotion runs", async () => {
   const reader = new FakeAdExecutionReader();
-  reader.context = { ...reader.context, channel: "onsite_banner" };
+  reader.promotion = { ...reader.promotion, channel: "onsite_banner" };
 
   await assert.rejects(
     () => createService(reader).dispatchPromotionRun("run-1"),
@@ -96,15 +138,12 @@ test("dispatch rejects onsite banner promotion runs", async () => {
 test("banner resolve returns the precomputed segment content", async () => {
   const reader = new FakeAdExecutionReader();
   reader.bannerAssignment = {
-    promotionRunId: "run-1",
-    adExperimentId: "exp-1",
-    segmentId: "seg-1",
-    contentId: "content-1",
-    contentOptionId: "option-1",
+    ...assignment(),
     title: "Approved title",
     body: "Approved body",
     cta: "Book now",
-    targetUrl: "https://loop-ad.example/landing"
+    landingUrl: "https://loop-ad.example/landing",
+    channel: "onsite_banner"
   };
 
   const response = await createService(reader).resolveBanner({
@@ -132,7 +171,7 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   const service = createService(reader);
 
   const page = await service.resolveRedirectPage("redirect-1");
-  const properties = AdExecutionDomain.toRedirectClickProperties(reader.redirectLink!);
+  const properties = AdExecutionDomain.toRedirectClickProperties(reader.redirectLink!, "email");
   const html = renderRedirectPage(page);
 
   assert.equal(page.targetUrl, "https://loop-ad.example/landing");
@@ -205,17 +244,21 @@ function createService(
   );
 }
 
-function assignment(overrides: Partial<ActiveAssignmentSnapshot> = {}): ActiveAssignmentSnapshot {
+function assignment(
+  overrides: Partial<ActiveAdServingAssignmentEntity> = {}
+): ActiveAdServingAssignmentEntity {
   return {
     promotionRunId: "run-1",
-    projectId: "project-1",
-    campaignId: "campaign-1",
-    promotionId: "promotion-1",
     userId: "user-1",
     segmentId: "seg-1",
     adExperimentId: "exp-1",
     contentId: "content-1",
     contentOptionId: "option-1",
+    fallback: false,
+    similarityScore: null,
+    projectId: "project-1",
+    campaignId: "campaign-1",
+    promotionId: "promotion-1",
     channel: "email",
     subject: "Subject",
     preheader: "Preheader",
@@ -223,24 +266,74 @@ function assignment(overrides: Partial<ActiveAssignmentSnapshot> = {}): ActiveAs
     body: "Body",
     cta: "Open",
     message: "Message",
-    targetUrl: "https://loop-ad.example/landing",
+    imagePrompt: null,
+    landingUrl: "https://loop-ad.example/landing",
+    contentStatus: "approved",
+    adExperimentStatus: "approved",
     ...overrides
   };
 }
 
 class FakeAdExecutionReader {
-  context = {
+  promotionRun: PromotionRunEntity = {
     promotionRunId: "run-1",
     projectId: "project-1",
     campaignId: "campaign-1",
     promotionId: "promotion-1",
-    promotionRunStatus: "approved",
-    channel: "email" as "email" | "sms" | "onsite_banner"
+    analysisId: "analysis-1",
+    generationId: "generation-1",
+    previousPromotionRunId: null,
+    loopCount: 1,
+    operatorInstruction: null,
+    status: "approved",
+    summaryJson: {},
+    startedAt: null,
+    endedAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z")
   };
-  dispatchAssignments: ActiveAssignmentSnapshot[] = [assignment()];
-  bannerAssignment: BannerAssignmentSnapshot | null = null;
-  redirectLink: RedirectLinkSnapshot | null = {
-    redirectId: "redirect-1",
+  promotion: PromotionEntity = {
+    promotionId: "promotion-1",
+    projectId: "project-1",
+    campaignId: "campaign-1",
+    name: "Promotion",
+    channel: "email",
+    targetAudience: "existing_users",
+    goalMetric: "promotion_click_rate",
+    targetValue: "0.100000",
+    goalBasis: "promotion_average",
+    status: "approved",
+    metadataJson: {},
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z")
+  };
+  adExperiment: AdExperimentEntity = {
+    adExperimentId: "exp-1",
+    projectId: "project-1",
+    campaignId: "campaign-1",
+    promotionId: "promotion-1",
+    promotionRunId: "run-1",
+    analysisId: "analysis-1",
+    generationId: "generation-1",
+    segmentId: "seg-1",
+    segmentName: null,
+    contentId: "content-1",
+    contentOptionId: "option-1",
+    channel: "email",
+    loopCount: 1,
+    status: "approved",
+    goalMetric: "promotion_click_rate",
+    goalTargetValue: "0.100000",
+    goalBasis: "promotion_average",
+    startedAt: null,
+    endedAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z")
+  };
+  dispatchAssignments: ActiveAdServingAssignmentEntity[] = [assignment()];
+  bannerAssignment: ActiveAdServingAssignmentEntity | null = null;
+  redirectLink: RedirectLinkEntity | null = {
+    redirectLinkId: "redirect-1",
     projectId: "project-1",
     campaignId: "campaign-1",
     promotionId: "promotion-1",
@@ -250,13 +343,26 @@ class FakeAdExecutionReader {
     userId: "user-1",
     contentId: "content-1",
     contentOptionId: "option-1",
-    targetUrl: "https://loop-ad.example/landing",
+    redirectToken: "redirect-1",
+    destinationUrl: "https://loop-ad.example/landing",
+    status: "active",
+    metadataJson: {},
     expiresAt: null,
-    promotionChannel: "email"
+    clickedAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z")
   };
 
-  async findPromotionRunContext() {
-    return this.context;
+  async findPromotionRun() {
+    return this.promotionRun;
+  }
+
+  async findPromotion() {
+    return this.promotion;
+  }
+
+  async findAdExperiment() {
+    return this.adExperiment;
   }
 
   async listDispatchAssignments() {
@@ -280,7 +386,7 @@ class FakeAdExecutionWriter {
     failedCount: number;
   }> = [];
   redirectLinks: Array<{
-    redirectId: string;
+    redirectToken: string;
     adExperimentId: string;
     segmentId: string;
     contentId: string;
@@ -301,14 +407,14 @@ class FakeAdExecutionWriter {
   }
 
   async insertRedirectLink(input: {
-    redirectId: string;
+    redirectToken: string;
     adExperimentId: string;
     segmentId: string;
     contentId: string;
     contentOptionId: string;
   }) {
     this.redirectLinks.push(input);
-    return input.redirectId;
+    return input.redirectToken;
   }
 }
 

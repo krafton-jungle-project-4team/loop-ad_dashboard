@@ -10,7 +10,10 @@ import {
   MockSmsSender,
   SmsSender
 } from "./adapters/dispatch-sender.js";
-import { MockRecipientResolver, RecipientResolver } from "./adapters/recipient-resolver.js";
+import {
+  RecipientResolver,
+  UnconfiguredRecipientResolver
+} from "./adapters/recipient-resolver.js";
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
 import { RedirectController } from "./controller/redirect.controller.js";
 import { AdExecutionReader, AdExecutionWriter } from "./repository/index.js";
@@ -27,7 +30,7 @@ const DISPATCH_PROVIDER: DispatchProviderName = "mock";
     AdExecutionService,
     AdExecutionReader,
     AdExecutionWriter,
-    { provide: RecipientResolver, useClass: MockRecipientResolver },
+    { provide: RecipientResolver, useClass: UnconfiguredRecipientResolver },
     {
       provide: EmailSender,
       useFactory: () => createEmailSender(DISPATCH_PROVIDER)

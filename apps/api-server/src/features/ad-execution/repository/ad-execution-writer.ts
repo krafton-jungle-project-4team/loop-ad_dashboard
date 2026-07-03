@@ -18,7 +18,7 @@ export interface InsertDispatchJobInput {
   channel: DispatchChannel;
   provider: string;
   targetCount: number;
-  metadata: unknown;
+  request: unknown;
 }
 
 export interface FinishDispatchJobInput {
@@ -26,11 +26,12 @@ export interface FinishDispatchJobInput {
   status: Extract<DispatchJobStatus, "completed" | "failed">;
   dispatchedCount: number;
   failedCount: number;
-  metadata: unknown;
+  result: unknown;
 }
 
 export interface InsertRedirectLinkInput {
-  redirectId: string;
+  redirectLinkId: string;
+  redirectToken: string;
   projectId: string;
   campaignId: string;
   promotionId: string;
@@ -40,7 +41,8 @@ export interface InsertRedirectLinkInput {
   userId: string;
   contentId: string;
   contentOptionId: string;
-  targetUrl: string;
+  destinationUrl: string;
+  metadata: unknown;
   expiresAt: Date;
 }
 
@@ -61,9 +63,11 @@ export class AdExecutionWriter {
         promotionRunId: input.promotionRunId,
         adExperimentId: input.adExperimentId,
         channel: input.channel,
-        provider: input.provider,
         targetCount: input.targetCount,
-        metadataJson: JSON.stringify(input.metadata)
+        requestJson: JSON.stringify({
+          provider: input.provider,
+          ...toJsonObject(input.request)
+        })
       })
       .single();
 
@@ -77,7 +81,7 @@ export class AdExecutionWriter {
         status: input.status,
         dispatchedCount: input.dispatchedCount,
         failedCount: input.failedCount,
-        metadataJson: JSON.stringify(input.metadata)
+        resultJson: JSON.stringify(input.result)
       })
       .single();
   }
@@ -85,7 +89,7 @@ export class AdExecutionWriter {
   async insertRedirectLink(input: InsertRedirectLinkInput): Promise<string> {
     const row = await this.db
       .query(insertRedirectLink, {
-        redirectId: input.redirectId,
+        redirectLinkId: input.redirectLinkId,
         projectId: input.projectId,
         campaignId: input.campaignId,
         promotionId: input.promotionId,
@@ -95,11 +99,19 @@ export class AdExecutionWriter {
         userId: input.userId,
         contentId: input.contentId,
         contentOptionId: input.contentOptionId,
-        targetUrl: input.targetUrl,
+        redirectToken: input.redirectToken,
+        destinationUrl: input.destinationUrl,
+        metadataJson: JSON.stringify(input.metadata),
         expiresAt: input.expiresAt.toISOString()
       })
       .single();
 
     return row.redirectId;
   }
+}
+
+function toJsonObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
