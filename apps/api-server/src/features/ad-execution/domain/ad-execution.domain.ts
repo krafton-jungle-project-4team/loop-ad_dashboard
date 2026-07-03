@@ -103,9 +103,7 @@ export const activeAdServingAssignmentEntitySchema = z.object({
   contentStatus: requiredStringSchema,
   adExperimentStatus: requiredStringSchema
 });
-export type ActiveAdServingAssignmentEntity = z.infer<
-  typeof activeAdServingAssignmentEntitySchema
->;
+export type ActiveAdServingAssignmentEntity = z.infer<typeof activeAdServingAssignmentEntitySchema>;
 
 export const redirectLinkEntitySchema = z.object({
   redirectLinkId: requiredStringSchema,
@@ -210,13 +208,22 @@ export const AdExecutionDomain = {
     return [...groups.values()];
   },
 
-  toBannerResponse(assignment: ActiveAdServingAssignmentEntity): BannerResolveResponse {
+  toBannerResponse(
+    assignment: ActiveAdServingAssignmentEntity,
+    placementId: string
+  ): BannerResolveResponse {
     return {
+      project_id: assignment.projectId,
+      user_id: assignment.userId,
+      campaign_id: assignment.campaignId,
+      promotion_id: assignment.promotionId,
       promotion_run_id: assignment.promotionRunId,
       ad_experiment_id: assignment.adExperimentId,
       segment_id: assignment.segmentId,
       content_id: assignment.contentId,
       content_option_id: assignment.contentOptionId,
+      promotion_channel: "onsite_banner",
+      placement_id: placementId,
       title: requiredStringSchema.parse(assignment.title),
       body: requiredStringSchema.parse(assignment.body),
       cta: requiredStringSchema.parse(assignment.cta),

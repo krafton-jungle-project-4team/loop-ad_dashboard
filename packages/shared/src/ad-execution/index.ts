@@ -21,6 +21,12 @@ export const BannerResolveQuerySchema = z.object({
 export type BannerResolveQuery = z.infer<typeof BannerResolveQuerySchema>;
 
 export const BannerResolveResponseSchema = AdExecutionContractIdsSchema.extend({
+  project_id: z.string().min(1),
+  user_id: z.string().min(1),
+  campaign_id: z.string().min(1),
+  promotion_id: z.string().min(1),
+  promotion_channel: z.literal("onsite_banner"),
+  placement_id: z.string().min(1),
   title: z.string(),
   body: z.string(),
   cta: z.string(),
