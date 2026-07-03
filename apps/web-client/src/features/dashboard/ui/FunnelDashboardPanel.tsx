@@ -21,6 +21,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { createDashboardFunnel, fetchDashboardEventCatalog } from "../api/dashboard-api.js";
+import {
+  dashboardEventCatalogQueryKey,
+  dashboardTabQueryKey
+} from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
@@ -41,7 +45,7 @@ export function FunnelDashboardPanel({
   const [steps, setSteps] = useState(() => createDefaultSteps());
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
-    queryKey: ["dashboard", "event-catalog", query.projectId]
+    queryKey: dashboardEventCatalogQueryKey(query.projectId)
   });
   const eventOptions = eventCatalog.data?.events ?? [];
   const createMutation = useMutation({
@@ -49,7 +53,7 @@ export function FunnelDashboardPanel({
     onSuccess: async () => {
       setFunnelName("");
       setSteps(createDefaultSteps());
-      await queryClient.invalidateQueries({ queryKey: ["dashboard", "funnels"] });
+      await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
     }
   });
   const isEventCatalogEmpty = eventCatalog.isSuccess && eventOptions.length === 0;
