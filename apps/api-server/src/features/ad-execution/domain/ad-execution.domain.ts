@@ -92,7 +92,7 @@ export interface RedirectPageSnapshot {
   targetUrl: string;
   eventSdk: {
     url: string;
-    writeKey: string | null;
+    writeKey: string;
   };
   event: RedirectClickEventSnapshot;
 }

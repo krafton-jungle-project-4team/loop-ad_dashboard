@@ -25,6 +25,14 @@ import {
 } from "../domain/index.js";
 import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
 
+const LOOPAD_EVENT_SDK_URL =
+  "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js";
+const LOOPAD_EVENT_WRITE_KEY = "public_write_key";
+const LOOPAD_EVENT_SDK = Object.freeze({
+  url: LOOPAD_EVENT_SDK_URL,
+  writeKey: LOOPAD_EVENT_WRITE_KEY
+});
+
 @Injectable()
 export class AdExecutionService {
   constructor(
@@ -102,7 +110,7 @@ export class AdExecutionService {
       throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
     }
 
-    return AdExecutionDomain.toRedirectPage(link, env.eventSdk);
+    return AdExecutionDomain.toRedirectPage(link, LOOPAD_EVENT_SDK);
   }
 
   private async requireDispatchContext(

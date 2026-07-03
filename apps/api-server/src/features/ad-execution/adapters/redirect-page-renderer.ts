@@ -75,11 +75,6 @@ export function renderRedirectPage(snapshot: RedirectPageSnapshot): string {
         }
 
         function trackRedirectClick() {
-          if (!redirect.eventSdk.writeKey) {
-            console.warn("LoopAd Event SDK write key is not configured; redirect event was not sent.");
-            return;
-          }
-
           if (!window.LoopAdEventSDK || typeof window.LoopAdEventSDK.init !== "function") {
             throw new Error("LoopAd Event SDK is unavailable.");
           }

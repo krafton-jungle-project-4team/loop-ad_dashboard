@@ -22,8 +22,6 @@ process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_PUBLIC_BASE_URL ??= "http://dashboard.test";
-process.env.LOOPAD_EVENT_SDK_URL ??= "https://sdk.test/loop-ad-event-sdk.iife.js";
-process.env.LOOPAD_EVENT_SDK_WRITE_KEY ??= "public_write_key";
 
 const { AdExecutionService } =
   await import("../src/features/ad-execution/service/ad-execution.service.js");
@@ -139,6 +137,10 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   assert.equal(page.event.identity.sessionId, "redirect:redirect-1");
   assert.equal(page.event.fields.adExperimentId, "exp-1");
   assert.equal(page.event.fields.targetUrl, "https://loop-ad.example/landing");
+  assert.equal(
+    page.eventSdk.url,
+    "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js"
+  );
   assert.equal(page.eventSdk.writeKey, "public_write_key");
   assert.equal(properties.ad_experiment_id, "exp-1");
   assert.equal(properties.redirect_id, "redirect-1");
