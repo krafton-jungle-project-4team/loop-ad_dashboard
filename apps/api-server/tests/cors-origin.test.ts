@@ -28,28 +28,6 @@ test("allows local HTTP origins only in local development resolver", async () =>
   });
 
   assert.equal(allowed, true);
-  const privateNetworkAllowed = await new Promise<boolean | undefined>((resolve, reject) => {
-    resolveOrigin("http://192.168.0.12:5173", (error, allow) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(allow);
-    });
-  });
-
-  assert.equal(privateNetworkAllowed, true);
-  const carrierGradeNatAllowed = await new Promise<boolean | undefined>((resolve, reject) => {
-    resolveOrigin("http://100.94.101.78:5173", (error, allow) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(allow);
-    });
-  });
-
-  assert.equal(carrierGradeNatAllowed, true);
   if (previousLoopAdEnv === undefined) {
     delete process.env.LOOPAD_ENV;
   } else {

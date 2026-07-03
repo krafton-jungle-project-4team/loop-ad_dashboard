@@ -31,29 +31,9 @@ function isAllowedLocalDevelopmentOrigin(origin: string): boolean {
   try {
     const url = new URL(origin);
     const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-    const isPrivateNetwork = isPrivateNetworkHostname(url.hostname);
 
-    return url.protocol === "http:" && (isLocalhost || isPrivateNetwork);
+    return url.protocol === "http:" && isLocalhost;
   } catch {
     return false;
   }
-}
-
-function isPrivateNetworkHostname(hostname: string) {
-  const carrierGradeNatMatch = /^100\.(\d{1,3})\./.exec(hostname);
-  if (carrierGradeNatMatch) {
-    const secondOctet = Number(carrierGradeNatMatch[1]);
-    return secondOctet >= 64 && secondOctet <= 127;
-  }
-
-  if (hostname.startsWith("192.168.")) {
-    return true;
-  }
-
-  if (hostname.startsWith("10.")) {
-    return true;
-  }
-
-  const match = /^172\.(\d{1,2})\./.exec(hostname);
-  return match ? Number(match[1]) >= 16 && Number(match[1]) <= 31 : false;
 }
