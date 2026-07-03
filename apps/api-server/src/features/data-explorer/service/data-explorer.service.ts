@@ -2,60 +2,43 @@ import { Inject, Injectable } from "@nestjs/common";
 import {
   DataExplorerAiChatResponseSchema,
   DataExplorerAiQueryPlanResponseSchema,
-  DataExplorerObjectDdlSchema,
   DataExplorerObjectDetailSchema,
   DataExplorerObjectsResponseSchema,
   DataExplorerQueryRunResponseSchema,
-  DataExplorerSourcesResponseSchema,
   type DataExplorerAiChatRequest,
   type DataExplorerAiQueryPlanRequest,
   type DataExplorerObjectRef,
-  type DataExplorerQueryRunRequest,
-  type DataExplorerSourceId
+  type DataExplorerObjectSummary,
+  type DataExplorerQueryRunRequest
 } from "@loopad/shared";
 import { suggestVisualizations } from "../domain/chart-suggester.domain.js";
-import { DataExplorerDomain } from "../domain/index.js";
-import { inferDataExplorerSourceId } from "../domain/query-plan.domain.js";
 import { normalizeQueryBounds, validateSqlInput } from "../domain/sql-safety.domain.js";
 import { dataExplorerErrors } from "../errors.js";
 import { OpenAiDataExplorerQueryPlannerProvider } from "../provider/openai-query-planner.provider.js";
-import { ClickHouseEventsReader } from "../repository/clickhouse-events-reader.js";
+import {
+  ClickHouseEventsReader,
+  type ListObjectsInput
+} from "../repository/clickhouse-events-reader.js";
 import { createDataExplorerLiveMetadata } from "../repository/data-explorer-live-metadata.js";
-import type {
-  DataExplorerSourceReader,
-  ListObjectsInput
-} from "../repository/data-explorer-source-reader.js";
-import { PostgresContractReader } from "../repository/postgres-contract-reader.js";
 
 /**
  * Data Explorer의 스키마 조회, SQL 실행, AI 질의를 조율한다.
  *
- * SQL 해석은 코드에서 과하게 판단하지 않고, AI와 DB 읽기 전용 설정에 맡긴다.
+ * 현재 데이터 소스는 ClickHouse 하나라서 별도 소스 라우팅을 두지 않는다.
  */
 @Injectable()
 export class DataExplorerService {
   constructor(
-    @Inject(PostgresContractReader)
-    private readonly postgresContract: PostgresContractReader,
     @Inject(ClickHouseEventsReader)
     private readonly clickHouseEvents: ClickHouseEventsReader,
     @Inject(OpenAiDataExplorerQueryPlannerProvider)
     private readonly openAiQueryPlanner: OpenAiDataExplorerQueryPlannerProvider
   ) {}
 
-  sources() {
-    return DataExplorerSourcesResponseSchema.parse({
-      sources: DataExplorerDomain.sources()
-    });
-  }
-
   async listObjects(input: ListObjectsInput) {
-    const reader = this.reader(input.sourceId);
-
     try {
       return DataExplorerObjectsResponseSchema.parse({
-        source_id: reader.sourceId,
-        objects: await reader.listObjects(input),
+        objects: await this.clickHouseEvents.listObjects(input),
         ...createDataExplorerLiveMetadata()
       });
     } catch (error) {
@@ -64,27 +47,14 @@ export class DataExplorerService {
   }
 
   async getObjectDetail(ref: DataExplorerObjectRef) {
-    const reader = this.reader(ref.source_id);
-
     try {
-      return DataExplorerObjectDetailSchema.parse(await reader.getObjectDetail(ref));
-    } catch (error) {
-      throw dataExplorerErrors.schemaInspectionFailed({ cause: error });
-    }
-  }
-
-  async getObjectDdl(ref: DataExplorerObjectRef) {
-    const reader = this.reader(ref.source_id);
-
-    try {
-      return DataExplorerObjectDdlSchema.parse(await reader.getObjectDdl(ref));
+      return DataExplorerObjectDetailSchema.parse(await this.clickHouseEvents.getObjectDetail(ref));
     } catch (error) {
       throw dataExplorerErrors.schemaInspectionFailed({ cause: error });
     }
   }
 
   async runQuery(input: DataExplorerQueryRunRequest) {
-    const reader = this.reader(input.source_id);
     const bounds = normalizeQueryBounds({
       rowLimit: input.row_limit,
       timeoutMs: input.timeout_ms
@@ -99,16 +69,16 @@ export class DataExplorerService {
     }
 
     try {
-      const result = await reader.executeReadOnlyQuery({
+      const result = await this.clickHouseEvents.executeReadOnlyQuery({
         sqlText: validation.normalized_sql,
         rowLimit: bounds.rowLimit,
         timeoutMs: bounds.timeoutMs
       });
       const suggestedVisualizations = suggestVisualizations(result.columns);
-      const response = {
+
+      return DataExplorerQueryRunResponseSchema.parse({
         query_run_id: queryRunId,
-        status: "succeeded" as const,
-        source_id: input.source_id,
+        status: "succeeded",
         duration_ms: result.durationMs,
         row_count: result.rows.length,
         truncated: result.truncated,
@@ -116,33 +86,24 @@ export class DataExplorerService {
         rows: result.rows,
         suggested_visualizations: suggestedVisualizations,
         validation
-      };
-
-      return DataExplorerQueryRunResponseSchema.parse(response);
+      });
     } catch (error) {
       throw dataExplorerErrors.queryExecutionFailed({ cause: error });
     }
   }
 
   private async createAiQueryPlan(input: DataExplorerAiQueryPlanRequest) {
-    const sourceId = input.source_id ?? inferDataExplorerSourceId(input.natural_language_query);
-    const reader = this.reader(sourceId);
-
     try {
-      const objects = await reader.searchObjects({
-        q: "",
-        sourceId
-      });
-      const object = DataExplorerDomain.pickReferencedObject(objects);
+      const objects = await this.clickHouseEvents.searchObjects({ q: "" });
+      const object = pickReferencedObject(objects);
       if (!object) {
         throw dataExplorerErrors.queryPlanFailed();
       }
 
-      const detail = await reader.getObjectDetail(object);
+      const detail = await this.clickHouseEvents.getObjectDetail(object);
       const plan = await this.openAiQueryPlanner.createQueryPlan({
         detail,
-        request: input,
-        sourceId
+        request: input
       });
       const validation = validateSqlInput({
         sqlText: plan.generatedSql
@@ -154,7 +115,6 @@ export class DataExplorerService {
 
       return DataExplorerAiQueryPlanResponseSchema.parse({
         query_plan_id: createQueryRunId("qry_plan"),
-        source_id: sourceId,
         generated_sql: plan.generatedSql,
         validation
       });
@@ -179,14 +139,12 @@ export class DataExplorerService {
 
     const queryPlan = await this.createAiQueryPlan({
       natural_language_query: input.message,
-      project_id: input.project_id,
-      source_id: input.source_id
+      project_id: input.project_id
     });
     const queryResult = await this.runQuery({
       origin: "chatkit",
       project_id: input.project_id,
       row_limit: 500,
-      source_id: queryPlan.source_id,
       sql_text: queryPlan.generated_sql,
       timeout_ms: 10_000
     });
@@ -198,16 +156,19 @@ export class DataExplorerService {
       query_result: queryResult
     });
   }
+}
 
-  private reader(sourceId: DataExplorerSourceId): DataExplorerSourceReader {
-    if (sourceId === "postgres_contract") {
-      return this.postgresContract;
-    }
-    if (sourceId === "clickhouse_events") {
-      return this.clickHouseEvents;
-    }
-    throw dataExplorerErrors.sourceNotFound();
-  }
+function pickReferencedObject(
+  objects: DataExplorerObjectSummary[]
+): DataExplorerObjectSummary | null {
+  return (
+    objects.find((object) => object.object_name === "raw_events") ??
+    objects.find((object) => object.object_name === "events") ??
+    objects.find((object) => object.object_type === "table") ??
+    objects.find((object) => object.object_type === "view") ??
+    objects[0] ??
+    null
+  );
 }
 
 function createQueryRunId(prefix = "qry_run"): string {

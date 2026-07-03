@@ -1,26 +1,18 @@
 import {
   DataExplorerAiChatResponseSchema,
-  DataExplorerObjectDdlSchema,
   DataExplorerObjectDetailSchema,
   DataExplorerObjectsResponseSchema,
   DataExplorerQueryRunResponseSchema,
-  DataExplorerSourcesResponseSchema,
   type DataExplorerAiChatRequest,
   type DataExplorerObjectRef,
   type DataExplorerObjectType,
-  type DataExplorerQueryRunRequest,
-  type DataExplorerSourceId
+  type DataExplorerQueryRunRequest
 } from "@loopad/shared";
 import { apiGet, apiPost } from "../../../shared/api/http-client.js";
 
 const DATA_EXPLORER_BASE_PATH = "/dashboard/v1/data-explorer";
 
-export function fetchDataExplorerSources(signal: AbortSignal) {
-  return apiGet(`${DATA_EXPLORER_BASE_PATH}/sources`, DataExplorerSourcesResponseSchema, signal);
-}
-
 export function fetchDataExplorerObjects(input: {
-  sourceId: DataExplorerSourceId;
   databaseName?: string;
   schemaName?: string;
   objectType?: DataExplorerObjectType;
@@ -34,7 +26,7 @@ export function fetchDataExplorerObjects(input: {
   setOptionalSearchParam(searchParams, "q", input.q);
 
   return apiGet(
-    `${DATA_EXPLORER_BASE_PATH}/sources/${input.sourceId}/objects?${searchParams.toString()}`,
+    `${DATA_EXPLORER_BASE_PATH}/objects?${searchParams.toString()}`,
     DataExplorerObjectsResponseSchema,
     input.signal
   );
@@ -46,20 +38,8 @@ export function fetchDataExplorerObjectDetail(input: {
 }) {
   const searchParams = objectRefSearchParams(input.ref);
   return apiGet(
-    `${DATA_EXPLORER_BASE_PATH}/sources/${input.ref.source_id}/objects/detail?${searchParams.toString()}`,
+    `${DATA_EXPLORER_BASE_PATH}/objects/detail?${searchParams.toString()}`,
     DataExplorerObjectDetailSchema,
-    input.signal
-  );
-}
-
-export function fetchDataExplorerObjectDdl(input: {
-  ref: DataExplorerObjectRef;
-  signal: AbortSignal;
-}) {
-  const searchParams = objectRefSearchParams(input.ref);
-  return apiGet(
-    `${DATA_EXPLORER_BASE_PATH}/sources/${input.ref.source_id}/objects/ddl?${searchParams.toString()}`,
-    DataExplorerObjectDdlSchema,
     input.signal
   );
 }
@@ -83,7 +63,6 @@ function objectRefSearchParams(ref: DataExplorerObjectRef) {
   });
   setOptionalSearchParam(searchParams, "database", ref.database_name ?? undefined);
   setOptionalSearchParam(searchParams, "schema", ref.schema_name ?? undefined);
-  setOptionalSearchParam(searchParams, "column_name", ref.column_name ?? undefined);
   return searchParams;
 }
 

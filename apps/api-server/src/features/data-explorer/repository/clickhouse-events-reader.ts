@@ -2,7 +2,6 @@ import { type ClickHouseClient } from "@clickhouse/client";
 import { Inject, Injectable } from "@nestjs/common";
 import type {
   DataExplorerColumn,
-  DataExplorerObjectDdl,
   DataExplorerObjectDetail,
   DataExplorerObjectRef,
   DataExplorerObjectSummary,
@@ -12,18 +11,31 @@ import type {
 } from "@loopad/shared";
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { env } from "../../../infra/env/env.js";
-import { DataExplorerDomain } from "../domain/index.js";
 import { dataExplorerErrors } from "../errors.js";
 import { createDataExplorerLiveMetadata } from "./data-explorer-live-metadata.js";
-import type {
-  DataExplorerQueryExecutionResult,
-  DataExplorerSourceReader,
-  ExecuteReadOnlyQueryInput,
-  ListObjectsInput
-} from "./data-explorer-source-reader.js";
 
 const SCHEMA_QUERY_TIMEOUT_SECONDS = 5;
 const LIST_OBJECTS_LIMIT = 1000;
+
+export type ListObjectsInput = {
+  databaseName?: string;
+  schemaName?: string;
+  objectType?: DataExplorerObjectType;
+  q?: string;
+};
+
+export type ExecuteReadOnlyQueryInput = {
+  sqlText: string;
+  rowLimit: number;
+  timeoutMs: number;
+};
+
+export type DataExplorerQueryExecutionResult = {
+  columns: DataExplorerResultColumn[];
+  rows: Array<Record<string, unknown>>;
+  durationMs: number;
+  truncated: boolean;
+};
 
 type ClickHouseObjectRow = {
   database_name: string;
@@ -63,10 +75,7 @@ type ClickHouseJsonResponse = {
  * SQL 파싱은 하지 않고 ClickHouse 읽기 전용 설정과 제한 시간에 맡긴다.
  */
 @Injectable()
-export class ClickHouseEventsReader implements DataExplorerSourceReader {
-  readonly sourceId = "clickhouse_events" as const;
-  readonly source = DataExplorerDomain.sourceById(this.sourceId)!;
-
+export class ClickHouseEventsReader {
   constructor(
     @Inject(CLICKHOUSE_CLIENT)
     private readonly clickhouse: ClickHouseClient
@@ -123,37 +132,9 @@ export class ClickHouseEventsReader implements DataExplorerSourceReader {
     return {
       object,
       columns,
-      indexes: [],
-      constraints: [],
       partition_key: splitExpression(table.partition_key),
       order_by: splitExpression(table.sorting_key),
       primary_key: splitExpression(table.primary_key),
-      ...createDataExplorerLiveMetadata()
-    };
-  }
-
-  async getObjectDdl(ref: DataExplorerObjectRef): Promise<DataExplorerObjectDdl> {
-    const databaseName = ref.database_name ?? env.clickhouse.database;
-    const result = await this.clickhouse.query({
-      query: `SHOW CREATE TABLE ${quoteIdentifier(databaseName)}.${quoteIdentifier(ref.object_name)}`,
-      format: "JSONEachRow",
-      clickhouse_settings: {
-        max_execution_time: SCHEMA_QUERY_TIMEOUT_SECONDS,
-        readonly: "1"
-      }
-    });
-    const rows = await result.json<Record<string, unknown>>();
-    const firstRow = rows[0] ?? {};
-    const ddl =
-      Object.values(firstRow).find((value) => typeof value === "string" && value.trim()) ??
-      "SHOW CREATE TABLE result was empty.";
-
-    return {
-      ref: {
-        ...ref,
-        database_name: databaseName
-      },
-      ddl: String(ddl),
       ...createDataExplorerLiveMetadata()
     };
   }
@@ -256,12 +237,10 @@ export class ClickHouseEventsReader implements DataExplorerSourceReader {
 function toObjectSummary(row: ClickHouseObjectRow): DataExplorerObjectSummary {
   const objectType = normalizeClickHouseObjectType(row.object_type, row.engine);
   return {
-    source_id: "clickhouse_events",
     database_name: row.database_name,
     schema_name: null,
     object_type: objectType,
     object_name: row.object_name,
-    column_name: null,
     source_comment: null,
     engine: row.engine || null,
     column_count: Number(row.column_count ?? 0),
@@ -274,12 +253,10 @@ function tableToObjectSummary(
   columnCount: number
 ): DataExplorerObjectSummary {
   return {
-    source_id: "clickhouse_events",
     database_name: row.database_name,
     schema_name: null,
     object_type: normalizeClickHouseObjectType("table", row.engine),
     object_name: row.object_name,
-    column_name: null,
     source_comment: null,
     engine: row.engine || null,
     column_count: columnCount,
@@ -349,8 +326,4 @@ function splitExpression(value: string | null | undefined) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function quoteIdentifier(value: string) {
-  return `\`${value.replaceAll("`", "``")}\``;
 }

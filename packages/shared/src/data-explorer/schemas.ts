@@ -1,43 +1,16 @@
 import { z } from "zod";
 
-export const DataExplorerSourceIdSchema = z.enum(["postgres_contract", "clickhouse_events"]);
-export type DataExplorerSourceId = z.infer<typeof DataExplorerSourceIdSchema>;
-
-export const DataExplorerSourceKindSchema = z.enum(["postgres", "clickhouse"]);
-export type DataExplorerSourceKind = z.infer<typeof DataExplorerSourceKindSchema>;
-
-export const DataExplorerCapabilitySchema = z.enum(["sql_query", "schema_browser", "ai_query"]);
-export type DataExplorerCapability = z.infer<typeof DataExplorerCapabilitySchema>;
-
-export const DataExplorerObjectTypeSchema = z.enum([
-  "database",
-  "schema",
-  "table",
-  "view",
-  "materialized_view",
-  "column"
-]);
+export const DataExplorerObjectTypeSchema = z.enum(["table", "view", "materialized_view"]);
 export type DataExplorerObjectType = z.infer<typeof DataExplorerObjectTypeSchema>;
 
 export const DataExplorerDdlSourceSchema = z.enum(["live", "cache"]);
 export type DataExplorerDdlSource = z.infer<typeof DataExplorerDdlSourceSchema>;
 
-export const DataExplorerSourceSchema = z.object({
-  source_id: DataExplorerSourceIdSchema,
-  kind: DataExplorerSourceKindSchema,
-  display_name: z.string().min(1),
-  purpose: z.string().min(1),
-  capabilities: z.array(DataExplorerCapabilitySchema)
-});
-export type DataExplorerSource = z.infer<typeof DataExplorerSourceSchema>;
-
 export const DataExplorerObjectRefSchema = z.object({
-  source_id: DataExplorerSourceIdSchema,
   database_name: z.string().nullable(),
   schema_name: z.string().nullable(),
   object_type: DataExplorerObjectTypeSchema,
-  object_name: z.string().min(1),
-  column_name: z.string().nullable().optional()
+  object_name: z.string().min(1)
 });
 export type DataExplorerObjectRef = z.infer<typeof DataExplorerObjectRefSchema>;
 
@@ -59,24 +32,9 @@ export const DataExplorerColumnSchema = z.object({
 });
 export type DataExplorerColumn = z.infer<typeof DataExplorerColumnSchema>;
 
-export const DataExplorerIndexSchema = z.object({
-  index_name: z.string().min(1),
-  definition: z.string().min(1)
-});
-export type DataExplorerIndex = z.infer<typeof DataExplorerIndexSchema>;
-
-export const DataExplorerConstraintSchema = z.object({
-  constraint_name: z.string().min(1),
-  constraint_type: z.string().min(1),
-  definition: z.string().min(1)
-});
-export type DataExplorerConstraint = z.infer<typeof DataExplorerConstraintSchema>;
-
 export const DataExplorerObjectDetailSchema = z.object({
   object: DataExplorerObjectSummarySchema,
   columns: z.array(DataExplorerColumnSchema),
-  indexes: z.array(DataExplorerIndexSchema),
-  constraints: z.array(DataExplorerConstraintSchema),
   partition_key: z.array(z.string()).nullable(),
   order_by: z.array(z.string()).nullable(),
   primary_key: z.array(z.string()).nullable(),
@@ -86,22 +44,7 @@ export const DataExplorerObjectDetailSchema = z.object({
 });
 export type DataExplorerObjectDetail = z.infer<typeof DataExplorerObjectDetailSchema>;
 
-export const DataExplorerObjectDdlSchema = z.object({
-  ref: DataExplorerObjectRefSchema,
-  ddl: z.string().min(1),
-  ddl_fetched_at: z.string().min(1),
-  ddl_source: DataExplorerDdlSourceSchema,
-  cache_hit: z.boolean()
-});
-export type DataExplorerObjectDdl = z.infer<typeof DataExplorerObjectDdlSchema>;
-
-export const DataExplorerSourcesResponseSchema = z.object({
-  sources: z.array(DataExplorerSourceSchema)
-});
-export type DataExplorerSourcesResponse = z.infer<typeof DataExplorerSourcesResponseSchema>;
-
 export const DataExplorerObjectsResponseSchema = z.object({
-  source_id: DataExplorerSourceIdSchema,
   objects: z.array(DataExplorerObjectSummarySchema),
   ddl_fetched_at: z.string().min(1),
   ddl_source: DataExplorerDdlSourceSchema,
@@ -165,7 +108,6 @@ export type DataExplorerChartSpec = z.infer<typeof DataExplorerChartSpecSchema>;
 
 export const DataExplorerQueryRunRequestSchema = z.object({
   project_id: z.string().trim().min(1),
-  source_id: DataExplorerSourceIdSchema,
   sql_text: z.string(),
   row_limit: z.number().int().positive().optional(),
   timeout_ms: z.number().int().positive().optional(),
@@ -176,7 +118,6 @@ export type DataExplorerQueryRunRequest = z.infer<typeof DataExplorerQueryRunReq
 export const DataExplorerQueryRunResponseSchema = z.object({
   query_run_id: z.string().min(1),
   status: z.enum(["succeeded", "failed", "cancelled"]),
-  source_id: DataExplorerSourceIdSchema,
   duration_ms: z.number().int().nonnegative(),
   row_count: z.number().int().nonnegative(),
   truncated: z.boolean(),
@@ -195,7 +136,6 @@ export type DataExplorerTimeRange = z.infer<typeof DataExplorerTimeRangeSchema>;
 
 export const DataExplorerAiQueryPlanRequestSchema = z.object({
   project_id: z.string().trim().min(1),
-  source_id: DataExplorerSourceIdSchema.optional(),
   natural_language_query: z.string().trim().min(1),
   time_range: DataExplorerTimeRangeSchema.optional()
 });
@@ -203,7 +143,6 @@ export type DataExplorerAiQueryPlanRequest = z.infer<typeof DataExplorerAiQueryP
 
 export const DataExplorerAiQueryPlanResponseSchema = z.object({
   query_plan_id: z.string().min(1),
-  source_id: DataExplorerSourceIdSchema,
   generated_sql: z.string(),
   validation: DataExplorerSqlValidationSchema
 });
@@ -220,7 +159,6 @@ export type DataExplorerAiChatCurrentResult = z.infer<typeof DataExplorerAiChatC
 
 export const DataExplorerAiChatRequestSchema = z.object({
   project_id: z.string().trim().min(1),
-  source_id: DataExplorerSourceIdSchema.optional(),
   message: z.string().trim().min(1),
   current_result: DataExplorerAiChatCurrentResultSchema.optional()
 });

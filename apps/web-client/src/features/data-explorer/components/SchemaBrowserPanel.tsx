@@ -1,16 +1,5 @@
-import type {
-  DataExplorerObjectSummary,
-  DataExplorerSource,
-  DataExplorerSourceId
-} from "@loopad/shared";
+import type { DataExplorerObjectSummary } from "@loopad/shared";
 import { Input } from "@loopad/ui/shadcn/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@loopad/ui/shadcn/select";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Database, Search, Table2 } from "lucide-react";
 
@@ -20,42 +9,22 @@ export function SchemaBrowserPanel({
   objects,
   onObjectSearchChange,
   onSelectObject,
-  onSourceIdChange,
-  selectedObjectName,
-  sourceId,
-  sources
+  selectedObjectName
 }: {
   isLoading: boolean;
   objectSearch: string;
   objects: DataExplorerObjectSummary[];
   onObjectSearchChange: (value: string) => void;
   onSelectObject: (object: DataExplorerObjectSummary) => void;
-  onSourceIdChange: (sourceId: DataExplorerSourceId) => void;
   selectedObjectName: string | null;
-  sourceId: DataExplorerSourceId;
-  sources: DataExplorerSource[];
 }) {
   return (
     <aside className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-[#fafafc]">
-      <div className="border-b border-black/10 px-4 py-4">
-        <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
-          Schema Browser
+      <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
+        <Database className="size-4 text-[#0066cc]" />
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+          ClickHouse Schema
         </div>
-        <Select
-          onValueChange={(value) => onSourceIdChange(value as DataExplorerSourceId)}
-          value={sourceId}
-        >
-          <SelectTrigger className="h-9 w-full bg-white">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {sources.map((source) => (
-              <SelectItem key={source.source_id} value={source.source_id}>
-                {source.display_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="border-b border-black/10 p-4">
@@ -76,7 +45,9 @@ export function SchemaBrowserPanel({
             const isSelected = selectedObjectName === object.object_name;
 
             return (
-              <div key={`${object.database_name ?? ""}.${object.object_name}`}>
+              <div
+                key={`${object.database_name ?? ""}.${object.object_type}.${object.object_name}`}
+              >
                 <button
                   className={cn(
                     "flex min-w-full items-center gap-1.5 rounded px-1 py-px text-left text-[7px] font-normal leading-3 transition-colors",
@@ -85,7 +56,7 @@ export function SchemaBrowserPanel({
                   onClick={() => onSelectObject(object)}
                   type="button"
                 >
-                  {object.object_type === "database" ? (
+                  {object.object_type === "view" ? (
                     <Database className="size-3 shrink-0" />
                   ) : (
                     <Table2 className="size-3 shrink-0" />

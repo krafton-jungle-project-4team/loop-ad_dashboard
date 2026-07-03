@@ -2,8 +2,6 @@ import type {
   DataExplorerAiChatCurrentResult,
   DataExplorerObjectSummary,
   DataExplorerQueryRunResponse,
-  DataExplorerSource,
-  DataExplorerSourceId,
   DataExplorerSqlValidation
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
@@ -23,30 +21,10 @@ import { VisualizationPanel } from "../components/VisualizationPanel.js";
 import {
   dataExplorerObjectDetailQueryOptions,
   dataExplorerObjectsQueryOptions,
-  useDataExplorerMutations,
-  useDataExplorerSources
+  useDataExplorerMutations
 } from "../hooks/use-data-explorer.js";
 
-const DEFAULT_SOURCE_ID: DataExplorerSourceId = "clickhouse_events";
-const FALLBACK_SOURCES: DataExplorerSource[] = [
-  {
-    capabilities: ["sql_query", "schema_browser", "ai_query"],
-    display_name: "PostgreSQL Contract DB",
-    kind: "postgres",
-    purpose: "AI Decision 결과, Dashboard read model, serving assignment, Dashboard metadata",
-    source_id: "postgres_contract"
-  },
-  {
-    capabilities: ["sql_query", "schema_browser", "ai_query"],
-    display_name: "ClickHouse Event Store",
-    kind: "clickhouse",
-    purpose: "raw event source, hotel event analytics view",
-    source_id: "clickhouse_events"
-  }
-];
-
 export function DataExplorerPage({ projectId }: { projectId: string }) {
-  const [sourceId, setSourceId] = useState<DataExplorerSourceId>(DEFAULT_SOURCE_ID);
   const [sqlText, setSqlText] = useState(() => defaultSqlText(projectId));
   const [validation, setValidation] = useState<DataExplorerSqlValidation | null>(null);
   const [objectSearch, setObjectSearch] = useState("");
@@ -63,9 +41,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<"schema" | "result" | "visualization">("schema");
   const mutations = useDataExplorerMutations();
-  const sourcesQuery = useDataExplorerSources();
-  const sources = sourcesQuery.data?.sources ?? FALLBACK_SOURCES;
-  const objectsQuery = useQuery(dataExplorerObjectsQueryOptions({ q: objectSearch, sourceId }));
+  const objectsQuery = useQuery(dataExplorerObjectsQueryOptions({ q: objectSearch }));
   const objects = objectsQuery.data?.objects ?? [];
   const objectDetailQuery = useQuery(dataExplorerObjectDetailQueryOptions(selectedObject));
   const hasInvalidValidation = validation?.status === "invalid";
@@ -79,9 +55,9 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     const selectedObjectKey = selectedObject ? objectKey(selectedObject) : null;
     const selectedObjectExists = objects.some((object) => objectKey(object) === selectedObjectKey);
     if (!selectedObjectExists) {
-      setSelectedObject(preferredObject(objects, sourceId));
+      setSelectedObject(preferredObject(objects));
     }
-  }, [objects, selectedObject, sourceId]);
+  }, [objects, selectedObject]);
 
   const handleRun = useCallback(async () => {
     try {
@@ -90,7 +66,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
         origin: "manual",
         project_id: projectId,
         row_limit: 500,
-        source_id: sourceId,
         sql_text: sqlText,
         timeout_ms: 10_000
       });
@@ -101,13 +76,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     } catch (error) {
       setQueryError(errorMessage(error));
     }
-  }, [mutations.runQuery, projectId, sourceId, sqlText]);
-
-  const handleSourceIdChange = useCallback((nextSourceId: DataExplorerSourceId) => {
-    setSourceId(nextSourceId);
-    setSelectedObject(null);
-    setValidation(null);
-  }, []);
+  }, [mutations.runQuery, projectId, sqlText]);
 
   const handleSqlTextChange = useCallback((nextSqlText: string) => {
     setSqlText(nextSqlText);
@@ -128,12 +97,10 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
       const response = await mutations.chat.mutateAsync({
         current_result: queryResult ? toCurrentResult(queryResult) : undefined,
         message: normalizedMessage,
-        project_id: projectId,
-        source_id: sourceId
+        project_id: projectId
       });
 
       if (response.query_plan) {
-        setSourceId(response.query_plan.source_id);
         setSqlText(response.query_plan.generated_sql);
         setValidation(response.query_plan.validation);
       }
@@ -147,7 +114,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
       setQueryError(messageText);
       appendChatMessage(setChatMessages, "assistant", messageText);
     }
-  }, [message, mutations.chat, projectId, queryResult, sourceId]);
+  }, [message, mutations.chat, projectId, queryResult]);
 
   if (!projectId.trim()) {
     return (
@@ -167,10 +134,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
           objects={objects}
           onObjectSearchChange={setObjectSearch}
           onSelectObject={setSelectedObject}
-          onSourceIdChange={handleSourceIdChange}
           selectedObjectName={selectedObject?.object_name ?? null}
-          sourceId={sourceId}
-          sources={sources}
         />
 
         <main className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-x border-black/10">
@@ -258,7 +222,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
 
 function objectKey(object: DataExplorerObjectSummary) {
   return [
-    object.source_id,
     object.database_name ?? "",
     object.schema_name ?? "",
     object.object_type,
@@ -266,15 +229,8 @@ function objectKey(object: DataExplorerObjectSummary) {
   ].join(".");
 }
 
-function preferredObject(
-  objects: DataExplorerObjectSummary[],
-  sourceId: DataExplorerSourceId
-): DataExplorerObjectSummary | null {
-  if (sourceId === "clickhouse_events") {
-    return objects.find((object) => object.object_name === "raw_events") ?? objects[0] ?? null;
-  }
-
-  return objects[0] ?? null;
+function preferredObject(objects: DataExplorerObjectSummary[]): DataExplorerObjectSummary | null {
+  return objects.find((object) => object.object_name === "raw_events") ?? objects[0] ?? null;
 }
 
 function toCurrentResult(result: DataExplorerQueryRunResponse): DataExplorerAiChatCurrentResult {

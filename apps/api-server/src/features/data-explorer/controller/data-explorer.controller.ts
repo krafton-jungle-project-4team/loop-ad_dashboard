@@ -1,12 +1,10 @@
-import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Post, Query } from "@nestjs/common";
 import {
   DataExplorerAiChatRequestSchema,
   DataExplorerObjectTypeSchema,
   DataExplorerQueryRunRequestSchema,
-  DataExplorerSourceIdSchema,
   type DataExplorerObjectRef,
-  type DataExplorerObjectType,
-  type DataExplorerSourceId
+  type DataExplorerObjectType
 } from "@loopad/shared";
 import { dataExplorerErrors } from "../errors.js";
 import { DataExplorerService } from "../service/data-explorer.service.js";
@@ -23,21 +21,14 @@ export class DataExplorerController {
     private readonly dataExplorer: DataExplorerService
   ) {}
 
-  @Get("sources")
-  sources() {
-    return this.dataExplorer.sources();
-  }
-
-  @Get("sources/:source_id/objects")
+  @Get("objects")
   async objects(
-    @Param("source_id") sourceId: string,
     @Query("database") databaseName?: string,
     @Query("schema") schemaName?: string,
     @Query("type") objectType?: string,
     @Query("q") q?: string
   ) {
     return this.dataExplorer.listObjects({
-      sourceId: parseSourceId(sourceId),
       databaseName: optionalString(databaseName),
       schemaName: optionalString(schemaName),
       objectType: parseOptionalObjectType(objectType),
@@ -45,30 +36,15 @@ export class DataExplorerController {
     });
   }
 
-  @Get("sources/:source_id/objects/detail")
+  @Get("objects/detail")
   async objectDetail(
-    @Param("source_id") sourceId: string,
-    @Query("database") databaseName?: string,
-    @Query("schema") schemaName?: string,
-    @Query("object_type") objectType?: string,
-    @Query("object_name") objectName?: string,
-    @Query("column_name") columnName?: string
-  ) {
-    return this.dataExplorer.getObjectDetail(
-      toObjectRef(sourceId, databaseName, schemaName, objectType, objectName, columnName)
-    );
-  }
-
-  @Get("sources/:source_id/objects/ddl")
-  async objectDdl(
-    @Param("source_id") sourceId: string,
     @Query("database") databaseName?: string,
     @Query("schema") schemaName?: string,
     @Query("object_type") objectType?: string,
     @Query("object_name") objectName?: string
   ) {
-    return this.dataExplorer.getObjectDdl(
-      toObjectRef(sourceId, databaseName, schemaName, objectType, objectName)
+    return this.dataExplorer.getObjectDetail(
+      toObjectRef(databaseName, schemaName, objectType, objectName)
     );
   }
 
@@ -83,10 +59,6 @@ export class DataExplorerController {
   }
 }
 
-function parseSourceId(sourceId: string): DataExplorerSourceId {
-  return DataExplorerSourceIdSchema.parse(sourceId);
-}
-
 function parseOptionalObjectType(
   objectType: string | undefined
 ): DataExplorerObjectType | undefined {
@@ -94,24 +66,21 @@ function parseOptionalObjectType(
 }
 
 function toObjectRef(
-  sourceId: string,
   databaseName: string | undefined,
   schemaName: string | undefined,
   objectType: string | undefined,
-  objectName: string | undefined,
-  columnName?: string
+  objectName: string | undefined
 ): DataExplorerObjectRef {
-  if (!objectType || !objectName) {
+  const normalizedObjectName = optionalString(objectName);
+  if (!objectType || !normalizedObjectName) {
     throw dataExplorerErrors.objectRefRequired();
   }
 
   return {
-    source_id: parseSourceId(sourceId),
     database_name: optionalString(databaseName) ?? null,
     schema_name: optionalString(schemaName) ?? null,
     object_type: DataExplorerObjectTypeSchema.parse(objectType),
-    object_name: objectName,
-    column_name: optionalString(columnName) ?? null
+    object_name: normalizedObjectName
   };
 }
 

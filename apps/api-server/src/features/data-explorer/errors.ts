@@ -2,11 +2,6 @@ import { HttpStatus } from "@nestjs/common";
 import { createDomainError } from "../../app-errors.js";
 
 export const DATA_EXPLORER_ERRORS = {
-  SOURCE_NOT_FOUND: {
-    statusCode: HttpStatus.NOT_FOUND,
-    code: "DATA_EXPLORER_SOURCE_NOT_FOUND",
-    message: "Data Explorer source was not found."
-  },
   OBJECT_REF_REQUIRED: {
     statusCode: HttpStatus.BAD_REQUEST,
     code: "DATA_EXPLORER_OBJECT_REF_REQUIRED",
@@ -46,7 +41,6 @@ function createDataExplorerError(key: DataExplorerErrorKey, options?: ErrorOptio
 }
 
 export const dataExplorerErrors = {
-  sourceNotFound: (options?: ErrorOptions) => createDataExplorerError("SOURCE_NOT_FOUND", options),
   objectRefRequired: () => createDataExplorerError("OBJECT_REF_REQUIRED"),
   sqlValidationFailed: () => createDataExplorerError("SQL_VALIDATION_FAILED"),
   schemaInspectionFailed: (options?: ErrorOptions) =>

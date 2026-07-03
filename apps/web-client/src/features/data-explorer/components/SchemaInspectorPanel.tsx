@@ -35,10 +35,8 @@ export function SchemaInspectorPanel({
       <div className="grid gap-4 pr-3">
         <div className="grid gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-[#0066cc] text-white hover:bg-[#0066cc]" variant="default">
-              {detail.object.source_id}
-            </Badge>
             <Badge variant="outline">{detail.object.object_type}</Badge>
+            {detail.object.engine ? <Badge variant="outline">{detail.object.engine}</Badge> : null}
           </div>
           <div className="grid gap-1">
             <h3 className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
@@ -96,9 +94,7 @@ export function SchemaInspectorPanel({
 }
 
 function qualifiedObjectName(detail: DataExplorerObjectDetail) {
-  return [
-    detail.object.database_name,
-    detail.object.schema_name,
-    detail.object.object_name
-  ].filter(Boolean).join(".");
+  return [detail.object.database_name, detail.object.schema_name, detail.object.object_name]
+    .filter(Boolean)
+    .join(".");
 }

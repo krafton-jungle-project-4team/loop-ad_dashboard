@@ -2,8 +2,7 @@ import { Injectable } from "@nestjs/common";
 import {
   type DataExplorerAiChatCurrentResult,
   type DataExplorerAiQueryPlanRequest,
-  type DataExplorerObjectDetail,
-  type DataExplorerSourceId
+  type DataExplorerObjectDetail
 } from "@loopad/shared";
 import { z } from "zod";
 import { env } from "../../../infra/env/env.js";
@@ -43,12 +42,11 @@ export class OpenAiDataExplorerQueryPlannerProvider {
   async createQueryPlan(input: {
     detail: DataExplorerObjectDetail;
     request: DataExplorerAiQueryPlanRequest;
-    sourceId: DataExplorerSourceId;
   }): Promise<OpenAiDataExplorerQueryPlan> {
     const content = await requestOpenAiJson({
       schema: OPENAI_QUERY_PLAN_JSON_SCHEMA,
       schemaName: "data_explorer_query_plan",
-      systemPrompt: buildQueryPlanSystemPrompt(input.sourceId),
+      systemPrompt: buildQueryPlanSystemPrompt(),
       userPayload: buildQueryPlanPayload(input)
     }).catch((error: unknown) => {
       throw dataExplorerErrors.queryPlanFailed({ cause: toError(error) });
@@ -128,12 +126,10 @@ async function requestOpenAiJson(input: {
   return readOpenAiTextContent(payload);
 }
 
-function buildQueryPlanSystemPrompt(sourceId: DataExplorerSourceId) {
-  const dialect = sourceId === "clickhouse_events" ? "ClickHouse SQL." : "PostgreSQL SQL.";
-
+function buildQueryPlanSystemPrompt() {
   return [
     "You generate one read-only SQL query for LoopAd Data Explorer.",
-    `SQL dialect: ${dialect}`,
+    "SQL dialect: ClickHouse SQL.",
     "Use only the provided source object and columns.",
     "Inline concrete values from the payload directly in SQL. Do not use parameter placeholders.",
     "Always filter by project_id when the object has a project_id column.",
@@ -146,11 +142,9 @@ function buildQueryPlanSystemPrompt(sourceId: DataExplorerSourceId) {
 function buildQueryPlanPayload(input: {
   detail: DataExplorerObjectDetail;
   request: DataExplorerAiQueryPlanRequest;
-  sourceId: DataExplorerSourceId;
 }) {
   return {
     project_id: input.request.project_id,
-    source_id: input.sourceId,
     natural_language_query: input.request.natural_language_query,
     time_range: input.request.time_range ?? null,
     object: {
