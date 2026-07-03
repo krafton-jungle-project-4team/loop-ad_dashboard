@@ -82,8 +82,9 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
   );
 });
 
-test("dispatch does not synthesize email content fallbacks", async () => {
+test("dispatch fails invalid email content instead of synthesizing fallbacks", async () => {
   const reader = new FakeAdExecutionReader();
+  const writer = new FakeAdExecutionWriter();
   const sender = new FakeDispatchSender();
 
   reader.dispatchAssignments = [
@@ -98,28 +99,21 @@ test("dispatch does not synthesize email content fallbacks", async () => {
   ];
 
   const { result: response } = await captureDispatchLogs(() =>
-    createService(
-      reader,
-      new FakeAdExecutionWriter(),
-      new FakeRecipientResolver(),
-      sender
-    ).dispatchPromotionRun("run-1")
+    createService(reader, writer, new FakeRecipientResolver(), sender).dispatchPromotionRun(
+      "run-1"
+    )
   );
 
-  assert.equal(response.dispatched_count, 1);
-  assert.equal((sender.sent[0] as { subject: string } | undefined)?.subject, "");
-  assert.match(
-    (sender.sent[0] as { body: string } | undefined)?.body ?? "",
-    /^http:\/\/localhost:8080\/r\//
-  );
+  assert.equal(response.dispatched_count, 0);
+  assert.equal(response.failed_count, 1);
+  assert.equal(response.jobs[0]?.status, "failed");
+  assert.equal(writer.finishes[0]?.failedCount, 1);
   assert.equal(
-    ((sender.sent[0] as { body: string } | undefined)?.body ?? "").includes("Ignored title"),
-    false
+    (writer.finishes[0]?.result as { attempts: Array<{ errorCode?: string }> } | undefined)
+      ?.attempts[0]?.errorCode,
+    "CONTENT_INVALID"
   );
-  assert.equal(
-    ((sender.sent[0] as { body: string } | undefined)?.body ?? "").includes("Ignored message"),
-    false
-  );
+  assert.equal(sender.sent.length, 0);
 });
 
 test("dispatch rejects onsite banner promotion runs", async () => {
@@ -384,6 +378,7 @@ class FakeAdExecutionWriter {
     status: "completed" | "failed";
     dispatchedCount: number;
     failedCount: number;
+    result?: unknown;
   }> = [];
   redirectLinks: Array<{
     redirectToken: string;
@@ -402,6 +397,7 @@ class FakeAdExecutionWriter {
     status: "completed" | "failed";
     dispatchedCount: number;
     failedCount: number;
+    result?: unknown;
   }) {
     this.finishes.push(input);
   }

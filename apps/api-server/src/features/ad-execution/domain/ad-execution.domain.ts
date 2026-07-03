@@ -3,115 +3,129 @@ import type {
   DispatchJobSummary,
   PromotionRunDispatchResponse
 } from "@loopad/shared";
+import { z } from "zod";
 
-export type AdExecutionChannel = "email" | "sms" | "onsite_banner";
+export const adExecutionChannelSchema = z.enum(["email", "sms", "onsite_banner"]);
+export type AdExecutionChannel = z.infer<typeof adExecutionChannelSchema>;
 export type DispatchChannel = Extract<AdExecutionChannel, "email" | "sms">;
 export type DispatchJobStatus = "completed" | "partial_failed" | "failed";
-export type JsonObject = Record<string, unknown>;
 
-export interface PromotionEntity {
-  promotionId: string;
-  projectId: string;
-  campaignId: string;
-  name: string;
-  channel: AdExecutionChannel;
-  targetAudience: string;
-  goalMetric: string;
-  targetValue: string;
-  goalBasis: string;
-  status: string;
-  metadataJson: JsonObject;
-  createdAt: Date;
-  updatedAt: Date;
-}
+const dateFromDbSchema = z.union([z.date(), z.string().pipe(z.coerce.date())]);
+const jsonObjectSchema = z.record(z.string(), z.unknown());
+const requiredStringSchema = z.string().min(1);
 
-export interface PromotionRunEntity {
-  promotionRunId: string;
-  projectId: string;
-  campaignId: string;
-  promotionId: string;
-  analysisId: string;
-  generationId: string;
-  previousPromotionRunId: string | null;
-  loopCount: number;
-  operatorInstruction: string | null;
-  status: string;
-  summaryJson: JsonObject;
-  startedAt: Date | null;
-  endedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type JsonObject = z.infer<typeof jsonObjectSchema>;
 
-export interface AdExperimentEntity {
-  adExperimentId: string;
-  projectId: string;
-  campaignId: string;
-  promotionId: string;
-  promotionRunId: string;
-  analysisId: string;
-  generationId: string;
-  segmentId: string;
-  segmentName: string | null;
-  contentId: string;
-  contentOptionId: string;
-  channel: AdExecutionChannel;
-  loopCount: number;
-  status: string;
-  goalMetric: string;
-  goalTargetValue: string;
-  goalBasis: string;
-  startedAt: Date | null;
-  endedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export const promotionEntitySchema = z.object({
+  promotionId: requiredStringSchema,
+  projectId: requiredStringSchema,
+  campaignId: requiredStringSchema,
+  name: requiredStringSchema,
+  channel: adExecutionChannelSchema,
+  targetAudience: requiredStringSchema,
+  goalMetric: requiredStringSchema,
+  targetValue: requiredStringSchema,
+  goalBasis: requiredStringSchema,
+  status: requiredStringSchema,
+  metadataJson: jsonObjectSchema,
+  createdAt: dateFromDbSchema,
+  updatedAt: dateFromDbSchema
+});
+export type PromotionEntity = z.infer<typeof promotionEntitySchema>;
 
-export interface ActiveAdServingAssignmentEntity {
-  promotionRunId: string;
-  userId: string;
-  segmentId: string;
-  adExperimentId: string;
-  contentId: string;
-  contentOptionId: string;
-  fallback: boolean;
-  similarityScore: string | null;
-  projectId: string;
-  campaignId: string;
-  promotionId: string;
-  channel: AdExecutionChannel;
-  subject: string | null;
-  preheader: string | null;
-  title: string | null;
-  body: string | null;
-  cta: string | null;
-  message: string | null;
-  imagePrompt: string | null;
-  landingUrl: string | null;
-  contentStatus: string;
-  adExperimentStatus: string;
-}
+export const promotionRunEntitySchema = z.object({
+  promotionRunId: requiredStringSchema,
+  projectId: requiredStringSchema,
+  campaignId: requiredStringSchema,
+  promotionId: requiredStringSchema,
+  analysisId: requiredStringSchema,
+  generationId: requiredStringSchema,
+  previousPromotionRunId: requiredStringSchema.nullable(),
+  loopCount: z.number(),
+  operatorInstruction: z.string().nullable(),
+  status: requiredStringSchema,
+  summaryJson: jsonObjectSchema,
+  startedAt: dateFromDbSchema.nullable(),
+  endedAt: dateFromDbSchema.nullable(),
+  createdAt: dateFromDbSchema,
+  updatedAt: dateFromDbSchema
+});
+export type PromotionRunEntity = z.infer<typeof promotionRunEntitySchema>;
 
-export interface RedirectLinkEntity {
-  redirectLinkId: string;
-  projectId: string;
-  campaignId: string;
-  promotionId: string;
-  promotionRunId: string;
-  adExperimentId: string | null;
-  segmentId: string | null;
-  userId: string | null;
-  contentId: string | null;
-  contentOptionId: string | null;
-  redirectToken: string;
-  destinationUrl: string;
-  status: string;
-  metadataJson: JsonObject;
-  expiresAt: Date | null;
-  clickedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export const adExperimentEntitySchema = z.object({
+  adExperimentId: requiredStringSchema,
+  projectId: requiredStringSchema,
+  campaignId: requiredStringSchema,
+  promotionId: requiredStringSchema,
+  promotionRunId: requiredStringSchema,
+  analysisId: requiredStringSchema,
+  generationId: requiredStringSchema,
+  segmentId: requiredStringSchema,
+  segmentName: z.string().nullable(),
+  contentId: requiredStringSchema,
+  contentOptionId: requiredStringSchema,
+  channel: adExecutionChannelSchema,
+  loopCount: z.number(),
+  status: requiredStringSchema,
+  goalMetric: requiredStringSchema,
+  goalTargetValue: requiredStringSchema,
+  goalBasis: requiredStringSchema,
+  startedAt: dateFromDbSchema.nullable(),
+  endedAt: dateFromDbSchema.nullable(),
+  createdAt: dateFromDbSchema,
+  updatedAt: dateFromDbSchema
+});
+export type AdExperimentEntity = z.infer<typeof adExperimentEntitySchema>;
+
+export const activeAdServingAssignmentEntitySchema = z.object({
+  promotionRunId: requiredStringSchema,
+  userId: requiredStringSchema,
+  segmentId: requiredStringSchema,
+  adExperimentId: requiredStringSchema,
+  contentId: requiredStringSchema,
+  contentOptionId: requiredStringSchema,
+  fallback: z.boolean(),
+  similarityScore: requiredStringSchema.nullable(),
+  projectId: requiredStringSchema,
+  campaignId: requiredStringSchema,
+  promotionId: requiredStringSchema,
+  channel: adExecutionChannelSchema,
+  subject: z.string().nullable(),
+  preheader: z.string().nullable(),
+  title: z.string().nullable(),
+  body: z.string().nullable(),
+  cta: z.string().nullable(),
+  message: z.string().nullable(),
+  imagePrompt: z.string().nullable(),
+  landingUrl: requiredStringSchema.nullable(),
+  contentStatus: requiredStringSchema,
+  adExperimentStatus: requiredStringSchema
+});
+export type ActiveAdServingAssignmentEntity = z.infer<
+  typeof activeAdServingAssignmentEntitySchema
+>;
+
+export const redirectLinkEntitySchema = z.object({
+  redirectLinkId: requiredStringSchema,
+  projectId: requiredStringSchema,
+  campaignId: requiredStringSchema,
+  promotionId: requiredStringSchema,
+  promotionRunId: requiredStringSchema,
+  adExperimentId: requiredStringSchema.nullable(),
+  segmentId: requiredStringSchema.nullable(),
+  userId: requiredStringSchema.nullable(),
+  contentId: requiredStringSchema.nullable(),
+  contentOptionId: requiredStringSchema.nullable(),
+  redirectToken: requiredStringSchema,
+  destinationUrl: requiredStringSchema,
+  status: requiredStringSchema,
+  metadataJson: jsonObjectSchema,
+  expiresAt: dateFromDbSchema.nullable(),
+  clickedAt: dateFromDbSchema.nullable(),
+  createdAt: dateFromDbSchema,
+  updatedAt: dateFromDbSchema
+});
+export type RedirectLinkEntity = z.infer<typeof redirectLinkEntitySchema>;
 
 export interface RedirectClickFields {
   campaignId: string;
@@ -205,10 +219,10 @@ export const AdExecutionDomain = {
       segment_id: assignment.segmentId,
       content_id: assignment.contentId,
       content_option_id: assignment.contentOptionId,
-      title: assignment.title ?? "",
-      body: assignment.body ?? "",
-      cta: assignment.cta ?? "",
-      target_url: requiredText(assignment.landingUrl, "landing_url")
+      title: requiredStringSchema.parse(assignment.title),
+      body: requiredStringSchema.parse(assignment.body),
+      cta: requiredStringSchema.parse(assignment.cta),
+      target_url: requiredStringSchema.parse(assignment.landingUrl)
     };
   },
 
@@ -270,10 +284,10 @@ export const AdExecutionDomain = {
       campaignId: link.campaignId,
       promotionId: link.promotionId,
       promotionRunId: link.promotionRunId,
-      adExperimentId: requiredText(link.adExperimentId, "ad_experiment_id"),
-      segmentId: requiredText(link.segmentId, "segment_id"),
-      contentId: requiredText(link.contentId, "content_id"),
-      contentOptionId: requiredText(link.contentOptionId, "content_option_id"),
+      adExperimentId: requiredStringSchema.parse(link.adExperimentId),
+      segmentId: requiredStringSchema.parse(link.segmentId),
+      contentId: requiredStringSchema.parse(link.contentId),
+      contentOptionId: requiredStringSchema.parse(link.contentOptionId),
       promotionChannel,
       redirectId: link.redirectToken,
       targetUrl: link.destinationUrl
@@ -288,7 +302,7 @@ export const AdExecutionDomain = {
       name: "campaign_redirect_click",
       projectId: link.projectId,
       identity: {
-        userId: requiredText(link.userId, "user_id"),
+        userId: requiredStringSchema.parse(link.userId),
         sessionId: `redirect:${link.redirectToken}`
       },
       fields: AdExecutionDomain.toRedirectClickFields(link, promotionChannel)
@@ -336,14 +350,6 @@ function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentE
   }
 
   return first;
-}
-
-function requiredText(value: string | null | undefined, field: string): string {
-  if (!value) {
-    throw new Error(`Ad execution entity is missing ${field}.`);
-  }
-
-  return value;
 }
 
 function sum(

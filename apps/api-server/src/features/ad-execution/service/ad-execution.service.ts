@@ -5,6 +5,7 @@ import type {
   BannerResolveResponse,
   PromotionRunDispatchResponse
 } from "@loopad/shared";
+import { z, ZodError } from "zod";
 import { env } from "../../../infra/env/env.js";
 import { logWithContext } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
@@ -35,6 +36,16 @@ const DEV_DASHBOARD_PUBLIC_BASE_URL = "https://dashboard.api.dev.loop-ad.org";
 const LOOPAD_EVENT_SDK = Object.freeze({
   url: LOOPAD_EVENT_SDK_URL,
   writeKey: LOOPAD_EVENT_WRITE_KEY
+});
+const requiredContentTextSchema = z.string().min(1);
+const emailContentSchema = z.object({
+  subject: requiredContentTextSchema,
+  preheader: z.string().nullable(),
+  body: requiredContentTextSchema,
+  cta: z.string().nullable()
+});
+const smsContentSchema = z.object({
+  message: requiredContentTextSchema
 });
 
 interface DispatchContext {
@@ -277,7 +288,7 @@ export class AdExecutionService {
         userId: assignment.userId,
         redirectId,
         status: "failed",
-        errorCode: "PROVIDER_SEND_FAILED"
+        errorCode: getDispatchErrorCode(error)
       } satisfies DispatchAttemptSnapshot;
 
       logDispatchResult(channel, provider, assignment, attempt, getErrorName(error));
@@ -301,7 +312,7 @@ export class AdExecutionService {
       userId: assignment.userId,
       contentId: assignment.contentId,
       contentOptionId: assignment.contentOptionId,
-      destinationUrl: requireAssignmentText(assignment.landingUrl, "landing_url"),
+      destinationUrl: requiredContentTextSchema.parse(assignment.landingUrl),
       metadata: {},
       expiresAt: daysFromNow(7)
     });
@@ -315,22 +326,26 @@ function toDispatchSendInput(
   targetUrl: string
 ): DispatchSendInput {
   if (channel === "email") {
+    const content = emailContentSchema.parse(assignment);
+
     return {
       channel,
       recipient,
-      subject: assignment.subject ?? "",
-      body: [assignment.preheader, assignment.body, ctaLine(assignment.cta, targetUrl)]
+      subject: content.subject,
+      body: [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
         .filter(Boolean)
         .join("\n\n"),
       redirectUrl: targetUrl
     };
   }
 
+  const content = smsContentSchema.parse(assignment);
+
   return {
     channel,
     recipient,
     subject: "",
-    body: [assignment.message, targetUrl].filter(Boolean).join(" "),
+    body: [content.message, targetUrl].join(" "),
     redirectUrl: targetUrl
   };
 }
@@ -434,6 +449,10 @@ function getErrorName(error: unknown) {
   return error instanceof Error ? error.name : "UnknownError";
 }
 
+function getDispatchErrorCode(error: unknown) {
+  return error instanceof ZodError ? "CONTENT_INVALID" : "PROVIDER_SEND_FAILED";
+}
+
 function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentEntity[]) {
   const first = assignments[0];
 
@@ -442,12 +461,4 @@ function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentE
   }
 
   return first;
-}
-
-function requireAssignmentText(value: string | null, field: string): string {
-  if (!value) {
-    throw adExecutionErrors.inconsistentAssignment(`Active assignment is missing ${field}.`);
-  }
-
-  return value;
 }
