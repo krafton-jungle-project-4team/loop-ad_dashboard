@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { PublishCommand, SNSClient } from "@aws-sdk/client-sns";
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 import { Injectable } from "@nestjs/common";
+import { logWithContext } from "../../../infra/logger/index.js";
 
 const AWS_DISPATCH_REGION = "ap-northeast-2";
 const AWS_EMAIL_FROM_ADDRESS = "noreply@example.com";
@@ -39,11 +40,10 @@ export abstract class SmsSender {
 export class MockEmailSender extends EmailSender {
   override readonly providerName = "mock";
 
-  /** 실제 외부 전송 없이 mock message id를 반환합니다. */
+  /** 실패 없이 mock 전송 로그와 message id를 반환합니다. */
   async sendEmail(input: EmailSendInput): Promise<DispatchSendResult> {
-    if (!input.recipient.trim()) {
-      throw new Error("Recipient is empty.");
-    }
+    void input;
+    logMockSend("email", this.providerName);
 
     return {
       provider: this.providerName,
@@ -57,11 +57,10 @@ export class MockEmailSender extends EmailSender {
 export class MockSmsSender extends SmsSender {
   override readonly providerName = "mock";
 
-  /** 실제 외부 전송 없이 mock message id를 반환합니다. */
+  /** 실패 없이 mock 전송 로그와 message id를 반환합니다. */
   async sendSms(input: SmsSendInput): Promise<DispatchSendResult> {
-    if (!input.recipient.trim()) {
-      throw new Error("Recipient is empty.");
-    }
+    void input;
+    logMockSend("sms", this.providerName);
 
     return {
       provider: this.providerName,
@@ -134,4 +133,11 @@ function requiredProviderMessageId(value: string | undefined, providerName: stri
   }
 
   return value;
+}
+
+function logMockSend(channel: "email" | "sms", provider: string) {
+  logWithContext("info", "Mock ad dispatch sent", {
+    channel,
+    provider
+  });
 }

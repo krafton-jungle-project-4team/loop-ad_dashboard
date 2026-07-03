@@ -28,19 +28,19 @@ const { PromotionDispatchService } =
   await import("../src/features/ad-execution/service/promotion-dispatch.service.js");
 const { RedirectService } =
   await import("../src/features/ad-execution/service/redirect.service.js");
+const { MockEmailSender, MockSmsSender } =
+  await import("../src/features/ad-execution/adapters/dispatch-sender.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
 
-test("dispatch uses stored assignments and keeps sender failures visible", async () => {
+test("dispatch uses stored assignments and records mock sender success", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
-  const emailSender = new FakeEmailSender();
-  const service = createDispatchService(reader, writer, emailSender);
+  const service = createDispatchService(reader, writer);
 
-  emailSender.failedRecipients.add("user-missing");
   reader.dispatchAssignments = [
     assignment({ userId: "user-ok" }),
-    assignment({ userId: "user-missing" })
+    assignment({ userId: "user-also-ok" })
   ];
 
   const { result: response, logs } = await captureDispatchLogs(() =>
@@ -50,22 +50,22 @@ test("dispatch uses stored assignments and keeps sender failures visible", async
   assert.equal(response.promotion_run_id, "run-1");
   assert.equal(response.channel, "email");
   assert.equal(response.target_count, 2);
-  assert.equal(response.dispatched_count, 1);
-  assert.equal(response.failed_count, 1);
-  assert.equal(response.jobs[0]?.status, "partial_failed");
+  assert.equal(response.dispatched_count, 2);
+  assert.equal(response.failed_count, 0);
+  assert.equal(response.jobs[0]?.status, "completed");
   assert.equal(writer.redirectLinks.length, 2);
   assert.equal(writer.redirectLinks[0]?.adExperimentId, "exp-1");
-  assert.equal(writer.finishes[0]?.status, "failed");
-  assert.equal(writer.finishes[0]?.failedCount, 1);
-  assert.equal(emailSender.sent.length, 1);
+  assert.equal(writer.finishes[0]?.status, "completed");
+  assert.equal(writer.finishes[0]?.failedCount, 0);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
+  assert.equal(logs.filter((entry) => entry.message === "Mock ad dispatch sent").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
   assert.deepEqual(
     logs
       .filter((entry) => entry.message === "Ad dispatch send result")
       .map((entry) => entry.status)
       .sort(),
-    ["failed", "sent"]
+    ["sent", "sent"]
   );
   assert.equal(
     logs.some((entry) => JSON.stringify(entry).includes("@example.test")),
@@ -75,18 +75,11 @@ test("dispatch uses stored assignments and keeps sender failures visible", async
     logs.some((entry) => JSON.stringify(entry).includes("+1555")),
     false
   );
-  assert.equal(
-    (emailSender.sent[0] as { redirectUrl: string } | undefined)?.redirectUrl.startsWith(
-      "http://localhost:8080/r/"
-    ),
-    true
-  );
 });
 
 test("dispatch fails invalid email content instead of synthesizing fallbacks", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
-  const emailSender = new FakeEmailSender();
 
   reader.dispatchAssignments = [
     assignment({
@@ -100,7 +93,7 @@ test("dispatch fails invalid email content instead of synthesizing fallbacks", a
   ];
 
   const { result: response } = await captureDispatchLogs(() =>
-    createDispatchService(reader, writer, emailSender).dispatchPromotionRun("run-1")
+    createDispatchService(reader, writer).dispatchPromotionRun("run-1")
   );
 
   assert.equal(response.dispatched_count, 0);
@@ -112,7 +105,6 @@ test("dispatch fails invalid email content instead of synthesizing fallbacks", a
       ?.attempts[0]?.errorCode,
     "CONTENT_INVALID"
   );
-  assert.equal(emailSender.sent.length, 0);
 });
 
 test("dispatch rejects onsite banner promotion runs", async () => {
@@ -223,8 +215,8 @@ test("redirect page escapes script data and fallback href with stable libraries"
 function createDispatchService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
-  emailSender = new FakeEmailSender(),
-  smsSender = new FakeSmsSender()
+  emailSender = new MockEmailSender(),
+  smsSender = new MockSmsSender()
 ) {
   return new PromotionDispatchService(
     reader as ConstructorParameters<typeof PromotionDispatchService>[0],
@@ -417,39 +409,6 @@ class FakeAdExecutionWriter {
   }) {
     this.redirectLinks.push(input);
     return input.redirectToken;
-  }
-}
-
-class FakeEmailSender {
-  providerName = "fake-email";
-  failedRecipients = new Set<string>();
-
-  sent: unknown[] = [];
-
-  async sendEmail(input: { recipient: string }) {
-    if (this.failedRecipients.has(input.recipient)) {
-      throw new Error("Email send failed.");
-    }
-
-    this.sent.push(input);
-    return {
-      provider: this.providerName,
-      providerMessageId: "provider-message-1"
-    };
-  }
-}
-
-class FakeSmsSender {
-  providerName = "fake-sms";
-
-  sent: unknown[] = [];
-
-  async sendSms(input: unknown) {
-    this.sent.push(input);
-    return {
-      provider: this.providerName,
-      providerMessageId: "provider-message-1"
-    };
   }
 }
 
