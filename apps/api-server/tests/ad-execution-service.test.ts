@@ -30,8 +30,6 @@ const { RedirectService } =
   await import("../src/features/ad-execution/service/redirect.service.js");
 const { MockEmailSender, MockSmsSender } =
   await import("../src/features/ad-execution/adapters/dispatch-sender.js");
-const { AssignmentDispatcher } =
-  await import("../src/features/ad-execution/dispatch/assignment-dispatcher.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
 
@@ -258,12 +256,11 @@ function createDispatchService(
   emailSender = new MockEmailSender(),
   smsSender = new MockSmsSender()
 ) {
-  const assignmentDispatcher = new AssignmentDispatcher(emailSender, smsSender);
-
   return new PromotionDispatchService(
     reader as ConstructorParameters<typeof PromotionDispatchService>[0],
     writer as ConstructorParameters<typeof PromotionDispatchService>[1],
-    assignmentDispatcher as ConstructorParameters<typeof PromotionDispatchService>[2]
+    emailSender as ConstructorParameters<typeof PromotionDispatchService>[2],
+    smsSender as ConstructorParameters<typeof PromotionDispatchService>[3]
   );
 }
 
