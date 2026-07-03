@@ -3,16 +3,8 @@ import { Skeleton } from "@loopad/ui/shadcn/skeleton";
 import type { DashboardTab } from "../model/dashboard-types.js";
 
 export function LoadingState({ tab }: { tab: DashboardTab }) {
-  if (tab === "main") {
-    return <MainSkeleton />;
-  }
-  if (tab === "purchaseConversion") {
-    return <PurchaseSkeleton />;
-  }
-  if (tab === "aiAnalysis" || tab === "aiRecommendation") {
-    return <InsightSkeleton mode={tab === "aiAnalysis" ? "analysis" : "recommendation"} />;
-  }
-  return <GenerationSkeleton />;
+  void tab;
+  return <MainSkeleton />;
 }
 
 function MainSkeleton() {
@@ -42,51 +34,6 @@ function MainSkeleton() {
           <SectionSkeleton key={index} rows={4} />
         ))}
       </div>
-    </div>
-  );
-}
-
-function PurchaseSkeleton() {
-  return (
-    <div className="grid gap-6">
-      <Card className="w-full min-w-0">
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-5 w-14" />
-        </CardHeader>
-        <CardContent className="grid w-full min-w-0 gap-4 md:grid-cols-5">
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton className="h-36 w-full" key={index} />
-          ))}
-        </CardContent>
-      </Card>
-      <SectionSkeleton rows={6} />
-      <Skeleton className="h-10 w-72" />
-      <SectionSkeleton rows={6} />
-    </div>
-  );
-}
-
-function InsightSkeleton({ mode }: { mode: "analysis" | "recommendation" }) {
-  return (
-    <div className="grid gap-8">
-      <SectionSkeleton rows={7} />
-      <SectionSkeleton rows={4} />
-      {mode === "recommendation" ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <SectionSkeleton rows={4} />
-          <SectionSkeleton rows={4} />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function GenerationSkeleton() {
-  return (
-    <div className="grid gap-8">
-      <SectionSkeleton rows={2} />
-      <SectionSkeleton rows={3} />
     </div>
   );
 }

@@ -1,94 +1,47 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
+import { TransactionHost } from "@nestjs-cls/transactional";
 import type {
-  DashboardAiAnalysis,
-  DashboardAiGeneration,
-  DashboardAiRecommendation,
-  DashboardMain,
-  DashboardPurchaseConversion
+  DashboardCreateFunnelRequest,
+  DashboardEventCatalog,
+  DashboardFunnelList,
+  DashboardMain
 } from "@loopad/shared";
-import { DashboardViewDomain } from "../domain/index.js";
-import {
-  DashboardEventQuery,
-  DashboardRecommendationReader,
-  DashboardSegmentMetricsReader
-} from "../repository/index.js";
+import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
+import { DashboardCampaignReader, DashboardFunnelReader } from "../repository/index.js";
 
 @Injectable()
 export class DashboardQueryService {
   constructor(
-    @Inject(DashboardEventQuery)
-    private readonly eventQuery: DashboardEventQuery,
-    @Inject(DashboardRecommendationReader)
-    private readonly recommendationReader: DashboardRecommendationReader,
-    @Inject(DashboardSegmentMetricsReader)
-    private readonly segmentMetricsReader: DashboardSegmentMetricsReader
+    @Inject(DashboardCampaignReader)
+    private readonly campaignReader: DashboardCampaignReader,
+    @Inject(DashboardFunnelReader)
+    private readonly funnelReader: DashboardFunnelReader,
+    @Optional()
+    private readonly transactionHost?: TransactionHost<PgTypedTransactionalAdapter>
   ) {}
 
   async main(projectId: string): Promise<DashboardMain> {
-    return DashboardViewDomain.toMain(await this.queryEventAnalysis(projectId));
+    return { campaigns: await this.campaignReader.listCampaigns(projectId) };
   }
 
-  async purchaseConversion(projectId: string): Promise<DashboardPurchaseConversion> {
-    const eventAnalysis = await this.queryEventAnalysis(projectId);
-
-    return DashboardViewDomain.toPurchaseConversion(
-      eventAnalysis.funnel,
-      eventAnalysis.deviceFunnels,
-      eventAnalysis.customerGroupsHigh
-    );
+  async funnels(projectId: string): Promise<DashboardFunnelList> {
+    return { funnels: await this.funnelReader.listFunnels(projectId) };
   }
 
-  async aiAnalysis(
+  async eventCatalog(projectId: string): Promise<DashboardEventCatalog> {
+    return { events: await this.funnelReader.listEventCatalog(projectId) };
+  }
+
+  async createFunnel(
     projectId: string,
-    selectedCustomerId: string | undefined,
-    analysisDate: string | undefined
-  ): Promise<DashboardAiAnalysis> {
-    const [segmentMetrics, recommendationRows] = await Promise.all([
-      this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
-      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
-    ]);
-    const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
+    request: DashboardCreateFunnelRequest
+  ): Promise<DashboardFunnelList["funnels"][number]> {
+    if (!this.transactionHost) {
+      return this.funnelReader.createFunnel(projectId, request);
+    }
 
-    return DashboardViewDomain.toAiAnalysis(customerGroups, recommendationRows, selectedCustomerId);
-  }
-
-  async aiRecommendation(
-    projectId: string,
-    selectedCustomerId: string | undefined,
-    analysisDate: string | undefined
-  ): Promise<DashboardAiRecommendation> {
-    const [segmentMetrics, recommendationRows] = await Promise.all([
-      this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
-      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
-    ]);
-    const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
-
-    return DashboardViewDomain.toAiRecommendation(
-      customerGroups,
-      recommendationRows,
-      selectedCustomerId
+    return this.transactionHost.withTransaction(() =>
+      this.funnelReader.createFunnel(projectId, request)
     );
-  }
-
-  async aiGeneration(
-    projectId: string,
-    selectedCustomerId: string | undefined,
-    analysisDate: string | undefined
-  ): Promise<DashboardAiGeneration> {
-    const [segmentMetrics, recommendationRows] = await Promise.all([
-      this.segmentMetricsReader.readSegmentMetrics(projectId, analysisDate),
-      this.recommendationReader.readRecommendationContexts(projectId, analysisDate)
-    ]);
-    const customerGroups = DashboardViewDomain.toAiCustomerGroups(segmentMetrics);
-
-    return DashboardViewDomain.toAiGeneration(
-      customerGroups,
-      recommendationRows,
-      selectedCustomerId
-    );
-  }
-
-  private async queryEventAnalysis(projectId: string) {
-    return DashboardViewDomain.analyzeEventViews(await this.eventQuery.queryEventViews(projectId));
   }
 }

@@ -5,7 +5,7 @@ export const DASHBOARD_ERRORS = {
   PROJECT_ID_REQUIRED: {
     statusCode: HttpStatus.BAD_REQUEST,
     code: "DASHBOARD_PROJECT_ID_REQUIRED",
-    message: "projectId query param is required."
+    message: "project_id query param is required."
   }
 } as const;
 

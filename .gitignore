@@ -325,3 +325,8 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/jetbrains+all,visualstudiocode,macos,windows,react,node
+
+# 공통 규약파일
+loop_ad_team_common*
+reference_loop-ad-team-common-contract*
+/vector-clustering-segment-recommendation-impact.md

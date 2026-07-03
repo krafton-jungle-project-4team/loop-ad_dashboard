@@ -1,10 +1,15 @@
 import {
   createApiSuccessResponseSchema,
-  DashboardAiAnalysisSchema,
-  DashboardAiGenerationSchema,
-  DashboardAiRecommendationSchema,
-  DashboardMainSchema,
-  DashboardPurchaseConversionSchema
+  DashboardCreateFunnelRequestSchema,
+  DashboardEventCatalogSchema,
+  DashboardFunnelListSchema,
+  DashboardFunnelSchema,
+  DashboardMainSchema
+} from "@loopad/shared";
+import type {
+  DashboardCreateFunnelRequest,
+  DashboardEventCatalog,
+  DashboardFunnel
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -23,39 +28,44 @@ export async function fetchDashboardPageResource(
     case "main":
       return {
         tab,
-        data: await request("/dashboard/main", DashboardMainSchema, query, signal)
+        data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
-    case "purchaseConversion":
+    case "funnels":
       return {
         tab,
-        data: await request(
-          "/dashboard/purchase-conversion",
-          DashboardPurchaseConversionSchema,
-          query,
-          signal
-        )
-      };
-    case "aiAnalysis":
-      return {
-        tab,
-        data: await request("/dashboard/ai-analysis", DashboardAiAnalysisSchema, query, signal)
-      };
-    case "aiRecommendation":
-      return {
-        tab,
-        data: await request(
-          "/dashboard/ai-recommendation",
-          DashboardAiRecommendationSchema,
-          query,
-          signal
-        )
-      };
-    case "aiGeneration":
-      return {
-        tab,
-        data: await request("/dashboard/ai-generation", DashboardAiGenerationSchema, query, signal)
+        data: await request("/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)
       };
   }
+}
+
+export async function createDashboardFunnel(
+  query: DashboardQuery,
+  requestBody: DashboardCreateFunnelRequest
+): Promise<DashboardFunnel> {
+  const parsedBody = DashboardCreateFunnelRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardFunnelSchema).parse(await response.json()).data;
+}
+
+export async function fetchDashboardEventCatalog(
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<DashboardEventCatalog> {
+  return request("/dashboard/v1/event-catalog", DashboardEventCatalogSchema, query, signal);
 }
 
 async function request<T>(
@@ -65,7 +75,7 @@ async function request<T>(
   signal: AbortSignal
 ): Promise<T> {
   const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
-  url.searchParams.set("projectId", query.projectId);
+  url.searchParams.set("project_id", query.projectId);
   url.searchParams.set("dateRange", query.dateRange);
   url.searchParams.set("excludeInternalTraffic", String(query.excludeInternalTraffic));
   url.searchParams.set("excludeBotTraffic", String(query.excludeBotTraffic));
