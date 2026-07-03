@@ -24,7 +24,9 @@ const envSchema = z.object({
   LOOPAD_CLICKHOUSE_URL: httpUrl,
   LOOPAD_CLICKHOUSE_DATABASE: requiredString,
   LOOPAD_CLICKHOUSE_USERNAME: requiredString,
-  LOOPAD_CLICKHOUSE_PASSWORD: requiredString
+  LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
+  LOOPAD_EVENT_COLLECTOR_URL: httpUrl.optional(),
+  LOOPAD_PUBLIC_BASE_URL: httpUrl.optional()
 });
 
 const parsedEnv = parseEnv(process.env);
@@ -45,8 +47,13 @@ export const env = Object.freeze({
     database: parsedEnv.LOOPAD_CLICKHOUSE_DATABASE,
     username: parsedEnv.LOOPAD_CLICKHOUSE_USERNAME,
     password: parsedEnv.LOOPAD_CLICKHOUSE_PASSWORD
-  }
+  },
+  eventCollector: {
+    url: parsedEnv.LOOPAD_EVENT_COLLECTOR_URL ?? null
+  },
+  publicBaseUrl: parsedEnv.LOOPAD_PUBLIC_BASE_URL ?? `http://localhost:${parsedEnv.PORT}`
 });
+export type AppEnv = typeof env;
 
 function parseEnv(source: NodeJS.ProcessEnv): z.infer<typeof envSchema> {
   const result = envSchema.safeParse(source);

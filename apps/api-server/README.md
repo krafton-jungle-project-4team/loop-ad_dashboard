@@ -78,19 +78,6 @@ Dashboard FE
 
 ## Dashboard API 계약
 
-`POST /api/ads/serve`
-
-- 목적: 고객사/데모 프론트에서 단일 placement 광고를 조회한다.
-- 공개 범위: 인증 없는 public browser API이며 secret, JWT, API key를 요구하지 않는다.
-- CORS: `https://loop-ad.org` 및 `https://*.loop-ad.org` origin을 허용한다. 로컬 개발 환경에서는 `localhost`와 `127.0.0.1` HTTP origin도 허용한다.
-- 조회하는 DB: Aurora Postgres contract DB의 `projects`, `latest_user_primary_segments`, `segments`, `active_ad_serving_rules`.
-- `active_ad_serving_rules`는 광고 응답에 필요한 `mapping_id`, `action_id`, `experiment_variant_id`, `generated_content_id`를 제공해야 한다.
-- serving 흐름: `projectId`로 project를 확인하고, 사용자의 latest primary segment가 없으면 default segment로 fallback한 뒤, `placementKey` 후보 중 최고 priority를 고르고 같은 priority에서는 `projectId:userId:placementKey` hash와 `traffic_weight`로 deterministic weighted pick을 수행한다.
-- 응답 형식: 전역 `{ requestId, data }` envelope를 유지하고 외부 JSON 필드는 camelCase를 사용한다.
-- no-fill: 오류가 아니므로 `200 OK`와 `status: "empty"`, `ad: null`, `tracking: null`을 반환한다.
-- 실패: 필수 필드 누락은 `400`, 존재하지 않는 `projectId`는 `404`, DB 장애는 `500`으로 반환한다.
-- DB 전제: 이번 MVP는 `segment_ad_mappings.placement_key`에 `C1_MAIN_TOP`, `W1_WING` 값이 존재한다고 가정한다.
-
 `GET /api/dashboard/main`
 
 - 목적: 메인 대시보드 KPI, 실시간 이벤트/구매 추이, 세그먼트 현황을 조회한다.

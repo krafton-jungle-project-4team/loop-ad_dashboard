@@ -8,6 +8,10 @@ export const EventNameSchema = z.enum([
   "purchase",
   "coupon_shown",
   "action_exposed",
+  "promotion_impression",
+  "promotion_click",
+  "campaign_redirect_click",
+  "campaign_landing",
   "ad_impression",
   "ad_click",
   "coupon_click"
