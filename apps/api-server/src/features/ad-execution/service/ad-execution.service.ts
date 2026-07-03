@@ -3,6 +3,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type {
   BannerResolveQuery,
   BannerResolveResponse,
+  DispatchJobSummary,
   PromotionRunDispatchResponse
 } from "@loopad/shared";
 import { z, ZodError } from "zod";
@@ -23,6 +24,7 @@ import {
   type DispatchChannel,
   type DispatchJobStatus,
   type PromotionRunEntity,
+  type RedirectLinkEntity,
   type RedirectPageSnapshot
 } from "../domain/index.js";
 import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
@@ -67,68 +69,20 @@ export class AdExecutionService {
 
   async dispatchPromotionRun(promotionRunId: string): Promise<PromotionRunDispatchResponse> {
     const context = await this.requireDispatchContext(promotionRunId);
-    const assignments = await this.reader.listDispatchAssignments(promotionRunId);
-
-    this.assertDispatchAssignments(context, assignments);
-
-    const jobs = [];
-
-    for (const group of AdExecutionDomain.groupAssignmentsByAdExperiment(assignments)) {
-      const dispatchJobId = await this.createDispatchJob(context, group);
-      const attempts = await this.dispatchGroup(context.channel, group);
-      const summary = AdExecutionDomain.toDispatchJobSummary(
-        dispatchJobId,
-        context.channel,
-        group,
-        attempts
-      );
-
-      await this.writer.finishDispatchJob({
-        dispatchJobId,
-        status: toStoredDispatchJobStatus(summary.status),
-        dispatchedCount: summary.dispatched_count,
-        failedCount: summary.failed_count,
-        result: {
-          status: summary.status,
-          attempts
-        }
-      });
-
-      jobs.push(summary);
-    }
+    const assignments = await this.requireDispatchAssignments(context);
+    const jobs = await this.dispatchAssignments(context, assignments);
 
     return AdExecutionDomain.toDispatchResponse(promotionRunId, context.channel, jobs);
   }
 
   async resolveBanner(request: BannerResolveQuery): Promise<BannerResolveResponse> {
-    const assignment = await this.reader.findBannerAssignment({
-      projectId: request.project_id,
-      promotionRunId: request.promotion_run_id,
-      userId: request.user_id
-    });
-
-    if (!assignment) {
-      throw adExecutionErrors.bannerAssignmentNotFound(request.promotion_run_id, request.user_id);
-    }
+    const assignment = await this.requireBannerAssignment(request);
 
     return AdExecutionDomain.toBannerResponse(assignment);
   }
 
   async resolveRedirectPage(redirectId: string): Promise<RedirectPageSnapshot> {
-    const link = await this.reader.findRedirectLink(redirectId);
-
-    if (!link) {
-      throw adExecutionErrors.redirectNotFound(redirectId);
-    }
-
-    if (link.expiresAt && link.expiresAt <= new Date()) {
-      throw adExecutionErrors.redirectExpired(redirectId);
-    }
-
-    if (!isHttpUrl(link.destinationUrl)) {
-      throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
-    }
-
+    const link = await this.requireRedirectLink(redirectId);
     const promotionChannel = await this.requireRedirectChannel(link.adExperimentId);
 
     return AdExecutionDomain.toRedirectPage(link, promotionChannel, LOOPAD_EVENT_SDK);
@@ -159,6 +113,217 @@ export class AdExecutionService {
       promotionRun,
       channel
     };
+  }
+
+  private async requireDispatchAssignments(
+    context: DispatchContext
+  ): Promise<ActiveAdServingAssignmentEntity[]> {
+    const assignments = await this.reader.listDispatchAssignments(
+      context.promotionRun.promotionRunId
+    );
+
+    this.assertDispatchAssignments(context, assignments);
+
+    return assignments;
+  }
+
+  private async dispatchAssignments(
+    context: DispatchContext,
+    assignments: readonly ActiveAdServingAssignmentEntity[]
+  ): Promise<DispatchJobSummary[]> {
+    const jobs: DispatchJobSummary[] = [];
+
+    for (const group of AdExecutionDomain.groupAssignmentsByAdExperiment(assignments)) {
+      jobs.push(await this.dispatchAdExperimentGroup(context, group));
+    }
+
+    return jobs;
+  }
+
+  private async dispatchAdExperimentGroup(
+    context: DispatchContext,
+    assignments: readonly ActiveAdServingAssignmentEntity[]
+  ): Promise<DispatchJobSummary> {
+    const dispatchJobId = await this.createDispatchJob(context, assignments);
+    const attempts = await this.dispatchGroup(context.channel, assignments);
+    const summary = AdExecutionDomain.toDispatchJobSummary(
+      dispatchJobId,
+      context.channel,
+      assignments,
+      attempts
+    );
+
+    await this.finishDispatchJob(dispatchJobId, summary, attempts);
+
+    return summary;
+  }
+
+  private async finishDispatchJob(
+    dispatchJobId: string,
+    summary: DispatchJobSummary,
+    attempts: readonly DispatchAttemptSnapshot[]
+  ) {
+    await this.writer.finishDispatchJob({
+      dispatchJobId,
+      status: toStoredDispatchJobStatus(summary.status),
+      dispatchedCount: summary.dispatched_count,
+      failedCount: summary.failed_count,
+      result: {
+        status: summary.status,
+        attempts
+      }
+    });
+  }
+
+  private async createDispatchJob(
+    context: DispatchContext,
+    assignments: readonly ActiveAdServingAssignmentEntity[]
+  ) {
+    const first = requireFirstAssignment(assignments);
+
+    return this.writer.insertDispatchJob({
+      dispatchJobId: randomUUID(),
+      projectId: context.promotionRun.projectId,
+      campaignId: context.promotionRun.campaignId,
+      promotionId: context.promotionRun.promotionId,
+      promotionRunId: context.promotionRun.promotionRunId,
+      adExperimentId: first.adExperimentId,
+      channel: context.channel,
+      provider: this.dispatchSender.providerNameFor(context.channel),
+      targetCount: assignments.length,
+      request: {
+        segment_id: first.segmentId,
+        content_id: first.contentId,
+        content_option_id: first.contentOptionId
+      }
+    });
+  }
+
+  private async dispatchGroup(
+    channel: DispatchChannel,
+    assignments: readonly ActiveAdServingAssignmentEntity[]
+  ): Promise<DispatchAttemptSnapshot[]> {
+    const attempts: DispatchAttemptSnapshot[] = [];
+
+    for (const assignment of assignments) {
+      attempts.push(await this.dispatchAssignment(channel, assignment));
+    }
+
+    return attempts;
+  }
+
+  private async dispatchAssignment(
+    channel: DispatchChannel,
+    assignment: ActiveAdServingAssignmentEntity
+  ): Promise<DispatchAttemptSnapshot> {
+    const redirectId = await this.createRedirectLink(assignment);
+    const provider = this.dispatchSender.providerNameFor(channel);
+
+    logDispatchAttempt(channel, provider, assignment, redirectId);
+
+    try {
+      const recipient = await this.resolveRecipient(channel, assignment);
+
+      if (!recipient) {
+        const attempt = toFailedAttempt(assignment.userId, redirectId, "RECIPIENT_NOT_FOUND");
+
+        logDispatchResult(channel, provider, assignment, attempt);
+
+        return attempt;
+      }
+
+      const sendResult = await this.sendDispatch(channel, assignment, recipient, redirectId);
+      const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
+
+      logDispatchResult(channel, sendResult.provider, assignment, attempt);
+
+      return attempt;
+    } catch (error) {
+      const attempt = toFailedAttempt(assignment.userId, redirectId, getDispatchErrorCode(error));
+
+      logDispatchResult(channel, provider, assignment, attempt, getErrorName(error));
+
+      return attempt;
+    }
+  }
+
+  private async resolveRecipient(
+    channel: DispatchChannel,
+    assignment: ActiveAdServingAssignmentEntity
+  ): Promise<string | null> {
+    const resolution = await this.recipientResolver.resolve({
+      projectId: assignment.projectId,
+      userId: assignment.userId,
+      channel
+    });
+
+    return resolution?.recipient ?? null;
+  }
+
+  private async sendDispatch(
+    channel: DispatchChannel,
+    assignment: ActiveAdServingAssignmentEntity,
+    recipient: string,
+    redirectId: string
+  ): Promise<DispatchSendResult> {
+    return this.dispatchSender.send(
+      toDispatchSendInput(channel, assignment, recipient, redirectUrl(redirectId))
+    );
+  }
+
+  private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
+    const redirectId = randomUUID();
+
+    return this.writer.insertRedirectLink({
+      redirectLinkId: redirectId,
+      redirectToken: redirectId,
+      projectId: assignment.projectId,
+      campaignId: assignment.campaignId,
+      promotionId: assignment.promotionId,
+      promotionRunId: assignment.promotionRunId,
+      adExperimentId: assignment.adExperimentId,
+      segmentId: assignment.segmentId,
+      userId: assignment.userId,
+      contentId: assignment.contentId,
+      contentOptionId: assignment.contentOptionId,
+      destinationUrl: requiredContentTextSchema.parse(assignment.landingUrl),
+      metadata: {},
+      expiresAt: daysFromNow(7)
+    });
+  }
+
+  private async requireBannerAssignment(
+    request: BannerResolveQuery
+  ): Promise<ActiveAdServingAssignmentEntity> {
+    const assignment = await this.reader.findBannerAssignment({
+      projectId: request.project_id,
+      promotionRunId: request.promotion_run_id,
+      userId: request.user_id
+    });
+
+    if (!assignment) {
+      throw adExecutionErrors.bannerAssignmentNotFound(request.promotion_run_id, request.user_id);
+    }
+
+    return assignment;
+  }
+
+  private async requireRedirectLink(redirectId: string): Promise<RedirectLinkEntity> {
+    const link = await this.reader.findRedirectLink(redirectId);
+
+    if (!link) {
+      throw adExecutionErrors.redirectNotFound(redirectId);
+    }
+
+    if (link.expiresAt && link.expiresAt <= new Date()) {
+      throw adExecutionErrors.redirectExpired(redirectId);
+    }
+
+    if (!isHttpUrl(link.destinationUrl)) {
+      throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
+    }
+
+    return link;
   }
 
   private async requireRedirectChannel(adExperimentId: string | null): Promise<AdExecutionChannel> {
@@ -203,115 +368,6 @@ export class AdExecutionService {
       throw adExecutionErrors.inconsistentAssignment(conflicts.join(" "));
     }
   }
-
-  private async createDispatchJob(
-    context: DispatchContext,
-    assignments: readonly ActiveAdServingAssignmentEntity[]
-  ) {
-    const first = requireFirstAssignment(assignments);
-
-    return this.writer.insertDispatchJob({
-      dispatchJobId: randomUUID(),
-      projectId: context.promotionRun.projectId,
-      campaignId: context.promotionRun.campaignId,
-      promotionId: context.promotionRun.promotionId,
-      promotionRunId: context.promotionRun.promotionRunId,
-      adExperimentId: first.adExperimentId,
-      channel: context.channel,
-      provider: this.dispatchSender.providerNameFor(context.channel),
-      targetCount: assignments.length,
-      request: {
-        segment_id: first.segmentId,
-        content_id: first.contentId,
-        content_option_id: first.contentOptionId
-      }
-    });
-  }
-
-  private async dispatchGroup(
-    channel: DispatchChannel,
-    assignments: readonly ActiveAdServingAssignmentEntity[]
-  ): Promise<DispatchAttemptSnapshot[]> {
-    const attempts: DispatchAttemptSnapshot[] = [];
-
-    for (const assignment of assignments) {
-      attempts.push(await this.dispatchOne(channel, assignment));
-    }
-
-    return attempts;
-  }
-
-  private async dispatchOne(
-    channel: DispatchChannel,
-    assignment: ActiveAdServingAssignmentEntity
-  ): Promise<DispatchAttemptSnapshot> {
-    const redirectId = await this.createRedirectLink(assignment);
-    const provider = this.dispatchSender.providerNameFor(channel);
-
-    logDispatchAttempt(channel, provider, assignment, redirectId);
-
-    try {
-      const resolution = await this.recipientResolver.resolve({
-        projectId: assignment.projectId,
-        userId: assignment.userId,
-        channel
-      });
-
-      if (!resolution) {
-        const attempt = {
-          userId: assignment.userId,
-          redirectId,
-          status: "failed",
-          errorCode: "RECIPIENT_NOT_FOUND"
-        } satisfies DispatchAttemptSnapshot;
-
-        logDispatchResult(channel, provider, assignment, attempt);
-
-        return attempt;
-      }
-
-      const sendResult = await this.dispatchSender.send(
-        toDispatchSendInput(channel, assignment, resolution.recipient, redirectUrl(redirectId))
-      );
-      const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
-
-      logDispatchResult(channel, sendResult.provider, assignment, attempt);
-
-      return attempt;
-    } catch (error) {
-      const attempt = {
-        userId: assignment.userId,
-        redirectId,
-        status: "failed",
-        errorCode: getDispatchErrorCode(error)
-      } satisfies DispatchAttemptSnapshot;
-
-      logDispatchResult(channel, provider, assignment, attempt, getErrorName(error));
-
-      return attempt;
-    }
-  }
-
-  private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
-    const redirectId = randomUUID();
-
-    return this.writer.insertRedirectLink({
-      redirectLinkId: redirectId,
-      redirectToken: redirectId,
-      projectId: assignment.projectId,
-      campaignId: assignment.campaignId,
-      promotionId: assignment.promotionId,
-      promotionRunId: assignment.promotionRunId,
-      adExperimentId: assignment.adExperimentId,
-      segmentId: assignment.segmentId,
-      userId: assignment.userId,
-      contentId: assignment.contentId,
-      contentOptionId: assignment.contentOptionId,
-      destinationUrl: requiredContentTextSchema.parse(assignment.landingUrl),
-      metadata: {},
-      expiresAt: daysFromNow(7)
-    });
-  }
 }
 
 function toDispatchSendInput(
@@ -355,6 +411,19 @@ function toSentAttempt(
     redirectId,
     status: "sent",
     providerMessageId: sendResult.providerMessageId
+  };
+}
+
+function toFailedAttempt(
+  userId: string,
+  redirectId: string,
+  errorCode: string
+): DispatchAttemptSnapshot {
+  return {
+    userId,
+    redirectId,
+    status: "failed",
+    errorCode
   };
 }
 
