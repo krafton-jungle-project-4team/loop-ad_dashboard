@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { TransactionHost } from "@nestjs-cls/transactional";
 import type {
   DashboardCreateFunnelRequest,
@@ -16,8 +16,7 @@ export class DashboardQueryService {
     private readonly campaignReader: DashboardCampaignReader,
     @Inject(DashboardFunnelReader)
     private readonly funnelReader: DashboardFunnelReader,
-    @Optional()
-    private readonly transactionHost?: TransactionHost<PgTypedTransactionalAdapter>
+    private readonly transactionHost: TransactionHost<PgTypedTransactionalAdapter>
   ) {}
 
   async main(projectId: string): Promise<DashboardMain> {
@@ -36,10 +35,6 @@ export class DashboardQueryService {
     projectId: string,
     request: DashboardCreateFunnelRequest
   ): Promise<DashboardFunnelList["funnels"][number]> {
-    if (!this.transactionHost) {
-      return this.funnelReader.createFunnel(projectId, request);
-    }
-
     return this.transactionHost.withTransaction(() =>
       this.funnelReader.createFunnel(projectId, request)
     );

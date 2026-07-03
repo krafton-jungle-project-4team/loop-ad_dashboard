@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { TransactionHost } from "@nestjs-cls/transactional";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
+import type { PgTypedTransactionalAdapter } from "../src/infra/database/pgtyped-transactional.adapter.js";
 
 test("dashboard main returns campaign summaries from the campaign reader", async () => {
   setRequiredEnv();
@@ -30,7 +32,8 @@ test("dashboard main returns campaign summaries from the campaign reader", async
         ];
       }
     } as unknown as DashboardCampaignReader,
-    emptyFunnelReader()
+    emptyFunnelReader(),
+    passthroughTransactionHost()
   );
 
   const main = await service.main("hotel-client-a");
@@ -58,7 +61,7 @@ test("dashboard event catalog returns collected funnel event options", async () 
         }
       ];
     }
-  } as unknown as DashboardFunnelReader);
+  } as unknown as DashboardFunnelReader, passthroughTransactionHost());
 
   const eventCatalog = await service.eventCatalog("hotel-client-a");
 
@@ -95,7 +98,7 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
         updated_at: "2026-07-03T00:00:00.000Z"
       };
     }
-  } as unknown as DashboardFunnelReader);
+  } as unknown as DashboardFunnelReader, passthroughTransactionHost());
 
   const funnel = await service.createFunnel("hotel-client-a", {
     funnel_name: "숙소 예약 퍼널",
@@ -125,6 +128,12 @@ function emptyFunnelReader(): DashboardFunnelReader {
     listEventCatalog: async () => [],
     listFunnels: async () => []
   } as unknown as DashboardFunnelReader;
+}
+
+function passthroughTransactionHost(): TransactionHost<PgTypedTransactionalAdapter> {
+  return {
+    withTransaction: async (callback: () => Promise<unknown>) => callback()
+  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
 }
 
 function setRequiredEnv() {
