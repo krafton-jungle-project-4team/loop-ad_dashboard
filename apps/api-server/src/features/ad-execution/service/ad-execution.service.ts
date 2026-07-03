@@ -17,12 +17,11 @@ import {
 import { RecipientResolver } from "../adapters/recipient-resolver.js";
 import {
   AdExecutionDomain,
+  type AdExecutionChannel,
   type ActiveAdServingAssignmentEntity,
-  type AdExperimentEntity,
   type DispatchAttemptSnapshot,
   type DispatchChannel,
   type DispatchJobStatus,
-  type PromotionEntity,
   type PromotionRunEntity,
   type RedirectPageSnapshot
 } from "../domain/index.js";
@@ -50,7 +49,6 @@ const smsContentSchema = z.object({
 
 interface DispatchContext {
   promotionRun: PromotionRunEntity;
-  promotion: PromotionEntity;
   channel: DispatchChannel;
 }
 
@@ -131,9 +129,9 @@ export class AdExecutionService {
       throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
     }
 
-    const adExperiment = await this.requireRedirectAdExperiment(link.adExperimentId);
+    const promotionChannel = await this.requireRedirectChannel(link.adExperimentId);
 
-    return AdExecutionDomain.toRedirectPage(link, adExperiment.channel, LOOPAD_EVENT_SDK);
+    return AdExecutionDomain.toRedirectPage(link, promotionChannel, LOOPAD_EVENT_SDK);
   }
 
   private async requireDispatchContext(promotionRunId: string): Promise<DispatchContext> {
@@ -159,14 +157,11 @@ export class AdExecutionService {
 
     return {
       promotionRun,
-      promotion,
       channel
     };
   }
 
-  private async requireRedirectAdExperiment(
-    adExperimentId: string | null
-  ): Promise<AdExperimentEntity> {
+  private async requireRedirectChannel(adExperimentId: string | null): Promise<AdExecutionChannel> {
     if (!adExperimentId) {
       throw adExecutionErrors.inconsistentAssignment(
         "redirect link is missing ad_experiment_id."
@@ -181,7 +176,7 @@ export class AdExecutionService {
       );
     }
 
-    return adExperiment;
+    return adExperiment.channel;
   }
 
   private assertDispatchAssignments(
@@ -405,15 +400,7 @@ function logDispatchAttempt(
   logWithContext("info", "Ad dispatch send attempt", {
     channel,
     provider,
-    projectId: assignment.projectId,
-    campaignId: assignment.campaignId,
-    promotionId: assignment.promotionId,
-    promotionRunId: assignment.promotionRunId,
-    adExperimentId: assignment.adExperimentId,
-    segmentId: assignment.segmentId,
-    contentId: assignment.contentId,
-    contentOptionId: assignment.contentOptionId,
-    userId: assignment.userId,
+    ...dispatchLogContext(assignment),
     redirectId
   });
 }
@@ -428,6 +415,17 @@ function logDispatchResult(
   logWithContext(attempt.status === "sent" ? "info" : "warn", "Ad dispatch send result", {
     channel,
     provider,
+    ...dispatchLogContext(assignment),
+    redirectId: attempt.redirectId,
+    status: attempt.status,
+    errorCode: attempt.errorCode,
+    providerMessageId: attempt.providerMessageId,
+    errorName
+  });
+}
+
+function dispatchLogContext(assignment: ActiveAdServingAssignmentEntity) {
+  return {
     projectId: assignment.projectId,
     campaignId: assignment.campaignId,
     promotionId: assignment.promotionId,
@@ -436,13 +434,8 @@ function logDispatchResult(
     segmentId: assignment.segmentId,
     contentId: assignment.contentId,
     contentOptionId: assignment.contentOptionId,
-    userId: attempt.userId,
-    redirectId: attempt.redirectId,
-    status: attempt.status,
-    errorCode: attempt.errorCode,
-    providerMessageId: attempt.providerMessageId,
-    errorName
-  });
+    userId: assignment.userId
+  };
 }
 
 function getErrorName(error: unknown) {

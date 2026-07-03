@@ -13,13 +13,27 @@ export type DispatchJobStatus = "completed" | "partial_failed" | "failed";
 const dateFromDbSchema = z.union([z.date(), z.string().pipe(z.coerce.date())]);
 const jsonObjectSchema = z.record(z.string(), z.unknown());
 const requiredStringSchema = z.string().min(1);
-
-export type JsonObject = z.infer<typeof jsonObjectSchema>;
-
-export const promotionEntitySchema = z.object({
-  promotionId: requiredStringSchema,
+const nullableStringSchema = z.string().nullable();
+const promotionIdsSchema = {
   projectId: requiredStringSchema,
   campaignId: requiredStringSchema,
+  promotionId: requiredStringSchema
+};
+const runIdsSchema = {
+  ...promotionIdsSchema,
+  promotionRunId: requiredStringSchema
+};
+const contentIdsSchema = {
+  contentId: requiredStringSchema,
+  contentOptionId: requiredStringSchema
+};
+const timestampsSchema = {
+  createdAt: dateFromDbSchema,
+  updatedAt: dateFromDbSchema
+};
+
+export const promotionEntitySchema = z.object({
+  ...promotionIdsSchema,
   name: requiredStringSchema,
   channel: adExecutionChannelSchema,
   targetAudience: requiredStringSchema,
@@ -28,42 +42,34 @@ export const promotionEntitySchema = z.object({
   goalBasis: requiredStringSchema,
   status: requiredStringSchema,
   metadataJson: jsonObjectSchema,
-  createdAt: dateFromDbSchema,
-  updatedAt: dateFromDbSchema
+  ...timestampsSchema
 });
 export type PromotionEntity = z.infer<typeof promotionEntitySchema>;
 
 export const promotionRunEntitySchema = z.object({
   promotionRunId: requiredStringSchema,
-  projectId: requiredStringSchema,
-  campaignId: requiredStringSchema,
-  promotionId: requiredStringSchema,
+  ...promotionIdsSchema,
   analysisId: requiredStringSchema,
   generationId: requiredStringSchema,
   previousPromotionRunId: requiredStringSchema.nullable(),
   loopCount: z.number(),
-  operatorInstruction: z.string().nullable(),
+  operatorInstruction: nullableStringSchema,
   status: requiredStringSchema,
   summaryJson: jsonObjectSchema,
   startedAt: dateFromDbSchema.nullable(),
   endedAt: dateFromDbSchema.nullable(),
-  createdAt: dateFromDbSchema,
-  updatedAt: dateFromDbSchema
+  ...timestampsSchema
 });
 export type PromotionRunEntity = z.infer<typeof promotionRunEntitySchema>;
 
 export const adExperimentEntitySchema = z.object({
   adExperimentId: requiredStringSchema,
-  projectId: requiredStringSchema,
-  campaignId: requiredStringSchema,
-  promotionId: requiredStringSchema,
-  promotionRunId: requiredStringSchema,
+  ...runIdsSchema,
   analysisId: requiredStringSchema,
   generationId: requiredStringSchema,
   segmentId: requiredStringSchema,
-  segmentName: z.string().nullable(),
-  contentId: requiredStringSchema,
-  contentOptionId: requiredStringSchema,
+  segmentName: nullableStringSchema,
+  ...contentIdsSchema,
   channel: adExecutionChannelSchema,
   loopCount: z.number(),
   status: requiredStringSchema,
@@ -72,8 +78,7 @@ export const adExperimentEntitySchema = z.object({
   goalBasis: requiredStringSchema,
   startedAt: dateFromDbSchema.nullable(),
   endedAt: dateFromDbSchema.nullable(),
-  createdAt: dateFromDbSchema,
-  updatedAt: dateFromDbSchema
+  ...timestampsSchema
 });
 export type AdExperimentEntity = z.infer<typeof adExperimentEntitySchema>;
 
@@ -82,21 +87,18 @@ export const activeAdServingAssignmentEntitySchema = z.object({
   userId: requiredStringSchema,
   segmentId: requiredStringSchema,
   adExperimentId: requiredStringSchema,
-  contentId: requiredStringSchema,
-  contentOptionId: requiredStringSchema,
+  ...contentIdsSchema,
   fallback: z.boolean(),
   similarityScore: requiredStringSchema.nullable(),
-  projectId: requiredStringSchema,
-  campaignId: requiredStringSchema,
-  promotionId: requiredStringSchema,
+  ...promotionIdsSchema,
   channel: adExecutionChannelSchema,
-  subject: z.string().nullable(),
-  preheader: z.string().nullable(),
-  title: z.string().nullable(),
-  body: z.string().nullable(),
-  cta: z.string().nullable(),
-  message: z.string().nullable(),
-  imagePrompt: z.string().nullable(),
+  subject: nullableStringSchema,
+  preheader: nullableStringSchema,
+  title: nullableStringSchema,
+  body: nullableStringSchema,
+  cta: nullableStringSchema,
+  message: nullableStringSchema,
+  imagePrompt: nullableStringSchema,
   landingUrl: requiredStringSchema.nullable(),
   contentStatus: requiredStringSchema,
   adExperimentStatus: requiredStringSchema
@@ -107,10 +109,7 @@ export type ActiveAdServingAssignmentEntity = z.infer<
 
 export const redirectLinkEntitySchema = z.object({
   redirectLinkId: requiredStringSchema,
-  projectId: requiredStringSchema,
-  campaignId: requiredStringSchema,
-  promotionId: requiredStringSchema,
-  promotionRunId: requiredStringSchema,
+  ...runIdsSchema,
   adExperimentId: requiredStringSchema.nullable(),
   segmentId: requiredStringSchema.nullable(),
   userId: requiredStringSchema.nullable(),
@@ -122,22 +121,21 @@ export const redirectLinkEntitySchema = z.object({
   metadataJson: jsonObjectSchema,
   expiresAt: dateFromDbSchema.nullable(),
   clickedAt: dateFromDbSchema.nullable(),
-  createdAt: dateFromDbSchema,
-  updatedAt: dateFromDbSchema
+  ...timestampsSchema
 });
 export type RedirectLinkEntity = z.infer<typeof redirectLinkEntitySchema>;
 
 export interface RedirectClickFields {
-  campaignId: string;
-  promotionId: string;
-  promotionRunId: string;
-  adExperimentId: string;
-  segmentId: string;
-  contentId: string;
-  contentOptionId: string;
-  promotionChannel: AdExecutionChannel;
-  redirectId: string;
-  targetUrl: string;
+  campaign_id: string;
+  promotion_id: string;
+  promotion_run_id: string;
+  ad_experiment_id: string;
+  segment_id: string;
+  content_id: string;
+  content_option_id: string;
+  promotion_channel: AdExecutionChannel;
+  redirect_id: string;
+  target_url: string;
 }
 
 export interface RedirectClickEventSnapshot {
@@ -276,24 +274,6 @@ export const AdExecutionDomain = {
     };
   },
 
-  toRedirectClickFields(
-    link: RedirectLinkEntity,
-    promotionChannel: AdExecutionChannel
-  ): RedirectClickFields {
-    return {
-      campaignId: link.campaignId,
-      promotionId: link.promotionId,
-      promotionRunId: link.promotionRunId,
-      adExperimentId: requiredStringSchema.parse(link.adExperimentId),
-      segmentId: requiredStringSchema.parse(link.segmentId),
-      contentId: requiredStringSchema.parse(link.contentId),
-      contentOptionId: requiredStringSchema.parse(link.contentOptionId),
-      promotionChannel,
-      redirectId: link.redirectToken,
-      targetUrl: link.destinationUrl
-    };
-  },
-
   toRedirectClickEvent(
     link: RedirectLinkEntity,
     promotionChannel: AdExecutionChannel
@@ -305,7 +285,18 @@ export const AdExecutionDomain = {
         userId: requiredStringSchema.parse(link.userId),
         sessionId: `redirect:${link.redirectToken}`
       },
-      fields: AdExecutionDomain.toRedirectClickFields(link, promotionChannel)
+      fields: {
+        campaign_id: link.campaignId,
+        promotion_id: link.promotionId,
+        promotion_run_id: link.promotionRunId,
+        ad_experiment_id: requiredStringSchema.parse(link.adExperimentId),
+        segment_id: requiredStringSchema.parse(link.segmentId),
+        content_id: requiredStringSchema.parse(link.contentId),
+        content_option_id: requiredStringSchema.parse(link.contentOptionId),
+        promotion_channel: promotionChannel,
+        redirect_id: link.redirectToken,
+        target_url: link.destinationUrl
+      }
     };
   },
 
@@ -318,26 +309,6 @@ export const AdExecutionDomain = {
       targetUrl: link.destinationUrl,
       eventSdk,
       event: AdExecutionDomain.toRedirectClickEvent(link, promotionChannel)
-    };
-  },
-
-  toRedirectClickProperties(
-    link: RedirectLinkEntity,
-    promotionChannel: AdExecutionChannel
-  ): Record<string, string> {
-    const fields = AdExecutionDomain.toRedirectClickFields(link, promotionChannel);
-
-    return {
-      campaign_id: fields.campaignId,
-      promotion_id: fields.promotionId,
-      promotion_run_id: fields.promotionRunId,
-      ad_experiment_id: fields.adExperimentId,
-      segment_id: fields.segmentId,
-      content_id: fields.contentId,
-      content_option_id: fields.contentOptionId,
-      promotion_channel: fields.promotionChannel,
-      redirect_id: fields.redirectId,
-      target_url: fields.targetUrl
     };
   }
 };

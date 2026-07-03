@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { AppError } from "../src/app-errors.js";
-import { AdExecutionDomain } from "../src/features/ad-execution/domain/index.js";
 import type {
   ActiveAdServingAssignmentEntity,
   AdExperimentEntity,
@@ -165,7 +164,6 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   const service = createService(reader);
 
   const page = await service.resolveRedirectPage("redirect-1");
-  const properties = AdExecutionDomain.toRedirectClickProperties(reader.redirectLink!, "email");
   const html = renderRedirectPage(page);
 
   assert.equal(page.targetUrl, "https://loop-ad.example/landing");
@@ -173,17 +171,15 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   assert.equal(page.event.projectId, "project-1");
   assert.equal(page.event.identity.userId, "user-1");
   assert.equal(page.event.identity.sessionId, "redirect:redirect-1");
-  assert.equal(page.event.fields.adExperimentId, "exp-1");
-  assert.equal(page.event.fields.targetUrl, "https://loop-ad.example/landing");
+  assert.equal(page.event.fields.ad_experiment_id, "exp-1");
+  assert.equal(page.event.fields.redirect_id, "redirect-1");
+  assert.equal(page.event.fields.content_option_id, "option-1");
+  assert.equal(page.event.fields.target_url, "https://loop-ad.example/landing");
   assert.equal(
     page.eventSdk.url,
     "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js"
   );
   assert.equal(page.eventSdk.writeKey, "public_write_key");
-  assert.equal(properties.ad_experiment_id, "exp-1");
-  assert.equal(properties.redirect_id, "redirect-1");
-  assert.equal(properties.content_option_id, "option-1");
-  assert.equal(properties.target_url, "https://loop-ad.example/landing");
   assert.match(html, /LoopAdEventSDK\.init/);
   assert.match(html, /campaign_redirect_click/);
   assert.match(html, /window\.location\.replace/);
@@ -204,23 +200,23 @@ test("redirect page escapes script data and fallback href with stable libraries"
         sessionId: "redirect:redirect-1"
       },
       fields: {
-        campaignId: "campaign-1",
-        promotionId: "promotion-1",
-        promotionRunId: "run-1",
-        adExperimentId: "exp-1",
-        segmentId: "seg-1",
-        contentId: "content-1",
-        contentOptionId: "option-1",
-        promotionChannel: "email",
-        redirectId: "redirect-1",
-        targetUrl: "</script><img src=x>"
+        campaign_id: "campaign-1",
+        promotion_id: "promotion-1",
+        promotion_run_id: "run-1",
+        ad_experiment_id: "exp-1",
+        segment_id: "seg-1",
+        content_id: "content-1",
+        content_option_id: "option-1",
+        promotion_channel: "email",
+        redirect_id: "redirect-1",
+        target_url: "</script><img src=x>"
       }
     }
   });
 
   assert.equal(html.includes('href="https://loop-ad.example/landing?next=&lt;/script&gt;'), true);
   assert.equal(html.includes("quote=&quot;"), true);
-  assert.equal(html.includes('"targetUrl":"\\u003C\\u002Fscript\\u003E'), true);
+  assert.equal(html.includes('"target_url":"\\u003C\\u002Fscript\\u003E'), true);
   assert.equal(html.includes('const redirect = {"targetUrl":"</script>'), false);
 });
 
