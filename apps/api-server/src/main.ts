@@ -16,7 +16,10 @@ async function bootstrap() {
   app.use(requestLoggingMiddleware);
   app.enableCors({ origin: createCorsOriginResolver() });
   app.setGlobalPrefix("api", {
-    exclude: [{ path: "health", method: RequestMethod.GET }]
+    exclude: [
+      { path: "health", method: RequestMethod.GET },
+      { path: "r/:redirectId", method: RequestMethod.GET }
+    ]
   });
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalInterceptors(new ApiResponseInterceptor());

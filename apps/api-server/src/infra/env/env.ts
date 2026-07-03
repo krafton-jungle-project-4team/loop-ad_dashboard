@@ -47,6 +47,7 @@ export const env = Object.freeze({
     password: parsedEnv.LOOPAD_CLICKHOUSE_PASSWORD
   }
 });
+export type AppEnv = typeof env;
 
 function parseEnv(source: NodeJS.ProcessEnv): z.infer<typeof envSchema> {
   const result = envSchema.safeParse(source);
