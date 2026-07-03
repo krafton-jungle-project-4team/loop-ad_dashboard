@@ -191,6 +191,7 @@ export class PromotionDispatchService {
     channel: DispatchChannel,
     assignment: ActiveAdServingAssignmentEntity
   ): Promise<DispatchAttemptSnapshot> {
+    // TODO: channel별 발송 실행은 EmailDispatchService/SmsDispatchService로 분리한다.
     const redirectId = await this.createRedirectLink(assignment);
     const provider = this.providerNameFor(channel, assignment.promotionRunId);
 
