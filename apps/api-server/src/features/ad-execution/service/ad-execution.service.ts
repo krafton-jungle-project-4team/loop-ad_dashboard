@@ -13,7 +13,6 @@ import {
   type DispatchSendInput,
   type DispatchSendResult
 } from "../adapters/dispatch-sender.js";
-import { PromotionEventCollector } from "../adapters/event-collector-client.js";
 import { RecipientResolver } from "../adapters/recipient-resolver.js";
 import {
   AdExecutionDomain,
@@ -21,7 +20,8 @@ import {
   type DispatchAttemptSnapshot,
   type DispatchChannel,
   type DispatchJobStatus,
-  type PromotionRunExecutionContextSnapshot
+  type PromotionRunExecutionContextSnapshot,
+  type RedirectPageSnapshot
 } from "../domain/index.js";
 import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
 
@@ -35,9 +35,7 @@ export class AdExecutionService {
     @Inject(RecipientResolver)
     private readonly recipientResolver: RecipientResolver,
     @Inject(DispatchSender)
-    private readonly dispatchSender: DispatchSender,
-    @Inject(PromotionEventCollector)
-    private readonly eventCollector: PromotionEventCollector
+    private readonly dispatchSender: DispatchSender
   ) {}
 
   async dispatchPromotionRun(promotionRunId: string): Promise<PromotionRunDispatchResponse> {
@@ -89,7 +87,7 @@ export class AdExecutionService {
     return AdExecutionDomain.toBannerResponse(assignment);
   }
 
-  async handleRedirect(redirectId: string): Promise<string> {
+  async resolveRedirectPage(redirectId: string): Promise<RedirectPageSnapshot> {
     const link = await this.reader.findRedirectLink(redirectId);
 
     if (!link) {
@@ -100,9 +98,11 @@ export class AdExecutionService {
       throw adExecutionErrors.redirectExpired(redirectId);
     }
 
-    await this.eventCollector.trackRedirectClick(link);
+    if (!isHttpUrl(link.targetUrl)) {
+      throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
+    }
 
-    return link.targetUrl;
+    return AdExecutionDomain.toRedirectPage(link, env.eventSdk);
   }
 
   private async requireDispatchContext(
@@ -313,6 +313,15 @@ function ctaLine(cta: string, targetUrl: string) {
 
 function redirectUrl(redirectId: string) {
   return `${env.publicBaseUrl.replace(/\/+$/, "")}/r/${encodeURIComponent(redirectId)}`;
+}
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function daysFromNow(days: number) {

@@ -65,6 +65,38 @@ export interface RedirectLinkSnapshot {
   promotionChannel: AdExecutionChannel;
 }
 
+export interface RedirectClickFields {
+  campaignId: string;
+  promotionId: string;
+  promotionRunId: string;
+  adExperimentId: string;
+  segmentId: string;
+  contentId: string;
+  contentOptionId: string;
+  promotionChannel: AdExecutionChannel;
+  redirectId: string;
+  targetUrl: string;
+}
+
+export interface RedirectClickEventSnapshot {
+  name: "campaign_redirect_click";
+  projectId: string;
+  identity: {
+    userId: string;
+    sessionId: string;
+  };
+  fields: RedirectClickFields;
+}
+
+export interface RedirectPageSnapshot {
+  targetUrl: string;
+  eventSdk: {
+    url: string;
+    writeKey: string | null;
+  };
+  event: RedirectClickEventSnapshot;
+}
+
 export interface DispatchAttemptSnapshot {
   userId: string;
   redirectId: string;
@@ -182,17 +214,58 @@ export const AdExecutionDomain = {
     };
   },
 
-  toRedirectClickProperties(link: RedirectLinkSnapshot): Record<string, string> {
+  toRedirectClickFields(link: RedirectLinkSnapshot): RedirectClickFields {
     return {
-      campaign_id: link.campaignId,
-      promotion_id: link.promotionId,
-      promotion_run_id: link.promotionRunId,
-      ad_experiment_id: link.adExperimentId,
-      segment_id: link.segmentId,
-      content_id: link.contentId,
-      content_option_id: link.contentOptionId,
-      promotion_channel: link.promotionChannel,
-      redirect_id: link.redirectId
+      campaignId: link.campaignId,
+      promotionId: link.promotionId,
+      promotionRunId: link.promotionRunId,
+      adExperimentId: link.adExperimentId,
+      segmentId: link.segmentId,
+      contentId: link.contentId,
+      contentOptionId: link.contentOptionId,
+      promotionChannel: link.promotionChannel,
+      redirectId: link.redirectId,
+      targetUrl: link.targetUrl
+    };
+  },
+
+  toRedirectClickEvent(link: RedirectLinkSnapshot): RedirectClickEventSnapshot {
+    return {
+      name: "campaign_redirect_click",
+      projectId: link.projectId,
+      identity: {
+        userId: link.userId,
+        sessionId: `redirect:${link.redirectId}`
+      },
+      fields: AdExecutionDomain.toRedirectClickFields(link)
+    };
+  },
+
+  toRedirectPage(
+    link: RedirectLinkSnapshot,
+    eventSdk: RedirectPageSnapshot["eventSdk"]
+  ): RedirectPageSnapshot {
+    return {
+      targetUrl: link.targetUrl,
+      eventSdk,
+      event: AdExecutionDomain.toRedirectClickEvent(link)
+    };
+  },
+
+  toRedirectClickProperties(link: RedirectLinkSnapshot): Record<string, string> {
+    const fields = AdExecutionDomain.toRedirectClickFields(link);
+
+    return {
+      campaign_id: fields.campaignId,
+      promotion_id: fields.promotionId,
+      promotion_run_id: fields.promotionRunId,
+      ad_experiment_id: fields.adExperimentId,
+      segment_id: fields.segmentId,
+      content_id: fields.contentId,
+      content_option_id: fields.contentOptionId,
+      promotion_channel: fields.promotionChannel,
+      redirect_id: fields.redirectId,
+      target_url: fields.targetUrl
     };
   }
 };

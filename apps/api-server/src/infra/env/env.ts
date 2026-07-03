@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 const DASHBOARD_SERVICE_ID = "dashboard-api";
+const DEFAULT_EVENT_SDK_URL =
+  "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js";
 
 const requiredString = z.string().trim().min(1);
 const optionalString = z.preprocess(
@@ -29,8 +31,9 @@ const envSchema = z.object({
   LOOPAD_CLICKHOUSE_DATABASE: requiredString,
   LOOPAD_CLICKHOUSE_USERNAME: requiredString,
   LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
-  LOOPAD_EVENT_COLLECTOR_URL: httpUrl.optional(),
   LOOPAD_PUBLIC_BASE_URL: httpUrl.optional(),
+  LOOPAD_EVENT_SDK_URL: httpUrl.optional(),
+  LOOPAD_EVENT_SDK_WRITE_KEY: optionalString,
   LOOPAD_AD_DISPATCH_PROVIDER: z.enum(["mock", "aws"]).default("mock"),
   LOOPAD_AWS_REGION: optionalString,
   AWS_REGION: optionalString,
@@ -57,10 +60,11 @@ export const env = Object.freeze({
     username: parsedEnv.LOOPAD_CLICKHOUSE_USERNAME,
     password: parsedEnv.LOOPAD_CLICKHOUSE_PASSWORD
   },
-  eventCollector: {
-    url: parsedEnv.LOOPAD_EVENT_COLLECTOR_URL ?? null
-  },
   publicBaseUrl: parsedEnv.LOOPAD_PUBLIC_BASE_URL ?? `http://localhost:${parsedEnv.PORT}`,
+  eventSdk: {
+    url: parsedEnv.LOOPAD_EVENT_SDK_URL ?? DEFAULT_EVENT_SDK_URL,
+    writeKey: parsedEnv.LOOPAD_EVENT_SDK_WRITE_KEY ?? null
+  },
   adDispatch: {
     provider: parsedEnv.LOOPAD_AD_DISPATCH_PROVIDER,
     awsRegion:

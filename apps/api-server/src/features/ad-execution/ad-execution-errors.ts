@@ -44,16 +44,10 @@ export const adExecutionErrors = {
       code: "REDIRECT_LINK_EXPIRED",
       message: `Redirect link '${redirectId}' has expired.`
     }),
-  eventCollectorNotConfigured: () =>
+  redirectTargetUrlInvalid: (redirectId: string) =>
     createDomainError({
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      code: "EVENT_COLLECTOR_NOT_CONFIGURED",
-      message: "Event Collector URL is not configured."
-    }),
-  eventCollectorRejected: (statusCode: number) =>
-    createDomainError({
-      statusCode: HttpStatus.BAD_GATEWAY,
-      code: "EVENT_COLLECTOR_REJECTED_EVENT",
-      message: `Event Collector rejected the redirect click event with status ${statusCode}.`
+      statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: "REDIRECT_TARGET_URL_INVALID",
+      message: `Redirect link '${redirectId}' has an invalid target_url.`
     })
 };

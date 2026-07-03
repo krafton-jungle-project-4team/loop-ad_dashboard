@@ -22,9 +22,13 @@ process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_PUBLIC_BASE_URL ??= "http://dashboard.test";
+process.env.LOOPAD_EVENT_SDK_URL ??= "https://sdk.test/loop-ad-event-sdk.iife.js";
+process.env.LOOPAD_EVENT_SDK_WRITE_KEY ??= "public_write_key";
 
 const { AdExecutionService } =
   await import("../src/features/ad-execution/service/ad-execution.service.js");
+const { renderRedirectPage } =
+  await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
 
 test("dispatch uses stored assignments and keeps resolver failures visible", async () => {
   const reader = new FakeAdExecutionReader();
@@ -120,33 +124,42 @@ test("banner resolve returns the precomputed segment content", async () => {
   });
 });
 
-test("redirect sends campaign_redirect_click with ad_experiment_id context", async () => {
+test("redirect returns an SDK handoff page with ad_experiment_id context", async () => {
   const reader = new FakeAdExecutionReader();
-  const collector = new FakePromotionEventCollector();
-  const service = createService(reader, undefined, undefined, undefined, collector);
+  const service = createService(reader);
 
-  const targetUrl = await service.handleRedirect("redirect-1");
-  const properties = AdExecutionDomain.toRedirectClickProperties(collector.links[0]!);
+  const page = await service.resolveRedirectPage("redirect-1");
+  const properties = AdExecutionDomain.toRedirectClickProperties(reader.redirectLink!);
+  const html = renderRedirectPage(page);
 
-  assert.equal(targetUrl, "https://loop-ad.example/landing");
+  assert.equal(page.targetUrl, "https://loop-ad.example/landing");
+  assert.equal(page.event.name, "campaign_redirect_click");
+  assert.equal(page.event.projectId, "project-1");
+  assert.equal(page.event.identity.userId, "user-1");
+  assert.equal(page.event.identity.sessionId, "redirect:redirect-1");
+  assert.equal(page.event.fields.adExperimentId, "exp-1");
+  assert.equal(page.event.fields.targetUrl, "https://loop-ad.example/landing");
+  assert.equal(page.eventSdk.writeKey, "public_write_key");
   assert.equal(properties.ad_experiment_id, "exp-1");
   assert.equal(properties.redirect_id, "redirect-1");
   assert.equal(properties.content_option_id, "option-1");
+  assert.equal(properties.target_url, "https://loop-ad.example/landing");
+  assert.match(html, /LoopAdEventSDK\.init/);
+  assert.match(html, /campaign_redirect_click/);
+  assert.match(html, /window\.location\.replace/);
 });
 
 function createService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
   resolver = new FakeRecipientResolver(),
-  sender = new FakeDispatchSender(),
-  collector = new FakePromotionEventCollector()
+  sender = new FakeDispatchSender()
 ) {
   return new AdExecutionService(
     reader as ConstructorParameters<typeof AdExecutionService>[0],
     writer as ConstructorParameters<typeof AdExecutionService>[1],
     resolver as ConstructorParameters<typeof AdExecutionService>[2],
-    sender as ConstructorParameters<typeof AdExecutionService>[3],
-    collector as ConstructorParameters<typeof AdExecutionService>[4]
+    sender as ConstructorParameters<typeof AdExecutionService>[3]
   );
 }
 
@@ -284,14 +297,6 @@ class FakeDispatchSender {
       provider: "fake",
       providerMessageId: "provider-message-1"
     };
-  }
-}
-
-class FakePromotionEventCollector {
-  links: RedirectLinkSnapshot[] = [];
-
-  async trackRedirectClick(link: RedirectLinkSnapshot) {
-    this.links.push(link);
   }
 }
 

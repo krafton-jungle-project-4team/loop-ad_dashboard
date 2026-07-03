@@ -11,10 +11,6 @@ import {
   MockSmsSender,
   SmsSender
 } from "./adapters/dispatch-sender.js";
-import {
-  HttpPromotionEventCollector,
-  PromotionEventCollector
-} from "./adapters/event-collector-client.js";
 import { MockRecipientResolver, RecipientResolver } from "./adapters/recipient-resolver.js";
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
 import { RedirectController } from "./controller/redirect.controller.js";
@@ -39,8 +35,7 @@ import { AdExecutionService } from "./service/index.js";
       useFactory: () =>
         env.adDispatch.provider === "aws" ? new AwsSnsSmsSender() : new MockSmsSender()
     },
-    { provide: DispatchSender, useClass: ChannelDispatchSender },
-    { provide: PromotionEventCollector, useClass: HttpPromotionEventCollector }
+    { provide: DispatchSender, useClass: ChannelDispatchSender }
   ]
 })
 export class AdExecutionModule {}
