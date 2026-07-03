@@ -1,7 +1,7 @@
 import { Controller, Get, Inject, Param, Res } from "@nestjs/common";
 import { z } from "zod";
 import { renderRedirectPage } from "../adapters/redirect-page-renderer.js";
-import { AdExecutionService } from "../service/index.js";
+import { RedirectService } from "../service/index.js";
 
 type HtmlResponse = {
   type: (contentType: string) => HtmlResponse;
@@ -15,14 +15,14 @@ const RedirectParamsSchema = z.object({
 @Controller("r")
 export class RedirectController {
   constructor(
-    @Inject(AdExecutionService)
-    private readonly adExecutionService: AdExecutionService
+    @Inject(RedirectService)
+    private readonly redirectService: RedirectService
   ) {}
 
   @Get(":redirectId")
   async redirect(@Param() params: unknown, @Res() response: HtmlResponse) {
     const parsedParams = RedirectParamsSchema.parse(params);
-    const page = await this.adExecutionService.resolveRedirectPage(parsedParams.redirectId);
+    const page = await this.redirectService.resolveRedirectPage(parsedParams.redirectId);
 
     response.type("html").send(renderRedirectPage(page));
   }

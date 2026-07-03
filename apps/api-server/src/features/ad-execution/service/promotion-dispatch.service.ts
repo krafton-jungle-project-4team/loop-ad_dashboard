@@ -1,11 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
-import type {
-  BannerResolveQuery,
-  BannerResolveResponse,
-  DispatchJobSummary,
-  PromotionRunDispatchResponse
-} from "@loopad/shared";
+import type { DispatchJobSummary, PromotionRunDispatchResponse } from "@loopad/shared";
 import { z, ZodError } from "zod";
 import { env } from "../../../infra/env/env.js";
 import { logWithContext } from "../../../infra/logger/index.js";
@@ -18,26 +13,16 @@ import {
 import { RecipientResolver } from "../adapters/recipient-resolver.js";
 import {
   AdExecutionDomain,
-  type AdExecutionChannel,
   type ActiveAdServingAssignmentEntity,
   type DispatchAttemptSnapshot,
   type DispatchChannel,
   type DispatchJobStatus,
-  type PromotionRunEntity,
-  type RedirectLinkEntity,
-  type RedirectPageSnapshot
+  type PromotionRunEntity
 } from "../domain/index.js";
 import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
 
-const LOOPAD_EVENT_SDK_URL =
-  "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js";
-const LOOPAD_EVENT_WRITE_KEY = "public_write_key";
 const LOCAL_DASHBOARD_PUBLIC_BASE_URL = "http://localhost:8080";
 const DEV_DASHBOARD_PUBLIC_BASE_URL = "https://dashboard.api.dev.loop-ad.org";
-const LOOPAD_EVENT_SDK = Object.freeze({
-  url: LOOPAD_EVENT_SDK_URL,
-  writeKey: LOOPAD_EVENT_WRITE_KEY
-});
 const requiredContentTextSchema = z.string().min(1);
 const emailContentSchema = z.object({
   subject: requiredContentTextSchema,
@@ -55,7 +40,7 @@ interface DispatchContext {
 }
 
 @Injectable()
-export class AdExecutionService {
+export class PromotionDispatchService {
   constructor(
     @Inject(AdExecutionReader)
     private readonly reader: AdExecutionReader,
@@ -73,19 +58,6 @@ export class AdExecutionService {
     const jobs = await this.dispatchAssignments(context, assignments);
 
     return AdExecutionDomain.toDispatchResponse(promotionRunId, context.channel, jobs);
-  }
-
-  async resolveBanner(request: BannerResolveQuery): Promise<BannerResolveResponse> {
-    const assignment = await this.requireBannerAssignment(request);
-
-    return AdExecutionDomain.toBannerResponse(assignment);
-  }
-
-  async resolveRedirectPage(redirectId: string): Promise<RedirectPageSnapshot> {
-    const link = await this.requireRedirectLink(redirectId);
-    const promotionChannel = await this.requireRedirectChannel(link.adExperimentId);
-
-    return AdExecutionDomain.toRedirectPage(link, promotionChannel, LOOPAD_EVENT_SDK);
   }
 
   private async requireDispatchContext(promotionRunId: string): Promise<DispatchContext> {
@@ -292,58 +264,6 @@ export class AdExecutionService {
     });
   }
 
-  private async requireBannerAssignment(
-    request: BannerResolveQuery
-  ): Promise<ActiveAdServingAssignmentEntity> {
-    const assignment = await this.reader.findBannerAssignment({
-      projectId: request.project_id,
-      promotionRunId: request.promotion_run_id,
-      userId: request.user_id
-    });
-
-    if (!assignment) {
-      throw adExecutionErrors.bannerAssignmentNotFound(request.promotion_run_id, request.user_id);
-    }
-
-    return assignment;
-  }
-
-  private async requireRedirectLink(redirectId: string): Promise<RedirectLinkEntity> {
-    const link = await this.reader.findRedirectLink(redirectId);
-
-    if (!link) {
-      throw adExecutionErrors.redirectNotFound(redirectId);
-    }
-
-    if (link.expiresAt && link.expiresAt <= new Date()) {
-      throw adExecutionErrors.redirectExpired(redirectId);
-    }
-
-    if (!isHttpUrl(link.destinationUrl)) {
-      throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
-    }
-
-    return link;
-  }
-
-  private async requireRedirectChannel(adExperimentId: string | null): Promise<AdExecutionChannel> {
-    if (!adExperimentId) {
-      throw adExecutionErrors.inconsistentAssignment(
-        "redirect link is missing ad_experiment_id."
-      );
-    }
-
-    const adExperiment = await this.reader.findAdExperiment(adExperimentId);
-
-    if (!adExperiment) {
-      throw adExecutionErrors.inconsistentAssignment(
-        `redirect link references missing ad_experiment_id '${adExperimentId}'.`
-      );
-    }
-
-    return adExperiment.channel;
-  }
-
   private assertDispatchAssignments(
     context: DispatchContext,
     assignments: readonly ActiveAdServingAssignmentEntity[]
@@ -443,15 +363,6 @@ function redirectUrl(redirectId: string) {
 
 function dashboardPublicBaseUrl() {
   return env.env === "dev" ? DEV_DASHBOARD_PUBLIC_BASE_URL : LOCAL_DASHBOARD_PUBLIC_BASE_URL;
-}
-
-function isHttpUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function daysFromNow(days: number) {

@@ -17,7 +17,11 @@ import {
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
 import { RedirectController } from "./controller/redirect.controller.js";
 import { AdExecutionReader, AdExecutionWriter } from "./repository/index.js";
-import { AdExecutionService } from "./service/index.js";
+import {
+  BannerResolveService,
+  PromotionDispatchService,
+  RedirectService
+} from "./service/index.js";
 
 type DispatchProviderName = "mock" | "aws";
 
@@ -27,7 +31,9 @@ const DISPATCH_PROVIDER: DispatchProviderName = "mock";
   imports: [DatabaseModule],
   controllers: [AdExecutionController, RedirectController],
   providers: [
-    AdExecutionService,
+    PromotionDispatchService,
+    BannerResolveService,
+    RedirectService,
     AdExecutionReader,
     AdExecutionWriter,
     { provide: RecipientResolver, useClass: UnconfiguredRecipientResolver },

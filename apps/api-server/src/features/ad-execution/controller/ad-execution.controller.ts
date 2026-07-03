@@ -5,13 +5,15 @@ import {
   PromotionRunDispatchParamsSchema,
   PromotionRunDispatchResponseSchema
 } from "@loopad/shared";
-import { AdExecutionService } from "../service/index.js";
+import { BannerResolveService, PromotionDispatchService } from "../service/index.js";
 
 @Controller("ad")
 export class AdExecutionController {
   constructor(
-    @Inject(AdExecutionService)
-    private readonly adExecutionService: AdExecutionService
+    @Inject(PromotionDispatchService)
+    private readonly promotionDispatchService: PromotionDispatchService,
+    @Inject(BannerResolveService)
+    private readonly bannerResolveService: BannerResolveService
   ) {}
 
   @Post("promotion-runs/:promotion_run_id/dispatch")
@@ -19,7 +21,7 @@ export class AdExecutionController {
     const parsedParams = PromotionRunDispatchParamsSchema.parse(params);
 
     return PromotionRunDispatchResponseSchema.parse(
-      await this.adExecutionService.dispatchPromotionRun(parsedParams.promotion_run_id)
+      await this.promotionDispatchService.dispatchPromotionRun(parsedParams.promotion_run_id)
     );
   }
 
@@ -27,6 +29,6 @@ export class AdExecutionController {
   async resolveBanner(@Query() query: unknown) {
     const request = BannerResolveQuerySchema.parse(query);
 
-    return BannerResolveResponseSchema.parse(await this.adExecutionService.resolveBanner(request));
+    return BannerResolveResponseSchema.parse(await this.bannerResolveService.resolveBanner(request));
   }
 }

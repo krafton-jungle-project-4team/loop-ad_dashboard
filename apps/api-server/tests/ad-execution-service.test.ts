@@ -23,8 +23,12 @@ process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 
-const { AdExecutionService } =
-  await import("../src/features/ad-execution/service/ad-execution.service.js");
+const { BannerResolveService } =
+  await import("../src/features/ad-execution/service/banner-resolve.service.js");
+const { PromotionDispatchService } =
+  await import("../src/features/ad-execution/service/promotion-dispatch.service.js");
+const { RedirectService } =
+  await import("../src/features/ad-execution/service/redirect.service.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
 
@@ -33,7 +37,7 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
   const writer = new FakeAdExecutionWriter();
   const resolver = new FakeRecipientResolver();
   const sender = new FakeDispatchSender();
-  const service = createService(reader, writer, resolver, sender);
+  const service = createDispatchService(reader, writer, resolver, sender);
 
   resolver.missingUserIds.add("user-missing");
   reader.dispatchAssignments = [
@@ -98,9 +102,12 @@ test("dispatch fails invalid email content instead of synthesizing fallbacks", a
   ];
 
   const { result: response } = await captureDispatchLogs(() =>
-    createService(reader, writer, new FakeRecipientResolver(), sender).dispatchPromotionRun(
-      "run-1"
-    )
+    createDispatchService(
+      reader,
+      writer,
+      new FakeRecipientResolver(),
+      sender
+    ).dispatchPromotionRun("run-1")
   );
 
   assert.equal(response.dispatched_count, 0);
@@ -120,7 +127,7 @@ test("dispatch rejects onsite banner promotion runs", async () => {
   reader.promotion = { ...reader.promotion, channel: "onsite_banner" };
 
   await assert.rejects(
-    () => createService(reader).dispatchPromotionRun("run-1"),
+    () => createDispatchService(reader).dispatchPromotionRun("run-1"),
     (error) =>
       error instanceof AppError &&
       error.statusCode === 409 &&
@@ -139,7 +146,7 @@ test("banner resolve returns the precomputed segment content", async () => {
     channel: "onsite_banner"
   };
 
-  const response = await createService(reader).resolveBanner({
+  const response = await createBannerService(reader).resolveBanner({
     project_id: "project-1",
     promotion_run_id: "run-1",
     user_id: "user-1",
@@ -161,7 +168,7 @@ test("banner resolve returns the precomputed segment content", async () => {
 
 test("redirect returns an SDK handoff page with ad_experiment_id context", async () => {
   const reader = new FakeAdExecutionReader();
-  const service = createService(reader);
+  const service = createRedirectService(reader);
 
   const page = await service.resolveRedirectPage("redirect-1");
   const html = renderRedirectPage(page);
@@ -220,18 +227,28 @@ test("redirect page escapes script data and fallback href with stable libraries"
   assert.equal(html.includes('const redirect = {"targetUrl":"</script>'), false);
 });
 
-function createService(
+function createDispatchService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
   resolver = new FakeRecipientResolver(),
   sender = new FakeDispatchSender()
 ) {
-  return new AdExecutionService(
-    reader as ConstructorParameters<typeof AdExecutionService>[0],
-    writer as ConstructorParameters<typeof AdExecutionService>[1],
-    resolver as ConstructorParameters<typeof AdExecutionService>[2],
-    sender as ConstructorParameters<typeof AdExecutionService>[3]
+  return new PromotionDispatchService(
+    reader as ConstructorParameters<typeof PromotionDispatchService>[0],
+    writer as ConstructorParameters<typeof PromotionDispatchService>[1],
+    resolver as ConstructorParameters<typeof PromotionDispatchService>[2],
+    sender as ConstructorParameters<typeof PromotionDispatchService>[3]
   );
+}
+
+function createBannerService(reader = new FakeAdExecutionReader()) {
+  return new BannerResolveService(
+    reader as ConstructorParameters<typeof BannerResolveService>[0]
+  );
+}
+
+function createRedirectService(reader = new FakeAdExecutionReader()) {
+  return new RedirectService(reader as ConstructorParameters<typeof RedirectService>[0]);
 }
 
 function assignment(
