@@ -14,7 +14,7 @@ import { DataExplorerService } from "../service/data-explorer.service.js";
  *
  * 컨트롤러는 공유 Zod 계약만 파싱하고 실제 처리는 서비스에 맡긴다.
  */
-@Controller("dashboard/v1/data-explorer")
+@Controller("dashboard/data-explorer")
 export class DataExplorerController {
   constructor(
     @Inject(DataExplorerService)

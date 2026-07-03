@@ -10,7 +10,7 @@ import {
 } from "@loopad/shared";
 import { apiGet, apiPost } from "../../../shared/api/http-client.js";
 
-const DATA_EXPLORER_BASE_PATH = "/dashboard/v1/data-explorer";
+const DATA_EXPLORER_BASE_PATH = "/dashboard/data-explorer";
 
 export function fetchDataExplorerObjects(input: {
   databaseName?: string;
