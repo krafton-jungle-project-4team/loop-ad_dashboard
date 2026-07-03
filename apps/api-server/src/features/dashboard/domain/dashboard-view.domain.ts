@@ -8,11 +8,9 @@ import type {
   DashboardDeviceConversionRow,
   DashboardFunnelStep,
   DashboardGenerationItem,
-  DashboardMain,
   DashboardMetricValue,
   DashboardPurchaseConversion,
   DashboardRecommendationAction,
-  DashboardSegmentGroup,
   DashboardStageFlow
 } from "@loopad/shared";
 import type { RecommendationContextRow } from "../repository/dashboard-recommendation-reader.js";
@@ -96,48 +94,6 @@ export const DashboardViewDomain = {
   },
   toAiCustomerGroups(segmentMetrics: DashboardSegmentMetricView[]): CustomerGroupEventView[] {
     return sortCustomerGroupViews(segmentMetrics);
-  },
-  toMain(snapshot: DashboardMainSnapshot): DashboardMain {
-    return {
-      kpis: [
-        {
-          key: "purchase_conversion_rate",
-          label: "전체 구매 전환율",
-          value: rate(snapshot.counts.purchase_count, snapshot.counts.product_view_count),
-          value_type: "rate",
-          description: "purchase / product_view"
-        },
-        {
-          key: "checkout_abandonment_rate",
-          label: "결제 직전 이탈률",
-          value: 1 - rate(snapshot.counts.purchase_count, snapshot.counts.checkout_start_count),
-          value_type: "rate",
-          description: "1 - purchase / checkout_start"
-        },
-        {
-          key: "recent_purchase_count",
-          label: "실시간 구매 건수",
-          value: snapshot.counts.recent_purchase_count,
-          value_type: "count",
-          description: "최근 15분"
-        },
-        {
-          key: "expected_revenue",
-          label: "예상 매출",
-          value: snapshot.counts.revenue,
-          value_type: "money",
-          description: "purchase revenue 합계"
-        }
-      ],
-      behavior_event_series: snapshot.behaviorEventSeries,
-      purchase_series: snapshot.purchaseSeries,
-      segment_status: [
-        segmentGroup("marketing_channel", "마케팅 채널", snapshot.marketingChannels),
-        segmentGroup("region", "지역", snapshot.regions),
-        segmentGroup("age_gender", "연령·성별", snapshot.ageGender),
-        segmentGroup("device_purchase", "기기별 구매", snapshot.devicePurchases)
-      ]
-    };
   },
   toPurchaseConversion(
     funnel: FunnelCountsView,
@@ -487,14 +443,6 @@ function parseEventTime(value: string) {
   const timestamp = Date.parse(normalized);
 
   return Number.isFinite(timestamp) ? timestamp : 0;
-}
-
-function segmentGroup(
-  key: string,
-  title: string,
-  items: DashboardSegmentGroup["items"]
-): DashboardSegmentGroup {
-  return { key, title, items };
 }
 
 function toFunnelSteps(counts: FunnelCountsView): DashboardFunnelStep[] {

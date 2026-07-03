@@ -16,7 +16,7 @@ export class DashboardController {
     private readonly dashboardQuery: DashboardQueryService
   ) {}
 
-  @Get("dashboard/main")
+  @Get("api/dashboard/v1/main")
   async main(@Query("projectId") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardMainSchema.parse(await this.dashboardQuery.main(requiredProjectId));

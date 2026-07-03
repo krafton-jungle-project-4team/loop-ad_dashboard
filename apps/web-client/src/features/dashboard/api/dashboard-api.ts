@@ -23,7 +23,7 @@ export async function fetchDashboardPageResource(
     case "main":
       return {
         tab,
-        data: await request("/dashboard/main", DashboardMainSchema, query, signal)
+        data: await request("/api/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
     case "purchaseConversion":
       return {

@@ -4,14 +4,26 @@ const RateSchema = z.number().min(0).max(1);
 const CountSchema = z.number().int().nonnegative();
 const MoneySchema = z.number().nonnegative();
 
-export const DashboardKpiCardSchema = z.object({
-  key: z.string(),
-  label: z.string(),
-  value: z.number(),
-  value_type: z.enum(["count", "money", "rate", "text"]),
-  description: z.string().nullable()
+export const DashboardCampaignSummarySchema = z.object({
+  campaign_id: z.string(),
+  campaign_name: z.string(),
+  objective: z.string().nullable(),
+  primary_metric: z.string().nullable(),
+  status: z.string(),
+  start_date: z.string().nullable(),
+  end_date: z.string().nullable(),
+  promotion_count: CountSchema,
+  segment_count: CountSchema,
+  ad_experiment_count: CountSchema,
+  latest_goal_achievement_rate: RateSchema.nullable(),
+  updated_at: z.string()
 });
-export type DashboardKpiCard = z.infer<typeof DashboardKpiCardSchema>;
+export type DashboardCampaignSummary = z.infer<typeof DashboardCampaignSummarySchema>;
+
+export const DashboardMainSchema = z.object({
+  campaigns: z.array(DashboardCampaignSummarySchema)
+});
+export type DashboardMain = z.infer<typeof DashboardMainSchema>;
 
 export const DashboardChartPointSchema = z.object({
   label: z.string(),
@@ -25,21 +37,6 @@ export const DashboardSegmentItemSchema = z.object({
   share: RateSchema
 });
 export type DashboardSegmentItem = z.infer<typeof DashboardSegmentItemSchema>;
-
-export const DashboardSegmentGroupSchema = z.object({
-  key: z.string(),
-  title: z.string(),
-  items: z.array(DashboardSegmentItemSchema)
-});
-export type DashboardSegmentGroup = z.infer<typeof DashboardSegmentGroupSchema>;
-
-export const DashboardMainSchema = z.object({
-  kpis: z.array(DashboardKpiCardSchema),
-  behavior_event_series: z.array(DashboardChartPointSchema),
-  purchase_series: z.array(DashboardChartPointSchema),
-  segment_status: z.array(DashboardSegmentGroupSchema)
-});
-export type DashboardMain = z.infer<typeof DashboardMainSchema>;
 
 export const DashboardFunnelStepSchema = z.object({
   key: z.string(),

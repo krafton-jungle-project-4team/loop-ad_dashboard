@@ -8,6 +8,7 @@ import type {
 } from "@loopad/shared";
 import { DashboardViewDomain } from "../domain/index.js";
 import {
+  DashboardCampaignReader,
   DashboardEventQuery,
   DashboardRecommendationReader,
   DashboardSegmentMetricsReader
@@ -16,6 +17,8 @@ import {
 @Injectable()
 export class DashboardQueryService {
   constructor(
+    @Inject(DashboardCampaignReader)
+    private readonly campaignReader: DashboardCampaignReader,
     @Inject(DashboardEventQuery)
     private readonly eventQuery: DashboardEventQuery,
     @Inject(DashboardRecommendationReader)
@@ -25,7 +28,7 @@ export class DashboardQueryService {
   ) {}
 
   async main(projectId: string): Promise<DashboardMain> {
-    return DashboardViewDomain.toMain(await this.queryEventAnalysis(projectId));
+    return { campaigns: await this.campaignReader.listCampaigns(projectId) };
   }
 
   async purchaseConversion(projectId: string): Promise<DashboardPurchaseConversion> {
