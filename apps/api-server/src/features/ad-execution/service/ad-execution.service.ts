@@ -28,6 +28,8 @@ import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
 const LOOPAD_EVENT_SDK_URL =
   "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js";
 const LOOPAD_EVENT_WRITE_KEY = "public_write_key";
+const LOCAL_DASHBOARD_PUBLIC_BASE_URL = "http://localhost:8080";
+const DEV_DASHBOARD_PUBLIC_BASE_URL = "https://dashboard.api.dev.loop-ad.org";
 const LOOPAD_EVENT_SDK = Object.freeze({
   url: LOOPAD_EVENT_SDK_URL,
   writeKey: LOOPAD_EVENT_WRITE_KEY
@@ -320,7 +322,11 @@ function ctaLine(cta: string, targetUrl: string) {
 }
 
 function redirectUrl(redirectId: string) {
-  return `${env.publicBaseUrl.replace(/\/+$/, "")}/r/${encodeURIComponent(redirectId)}`;
+  return `${dashboardPublicBaseUrl()}/r/${encodeURIComponent(redirectId)}`;
+}
+
+function dashboardPublicBaseUrl() {
+  return env.env === "dev" ? DEV_DASHBOARD_PUBLIC_BASE_URL : LOCAL_DASHBOARD_PUBLIC_BASE_URL;
 }
 
 function isHttpUrl(value: string) {

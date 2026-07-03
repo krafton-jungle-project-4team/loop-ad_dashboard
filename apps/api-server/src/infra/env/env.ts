@@ -3,10 +3,6 @@ import { z } from "zod";
 const DASHBOARD_SERVICE_ID = "dashboard-api";
 
 const requiredString = z.string().trim().min(1);
-const optionalString = z.preprocess(
-  (value) => (value === "" ? undefined : value),
-  requiredString.optional()
-);
 const positivePort = z.coerce.number().int().min(1).max(65535);
 const httpUrl = requiredString.url().refine(
   (value) => {
@@ -28,13 +24,7 @@ const envSchema = z.object({
   LOOPAD_CLICKHOUSE_URL: httpUrl,
   LOOPAD_CLICKHOUSE_DATABASE: requiredString,
   LOOPAD_CLICKHOUSE_USERNAME: requiredString,
-  LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
-  LOOPAD_PUBLIC_BASE_URL: httpUrl.optional(),
-  LOOPAD_AD_DISPATCH_PROVIDER: z.enum(["mock", "aws"]).default("mock"),
-  LOOPAD_AWS_REGION: optionalString,
-  AWS_REGION: optionalString,
-  AWS_DEFAULT_REGION: optionalString,
-  LOOPAD_EMAIL_FROM_ADDRESS: optionalString
+  LOOPAD_CLICKHOUSE_PASSWORD: requiredString
 });
 
 const parsedEnv = parseEnv(process.env);
@@ -55,13 +45,6 @@ export const env = Object.freeze({
     database: parsedEnv.LOOPAD_CLICKHOUSE_DATABASE,
     username: parsedEnv.LOOPAD_CLICKHOUSE_USERNAME,
     password: parsedEnv.LOOPAD_CLICKHOUSE_PASSWORD
-  },
-  publicBaseUrl: parsedEnv.LOOPAD_PUBLIC_BASE_URL ?? `http://localhost:${parsedEnv.PORT}`,
-  adDispatch: {
-    provider: parsedEnv.LOOPAD_AD_DISPATCH_PROVIDER,
-    awsRegion:
-      parsedEnv.LOOPAD_AWS_REGION ?? parsedEnv.AWS_REGION ?? parsedEnv.AWS_DEFAULT_REGION ?? null,
-    emailFromAddress: parsedEnv.LOOPAD_EMAIL_FROM_ADDRESS ?? null
   }
 });
 export type AppEnv = typeof env;

@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infra/database/index.js";
-import { env } from "../../infra/env/env.js";
 import {
   AwsSesEmailSender,
   AwsSnsSmsSender,
@@ -17,6 +16,10 @@ import { RedirectController } from "./controller/redirect.controller.js";
 import { AdExecutionReader, AdExecutionWriter } from "./repository/index.js";
 import { AdExecutionService } from "./service/index.js";
 
+type DispatchProviderName = "mock" | "aws";
+
+const DISPATCH_PROVIDER: DispatchProviderName = "mock";
+
 @Module({
   imports: [DatabaseModule],
   controllers: [AdExecutionController, RedirectController],
@@ -27,15 +30,21 @@ import { AdExecutionService } from "./service/index.js";
     { provide: RecipientResolver, useClass: MockRecipientResolver },
     {
       provide: EmailSender,
-      useFactory: () =>
-        env.adDispatch.provider === "aws" ? new AwsSesEmailSender() : new MockEmailSender()
+      useFactory: () => createEmailSender(DISPATCH_PROVIDER)
     },
     {
       provide: SmsSender,
-      useFactory: () =>
-        env.adDispatch.provider === "aws" ? new AwsSnsSmsSender() : new MockSmsSender()
+      useFactory: () => createSmsSender(DISPATCH_PROVIDER)
     },
     { provide: DispatchSender, useClass: ChannelDispatchSender }
   ]
 })
 export class AdExecutionModule {}
+
+function createEmailSender(provider: DispatchProviderName) {
+  return provider === "aws" ? new AwsSesEmailSender() : new MockEmailSender();
+}
+
+function createSmsSender(provider: DispatchProviderName) {
+  return provider === "aws" ? new AwsSnsSmsSender() : new MockSmsSender();
+}

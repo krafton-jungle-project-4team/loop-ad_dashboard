@@ -21,7 +21,6 @@ process.env.LOOPAD_CLICKHOUSE_URL ??= "http://localhost:18123";
 process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
-process.env.LOOPAD_PUBLIC_BASE_URL ??= "http://dashboard.test";
 
 const { AdExecutionService } =
   await import("../src/features/ad-execution/service/ad-execution.service.js");
@@ -72,6 +71,12 @@ test("dispatch uses stored assignments and keeps resolver failures visible", asy
   assert.equal(
     logs.some((entry) => JSON.stringify(entry).includes("+1555")),
     false
+  );
+  assert.equal(
+    (sender.sent[0] as { redirectUrl: string } | undefined)?.redirectUrl.startsWith(
+      "http://localhost:8080/r/"
+    ),
+    true
   );
 });
 

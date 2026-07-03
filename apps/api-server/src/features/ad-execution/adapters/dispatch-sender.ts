@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 import { PublishCommand, SNSClient } from "@aws-sdk/client-sns";
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 import { Inject, Injectable } from "@nestjs/common";
-import { env } from "../../../infra/env/env.js";
 import type { DispatchChannel } from "../domain/index.js";
+
+const AWS_DISPATCH_REGION = "ap-northeast-2";
+const AWS_EMAIL_FROM_ADDRESS = "noreply@example.com";
 
 export interface DispatchSendInput {
   channel: DispatchChannel;
@@ -103,12 +105,12 @@ export class MockSmsSender extends SmsSender {
 
 export class AwsSesEmailSender extends EmailSender {
   override readonly providerName = "aws-ses";
-  private readonly client = new SESv2Client({ region: requireAwsRegion() });
+  private readonly client = new SESv2Client({ region: AWS_DISPATCH_REGION });
 
   async sendEmail(input: EmailSendInput): Promise<DispatchSendResult> {
     const output = await this.client.send(
       new SendEmailCommand({
-        FromEmailAddress: requireEmailFromAddress(),
+        FromEmailAddress: AWS_EMAIL_FROM_ADDRESS,
         Destination: {
           ToAddresses: [input.recipient]
         },
@@ -138,7 +140,7 @@ export class AwsSesEmailSender extends EmailSender {
 
 export class AwsSnsSmsSender extends SmsSender {
   override readonly providerName = "aws-sns";
-  private readonly client = new SNSClient({ region: requireAwsRegion() });
+  private readonly client = new SNSClient({ region: AWS_DISPATCH_REGION });
 
   async sendSms(input: SmsSendInput): Promise<DispatchSendResult> {
     const output = await this.client.send(
@@ -153,20 +155,4 @@ export class AwsSnsSmsSender extends SmsSender {
       providerMessageId: output.MessageId ?? `aws_sns_${randomUUID()}`
     };
   }
-}
-
-function requireAwsRegion() {
-  if (!env.adDispatch.awsRegion) {
-    throw new Error("AWS dispatch provider requires LOOPAD_AWS_REGION or AWS_REGION.");
-  }
-
-  return env.adDispatch.awsRegion;
-}
-
-function requireEmailFromAddress() {
-  if (!env.adDispatch.emailFromAddress) {
-    throw new Error("AWS SES email dispatch requires LOOPAD_EMAIL_FROM_ADDRESS.");
-  }
-
-  return env.adDispatch.emailFromAddress;
 }
