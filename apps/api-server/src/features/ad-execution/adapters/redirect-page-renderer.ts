@@ -10,6 +10,7 @@ const REDIRECT_PAGE_TEMPLATE = readFileSync(
   "utf8"
 );
 
+/** redirect 이벤트 전송 후 이동하는 HTML을 렌더링합니다. */
 export function renderRedirectPage(snapshot: RedirectPageSnapshot): string {
   return renderTemplate(REDIRECT_PAGE_TEMPLATE, {
     __LOOPAD_REDIRECT_JSON__: serializeJavascript(snapshot, { isJSON: true }),

@@ -12,6 +12,7 @@ const RedirectParamsSchema = z.object({
   redirectId: z.string().min(1)
 });
 
+/** redirect 토큰을 SDK handoff HTML로 응답하는 컨트롤러입니다. */
 @Controller("r")
 export class RedirectController {
   constructor(
@@ -19,6 +20,7 @@ export class RedirectController {
     private readonly redirectService: RedirectService
   ) {}
 
+  /** redirect 클릭 이벤트 전송용 HTML 페이지를 반환합니다. */
   @Get(":redirectId")
   async redirect(@Param() params: unknown, @Res() response: HtmlResponse) {
     const parsedParams = RedirectParamsSchema.parse(params);

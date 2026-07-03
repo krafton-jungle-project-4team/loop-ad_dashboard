@@ -27,6 +27,7 @@ type DispatchProviderName = "mock" | "aws";
 
 const DISPATCH_PROVIDER: DispatchProviderName = "mock";
 
+/** 광고 실행 기능의 controller, service, adapter provider를 묶는 모듈입니다. */
 @Module({
   imports: [DatabaseModule],
   controllers: [AdExecutionController, RedirectController],

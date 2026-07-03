@@ -46,6 +46,7 @@ export interface InsertRedirectLinkInput {
   expiresAt: Date;
 }
 
+/** 광고 실행 중 생성되는 job과 redirect link를 저장합니다. */
 @Injectable()
 export class AdExecutionWriter {
   constructor(
@@ -53,6 +54,7 @@ export class AdExecutionWriter {
     private readonly db: Transaction<PgTypedTransactionalAdapter>
   ) {}
 
+  /** ad_experiment 그룹 단위 dispatch job을 생성합니다. */
   async insertDispatchJob(input: InsertDispatchJobInput): Promise<string> {
     const row = await this.db
       .query(insertDispatchJob, {
@@ -74,6 +76,7 @@ export class AdExecutionWriter {
     return row.dispatchJobId;
   }
 
+  /** dispatch job 결과와 성공/실패 수를 저장합니다. */
   async finishDispatchJob(input: FinishDispatchJobInput): Promise<void> {
     await this.db
       .query(updateDispatchJobResult, {
@@ -86,6 +89,7 @@ export class AdExecutionWriter {
       .single();
   }
 
+  /** 사용자별 redirect link를 생성합니다. */
   async insertRedirectLink(input: InsertRedirectLinkInput): Promise<string> {
     const row = await this.db
       .query(insertRedirectLink, {

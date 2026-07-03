@@ -7,6 +7,7 @@ import {
 } from "@loopad/shared";
 import { BannerResolveService, PromotionDispatchService } from "../service/index.js";
 
+/** 광고 실행 API 요청을 기능별 서비스로 전달하는 컨트롤러입니다. */
 @Controller("ad")
 export class AdExecutionController {
   constructor(
@@ -16,6 +17,7 @@ export class AdExecutionController {
     private readonly bannerResolveService: BannerResolveService
   ) {}
 
+  /** 저장된 assignment 기반으로 프로모션 발송을 실행합니다. */
   @Post("promotion-runs/:promotion_run_id/dispatch")
   async dispatchPromotionRun(@Param() params: unknown) {
     const parsedParams = PromotionRunDispatchParamsSchema.parse(params);
@@ -25,6 +27,7 @@ export class AdExecutionController {
     );
   }
 
+  /** 사용자의 onsite banner 배정 콘텐츠를 조회합니다. */
   @Get("banner/resolve")
   async resolveBanner(@Query() query: unknown) {
     const request = BannerResolveQuerySchema.parse(query);

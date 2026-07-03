@@ -16,6 +16,7 @@ const LOOPAD_EVENT_SDK = Object.freeze({
   writeKey: LOOPAD_EVENT_WRITE_KEY
 });
 
+/** redirect token을 SDK handoff 페이지 데이터로 복원합니다. */
 @Injectable()
 export class RedirectService {
   constructor(
@@ -23,6 +24,7 @@ export class RedirectService {
     private readonly reader: AdExecutionReader
   ) {}
 
+  /** redirect_id로 클릭 이벤트 payload와 이동 대상 URL을 구성합니다. */
   async resolveRedirectPage(redirectId: string): Promise<RedirectPageSnapshot> {
     const link = await this.requireRedirectLink(redirectId);
     const promotionChannel = await this.requireRedirectChannel(link.adExperimentId);

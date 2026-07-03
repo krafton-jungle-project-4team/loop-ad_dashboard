@@ -39,6 +39,7 @@ interface DispatchContext {
   channel: DispatchChannel;
 }
 
+/** 프로모션 외부 발행 요청을 저장된 assignment 기반으로 처리합니다. */
 @Injectable()
 export class PromotionDispatchService {
   constructor(
@@ -52,6 +53,7 @@ export class PromotionDispatchService {
     private readonly dispatchSender: DispatchSender
   ) {}
 
+  /** promotion_run_id 기준으로 Email/SMS 발송을 실행합니다. */
   async dispatchPromotionRun(promotionRunId: string): Promise<PromotionRunDispatchResponse> {
     const context = await this.requireDispatchContext(promotionRunId);
     const assignments = await this.requireDispatchAssignments(context);
