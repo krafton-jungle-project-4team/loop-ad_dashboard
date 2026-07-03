@@ -1,17 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import type { DispatchJobSummary, PromotionRunDispatchResponse } from "@loopad/shared";
-import { z, ZodError } from "zod";
+import { z } from "zod";
 import { env } from "../../../infra/env/env.js";
-import { logWithContext } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
-import {
-  EmailSender,
-  type DispatchSendResult,
-  type EmailSendInput,
-  SmsSender,
-  type SmsSendInput
-} from "../adapters/dispatch-sender.js";
+import { AssignmentDispatcher } from "../dispatch/assignment-dispatcher.js";
 import {
   AdExecutionDomain,
   type ActiveAdServingAssignmentEntity,
@@ -25,15 +18,6 @@ import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
 const LOCAL_DASHBOARD_PUBLIC_BASE_URL = "http://localhost:8080";
 const DEV_DASHBOARD_PUBLIC_BASE_URL = "https://dashboard.api.dev.loop-ad.org";
 const requiredContentTextSchema = z.string().min(1);
-const emailContentSchema = z.object({
-  subject: requiredContentTextSchema,
-  preheader: z.string().nullable(),
-  body: requiredContentTextSchema,
-  cta: z.string().nullable()
-});
-const smsContentSchema = z.object({
-  message: requiredContentTextSchema
-});
 
 interface DispatchContext {
   promotionRun: PromotionRunEntity;
@@ -48,10 +32,8 @@ export class PromotionDispatchService {
     private readonly reader: AdExecutionReader,
     @Inject(AdExecutionWriter)
     private readonly writer: AdExecutionWriter,
-    @Inject(EmailSender)
-    private readonly emailSender: EmailSender,
-    @Inject(SmsSender)
-    private readonly smsSender: SmsSender
+    @Inject(AssignmentDispatcher)
+    private readonly assignmentDispatcher: AssignmentDispatcher
   ) {}
 
   /** promotion_run_id 기준으로 Email/SMS 발송을 실행합니다. */
@@ -164,7 +146,10 @@ export class PromotionDispatchService {
       promotionRunId: context.promotionRun.promotionRunId,
       adExperimentId: first.adExperimentId,
       channel: context.channel,
-      provider: this.providerNameFor(context.channel, context.promotionRun.promotionRunId),
+      provider: this.assignmentDispatcher.providerNameFor(
+        context.channel,
+        context.promotionRun.promotionRunId
+      ),
       targetCount: assignments.length,
       request: {
         segment_id: first.segmentId,
@@ -192,41 +177,12 @@ export class PromotionDispatchService {
     assignment: ActiveAdServingAssignmentEntity
   ): Promise<DispatchAttemptSnapshot> {
     const redirectId = await this.createRedirectLink(assignment);
-    const provider = this.providerNameFor(channel, assignment.promotionRunId);
-
-    logDispatchAttempt(channel, provider, assignment, redirectId);
-
-    try {
-      const sendResult = await this.sendDispatch(channel, assignment, redirectId);
-      const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
-
-      logDispatchResult(channel, sendResult.provider, assignment, attempt);
-
-      return attempt;
-    } catch (error) {
-      const attempt = toFailedAttempt(assignment.userId, redirectId, getDispatchErrorCode(error));
-
-      logDispatchResult(channel, provider, assignment, attempt, getErrorName(error));
-
-      return attempt;
-    }
-  }
-
-  private async sendDispatch(
-    channel: DispatchChannel,
-    assignment: ActiveAdServingAssignmentEntity,
-    redirectId: string
-  ): Promise<DispatchSendResult> {
-    const targetUrl = redirectUrl(redirectId);
-
-    switch (channel) {
-      case "email":
-        return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl));
-      case "sms":
-        return this.smsSender.sendSms(toSmsSendInput(assignment, targetUrl));
-      default:
-        return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
-    }
+    return this.assignmentDispatcher.dispatch({
+      channel,
+      assignment,
+      redirectId,
+      targetUrl: redirectUrl(redirectId)
+    });
   }
 
   private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
@@ -274,82 +230,12 @@ export class PromotionDispatchService {
       throw adExecutionErrors.inconsistentAssignment(conflicts.join(" "));
     }
   }
-
-  private providerNameFor(channel: DispatchChannel, promotionRunId: string) {
-    switch (channel) {
-      case "email":
-        return this.emailSender.providerName;
-      case "sms":
-        return this.smsSender.providerName;
-      default:
-        return throwUnsupportedDispatchChannel(promotionRunId, channel);
-    }
-  }
-}
-
-function toEmailSendInput(
-  assignment: ActiveAdServingAssignmentEntity,
-  targetUrl: string
-): EmailSendInput {
-  const content = emailContentSchema.parse(assignment);
-
-  return {
-    recipient: assignment.userId,
-    subject: content.subject,
-    body: [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
-      .filter(Boolean)
-      .join("\n\n"),
-    redirectUrl: targetUrl
-  };
-}
-
-function toSmsSendInput(
-  assignment: ActiveAdServingAssignmentEntity,
-  targetUrl: string
-): SmsSendInput {
-  const content = smsContentSchema.parse(assignment);
-
-  return {
-    recipient: assignment.userId,
-    body: [content.message, targetUrl].join(" "),
-    redirectUrl: targetUrl
-  };
-}
-
-function toSentAttempt(
-  userId: string,
-  redirectId: string,
-  sendResult: DispatchSendResult
-): DispatchAttemptSnapshot {
-  return {
-    userId,
-    redirectId,
-    status: "sent",
-    providerMessageId: sendResult.providerMessageId
-  };
-}
-
-function toFailedAttempt(
-  userId: string,
-  redirectId: string,
-  errorCode: string
-): DispatchAttemptSnapshot {
-  return {
-    userId,
-    redirectId,
-    status: "failed",
-    errorCode
-  };
 }
 
 function toStoredDispatchJobStatus(
   status: DispatchJobStatus
 ): Extract<DispatchJobStatus, "completed" | "failed"> {
   return status === "completed" ? "completed" : "failed";
-}
-
-function ctaLine(cta: string | null, targetUrl: string) {
-  return cta ? `${cta}: ${targetUrl}` : targetUrl;
 }
 
 function redirectUrl(redirectId: string) {
@@ -366,61 +252,6 @@ function daysFromNow(days: number) {
   return date;
 }
 
-function logDispatchAttempt(
-  channel: DispatchChannel,
-  provider: string,
-  assignment: ActiveAdServingAssignmentEntity,
-  redirectId: string
-) {
-  logWithContext("info", "Ad dispatch send attempt", {
-    channel,
-    provider,
-    ...dispatchLogContext(assignment),
-    redirectId
-  });
-}
-
-function logDispatchResult(
-  channel: DispatchChannel,
-  provider: string,
-  assignment: ActiveAdServingAssignmentEntity,
-  attempt: DispatchAttemptSnapshot,
-  errorName?: string
-) {
-  logWithContext(attempt.status === "sent" ? "info" : "warn", "Ad dispatch send result", {
-    channel,
-    provider,
-    ...dispatchLogContext(assignment),
-    redirectId: attempt.redirectId,
-    status: attempt.status,
-    errorCode: attempt.errorCode,
-    providerMessageId: attempt.providerMessageId,
-    errorName
-  });
-}
-
-function dispatchLogContext(assignment: ActiveAdServingAssignmentEntity) {
-  return {
-    projectId: assignment.projectId,
-    campaignId: assignment.campaignId,
-    promotionId: assignment.promotionId,
-    promotionRunId: assignment.promotionRunId,
-    adExperimentId: assignment.adExperimentId,
-    segmentId: assignment.segmentId,
-    contentId: assignment.contentId,
-    contentOptionId: assignment.contentOptionId,
-    userId: assignment.userId
-  };
-}
-
-function getErrorName(error: unknown) {
-  return error instanceof Error ? error.name : "UnknownError";
-}
-
-function getDispatchErrorCode(error: unknown) {
-  return error instanceof ZodError ? "CONTENT_INVALID" : "PROVIDER_SEND_FAILED";
-}
-
 function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentEntity[]) {
   const first = assignments[0];
 
@@ -429,11 +260,4 @@ function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentE
   }
 
   return first;
-}
-
-function throwUnsupportedDispatchChannel(
-  promotionRunId: string,
-  channel: never
-): never {
-  throw adExecutionErrors.unsupportedDispatchChannel(promotionRunId, String(channel));
 }

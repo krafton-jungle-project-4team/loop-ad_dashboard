@@ -9,6 +9,7 @@ import {
   SmsSender
 } from "./adapters/dispatch-sender.js";
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
+import { AssignmentDispatcher } from "./dispatch/assignment-dispatcher.js";
 import { RedirectController } from "./controller/redirect.controller.js";
 import { AdExecutionReader, AdExecutionWriter } from "./repository/index.js";
 import {
@@ -29,6 +30,7 @@ const DISPATCH_PROVIDER: DispatchProviderName = "mock";
     PromotionDispatchService,
     BannerResolveService,
     RedirectService,
+    AssignmentDispatcher,
     AdExecutionReader,
     AdExecutionWriter,
     {
