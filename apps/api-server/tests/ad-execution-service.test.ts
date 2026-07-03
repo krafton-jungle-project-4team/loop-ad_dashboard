@@ -156,6 +156,41 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   assert.match(html, /window\.location\.replace/);
 });
 
+test("redirect page escapes script data and fallback href with stable libraries", () => {
+  const html = renderRedirectPage({
+    targetUrl: 'https://loop-ad.example/landing?next=</script><img src=x>&quote="',
+    eventSdk: {
+      url: "https://sdk.example/loop-ad-event-sdk.iife.js",
+      writeKey: "public_write_key"
+    },
+    event: {
+      name: "campaign_redirect_click",
+      projectId: "project-1",
+      identity: {
+        userId: "user-1",
+        sessionId: "redirect:redirect-1"
+      },
+      fields: {
+        campaignId: "campaign-1",
+        promotionId: "promotion-1",
+        promotionRunId: "run-1",
+        adExperimentId: "exp-1",
+        segmentId: "seg-1",
+        contentId: "content-1",
+        contentOptionId: "option-1",
+        promotionChannel: "email",
+        redirectId: "redirect-1",
+        targetUrl: "</script><img src=x>"
+      }
+    }
+  });
+
+  assert.equal(html.includes('href="https://loop-ad.example/landing?next=&lt;/script&gt;'), true);
+  assert.equal(html.includes("quote=&quot;"), true);
+  assert.equal(html.includes('"targetUrl":"\\u003C\\u002Fscript\\u003E'), true);
+  assert.equal(html.includes('const redirect = {"targetUrl":"</script>'), false);
+});
+
 function createService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
