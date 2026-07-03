@@ -13,6 +13,7 @@ src
 └── features
     ├── dashboard
     │   ├── controller
+    │   ├── database
     │   ├── service
     │   ├── repository
     │   └── dashboard.module.ts
@@ -38,7 +39,8 @@ src
 - Controller는 요청/응답 경계를 담당한다.
 - Service는 화면 단위 use case 조율과 계산 책임을 가진다.
 - DB 접근 class는 현재 대시보드 범위에서 `XxxReader` 이름을 사용한다.
-- Repository 폴더의 reader는 ClickHouse/Postgres 조회와 저장을 담당하고, DB row를 그대로 service 밖으로 노출하지 않는다.
+- Postgres 접근은 `database/*.sql`에 PgTyped query를 두고 `database/__generated__` 타입을 통해 실행한다.
+- Repository 폴더의 reader는 ClickHouse/PgTyped 조회와 저장을 담당하고, DB row를 그대로 service 밖으로 노출하지 않는다.
 - 프론트는 DB에 직접 접근하지 않는다.
 - 프론트는 백엔드 API 응답을 받아 shadcn/ui 기반 화면으로 렌더링한다.
 - DB 조회, 조인, 이벤트 count, 퍼널 계산, CTR/CVR 계산은 백엔드에서 수행한다.
