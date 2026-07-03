@@ -1,5 +1,4 @@
 import type {
-  DataExplorerObjectDetail,
   DataExplorerObjectSummary,
   DataExplorerSource,
   DataExplorerSourceId
@@ -29,16 +28,6 @@ export const DataExplorerDomain = {
 
   sources(): DataExplorerSource[] {
     return DATA_EXPLORER_SOURCES.map((source) => ({ ...source }));
-  },
-
-  toSchemaContext(detail: DataExplorerObjectDetail) {
-    return {
-      object_name: detail.object.object_name,
-      object_type: detail.object.object_type,
-      ddl_fetched_at: detail.ddl_fetched_at,
-      ddl_source: detail.ddl_source,
-      columns: detail.columns.map((column) => column.column_name)
-    };
   },
 
   pickReferencedObject(objects: DataExplorerObjectSummary[]): DataExplorerObjectSummary | null {

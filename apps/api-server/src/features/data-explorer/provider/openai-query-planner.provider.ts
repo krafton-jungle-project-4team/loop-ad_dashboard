@@ -2,9 +2,7 @@ import { Injectable } from "@nestjs/common";
 import {
   type DataExplorerAiChatCurrentResult,
   type DataExplorerAiQueryPlanRequest,
-  type DataExplorerChartSpec,
   type DataExplorerObjectDetail,
-  type DataExplorerSemanticType,
   type DataExplorerSourceId
 } from "@loopad/shared";
 import { z } from "zod";
@@ -13,8 +11,6 @@ import { dataExplorerErrors } from "../errors.js";
 
 type OpenAiDataExplorerQueryPlan = {
   generatedSql: string;
-  params: Record<string, unknown>;
-  suggestedVisualizations: DataExplorerChartSpec[];
 };
 
 type OpenAiDataExplorerResultAnalysis = {
@@ -28,22 +24,7 @@ const OPENAI_REQUEST_TIMEOUT_MS = 20_000;
 const OPENAI_QUERY_PLAN_MODEL = "gpt-5.5";
 
 const OpenAiPlanSchema = z.object({
-  sql_text: z.string().trim().min(1),
-  params: z.object({
-    project_id: z.string().nullable(),
-    from: z.string().nullable(),
-    to: z.string().nullable()
-  }),
-  visualization: z.object({
-    chart_type: z.enum(["line", "bar", "scatter", "none"]),
-    x_column: z.string().min(1).nullable(),
-    x_type: z.enum(["time", "dimension", "measure", "boolean", "json", "unknown"]).nullable(),
-    y_column: z.string().min(1).nullable(),
-    y_aggregation: z.enum(["none", "count", "sum", "avg"]).nullable(),
-    series_column: z.string().min(1).nullable(),
-    stack: z.boolean(),
-    show_legend: z.boolean()
-  })
+  sql_text: z.string().trim().min(1)
 });
 
 const OpenAiResultAnalysisSchema = z.object({
@@ -53,10 +34,9 @@ const OpenAiResultAnalysisSchema = z.object({
 });
 
 /**
- * Calls OpenAI to produce SQL plans and result explanations for Data Explorer.
+ * Data Explorer의 SQL 생성과 결과 해석을 OpenAI에 위임한다.
  *
- * The provider owns OpenAI request/response parsing only. SQL validation and
- * execution remain in the service/repository layers.
+ * 앱은 응답 JSON만 검증하고, SQL 자체의 세부 판단은 모델과 DB 설정에 맡긴다.
  */
 @Injectable()
 export class OpenAiDataExplorerQueryPlannerProvider {
@@ -76,9 +56,7 @@ export class OpenAiDataExplorerQueryPlannerProvider {
     const parsed = parseOpenAiPlan(content);
 
     return {
-      generatedSql: parsed.sql_text,
-      params: compactParams(parsed.params),
-      suggestedVisualizations: toChartSpecs(parsed.visualization)
+      generatedSql: parsed.sql_text
     };
   }
 
@@ -151,15 +129,13 @@ async function requestOpenAiJson(input: {
 }
 
 function buildQueryPlanSystemPrompt(sourceId: DataExplorerSourceId) {
-  const dialect =
-    sourceId === "clickhouse_events"
-      ? "ClickHouse SQL. Use {project_id:String}, {from:String}, and {to:String} style parameters."
-      : "PostgreSQL SQL. Use :project_id style named parameters.";
+  const dialect = sourceId === "clickhouse_events" ? "ClickHouse SQL." : "PostgreSQL SQL.";
 
   return [
     "You generate one read-only SQL query for LoopAd Data Explorer.",
     `SQL dialect: ${dialect}`,
     "Use only the provided source object and columns.",
+    "Inline concrete values from the payload directly in SQL. Do not use parameter placeholders.",
     "Always filter by project_id when the object has a project_id column.",
     "Use SELECT or WITH only. Never use INSERT, UPDATE, DELETE, ALTER, DROP, TRUNCATE, CREATE, or external table functions.",
     "Return at most 500 rows.",
@@ -246,45 +222,6 @@ function parseOpenAiPlan(content: string) {
   }
 }
 
-function toChartSpecs(
-  visualization: z.infer<typeof OpenAiPlanSchema>["visualization"]
-): DataExplorerChartSpec[] {
-  if (
-    visualization.chart_type === "none" ||
-    !visualization.x_column ||
-    !visualization.x_type ||
-    !visualization.y_column ||
-    !visualization.y_aggregation
-  ) {
-    return [];
-  }
-
-  return [
-    {
-      chart_type: visualization.chart_type,
-      x: {
-        column: visualization.x_column,
-        type: visualization.x_type as DataExplorerSemanticType
-      },
-      y: [
-        {
-          column: visualization.y_column,
-          aggregation: visualization.y_aggregation
-        }
-      ],
-      series: visualization.series_column ? { column: visualization.series_column } : null,
-      options: {
-        stack: visualization.stack,
-        show_legend: visualization.show_legend
-      }
-    }
-  ];
-}
-
-function compactParams(params: z.infer<typeof OpenAiPlanSchema>["params"]) {
-  return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== null));
-}
-
 function toError(error: unknown) {
   return error instanceof Error ? error : new Error(String(error));
 }
@@ -316,71 +253,9 @@ const OPENAI_QUERY_PLAN_JSON_SCHEMA = {
     sql_text: {
       type: "string",
       description: "Single read-only SQL statement. Include LIMIT 500 or lower."
-    },
-    params: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        project_id: {
-          type: ["string", "null"],
-          description: "The LoopAd project id parameter value when used by the SQL."
-        },
-        from: {
-          type: ["string", "null"],
-          description: "Inclusive lower time bound when used by the SQL."
-        },
-        to: {
-          type: ["string", "null"],
-          description: "Exclusive upper time bound when used by the SQL."
-        }
-      },
-      required: ["project_id", "from", "to"]
-    },
-    visualization: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        chart_type: {
-          type: "string",
-          enum: ["line", "bar", "scatter", "none"]
-        },
-        x_column: {
-          type: ["string", "null"]
-        },
-        x_type: {
-          type: ["string", "null"],
-          enum: ["time", "dimension", "measure", "boolean", "json", "unknown", null]
-        },
-        y_column: {
-          type: ["string", "null"]
-        },
-        y_aggregation: {
-          type: ["string", "null"],
-          enum: ["none", "count", "sum", "avg", null]
-        },
-        series_column: {
-          type: ["string", "null"]
-        },
-        stack: {
-          type: "boolean"
-        },
-        show_legend: {
-          type: "boolean"
-        }
-      },
-      required: [
-        "chart_type",
-        "x_column",
-        "x_type",
-        "y_column",
-        "y_aggregation",
-        "series_column",
-        "stack",
-        "show_legend"
-      ]
     }
   },
-  required: ["sql_text", "params", "visualization"]
+  required: ["sql_text"]
 } as const;
 
 const OPENAI_RESULT_ANALYSIS_JSON_SCHEMA = {

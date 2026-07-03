@@ -12,12 +12,7 @@ import { Button } from "@loopad/ui/shadcn/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Play } from "lucide-react";
-import type {
-  CSSProperties,
-  Dispatch,
-  PointerEvent as ReactPointerEvent,
-  SetStateAction
-} from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { ChatKitQueryPanel, type ChatKitMessage } from "../components/ChatKitQueryPanel.js";
 import { QueryResultTable } from "../components/QueryResultTable.js";
@@ -33,14 +28,6 @@ import {
 } from "../hooks/use-data-explorer.js";
 
 const DEFAULT_SOURCE_ID: DataExplorerSourceId = "clickhouse_events";
-const DEFAULT_SCHEMA_PANEL_WIDTH = 280;
-const DEFAULT_CHAT_PANEL_WIDTH = 340;
-const MIN_MAIN_PANEL_WIDTH = 640;
-const MAX_CHAT_PANEL_WIDTH = 640;
-const MAX_SCHEMA_PANEL_WIDTH = 520;
-const MIN_CHAT_PANEL_WIDTH = 260;
-const MIN_SCHEMA_PANEL_WIDTH = 140;
-const PANEL_WIDTH_STORAGE_KEY = "loopad.dataExplorer.panelWidths";
 const FALLBACK_SOURCES: DataExplorerSource[] = [
   {
     capabilities: ["sql_query", "schema_browser", "ai_query"],
@@ -59,27 +46,15 @@ const FALLBACK_SOURCES: DataExplorerSource[] = [
 ];
 
 export function DataExplorerPage({ projectId }: { projectId: string }) {
-  const {
-    chatPanelWidth,
-    handleChatResizeStart,
-    handleSchemaResizeStart,
-    resetChatPanelWidth,
-    resetSchemaPanelWidth,
-    schemaPanelWidth
-  } = useResizableDataExplorerPanels();
   const [sourceId, setSourceId] = useState<DataExplorerSourceId>(DEFAULT_SOURCE_ID);
   const [sqlText, setSqlText] = useState(() => defaultSqlText(projectId));
-  const [queryParams, setQueryParams] = useState<Record<string, unknown>>({
-    project_id: projectId
-  });
   const [validation, setValidation] = useState<DataExplorerSqlValidation | null>(null);
   const [objectSearch, setObjectSearch] = useState("");
   const [selectedObject, setSelectedObject] = useState<DataExplorerObjectSummary | null>(null);
   const [message, setMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatKitMessage[]>([
     {
-      content:
-        "쿼리로 보고 싶은 내용을 말하면 SQL 폼에 채워둘게요. 결과가 있으면 해석도 도와줄 수 있습니다.",
+      content: "보고 싶은 데이터를 말하면 SQL을 만들고 실행까지 도와드릴게요.",
       id: "welcome",
       role: "assistant"
     }
@@ -90,9 +65,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const mutations = useDataExplorerMutations();
   const sourcesQuery = useDataExplorerSources();
   const sources = sourcesQuery.data?.sources ?? FALLBACK_SOURCES;
-  const objectsQuery = useQuery(
-    dataExplorerObjectsQueryOptions({ projectId, q: objectSearch, sourceId })
-  );
+  const objectsQuery = useQuery(dataExplorerObjectsQueryOptions({ q: objectSearch, sourceId }));
   const objects = objectsQuery.data?.objects ?? [];
   const objectDetailQuery = useQuery(dataExplorerObjectDetailQueryOptions(selectedObject));
   const hasInvalidValidation = validation?.status === "invalid";
@@ -115,7 +88,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
       setQueryError(null);
       const response = await mutations.runQuery.mutateAsync({
         origin: "manual",
-        params: queryParams,
         project_id: projectId,
         row_limit: 500,
         source_id: sourceId,
@@ -129,7 +101,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     } catch (error) {
       setQueryError(errorMessage(error));
     }
-  }, [mutations.runQuery, projectId, queryParams, sourceId, sqlText]);
+  }, [mutations.runQuery, projectId, sourceId, sqlText]);
 
   const handleSourceIdChange = useCallback((nextSourceId: DataExplorerSourceId) => {
     setSourceId(nextSourceId);
@@ -153,42 +125,29 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     appendChatMessage(setChatMessages, "user", normalizedMessage);
 
     try {
-      if (queryResult && shouldAnalyzeCurrentResult(normalizedMessage)) {
-        const response = await mutations.chat.mutateAsync({
-          current_result: toCurrentResult(queryResult),
-          message: normalizedMessage,
-          project_id: projectId,
-          source_id: sourceId
-        });
-
-        appendChatMessage(setChatMessages, "assistant", response.assistant_message);
-        return;
-      }
-
-      const queryPlan = await mutations.createPlan.mutateAsync({
-        force_live_schema: true,
-        natural_language_query: normalizedMessage,
+      const response = await mutations.chat.mutateAsync({
+        current_result: queryResult ? toCurrentResult(queryResult) : undefined,
+        message: normalizedMessage,
         project_id: projectId,
         source_id: sourceId
       });
 
-      setSourceId(queryPlan.source_id);
-      setQueryParams({ project_id: projectId, ...queryPlan.params });
-      setSqlText(
-        inlineSqlParams(queryPlan.generated_sql, { project_id: projectId, ...queryPlan.params })
-      );
-      setValidation(queryPlan.validation);
-      appendChatMessage(
-        setChatMessages,
-        "assistant",
-        "SQL 폼에 쿼리를 채웠습니다. 내용을 확인한 뒤 실행하면 결과 탭에서 볼 수 있습니다."
-      );
+      if (response.query_plan) {
+        setSourceId(response.query_plan.source_id);
+        setSqlText(response.query_plan.generated_sql);
+        setValidation(response.query_plan.validation);
+      }
+      if (response.query_result) {
+        setQueryResult(response.query_result);
+        setResultTab("result");
+      }
+      appendChatMessage(setChatMessages, "assistant", response.assistant_message);
     } catch (error) {
       const messageText = errorMessage(error);
       setQueryError(messageText);
       appendChatMessage(setChatMessages, "assistant", messageText);
     }
-  }, [message, mutations.chat, mutations.createPlan, projectId, queryResult, sourceId]);
+  }, [message, mutations.chat, projectId, queryResult, sourceId]);
 
   if (!projectId.trim()) {
     return (
@@ -201,36 +160,20 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
 
   return (
     <div className="h-full min-h-0 overflow-x-auto overflow-y-hidden bg-white">
-      <div
-        className="grid h-full min-h-0 overflow-hidden border-t border-black/10 bg-white"
-        style={
-          {
-            gridTemplateColumns: `${schemaPanelWidth}px minmax(${MIN_MAIN_PANEL_WIDTH}px, 1fr) ${chatPanelWidth}px`,
-            minWidth: `${schemaPanelWidth + MIN_MAIN_PANEL_WIDTH + chatPanelWidth}px`
-          } as CSSProperties
-        }
-      >
-        <div className="relative min-h-0 min-w-0">
-          <SchemaBrowserPanel
-            isLoading={objectsQuery.isLoading}
-            objectSearch={objectSearch}
-            objects={objects}
-            onObjectSearchChange={setObjectSearch}
-            onSelectObject={setSelectedObject}
-            onSourceIdChange={handleSourceIdChange}
-            selectedObjectName={selectedObject?.object_name ?? null}
-            sourceId={sourceId}
-            sources={sources}
-          />
-          <DataExplorerResizeHandle
-            ariaLabel="스키마 목록 너비 조절"
-            onDoubleClick={resetSchemaPanelWidth}
-            onPointerDown={handleSchemaResizeStart}
-            side="right"
-          />
-        </div>
+      <div className="grid h-full min-h-0 min-w-[1260px] grid-cols-[280px_minmax(640px,1fr)_340px] overflow-hidden border-t border-black/10 bg-white">
+        <SchemaBrowserPanel
+          isLoading={objectsQuery.isLoading}
+          objectSearch={objectSearch}
+          objects={objects}
+          onObjectSearchChange={setObjectSearch}
+          onSelectObject={setSelectedObject}
+          onSourceIdChange={handleSourceIdChange}
+          selectedObjectName={selectedObject?.object_name ?? null}
+          sourceId={sourceId}
+          sources={sources}
+        />
 
-        <main className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-y border-black/10 lg:border-x lg:border-y-0">
+        <main className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-x border-black/10">
           <SqlEditorPanel
             onSqlTextChange={handleSqlTextChange}
             sqlText={sqlText}
@@ -264,12 +207,9 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                     </Badge>
                   ) : null}
                   {queryResult ? (
-                    <>
-                      <Badge variant="outline">{queryResult.query_run_id}</Badge>
-                      <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
-                        {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
-                      </Badge>
-                    </>
+                    <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
+                      {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
+                    </Badge>
                   ) : null}
                   <Button
                     className="bg-[#0066cc] text-white hover:bg-[#0057ad]"
@@ -304,194 +244,16 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
           </section>
         </main>
 
-        <div className="relative min-h-0 min-w-0">
-          <DataExplorerResizeHandle
-            ariaLabel="AI 패널 너비 조절"
-            onDoubleClick={resetChatPanelWidth}
-            onPointerDown={handleChatResizeStart}
-            side="left"
-          />
-          <ChatKitQueryPanel
-            message={message}
-            messages={chatMessages}
-            onMessageChange={setMessage}
-            onSubmit={handleChatSubmit}
-            pending={mutations.chat.isPending || mutations.createPlan.isPending}
-          />
-        </div>
+        <ChatKitQueryPanel
+          message={message}
+          messages={chatMessages}
+          onMessageChange={setMessage}
+          onSubmit={handleChatSubmit}
+          pending={mutations.chat.isPending}
+        />
       </div>
     </div>
   );
-}
-
-function DataExplorerResizeHandle({
-  ariaLabel,
-  onDoubleClick,
-  onPointerDown,
-  side
-}: {
-  ariaLabel: string;
-  onDoubleClick: () => void;
-  onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-  side: "left" | "right";
-}) {
-  return (
-    <button
-      aria-label={ariaLabel}
-      className={`absolute inset-y-2 z-20 hidden w-3 cursor-col-resize items-center justify-center rounded-sm transition-colors hover:bg-muted md:flex ${
-        side === "left" ? "-left-1.5" : "-right-1.5"
-      }`}
-      onDoubleClick={onDoubleClick}
-      onPointerDown={onPointerDown}
-      type="button"
-    >
-      <span className="h-8 w-1 rounded-full bg-border" />
-    </button>
-  );
-}
-
-function useResizableDataExplorerPanels() {
-  const [schemaPanelWidth, setSchemaPanelWidth] = useState(() => {
-    if (typeof window === "undefined") {
-      return DEFAULT_SCHEMA_PANEL_WIDTH;
-    }
-
-    const stored = readStoredPanelWidths();
-    return clampPanelWidth(
-      stored?.schemaPanelWidth ?? DEFAULT_SCHEMA_PANEL_WIDTH,
-      MIN_SCHEMA_PANEL_WIDTH,
-      MAX_SCHEMA_PANEL_WIDTH
-    );
-  });
-  const [chatPanelWidth, setChatPanelWidth] = useState(() => {
-    if (typeof window === "undefined") {
-      return DEFAULT_CHAT_PANEL_WIDTH;
-    }
-
-    const stored = readStoredPanelWidths();
-    return clampPanelWidth(
-      stored?.chatPanelWidth ?? DEFAULT_CHAT_PANEL_WIDTH,
-      MIN_CHAT_PANEL_WIDTH,
-      MAX_CHAT_PANEL_WIDTH
-    );
-  });
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      PANEL_WIDTH_STORAGE_KEY,
-      JSON.stringify({ chatPanelWidth, schemaPanelWidth })
-    );
-  }, [chatPanelWidth, schemaPanelWidth]);
-
-  const resetSchemaPanelWidth = useCallback(() => {
-    setSchemaPanelWidth(DEFAULT_SCHEMA_PANEL_WIDTH);
-  }, []);
-  const resetChatPanelWidth = useCallback(() => {
-    setChatPanelWidth(DEFAULT_CHAT_PANEL_WIDTH);
-  }, []);
-  const handleSchemaResizeStart = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>) => {
-      startPanelResize({
-        event,
-        initialWidth: schemaPanelWidth,
-        maxWidth: MAX_SCHEMA_PANEL_WIDTH,
-        minWidth: MIN_SCHEMA_PANEL_WIDTH,
-        setWidth: setSchemaPanelWidth,
-        side: "left"
-      });
-    },
-    [schemaPanelWidth]
-  );
-  const handleChatResizeStart = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>) => {
-      startPanelResize({
-        event,
-        initialWidth: chatPanelWidth,
-        maxWidth: MAX_CHAT_PANEL_WIDTH,
-        minWidth: MIN_CHAT_PANEL_WIDTH,
-        setWidth: setChatPanelWidth,
-        side: "right"
-      });
-    },
-    [chatPanelWidth]
-  );
-
-  return {
-    chatPanelWidth,
-    handleChatResizeStart,
-    handleSchemaResizeStart,
-    resetChatPanelWidth,
-    resetSchemaPanelWidth,
-    schemaPanelWidth
-  };
-}
-
-function startPanelResize({
-  event,
-  initialWidth,
-  maxWidth,
-  minWidth,
-  setWidth,
-  side
-}: {
-  event: ReactPointerEvent<HTMLButtonElement>;
-  initialWidth: number;
-  maxWidth: number;
-  minWidth: number;
-  setWidth: (width: number) => void;
-  side: "left" | "right";
-}) {
-  if (event.button !== 0) {
-    return;
-  }
-
-  event.preventDefault();
-  const initialClientX = event.clientX;
-  const originalCursor = document.body.style.cursor;
-  const originalUserSelect = document.body.style.userSelect;
-
-  document.body.style.cursor = "col-resize";
-  document.body.style.userSelect = "none";
-
-  function handlePointerMove(moveEvent: globalThis.PointerEvent) {
-    const delta = moveEvent.clientX - initialClientX;
-    const nextWidth = side === "left" ? initialWidth + delta : initialWidth - delta;
-    setWidth(clampPanelWidth(nextWidth, minWidth, maxWidth));
-  }
-
-  function stopResize() {
-    document.body.style.cursor = originalCursor;
-    document.body.style.userSelect = originalUserSelect;
-    window.removeEventListener("pointermove", handlePointerMove);
-    window.removeEventListener("pointerup", stopResize);
-  }
-
-  window.addEventListener("pointermove", handlePointerMove);
-  window.addEventListener("pointerup", stopResize);
-}
-
-function clampPanelWidth(width: number, minWidth: number, maxWidth: number) {
-  return Math.min(maxWidth, Math.max(minWidth, Math.round(width)));
-}
-
-function readStoredPanelWidths() {
-  try {
-    const stored = window.localStorage.getItem(PANEL_WIDTH_STORAGE_KEY);
-    if (!stored) {
-      return null;
-    }
-    const parsed = JSON.parse(stored) as {
-      chatPanelWidth?: unknown;
-      schemaPanelWidth?: unknown;
-    };
-    return {
-      chatPanelWidth: typeof parsed.chatPanelWidth === "number" ? parsed.chatPanelWidth : undefined,
-      schemaPanelWidth:
-        typeof parsed.schemaPanelWidth === "number" ? parsed.schemaPanelWidth : undefined
-    };
-  } catch {
-    return null;
-  }
 }
 
 function objectKey(object: DataExplorerObjectSummary) {
@@ -536,62 +298,20 @@ function appendChatMessage(
   ]);
 }
 
-function shouldAnalyzeCurrentResult(message: string) {
-  const normalized = message.toLowerCase();
-  return ["해석", "분석", "설명", "요약", "insight", "interpret", "analyze", "summarize"].some(
-    (keyword) => normalized.includes(keyword)
-  );
-}
-
 function defaultSqlText(projectId: string) {
+  const escapedProjectId = projectId.replaceAll("'", "''");
+
   return [
     "SELECT",
     "  toDate(event_time) AS event_date,",
     "  event_name,",
     "  count() AS event_count",
     "FROM raw_events",
-    `WHERE project_id = ${sqlLiteral(projectId)}`,
+    `WHERE project_id = '${escapedProjectId}'`,
     "GROUP BY event_date, event_name",
     "ORDER BY event_date DESC, event_count DESC",
     "LIMIT 100"
   ].join("\n");
-}
-
-function inlineSqlParams(sql: string, params: Record<string, unknown>) {
-  const clickHouseInlined = sql.replace(/\{([A-Za-z_]\w*):[^}]+\}/g, (match, key: string) => {
-    if (!Object.prototype.hasOwnProperty.call(params, key)) {
-      return match;
-    }
-
-    return sqlLiteral(params[key]);
-  });
-
-  return clickHouseInlined.replace(
-    /(^|[^:]):([A-Za-z_]\w*)\b/g,
-    (match, prefix: string, key: string) => {
-      if (!Object.prototype.hasOwnProperty.call(params, key)) {
-        return match;
-      }
-
-      return `${prefix}${sqlLiteral(params[key])}`;
-    }
-  );
-}
-
-function sqlLiteral(value: unknown) {
-  if (value === null || value === undefined) {
-    return "NULL";
-  }
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? String(value) : "NULL";
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "TRUE" : "FALSE";
-  }
-
-  return `'${String(value).replaceAll("'", "''")}'`;
 }
 
 function errorMessage(error: unknown) {

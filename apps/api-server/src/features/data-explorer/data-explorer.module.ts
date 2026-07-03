@@ -7,10 +7,9 @@ import { PostgresContractReader } from "./repository/postgres-contract-reader.js
 import { DataExplorerService } from "./service/data-explorer.service.js";
 
 /**
- * Wires the Data Explorer feature.
+ * Data Explorer 기능의 의존성을 묶는다.
  *
- * The module keeps HTTP, use-case orchestration, source readers, and OpenAI
- * provider boundaries explicit so SQL IDE features do not leak across layers.
+ * HTTP, 서비스, DB 조회기, OpenAI 제공자만 명시한다.
  */
 @Module({
   imports: [DatabaseModule],

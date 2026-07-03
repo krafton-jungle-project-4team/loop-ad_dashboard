@@ -6,20 +6,17 @@ import {
   DataExplorerObjectDetailSchema,
   DataExplorerObjectsResponseSchema,
   DataExplorerQueryRunResponseSchema,
-  DataExplorerQueryValidateResponseSchema,
   DataExplorerSourcesResponseSchema,
   type DataExplorerAiChatRequest,
   type DataExplorerAiQueryPlanRequest,
   type DataExplorerObjectRef,
   type DataExplorerQueryRunRequest,
-  type DataExplorerQueryValidateRequest,
   type DataExplorerSourceId
 } from "@loopad/shared";
 import { suggestVisualizations } from "../domain/chart-suggester.domain.js";
 import { DataExplorerDomain } from "../domain/index.js";
-import { normalizeQueryBounds } from "../domain/query-limiter.domain.js";
 import { inferDataExplorerSourceId } from "../domain/query-plan.domain.js";
-import { validateReadOnlySql } from "../domain/sql-safety.domain.js";
+import { normalizeQueryBounds, validateSqlInput } from "../domain/sql-safety.domain.js";
 import { dataExplorerErrors } from "../errors.js";
 import { OpenAiDataExplorerQueryPlannerProvider } from "../provider/openai-query-planner.provider.js";
 import { ClickHouseEventsReader } from "../repository/clickhouse-events-reader.js";
@@ -31,11 +28,9 @@ import type {
 import { PostgresContractReader } from "../repository/postgres-contract-reader.js";
 
 /**
- * Coordinates Data Explorer schema, SQL, and AI query use cases.
+ * Data Explorer의 스키마 조회, SQL 실행, AI 질의를 조율한다.
  *
- * The service owns validation and orchestration. Source readers execute only
- * validated readonly queries, and OpenAI-specific request details stay in the
- * provider.
+ * SQL 해석은 코드에서 과하게 판단하지 않고, AI와 DB 읽기 전용 설정에 맡긴다.
  */
 @Injectable()
 export class DataExplorerService {
@@ -88,31 +83,14 @@ export class DataExplorerService {
     }
   }
 
-  validateQuery(input: DataExplorerQueryValidateRequest) {
-    const validation = validateReadOnlySql({
-      sourceId: input.source_id,
-      sqlText: input.sql_text,
-      rowLimit: input.row_limit,
-      timeoutMs: input.timeout_ms
-    });
-
-    return DataExplorerQueryValidateResponseSchema.parse({
-      source_id: input.source_id,
-      validation
-    });
-  }
-
   async runQuery(input: DataExplorerQueryRunRequest) {
     const reader = this.reader(input.source_id);
     const bounds = normalizeQueryBounds({
       rowLimit: input.row_limit,
       timeoutMs: input.timeout_ms
     });
-    const validation = validateReadOnlySql({
-      sourceId: input.source_id,
-      sqlText: input.sql_text,
-      rowLimit: bounds.rowLimit,
-      timeoutMs: bounds.timeoutMs
+    const validation = validateSqlInput({
+      sqlText: input.sql_text
     });
     const queryRunId = createQueryRunId();
 
@@ -122,9 +100,7 @@ export class DataExplorerService {
 
     try {
       const result = await reader.executeReadOnlyQuery({
-        projectId: input.project_id,
         sqlText: validation.normalized_sql,
-        params: input.params,
         rowLimit: bounds.rowLimit,
         timeoutMs: bounds.timeoutMs
       });
@@ -148,13 +124,12 @@ export class DataExplorerService {
     }
   }
 
-  async createAiQueryPlan(input: DataExplorerAiQueryPlanRequest) {
+  private async createAiQueryPlan(input: DataExplorerAiQueryPlanRequest) {
     const sourceId = input.source_id ?? inferDataExplorerSourceId(input.natural_language_query);
     const reader = this.reader(sourceId);
 
     try {
       const objects = await reader.searchObjects({
-        projectId: input.project_id,
         q: "",
         sourceId
       });
@@ -169,27 +144,18 @@ export class DataExplorerService {
         request: input,
         sourceId
       });
-      const validation = validateReadOnlySql({
-        sourceId,
-        sqlText: plan.generatedSql,
-        rowLimit: 500,
-        timeoutMs: 10_000
+      const validation = validateSqlInput({
+        sqlText: plan.generatedSql
       });
 
       if (validation.status !== "valid") {
-        throw dataExplorerErrors.queryPlanFailed({
-          cause: new Error("OpenAI generated SQL did not pass the read-only validator.")
-        });
+        throw dataExplorerErrors.queryPlanFailed();
       }
 
       return DataExplorerAiQueryPlanResponseSchema.parse({
         query_plan_id: createQueryRunId("qry_plan"),
         source_id: sourceId,
-        schema_context: [DataExplorerDomain.toSchemaContext(detail)],
         generated_sql: plan.generatedSql,
-        params: plan.params,
-        referenced_objects: [detail.object],
-        suggested_visualizations: plan.suggestedVisualizations,
         validation
       });
     } catch (error) {
@@ -197,15 +163,8 @@ export class DataExplorerService {
     }
   }
 
-  async runAiQuery(input: DataExplorerQueryRunRequest) {
-    return this.runQuery({
-      ...input,
-      origin: "chatkit"
-    });
-  }
-
   async runAiChat(input: DataExplorerAiChatRequest) {
-    if (input.current_result && shouldAnalyzeCurrentResult(input.message)) {
+    if (input.current_result) {
       const analysis = await this.openAiQueryPlanner.analyzeResult({
         currentResult: input.current_result,
         message: input.message
@@ -219,19 +178,14 @@ export class DataExplorerService {
     }
 
     const queryPlan = await this.createAiQueryPlan({
-      force_live_schema: true,
       natural_language_query: input.message,
       project_id: input.project_id,
       source_id: input.source_id
     });
     const queryResult = await this.runQuery({
-      action_run_id: queryPlan.query_plan_id,
-      chat_session_id: undefined,
       origin: "chatkit",
-      params: queryPlan.params,
       project_id: input.project_id,
       row_limit: 500,
-      schema_context: [],
       source_id: queryPlan.source_id,
       sql_text: queryPlan.generated_sql,
       timeout_ms: 10_000
@@ -256,28 +210,8 @@ export class DataExplorerService {
   }
 }
 
-function shouldAnalyzeCurrentResult(message: string) {
-  const normalized = message.toLowerCase();
-  return [
-    "해석",
-    "분석",
-    "요약",
-    "인사이트",
-    "설명",
-    "왜",
-    "interpret",
-    "analyze",
-    "analysis",
-    "explain",
-    "summary",
-    "insight"
-  ].some((keyword) => normalized.includes(keyword));
-}
-
 function createQueryRunId(prefix = "qry_run"): string {
-  return `${prefix}_${new Date().toISOString().replace(/\D/g, "").slice(0, 17)}_${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function formatResultAnalysis(input: { summary: string; insights: string[]; caveats: string[] }) {

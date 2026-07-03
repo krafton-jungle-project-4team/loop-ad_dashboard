@@ -13,8 +13,6 @@ import type {
 import type { Pool, PoolClient } from "pg";
 import { PG_POOL } from "../../../infra/database/index.js";
 import { DataExplorerDomain } from "../domain/index.js";
-import { applyQueryLimit } from "../domain/query-limiter.domain.js";
-import { bindPostgresNamedParams } from "../domain/query-params.domain.js";
 import { dataExplorerErrors } from "../errors.js";
 import { createDataExplorerLiveMetadata } from "./data-explorer-live-metadata.js";
 import type {
@@ -58,10 +56,9 @@ type PgConstraintRow = {
 };
 
 /**
- * Reads PostgreSQL contract schema metadata and executes validated readonly queries.
+ * PostgreSQL 계약 DB의 스키마와 readonly SQL 실행을 담당한다.
  *
- * This reader is the only PostgreSQL boundary for Data Explorer. The service must
- * validate SQL before calling `executeReadOnlyQuery`.
+ * SQL 파싱은 하지 않고 DB의 읽기 전용 트랜잭션과 제한 시간에 맡긴다.
  */
 @Injectable()
 export class PostgresContractReader implements DataExplorerSourceReader {
@@ -133,7 +130,7 @@ export class PostgresContractReader implements DataExplorerSourceReader {
       constraints,
       partition_key: null,
       order_by: null,
-      primary_key: primaryKeyColumns(constraints),
+      primary_key: null,
       ...createDataExplorerLiveMetadata()
     };
   }
@@ -156,19 +153,17 @@ export class PostgresContractReader implements DataExplorerSourceReader {
     input: ExecuteReadOnlyQueryInput
   ): Promise<DataExplorerQueryExecutionResult> {
     const startedAt = performance.now();
-    const limitedSql = applyQueryLimit(input.sqlText, input.rowLimit);
-    const bound = bindPostgresNamedParams(limitedSql, input.params);
 
     return this.withReadOnlyClient(input.timeoutMs, async (client) => {
-      const result = await client.query(bound.text, bound.values);
-      const rows = result.rows.map((row) => normalizeRecord(row));
+      const result = await client.query(input.sqlText);
+      const rows = result.rows.map((row) => normalizeRecord(row)).slice(0, input.rowLimit);
       const columns = result.fields.map(toResultColumn);
 
       return {
         columns,
         rows,
         durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-        truncated: rows.length >= input.rowLimit
+        truncated: result.rows.length > rows.length
       };
     });
   }
@@ -176,7 +171,6 @@ export class PostgresContractReader implements DataExplorerSourceReader {
   private async getObjectSummary(ref: DataExplorerObjectRef): Promise<DataExplorerObjectSummary> {
     const objects = await this.listObjects({
       sourceId: this.sourceId,
-      projectId: "",
       databaseName: ref.database_name ?? undefined,
       schemaName: ref.schema_name ?? undefined,
       objectType: ref.object_type,
@@ -353,26 +347,6 @@ function objectMatchesInput(object: DataExplorerObjectSummary, input: ListObject
   return matchesType && matchesDatabase && matchesSchema && matchesQuery;
 }
 
-function primaryKeyColumns(constraints: DataExplorerConstraint[]) {
-  const primaryKey = constraints.find((constraint) => constraint.constraint_type === "p");
-  if (!primaryKey) {
-    return null;
-  }
-
-  const match = primaryKey.definition.match(/\((?<columns>[^)]+)\)/);
-  const columnsText = match?.groups?.columns;
-  if (!columnsText) {
-    return null;
-  }
-
-  const columns = columnsText
-    .split(",")
-    .map((column) => column.trim().replaceAll('"', ""))
-    .filter(Boolean);
-
-  return columns && columns.length > 0 ? columns : null;
-}
-
 function buildLiveSchemaSummary(detail: DataExplorerObjectDetail) {
   const qualifiedName = [detail.object.schema_name, detail.object.object_name]
     .filter(Boolean)
@@ -455,6 +429,6 @@ async function rollbackQuietly(client: PoolClient) {
   try {
     await client.query("ROLLBACK");
   } catch {
-    // Keep the original query error.
+    // 원래 쿼리 오류를 유지한다.
   }
 }

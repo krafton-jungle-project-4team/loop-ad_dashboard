@@ -118,32 +118,9 @@ export type DataExplorerValidationIssue = z.infer<typeof DataExplorerValidationI
 export const DataExplorerSqlValidationSchema = z.object({
   status: z.enum(["valid", "invalid"]),
   errors: z.array(DataExplorerValidationIssueSchema),
-  warnings: z.array(DataExplorerValidationIssueSchema),
-  normalized_sql: z.string(),
-  effective_row_limit: z.number().int().positive(),
-  effective_timeout_ms: z.number().int().positive()
+  normalized_sql: z.string()
 });
 export type DataExplorerSqlValidation = z.infer<typeof DataExplorerSqlValidationSchema>;
-
-export const DataExplorerQueryValidateRequestSchema = z.object({
-  project_id: z.string().trim().min(1),
-  source_id: DataExplorerSourceIdSchema,
-  sql_text: z.string(),
-  params: z.record(z.string(), z.unknown()).default({}),
-  row_limit: z.number().int().positive().optional(),
-  timeout_ms: z.number().int().positive().optional()
-});
-export type DataExplorerQueryValidateRequest = z.infer<
-  typeof DataExplorerQueryValidateRequestSchema
->;
-
-export const DataExplorerQueryValidateResponseSchema = z.object({
-  source_id: DataExplorerSourceIdSchema,
-  validation: DataExplorerSqlValidationSchema
-});
-export type DataExplorerQueryValidateResponse = z.infer<
-  typeof DataExplorerQueryValidateResponseSchema
->;
 
 export const DataExplorerSemanticTypeSchema = z.enum([
   "time",
@@ -186,11 +163,13 @@ export const DataExplorerChartSpecSchema = z.object({
 });
 export type DataExplorerChartSpec = z.infer<typeof DataExplorerChartSpecSchema>;
 
-export const DataExplorerQueryRunRequestSchema = DataExplorerQueryValidateRequestSchema.extend({
-  origin: z.enum(["manual", "chatkit", "system"]).default("manual"),
-  chat_session_id: z.string().trim().min(1).optional(),
-  action_run_id: z.string().trim().min(1).optional(),
-  schema_context: z.array(DataExplorerObjectDetailSchema).optional()
+export const DataExplorerQueryRunRequestSchema = z.object({
+  project_id: z.string().trim().min(1),
+  source_id: DataExplorerSourceIdSchema,
+  sql_text: z.string(),
+  row_limit: z.number().int().positive().optional(),
+  timeout_ms: z.number().int().positive().optional(),
+  origin: z.enum(["manual", "chatkit", "system"]).default("manual")
 });
 export type DataExplorerQueryRunRequest = z.infer<typeof DataExplorerQueryRunRequestSchema>;
 
@@ -218,28 +197,14 @@ export const DataExplorerAiQueryPlanRequestSchema = z.object({
   project_id: z.string().trim().min(1),
   source_id: DataExplorerSourceIdSchema.optional(),
   natural_language_query: z.string().trim().min(1),
-  time_range: DataExplorerTimeRangeSchema.optional(),
-  force_live_schema: z.boolean().default(true)
+  time_range: DataExplorerTimeRangeSchema.optional()
 });
 export type DataExplorerAiQueryPlanRequest = z.infer<typeof DataExplorerAiQueryPlanRequestSchema>;
-
-export const DataExplorerSchemaContextSchema = z.object({
-  object_type: DataExplorerObjectTypeSchema,
-  object_name: z.string().min(1),
-  ddl_fetched_at: z.string().min(1),
-  ddl_source: DataExplorerDdlSourceSchema,
-  columns: z.array(z.string().min(1))
-});
-export type DataExplorerSchemaContext = z.infer<typeof DataExplorerSchemaContextSchema>;
 
 export const DataExplorerAiQueryPlanResponseSchema = z.object({
   query_plan_id: z.string().min(1),
   source_id: DataExplorerSourceIdSchema,
-  schema_context: z.array(DataExplorerSchemaContextSchema),
   generated_sql: z.string(),
-  params: z.record(z.string(), z.unknown()),
-  referenced_objects: z.array(DataExplorerObjectRefSchema),
-  suggested_visualizations: z.array(DataExplorerChartSpecSchema),
   validation: DataExplorerSqlValidationSchema
 });
 export type DataExplorerAiQueryPlanResponse = z.infer<typeof DataExplorerAiQueryPlanResponseSchema>;

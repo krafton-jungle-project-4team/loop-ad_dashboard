@@ -7,11 +7,6 @@ export const DATA_EXPLORER_ERRORS = {
     code: "DATA_EXPLORER_SOURCE_NOT_FOUND",
     message: "Data Explorer source was not found."
   },
-  PROJECT_ID_REQUIRED: {
-    statusCode: HttpStatus.BAD_REQUEST,
-    code: "DATA_EXPLORER_PROJECT_ID_REQUIRED",
-    message: "project_id is required."
-  },
   OBJECT_REF_REQUIRED: {
     statusCode: HttpStatus.BAD_REQUEST,
     code: "DATA_EXPLORER_OBJECT_REF_REQUIRED",
@@ -20,7 +15,7 @@ export const DATA_EXPLORER_ERRORS = {
   SQL_VALIDATION_FAILED: {
     statusCode: HttpStatus.BAD_REQUEST,
     code: "DATA_EXPLORER_SQL_VALIDATION_FAILED",
-    message: "SQL did not pass the read-only validator."
+    message: "SQL could not be executed."
   },
   SCHEMA_INSPECTION_FAILED: {
     statusCode: HttpStatus.BAD_GATEWAY,
@@ -52,7 +47,6 @@ function createDataExplorerError(key: DataExplorerErrorKey, options?: ErrorOptio
 
 export const dataExplorerErrors = {
   sourceNotFound: (options?: ErrorOptions) => createDataExplorerError("SOURCE_NOT_FOUND", options),
-  projectIdRequired: () => createDataExplorerError("PROJECT_ID_REQUIRED"),
   objectRefRequired: () => createDataExplorerError("OBJECT_REF_REQUIRED"),
   sqlValidationFailed: () => createDataExplorerError("SQL_VALIDATION_FAILED"),
   schemaInspectionFailed: (options?: ErrorOptions) =>

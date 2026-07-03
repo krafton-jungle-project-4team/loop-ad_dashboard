@@ -1,15 +1,12 @@
 import type { DataExplorerObjectRef, DataExplorerSourceId } from "@loopad/shared";
 import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import {
-  createDataExplorerAiQueryPlan,
   fetchDataExplorerObjectDdl,
   fetchDataExplorerObjectDetail,
   fetchDataExplorerObjects,
   fetchDataExplorerSources,
   runDataExplorerAiChat,
-  runDataExplorerAiQuery,
-  runDataExplorerQuery,
-  validateDataExplorerQuery
+  runDataExplorerQuery
 } from "../api/data-explorer-api.js";
 
 export function dataExplorerSourcesQueryOptions() {
@@ -20,14 +17,12 @@ export function dataExplorerSourcesQueryOptions() {
 }
 
 export function dataExplorerObjectsQueryOptions(input: {
-  projectId: string;
   sourceId: DataExplorerSourceId;
   q: string;
 }) {
   return queryOptions({
     queryFn: ({ signal }) =>
       fetchDataExplorerObjects({
-        projectId: input.projectId,
         sourceId: input.sourceId,
         q: input.q,
         signal
@@ -65,10 +60,7 @@ export function dataExplorerObjectDdlQueryOptions(ref: DataExplorerObjectRef | n
 export function useDataExplorerMutations() {
   return {
     chat: useMutation({ mutationFn: runDataExplorerAiChat }),
-    createPlan: useMutation({ mutationFn: createDataExplorerAiQueryPlan }),
-    runAiQuery: useMutation({ mutationFn: runDataExplorerAiQuery }),
-    runQuery: useMutation({ mutationFn: runDataExplorerQuery }),
-    validateQuery: useMutation({ mutationFn: validateDataExplorerQuery })
+    runQuery: useMutation({ mutationFn: runDataExplorerQuery })
   };
 }
 

@@ -1,18 +1,14 @@
 import {
   DataExplorerAiChatResponseSchema,
-  DataExplorerAiQueryPlanResponseSchema,
   DataExplorerObjectDdlSchema,
   DataExplorerObjectDetailSchema,
   DataExplorerObjectsResponseSchema,
   DataExplorerQueryRunResponseSchema,
-  DataExplorerQueryValidateResponseSchema,
   DataExplorerSourcesResponseSchema,
-  type DataExplorerAiQueryPlanRequest,
   type DataExplorerAiChatRequest,
   type DataExplorerObjectRef,
   type DataExplorerObjectType,
   type DataExplorerQueryRunRequest,
-  type DataExplorerQueryValidateRequest,
   type DataExplorerSourceId
 } from "@loopad/shared";
 import { apiGet, apiPost } from "../../../shared/api/http-client.js";
@@ -24,7 +20,6 @@ export function fetchDataExplorerSources(signal: AbortSignal) {
 }
 
 export function fetchDataExplorerObjects(input: {
-  projectId: string;
   sourceId: DataExplorerSourceId;
   databaseName?: string;
   schemaName?: string;
@@ -32,9 +27,7 @@ export function fetchDataExplorerObjects(input: {
   q?: string;
   signal: AbortSignal;
 }) {
-  const searchParams = new URLSearchParams({
-    project_id: input.projectId
-  });
+  const searchParams = new URLSearchParams();
   setOptionalSearchParam(searchParams, "database", input.databaseName);
   setOptionalSearchParam(searchParams, "schema", input.schemaName);
   setOptionalSearchParam(searchParams, "type", input.objectType);
@@ -71,33 +64,9 @@ export function fetchDataExplorerObjectDdl(input: {
   );
 }
 
-export function validateDataExplorerQuery(body: DataExplorerQueryValidateRequest) {
-  return apiPost(
-    `${DATA_EXPLORER_BASE_PATH}/queries/validate`,
-    DataExplorerQueryValidateResponseSchema,
-    body
-  );
-}
-
 export function runDataExplorerQuery(body: DataExplorerQueryRunRequest) {
   return apiPost(
     `${DATA_EXPLORER_BASE_PATH}/queries/run`,
-    DataExplorerQueryRunResponseSchema,
-    body
-  );
-}
-
-export function createDataExplorerAiQueryPlan(body: DataExplorerAiQueryPlanRequest) {
-  return apiPost(
-    `${DATA_EXPLORER_BASE_PATH}/ai/query-plan`,
-    DataExplorerAiQueryPlanResponseSchema,
-    body
-  );
-}
-
-export function runDataExplorerAiQuery(body: DataExplorerQueryRunRequest) {
-  return apiPost(
-    `${DATA_EXPLORER_BASE_PATH}/ai/query-run`,
     DataExplorerQueryRunResponseSchema,
     body
   );

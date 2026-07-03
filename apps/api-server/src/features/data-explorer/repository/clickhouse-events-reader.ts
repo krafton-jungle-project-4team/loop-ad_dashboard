@@ -13,7 +13,6 @@ import type {
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { env } from "../../../infra/env/env.js";
 import { DataExplorerDomain } from "../domain/index.js";
-import { applyQueryLimit } from "../domain/query-limiter.domain.js";
 import { dataExplorerErrors } from "../errors.js";
 import { createDataExplorerLiveMetadata } from "./data-explorer-live-metadata.js";
 import type {
@@ -59,10 +58,9 @@ type ClickHouseJsonResponse = {
 };
 
 /**
- * Reads ClickHouse event-store schema metadata and executes validated readonly queries.
+ * ClickHouse 이벤트 저장소의 스키마와 readonly SQL 실행을 담당한다.
  *
- * This reader uses fixed schema queries and ClickHouse readonly settings. The
- * service must validate user SQL before calling `executeReadOnlyQuery`.
+ * SQL 파싱은 하지 않고 ClickHouse 읽기 전용 설정과 제한 시간에 맡긴다.
  */
 @Injectable()
 export class ClickHouseEventsReader implements DataExplorerSourceReader {
@@ -164,11 +162,9 @@ export class ClickHouseEventsReader implements DataExplorerSourceReader {
     input: ExecuteReadOnlyQueryInput
   ): Promise<DataExplorerQueryExecutionResult> {
     const startedAt = performance.now();
-    const limitedSql = applyQueryLimit(input.sqlText, input.rowLimit);
     const result = await this.clickhouse.query({
-      query: limitedSql,
+      query: input.sqlText,
       format: "JSON",
-      query_params: input.params,
       clickhouse_settings: {
         max_execution_time: Math.ceil(input.timeoutMs / 1000),
         max_result_rows: String(input.rowLimit),
@@ -177,14 +173,15 @@ export class ClickHouseEventsReader implements DataExplorerSourceReader {
       }
     });
     const body = await result.json<ClickHouseJsonResponse>();
-    const rows = body.data ?? [];
+    const sourceRows = body.data ?? [];
+    const rows = sourceRows.slice(0, input.rowLimit);
     const columns = (body.meta ?? []).map(toResultColumn);
 
     return {
       columns,
       rows,
       durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-      truncated: rows.length >= input.rowLimit
+      truncated: sourceRows.length > rows.length
     };
   }
 

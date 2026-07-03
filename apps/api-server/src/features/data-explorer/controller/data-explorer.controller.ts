@@ -1,10 +1,8 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
 import {
   DataExplorerAiChatRequestSchema,
-  DataExplorerAiQueryPlanRequestSchema,
   DataExplorerObjectTypeSchema,
   DataExplorerQueryRunRequestSchema,
-  DataExplorerQueryValidateRequestSchema,
   DataExplorerSourceIdSchema,
   type DataExplorerObjectRef,
   type DataExplorerObjectType,
@@ -14,10 +12,9 @@ import { dataExplorerErrors } from "../errors.js";
 import { DataExplorerService } from "../service/data-explorer.service.js";
 
 /**
- * Handles Data Explorer HTTP requests.
+ * Data Explorer HTTP 요청을 받는다.
  *
- * The controller parses shared Zod contracts at the API boundary and delegates
- * schema, validated SQL, and AI query use cases to the service.
+ * 컨트롤러는 공유 Zod 계약만 파싱하고 실제 처리는 서비스에 맡긴다.
  */
 @Controller("dashboard/v1/data-explorer")
 export class DataExplorerController {
@@ -34,7 +31,6 @@ export class DataExplorerController {
   @Get("sources/:source_id/objects")
   async objects(
     @Param("source_id") sourceId: string,
-    @Query("project_id") projectId?: string,
     @Query("database") databaseName?: string,
     @Query("schema") schemaName?: string,
     @Query("type") objectType?: string,
@@ -42,7 +38,6 @@ export class DataExplorerController {
   ) {
     return this.dataExplorer.listObjects({
       sourceId: parseSourceId(sourceId),
-      projectId: requireProjectId(projectId),
       databaseName: optionalString(databaseName),
       schemaName: optionalString(schemaName),
       objectType: parseOptionalObjectType(objectType),
@@ -77,24 +72,9 @@ export class DataExplorerController {
     );
   }
 
-  @Post("queries/validate")
-  validateQuery(@Body() body: unknown) {
-    return this.dataExplorer.validateQuery(DataExplorerQueryValidateRequestSchema.parse(body));
-  }
-
   @Post("queries/run")
   runQuery(@Body() body: unknown) {
     return this.dataExplorer.runQuery(DataExplorerQueryRunRequestSchema.parse(body));
-  }
-
-  @Post("ai/query-plan")
-  createAiQueryPlan(@Body() body: unknown) {
-    return this.dataExplorer.createAiQueryPlan(DataExplorerAiQueryPlanRequestSchema.parse(body));
-  }
-
-  @Post("ai/query-run")
-  runAiQuery(@Body() body: unknown) {
-    return this.dataExplorer.runAiQuery(DataExplorerQueryRunRequestSchema.parse(body));
   }
 
   @Post("ai/chat")
@@ -133,14 +113,6 @@ function toObjectRef(
     object_name: objectName,
     column_name: optionalString(columnName) ?? null
   };
-}
-
-function requireProjectId(projectId: string | undefined): string {
-  const normalized = projectId?.trim();
-  if (!normalized) {
-    throw dataExplorerErrors.projectIdRequired();
-  }
-  return normalized;
 }
 
 function optionalString(value: string | undefined): string | undefined {

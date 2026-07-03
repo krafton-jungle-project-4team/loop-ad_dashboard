@@ -11,7 +11,6 @@ import type {
 
 export type ListObjectsInput = {
   sourceId: DataExplorerSourceId;
-  projectId: string;
   databaseName?: string;
   schemaName?: string;
   objectType?: DataExplorerObjectType;
@@ -19,9 +18,7 @@ export type ListObjectsInput = {
 };
 
 export type ExecuteReadOnlyQueryInput = {
-  projectId: string;
   sqlText: string;
-  params: Record<string, unknown>;
   rowLimit: number;
   timeoutMs: number;
 };
