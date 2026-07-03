@@ -1,42 +1,6 @@
 name: loopad-dashboard
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${LOOPAD_AURORA_DATABASE:?LOOPAD_AURORA_DATABASE is required}
-      POSTGRES_USER: ${LOOPAD_AURORA_USERNAME:?LOOPAD_AURORA_USERNAME is required}
-      POSTGRES_PASSWORD: ${LOOPAD_AURORA_PASSWORD:?LOOPAD_AURORA_PASSWORD is required}
-    ports:
-      - "${LOOPAD_AURORA_PORT:?LOOPAD_AURORA_PORT is required}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  clickhouse:
-    image: clickhouse/clickhouse-server:24.8-alpine
-    environment:
-      CLICKHOUSE_DB: ${LOOPAD_CLICKHOUSE_DATABASE:?LOOPAD_CLICKHOUSE_DATABASE is required}
-      CLICKHOUSE_USER: ${LOOPAD_CLICKHOUSE_USERNAME:?LOOPAD_CLICKHOUSE_USERNAME is required}
-      CLICKHOUSE_PASSWORD: ${LOOPAD_CLICKHOUSE_PASSWORD:?LOOPAD_CLICKHOUSE_PASSWORD is required}
-    ports:
-      - "${LOOPAD_CLICKHOUSE_HTTP_PORT:?LOOPAD_CLICKHOUSE_HTTP_PORT is required}:8123"
-    volumes:
-      - clickhouse_data:/var/lib/clickhouse
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          'clickhouse-client --user "$${CLICKHOUSE_USER}" --password "$${CLICKHOUSE_PASSWORD}" --query ''SELECT 1'''
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   api-server:
     build:
       context: .
@@ -48,12 +12,12 @@ services:
       LOOPAD_ENV: ${LOOPAD_ENV:?LOOPAD_ENV is required}
       LOOPAD_SERVICE_ID: ${LOOPAD_SERVICE_ID:?LOOPAD_SERVICE_ID is required}
       PORT: ${PORT:?PORT is required}
-      LOOPAD_AURORA_HOST: postgres
-      LOOPAD_AURORA_PORT: 5432
+      LOOPAD_AURORA_HOST: host.docker.internal
+      LOOPAD_AURORA_PORT: ${LOOPAD_AURORA_PORT:?LOOPAD_AURORA_PORT is required}
       LOOPAD_AURORA_USERNAME: ${LOOPAD_AURORA_USERNAME:?LOOPAD_AURORA_USERNAME is required}
       LOOPAD_AURORA_PASSWORD: ${LOOPAD_AURORA_PASSWORD:?LOOPAD_AURORA_PASSWORD is required}
       LOOPAD_AURORA_DATABASE: ${LOOPAD_AURORA_DATABASE:?LOOPAD_AURORA_DATABASE is required}
-      LOOPAD_CLICKHOUSE_URL: http://clickhouse:8123
+      LOOPAD_CLICKHOUSE_URL: http://host.docker.internal:${LOOPAD_CLICKHOUSE_HTTP_PORT:?LOOPAD_CLICKHOUSE_HTTP_PORT is required}
       LOOPAD_CLICKHOUSE_DATABASE: ${LOOPAD_CLICKHOUSE_DATABASE:?LOOPAD_CLICKHOUSE_DATABASE is required}
       LOOPAD_CLICKHOUSE_USERNAME: ${LOOPAD_CLICKHOUSE_USERNAME:?LOOPAD_CLICKHOUSE_USERNAME is required}
       LOOPAD_CLICKHOUSE_PASSWORD: ${LOOPAD_CLICKHOUSE_PASSWORD:?LOOPAD_CLICKHOUSE_PASSWORD is required}
@@ -62,11 +26,6 @@ services:
     volumes:
       - .:/app
       - api_node_modules:/app/node_modules
-    depends_on:
-      postgres:
-        condition: service_healthy
-      clickhouse:
-        condition: service_healthy
 
   web-client:
     build:
@@ -85,7 +44,5 @@ services:
       - api-server
 
 volumes:
-  postgres_data:
-  clickhouse_data:
   api_node_modules:
   web_node_modules:
