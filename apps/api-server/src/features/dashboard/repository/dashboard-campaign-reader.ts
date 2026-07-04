@@ -9,11 +9,13 @@ import type {
   DashboardContentCandidate,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
+  DashboardCreateDefaultPromotionsResult,
   DashboardCreatePromotionRequest,
   DashboardDeleteCampaignResult,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
   DashboardNextLoopAnalysis,
+  DashboardPromotionAnalysis,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
   DashboardRejectContentCandidateRequest,
@@ -46,6 +48,7 @@ import {
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
   listDashboardCampaignSegments,
+  listDashboardPromotionAnalyses,
   listDashboardPromotionExperimentMetrics,
   listDashboardPromotionSegments,
   listDashboardSegmentAdExperiments,
@@ -69,6 +72,7 @@ import {
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
   type IListDashboardCampaignSegmentsResult,
+  type IListDashboardPromotionAnalysesResult,
   type IListDashboardSegmentAdExperimentsResult,
   type IListDashboardSegmentContentCandidatesResult,
   type IListDashboardSegmentExperimentMetricsResult,
@@ -178,6 +182,57 @@ export class DashboardCampaignReader {
       .single();
 
     return this.getPromotionSummary(projectId, promotionId);
+  }
+
+  async createDefaultPromotions(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardCreateDefaultPromotionsResult> {
+    const defaultPromotions: DashboardCreatePromotionRequest[] = [
+      {
+        channel: "email",
+        goal_basis: "promotion_average",
+        goal_metric: "inflow_rate",
+        goal_target_value: 0.1,
+        marketing_theme: "email_inflow",
+        max_loop_count: 3,
+        message_brief: "기존 고객에게 캠페인 혜택을 안내해 유입률을 높입니다.",
+        min_sample_size: 1000,
+        status: "draft",
+        target_audience: "existing_users"
+      },
+      {
+        channel: "onsite_banner",
+        goal_basis: "all_segments",
+        goal_metric: "booking_conversion_rate",
+        goal_target_value: 0.03,
+        marketing_theme: "onsite_booking_conversion",
+        max_loop_count: 3,
+        message_brief: "내부 배너로 숙소 탐색 고객의 예약 전환을 유도합니다.",
+        min_sample_size: 1000,
+        status: "draft",
+        target_audience: "existing_users"
+      },
+      {
+        channel: "sms",
+        goal_basis: "all_segments",
+        goal_metric: "inflow_rate",
+        goal_target_value: 0.08,
+        marketing_theme: "sms_reactivation",
+        max_loop_count: 3,
+        message_brief: "SMS 알림으로 캠페인 재방문과 유입을 보강합니다.",
+        min_sample_size: 1000,
+        status: "draft",
+        target_audience: "existing_users"
+      }
+    ];
+    const promotions: DashboardPromotionSummary[] = [];
+
+    for (const request of defaultPromotions) {
+      promotions.push(await this.createPromotion(projectId, campaignId, request));
+    }
+
+    return { campaign_id: campaignId, promotions };
   }
 
   async updatePromotion(
@@ -425,8 +480,9 @@ export class DashboardCampaignReader {
     projectId: string,
     promotionId: string
   ): Promise<Omit<DashboardPromotionDetail, "realtime_metrics" | "segment_realtime_summaries">> {
-    const [promotion, segments, experimentMetrics] = await Promise.all([
+    const [promotion, analyses, segments, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single(),
+      this.db.query(listDashboardPromotionAnalyses, { projectId, promotionId }).multiple(),
       this.db.query(listDashboardPromotionSegments, { projectId, promotionId }).multiple(),
       this.db
         .query(listDashboardPromotionExperimentMetrics, { projectId, promotionId })
@@ -435,6 +491,7 @@ export class DashboardCampaignReader {
 
     return {
       promotion: toPromotionSummary(promotion),
+      analyses: analyses.map(toPromotionAnalysis),
       segments: segments.map(toCampaignSegment),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
@@ -576,6 +633,7 @@ function toCampaignPromotion(
     min_sample_size: countValue(row.minSampleSize),
     max_loop_count: countValue(row.maxLoopCount),
     current_loop_count: countValue(row.currentLoopCount),
+    message_brief: row.messageBrief,
     offer_type: row.offerType,
     landing_url: row.landingUrl,
     landing_type: row.landingType,
@@ -601,6 +659,7 @@ function toPromotionSummary(row: IGetDashboardPromotionSummaryResult): Dashboard
     min_sample_size: countValue(row.minSampleSize),
     max_loop_count: countValue(row.maxLoopCount),
     current_loop_count: countValue(row.currentLoopCount),
+    message_brief: row.messageBrief,
     offer_type: row.offerType,
     landing_url: row.landingUrl,
     landing_type: row.landingType,
@@ -673,8 +732,13 @@ function toCampaignExperimentMetric(
 function toSegmentAdExperiment(row: IListDashboardSegmentAdExperimentsResult): DashboardAdExperiment {
   return {
     ad_experiment_id: row.adExperimentId,
+    channel: row.channel,
     content_id: row.contentId,
     content_option_id: row.contentOptionId,
+    goal_basis: row.goalBasis,
+    goal_metric: row.goalMetric,
+    goal_target_value: row.goalTargetValue ?? 0,
+    loop_count: row.loopCount,
     promotion_id: row.promotionId,
     promotion_run_id: row.promotionRunId,
     segment_id: row.segmentId,
@@ -691,6 +755,8 @@ function toContentCandidate(
     promotion_id: row.promotionId,
     segment_id: row.segmentId,
     channel: row.channel,
+    subject: row.subject,
+    preheader: row.preheader,
     title: row.title,
     body: row.body,
     cta: row.cta,
@@ -712,8 +778,13 @@ function toAdExperiment(
 ): DashboardAdExperiment {
   return {
     ad_experiment_id: row.adExperimentId,
+    channel: row.channel,
     content_id: row.contentId,
     content_option_id: row.contentOptionId,
+    goal_basis: row.goalBasis,
+    goal_metric: row.goalMetric,
+    goal_target_value: row.goalTargetValue ?? 0,
+    loop_count: row.loopCount,
     promotion_id: row.promotionId,
     promotion_run_id: row.promotionRunId,
     segment_id: row.segmentId,
@@ -730,6 +801,21 @@ function toRejectContentCandidateResult(
     rejected_at: row.rejectedAt.toISOString(),
     segment_id: row.segmentId,
     status: "rejected"
+  };
+}
+
+function toPromotionAnalysis(row: IListDashboardPromotionAnalysesResult): DashboardPromotionAnalysis {
+  return {
+    analysis_id: row.analysisId,
+    created_at: row.createdAt.toISOString(),
+    focus_segment_ids: jsonStringArray(row.focusSegmentIdsJson),
+    input_snapshot_json: jsonObject(row.inputSnapshotJson),
+    operator_instruction: row.operatorInstruction,
+    output_json: row.outputJson === null ? null : jsonObject(row.outputJson),
+    profile_summary_json: jsonObject(row.profileSummaryJson),
+    promotion_id: row.promotionId,
+    status: row.status,
+    updated_at: row.updatedAt.toISOString()
   };
 }
 

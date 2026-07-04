@@ -145,6 +145,7 @@ SELECT
   p.min_sample_size AS "minSampleSize",
   p.max_loop_count AS "maxLoopCount",
   COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
+  p.message_brief AS "messageBrief",
   p.offer_type AS "offerType",
   p.landing_url AS "landingUrl",
   p.landing_type AS "landingType",
@@ -188,6 +189,7 @@ SELECT
   p.min_sample_size AS "minSampleSize",
   p.max_loop_count AS "maxLoopCount",
   COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
+  p.message_brief AS "messageBrief",
   p.offer_type AS "offerType",
   p.landing_url AS "landingUrl",
   p.landing_type AS "landingType",
@@ -603,6 +605,24 @@ RETURNING
   focus_segment_ids_json AS "focusSegmentIdsJson",
   status;
 
+/* 목적: 프로모션 상세에서 분석 요청과 결과 상태를 최신순으로 조회합니다. */
+/* @name ListDashboardPromotionAnalyses */
+SELECT
+  analysis_id AS "analysisId",
+  promotion_id AS "promotionId",
+  focus_segment_ids_json AS "focusSegmentIdsJson",
+  operator_instruction AS "operatorInstruction",
+  input_snapshot_json AS "inputSnapshotJson",
+  profile_summary_json AS "profileSummaryJson",
+  output_json AS "outputJson",
+  status,
+  created_at AS "createdAt",
+  updated_at AS "updatedAt"
+FROM promotion_analyses
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+ORDER BY updated_at DESC, created_at DESC;
+
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardCampaignExperimentMetrics */
 SELECT
@@ -752,6 +772,8 @@ SELECT
   promotion_id AS "promotionId",
   segment_id AS "segmentId",
   channel,
+  subject,
+  preheader,
   title,
   body,
   cta,
@@ -780,6 +802,11 @@ SELECT
   segment_id AS "segmentId",
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
+  channel,
+  loop_count AS "loopCount",
+  goal_metric AS "goalMetric",
+  goal_target_value::float8 AS "goalTargetValue",
+  goal_basis AS "goalBasis",
   status
 FROM ad_experiments
 WHERE project_id = :projectId
@@ -981,6 +1008,11 @@ RETURNING
   segment_id AS "segmentId",
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
+  channel,
+  loop_count AS "loopCount",
+  goal_metric AS "goalMetric",
+  goal_target_value::float8 AS "goalTargetValue",
+  goal_basis AS "goalBasis",
   status;
 
 /* 목적: 콘텐츠 승인 후 프로모션 타겟 세그먼트 상태를 승인됨으로 갱신합니다. */

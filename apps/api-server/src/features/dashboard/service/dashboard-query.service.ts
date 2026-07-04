@@ -9,6 +9,7 @@ import type {
   DashboardCampaignSummary,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
+  DashboardCreateDefaultPromotionsResult,
   DashboardDeleteCampaignResult,
   DashboardDeleteSavedSegmentResult,
   DashboardCreatePromotionRequest,
@@ -89,6 +90,14 @@ export class DashboardQueryService {
     request: DashboardCreatePromotionRequest
   ): Promise<DashboardPromotionSummary> {
     return this.campaignReader.createPromotion(projectId, campaignId, request);
+  }
+
+  @Transactional()
+  async createDefaultPromotions(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardCreateDefaultPromotionsResult> {
+    return this.campaignReader.createDefaultPromotions(projectId, campaignId);
   }
 
   @Transactional()

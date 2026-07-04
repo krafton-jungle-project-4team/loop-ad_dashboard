@@ -94,6 +94,7 @@ export const DashboardCampaignPromotionSchema = z.object({
   min_sample_size: CountSchema,
   max_loop_count: CountSchema,
   current_loop_count: CountSchema,
+  message_brief: z.string().nullable(),
   offer_type: z.string().nullable(),
   landing_url: z.string().nullable(),
   landing_type: z.string().nullable(),
@@ -191,6 +192,14 @@ export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.
 });
 export type DashboardPromotionSummary = z.infer<typeof DashboardPromotionSummarySchema>;
 
+export const DashboardCreateDefaultPromotionsResultSchema = z.object({
+  campaign_id: z.string(),
+  promotions: z.array(DashboardPromotionSummarySchema)
+});
+export type DashboardCreateDefaultPromotionsResult = z.infer<
+  typeof DashboardCreateDefaultPromotionsResultSchema
+>;
+
 export const DashboardCampaignSegmentSchema = z.object({
   promotion_id: z.string(),
   segment_id: z.string(),
@@ -220,6 +229,8 @@ export const DashboardContentCandidateSchema = z.object({
   promotion_id: z.string(),
   segment_id: z.string(),
   channel: z.string(),
+  subject: z.string().nullable(),
+  preheader: z.string().nullable(),
   title: z.string().nullable(),
   body: z.string().nullable(),
   cta: z.string().nullable(),
@@ -268,6 +279,11 @@ export const DashboardAdExperimentSchema = z.object({
   segment_id: z.string(),
   content_id: z.string(),
   content_option_id: z.string(),
+  channel: z.string(),
+  loop_count: CountSchema,
+  goal_metric: z.string(),
+  goal_target_value: z.number().nonnegative(),
+  goal_basis: z.string(),
   status: z.string()
 });
 export type DashboardAdExperiment = z.infer<typeof DashboardAdExperimentSchema>;
@@ -420,8 +436,23 @@ export const DashboardCampaignDetailSchema = z.object({
 });
 export type DashboardCampaignDetail = z.infer<typeof DashboardCampaignDetailSchema>;
 
+export const DashboardPromotionAnalysisSchema = z.object({
+  analysis_id: z.string(),
+  promotion_id: z.string(),
+  focus_segment_ids: z.array(z.string()),
+  operator_instruction: z.string().nullable(),
+  input_snapshot_json: JsonObjectSchema,
+  profile_summary_json: JsonObjectSchema,
+  output_json: JsonObjectSchema.nullable(),
+  status: z.string(),
+  created_at: z.string(),
+  updated_at: z.string()
+});
+export type DashboardPromotionAnalysis = z.infer<typeof DashboardPromotionAnalysisSchema>;
+
 export const DashboardPromotionDetailSchema = z.object({
   promotion: DashboardPromotionSummarySchema,
+  analyses: z.array(DashboardPromotionAnalysisSchema),
   segments: z.array(DashboardCampaignSegmentSchema),
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
   realtime_metrics: DashboardPromotionRealtimeMetricsSchema,

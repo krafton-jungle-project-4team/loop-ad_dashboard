@@ -7,6 +7,7 @@ import {
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
   DashboardCreateCampaignRequestSchema,
+  DashboardCreateDefaultPromotionsResultSchema,
   DashboardCreateFunnelRequestSchema,
   DashboardCreatePromotionRequestSchema,
   DashboardDeleteCampaignResultSchema,
@@ -98,6 +99,17 @@ export class DashboardController {
     const request = DashboardCreatePromotionRequestSchema.parse(body);
     return DashboardPromotionSummarySchema.parse(
       await this.dashboardQuery.createPromotion(requiredProjectId, campaignId, request)
+    );
+  }
+
+  @Post("campaigns/:campaign_id/default-promotions")
+  async createDefaultPromotions(
+    @Param("campaign_id") campaignId: string,
+    @Query("project_id") projectId: string | undefined
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardCreateDefaultPromotionsResultSchema.parse(
+      await this.dashboardQuery.createDefaultPromotions(requiredProjectId, campaignId)
     );
   }
 

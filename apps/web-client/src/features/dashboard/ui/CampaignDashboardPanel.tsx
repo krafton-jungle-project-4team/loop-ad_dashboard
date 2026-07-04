@@ -43,6 +43,7 @@ import {
   approveDashboardContentCandidate,
   attachDashboardSegmentToPromotion,
   createDashboardCampaign,
+  createDashboardDefaultPromotions,
   createDashboardPromotion,
   createDashboardSegmentQueryPreview,
   deleteDashboardCampaign,
@@ -252,68 +253,72 @@ export function CampaignDashboardPanel({
 
   return (
     <div className="grid gap-6">
-      <CampaignManagementPanel
-        campaign={selectedCampaign}
-        createError={createCampaignMutation.error}
-        createIsError={createCampaignMutation.isError}
-        createIsPending={createCampaignMutation.isPending}
-        onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
-        onStop={(campaignId) => stopCampaignMutation.mutate(campaignId)}
-        onUpdate={(campaignId, requestBody) =>
-          updateCampaignMutation.mutate({ campaignId, requestBody })
-        }
-        stopError={stopCampaignMutation.error}
-        stopIsError={stopCampaignMutation.isError}
-        stopIsPending={stopCampaignMutation.isPending}
-        updateError={updateCampaignMutation.error}
-        updateIsError={updateCampaignMutation.isError}
-        updateIsPending={updateCampaignMutation.isPending}
-      />
-      <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
-        <CardHeader className="gap-1.5 px-5">
-          <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-            캠페인 목록
-          </CardTitle>
-          <CardDescription>
-            Campaign → Promotion → Segment → Ad Experiment 실행 구조를 기준으로 조회합니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-5">
-          {data.campaigns.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>캠페인</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead>기간</TableHead>
-                  <TableHead className="text-right">프로모션</TableHead>
-                  <TableHead className="text-right">세그먼트</TableHead>
-                  <TableHead className="text-right">실험</TableHead>
-                  <TableHead className="text-right">최근 목표 달성률</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.campaigns.map((campaign) => (
-                  <CampaignRow
-                    campaign={campaign}
-                    isSelected={selectedCampaignId === campaign.campaign_id}
-                    key={campaign.campaign_id}
-                    onSelect={(campaignId) => {
-                      void setDashboardQueryState({
-                        selectedCampaignId: campaignId,
-                        selectedPromotionId: "",
-                        selectedSegmentId: ""
-                      });
-                    }}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <EmptyState message="등록된 캠페인이 없습니다." />
-          )}
-        </CardContent>
-      </Card>
+      {tab === "campaigns" ? (
+        <>
+          <CampaignManagementPanel
+            campaign={selectedCampaign}
+            createError={createCampaignMutation.error}
+            createIsError={createCampaignMutation.isError}
+            createIsPending={createCampaignMutation.isPending}
+            onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
+            onStop={(campaignId) => stopCampaignMutation.mutate(campaignId)}
+            onUpdate={(campaignId, requestBody) =>
+              updateCampaignMutation.mutate({ campaignId, requestBody })
+            }
+            stopError={stopCampaignMutation.error}
+            stopIsError={stopCampaignMutation.isError}
+            stopIsPending={stopCampaignMutation.isPending}
+            updateError={updateCampaignMutation.error}
+            updateIsError={updateCampaignMutation.isError}
+            updateIsPending={updateCampaignMutation.isPending}
+          />
+          <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+            <CardHeader className="gap-1.5 px-5">
+              <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+                캠페인 목록
+              </CardTitle>
+              <CardDescription>
+                Campaign → Promotion → Segment → Ad Experiment 실행 구조를 기준으로 조회합니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
+              {data.campaigns.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>캠페인</TableHead>
+                      <TableHead>상태</TableHead>
+                      <TableHead>기간</TableHead>
+                      <TableHead className="text-right">프로모션</TableHead>
+                      <TableHead className="text-right">세그먼트</TableHead>
+                      <TableHead className="text-right">실험</TableHead>
+                      <TableHead className="text-right">최근 목표 달성률</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.campaigns.map((campaign) => (
+                      <CampaignRow
+                        campaign={campaign}
+                        isSelected={selectedCampaignId === campaign.campaign_id}
+                        key={campaign.campaign_id}
+                        onSelect={(campaignId) => {
+                          void setDashboardQueryState({
+                            selectedCampaignId: campaignId,
+                            selectedPromotionId: "",
+                            selectedSegmentId: ""
+                          });
+                        }}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <EmptyState message="등록된 캠페인이 없습니다." />
+              )}
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
 
       <CampaignSelectionContext
         campaign={selectedCampaign}
@@ -988,6 +993,17 @@ function CampaignTabContent({
       });
     }
   });
+  const createDefaultPromotionsMutation = useMutation({
+    mutationFn: () => createDashboardDefaultPromotions(query, detail.campaign.campaign_id),
+    onSuccess: async (result) => {
+      const firstPromotion = result.promotions[0];
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedPromotionId: firstPromotion?.promotion_id ?? "",
+        selectedSegmentId: ""
+      });
+    }
+  });
   const updatePromotionMutation = useMutation({
     mutationFn: ({
       promotionId,
@@ -1153,9 +1169,13 @@ function CampaignTabContent({
           />
           <PromotionManagementPanel
             createError={createPromotionMutation.error}
+            createDefaultError={createDefaultPromotionsMutation.error}
+            createDefaultIsError={createDefaultPromotionsMutation.isError}
+            createDefaultIsPending={createDefaultPromotionsMutation.isPending}
             createIsError={createPromotionMutation.isError}
             createIsPending={createPromotionMutation.isPending}
             onCreate={(requestBody) => createPromotionMutation.mutate(requestBody)}
+            onCreateDefault={() => createDefaultPromotionsMutation.mutate()}
             onStop={(promotionId) => stopPromotionMutation.mutate(promotionId)}
             onUpdate={(promotionId, requestBody) =>
               updatePromotionMutation.mutate({ promotionId, requestBody })
@@ -1379,9 +1399,13 @@ function CampaignOpenTabs({
 
 function PromotionManagementPanel({
   createError,
+  createDefaultError,
+  createDefaultIsError,
+  createDefaultIsPending,
   createIsError,
   createIsPending,
   onCreate,
+  onCreateDefault,
   onStop,
   onUpdate,
   promotion,
@@ -1393,9 +1417,13 @@ function PromotionManagementPanel({
   updateIsPending
 }: {
   createError: Error | null;
+  createDefaultError: Error | null;
+  createDefaultIsError: boolean;
+  createDefaultIsPending: boolean;
   createIsError: boolean;
   createIsPending: boolean;
   onCreate: (requestBody: CreatePromotionInput) => void;
+  onCreateDefault: () => void;
   onStop: (promotionId: string) => void;
   onUpdate: (promotionId: string, requestBody: UpdatePromotionInput) => void;
   promotion: DashboardCampaignPromotion | undefined;
@@ -1420,6 +1448,12 @@ function PromotionManagementPanel({
           <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
         </Alert>
       ) : null}
+      {createDefaultIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>기본 프로모션을 생성하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(createDefaultError)}</AlertDescription>
+        </Alert>
+      ) : null}
       {updateIsError ? (
         <Alert variant="destructive">
           <AlertTitle>프로모션을 수정하지 못했습니다</AlertTitle>
@@ -1432,6 +1466,22 @@ function PromotionManagementPanel({
           <AlertDescription>{mutationErrorMessage(stopError)}</AlertDescription>
         </Alert>
       ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 p-4">
+        <div className="grid gap-1">
+          <h4 className="font-semibold text-foreground">기본 프로모션 세트</h4>
+          <p className="text-sm text-muted-foreground">
+            1.7 기준 email, onsite banner, sms 기본 프로모션 3개를 한 번에 생성합니다.
+          </p>
+        </div>
+        <Button
+          disabled={createDefaultIsPending}
+          onClick={onCreateDefault}
+          type="button"
+          variant="outline"
+        >
+          {createDefaultIsPending ? "생성 중" : "기본 프로모션 생성"}
+        </Button>
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <PromotionCreateForm isPending={createIsPending} onSubmit={onCreate} />
         <PromotionEditForm
@@ -1542,6 +1592,8 @@ type PromotionFormState = {
   landingType: string;
   landingUrl: string;
   marketingTheme: string;
+  maxLoopCount: string;
+  messageBrief: string;
   minSampleSize: string;
   offerType: string;
   status: string;
@@ -1568,6 +1620,15 @@ function PromotionFormFields({
           onChange={(event) => update("marketingTheme", event.target.value)}
           placeholder="여름 숙박 리마인드"
           value={form.marketingTheme}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="dashboard-promotion-message-brief">메시지 방향</FieldLabel>
+        <Textarea
+          id="dashboard-promotion-message-brief"
+          onChange={(event) => update("messageBrief", event.target.value)}
+          placeholder="세그먼트별 콘텐츠 생성에 사용할 메시지 방향을 입력하세요."
+          value={form.messageBrief}
         />
       </Field>
       <div className="grid gap-3 md:grid-cols-2">
@@ -1650,6 +1711,16 @@ function PromotionFormFields({
           />
         </Field>
         <Field>
+          <FieldLabel htmlFor="dashboard-promotion-max-loop">최대 루프</FieldLabel>
+          <Input
+            id="dashboard-promotion-max-loop"
+            min="1"
+            onChange={(event) => update("maxLoopCount", event.target.value)}
+            type="number"
+            value={form.maxLoopCount}
+          />
+        </Field>
+        <Field>
           <FieldLabel htmlFor="dashboard-promotion-offer-type">오퍼</FieldLabel>
           <Input
             id="dashboard-promotion-offer-type"
@@ -1658,6 +1729,8 @@ function PromotionFormFields({
             value={form.offerType}
           />
         </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
         <Field>
           <FieldLabel>상태</FieldLabel>
           <Select onValueChange={(value) => update("status", value)} value={form.status}>
@@ -1713,13 +1786,15 @@ function createPromotionFormState(
     goalBasis: promotion?.goal_basis ?? "promotion_average",
     goalMetric: promotion?.goal_metric ?? "inflow_rate",
     goalTargetValue: String(promotion?.goal_target_value ?? 0.1),
-    landingType: "none",
-    landingUrl: "",
+    landingType: promotion?.landing_type ?? "none",
+    landingUrl: promotion?.landing_url ?? "",
     marketingTheme: promotion?.marketing_theme ?? "",
-    minSampleSize: "1000",
-    offerType: "",
+    maxLoopCount: String(promotion?.max_loop_count ?? 3),
+    messageBrief: promotion?.message_brief ?? "",
+    minSampleSize: String(promotion?.min_sample_size ?? 1000),
+    offerType: promotion?.offer_type ?? "",
     status: promotion?.status ?? "draft",
-    targetAudience: "existing_users"
+    targetAudience: promotion?.target_audience ?? "existing_users"
   };
 }
 
@@ -1732,7 +1807,8 @@ function promotionFormToCreateRequest(form: PromotionFormState): CreatePromotion
     landing_type: nullableLandingType(form.landingType),
     landing_url: nullableText(form.landingUrl),
     marketing_theme: form.marketingTheme.trim(),
-    max_loop_count: 3,
+    max_loop_count: positiveInteger(form.maxLoopCount),
+    message_brief: nullableText(form.messageBrief),
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     offer_type: nullableText(form.offerType),
     status: form.status as CreatePromotionInput["status"],
@@ -2247,7 +2323,29 @@ function PromotionTable({
   segments: DashboardCampaignSegment[];
   selectedPromotionId: string;
 }) {
+  const [promotionSearch, setPromotionSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
   const activeCount = promotions.filter((promotion) => promotion.status === "active").length;
+  const normalizedSearch = promotionSearch.trim().toLowerCase();
+  const filteredPromotions = promotions.filter((promotion) => {
+    const matchesSearch =
+      !normalizedSearch ||
+      [
+        promotion.promotion_id,
+        promotion.marketing_theme,
+        promotion.channel,
+        promotion.target_audience,
+        promotion.goal_metric,
+        promotion.goal_basis,
+        promotion.next_action,
+        promotion.message_brief ?? ""
+      ].some((value) => value.toLowerCase().includes(normalizedSearch));
+    const matchesStatus = statusFilter === "all" || promotion.status === statusFilter;
+    const matchesChannel = channelFilter === "all" || promotion.channel === channelFilter;
+
+    return matchesSearch && matchesStatus && matchesChannel;
+  });
   const totalExperimentCount = promotions.reduce(
     (sum, promotion) => sum + promotion.ad_experiment_count,
     0
@@ -2263,110 +2361,158 @@ function PromotionTable({
           </p>
         </div>
       </div>
+      <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
+        <Field>
+          <FieldLabel htmlFor="dashboard-promotion-search">프로모션 검색</FieldLabel>
+          <Input
+            id="dashboard-promotion-search"
+            onChange={(event) => setPromotionSearch(event.target.value)}
+            placeholder="이름, ID, 채널, 목표, 메시지 방향"
+            value={promotionSearch}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>상태 필터</FieldLabel>
+          <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 상태</SelectItem>
+              {promotionStatusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>채널 필터</FieldLabel>
+          <Select onValueChange={setChannelFilter} value={channelFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 채널</SelectItem>
+              {promotionChannelOptions.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {channel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
       <div className="grid gap-3 md:grid-cols-4">
         <SummaryItem label="전체 프로모션" value={formatInteger(promotions.length)} />
+        <SummaryItem label="필터 결과" value={formatInteger(filteredPromotions.length)} />
         <SummaryItem label="활성 프로모션" value={formatInteger(activeCount)} />
         <SummaryItem label="연결 세그먼트" value={formatInteger(segments.length)} />
         <SummaryItem label="광고 실험" value={formatInteger(totalExperimentCount)} />
       </div>
       {promotions.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>프로모션</TableHead>
-              <TableHead>대상</TableHead>
-              <TableHead>대상 세그먼트</TableHead>
-              <TableHead>목표</TableHead>
-              <TableHead className="text-right">루프</TableHead>
-              <TableHead className="text-right">실험</TableHead>
-              <TableHead>상태</TableHead>
-              <TableHead>다음 액션</TableHead>
-              <TableHead>상세</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {promotions.map((promotion) => {
-              const promotionSegments = segments.filter(
-                (segment) => segment.promotion_id === promotion.promotion_id
-              );
-              return (
-                <TableRow
-                  aria-selected={selectedPromotionId === promotion.promotion_id}
-                  className="cursor-pointer"
-                  key={promotion.promotion_id}
-                  onClick={() => onSelectPromotion(promotion.promotion_id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onSelectPromotion(promotion.promotion_id);
-                    }
-                  }}
-                  tabIndex={0}
-                >
-                  <TableCell>
-                    <div className="flex min-w-[220px] flex-col gap-1">
-                      <span className="font-medium">{promotion.marketing_theme}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {promotion.channel} · {promotion.promotion_id}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{promotion.target_audience}</TableCell>
-                  <TableCell>
-                    <div className="flex min-w-[240px] flex-wrap gap-1.5">
-                      {promotionSegments.slice(0, 3).map((segment) => (
-                        <Badge key={segment.segment_id} variant="outline">
-                          {segment.segment_name}
-                        </Badge>
-                      ))}
-                      {promotionSegments.length > 3 ? (
-                        <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
-                      ) : null}
-                      {promotionSegments.length === 0 ? (
-                        <span className="text-sm text-muted-foreground">세그먼트 없음</span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="grid min-w-[160px] gap-1">
-                      <span className="text-sm">{promotion.goal_metric}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatGoalValue(promotion.goal_target_value)} · {promotion.goal_basis}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatInteger(promotion.current_loop_count)} /{" "}
-                    {formatInteger(promotion.max_loop_count)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatInteger(promotion.ad_experiment_count)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{promotion.next_action}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      onClick={(event) => {
-                        event.stopPropagation();
+        filteredPromotions.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>프로모션</TableHead>
+                <TableHead>대상</TableHead>
+                <TableHead>대상 세그먼트</TableHead>
+                <TableHead>목표</TableHead>
+                <TableHead className="text-right">루프</TableHead>
+                <TableHead className="text-right">실험</TableHead>
+                <TableHead>상태</TableHead>
+                <TableHead>다음 액션</TableHead>
+                <TableHead>상세</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPromotions.map((promotion) => {
+                const promotionSegments = segments.filter(
+                  (segment) => segment.promotion_id === promotion.promotion_id
+                );
+                return (
+                  <TableRow
+                    aria-selected={selectedPromotionId === promotion.promotion_id}
+                    className="cursor-pointer"
+                    key={promotion.promotion_id}
+                    onClick={() => onSelectPromotion(promotion.promotion_id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
                         onSelectPromotion(promotion.promotion_id);
-                      }}
-                      size="sm"
-                      variant={
-                        selectedPromotionId === promotion.promotion_id ? "default" : "outline"
                       }
-                    >
-                      {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    }}
+                    tabIndex={0}
+                  >
+                    <TableCell>
+                      <div className="flex min-w-[220px] flex-col gap-1">
+                        <span className="font-medium">{promotion.marketing_theme}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {promotion.channel} · {promotion.promotion_id}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{promotion.target_audience}</TableCell>
+                    <TableCell>
+                      <div className="flex min-w-[240px] flex-wrap gap-1.5">
+                        {promotionSegments.slice(0, 3).map((segment) => (
+                          <Badge key={segment.segment_id} variant="outline">
+                            {segment.segment_name}
+                          </Badge>
+                        ))}
+                        {promotionSegments.length > 3 ? (
+                          <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
+                        ) : null}
+                        {promotionSegments.length === 0 ? (
+                          <span className="text-sm text-muted-foreground">세그먼트 없음</span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="grid min-w-[160px] gap-1">
+                        <span className="text-sm">{promotion.goal_metric}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatGoalValue(promotion.goal_target_value)} · {promotion.goal_basis}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(promotion.current_loop_count)} /{" "}
+                      {formatInteger(promotion.max_loop_count)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(promotion.ad_experiment_count)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{promotion.next_action}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelectPromotion(promotion.promotion_id);
+                        }}
+                        size="sm"
+                        variant={
+                          selectedPromotionId === promotion.promotion_id ? "default" : "outline"
+                        }
+                      >
+                        {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState message="검색/필터 조건에 맞는 프로모션이 없습니다." />
+        )
       ) : (
         <EmptyState message="등록된 프로모션이 없습니다." />
       )}
@@ -2629,6 +2775,7 @@ function PromotionDetail({
   return (
     <section className="grid gap-4">
       <PromotionOverview detail={detail} />
+      <PromotionAnalysisPanel detail={detail} />
       <RealtimeEventTable
         emptyMessage="프로모션 실시간 이벤트가 아직 수집되지 않았습니다."
         metrics={detail.realtime_metrics}
@@ -2662,6 +2809,111 @@ function PromotionDetail({
       />
       <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
+    </section>
+  );
+}
+
+function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailResource }) {
+  const latestAnalysis = detail.analyses[0];
+  const completedCount = detail.analyses.filter((analysis) => analysis.status === "completed").length;
+  const failedCount = detail.analyses.filter((analysis) => analysis.status === "failed").length;
+  const focusSegmentCount = uniqueValues(
+    detail.analyses.flatMap((analysis) => analysis.focus_segment_ids)
+  ).length;
+
+  return (
+    <section className="grid gap-3">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 분석 히스토리</h3>
+        <p className="text-sm text-muted-foreground">
+          Decision 분석 요청, focus segment, 운영자 지시, 결과 JSON을 최신순으로 확인합니다.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="분석 요청" value={formatInteger(detail.analyses.length)} />
+        <SummaryItem label="완료" value={formatInteger(completedCount)} />
+        <SummaryItem label="실패" value={formatInteger(failedCount)} />
+        <SummaryItem label="focus segment" value={formatInteger(focusSegmentCount)} />
+      </div>
+      {latestAnalysis ? (
+        <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <div className="font-medium">{latestAnalysis.analysis_id}</div>
+              <div className="text-xs text-muted-foreground">
+                updated {latestAnalysis.updated_at}
+              </div>
+            </div>
+            <Badge variant={statusBadgeVariant(latestAnalysis.status)}>
+              {latestAnalysis.status}
+            </Badge>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <InsightBlock
+              label="운영자 지시"
+              value={latestAnalysis.operator_instruction ?? "-"}
+            />
+            <InsightBlock
+              label="focus segment"
+              value={
+                latestAnalysis.focus_segment_ids.length > 0
+                  ? latestAnalysis.focus_segment_ids.join("\n")
+                  : "-"
+              }
+            />
+            <InsightBlock
+              label="프로필 요약"
+              value={formatJsonObject(latestAnalysis.profile_summary_json)}
+            />
+            <InsightBlock
+              label="분석 결과"
+              value={
+                latestAnalysis.output_json ? formatJsonObject(latestAnalysis.output_json) : "-"
+              }
+            />
+          </div>
+        </div>
+      ) : (
+        <EmptyState message="프로모션 분석 히스토리가 없습니다." />
+      )}
+      {detail.analyses.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>분석 ID</TableHead>
+              <TableHead>focus segment</TableHead>
+              <TableHead>운영자 지시</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>업데이트</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {detail.analyses.map((analysis) => (
+              <TableRow key={analysis.analysis_id}>
+                <TableCell>
+                  <div className="min-w-[180px] font-medium">{analysis.analysis_id}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="line-clamp-2 min-w-[180px]">
+                    {analysis.focus_segment_ids.length > 0
+                      ? analysis.focus_segment_ids.join(", ")
+                      : "-"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="line-clamp-2 min-w-[220px]">
+                    {analysis.operator_instruction ?? "-"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={statusBadgeVariant(analysis.status)}>{analysis.status}</Badge>
+                </TableCell>
+                <TableCell>{analysis.updated_at}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : null}
     </section>
   );
 }
@@ -2862,6 +3114,7 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
         <SummaryItem label="목표 달성률" value={formatPercent(achievementRate)} />
         <SummaryItem label="다음 액션" value={promotion.next_action} />
       </div>
+      <InsightBlock label="메시지 방향" value={promotion.message_brief ?? "-"} />
       <Progress value={Math.min(achievementRate * 100, 100)} />
     </section>
   );
@@ -4345,7 +4598,14 @@ function SegmentAdExperimentStatusPanel({
                 <SummaryItem label="프로모션" value={experiment.promotion_id} />
                 <SummaryItem label="세그먼트" value={experiment.segment_id} />
                 <SummaryItem label="콘텐츠" value={experiment.content_id} />
+                <SummaryItem label="채널" value={experiment.channel} />
+                <SummaryItem label="루프" value={formatInteger(experiment.loop_count)} />
+                <SummaryItem
+                  label="목표"
+                  value={`${experiment.goal_metric} / ${formatGoalValue(experiment.goal_target_value)}`}
+                />
               </div>
+              <InsightBlock label="목표 기준" value={experiment.goal_basis} />
             </div>
           ))}
         </div>
@@ -4390,6 +4650,10 @@ function SegmentInsufficientDataPanel({
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <SummaryItem
+                    label="후보 유저"
+                    value={formatNullableInteger(details.candidateUserCount)}
+                  />
+                  <SummaryItem
                     label="최종 배정"
                     value={formatNullableInteger(details.assignedUserCount ?? metric.sample_size)}
                   />
@@ -4401,8 +4665,20 @@ function SegmentInsufficientDataPanel({
                     label="사전 추정"
                     value={formatInteger(segment.estimated_size)}
                   />
+                  <SummaryItem
+                    label="겹침 제외"
+                    value={formatNullableInteger(details.overlapExcludedUserCount)}
+                  />
+                  <SummaryItem
+                    label="다른 세그먼트 배정"
+                    value={formatNullableInteger(details.assignedToOtherSegmentCount)}
+                  />
                 </div>
                 <InsightBlock label="부족 사유" value={details.reason ?? metric.feedback ?? "-"} />
+                <InsightBlock
+                  label="교집합/배정 근거"
+                  value={insufficientAssignmentSummary(details)}
+                />
                 <InsightBlock label="상세 설명" value={details.note ?? "-"} />
               </div>
             );
@@ -4518,6 +4794,18 @@ function ContentCandidateCards({
   rejectIsError: boolean;
   rejectIsPending: boolean;
 }) {
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
+  const statusOptions = uniqueValues(candidates.map((candidate) => candidate.status));
+  const channelOptions = uniqueValues(candidates.map((candidate) => candidate.channel));
+  const filteredCandidates = filterContentCandidates(
+    candidates,
+    candidateSearch,
+    statusFilter,
+    channelFilter
+  );
+
   return (
     <section className="grid gap-3">
       <h3 className="text-base font-semibold text-[#1d1d1f]">생성 이유 리포트</h3>
@@ -4533,77 +4821,137 @@ function ContentCandidateCards({
           <AlertDescription>{mutationErrorMessage(rejectError)}</AlertDescription>
         </Alert>
       ) : null}
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+        <Field>
+          <FieldLabel>콘텐츠 후보 검색</FieldLabel>
+          <Input
+            onChange={(event) => setCandidateSearch(event.target.value)}
+            placeholder="제목, 메시지, 이유, 콘텐츠 ID"
+            value={candidateSearch}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>상태 필터</FieldLabel>
+          <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 상태</SelectItem>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>채널 필터</FieldLabel>
+          <Select onValueChange={setChannelFilter} value={channelFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 채널</SelectItem>
+              {channelOptions.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {channel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="전체 후보" value={formatInteger(candidates.length)} />
+        <SummaryItem label="필터 결과" value={formatInteger(filteredCandidates.length)} />
+        <SummaryItem
+          label="승인 후보"
+          value={formatInteger(candidates.filter((candidate) => candidate.status === "approved").length)}
+        />
+        <SummaryItem
+          label="검수 대기"
+          value={formatInteger(candidates.filter((candidate) => candidate.status === "draft").length)}
+        />
+      </div>
       {candidates.length > 0 ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {candidates.map((candidate) => (
-            <div className="grid gap-3 rounded-md border bg-muted/20 p-3" key={candidate.content_id}>
-              <ContentCandidateVisual candidate={candidate} />
-              <div className="flex items-start justify-between gap-3">
-                <div className="grid gap-1">
-                  <div className="text-sm font-medium">
-                    {candidate.title ?? candidate.content_option_id}
+        filteredCandidates.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {filteredCandidates.map((candidate) => (
+              <div className="grid gap-3 rounded-md border bg-muted/20 p-3" key={candidate.content_id}>
+                <ContentCandidateVisual candidate={candidate} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-1">
+                    <div className="text-sm font-medium">
+                      {candidate.title ?? candidate.content_option_id}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {candidate.channel} / {candidate.content_id}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {candidate.channel} / {candidate.content_id}
-                  </div>
+                  <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
                 </div>
-                <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
+                <InsightBlock label="메시지" value={candidate.message ?? candidate.body ?? "-"} />
+                <InsightBlock label="이메일 제목" value={candidate.subject ?? "-"} />
+                <InsightBlock label="프리헤더" value={candidate.preheader ?? "-"} />
+                <InsightBlock label="생성 이유" value={candidate.reason_summary ?? "-"} />
+                <InsightBlock label="데이터 근거" value={formatJsonObject(candidate.data_evidence_json)} />
+                <InsightBlock label="메시지 방향" value={candidate.message_strategy ?? "-"} />
+                <InsightBlock label="생성 프롬프트" value={candidate.generation_prompt ?? "-"} />
+                <InsightBlock label="메타데이터" value={formatJsonObject(candidate.metadata_json)} />
+                <div className="grid gap-1 text-sm">
+                  <div className="text-xs text-muted-foreground">CTA / 랜딩 URL</div>
+                  <div className="font-medium">{candidate.cta ?? "-"}</div>
+                  <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    disabled={
+                      approveIsPending ||
+                      rejectIsPending ||
+                      candidate.status === "approved" ||
+                      candidate.status === "rejected"
+                    }
+                    onClick={() =>
+                      onReject(
+                        candidate.promotion_id,
+                        candidate.segment_id,
+                        candidate.content_id
+                      )
+                    }
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {candidate.status === "rejected" ? "거절됨" : "거절"}
+                  </Button>
+                  <Button
+                    disabled={
+                      approveIsPending ||
+                      rejectIsPending ||
+                      candidate.status === "approved" ||
+                      candidate.status === "rejected"
+                    }
+                    onClick={() =>
+                      onApprove(
+                        candidate.promotion_id,
+                        candidate.segment_id,
+                        candidate.content_id
+                      )
+                    }
+                    size="sm"
+                    type="button"
+                  >
+                    {candidate.status === "approved" ? "승인됨" : "승인하고 실험 생성"}
+                  </Button>
+                </div>
               </div>
-              <InsightBlock label="메시지" value={candidate.message ?? candidate.body ?? "-"} />
-              <InsightBlock label="생성 이유" value={candidate.reason_summary ?? "-"} />
-              <InsightBlock label="데이터 근거" value={formatJsonObject(candidate.data_evidence_json)} />
-              <InsightBlock label="메시지 방향" value={candidate.message_strategy ?? "-"} />
-              <InsightBlock label="생성 프롬프트" value={candidate.generation_prompt ?? "-"} />
-              <InsightBlock label="메타데이터" value={formatJsonObject(candidate.metadata_json)} />
-              <div className="grid gap-1 text-sm">
-                <div className="text-xs text-muted-foreground">CTA / 랜딩 URL</div>
-                <div className="font-medium">{candidate.cta ?? "-"}</div>
-                <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  disabled={
-                    approveIsPending ||
-                    rejectIsPending ||
-                    candidate.status === "approved" ||
-                    candidate.status === "rejected"
-                  }
-                  onClick={() =>
-                    onReject(
-                      candidate.promotion_id,
-                      candidate.segment_id,
-                      candidate.content_id
-                    )
-                  }
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  {candidate.status === "rejected" ? "거절됨" : "거절"}
-                </Button>
-                <Button
-                  disabled={
-                    approveIsPending ||
-                    rejectIsPending ||
-                    candidate.status === "approved" ||
-                    candidate.status === "rejected"
-                  }
-                  onClick={() =>
-                    onApprove(
-                      candidate.promotion_id,
-                      candidate.segment_id,
-                      candidate.content_id
-                    )
-                  }
-                  size="sm"
-                  type="button"
-                >
-                  {candidate.status === "approved" ? "승인됨" : "승인하고 실험 생성"}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="필터 조건에 맞는 콘텐츠 후보가 없습니다." />
+        )
       ) : (
         <EmptyState message="생성 이유를 표시할 콘텐츠 후보가 없습니다." />
       )}
@@ -4698,7 +5046,31 @@ function insufficientDataDetails(metric: DashboardCampaignExperimentMetric) {
       "assigned_user_count",
       "assignedUserCount",
       "final_assigned_user_count",
-      "finalAssignedUserCount"
+      "finalAssignedUserCount",
+      "final_assignment_count",
+      "finalAssignmentCount"
+    ]),
+    assignedToOtherSegmentCount: pickJsonNumber(metric.result_json, [
+      "assigned_to_other_segment_count",
+      "assignedToOtherSegmentCount",
+      "lost_to_other_segment_count",
+      "lostToOtherSegmentCount",
+      "other_segment_assigned_count",
+      "otherSegmentAssignedCount"
+    ]),
+    assignmentBuildId: pickJsonString(metric.result_json, [
+      "assignment_build_id",
+      "assignmentBuildId",
+      "segment_assignment_build_id",
+      "segmentAssignmentBuildId"
+    ]),
+    candidateUserCount: pickJsonNumber(metric.result_json, [
+      "candidate_user_count",
+      "candidateUserCount",
+      "estimated_candidate_user_count",
+      "estimatedCandidateUserCount",
+      "pre_assignment_user_count",
+      "preAssignmentUserCount"
     ]),
     minimumRequiredSampleSize: pickJsonNumber(metric.result_json, [
       "minimum_required_sample_size",
@@ -4706,14 +5078,54 @@ function insufficientDataDetails(metric: DashboardCampaignExperimentMetric) {
       "min_sample_size",
       "minSampleSize"
     ]),
+    overlapExcludedUserCount: pickJsonNumber(metric.result_json, [
+      "overlap_excluded_user_count",
+      "overlapExcludedUserCount",
+      "overlap_removed_user_count",
+      "overlapRemovedUserCount",
+      "excluded_by_overlap_count",
+      "excludedByOverlapCount"
+    ]),
+    thresholdFallbackCount: pickJsonNumber(metric.result_json, [
+      "threshold_fallback_count",
+      "thresholdFallbackCount",
+      "below_threshold_user_count",
+      "belowThresholdUserCount"
+    ]),
     note: pickJsonString(metric.result_json, ["note", "message", "description"]),
     reason: pickJsonString(metric.result_json, [
       "insufficient_reason",
       "insufficientReason",
       "reason",
       "cause"
+    ]),
+    overlapReason: pickJsonString(metric.result_json, [
+      "overlap_reason",
+      "overlapReason",
+      "assignment_reason",
+      "assignmentReason"
     ])
   };
+}
+
+function insufficientAssignmentSummary(
+  details: ReturnType<typeof insufficientDataDetails>
+): string {
+  const lines = [
+    details.assignmentBuildId ? `assignment_build_id: ${details.assignmentBuildId}` : null,
+    details.overlapReason ? `overlap_reason: ${details.overlapReason}` : null,
+    details.assignedToOtherSegmentCount !== null
+      ? `assigned_to_other_segment_count: ${formatInteger(details.assignedToOtherSegmentCount)}`
+      : null,
+    details.overlapExcludedUserCount !== null
+      ? `overlap_excluded_user_count: ${formatInteger(details.overlapExcludedUserCount)}`
+      : null,
+    details.thresholdFallbackCount !== null
+      ? `threshold_fallback_count: ${formatInteger(details.thresholdFallbackCount)}`
+      : null
+  ].filter((line): line is string => Boolean(line));
+
+  return lines.length > 0 ? lines.join("\n") : "-";
 }
 
 function formatNullableInteger(value: number | null | undefined) {
@@ -4768,6 +5180,11 @@ function nonnegativeNumber(value: string): number {
   return Number.isFinite(number) ? Math.max(0, number) : 0;
 }
 
+function positiveInteger(value: string): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(1, Math.trunc(number)) : 1;
+}
+
 function InsightBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 text-sm">
@@ -4782,39 +5199,143 @@ function ContentCandidateTable({
 }: {
   candidates: DashboardSegmentDetailResource["content_candidates"];
 }) {
-  return (
-    <DetailTable
-      emptyMessage="생성 콘텐츠 후보가 없습니다."
-      headers={["콘텐츠", "채널", "메시지", "생성 이유", "메시지 방향", "상태"]}
-      title="생성 콘텐츠 카드"
-    >
-      {candidates.map((candidate) => (
-        <TableRow key={candidate.content_id}>
-          <TableCell>
-            <div className="flex min-w-[180px] flex-col gap-1">
-              <span className="font-medium">{candidate.content_option_id}</span>
-              <span className="text-xs text-muted-foreground">{candidate.content_id}</span>
-            </div>
-          </TableCell>
-          <TableCell>{candidate.channel}</TableCell>
-          <TableCell>
-            <div className="line-clamp-2 min-w-[220px]">
-              {candidate.title ?? candidate.message ?? candidate.body ?? "-"}
-            </div>
-          </TableCell>
-          <TableCell>
-            <div className="line-clamp-2 min-w-[220px]">{candidate.reason_summary ?? "-"}</div>
-          </TableCell>
-          <TableCell>
-            <div className="line-clamp-2 min-w-[220px]">{candidate.message_strategy ?? "-"}</div>
-          </TableCell>
-          <TableCell>
-            <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
-          </TableCell>
-        </TableRow>
-      ))}
-    </DetailTable>
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
+  const statusOptions = uniqueValues(candidates.map((candidate) => candidate.status));
+  const channelOptions = uniqueValues(candidates.map((candidate) => candidate.channel));
+  const filteredCandidates = filterContentCandidates(
+    candidates,
+    candidateSearch,
+    statusFilter,
+    channelFilter
   );
+
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">생성 콘텐츠 카드</h3>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+        <Field>
+          <FieldLabel>콘텐츠 후보 검색</FieldLabel>
+          <Input
+            onChange={(event) => setCandidateSearch(event.target.value)}
+            placeholder="제목, 메시지, 이유, 콘텐츠 ID"
+            value={candidateSearch}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>상태 필터</FieldLabel>
+          <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 상태</SelectItem>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>채널 필터</FieldLabel>
+          <Select onValueChange={setChannelFilter} value={channelFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 채널</SelectItem>
+              {channelOptions.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {channel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      {candidates.length > 0 ? (
+        filteredCandidates.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {["콘텐츠", "채널", "메시지", "이메일 제목", "생성 이유", "메시지 방향", "상태"].map((header) => (
+                  <TableHead key={header}>{header}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredCandidates.map((candidate) => (
+                <TableRow key={candidate.content_id}>
+                  <TableCell>
+                    <div className="flex min-w-[180px] flex-col gap-1">
+                      <span className="font-medium">{candidate.content_option_id}</span>
+                      <span className="text-xs text-muted-foreground">{candidate.content_id}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{candidate.channel}</TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[220px]">
+                      {candidate.title ?? candidate.message ?? candidate.body ?? "-"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[180px]">
+                      {candidate.subject ?? candidate.preheader ?? "-"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[220px]">{candidate.reason_summary ?? "-"}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[220px]">{candidate.message_strategy ?? "-"}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState message="필터 조건에 맞는 생성 콘텐츠 후보가 없습니다." />
+        )
+      ) : (
+        <EmptyState message="생성 콘텐츠 후보가 없습니다." />
+      )}
+    </section>
+  );
+}
+
+function filterContentCandidates(
+  candidates: DashboardSegmentDetailResource["content_candidates"],
+  search: string,
+  statusFilter: string,
+  channelFilter: string
+) {
+  const normalizedSearch = search.trim().toLowerCase();
+
+  return candidates.filter((candidate) => {
+    const matchesSearch =
+      !normalizedSearch ||
+      [
+        candidate.content_id,
+        candidate.content_option_id,
+        candidate.title,
+        candidate.body,
+        candidate.message,
+        candidate.subject,
+        candidate.preheader,
+        candidate.reason_summary,
+        candidate.message_strategy
+      ].some((value) => value?.toLowerCase().includes(normalizedSearch));
+    const matchesStatus = statusFilter === "all" || candidate.status === statusFilter;
+    const matchesChannel = channelFilter === "all" || candidate.channel === channelFilter;
+
+    return matchesSearch && matchesStatus && matchesChannel;
+  });
 }
 
 function uniqueValues(values: Array<string | null>): string[] {
@@ -4899,12 +5420,30 @@ function EvaluationOutcomePanel({
 }
 
 function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperimentMetric[] }) {
-  const insufficientCount = metrics.filter((metric) => metric.status === "insufficient_data").length;
-  const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
-  const totalSampleSize = metrics.reduce((sum, metric) => sum + metric.sample_size, 0);
+  const [promotionFilter, setPromotionFilter] = useState("all");
+  const [segmentFilter, setSegmentFilter] = useState("all");
+  const [metricFilter, setMetricFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const promotionIds = uniqueValues(metrics.map((metric) => metric.promotion_id));
+  const segmentIds = uniqueValues(metrics.map((metric) => metric.segment_id).filter(Boolean));
+  const metricNames = uniqueValues(metrics.map((metric) => metric.metric));
+  const statusNames = uniqueValues(metrics.map((metric) => metric.status));
+  const filteredMetrics = metrics.filter(
+    (metric) =>
+      (promotionFilter === "all" || metric.promotion_id === promotionFilter) &&
+      (segmentFilter === "all" || metric.segment_id === segmentFilter) &&
+      (metricFilter === "all" || metric.metric === metricFilter) &&
+      (statusFilter === "all" || metric.status === statusFilter)
+  );
+  const insufficientCount = filteredMetrics.filter(
+    (metric) => metric.status === "insufficient_data"
+  ).length;
+  const nextLoopCount = filteredMetrics.filter((metric) => metric.next_loop_required).length;
+  const totalSampleSize = filteredMetrics.reduce((sum, metric) => sum + metric.sample_size, 0);
   const averageActualValue =
-    metrics.length > 0
-      ? metrics.reduce((sum, metric) => sum + metric.actual_value, 0) / metrics.length
+    filteredMetrics.length > 0
+      ? filteredMetrics.reduce((sum, metric) => sum + metric.actual_value, 0) /
+        filteredMetrics.length
       : 0;
 
   return (
@@ -4916,75 +5455,146 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
+        <Field>
+          <FieldLabel>프로모션 필터</FieldLabel>
+          <Select onValueChange={setPromotionFilter} value={promotionFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 프로모션</SelectItem>
+              {promotionIds.map((promotionId) => (
+                <SelectItem key={promotionId} value={promotionId}>
+                  {promotionId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>세그먼트 필터</FieldLabel>
+          <Select onValueChange={setSegmentFilter} value={segmentFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 세그먼트</SelectItem>
+              {segmentIds.map((segmentId) => (
+                <SelectItem key={segmentId} value={segmentId}>
+                  {segmentId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>지표 필터</FieldLabel>
+          <Select onValueChange={setMetricFilter} value={metricFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 지표</SelectItem>
+              {metricNames.map((metricName) => (
+                <SelectItem key={metricName} value={metricName}>
+                  {metricName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>상태 필터</FieldLabel>
+          <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 상태</SelectItem>
+              {statusNames.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
         <SummaryItem label="실험 지표" value={formatInteger(metrics.length)} />
+        <SummaryItem label="필터 결과" value={formatInteger(filteredMetrics.length)} />
         <SummaryItem label="표본 합계" value={formatInteger(totalSampleSize)} />
         <SummaryItem label="표본 부족" value={formatInteger(insufficientCount)} />
         <SummaryItem label="다음 루프 필요" value={formatInteger(nextLoopCount)} />
         <SummaryItem label="평균 실제값" value={formatGoalValue(averageActualValue)} />
       </div>
       {metrics.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>실험</TableHead>
-              <TableHead>지표</TableHead>
-              <TableHead className="text-right">목표 / 실제</TableHead>
-              <TableHead className="text-right">표본</TableHead>
-              <TableHead className="text-right">분자 / 분모</TableHead>
-              <TableHead>기준</TableHead>
-              <TableHead>상태</TableHead>
-              <TableHead>피드백</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {metrics.map((metric) => (
-              <TableRow
-                key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
-              >
-                <TableCell>
-                  <div className="grid min-w-[180px] gap-1">
-                    <span className="font-medium">{metric.ad_experiment_id ?? "-"}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {metric.promotion_id} · {metric.segment_id ?? "-"}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="grid gap-1">
-                    <span>{metric.metric}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {metric.content_option_id ?? metric.content_id ?? "-"}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatGoalValue(metric.target_value)} / {formatGoalValue(metric.actual_value)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(metric.sample_size)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(metric.numerator_count)} /{" "}
-                  {formatInteger(metric.denominator_count)}
-                </TableCell>
-                <TableCell>{metric.basis}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant={statusBadgeVariant(metric.status)}>
-                      {metric.status}
-                    </Badge>
-                    {metric.next_loop_required ? <Badge variant="outline">next loop</Badge> : null}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="line-clamp-2 min-w-[220px] text-sm">
-                    {metric.feedback ?? "-"}
-                  </div>
-                </TableCell>
+        filteredMetrics.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>실험</TableHead>
+                <TableHead>지표</TableHead>
+                <TableHead className="text-right">목표 / 실제</TableHead>
+                <TableHead className="text-right">표본</TableHead>
+                <TableHead className="text-right">분자 / 분모</TableHead>
+                <TableHead>기준</TableHead>
+                <TableHead>상태</TableHead>
+                <TableHead>피드백</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredMetrics.map((metric) => (
+                <TableRow
+                  key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
+                >
+                  <TableCell>
+                    <div className="grid min-w-[180px] gap-1">
+                      <span className="font-medium">{metric.ad_experiment_id ?? "-"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {metric.promotion_id} · {metric.segment_id ?? "-"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="grid gap-1">
+                      <span>{metric.metric}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {metric.content_option_id ?? metric.content_id ?? "-"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatGoalValue(metric.target_value)} / {formatGoalValue(metric.actual_value)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(metric.sample_size)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(metric.numerator_count)} /{" "}
+                    {formatInteger(metric.denominator_count)}
+                  </TableCell>
+                  <TableCell>{metric.basis}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant={statusBadgeVariant(metric.status)}>
+                        {metric.status}
+                      </Badge>
+                      {metric.next_loop_required ? <Badge variant="outline">next loop</Badge> : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[220px] text-sm">
+                      {metric.feedback ?? "-"}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState message="필터 조건에 맞는 실험 지표가 없습니다." />
+        )
       ) : (
         <EmptyState message="등록된 실험 지표가 없습니다." />
       )}
