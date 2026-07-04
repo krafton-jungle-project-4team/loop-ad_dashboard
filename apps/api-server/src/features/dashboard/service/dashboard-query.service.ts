@@ -22,6 +22,8 @@ import type {
   DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
+  DashboardRejectContentCandidateRequest,
+  DashboardRejectContentCandidateResult,
   DashboardSavedSegment,
   DashboardSavedSegmentList,
   DashboardSaveSegmentRequest,
@@ -171,6 +173,18 @@ export class DashboardQueryService {
         contentId,
         request
       )
+    );
+  }
+
+  async rejectContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardRejectContentCandidateRequest
+  ): Promise<DashboardRejectContentCandidateResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.rejectContentCandidate(projectId, promotionId, segmentId, contentId, request)
     );
   }
 

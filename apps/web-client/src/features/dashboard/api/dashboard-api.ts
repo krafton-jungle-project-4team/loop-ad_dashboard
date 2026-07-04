@@ -22,6 +22,8 @@ import {
   DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionSummarySchema,
+  DashboardRejectContentCandidateRequestSchema,
+  DashboardRejectContentCandidateResultSchema,
   DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
@@ -55,6 +57,8 @@ import type {
   DashboardPromotionDetail,
   DashboardPromotionSummary,
   DashboardNextLoopAnalysis,
+  DashboardRejectContentCandidateRequest,
+  DashboardRejectContentCandidateResult,
   DashboardSavedSegmentList,
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
@@ -446,6 +450,34 @@ export async function approveDashboardContentCandidate(
 
   return createApiSuccessResponseSchema(DashboardAdExperimentSchema).parse(await response.json())
     .data;
+}
+
+export async function rejectDashboardContentCandidate(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  requestBody: DashboardRejectContentCandidateRequest
+): Promise<DashboardRejectContentCandidateResult> {
+  const parsedBody = DashboardRejectContentCandidateRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}/content-candidates/${encodeURIComponent(contentId)}/reject`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardRejectContentCandidateResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function deleteDashboardFunnel(

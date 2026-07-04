@@ -1519,6 +1519,60 @@ const approveDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":tru
 export const approveDashboardContentCandidate = new PreparedQuery<IApproveDashboardContentCandidateParams,IApproveDashboardContentCandidateResult>(approveDashboardContentCandidateIR);
 
 
+/** 'RejectDashboardContentCandidate' parameters type */
+export interface IRejectDashboardContentCandidateParams {
+  contentId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+}
+
+/** 'RejectDashboardContentCandidate' return type */
+export interface IRejectDashboardContentCandidateResult {
+  contentId: string;
+  promotionId: string;
+  rejectedAt: Date;
+  segmentId: string;
+  status: string;
+}
+
+/** 'RejectDashboardContentCandidate' query type */
+export interface IRejectDashboardContentCandidateQuery {
+  params: IRejectDashboardContentCandidateParams;
+  result: IRejectDashboardContentCandidateResult;
+}
+
+const rejectDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true,"contentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":191,"b":200}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":226,"b":237}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":261,"b":270}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":294,"b":303}]}],"statement":"UPDATE content_candidates cc\nSET status = 'rejected',\n    updated_at = now()\nFROM promotions p\nJOIN promotion_target_segments pts\n  ON pts.promotion_id = p.promotion_id\nWHERE cc.project_id = :projectId\n  AND cc.promotion_id = :promotionId\n  AND cc.segment_id = :segmentId\n  AND cc.content_id = :contentId\n  AND p.promotion_id = cc.promotion_id\n  AND pts.segment_id = cc.segment_id\n  AND p.status <> 'stopped'\n  AND pts.status <> 'stopped'\n  AND cc.status IN ('draft', 'approved', 'active')\nRETURNING\n  cc.content_id AS \"contentId\",\n  cc.promotion_id AS \"promotionId\",\n  cc.segment_id AS \"segmentId\",\n  cc.status,\n  cc.updated_at AS \"rejectedAt\"                                           "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE content_candidates cc
+ * SET status = 'rejected',
+ *     updated_at = now()
+ * FROM promotions p
+ * JOIN promotion_target_segments pts
+ *   ON pts.promotion_id = p.promotion_id
+ * WHERE cc.project_id = :projectId
+ *   AND cc.promotion_id = :promotionId
+ *   AND cc.segment_id = :segmentId
+ *   AND cc.content_id = :contentId
+ *   AND p.promotion_id = cc.promotion_id
+ *   AND pts.segment_id = cc.segment_id
+ *   AND p.status <> 'stopped'
+ *   AND pts.status <> 'stopped'
+ *   AND cc.status IN ('draft', 'approved', 'active')
+ * RETURNING
+ *   cc.content_id AS "contentId",
+ *   cc.promotion_id AS "promotionId",
+ *   cc.segment_id AS "segmentId",
+ *   cc.status,
+ *   cc.updated_at AS "rejectedAt"                                           
+ * ```
+ */
+export const rejectDashboardContentCandidate = new PreparedQuery<IRejectDashboardContentCandidateParams,IRejectDashboardContentCandidateResult>(rejectDashboardContentCandidateIR);
+
+
 /** 'GetDashboardPromotionRunByGeneration' parameters type */
 export interface IGetDashboardPromotionRunByGenerationParams {
   generationId?: string | null | void;

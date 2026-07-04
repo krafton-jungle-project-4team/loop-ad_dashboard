@@ -321,9 +321,59 @@ test("dashboard archive saved segment runs inside transaction host", async () =>
   assert.equal(result.status, "archived");
 });
 
+test("dashboard reject content candidate runs inside transaction host", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const transactionHost = countingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      rejectContentCandidate: async (projectId, promotionId, segmentId, contentId, request) => {
+        writes.push({ contentId, projectId, promotionId, request, segmentId });
+        return {
+          content_id: contentId,
+          promotion_id: promotionId,
+          rejected_at: "2026-07-04T00:00:00.000Z",
+          segment_id: segmentId,
+          status: "rejected"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    transactionHost.host
+  );
+
+  const result = await service.rejectContentCandidate(
+    "hotel-client-a",
+    "promo_banner_001",
+    "seg_vip",
+    "content_vip_b",
+    { operator_note: "후보 B 거절" }
+  );
+
+  assert.equal(transactionHost.calls.length, 1);
+  assert.deepEqual(writes, [
+    {
+      contentId: "content_vip_b",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001",
+      request: { operator_note: "후보 B 거절" },
+      segmentId: "seg_vip"
+    }
+  ]);
+  assert.equal(result.content_id, "content_vip_b");
+  assert.equal(result.status, "rejected");
+});
+
 function emptyCampaignReader(): DashboardCampaignReader {
   return {
-    listCampaigns: async () => []
+    listCampaigns: async () => [],
+    rejectContentCandidate: async () => {
+      throw new Error("Unexpected rejectContentCandidate call.");
+    }
   } as unknown as DashboardCampaignReader;
 }
 

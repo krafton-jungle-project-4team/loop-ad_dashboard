@@ -623,6 +623,30 @@ RETURNING
   content_option_id AS "contentOptionId",
   status;
 
+/* 목적: 관리자가 선택한 콘텐츠 후보 1개를 거절 상태로 전환합니다. */
+/* @name RejectDashboardContentCandidate */
+UPDATE content_candidates cc
+SET status = 'rejected',
+    updated_at = now()
+FROM promotions p
+JOIN promotion_target_segments pts
+  ON pts.promotion_id = p.promotion_id
+WHERE cc.project_id = :projectId
+  AND cc.promotion_id = :promotionId
+  AND cc.segment_id = :segmentId
+  AND cc.content_id = :contentId
+  AND p.promotion_id = cc.promotion_id
+  AND pts.segment_id = cc.segment_id
+  AND p.status <> 'stopped'
+  AND pts.status <> 'stopped'
+  AND cc.status IN ('draft', 'approved', 'active')
+RETURNING
+  cc.content_id AS "contentId",
+  cc.promotion_id AS "promotionId",
+  cc.segment_id AS "segmentId",
+  cc.status,
+  cc.updated_at AS "rejectedAt";
+
 /* 목적: 생성 실행에 이미 연결된 프로모션 루프가 있는지 조회합니다. */
 /* @name GetDashboardPromotionRunByGeneration */
 SELECT

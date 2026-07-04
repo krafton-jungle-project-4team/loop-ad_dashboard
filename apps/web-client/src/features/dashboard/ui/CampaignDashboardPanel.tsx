@@ -53,6 +53,7 @@ import {
   fetchDashboardPromotionDetail,
   fetchDashboardSavedSegments,
   fetchDashboardSegmentDetail,
+  rejectDashboardContentCandidate,
   saveDashboardSegment,
   startDashboardNextLoopAnalysis,
   updateDashboardCampaign,
@@ -1088,6 +1089,35 @@ function CampaignTabContent({
       ]);
     }
   });
+  const rejectContentCandidateMutation = useMutation({
+    mutationFn: ({
+      contentId,
+      promotionId,
+      segmentId
+    }: {
+      contentId: string;
+      promotionId: string;
+      segmentId: string;
+    }) => rejectDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
+    onSuccess: async (result) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardCampaignDetailQueryKey(query.projectId, detail.campaign.campaign_id)
+        }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardPromotionDetailQueryKey(query.projectId, result.promotion_id)
+        }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardSegmentDetailQueryKey(
+            query.projectId,
+            result.promotion_id,
+            result.segment_id
+          )
+        })
+      ]);
+    }
+  });
   const updateSavedSegmentMutation = useMutation({
     mutationFn: ({
       requestBody,
@@ -1159,8 +1189,14 @@ function CampaignTabContent({
             approveContentCandidateError={approveContentCandidateMutation.error}
             approveContentCandidateIsError={approveContentCandidateMutation.isError}
             approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
+            rejectContentCandidateError={rejectContentCandidateMutation.error}
+            rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
+            rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
             onApproveContentCandidate={(promotionId, segmentId, contentId) =>
               approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
+            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
             }
           />
         </>
@@ -1223,12 +1259,18 @@ function CampaignTabContent({
             approveError={approveContentCandidateMutation.error}
             approveIsError={approveContentCandidateMutation.isError}
             approveIsPending={approveContentCandidateMutation.isPending}
+            rejectError={rejectContentCandidateMutation.error}
+            rejectIsError={rejectContentCandidateMutation.isError}
+            rejectIsPending={rejectContentCandidateMutation.isPending}
             detail={segmentDetail}
             error={segmentError}
             isError={segmentIsError}
             isLoading={segmentIsLoading}
             onApproveContentCandidate={(promotionId, segmentId, contentId) =>
               approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
+            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
             }
             selectedSegmentId={selectedSegmentId}
           />
@@ -2360,7 +2402,11 @@ function PromotionDetail({
   isError,
   isLoading,
   onApproveContentCandidate,
+  onRejectContentCandidate,
   onSelectSegment,
+  rejectContentCandidateError,
+  rejectContentCandidateIsError,
+  rejectContentCandidateIsPending,
   selectedPromotionId,
   selectedSegmentId,
   segmentDetail,
@@ -2376,7 +2422,11 @@ function PromotionDetail({
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
+  rejectContentCandidateError: Error | null;
+  rejectContentCandidateIsError: boolean;
+  rejectContentCandidateIsPending: boolean;
   selectedPromotionId: string;
   selectedSegmentId: string;
   segmentDetail: DashboardSegmentDetailResource | undefined;
@@ -2428,6 +2478,10 @@ function PromotionDetail({
         isError={segmentIsError}
         isLoading={segmentIsLoading}
         onApproveContentCandidate={onApproveContentCandidate}
+        onRejectContentCandidate={onRejectContentCandidate}
+        rejectError={rejectContentCandidateError}
+        rejectIsError={rejectContentCandidateIsError}
+        rejectIsPending={rejectContentCandidateIsPending}
         selectedSegmentId={selectedSegmentId}
       />
       <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
@@ -3347,6 +3401,10 @@ function SegmentDetailPanel({
   isError,
   isLoading,
   onApproveContentCandidate,
+  onRejectContentCandidate,
+  rejectError,
+  rejectIsError,
+  rejectIsPending,
   selectedSegmentId
 }: {
   approveError: Error | null;
@@ -3357,6 +3415,10 @@ function SegmentDetailPanel({
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  rejectError: Error | null;
+  rejectIsError: boolean;
+  rejectIsPending: boolean;
   selectedSegmentId: string;
 }) {
   if (!selectedSegmentId) {
@@ -3417,6 +3479,10 @@ function SegmentDetailPanel({
         approveIsPending={approveIsPending}
         candidates={detail.content_candidates}
         onApprove={onApproveContentCandidate}
+        onReject={onRejectContentCandidate}
+        rejectError={rejectError}
+        rejectIsError={rejectIsError}
+        rejectIsPending={rejectIsPending}
       />
       <ContentCandidateTable candidates={detail.content_candidates} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
@@ -3832,13 +3898,21 @@ function ContentCandidateCards({
   approveIsError,
   approveIsPending,
   candidates,
-  onApprove
+  onApprove,
+  onReject,
+  rejectError,
+  rejectIsError,
+  rejectIsPending
 }: {
   approveError: Error | null;
   approveIsError: boolean;
   approveIsPending: boolean;
   candidates: DashboardSegmentDetailResource["content_candidates"];
   onApprove: (promotionId: string, segmentId: string, contentId: string) => void;
+  onReject: (promotionId: string, segmentId: string, contentId: string) => void;
+  rejectError: Error | null;
+  rejectIsError: boolean;
+  rejectIsPending: boolean;
 }) {
   return (
     <section className="grid gap-3">
@@ -3847,6 +3921,12 @@ function ContentCandidateCards({
         <Alert variant="destructive">
           <AlertTitle>콘텐츠 후보를 승인하지 못했습니다</AlertTitle>
           <AlertDescription>{mutationErrorMessage(approveError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {rejectIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>콘텐츠 후보를 거절하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(rejectError)}</AlertDescription>
         </Alert>
       ) : null}
       {candidates.length > 0 ? (
@@ -3876,9 +3956,34 @@ function ContentCandidateCards({
                 <div className="font-medium">{candidate.cta ?? "-"}</div>
                 <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
                 <Button
-                  disabled={approveIsPending || candidate.status === "approved"}
+                  disabled={
+                    approveIsPending ||
+                    rejectIsPending ||
+                    candidate.status === "approved" ||
+                    candidate.status === "rejected"
+                  }
+                  onClick={() =>
+                    onReject(
+                      candidate.promotion_id,
+                      candidate.segment_id,
+                      candidate.content_id
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {candidate.status === "rejected" ? "거절됨" : "거절"}
+                </Button>
+                <Button
+                  disabled={
+                    approveIsPending ||
+                    rejectIsPending ||
+                    candidate.status === "approved" ||
+                    candidate.status === "rejected"
+                  }
                   onClick={() =>
                     onApprove(
                       candidate.promotion_id,

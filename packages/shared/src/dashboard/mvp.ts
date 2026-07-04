@@ -231,6 +231,24 @@ export type DashboardApproveContentCandidateRequest = z.infer<
   typeof DashboardApproveContentCandidateRequestSchema
 >;
 
+export const DashboardRejectContentCandidateRequestSchema = z.object({
+  operator_note: z.string().nullable().optional()
+});
+export type DashboardRejectContentCandidateRequest = z.infer<
+  typeof DashboardRejectContentCandidateRequestSchema
+>;
+
+export const DashboardRejectContentCandidateResultSchema = z.object({
+  content_id: z.string(),
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  status: z.literal("rejected"),
+  rejected_at: z.string()
+});
+export type DashboardRejectContentCandidateResult = z.infer<
+  typeof DashboardRejectContentCandidateResultSchema
+>;
+
 export const DashboardAdExperimentSchema = z.object({
   ad_experiment_id: z.string(),
   promotion_run_id: z.string(),

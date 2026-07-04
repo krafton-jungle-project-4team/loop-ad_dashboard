@@ -350,10 +350,53 @@ test("dashboard controller parses content approval body before delegating", asyn
   assert.equal(response.status, "approved");
 });
 
+test("dashboard controller parses content rejection body before delegating", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    rejectContentCandidate: async (projectId, promotionId, segmentId, contentId, request) => {
+      writes.push({ contentId, projectId, promotionId, request, segmentId });
+      return {
+        content_id: contentId,
+        promotion_id: promotionId,
+        rejected_at: "2026-07-04T00:00:00.000Z",
+        segment_id: segmentId,
+        status: "rejected"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.rejectContentCandidate(
+    "promo_banner_001",
+    "seg_vip",
+    "content_vip_b",
+    "hotel-client-a",
+    { operator_note: "후보 B 거절" }
+  );
+
+  assert.deepEqual(writes, [
+    {
+      contentId: "content_vip_b",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001",
+      request: { operator_note: "후보 B 거절" },
+      segmentId: "seg_vip"
+    }
+  ]);
+  assert.equal(response.content_id, "content_vip_b");
+  assert.equal(response.status, "rejected");
+});
+
 function emptyDashboardQuery(): DashboardQueryService {
   return {
     approveContentCandidate: async () => {
       throw new Error("Unexpected approveContentCandidate call.");
+    },
+    rejectContentCandidate: async () => {
+      throw new Error("Unexpected rejectContentCandidate call.");
     },
     createFunnel: async () => {
       throw new Error("Unexpected createFunnel call.");

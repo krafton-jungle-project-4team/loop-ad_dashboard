@@ -16,6 +16,8 @@ import type {
   DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
+  DashboardRejectContentCandidateRequest,
+  DashboardRejectContentCandidateResult,
   DashboardSegmentDetail,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
@@ -50,6 +52,7 @@ import {
   listDashboardSegmentContentCandidates,
   listDashboardSegmentExperimentMetrics,
   markDashboardPromotionTargetSegmentApproved,
+  rejectDashboardContentCandidate,
   rejectDashboardSiblingContentCandidates,
   stopDashboardCampaign,
   stopDashboardPromotion,
@@ -61,6 +64,7 @@ import {
   type IGetDashboardCampaignSummaryResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
+  type IRejectDashboardContentCandidateResult,
   type IListDashboardCampaignExperimentMetricsResult,
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
@@ -377,6 +381,25 @@ export class DashboardCampaignReader {
     return toAdExperiment(experiment);
   }
 
+  async rejectContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    _request: DashboardRejectContentCandidateRequest
+  ): Promise<DashboardRejectContentCandidateResult> {
+    const rejected = await this.db
+      .query(rejectDashboardContentCandidate, {
+        contentId,
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
+
+    return toRejectContentCandidateResult(rejected);
+  }
+
   async getCampaignDetail(
     projectId: string,
     campaignId: string
@@ -675,6 +698,18 @@ function toAdExperiment(
     promotion_run_id: row.promotionRunId,
     segment_id: row.segmentId,
     status: row.status
+  };
+}
+
+function toRejectContentCandidateResult(
+  row: IRejectDashboardContentCandidateResult
+): DashboardRejectContentCandidateResult {
+  return {
+    content_id: row.contentId,
+    promotion_id: row.promotionId,
+    rejected_at: row.rejectedAt.toISOString(),
+    segment_id: row.segmentId,
+    status: "rejected"
   };
 }
 

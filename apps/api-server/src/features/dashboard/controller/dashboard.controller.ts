@@ -22,6 +22,8 @@ import {
   DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionSummarySchema,
+  DashboardRejectContentCandidateRequestSchema,
+  DashboardRejectContentCandidateResultSchema,
   DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
@@ -192,6 +194,27 @@ export class DashboardController {
     const request = DashboardApproveContentCandidateRequestSchema.parse(body);
     return DashboardAdExperimentSchema.parse(
       await this.dashboardQuery.approveContentCandidate(
+        requiredProjectId,
+        promotionId,
+        segmentId,
+        contentId,
+        request
+      )
+    );
+  }
+
+  @Post("promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/reject")
+  async rejectContentCandidate(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardRejectContentCandidateRequestSchema.parse(body);
+    return DashboardRejectContentCandidateResultSchema.parse(
+      await this.dashboardQuery.rejectContentCandidate(
         requiredProjectId,
         promotionId,
         segmentId,
