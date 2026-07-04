@@ -502,7 +502,7 @@ function throwUnsupportedDispatchChannel(promotionRunId: string, channel: never)
   throw adExecutionErrors.unsupportedDispatchChannel(promotionRunId, String(channel));
 }
 
-function requireValidEmailContact(value: string | null): string {
+function requireValidEmailContact(value: string): string {
   const result = emailAddressSchema.safeParse(value);
 
   if (!result.success) {
@@ -512,7 +512,7 @@ function requireValidEmailContact(value: string | null): string {
   return result.data;
 }
 
-function requireValidSmsContact(value: string | null): string {
+function requireValidSmsContact(value: string): string {
   const result = e164PhoneNumberSchema.safeParse(value);
 
   if (!result.success) {

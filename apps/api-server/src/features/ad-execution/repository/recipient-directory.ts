@@ -3,11 +3,10 @@ import { z } from "zod";
 import { env, type DemoDispatchRecipientConfig } from "../../../infra/env/env.js";
 
 const requiredStringSchema = z.string().trim().min(1);
-const nullableContactSchema = z.string().trim().nullable();
 const dispatchRecipientSchema = z.object({
   userId: requiredStringSchema,
-  email: nullableContactSchema,
-  phoneNumber: nullableContactSchema
+  email: requiredStringSchema,
+  phoneNumber: requiredStringSchema
 });
 
 export type DispatchRecipient = z.infer<typeof dispatchRecipientSchema>;
