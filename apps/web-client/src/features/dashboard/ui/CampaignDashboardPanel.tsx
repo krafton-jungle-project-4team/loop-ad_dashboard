@@ -48,6 +48,7 @@ import {
   deleteDashboardCampaign,
   deleteDashboardPromotionSegment,
   deleteDashboardPromotion,
+  deleteDashboardSavedSegment,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
   fetchDashboardSavedSegments,
@@ -56,7 +57,8 @@ import {
   startDashboardNextLoopAnalysis,
   updateDashboardCampaign,
   updateDashboardPromotion,
-  updateDashboardPromotionSegment
+  updateDashboardPromotionSegment,
+  updateDashboardSavedSegment
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
@@ -85,6 +87,7 @@ type CreatePromotionInput = Parameters<typeof createDashboardPromotion>[2];
 type UpdatePromotionInput = Parameters<typeof updateDashboardPromotion>[2];
 type AttachSegmentInput = Parameters<typeof attachDashboardSegmentToPromotion>[2];
 type UpdatePromotionSegmentInput = Parameters<typeof updateDashboardPromotionSegment>[3];
+type UpdateSavedSegmentInput = Parameters<typeof updateDashboardSavedSegment>[2];
 
 const promotionChannelOptions = ["email", "sms", "onsite_banner"] as const;
 const promotionGoalMetricOptions = [
@@ -1085,6 +1088,28 @@ function CampaignTabContent({
       ]);
     }
   });
+  const updateSavedSegmentMutation = useMutation({
+    mutationFn: ({
+      requestBody,
+      segmentId
+    }: {
+      requestBody: UpdateSavedSegmentInput;
+      segmentId: string;
+    }) => updateDashboardSavedSegment(query, segmentId, requestBody),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
+      });
+    }
+  });
+  const archiveSavedSegmentMutation = useMutation({
+    mutationFn: (segmentId: string) => deleteDashboardSavedSegment(query, segmentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
+      });
+    }
+  });
 
   switch (tab) {
     case "campaign-promotions":
@@ -1151,10 +1176,20 @@ function CampaignTabContent({
           />
           <SegmentQueryPreviewPanel query={query} />
           <SavedSegmentTable
+            archiveError={archiveSavedSegmentMutation.error}
+            archiveIsError={archiveSavedSegmentMutation.isError}
+            archiveIsPending={archiveSavedSegmentMutation.isPending}
             error={savedSegmentsError}
             isError={savedSegmentsIsError}
             isLoading={savedSegmentsIsLoading}
+            onArchive={(segmentId) => archiveSavedSegmentMutation.mutate(segmentId)}
+            onUpdate={(segmentId, requestBody) =>
+              updateSavedSegmentMutation.mutate({ requestBody, segmentId })
+            }
             segments={savedSegments}
+            updateError={updateSavedSegmentMutation.error}
+            updateIsError={updateSavedSegmentMutation.isError}
+            updateIsPending={updateSavedSegmentMutation.isPending}
           />
           <SegmentAttachmentPanel
             attachError={attachSegmentMutation.error}
@@ -3045,15 +3080,31 @@ function SegmentQueryPreviewPanel({ query }: { query: DashboardQuery }) {
 }
 
 function SavedSegmentTable({
+  archiveError,
+  archiveIsError,
+  archiveIsPending,
   error,
   isError,
   isLoading,
-  segments
+  onArchive,
+  onUpdate,
+  segments,
+  updateError,
+  updateIsError,
+  updateIsPending
 }: {
+  archiveError: Error | null;
+  archiveIsError: boolean;
+  archiveIsPending: boolean;
   error: Error | null;
   isError: boolean;
   isLoading: boolean;
+  onArchive: (segmentId: string) => void;
+  onUpdate: (segmentId: string, requestBody: UpdateSavedSegmentInput) => void;
   segments: DashboardSavedSegment[];
+  updateError: Error | null;
+  updateIsError: boolean;
+  updateIsPending: boolean;
 }) {
   return (
     <section className="grid gap-3">
@@ -3069,6 +3120,18 @@ function SavedSegmentTable({
           <AlertDescription>{mutationErrorMessage(error)}</AlertDescription>
         </Alert>
       ) : null}
+      {updateIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>사용자 정의 세그먼트를 수정하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {archiveIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>사용자 정의 세그먼트를 보관하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(archiveError)}</AlertDescription>
+        </Alert>
+      ) : null}
       {isLoading ? <EmptyState message="사용자 정의 세그먼트를 불러오는 중입니다." /> : null}
       {!isLoading && segments.length > 0 ? (
         <Table>
@@ -3081,53 +3144,19 @@ function SavedSegmentTable({
               <TableHead className="text-right">sample ratio</TableHead>
               <TableHead className="text-right">전체 적격 유저</TableHead>
               <TableHead>상태</TableHead>
+              <TableHead className="text-right">관리</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {segments.map((segment) => (
-              <TableRow key={segment.segment_id}>
-                <TableCell>
-                  <div className="grid min-w-[220px] gap-1">
-                    <span className="font-medium">{segment.segment_name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {segment.segment_id} · {segment.query_preview_id}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="grid min-w-[280px] gap-2">
-                    <span className="line-clamp-2 text-sm">
-                      {segment.natural_language_query ?? "조건 설명이 저장되지 않았습니다."}
-                    </span>
-                    {segment.generated_sql ? (
-                      <details className="text-xs text-muted-foreground">
-                        <summary className="cursor-pointer">SQL preview</summary>
-                        <pre className="mt-2 max-h-[180px] overflow-auto rounded-md border bg-background p-2 leading-5">
-                          {segment.generated_sql}
-                        </pre>
-                      </details>
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell>{segment.source}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(segment.sample_size)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatPercentValue(segment.sample_ratio)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(segment.total_eligible_user_count)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
-                    <Badge variant={isSavedSegmentSampleValid(segment) ? "outline" : "destructive"}>
-                      {isSavedSegmentSampleValid(segment) ? "sample valid" : "sample check"}
-                    </Badge>
-                  </div>
-                </TableCell>
-              </TableRow>
+              <SavedSegmentRow
+                archiveIsPending={archiveIsPending}
+                key={segment.segment_id}
+                onArchive={onArchive}
+                onUpdate={onUpdate}
+                segment={segment}
+                updateIsPending={updateIsPending}
+              />
             ))}
           </TableBody>
         </Table>
@@ -3136,6 +3165,104 @@ function SavedSegmentTable({
         <EmptyState message="저장된 사용자 정의 세그먼트가 없습니다." />
       ) : null}
     </section>
+  );
+}
+
+function SavedSegmentRow({
+  archiveIsPending,
+  onArchive,
+  onUpdate,
+  segment,
+  updateIsPending
+}: {
+  archiveIsPending: boolean;
+  onArchive: (segmentId: string) => void;
+  onUpdate: (segmentId: string, requestBody: UpdateSavedSegmentInput) => void;
+  segment: DashboardSavedSegment;
+  updateIsPending: boolean;
+}) {
+  const [segmentName, setSegmentName] = useState(segment.segment_name);
+  const trimmedSegmentName = segmentName.trim();
+  const canUpdate =
+    trimmedSegmentName.length > 0 &&
+    trimmedSegmentName !== segment.segment_name &&
+    !updateIsPending &&
+    !archiveIsPending;
+
+  useEffect(() => {
+    setSegmentName(segment.segment_name);
+  }, [segment.segment_id, segment.segment_name]);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="grid min-w-[240px] gap-2">
+          <Input
+            aria-label={`${segment.segment_name} 세그먼트 이름`}
+            onChange={(event) => setSegmentName(event.target.value)}
+            value={segmentName}
+          />
+          <span className="text-xs text-muted-foreground">
+            {segment.segment_id} · {segment.query_preview_id}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="grid min-w-[280px] gap-2">
+          <span className="line-clamp-2 text-sm">
+            {segment.natural_language_query ?? "조건 설명이 저장되지 않았습니다."}
+          </span>
+          {segment.generated_sql ? (
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer">SQL preview</summary>
+              <pre className="mt-2 max-h-[180px] overflow-auto rounded-md border bg-background p-2 leading-5">
+                {segment.generated_sql}
+              </pre>
+            </details>
+          ) : null}
+        </div>
+      </TableCell>
+      <TableCell>{segment.source}</TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatInteger(segment.sample_size)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatPercentValue(segment.sample_ratio)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatInteger(segment.total_eligible_user_count)}
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+          <Badge variant={isSavedSegmentSampleValid(segment) ? "outline" : "destructive"}>
+            {isSavedSegmentSampleValid(segment) ? "sample valid" : "sample check"}
+          </Badge>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Button
+            disabled={!canUpdate}
+            onClick={() => onUpdate(segment.segment_id, { segment_name: trimmedSegmentName })}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            수정
+          </Button>
+          <Button
+            disabled={archiveIsPending || updateIsPending}
+            onClick={() => onArchive(segment.segment_id)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            보관
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
 
