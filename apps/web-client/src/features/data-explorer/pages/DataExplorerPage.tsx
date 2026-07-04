@@ -7,6 +7,7 @@ import type {
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@loopad/ui/shadcn/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Play } from "lucide-react";
@@ -100,94 +101,136 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
 
   return (
     <div className="h-full min-h-0 overflow-x-auto overflow-y-hidden bg-white">
-      <div className="grid h-full min-h-0 min-w-[1260px] grid-cols-[280px_minmax(640px,1fr)_340px] overflow-hidden border-t border-black/10 bg-white">
-        <SchemaBrowserPanel
-          isLoading={objectsQuery.isLoading}
-          objectSearch={objectSearch}
-          objects={objects}
-          onObjectSearchChange={setObjectSearch}
-          onSelectObject={setSelectedObject}
-          selectedObjectName={selectedObject?.object_name ?? null}
-        />
-
-        <main className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-x border-black/10">
-          <SqlEditorPanel
-            onSqlTextChange={handleSqlTextChange}
-            sqlText={sqlText}
-            validation={validation}
+      <ResizablePanelGroup
+        className="h-full min-h-0 min-w-[1260px] overflow-hidden border-t border-black/10 bg-white"
+        id="loopad-data-explorer-panels"
+        orientation="horizontal"
+      >
+        <ResizablePanel
+          className="min-w-[220px]"
+          defaultSize="280px"
+          groupResizeBehavior="preserve-pixel-size"
+          maxSize="460px"
+          minSize="220px"
+        >
+          <SchemaBrowserPanel
+            isLoading={objectsQuery.isLoading}
+            objectSearch={objectSearch}
+            objects={objects}
+            onObjectSearchChange={setObjectSearch}
+            onSelectObject={setSelectedObject}
+            selectedObjectName={selectedObject?.object_name ?? null}
           />
+        </ResizablePanel>
 
-          <section className="flex min-h-0 flex-col border-t border-black/10 bg-white">
-            {queryError ? (
-              <Alert className="m-3 shrink-0" variant="destructive">
-                <AlertTitle>Data Explorer 요청 실패</AlertTitle>
-                <AlertDescription>{queryError}</AlertDescription>
-              </Alert>
-            ) : null}
-            <Tabs
-              className="min-h-0 flex-1 gap-0 overflow-hidden"
-              onValueChange={(value) =>
-                setResultTab(value as "schema" | "result" | "visualization")
-              }
-              value={resultTab}
-            >
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
-                <TabsList className="h-8">
-                  <TabsTrigger value="schema">Schema</TabsTrigger>
-                  <TabsTrigger value="result">Query Result</TabsTrigger>
-                  <TabsTrigger value="visualization">Visual Insights</TabsTrigger>
-                </TabsList>
-                <div className="flex items-center gap-2">
-                  {validation ? (
-                    <Badge variant={hasInvalidValidation ? "destructive" : "outline"}>
-                      {hasInvalidValidation ? "invalid" : "valid"}
-                    </Badge>
-                  ) : null}
-                  {queryResult ? (
-                    <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
-                      {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
-                    </Badge>
-                  ) : null}
-                  <Button
-                    className="bg-[#0066cc] text-white hover:bg-[#0057ad]"
-                    disabled={mutations.runQuery.isPending || !sqlText.trim()}
-                    onClick={handleRun}
-                    size="sm"
-                    type="button"
-                  >
-                    {mutations.runQuery.isPending ? <Loader2 className="animate-spin" /> : <Play />}
-                    Run Query
-                  </Button>
-                </div>
-              </div>
-              <div className="min-h-0 flex-1 overflow-hidden p-4">
-                <TabsContent className="h-full min-h-0 data-[state=inactive]:hidden" value="schema">
-                  <SchemaInspectorPanel
-                    detail={objectDetailQuery.data ?? null}
-                    isLoading={objectDetailQuery.isLoading}
-                  />
-                </TabsContent>
-                <TabsContent className="h-full min-h-0 data-[state=inactive]:hidden" value="result">
-                  <QueryResultTable result={queryResult} />
-                </TabsContent>
-                <TabsContent
-                  className="h-full min-h-0 data-[state=inactive]:hidden"
-                  value="visualization"
-                >
-                  <VisualizationPanel result={queryResult} />
-                </TabsContent>
-              </div>
-            </Tabs>
-          </section>
-        </main>
-
-        <ChatKitQueryPanel
-          currentResult={chatKitCurrentResult}
-          onError={setQueryError}
-          onQueryRun={handleChatKitQueryRun}
-          projectId={projectId}
+        <ResizableHandle
+          className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
+          withHandle
         />
-      </div>
+
+        <ResizablePanel className="min-w-[560px]" minSize="560px">
+          <main className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-x border-black/10">
+            <SqlEditorPanel
+              onSqlTextChange={handleSqlTextChange}
+              sqlText={sqlText}
+              validation={validation}
+            />
+
+            <section className="flex min-h-0 flex-col border-t border-black/10 bg-white">
+              {queryError ? (
+                <Alert className="m-3 shrink-0" variant="destructive">
+                  <AlertTitle>Data Explorer 요청 실패</AlertTitle>
+                  <AlertDescription>{queryError}</AlertDescription>
+                </Alert>
+              ) : null}
+              <Tabs
+                className="min-h-0 flex-1 gap-0 overflow-hidden"
+                onValueChange={(value) =>
+                  setResultTab(value as "schema" | "result" | "visualization")
+                }
+                value={resultTab}
+              >
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
+                  <TabsList className="h-8">
+                    <TabsTrigger value="schema">Schema</TabsTrigger>
+                    <TabsTrigger value="result">Query Result</TabsTrigger>
+                    <TabsTrigger value="visualization">Visual Insights</TabsTrigger>
+                  </TabsList>
+                  <div className="flex items-center gap-2">
+                    {validation ? (
+                      <Badge variant={hasInvalidValidation ? "destructive" : "outline"}>
+                        {hasInvalidValidation ? "invalid" : "valid"}
+                      </Badge>
+                    ) : null}
+                    {queryResult ? (
+                      <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
+                        {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
+                      </Badge>
+                    ) : null}
+                    <Button
+                      className="bg-[#0066cc] text-white hover:bg-[#0057ad]"
+                      disabled={mutations.runQuery.isPending || !sqlText.trim()}
+                      onClick={handleRun}
+                      size="sm"
+                      type="button"
+                    >
+                      {mutations.runQuery.isPending ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Play />
+                      )}
+                      Run Query
+                    </Button>
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1 overflow-hidden p-4">
+                  <TabsContent
+                    className="h-full min-h-0 data-[state=inactive]:hidden"
+                    value="schema"
+                  >
+                    <SchemaInspectorPanel
+                      detail={objectDetailQuery.data ?? null}
+                      isLoading={objectDetailQuery.isLoading}
+                    />
+                  </TabsContent>
+                  <TabsContent
+                    className="h-full min-h-0 data-[state=inactive]:hidden"
+                    value="result"
+                  >
+                    <QueryResultTable result={queryResult} />
+                  </TabsContent>
+                  <TabsContent
+                    className="h-full min-h-0 data-[state=inactive]:hidden"
+                    value="visualization"
+                  >
+                    <VisualizationPanel result={queryResult} />
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </section>
+          </main>
+        </ResizablePanel>
+
+        <ResizableHandle
+          className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
+          withHandle
+        />
+
+        <ResizablePanel
+          className="min-w-[300px]"
+          defaultSize="340px"
+          groupResizeBehavior="preserve-pixel-size"
+          maxSize="560px"
+          minSize="300px"
+        >
+          <ChatKitQueryPanel
+            currentResult={chatKitCurrentResult}
+            onError={setQueryError}
+            onQueryRun={handleChatKitQueryRun}
+            projectId={projectId}
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
