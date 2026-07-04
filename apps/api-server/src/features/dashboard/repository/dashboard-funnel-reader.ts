@@ -6,7 +6,8 @@ import type {
   DashboardEventCatalogItem,
   DashboardFunnel,
   DashboardFunnelMetrics,
-  DashboardFunnelStep
+  DashboardFunnelStep,
+  DashboardSegmentRealtimeMetrics
 } from "@loopad/shared";
 import { type ClickHouseClient } from "@clickhouse/client";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
@@ -38,6 +39,12 @@ type EventCatalogRow = {
 type FunnelStepMetricRow = {
   event_name: string;
   event_count: number | string;
+};
+
+type SegmentRealtimeMetricRow = {
+  event_name: string;
+  event_count: number | string;
+  unique_user_count: number | string;
 };
 
 @Injectable()
@@ -100,6 +107,53 @@ export class DashboardFunnelReader {
         event_name: DashboardFunnelEventNameSchema.parse(step.eventName),
         event_count: eventCounts.get(step.eventName) ?? 0
       }))
+    };
+  }
+
+  async getSegmentRealtimeMetrics(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardSegmentRealtimeMetrics> {
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          event_name,
+          count() AS event_count,
+          uniqExact(user_id) AS unique_user_count
+        FROM (
+          SELECT event_name, user_id
+          FROM promotion_touch_events
+          WHERE project_id = {projectId:String}
+            AND promotion_id = {promotionId:String}
+            AND segment_id = {segmentId:String}
+
+          UNION ALL
+
+          SELECT event_name, user_id
+          FROM booking_outcome_events
+          WHERE project_id = {projectId:String}
+            AND ifNull(promotion_id, '') = {promotionId:String}
+            AND ifNull(segment_id, '') = {segmentId:String}
+        )
+        GROUP BY event_name
+        ORDER BY event_count DESC, event_name ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { projectId, promotionId, segmentId }
+    });
+    const rows = await result.json<SegmentRealtimeMetricRow>();
+    const events = rows.map((row) => ({
+      event_name: DashboardFunnelEventNameSchema.parse(row.event_name),
+      event_count: countValue(row.event_count),
+      unique_user_count: countValue(row.unique_user_count)
+    }));
+
+    return {
+      promotion_id: promotionId,
+      segment_id: segmentId,
+      total_event_count: events.reduce((sum, event) => sum + event.event_count, 0),
+      events
     };
   }
 

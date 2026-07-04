@@ -45,7 +45,15 @@ export class DashboardQueryService {
     promotionId: string,
     segmentId: string
   ): Promise<DashboardSegmentDetail> {
-    return this.campaignReader.getSegmentDetail(projectId, promotionId, segmentId);
+    const [detail, realtimeMetrics] = await Promise.all([
+      this.campaignReader.getSegmentDetail(projectId, promotionId, segmentId),
+      this.funnelReader.getSegmentRealtimeMetrics(projectId, promotionId, segmentId)
+    ]);
+
+    return {
+      ...detail,
+      realtime_metrics: realtimeMetrics
+    };
   }
 
   async funnels(projectId: string): Promise<DashboardFunnelList> {

@@ -794,6 +794,10 @@ function SegmentDetailPanel({
           }
         />
         <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
+        <SummaryItem
+          label="실시간 이벤트"
+          value={formatInteger(detail.realtime_metrics.total_event_count)}
+        />
       </div>
       {hasInsufficientData ? (
         <Alert>
@@ -802,11 +806,54 @@ function SegmentDetailPanel({
         </Alert>
       ) : null}
       <SegmentDefinitionPanel segment={detail.segment} />
+      <SegmentRealtimePanel metrics={detail.realtime_metrics} />
       <SegmentSampleSizePanel metrics={detail.experiment_metrics} />
       <ContentCandidateCards candidates={detail.content_candidates} />
       <ContentCandidateTable candidates={detail.content_candidates} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
     </section>
+  );
+}
+
+function SegmentRealtimePanel({
+  metrics
+}: {
+  metrics: DashboardSegmentDetailResource["realtime_metrics"];
+}) {
+  return (
+    <>
+      {metrics.events.length > 0 ? (
+        <DetailTable
+          emptyMessage="실시간 이벤트가 없습니다."
+          headers={["이벤트", "이벤트 수", "유니크 유저", "비중"]}
+          title="실시간 추이"
+        >
+          {metrics.events.map((event) => (
+            <TableRow key={event.event_name}>
+              <TableCell>
+                <div className="grid gap-1">
+                  <span className="font-medium">{eventDisplayName(event.event_name)}</span>
+                  <span className="text-xs text-muted-foreground">{event.event_name}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatInteger(event.event_count)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatInteger(event.unique_user_count)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {metrics.total_event_count > 0
+                  ? formatPercentValue(event.event_count / metrics.total_event_count)
+                  : "-"}
+              </TableCell>
+            </TableRow>
+          ))}
+        </DetailTable>
+      ) : (
+        <EmptyState message="실시간 이벤트가 아직 수집되지 않았습니다." />
+      )}
+    </>
   );
 }
 
@@ -1098,6 +1145,24 @@ function formatGoalValue(value: number) {
 function formatPercentValue(value: number) {
   return `${(value * 100).toFixed(2)}%`;
 }
+
+function eventDisplayName(eventName: string): string {
+  return EVENT_DISPLAY_NAMES[eventName] ?? eventName;
+}
+
+const EVENT_DISPLAY_NAMES: Record<string, string> = {
+  booking_cancel: "예약 취소",
+  booking_complete: "예약 완료",
+  booking_start: "예약 시작",
+  campaign_landing: "캠페인 랜딩",
+  campaign_redirect_click: "캠페인 리다이렉트 클릭",
+  hotel_click: "숙소 클릭",
+  hotel_detail_view: "숙소 상세 조회",
+  hotel_search: "숙소 검색",
+  page_view: "페이지 조회",
+  promotion_click: "프로모션 클릭",
+  promotion_impression: "프로모션 노출"
+};
 
 function formatPeriod(campaign: DashboardCampaignSummary) {
   if (!campaign.start_date && !campaign.end_date) {
