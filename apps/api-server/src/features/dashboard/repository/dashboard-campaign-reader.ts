@@ -1,4 +1,6 @@
 import type {
+  DashboardAdExperiment,
+  DashboardApproveContentCandidateRequest,
   DashboardCampaignDetail,
   DashboardCampaignExperimentMetric,
   DashboardCampaignPromotion,
@@ -25,14 +27,19 @@ import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
+  approveDashboardContentCandidate,
   getDashboardCampaignSummary,
+  getDashboardContentCandidateForApproval,
+  getDashboardNextPromotionLoopCount,
   getDashboardPromotionSegment,
+  getDashboardPromotionRunByGeneration,
   getDashboardPromotionSummary,
   insertDashboardCampaign,
   insertDashboardManualPromotionAnalysis,
   insertDashboardNextLoopAnalysis,
   insertDashboardPromotion,
   insertDashboardPromotionTargetSegment,
+  insertDashboardPromotionRun,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -41,12 +48,15 @@ import {
   listDashboardPromotionSegments,
   listDashboardSegmentContentCandidates,
   listDashboardSegmentExperimentMetrics,
+  markDashboardPromotionTargetSegmentApproved,
+  rejectDashboardSiblingContentCandidates,
   stopDashboardCampaign,
   stopDashboardPromotion,
   stopDashboardPromotionTargetSegment,
   updateDashboardCampaign,
   updateDashboardPromotion,
   updateDashboardPromotionTargetSegment,
+  upsertDashboardAdExperimentFromApprovedContent,
   type IGetDashboardCampaignSummaryResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
@@ -57,7 +67,8 @@ import {
   type IListDashboardSegmentContentCandidatesResult,
   type IListDashboardSegmentExperimentMetricsResult,
   type IListDashboardPromotionExperimentMetricsResult,
-  type IListDashboardPromotionSegmentsResult
+  type IListDashboardPromotionSegmentsResult,
+  type IUpsertDashboardAdExperimentFromApprovedContentResult
 } from "../database/__generated__/dashboard.queries.js";
 
 @Injectable()
@@ -302,6 +313,68 @@ export class DashboardCampaignReader {
     };
   }
 
+  async approveContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    _request: DashboardApproveContentCandidateRequest
+  ): Promise<DashboardAdExperiment> {
+    const candidate = await this.db
+      .query(getDashboardContentCandidateForApproval, {
+        contentId,
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
+
+    await this.db
+      .query(rejectDashboardSiblingContentCandidates, {
+        contentId,
+        generationId: candidate.generationId,
+        projectId,
+        segmentId
+      })
+      .multiple();
+    await this.db
+      .query(approveDashboardContentCandidate, {
+        contentId,
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
+
+    const promotionRun = await this.getOrCreatePromotionRunForCandidate(candidate);
+    const experiment = await this.db
+      .query(upsertDashboardAdExperimentFromApprovedContent, {
+        adExperimentId: `ad_exp_${randomUUID()}`,
+        analysisId: candidate.analysisId,
+        campaignId: candidate.campaignId,
+        channel: candidate.channel,
+        contentId: candidate.contentId,
+        contentOptionId: candidate.contentOptionId,
+        generationId: candidate.generationId,
+        goalBasis: candidate.goalBasis,
+        goalMetric: candidate.goalMetric,
+        goalTargetValue: candidate.goalTargetValue ?? 0,
+        loopCount: promotionRun.loopCount,
+        projectId,
+        promotionId,
+        promotionRunId: promotionRun.promotionRunId,
+        segmentId,
+        segmentName: candidate.segmentName
+      })
+      .single();
+
+    await this.db
+      .query(markDashboardPromotionTargetSegmentApproved, { projectId, promotionId, segmentId })
+      .single();
+
+    return toAdExperiment(experiment);
+  }
+
   async getCampaignDetail(
     projectId: string,
     campaignId: string
@@ -389,6 +462,51 @@ export class DashboardCampaignReader {
       .query(getDashboardPromotionSegment, { projectId, promotionId, segmentId })
       .single();
     return toCampaignSegment(row);
+  }
+
+  private async getOrCreatePromotionRunForCandidate(candidate: {
+    analysisId: string;
+    campaignId: string;
+    generationId: string;
+    goalBasis: string;
+    goalMetric: string;
+    goalTargetValue: number | null;
+    projectId: string;
+    promotionId: string;
+  }) {
+    const existingRun = await this.db
+      .query(getDashboardPromotionRunByGeneration, {
+        generationId: candidate.generationId,
+        projectId: candidate.projectId,
+        promotionId: candidate.promotionId
+      })
+      .singleOrNull();
+
+    if (existingRun) {
+      return existingRun;
+    }
+
+    const loop = await this.db
+      .query(getDashboardNextPromotionLoopCount, {
+        projectId: candidate.projectId,
+        promotionId: candidate.promotionId
+      })
+      .single();
+
+    return this.db
+      .query(insertDashboardPromotionRun, {
+        analysisId: candidate.analysisId,
+        campaignId: candidate.campaignId,
+        generationId: candidate.generationId,
+        goalBasis: candidate.goalBasis,
+        goalMetric: candidate.goalMetric,
+        goalTargetValue: candidate.goalTargetValue ?? 0,
+        loopCount: loop.loopCount ?? 1,
+        projectId: candidate.projectId,
+        promotionId: candidate.promotionId,
+        promotionRunId: `run_${randomUUID()}`
+      })
+      .single();
   }
 }
 
@@ -525,6 +643,20 @@ function toContentCandidate(
     metadata_json: jsonObject(row.metadataJson),
     status: row.status,
     updated_at: row.updatedAt.toISOString()
+  };
+}
+
+function toAdExperiment(
+  row: IUpsertDashboardAdExperimentFromApprovedContentResult
+): DashboardAdExperiment {
+  return {
+    ad_experiment_id: row.adExperimentId,
+    content_id: row.contentId,
+    content_option_id: row.contentOptionId,
+    promotion_id: row.promotionId,
+    promotion_run_id: row.promotionRunId,
+    segment_id: row.segmentId,
+    status: row.status
   };
 }
 

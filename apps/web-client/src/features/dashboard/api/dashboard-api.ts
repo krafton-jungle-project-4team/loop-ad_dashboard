@@ -1,5 +1,7 @@
 import {
   createApiSuccessResponseSchema,
+  DashboardAdExperimentSchema,
+  DashboardApproveContentCandidateRequestSchema,
   DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
@@ -31,6 +33,8 @@ import {
   DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
 import type {
+  DashboardAdExperiment,
+  DashboardApproveContentCandidateRequest,
   DashboardAttachSegmentRequest,
   DashboardCampaignDetail,
   DashboardCampaignSegment,
@@ -411,6 +415,33 @@ export async function startDashboardNextLoopAnalysis(
   return createApiSuccessResponseSchema(DashboardNextLoopAnalysisSchema).parse(
     await response.json()
   ).data;
+}
+
+export async function approveDashboardContentCandidate(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  requestBody: DashboardApproveContentCandidateRequest
+): Promise<DashboardAdExperiment> {
+  const parsedBody = DashboardApproveContentCandidateRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}/content-candidates/${encodeURIComponent(contentId)}/approve`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardAdExperimentSchema).parse(await response.json())
+    .data;
 }
 
 export async function deleteDashboardFunnel(

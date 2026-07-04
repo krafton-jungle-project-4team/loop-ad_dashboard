@@ -40,6 +40,7 @@ import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  approveDashboardContentCandidate,
   attachDashboardSegmentToPromotion,
   createDashboardCampaign,
   createDashboardPromotion,
@@ -1055,6 +1056,35 @@ function CampaignTabContent({
       }
     }
   });
+  const approveContentCandidateMutation = useMutation({
+    mutationFn: ({
+      contentId,
+      promotionId,
+      segmentId
+    }: {
+      contentId: string;
+      promotionId: string;
+      segmentId: string;
+    }) => approveDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
+    onSuccess: async (experiment) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardCampaignDetailQueryKey(query.projectId, detail.campaign.campaign_id)
+        }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardPromotionDetailQueryKey(query.projectId, experiment.promotion_id)
+        }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardSegmentDetailQueryKey(
+            query.projectId,
+            experiment.promotion_id,
+            experiment.segment_id
+          )
+        })
+      ]);
+    }
+  });
 
   switch (tab) {
     case "campaign-promotions":
@@ -1101,6 +1131,12 @@ function CampaignTabContent({
             segmentError={segmentError}
             segmentIsError={segmentIsError}
             segmentIsLoading={segmentIsLoading}
+            approveContentCandidateError={approveContentCandidateMutation.error}
+            approveContentCandidateIsError={approveContentCandidateMutation.isError}
+            approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
+            onApproveContentCandidate={(promotionId, segmentId, contentId) =>
+              approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
           />
         </>
       );
@@ -1149,10 +1185,16 @@ function CampaignTabContent({
             selectedSegmentId={selectedSegmentId}
           />
           <SegmentDetailPanel
+            approveError={approveContentCandidateMutation.error}
+            approveIsError={approveContentCandidateMutation.isError}
+            approveIsPending={approveContentCandidateMutation.isPending}
             detail={segmentDetail}
             error={segmentError}
             isError={segmentIsError}
             isLoading={segmentIsLoading}
+            onApproveContentCandidate={(promotionId, segmentId, contentId) =>
+              approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
             selectedSegmentId={selectedSegmentId}
           />
         </>
@@ -2275,10 +2317,14 @@ function campaignActionRecommendation({
 }
 
 function PromotionDetail({
+  approveContentCandidateError,
+  approveContentCandidateIsError,
+  approveContentCandidateIsPending,
   detail,
   error,
   isError,
   isLoading,
+  onApproveContentCandidate,
   onSelectSegment,
   selectedPromotionId,
   selectedSegmentId,
@@ -2287,10 +2333,14 @@ function PromotionDetail({
   segmentIsError,
   segmentIsLoading
 }: {
+  approveContentCandidateError: Error | null;
+  approveContentCandidateIsError: boolean;
+  approveContentCandidateIsPending: boolean;
   detail: DashboardPromotionDetailResource | undefined;
   error: Error | null;
   isError: boolean;
   isLoading: boolean;
+  onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   selectedPromotionId: string;
   selectedSegmentId: string;
@@ -2335,10 +2385,14 @@ function PromotionDetail({
         selectedSegmentId={selectedSegmentId}
       />
       <SegmentDetailPanel
+        approveError={approveContentCandidateError}
+        approveIsError={approveContentCandidateIsError}
+        approveIsPending={approveContentCandidateIsPending}
         detail={segmentDetail}
         error={segmentError}
         isError={segmentIsError}
         isLoading={segmentIsLoading}
+        onApproveContentCandidate={onApproveContentCandidate}
         selectedSegmentId={selectedSegmentId}
       />
       <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
@@ -3158,16 +3212,24 @@ function PreviewRowsTable({ preview }: { preview: DashboardSegmentQueryPreview }
 }
 
 function SegmentDetailPanel({
+  approveError,
+  approveIsError,
+  approveIsPending,
   detail,
   error,
   isError,
   isLoading,
+  onApproveContentCandidate,
   selectedSegmentId
 }: {
+  approveError: Error | null;
+  approveIsError: boolean;
+  approveIsPending: boolean;
   detail: DashboardSegmentDetailResource | undefined;
   error: Error | null;
   isError: boolean;
   isLoading: boolean;
+  onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   selectedSegmentId: string;
 }) {
   if (!selectedSegmentId) {
@@ -3221,7 +3283,13 @@ function SegmentDetailPanel({
       />
       <SegmentInsufficientDataPanel metrics={insufficientMetrics} segment={detail.segment} />
       <SegmentSampleSizePanel metrics={detail.experiment_metrics} />
-      <ContentCandidateCards candidates={detail.content_candidates} />
+      <ContentCandidateCards
+        approveError={approveError}
+        approveIsError={approveIsError}
+        approveIsPending={approveIsPending}
+        candidates={detail.content_candidates}
+        onApprove={onApproveContentCandidate}
+      />
       <ContentCandidateTable candidates={detail.content_candidates} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
     </section>
@@ -3596,13 +3664,27 @@ function SegmentSampleSizePanel({
 }
 
 function ContentCandidateCards({
-  candidates
+  approveError,
+  approveIsError,
+  approveIsPending,
+  candidates,
+  onApprove
 }: {
+  approveError: Error | null;
+  approveIsError: boolean;
+  approveIsPending: boolean;
   candidates: DashboardSegmentDetailResource["content_candidates"];
+  onApprove: (promotionId: string, segmentId: string, contentId: string) => void;
 }) {
   return (
     <section className="grid gap-3">
       <h3 className="text-base font-semibold text-[#1d1d1f]">생성 이유 리포트</h3>
+      {approveIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>콘텐츠 후보를 승인하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(approveError)}</AlertDescription>
+        </Alert>
+      ) : null}
       {candidates.length > 0 ? (
         <div className="grid gap-3 md:grid-cols-2">
           {candidates.map((candidate) => (
@@ -3629,6 +3711,22 @@ function ContentCandidateCards({
                 <div className="text-xs text-muted-foreground">CTA / 랜딩 URL</div>
                 <div className="font-medium">{candidate.cta ?? "-"}</div>
                 <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  disabled={approveIsPending || candidate.status === "approved"}
+                  onClick={() =>
+                    onApprove(
+                      candidate.promotion_id,
+                      candidate.segment_id,
+                      candidate.content_id
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                >
+                  {candidate.status === "approved" ? "승인됨" : "승인하고 실험 생성"}
+                </Button>
               </div>
             </div>
           ))}
