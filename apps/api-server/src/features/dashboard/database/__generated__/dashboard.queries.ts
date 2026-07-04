@@ -97,7 +97,7 @@ export interface IGetDashboardCampaignSummaryQuery {
   result: IGetDashboardCampaignSummaryResult;
 }
 
-const getDashboardCampaignSummaryIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":776,"b":785}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":809,"b":819}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id)::int AS \"adExperimentCount\",\n  MAX(pe.actual_value)::float8 AS \"latestGoalAchievementRate\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.campaign_id = c.campaign_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.campaign_id = c.campaign_id\nLEFT JOIN ad_experiments ae\n  ON ae.campaign_id = c.campaign_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.campaign_id = c.campaign_id\nWHERE c.project_id = :projectId\n  AND c.campaign_id = :campaignId\nGROUP BY c.campaign_id                                     "};
+const getDashboardCampaignSummaryIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":776,"b":785}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":809,"b":819}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id)::int AS \"adExperimentCount\",\n  MAX(pe.actual_value)::float8 AS \"latestGoalAchievementRate\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.campaign_id = c.campaign_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.campaign_id = c.campaign_id\nLEFT JOIN ad_experiments ae\n  ON ae.campaign_id = c.campaign_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.campaign_id = c.campaign_id\nWHERE c.project_id = :projectId\n  AND c.campaign_id = :campaignId\nGROUP BY c.campaign_id                              "};
 
 /**
  * Query generated from SQL:
@@ -126,10 +126,152 @@ const getDashboardCampaignSummaryIR: any = {"usedParamSet":{"projectId":true,"ca
  *   ON pe.campaign_id = c.campaign_id
  * WHERE c.project_id = :projectId
  *   AND c.campaign_id = :campaignId
- * GROUP BY c.campaign_id                                     
+ * GROUP BY c.campaign_id                              
  * ```
  */
 export const getDashboardCampaignSummary = new PreparedQuery<IGetDashboardCampaignSummaryParams,IGetDashboardCampaignSummaryResult>(getDashboardCampaignSummaryIR);
+
+
+/** 'InsertDashboardCampaign' parameters type */
+export interface IInsertDashboardCampaignParams {
+  campaignId?: string | null | void;
+  campaignName?: string | null | void;
+  endDate?: DateOrString | null | void;
+  objective?: string | null | void;
+  primaryMetric?: string | null | void;
+  projectId?: string | null | void;
+  startDate?: DateOrString | null | void;
+  status?: string | null | void;
+  targetAudience?: string | null | void;
+}
+
+/** 'InsertDashboardCampaign' return type */
+export interface IInsertDashboardCampaignResult {
+  campaignId: string;
+}
+
+/** 'InsertDashboardCampaign' query type */
+export interface IInsertDashboardCampaignQuery {
+  params: IInsertDashboardCampaignParams;
+  result: IInsertDashboardCampaignResult;
+}
+
+const insertDashboardCampaignIR: any = {"usedParamSet":{"campaignId":true,"projectId":true,"campaignName":true,"objective":true,"targetAudience":true,"startDate":true,"endDate":true,"primaryMetric":true,"status":true},"params":[{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":159,"b":169}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":174,"b":183}]},{"name":"campaignName","required":false,"transform":{"type":"scalar"},"locs":[{"a":188,"b":200}]},{"name":"objective","required":false,"transform":{"type":"scalar"},"locs":[{"a":205,"b":214}]},{"name":"targetAudience","required":false,"transform":{"type":"scalar"},"locs":[{"a":219,"b":233}]},{"name":"startDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":238,"b":247}]},{"name":"endDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":252,"b":259}]},{"name":"primaryMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":264,"b":277}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":282,"b":288}]}],"statement":"INSERT INTO campaigns (\n  campaign_id,\n  project_id,\n  name,\n  objective,\n  target_audience,\n  start_date,\n  end_date,\n  primary_metric,\n  status\n)\nVALUES (\n  :campaignId,\n  :projectId,\n  :campaignName,\n  :objective,\n  :targetAudience,\n  :startDate,\n  :endDate,\n  :primaryMetric,\n  :status\n)\nRETURNING campaign_id AS \"campaignId\"                                  "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * INSERT INTO campaigns (
+ *   campaign_id,
+ *   project_id,
+ *   name,
+ *   objective,
+ *   target_audience,
+ *   start_date,
+ *   end_date,
+ *   primary_metric,
+ *   status
+ * )
+ * VALUES (
+ *   :campaignId,
+ *   :projectId,
+ *   :campaignName,
+ *   :objective,
+ *   :targetAudience,
+ *   :startDate,
+ *   :endDate,
+ *   :primaryMetric,
+ *   :status
+ * )
+ * RETURNING campaign_id AS "campaignId"                                  
+ * ```
+ */
+export const insertDashboardCampaign = new PreparedQuery<IInsertDashboardCampaignParams,IInsertDashboardCampaignResult>(insertDashboardCampaignIR);
+
+
+/** 'UpdateDashboardCampaign' parameters type */
+export interface IUpdateDashboardCampaignParams {
+  campaignId?: string | null | void;
+  campaignName?: string | null | void;
+  endDate?: DateOrString | null | void;
+  endDateIsSet?: boolean | null | void;
+  objective?: string | null | void;
+  objectiveIsSet?: boolean | null | void;
+  primaryMetric?: string | null | void;
+  primaryMetricIsSet?: boolean | null | void;
+  projectId?: string | null | void;
+  startDate?: DateOrString | null | void;
+  startDateIsSet?: boolean | null | void;
+  status?: string | null | void;
+  targetAudience?: string | null | void;
+}
+
+/** 'UpdateDashboardCampaign' return type */
+export interface IUpdateDashboardCampaignResult {
+  campaignId: string;
+}
+
+/** 'UpdateDashboardCampaign' query type */
+export interface IUpdateDashboardCampaignQuery {
+  params: IUpdateDashboardCampaignParams;
+  result: IUpdateDashboardCampaignResult;
+}
+
+const updateDashboardCampaignIR: any = {"usedParamSet":{"campaignName":true,"objectiveIsSet":true,"objective":true,"targetAudience":true,"startDateIsSet":true,"startDate":true,"endDateIsSet":true,"endDate":true,"primaryMetricIsSet":true,"primaryMetric":true,"status":true,"projectId":true,"campaignId":true},"params":[{"name":"campaignName","required":false,"transform":{"type":"scalar"},"locs":[{"a":39,"b":51}]},{"name":"objectiveIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":85,"b":99}]},{"name":"objective","required":false,"transform":{"type":"scalar"},"locs":[{"a":106,"b":115}]},{"name":"targetAudience","required":false,"transform":{"type":"scalar"},"locs":[{"a":166,"b":180}]},{"name":"startDateIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":226,"b":240}]},{"name":"startDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":247,"b":256}]},{"name":"endDateIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":302,"b":314}]},{"name":"endDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":321,"b":328}]},{"name":"primaryMetricIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":378,"b":396}]},{"name":"primaryMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":403,"b":416}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":463,"b":469}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":521,"b":530}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":552,"b":562}]}],"statement":"UPDATE campaigns\nSET\n  name = COALESCE(:campaignName, name),\n  objective = CASE WHEN :objectiveIsSet THEN :objective ELSE objective END,\n  target_audience = COALESCE(:targetAudience, target_audience),\n  start_date = CASE WHEN :startDateIsSet THEN :startDate ELSE start_date END,\n  end_date = CASE WHEN :endDateIsSet THEN :endDate ELSE end_date END,\n  primary_metric = CASE WHEN :primaryMetricIsSet THEN :primaryMetric ELSE primary_metric END,\n  status = COALESCE(:status, status),\n  updated_at = now()\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\nRETURNING campaign_id AS \"campaignId\"                                               "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE campaigns
+ * SET
+ *   name = COALESCE(:campaignName, name),
+ *   objective = CASE WHEN :objectiveIsSet THEN :objective ELSE objective END,
+ *   target_audience = COALESCE(:targetAudience, target_audience),
+ *   start_date = CASE WHEN :startDateIsSet THEN :startDate ELSE start_date END,
+ *   end_date = CASE WHEN :endDateIsSet THEN :endDate ELSE end_date END,
+ *   primary_metric = CASE WHEN :primaryMetricIsSet THEN :primaryMetric ELSE primary_metric END,
+ *   status = COALESCE(:status, status),
+ *   updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND campaign_id = :campaignId
+ * RETURNING campaign_id AS "campaignId"                                               
+ * ```
+ */
+export const updateDashboardCampaign = new PreparedQuery<IUpdateDashboardCampaignParams,IUpdateDashboardCampaignResult>(updateDashboardCampaignIR);
+
+
+/** 'StopDashboardCampaign' parameters type */
+export interface IStopDashboardCampaignParams {
+  campaignId?: string | null | void;
+  projectId?: string | null | void;
+}
+
+/** 'StopDashboardCampaign' return type */
+export interface IStopDashboardCampaignResult {
+  campaignId: string;
+  status: string;
+}
+
+/** 'StopDashboardCampaign' query type */
+export interface IStopDashboardCampaignQuery {
+  params: IStopDashboardCampaignParams;
+  result: IStopDashboardCampaignResult;
+}
+
+const stopDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":83,"b":92}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":114,"b":124}]}],"statement":"UPDATE campaigns\nSET status = 'stopped',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\nRETURNING campaign_id AS \"campaignId\", status                                     "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE campaigns
+ * SET status = 'stopped',
+ *     updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND campaign_id = :campaignId
+ * RETURNING campaign_id AS "campaignId", status                                     
+ * ```
+ */
+export const stopDashboardCampaign = new PreparedQuery<IStopDashboardCampaignParams,IStopDashboardCampaignResult>(stopDashboardCampaignIR);
 
 
 /** 'ListDashboardCampaignPromotions' parameters type */

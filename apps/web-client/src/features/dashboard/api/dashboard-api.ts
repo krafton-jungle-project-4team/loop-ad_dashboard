@@ -1,7 +1,10 @@
 import {
   createApiSuccessResponseSchema,
   DashboardCampaignDetailSchema,
+  DashboardCampaignSummarySchema,
+  DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
@@ -14,11 +17,15 @@ import {
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
-  DashboardSegmentQueryPreviewSchema
+  DashboardSegmentQueryPreviewSchema,
+  DashboardUpdateCampaignRequestSchema
 } from "@loopad/shared";
 import type {
   DashboardCampaignDetail,
+  DashboardCampaignSummary,
+  DashboardCreateCampaignRequest,
   DashboardCreateFunnelRequest,
+  DashboardDeleteCampaignResult,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnel,
@@ -29,7 +36,8 @@ import type {
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
-  DashboardSegmentQueryPreviewRequest
+  DashboardSegmentQueryPreviewRequest,
+  DashboardUpdateCampaignRequest
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -106,6 +114,80 @@ export async function fetchDashboardCampaignDetail(
     query,
     signal
   );
+}
+
+export async function createDashboardCampaign(
+  query: DashboardQuery,
+  requestBody: DashboardCreateCampaignRequest
+): Promise<DashboardCampaignSummary> {
+  const parsedBody = DashboardCreateCampaignRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/campaigns`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function updateDashboardCampaign(
+  query: DashboardQuery,
+  campaignId: string,
+  requestBody: DashboardUpdateCampaignRequest
+): Promise<DashboardCampaignSummary> {
+  const parsedBody = DashboardUpdateCampaignRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function deleteDashboardCampaign(
+  query: DashboardQuery,
+  campaignId: string
+): Promise<DashboardDeleteCampaignResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeleteCampaignResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function fetchDashboardPromotionDetail(

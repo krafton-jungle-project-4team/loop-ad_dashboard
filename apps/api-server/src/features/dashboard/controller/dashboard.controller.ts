@@ -1,7 +1,10 @@
-import { Body, Controller, Delete, Get, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
   DashboardCampaignDetailSchema,
+  DashboardCampaignSummarySchema,
+  DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
@@ -14,7 +17,8 @@ import {
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
-  DashboardSegmentQueryPreviewSchema
+  DashboardSegmentQueryPreviewSchema,
+  DashboardUpdateCampaignRequestSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -30,6 +34,42 @@ export class DashboardController {
   async main(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardMainSchema.parse(await this.dashboardQuery.main(requiredProjectId));
+  }
+
+  @Post("campaigns")
+  async createCampaign(
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardCreateCampaignRequestSchema.parse(body);
+    return DashboardCampaignSummarySchema.parse(
+      await this.dashboardQuery.createCampaign(requiredProjectId, request)
+    );
+  }
+
+  @Patch("campaigns/:campaign_id")
+  async updateCampaign(
+    @Param("campaign_id") campaignId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardUpdateCampaignRequestSchema.parse(body);
+    return DashboardCampaignSummarySchema.parse(
+      await this.dashboardQuery.updateCampaign(requiredProjectId, campaignId, request)
+    );
+  }
+
+  @Delete("campaigns/:campaign_id")
+  async deleteCampaign(
+    @Param("campaign_id") campaignId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardDeleteCampaignResultSchema.parse(
+      await this.dashboardQuery.stopCampaign(requiredProjectId, campaignId)
+    );
   }
 
   @Get("campaigns/:campaign_id")

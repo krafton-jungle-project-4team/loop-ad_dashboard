@@ -3,6 +3,9 @@ import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactiona
 import type {
   DashboardCreateFunnelRequest,
   DashboardCampaignDetail,
+  DashboardCampaignSummary,
+  DashboardCreateCampaignRequest,
+  DashboardDeleteCampaignResult,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnelList,
@@ -14,7 +17,8 @@ import type {
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
-  DashboardSegmentQueryPreviewRequest
+  DashboardSegmentQueryPreviewRequest,
+  DashboardUpdateCampaignRequest
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
@@ -38,6 +42,34 @@ export class DashboardQueryService {
 
   async main(projectId: string): Promise<DashboardMain> {
     return { campaigns: await this.campaignReader.listCampaigns(projectId) };
+  }
+
+  async createCampaign(
+    projectId: string,
+    request: DashboardCreateCampaignRequest
+  ): Promise<DashboardCampaignSummary> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.createCampaign(projectId, request)
+    );
+  }
+
+  async updateCampaign(
+    projectId: string,
+    campaignId: string,
+    request: DashboardUpdateCampaignRequest
+  ): Promise<DashboardCampaignSummary> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.updateCampaign(projectId, campaignId, request)
+    );
+  }
+
+  async stopCampaign(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardDeleteCampaignResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.stopCampaign(projectId, campaignId)
+    );
   }
 
   async campaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {

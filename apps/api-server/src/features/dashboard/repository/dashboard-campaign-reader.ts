@@ -5,10 +5,14 @@ import type {
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardContentCandidate,
+  DashboardCreateCampaignRequest,
+  DashboardDeleteCampaignResult,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
-  DashboardSegmentDetail
+  DashboardSegmentDetail,
+  DashboardUpdateCampaignRequest
 } from "@loopad/shared";
+import { randomUUID } from "node:crypto";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
@@ -16,6 +20,7 @@ import {
   getDashboardCampaignSummary,
   getDashboardPromotionSegment,
   getDashboardPromotionSummary,
+  insertDashboardCampaign,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -24,6 +29,8 @@ import {
   listDashboardPromotionSegments,
   listDashboardSegmentContentCandidates,
   listDashboardSegmentExperimentMetrics,
+  stopDashboardCampaign,
+  updateDashboardCampaign,
   type IGetDashboardCampaignSummaryResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
@@ -48,6 +55,66 @@ export class DashboardCampaignReader {
     const rows = await this.db.query(listDashboardCampaignSummaries, { projectId }).multiple();
 
     return rows.map(toCampaignSummary);
+  }
+
+  async createCampaign(
+    projectId: string,
+    request: DashboardCreateCampaignRequest
+  ): Promise<DashboardCampaignSummary> {
+    const campaignId = `camp_${randomUUID()}`;
+    await this.db
+      .query(insertDashboardCampaign, {
+        campaignId,
+        campaignName: request.campaign_name,
+        endDate: request.end_date ?? null,
+        objective: request.objective ?? null,
+        primaryMetric: request.primary_metric ?? null,
+        projectId,
+        startDate: request.start_date ?? null,
+        status: request.status,
+        targetAudience: request.target_audience
+      })
+      .single();
+
+    return this.getCampaignSummary(projectId, campaignId);
+  }
+
+  async updateCampaign(
+    projectId: string,
+    campaignId: string,
+    request: DashboardUpdateCampaignRequest
+  ): Promise<DashboardCampaignSummary> {
+    await this.db
+      .query(updateDashboardCampaign, {
+        campaignId,
+        campaignName: request.campaign_name,
+        endDate: request.end_date ?? null,
+        endDateIsSet: Object.hasOwn(request, "end_date"),
+        objective: request.objective ?? null,
+        objectiveIsSet: Object.hasOwn(request, "objective"),
+        primaryMetric: request.primary_metric ?? null,
+        primaryMetricIsSet: Object.hasOwn(request, "primary_metric"),
+        projectId,
+        startDate: request.start_date ?? null,
+        startDateIsSet: Object.hasOwn(request, "start_date"),
+        status: request.status,
+        targetAudience: request.target_audience
+      })
+      .single();
+
+    return this.getCampaignSummary(projectId, campaignId);
+  }
+
+  async stopCampaign(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardDeleteCampaignResult> {
+    const row = await this.db.query(stopDashboardCampaign, { campaignId, projectId }).single();
+
+    return {
+      campaign_id: row.campaignId,
+      status: "stopped"
+    };
   }
 
   async getCampaignDetail(
@@ -110,6 +177,14 @@ export class DashboardCampaignReader {
       content_candidates: contentCandidates.map(toContentCandidate),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
+  }
+
+  private async getCampaignSummary(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardCampaignSummary> {
+    const row = await this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single();
+    return toCampaignSummary(row);
   }
 }
 

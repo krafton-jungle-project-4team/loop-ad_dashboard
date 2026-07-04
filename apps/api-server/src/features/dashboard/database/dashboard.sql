@@ -54,6 +54,57 @@ WHERE c.project_id = :projectId
   AND c.campaign_id = :campaignId
 GROUP BY c.campaign_id;
 
+/* 목적: 대시보드에서 새 캠페인을 생성합니다. */
+/* @name InsertDashboardCampaign */
+INSERT INTO campaigns (
+  campaign_id,
+  project_id,
+  name,
+  objective,
+  target_audience,
+  start_date,
+  end_date,
+  primary_metric,
+  status
+)
+VALUES (
+  :campaignId,
+  :projectId,
+  :campaignName,
+  :objective,
+  :targetAudience,
+  :startDate,
+  :endDate,
+  :primaryMetric,
+  :status
+)
+RETURNING campaign_id AS "campaignId";
+
+/* 목적: 대시보드에서 캠페인 기본 정보를 수정합니다. */
+/* @name UpdateDashboardCampaign */
+UPDATE campaigns
+SET
+  name = COALESCE(:campaignName, name),
+  objective = CASE WHEN :objectiveIsSet THEN :objective ELSE objective END,
+  target_audience = COALESCE(:targetAudience, target_audience),
+  start_date = CASE WHEN :startDateIsSet THEN :startDate ELSE start_date END,
+  end_date = CASE WHEN :endDateIsSet THEN :endDate ELSE end_date END,
+  primary_metric = CASE WHEN :primaryMetricIsSet THEN :primaryMetric ELSE primary_metric END,
+  status = COALESCE(:status, status),
+  updated_at = now()
+WHERE project_id = :projectId
+  AND campaign_id = :campaignId
+RETURNING campaign_id AS "campaignId";
+
+/* 목적: FK가 연결된 캠페인을 물리 삭제하지 않고 중지 상태로 전환합니다. */
+/* @name StopDashboardCampaign */
+UPDATE campaigns
+SET status = 'stopped',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND campaign_id = :campaignId
+RETURNING campaign_id AS "campaignId", status;
+
 /* 목적: 캠페인에 연결된 프로모션 요약 목록을 조회합니다. */
 /* @name ListDashboardCampaignPromotions */
 SELECT
