@@ -116,8 +116,8 @@ Dashboard FE
   `noreply@loop-ad.org`로 코드에서 고정한다.
 - AWS SMS: AWS End User Messaging SMS Voice v2 `SendTextMessage`를 사용한다. Region은
   `ap-northeast-2`로 코드에서 고정한다.
-- Recipient 해석: sender에는 `user_id`를 넘기지 않는다. 현재 `RecipientDirectory`는
-  `LOOPAD_DEMO_DISPATCH_RECIPIENTS` JSON 배열을 `Map<userId, recipient>`으로 올려 demo용 가상 DB처럼 사용한다.
+- Recipient 해석: sender에는 `user_id`를 넘기지 않는다. 현재 `RecipientDirectory`는 코드의
+  `Map<userId, recipient>` 상수를 demo용 가상 DB처럼 사용한다.
 - Map에 없는 `user_id`는 raw contact 없이 로그만 남기고 성공 no-op으로 처리한다.
 - TODO: recipient table이 분석 DB에 확정되면 같은 Postgres repository/PgTyped 조회로 교체한다.
 - 실패 코드: 응답의 `jobs[].attempts[].error_code`와 dispatch job result attempts에

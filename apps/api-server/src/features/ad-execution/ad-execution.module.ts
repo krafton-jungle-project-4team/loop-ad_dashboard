@@ -11,7 +11,7 @@ import { RedirectController } from "./controller/redirect.controller.js";
 import {
   AdExecutionReader,
   AdExecutionWriter,
-  EnvDemoRecipientDirectory,
+  InMemoryDemoRecipientDirectory,
   RecipientDirectory
 } from "./repository/index.js";
 import {
@@ -35,7 +35,7 @@ export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@loop-ad.org";
     AdExecutionWriter,
     {
       provide: RecipientDirectory,
-      useClass: EnvDemoRecipientDirectory
+      useClass: InMemoryDemoRecipientDirectory
     },
     {
       provide: EmailSender,

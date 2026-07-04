@@ -28,18 +28,6 @@ process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
-process.env.LOOPAD_DEMO_DISPATCH_RECIPIENTS ??= JSON.stringify([
-  {
-    userId: "user-1",
-    email: "demo-recipient-1@loop-ad.org",
-    phoneNumber: "+821012345001"
-  },
-  {
-    userId: "user-2",
-    email: "demo-recipient-2@loop-ad.org",
-    phoneNumber: "+821012345002"
-  }
-]);
 
 const { BannerResolveService } =
   await import("../src/features/ad-execution/service/banner-resolve.service.js");
@@ -55,7 +43,7 @@ const {
   createEmailSender,
   createSmsSender
 } = await import("../src/features/ad-execution/ad-execution.module.js");
-const { EnvDemoRecipientDirectory } =
+const { InMemoryDemoRecipientDirectory } =
   await import("../src/features/ad-execution/repository/index.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
@@ -112,8 +100,8 @@ test("dispatch module always creates AWS senders from fixed code config", () => 
   assert.equal(AD_DISPATCH_EMAIL_FROM_ADDRESS, "noreply@loop-ad.org");
 });
 
-test("env demo recipient directory maps user_id to configured contacts", async () => {
-  const directory = new EnvDemoRecipientDirectory();
+test("in-memory demo recipient directory maps user_id to configured contacts", async () => {
+  const directory = new InMemoryDemoRecipientDirectory();
 
   const recipient = await directory.findRecipient("user-1");
 
