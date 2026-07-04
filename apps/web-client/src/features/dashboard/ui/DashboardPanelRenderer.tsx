@@ -12,10 +12,17 @@ export function DashboardPanelRenderer({
 }) {
   switch (resource.tab) {
     case "main":
+    case "main-campaign-list":
       return <MainDashboardPanel data={resource.data} />;
     case "funnels":
+    case "funnel-builder":
       return <FunnelDashboardPanel data={resource.data} query={query} />;
     case "campaigns":
-      return <CampaignDashboardPanel data={resource.data} query={query} />;
+    case "campaign-promotions":
+    case "campaign-segments":
+    case "campaign-experiment-metrics":
+    case "campaign-promotion-metrics":
+    case "campaign-metrics":
+      return <CampaignDashboardPanel data={resource.data} query={query} tab={resource.tab} />;
   }
 }

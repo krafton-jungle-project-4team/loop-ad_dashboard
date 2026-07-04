@@ -143,7 +143,7 @@ function DashboardNavigation({
     <SidebarMenu>
       {dashboardNavigationTree.map((item) => {
         const Icon = item.icon;
-        const isActive = activeTab === item.value;
+        const isActive = isNavigationItemActive(item, activeTab);
 
         return (
           <SidebarMenuItem key={item.label}>
@@ -167,6 +167,7 @@ function DashboardNavigation({
             </SidebarMenuButton>
             {item.children ? (
               <DashboardNavigationSubItems
+                activeTab={activeTab}
                 items={item.children}
                 projectId={projectId}
               />
@@ -179,9 +180,11 @@ function DashboardNavigation({
 }
 
 function DashboardNavigationSubItems({
+  activeTab,
   items,
   projectId
 }: {
+  activeTab: DashboardTab;
   items: DashboardNavTreeItem[];
   projectId: string;
 }) {
@@ -189,7 +192,7 @@ function DashboardNavigationSubItems({
     <SidebarMenuSub>
       {items.map((item) => (
         <SidebarMenuSubItem key={item.label}>
-          <SidebarMenuSubButton asChild isActive={false}>
+          <SidebarMenuSubButton asChild isActive={activeTab === item.value}>
             <Link
               params={{ projectId, tabPath: item.pathSegment ?? "main" }}
               to="/dashboard/$projectId/$tabPath"
@@ -199,6 +202,7 @@ function DashboardNavigationSubItems({
           </SidebarMenuSubButton>
           {item.children ? (
             <DashboardNavigationSubItems
+              activeTab={activeTab}
               items={item.children}
               projectId={projectId}
             />
@@ -207,6 +211,10 @@ function DashboardNavigationSubItems({
       ))}
     </SidebarMenuSub>
   );
+}
+
+function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: DashboardTab): boolean {
+  return item.value === activeTab || Boolean(item.children?.some((child) => isNavigationItemActive(child, activeTab)));
 }
 
 function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: DashboardTab }) {

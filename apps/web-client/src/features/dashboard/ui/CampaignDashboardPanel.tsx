@@ -32,15 +32,17 @@ import {
   dashboardCampaignDetailQueryKey,
   dashboardPromotionDetailQueryKey
 } from "../model/dashboard-query-keys.js";
-import type { DashboardQuery } from "../model/dashboard-types.js";
+import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
 export function CampaignDashboardPanel({
   data,
-  query
+  query,
+  tab
 }: {
   data: DashboardMain;
   query: DashboardQuery;
+  tab: DashboardTab;
 }) {
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
   const [selectedPromotionId, setSelectedPromotionId] = useState("");
@@ -115,6 +117,7 @@ export function CampaignDashboardPanel({
         promotionIsError={promotionDetail.isError}
         promotionIsLoading={promotionDetail.isLoading}
         selectedPromotionId={selectedPromotionId}
+        tab={tab}
       />
     </div>
   );
@@ -187,7 +190,8 @@ function CampaignDetailPanel({
   promotionError,
   promotionIsError,
   promotionIsLoading,
-  selectedPromotionId
+  selectedPromotionId,
+  tab
 }: {
   campaign: DashboardCampaignSummary | undefined;
   detail: DashboardCampaignDetail | undefined;
@@ -200,7 +204,12 @@ function CampaignDetailPanel({
   promotionIsError: boolean;
   promotionIsLoading: boolean;
   selectedPromotionId: string;
+  tab: DashboardTab;
 }) {
+  const selectedPromotion = detail?.promotions.find(
+    (promotion) => promotion.promotion_id === selectedPromotionId
+  );
+
   return (
     <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
       <CardHeader className="gap-1.5 px-5">
@@ -221,29 +230,91 @@ function CampaignDetailPanel({
         {!campaign ? <EmptyState message="상세를 확인할 캠페인을 선택해주세요." /> : null}
         {campaign && isLoading ? <EmptyState message="캠페인 상세를 불러오는 중입니다." /> : null}
         {detail ? (
-          <>
-            <CampaignSummary detail={detail} />
-            <MarketingPlan detail={detail} />
-            <CampaignRealtimeTrend detail={detail} />
-            <CampaignWorkflow detail={detail} />
-            <PromotionTable
-              onSelectPromotion={onSelectPromotion}
-              promotions={detail.promotions}
-              selectedPromotionId={selectedPromotionId}
-            />
-            <CampaignNextAction detail={detail} />
-            <PromotionDetail
-              detail={promotionDetail}
-              error={promotionError}
-              isError={promotionIsError}
-              isLoading={promotionIsLoading}
-              selectedPromotionId={selectedPromotionId}
-            />
-          </>
+          <CampaignTabContent
+            detail={detail}
+            onSelectPromotion={onSelectPromotion}
+            promotionDetail={promotionDetail}
+            promotionError={promotionError}
+            promotionIsError={promotionIsError}
+            promotionIsLoading={promotionIsLoading}
+            selectedPromotion={selectedPromotion}
+            selectedPromotionId={selectedPromotionId}
+            tab={tab}
+          />
         ) : null}
       </CardContent>
     </Card>
   );
+}
+
+function CampaignTabContent({
+  detail,
+  onSelectPromotion,
+  promotionDetail,
+  promotionError,
+  promotionIsError,
+  promotionIsLoading,
+  selectedPromotion,
+  selectedPromotionId,
+  tab
+}: {
+  detail: DashboardCampaignDetail;
+  onSelectPromotion: (promotionId: string) => void;
+  promotionDetail: DashboardPromotionDetailResource | undefined;
+  promotionError: Error | null;
+  promotionIsError: boolean;
+  promotionIsLoading: boolean;
+  selectedPromotion: DashboardCampaignPromotion | undefined;
+  selectedPromotionId: string;
+  tab: DashboardTab;
+}) {
+  switch (tab) {
+    case "campaign-promotions":
+      return (
+        <>
+          <PromotionTable
+            onSelectPromotion={onSelectPromotion}
+            promotions={detail.promotions}
+            selectedPromotionId={selectedPromotionId}
+          />
+          <PromotionDetail
+            detail={promotionDetail}
+            error={promotionError}
+            isError={promotionIsError}
+            isLoading={promotionIsLoading}
+            selectedPromotionId={selectedPromotionId}
+          />
+        </>
+      );
+    case "campaign-segments":
+      return <SegmentTable segments={promotionDetail?.segments ?? detail.segments} />;
+    case "campaign-experiment-metrics":
+      return (
+        <ExperimentMetricTable
+          metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
+        />
+      );
+    case "campaign-promotion-metrics":
+      return <PromotionMetricsPanel detail={detail} selectedPromotion={selectedPromotion} />;
+    case "campaign-metrics":
+      return <CampaignRealtimeTrend detail={detail} />;
+    case "campaigns":
+    default:
+      return (
+        <>
+          <CampaignSummary detail={detail} />
+          <MarketingPlan detail={detail} />
+          <CampaignRealtimeTrend detail={detail} />
+          <CampaignWorkflow detail={detail} />
+          <PromotionTable
+            onSelectPromotion={onSelectPromotion}
+            promotions={detail.promotions}
+            selectedPromotionId={selectedPromotionId}
+          />
+          <CampaignNextAction detail={detail} />
+        </>
+      );
+  }
 }
 
 function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
@@ -308,6 +379,46 @@ function CampaignRealtimeTrend({ detail }: { detail: DashboardCampaignDetail }) 
       </div>
       <Progress value={Math.min(achievementRate * 100, 100)} />
     </section>
+  );
+}
+
+function PromotionMetricsPanel({
+  detail,
+  selectedPromotion
+}: {
+  detail: DashboardCampaignDetail;
+  selectedPromotion: DashboardCampaignPromotion | undefined;
+}) {
+  const promotions = selectedPromotion ? [selectedPromotion] : detail.promotions;
+
+  return (
+    <DetailTable
+      emptyMessage="표시할 프로모션 지표가 없습니다."
+      headers={["프로모션", "채널", "목표 지표", "목표값", "현재값", "세그먼트", "상태"]}
+      title="프로모션 지표"
+    >
+      {promotions.map((promotion) => (
+        <TableRow key={promotion.promotion_id}>
+          <TableCell>{promotion.promotion_id}</TableCell>
+          <TableCell>{promotion.channel}</TableCell>
+          <TableCell>{promotion.goal_metric}</TableCell>
+          <TableCell className="text-right tabular-nums">
+            {formatGoalValue(promotion.goal_target_value)}
+          </TableCell>
+          <TableCell className="text-right tabular-nums">
+            {promotion.latest_actual_value === null
+              ? "-"
+              : formatGoalValue(promotion.latest_actual_value)}
+          </TableCell>
+          <TableCell className="text-right tabular-nums">
+            {formatInteger(promotion.target_segment_count)}
+          </TableCell>
+          <TableCell>
+            <Badge variant="secondary">{promotion.status}</Badge>
+          </TableCell>
+        </TableRow>
+      ))}
+    </DetailTable>
   );
 }
 

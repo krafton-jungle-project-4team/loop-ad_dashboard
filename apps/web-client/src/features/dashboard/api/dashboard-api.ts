@@ -34,16 +34,23 @@ export async function fetchDashboardPageResource(
 ): Promise<DashboardPageResource> {
   switch (tab) {
     case "main":
+    case "main-campaign-list":
       return {
         tab,
         data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
     case "funnels":
+    case "funnel-builder":
       return {
         tab,
         data: await request("/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)
       };
     case "campaigns":
+    case "campaign-promotions":
+    case "campaign-segments":
+    case "campaign-experiment-metrics":
+    case "campaign-promotion-metrics":
+    case "campaign-metrics":
       return {
         tab,
         data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
