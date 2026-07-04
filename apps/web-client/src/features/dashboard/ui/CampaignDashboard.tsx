@@ -43,12 +43,9 @@ import {
   approveDashboardContentCandidate,
   attachDashboardSegmentToPromotion,
   createDashboardCampaign,
-  createDashboardDefaultPromotions,
-  createDashboardPromotion,
   createDashboardSegmentQueryPreview,
   deleteDashboardCampaign,
   deleteDashboardPromotionSegment,
-  deleteDashboardPromotion,
   deleteDashboardSavedSegment,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
@@ -58,7 +55,6 @@ import {
   saveDashboardSegment,
   startDashboardNextLoopAnalysis,
   updateDashboardCampaign,
-  updateDashboardPromotion,
   updateDashboardPromotionSegment,
   updateDashboardSavedSegment
 } from "../api/dashboard-api.js";
@@ -72,12 +68,9 @@ import {
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import {
-  CampaignPromotionManagementPanel,
   CampaignPromotionTable,
   promotionChannelOptions,
-  promotionStatusOptions,
-  type CreatePromotionInput,
-  type UpdatePromotionInput
+  promotionStatusOptions
 } from "./Promotion.js";
 import { EmptyState } from "./EmptyState.js";
 
@@ -968,53 +961,6 @@ function CampaignTabContent({
   );
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
-  const createPromotionMutation = useMutation({
-    mutationFn: (requestBody: CreatePromotionInput) =>
-      createDashboardPromotion(query, detail.campaign.campaign_id, requestBody),
-    onSuccess: async (promotion) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await setDashboardQueryState({
-        selectedPromotionId: promotion.promotion_id,
-        selectedSegmentId: ""
-      });
-    }
-  });
-  const createDefaultPromotionsMutation = useMutation({
-    mutationFn: () => createDashboardDefaultPromotions(query, detail.campaign.campaign_id),
-    onSuccess: async (result) => {
-      const firstPromotion = result.promotions[0];
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await setDashboardQueryState({
-        selectedPromotionId: firstPromotion?.promotion_id ?? "",
-        selectedSegmentId: ""
-      });
-    }
-  });
-  const updatePromotionMutation = useMutation({
-    mutationFn: ({
-      promotionId,
-      requestBody
-    }: {
-      promotionId: string;
-      requestBody: UpdatePromotionInput;
-    }) => updateDashboardPromotion(query, promotionId, requestBody),
-    onSuccess: async (promotion) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await setDashboardQueryState({
-        selectedPromotionId: promotion.promotion_id,
-        selectedSegmentId: ""
-      });
-    }
-  });
-  const stopPromotionMutation = useMutation({
-    mutationFn: (promotionId: string) => deleteDashboardPromotion(query, promotionId),
-    onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      if (selectedPromotionId === result.promotion_id) {
-        await setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
-      }
-    }
-  });
   const attachSegmentMutation = useMutation({
     mutationFn: ({
       promotionId,
@@ -1144,69 +1090,6 @@ function CampaignTabContent({
   });
 
   switch (tab) {
-    case "campaign-promotions":
-      return (
-        <>
-          <CampaignOpenTabs
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
-            selectedPromotion={selectedPromotion}
-            selectedSegment={selectedSegment}
-          />
-          <CampaignPromotionManagementPanel
-            createError={createPromotionMutation.error}
-            createDefaultError={createDefaultPromotionsMutation.error}
-            createDefaultIsError={createDefaultPromotionsMutation.isError}
-            createDefaultIsPending={createDefaultPromotionsMutation.isPending}
-            createIsError={createPromotionMutation.isError}
-            createIsPending={createPromotionMutation.isPending}
-            onCreate={(requestBody) => createPromotionMutation.mutate(requestBody)}
-            onCreateDefault={() => createDefaultPromotionsMutation.mutate()}
-            onStop={(promotionId) => stopPromotionMutation.mutate(promotionId)}
-            onUpdate={(promotionId, requestBody) =>
-              updatePromotionMutation.mutate({ promotionId, requestBody })
-            }
-            promotion={selectedPromotion}
-            stopError={stopPromotionMutation.error}
-            stopIsError={stopPromotionMutation.isError}
-            stopIsPending={stopPromotionMutation.isPending}
-            updateError={updatePromotionMutation.error}
-            updateIsError={updatePromotionMutation.isError}
-            updateIsPending={updatePromotionMutation.isPending}
-          />
-          <CampaignPromotionTable
-            onSelectPromotion={onSelectPromotion}
-            promotions={detail.promotions}
-            segments={detail.segments}
-            selectedPromotionId={selectedPromotionId}
-          />
-          <PromotionDetail
-            detail={promotionDetail}
-            error={promotionError}
-            isError={promotionIsError}
-            isLoading={promotionIsLoading}
-            onSelectSegment={onSelectSegment}
-            selectedPromotionId={selectedPromotionId}
-            selectedSegmentId={selectedSegmentId}
-            segmentDetail={segmentDetail}
-            segmentError={segmentError}
-            segmentIsError={segmentIsError}
-            segmentIsLoading={segmentIsLoading}
-            approveContentCandidateError={approveContentCandidateMutation.error}
-            approveContentCandidateIsError={approveContentCandidateMutation.isError}
-            approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
-            rejectContentCandidateError={rejectContentCandidateMutation.error}
-            rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
-            rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
-            onApproveContentCandidate={(promotionId, segmentId, contentId) =>
-              approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-            }
-            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
-              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-            }
-          />
-        </>
-      );
     case "campaign-segments":
       return (
         <>

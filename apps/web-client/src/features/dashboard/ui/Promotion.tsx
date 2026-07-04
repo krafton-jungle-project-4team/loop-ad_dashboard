@@ -1,12 +1,15 @@
 import type {
+  DashboardCampaignSummary,
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardCreatePromotionRequest,
+  DashboardMain,
   DashboardUpdatePromotionRequest
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { Field, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import {
@@ -25,8 +28,19 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import {
+  createDashboardDefaultPromotions,
+  createDashboardPromotion,
+  deleteDashboardPromotion,
+  fetchDashboardCampaignDetail,
+  updateDashboardPromotion
+} from "../api/dashboard-api.js";
 import { formatInteger } from "../model/dashboard-format.js";
+import { useDashboardQueryState } from "../model/dashboard-query.js";
+import { dashboardCampaignDetailQueryKey } from "../model/dashboard-query-keys.js";
+import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
 export type CreatePromotionInput = DashboardCreatePromotionRequest;
@@ -53,6 +67,204 @@ const promotionGoalMetricOptions = [
 ] as const;
 const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
 const promotionLandingTypeOptions = ["search_page", "hotel_detail_page", "booking_resume"] as const;
+
+export function PromotionPanel({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
+  const queryClient = useQueryClient();
+  const [, setDashboardQueryState] = useDashboardQueryState();
+  const selectedCampaign =
+    data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
+    data.campaigns[0];
+  const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
+  const selectedPromotionId = query.selectedPromotionId;
+  const campaignDetail = useQuery({
+    enabled: Boolean(selectedCampaignId),
+    queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
+    queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+  });
+  const selectedPromotion = campaignDetail.data?.promotions.find(
+    (promotion) => promotion.promotion_id === selectedPromotionId
+  );
+  const createPromotionMutation = useMutation({
+    mutationFn: (requestBody: CreatePromotionInput) =>
+      createDashboardPromotion(query, selectedCampaignId, requestBody),
+    onSuccess: async (promotion) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await setDashboardQueryState({
+        selectedCampaignId,
+        selectedPromotionId: promotion.promotion_id,
+        selectedSegmentId: ""
+      });
+    }
+  });
+  const createDefaultPromotionsMutation = useMutation({
+    mutationFn: () => createDashboardDefaultPromotions(query, selectedCampaignId),
+    onSuccess: async (result) => {
+      const firstPromotion = result.promotions[0];
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await setDashboardQueryState({
+        selectedCampaignId,
+        selectedPromotionId: firstPromotion?.promotion_id ?? "",
+        selectedSegmentId: ""
+      });
+    }
+  });
+  const updatePromotionMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody
+    }: {
+      promotionId: string;
+      requestBody: UpdatePromotionInput;
+    }) => updateDashboardPromotion(query, promotionId, requestBody),
+    onSuccess: async (promotion) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await setDashboardQueryState({
+        selectedCampaignId,
+        selectedPromotionId: promotion.promotion_id,
+        selectedSegmentId: ""
+      });
+    }
+  });
+  const stopPromotionMutation = useMutation({
+    mutationFn: (promotionId: string) => deleteDashboardPromotion(query, promotionId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      if (selectedPromotionId === result.promotion_id) {
+        await setDashboardQueryState({
+          selectedCampaignId,
+          selectedPromotionId: "",
+          selectedSegmentId: ""
+        });
+      }
+    }
+  });
+
+  useEffect(() => {
+    if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
+      void setDashboardQueryState({
+        selectedCampaignId: selectedCampaign.campaign_id,
+        selectedPromotionId: "",
+        selectedSegmentId: ""
+      });
+    }
+  }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
+
+  useEffect(() => {
+    if (!campaignDetail.data || !selectedPromotionId) {
+      return;
+    }
+
+    const hasSelectedPromotion = campaignDetail.data.promotions.some(
+      (promotion) => promotion.promotion_id === selectedPromotionId
+    );
+    if (!hasSelectedPromotion) {
+      void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+    }
+  }, [campaignDetail.data, selectedPromotionId, setDashboardQueryState]);
+
+  return (
+    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+      <CardHeader className="gap-1.5 px-5">
+        <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+          프로모션
+        </CardTitle>
+        <CardDescription>
+          현재 선택된 캠페인 안에서 프로모션을 생성하고 채널별 실행 상태를 관리합니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-6 px-5">
+        <PromotionCampaignContext campaign={selectedCampaign} />
+        {campaignDetail.isError ? (
+          <Alert variant="destructive">
+            <AlertTitle>프로모션 데이터를 불러오지 못했습니다</AlertTitle>
+            <AlertDescription>
+              {campaignDetail.error?.message ?? "API 요청에 실패했습니다."}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {!selectedCampaign ? <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." /> : null}
+        {selectedCampaign && campaignDetail.isLoading ? (
+          <EmptyState message="프로모션 데이터를 불러오는 중입니다." />
+        ) : null}
+        {campaignDetail.data ? (
+          <>
+            <CampaignPromotionManagementPanel
+              createError={createPromotionMutation.error}
+              createDefaultError={createDefaultPromotionsMutation.error}
+              createDefaultIsError={createDefaultPromotionsMutation.isError}
+              createDefaultIsPending={createDefaultPromotionsMutation.isPending}
+              createIsError={createPromotionMutation.isError}
+              createIsPending={createPromotionMutation.isPending}
+              onCreate={(requestBody) => createPromotionMutation.mutate(requestBody)}
+              onCreateDefault={() => createDefaultPromotionsMutation.mutate()}
+              onStop={(promotionId) => stopPromotionMutation.mutate(promotionId)}
+              onUpdate={(promotionId, requestBody) =>
+                updatePromotionMutation.mutate({ promotionId, requestBody })
+              }
+              promotion={selectedPromotion}
+              stopError={stopPromotionMutation.error}
+              stopIsError={stopPromotionMutation.isError}
+              stopIsPending={stopPromotionMutation.isPending}
+              updateError={updatePromotionMutation.error}
+              updateIsError={updatePromotionMutation.isError}
+              updateIsPending={updatePromotionMutation.isPending}
+            />
+            <CampaignPromotionTable
+              onSelectPromotion={(promotionId) => {
+                void setDashboardQueryState({
+                  selectedCampaignId,
+                  selectedPromotionId: promotionId,
+                  selectedSegmentId: ""
+                });
+              }}
+              promotions={campaignDetail.data.promotions}
+              segments={campaignDetail.data.segments}
+              selectedPromotionId={selectedPromotionId}
+            />
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PromotionCampaignContext({ campaign }: { campaign: DashboardCampaignSummary | undefined }) {
+  if (!campaign) {
+    return null;
+  }
+
+  return (
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          현재 캠페인
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-base font-semibold text-foreground">{campaign.campaign_name}</h3>
+          <Badge variant="outline">{campaign.status}</Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">{campaign.campaign_id}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-right text-sm">
+        <SummaryItem label="프로모션" value={formatInteger(campaign.promotion_count)} />
+        <SummaryItem label="세그먼트" value={formatInteger(campaign.segment_count)} />
+        <SummaryItem label="실험" value={formatInteger(campaign.ad_experiment_count)} />
+      </div>
+    </section>
+  );
+}
 
 export function CampaignPromotionManagementPanel({
   createError,
