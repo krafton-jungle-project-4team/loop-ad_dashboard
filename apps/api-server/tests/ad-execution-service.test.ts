@@ -156,11 +156,17 @@ test("banner resolve returns the precomputed segment content", async () => {
   });
 
   assert.deepEqual(response, {
+    project_id: "project-1",
+    user_id: "user-1",
+    campaign_id: "campaign-1",
+    promotion_id: "promotion-1",
     promotion_run_id: "run-1",
     ad_experiment_id: "exp-1",
     segment_id: "seg-1",
     content_id: "content-1",
     content_option_id: "option-1",
+    promotion_channel: "onsite_banner",
+    placement_id: "hero",
     title: "Approved title",
     body: "Approved body",
     cta: "Book now",

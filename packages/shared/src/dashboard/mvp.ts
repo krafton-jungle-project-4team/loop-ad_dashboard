@@ -62,6 +62,18 @@ export const DashboardFunnelListSchema = z.object({
 });
 export type DashboardFunnelList = z.infer<typeof DashboardFunnelListSchema>;
 
+export const DashboardFunnelMetricStepSchema = DashboardFunnelStepSchema.extend({
+  event_count: CountSchema
+});
+export type DashboardFunnelMetricStep = z.infer<typeof DashboardFunnelMetricStepSchema>;
+
+export const DashboardFunnelMetricsSchema = z.object({
+  funnel_id: z.string(),
+  funnel_name: z.string(),
+  steps: z.array(DashboardFunnelMetricStepSchema)
+});
+export type DashboardFunnelMetrics = z.infer<typeof DashboardFunnelMetricsSchema>;
+
 export const DashboardCreateFunnelRequestSchema = z.object({
   funnel_name: z.string().min(1),
   steps: z
@@ -74,6 +86,12 @@ export const DashboardCreateFunnelRequestSchema = z.object({
     .min(2)
 });
 export type DashboardCreateFunnelRequest = z.infer<typeof DashboardCreateFunnelRequestSchema>;
+
+export const DashboardDeleteFunnelResultSchema = z.object({
+  funnel_id: z.string(),
+  deleted: z.literal(true)
+});
+export type DashboardDeleteFunnelResult = z.infer<typeof DashboardDeleteFunnelResultSchema>;
 
 export const DashboardEventCatalogItemSchema = z.object({
   event_name: DashboardFunnelEventNameSchema,

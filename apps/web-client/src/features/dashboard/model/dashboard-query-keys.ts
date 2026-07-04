@@ -11,3 +11,7 @@ export function dashboardTabQueryKey(tab: DashboardTab) {
 export function dashboardEventCatalogQueryKey(projectId: string) {
   return ["dashboard", "event-catalog", projectId] as const;
 }
+
+export function dashboardFunnelMetricsQueryKey(projectId: string, funnelId: string) {
+  return ["dashboard", "funnel-metrics", projectId, funnelId] as const;
+}

@@ -16,7 +16,7 @@ export class BannerResolveService {
   async resolveBanner(request: BannerResolveQuery): Promise<BannerResolveResponse> {
     const assignment = await this.requireBannerAssignment(request);
 
-    return AdExecutionDomain.toBannerResponse(assignment);
+    return AdExecutionDomain.toBannerResponse(assignment, request.placement_id);
   }
 
   private async requireBannerAssignment(

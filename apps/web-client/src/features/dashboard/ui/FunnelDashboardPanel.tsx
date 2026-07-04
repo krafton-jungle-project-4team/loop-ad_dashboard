@@ -3,10 +3,12 @@ import {
   DashboardFunnelEventNameSchema,
   type DashboardFunnelList
 } from "@loopad/shared";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
 import { Field, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
@@ -21,9 +23,15 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { createDashboardFunnel, fetchDashboardEventCatalog } from "../api/dashboard-api.js";
+import {
+  createDashboardFunnel,
+  deleteDashboardFunnel,
+  fetchDashboardEventCatalog,
+  fetchDashboardFunnelMetrics
+} from "../api/dashboard-api.js";
 import {
   dashboardEventCatalogQueryKey,
+  dashboardFunnelMetricsQueryKey,
   dashboardTabQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
@@ -49,9 +57,16 @@ export function FunnelDashboardPanel({
   const queryClient = useQueryClient();
   const [funnelName, setFunnelName] = useState("");
   const [steps, setSteps] = useState(() => createDefaultSteps());
+  const [selectedFunnelId, setSelectedFunnelId] = useState("");
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
     queryKey: dashboardEventCatalogQueryKey(query.projectId)
+  });
+  const selectedFunnel = data.funnels.find((funnel) => funnel.funnel_id === selectedFunnelId);
+  const funnelMetrics = useQuery({
+    enabled: Boolean(selectedFunnelId),
+    queryFn: ({ signal }) => fetchDashboardFunnelMetrics(query, selectedFunnelId, signal),
+    queryKey: dashboardFunnelMetricsQueryKey(query.projectId, selectedFunnelId)
   });
   const eventOptions = eventCatalog.data?.events ?? [];
   const createMutation = useMutation({
@@ -59,6 +74,13 @@ export function FunnelDashboardPanel({
     onSuccess: async () => {
       setFunnelName("");
       setSteps(createDefaultSteps());
+      await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
+    }
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (funnelId: string) => deleteDashboardFunnel(query, funnelId),
+    onSuccess: async (result) => {
+      setSelectedFunnelId((current) => (current === result.funnel_id ? "" : current));
       await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
     }
   });
@@ -100,6 +122,12 @@ export function FunnelDashboardPanel({
             <Alert variant="destructive">
               <AlertTitle>퍼널을 저장하지 못했습니다</AlertTitle>
               <AlertDescription>{mutationErrorMessage(createMutation.error)}</AlertDescription>
+            </Alert>
+          ) : null}
+          {deleteMutation.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>퍼널을 삭제하지 못했습니다</AlertTitle>
+              <AlertDescription>{mutationErrorMessage(deleteMutation.error)}</AlertDescription>
             </Alert>
           ) : null}
           <FieldGroup>
@@ -181,15 +209,51 @@ export function FunnelDashboardPanel({
                   <TableHead>퍼널</TableHead>
                   <TableHead>단계</TableHead>
                   <TableHead>상태</TableHead>
+                  <TableHead>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.funnels.map((funnel) => (
-                  <TableRow key={funnel.funnel_id}>
-                    <TableCell>{funnel.funnel_name}</TableCell>
+                  <TableRow
+                    aria-selected={selectedFunnelId === funnel.funnel_id}
+                    className="cursor-pointer"
+                    key={funnel.funnel_id}
+                    onClick={() => selectFunnel(funnel.funnel_id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        selectFunnel(funnel.funnel_id);
+                      }
+                    }}
+                    tabIndex={0}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span>{funnel.funnel_name}</span>
+                        {selectedFunnelId === funnel.funnel_id ? (
+                          <Badge variant="outline">선택됨</Badge>
+                        ) : null}
+                      </div>
+                    </TableCell>
                     <TableCell>{funnel.steps.map(stepLabel).join(" -> ")}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{funnel.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          disabled={deleteMutation.isPending}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            deleteMutation.mutate(funnel.funnel_id);
+                          }}
+                          size="icon"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Trash2 data-icon="inline-start" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -197,6 +261,51 @@ export function FunnelDashboardPanel({
             </Table>
           ) : (
             <EmptyState message="등록된 퍼널이 없습니다." />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+        <CardHeader className="gap-1.5 px-5">
+          <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+            퍼널 단계별 수치
+          </CardTitle>
+          <CardDescription>
+            선택한 퍼널의 단계별 수집 이벤트 수를 표시합니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-5">
+          {funnelMetrics.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>퍼널 수치를 불러오지 못했습니다</AlertTitle>
+              <AlertDescription>{mutationErrorMessage(funnelMetrics.error)}</AlertDescription>
+            </Alert>
+          ) : null}
+          {selectedFunnel ? (
+            <ChartContainer
+              className="min-h-[280px] w-full"
+              config={{
+                event_count: {
+                  color: "var(--chart-1)",
+                  label: "이벤트 수"
+                }
+              }}
+            >
+              <BarChart data={funnelMetrics.data?.steps ?? []}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="step_name"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="event_count" fill="var(--color-event_count)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          ) : (
+            <EmptyState message="수치를 확인할 퍼널을 선택해주세요." />
           )}
         </CardContent>
       </Card>
@@ -209,6 +318,10 @@ export function FunnelDashboardPanel({
 
   function removeStep(index: number) {
     setSteps((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  function selectFunnel(funnelId: string) {
+    setSelectedFunnelId(funnelId);
   }
 
   function selectEvent(index: number, eventName: string) {

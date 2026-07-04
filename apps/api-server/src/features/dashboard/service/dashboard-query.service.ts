@@ -1,9 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { TransactionHost } from "@nestjs-cls/transactional";
+import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactional";
 import type {
   DashboardCreateFunnelRequest,
+  DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnelList,
+  DashboardFunnelMetrics,
   DashboardMain
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
@@ -16,6 +18,7 @@ export class DashboardQueryService {
     private readonly campaignReader: DashboardCampaignReader,
     @Inject(DashboardFunnelReader)
     private readonly funnelReader: DashboardFunnelReader,
+    @InjectTransactionHost()
     private readonly transactionHost: TransactionHost<PgTypedTransactionalAdapter>
   ) {}
 
@@ -31,12 +34,25 @@ export class DashboardQueryService {
     return { events: await this.funnelReader.listEventCatalog(projectId) };
   }
 
+  async funnelMetrics(projectId: string, funnelId: string): Promise<DashboardFunnelMetrics> {
+    return this.funnelReader.getFunnelMetrics(projectId, funnelId);
+  }
+
   async createFunnel(
     projectId: string,
     request: DashboardCreateFunnelRequest
   ): Promise<DashboardFunnelList["funnels"][number]> {
     return this.transactionHost.withTransaction(() =>
       this.funnelReader.createFunnel(projectId, request)
+    );
+  }
+
+  async deleteFunnel(
+    projectId: string,
+    funnelId: string
+  ): Promise<DashboardDeleteFunnelResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.funnelReader.deleteFunnel(projectId, funnelId)
     );
   }
 }
