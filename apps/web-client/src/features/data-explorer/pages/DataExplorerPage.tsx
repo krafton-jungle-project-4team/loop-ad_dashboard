@@ -40,7 +40,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<"result" | "visualization">("result");
   const [isSchemaPanelOpen, setIsSchemaPanelOpen] = useState(true);
-  const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(false);
+  const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(true);
   const mutations = useDataExplorerMutations();
   const objectsQuery = useQuery(dataExplorerObjectsQueryOptions({ q: objectSearch }));
   const eventCatalogQuery = useQuery(dataExplorerEventCatalogQueryOptions(projectId));
