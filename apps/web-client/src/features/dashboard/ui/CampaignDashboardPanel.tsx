@@ -3827,6 +3827,15 @@ function RealtimeEventTable({
           </div>
           <div className="grid gap-3 md:grid-cols-4">
             <SummaryItem label="이벤트 합계" value={formatInteger(metrics.total_event_count)} />
+            <SummaryItem
+              label="최근 5분 이벤트"
+              value={formatInteger(metrics.recent_5m_event_count)}
+            />
+            <SummaryItem
+              label="최근 1시간 이벤트"
+              value={formatInteger(metrics.recent_1h_event_count)}
+            />
+            <SummaryItem label="피크타임" value={metrics.peak_time ?? "-"} />
             <SummaryItem label="유니크 유저 합계" value={formatInteger(uniqueUserTotal)} />
             <SummaryItem
               label="프로모션 노출"

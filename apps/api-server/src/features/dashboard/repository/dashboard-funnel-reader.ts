@@ -72,6 +72,15 @@ type RealtimeBreakdownRow = {
   unique_user_count: number | string;
 };
 
+type RealtimeWindowCountRow = {
+  recent_5m_event_count: number | string;
+  recent_1h_event_count: number | string;
+};
+
+type RealtimePeakTimeRow = {
+  peak_time: string | null;
+};
+
 type RealtimeMetricScope = {
   filterColumn: "campaign_id" | "promotion_id";
   filterValue: string;
@@ -90,6 +99,12 @@ type DeliveryStatusRow =
   | IGetDashboardCampaignDeliveryStatusResult
   | IGetDashboardPromotionDeliveryStatusResult
   | IGetDashboardSegmentDeliveryStatusResult;
+
+type RealtimeWindowMetrics = {
+  recent_5m_event_count: number;
+  recent_1h_event_count: number;
+  peak_time: string | null;
+};
 
 @Injectable()
 export class DashboardFunnelReader {
@@ -163,15 +178,17 @@ export class DashboardFunnelReader {
       filterValue: campaignId,
       projectId
     } as const;
-    const [events, breakdowns] = await Promise.all([
+    const [events, breakdowns, windowMetrics] = await Promise.all([
       this.countRealtimeEvents(scope),
-      this.countRealtimeBreakdowns(scope)
+      this.countRealtimeBreakdowns(scope),
+      this.countRealtimeWindowMetrics(scope)
     ]);
     const deliveryStatus = await this.getCampaignDeliveryStatus(projectId, campaignId, events);
 
     return {
       campaign_id: campaignId,
       total_event_count: totalEventCount(events),
+      ...windowMetrics,
       events,
       ...breakdowns,
       delivery_status: deliveryStatus,
@@ -188,15 +205,17 @@ export class DashboardFunnelReader {
       filterValue: promotionId,
       projectId
     } as const;
-    const [events, breakdowns] = await Promise.all([
+    const [events, breakdowns, windowMetrics] = await Promise.all([
       this.countRealtimeEvents(scope),
-      this.countRealtimeBreakdowns(scope)
+      this.countRealtimeBreakdowns(scope),
+      this.countRealtimeWindowMetrics(scope)
     ]);
     const deliveryStatus = await this.getPromotionDeliveryStatus(projectId, promotionId, events);
 
     return {
       promotion_id: promotionId,
       total_event_count: totalEventCount(events),
+      ...windowMetrics,
       events,
       ...breakdowns,
       delivery_status: deliveryStatus,
@@ -215,9 +234,10 @@ export class DashboardFunnelReader {
       projectId,
       segmentId
     } as const;
-    const [events, breakdowns] = await Promise.all([
+    const [events, breakdowns, windowMetrics] = await Promise.all([
       this.countRealtimeEvents(scope),
-      this.countRealtimeBreakdowns(scope)
+      this.countRealtimeBreakdowns(scope),
+      this.countRealtimeWindowMetrics(scope)
     ]);
     const deliveryStatus = await this.getSegmentDeliveryStatus(
       projectId,
@@ -230,6 +250,7 @@ export class DashboardFunnelReader {
       promotion_id: promotionId,
       segment_id: segmentId,
       total_event_count: totalEventCount(events),
+      ...windowMetrics,
       events,
       ...breakdowns,
       delivery_status: deliveryStatus,
@@ -363,6 +384,107 @@ export class DashboardFunnelReader {
       .single();
 
     return toDeliveryStatus(row, events);
+  }
+
+  private async countRealtimeWindowMetrics(
+    scope: RealtimeMetricScope
+  ): Promise<RealtimeWindowMetrics> {
+    const [windowCounts, peakTime] = await Promise.all([
+      this.countRecentRealtimeEvents(scope),
+      this.findRealtimePeakTime(scope)
+    ]);
+
+    return {
+      ...windowCounts,
+      peak_time: peakTime
+    };
+  }
+
+  private async countRecentRealtimeEvents({
+    filterColumn,
+    filterValue,
+    projectId,
+    segmentId
+  }: RealtimeMetricScope): Promise<Omit<RealtimeWindowMetrics, "peak_time">> {
+    const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
+    const segmentBookingFilter = segmentId
+      ? "AND ifNull(segment_id, '') = {segmentId:String}"
+      : "";
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          countIf(event_time >= now() - INTERVAL 5 MINUTE) AS recent_5m_event_count,
+          countIf(event_time >= now() - INTERVAL 1 HOUR) AS recent_1h_event_count
+        FROM (
+          SELECT event_time
+          FROM promotion_touch_events
+          WHERE project_id = {projectId:String}
+            AND ${filterColumn} = {filterValue:String}
+            ${segmentTouchFilter}
+
+          UNION ALL
+
+          SELECT event_time
+          FROM booking_outcome_events
+          WHERE project_id = {projectId:String}
+            AND ifNull(${filterColumn}, '') = {filterValue:String}
+            ${segmentBookingFilter}
+        )
+      `,
+      format: "JSONEachRow",
+      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+    });
+    const [row] = await result.json<RealtimeWindowCountRow>();
+
+    return {
+      recent_5m_event_count: countValue(row?.recent_5m_event_count ?? 0),
+      recent_1h_event_count: countValue(row?.recent_1h_event_count ?? 0)
+    };
+  }
+
+  private async findRealtimePeakTime({
+    filterColumn,
+    filterValue,
+    projectId,
+    segmentId
+  }: RealtimeMetricScope): Promise<string | null> {
+    const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
+    const segmentBookingFilter = segmentId
+      ? "AND ifNull(segment_id, '') = {segmentId:String}"
+      : "";
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT toString(time_bucket) AS peak_time
+        FROM (
+          SELECT
+            toStartOfHour(event_time) AS time_bucket,
+            count() AS event_count
+          FROM (
+            SELECT event_time
+            FROM promotion_touch_events
+            WHERE project_id = {projectId:String}
+              AND ${filterColumn} = {filterValue:String}
+              ${segmentTouchFilter}
+
+            UNION ALL
+
+            SELECT event_time
+            FROM booking_outcome_events
+            WHERE project_id = {projectId:String}
+              AND ifNull(${filterColumn}, '') = {filterValue:String}
+              ${segmentBookingFilter}
+          )
+          GROUP BY time_bucket
+          ORDER BY event_count DESC, time_bucket DESC
+          LIMIT 1
+        )
+      `,
+      format: "JSONEachRow",
+      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+    });
+    const [row] = await result.json<RealtimePeakTimeRow>();
+
+    return row?.peak_time ?? null;
   }
 
   private async countRealtimeBreakdowns(

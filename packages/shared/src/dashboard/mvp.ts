@@ -359,6 +359,9 @@ export type DashboardBannerResponse = z.infer<typeof DashboardBannerResponseSche
 
 export const DashboardRealtimeMetricsSchema = z.object({
   total_event_count: CountSchema,
+  recent_5m_event_count: CountSchema,
+  recent_1h_event_count: CountSchema,
+  peak_time: z.string().nullable(),
   events: z.array(DashboardRealtimeEventSchema),
   time_buckets: z.array(DashboardRealtimeTimeBucketSchema),
   channel_breakdown: z.array(DashboardRealtimeBreakdownItemSchema),
