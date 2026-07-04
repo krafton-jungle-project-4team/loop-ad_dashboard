@@ -6,7 +6,7 @@ export {
   type InsertRedirectLinkInput
 } from "./ad-execution-writer.js";
 export {
-  InMemoryDemoRecipientDirectory,
+  EnvDemoRecipientDirectory,
   RecipientDirectory,
   type DispatchRecipient
 } from "./recipient-directory.js";
