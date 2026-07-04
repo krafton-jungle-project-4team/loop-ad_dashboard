@@ -14,6 +14,7 @@ import type {
   DashboardRealtimeBreakdownItem,
   DashboardRealtimeEvent,
   DashboardRealtimeTimeBucket,
+  DashboardSegmentRealtimeSummary,
   DashboardSegmentRealtimeMetrics
 } from "@loopad/shared";
 import { type ClickHouseClient } from "@clickhouse/client";
@@ -79,6 +80,19 @@ type RealtimeWindowCountRow = {
 
 type RealtimePeakTimeRow = {
   peak_time: string | null;
+};
+
+type SegmentRealtimeSummaryRow = {
+  segment_id: string;
+  segment_user_count: number | string;
+  delivery_count: number | string;
+  reach_count: number | string;
+  promotion_impression_count: number | string;
+  promotion_click_count: number | string;
+  campaign_redirect_click_count: number | string;
+  campaign_landing_count: number | string;
+  booking_start_count: number | string;
+  booking_complete_count: number | string;
 };
 
 type RealtimeMetricScope = {
@@ -256,6 +270,61 @@ export class DashboardFunnelReader {
       delivery_status: deliveryStatus,
       banner_response: toBannerResponse(events)
     };
+  }
+
+  async getPromotionSegmentRealtimeSummaries(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardSegmentRealtimeSummary[]> {
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          segment_id,
+          uniqExact(user_id) AS segment_user_count,
+          countIf(event_name IN ('campaign_redirect_click', 'promotion_click')) AS delivery_count,
+          uniqExactIf(user_id, event_name IN ('campaign_redirect_click', 'promotion_click', 'promotion_impression')) AS reach_count,
+          countIf(event_name = 'promotion_impression') AS promotion_impression_count,
+          countIf(event_name = 'promotion_click') AS promotion_click_count,
+          countIf(event_name = 'campaign_redirect_click') AS campaign_redirect_click_count,
+          countIf(event_name = 'campaign_landing') AS campaign_landing_count,
+          countIf(event_name = 'booking_start') AS booking_start_count,
+          countIf(event_name = 'booking_complete') AS booking_complete_count
+        FROM (
+          SELECT segment_id, user_id, event_name
+          FROM promotion_touch_events
+          WHERE project_id = {projectId:String}
+            AND promotion_id = {promotionId:String}
+            AND segment_id != ''
+
+          UNION ALL
+
+          SELECT ifNull(segment_id, '') AS segment_id, user_id, event_name
+          FROM booking_outcome_events
+          WHERE project_id = {projectId:String}
+            AND ifNull(promotion_id, '') = {promotionId:String}
+            AND ifNull(segment_id, '') != ''
+        )
+        GROUP BY segment_id
+        ORDER BY booking_complete_count DESC, promotion_click_count DESC, segment_id ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { projectId, promotionId }
+    });
+    const rows = await result.json<SegmentRealtimeSummaryRow>();
+
+    return rows.map((row) => ({
+      promotion_id: promotionId,
+      segment_id: row.segment_id,
+      segment_user_count: countValue(row.segment_user_count),
+      delivery_count: countValue(row.delivery_count),
+      reach_count: countValue(row.reach_count),
+      promotion_impression_count: countValue(row.promotion_impression_count),
+      promotion_click_count: countValue(row.promotion_click_count),
+      campaign_redirect_click_count: countValue(row.campaign_redirect_click_count),
+      campaign_landing_count: countValue(row.campaign_landing_count),
+      booking_start_count: countValue(row.booking_start_count),
+      booking_complete_count: countValue(row.booking_complete_count)
+    }));
   }
 
   async createFunnel(

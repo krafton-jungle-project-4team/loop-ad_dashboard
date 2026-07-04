@@ -2634,6 +2634,7 @@ function PromotionDetail({
         metrics={detail.realtime_metrics}
         title="프로모션 이벤트 집계"
       />
+      <PromotionSegmentRealtimeSummary detail={detail} />
       <PromotionSegmentCards
         onSelectSegment={onSelectSegment}
         segments={detail.segments}
@@ -2662,6 +2663,90 @@ function PromotionDetail({
       <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
     </section>
+  );
+}
+
+function PromotionSegmentRealtimeSummary({
+  detail
+}: {
+  detail: DashboardPromotionDetailResource;
+}) {
+  const summariesBySegment = new Map(
+    detail.segment_realtime_summaries.map((summary) => [summary.segment_id, summary])
+  );
+
+  return (
+    <DetailTable
+      emptyMessage="세그먼트별 실시간 집계가 없습니다."
+      headers={[
+        "세그먼트",
+        "대상",
+        "발송",
+        "도달",
+        "노출",
+        "클릭",
+        "랜딩",
+        "예약 시작",
+        "예약 완료",
+        "목표",
+        "상태"
+      ]}
+      title="세그먼트 집계"
+    >
+      {detail.segments.map((segment) => {
+        const summary = summariesBySegment.get(segment.segment_id);
+        return (
+          <TableRow key={`${segment.promotion_id}-${segment.segment_id}-realtime`}>
+            <TableCell>
+              <div className="flex min-w-[180px] flex-col gap-1">
+                <span className="font-medium">{segment.segment_name}</span>
+                <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
+              </div>
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(summary?.segment_user_count ?? segment.estimated_size)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(summary?.delivery_count ?? 0)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(summary?.reach_count ?? 0)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(summary?.promotion_impression_count ?? 0)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(summary?.promotion_click_count ?? 0)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(summary?.campaign_landing_count ?? 0)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(summary?.booking_start_count ?? 0)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(summary?.booking_complete_count ?? 0)}
+            </TableCell>
+            <TableCell>
+              <div className="grid min-w-[160px] gap-1">
+                <span>{segment.goal_metric}</span>
+                <span className="text-xs text-muted-foreground">
+                  {segment.latest_actual_value === null
+                    ? "-"
+                    : formatGoalValue(segment.latest_actual_value)}
+                </span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                <Badge variant="outline">{segment.next_action}</Badge>
+              </div>
+            </TableCell>
+          </TableRow>
+        );
+      })}
+    </DetailTable>
   );
 }
 

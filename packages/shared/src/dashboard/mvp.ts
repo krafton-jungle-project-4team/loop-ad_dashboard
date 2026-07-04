@@ -394,6 +394,23 @@ export type DashboardSegmentRealtimeMetrics = z.infer<
   typeof DashboardSegmentRealtimeMetricsSchema
 >;
 
+export const DashboardSegmentRealtimeSummarySchema = z.object({
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  segment_user_count: CountSchema,
+  delivery_count: CountSchema,
+  reach_count: CountSchema,
+  promotion_impression_count: CountSchema,
+  promotion_click_count: CountSchema,
+  campaign_redirect_click_count: CountSchema,
+  campaign_landing_count: CountSchema,
+  booking_start_count: CountSchema,
+  booking_complete_count: CountSchema
+});
+export type DashboardSegmentRealtimeSummary = z.infer<
+  typeof DashboardSegmentRealtimeSummarySchema
+>;
+
 export const DashboardCampaignDetailSchema = z.object({
   campaign: DashboardCampaignSummarySchema,
   promotions: z.array(DashboardCampaignPromotionSchema),
@@ -407,7 +424,8 @@ export const DashboardPromotionDetailSchema = z.object({
   promotion: DashboardPromotionSummarySchema,
   segments: z.array(DashboardCampaignSegmentSchema),
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
-  realtime_metrics: DashboardPromotionRealtimeMetricsSchema
+  realtime_metrics: DashboardPromotionRealtimeMetricsSchema,
+  segment_realtime_summaries: z.array(DashboardSegmentRealtimeSummarySchema)
 });
 export type DashboardPromotionDetail = z.infer<typeof DashboardPromotionDetailSchema>;
 

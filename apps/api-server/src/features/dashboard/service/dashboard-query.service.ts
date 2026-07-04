@@ -189,14 +189,16 @@ export class DashboardQueryService {
     projectId: string,
     promotionId: string
   ): Promise<DashboardPromotionDetail> {
-    const [detail, realtimeMetrics] = await Promise.all([
+    const [detail, realtimeMetrics, segmentRealtimeSummaries] = await Promise.all([
       this.campaignReader.getPromotionDetail(projectId, promotionId),
-      this.funnelReader.getPromotionRealtimeMetrics(projectId, promotionId)
+      this.funnelReader.getPromotionRealtimeMetrics(projectId, promotionId),
+      this.funnelReader.getPromotionSegmentRealtimeSummaries(projectId, promotionId)
     ]);
 
     return {
       ...detail,
-      realtime_metrics: realtimeMetrics
+      realtime_metrics: realtimeMetrics,
+      segment_realtime_summaries: segmentRealtimeSummaries
     };
   }
 
