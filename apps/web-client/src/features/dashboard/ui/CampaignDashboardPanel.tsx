@@ -4594,7 +4594,14 @@ function SegmentAdExperimentStatusPanel({
                 <SummaryItem label="프로모션" value={experiment.promotion_id} />
                 <SummaryItem label="세그먼트" value={experiment.segment_id} />
                 <SummaryItem label="콘텐츠" value={experiment.content_id} />
+                <SummaryItem label="채널" value={experiment.channel} />
+                <SummaryItem label="루프" value={formatInteger(experiment.loop_count)} />
+                <SummaryItem
+                  label="목표"
+                  value={`${experiment.goal_metric} / ${formatGoalValue(experiment.goal_target_value)}`}
+                />
               </div>
+              <InsightBlock label="목표 기준" value={experiment.goal_basis} />
             </div>
           ))}
         </div>

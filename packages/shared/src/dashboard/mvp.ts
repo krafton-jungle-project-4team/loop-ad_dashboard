@@ -279,6 +279,11 @@ export const DashboardAdExperimentSchema = z.object({
   segment_id: z.string(),
   content_id: z.string(),
   content_option_id: z.string(),
+  channel: z.string(),
+  loop_count: CountSchema,
+  goal_metric: z.string(),
+  goal_target_value: z.number().nonnegative(),
+  goal_basis: z.string(),
   status: z.string()
 });
 export type DashboardAdExperiment = z.infer<typeof DashboardAdExperimentSchema>;

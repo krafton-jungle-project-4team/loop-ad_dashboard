@@ -802,6 +802,11 @@ SELECT
   segment_id AS "segmentId",
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
+  channel,
+  loop_count AS "loopCount",
+  goal_metric AS "goalMetric",
+  goal_target_value::float8 AS "goalTargetValue",
+  goal_basis AS "goalBasis",
   status
 FROM ad_experiments
 WHERE project_id = :projectId
@@ -1003,6 +1008,11 @@ RETURNING
   segment_id AS "segmentId",
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
+  channel,
+  loop_count AS "loopCount",
+  goal_metric AS "goalMetric",
+  goal_target_value::float8 AS "goalTargetValue",
+  goal_basis AS "goalBasis",
   status;
 
 /* 목적: 콘텐츠 승인 후 프로모션 타겟 세그먼트 상태를 승인됨으로 갱신합니다. */

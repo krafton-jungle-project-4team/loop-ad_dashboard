@@ -1760,8 +1760,13 @@ export interface IListDashboardSegmentAdExperimentsParams {
 /** 'ListDashboardSegmentAdExperiments' return type */
 export interface IListDashboardSegmentAdExperimentsResult {
   adExperimentId: string;
+  channel: string;
   contentId: string;
   contentOptionId: string;
+  goalBasis: string;
+  goalMetric: string;
+  goalTargetValue: number | null;
+  loopCount: number;
   promotionId: string;
   promotionRunId: string;
   segmentId: string;
@@ -1774,7 +1779,7 @@ export interface IListDashboardSegmentAdExperimentsQuery {
   result: IListDashboardSegmentAdExperimentsResult;
 }
 
-const listDashboardSegmentAdExperimentsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":268,"b":277}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":300,"b":311}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":332,"b":341}]}],"statement":"SELECT\n  ad_experiment_id AS \"adExperimentId\",\n  promotion_run_id AS \"promotionRunId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  status\nFROM ad_experiments\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY loop_count DESC, updated_at DESC, created_at DESC                                                        "};
+const listDashboardSegmentAdExperimentsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":418,"b":427}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":450,"b":461}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":482,"b":491}]}],"statement":"SELECT\n  ad_experiment_id AS \"adExperimentId\",\n  promotion_run_id AS \"promotionRunId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  channel,\n  loop_count AS \"loopCount\",\n  goal_metric AS \"goalMetric\",\n  goal_target_value::float8 AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  status\nFROM ad_experiments\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY loop_count DESC, updated_at DESC, created_at DESC                                                        "};
 
 /**
  * Query generated from SQL:
@@ -1786,6 +1791,11 @@ const listDashboardSegmentAdExperimentsIR: any = {"usedParamSet":{"projectId":tr
  *   segment_id AS "segmentId",
  *   content_id AS "contentId",
  *   content_option_id AS "contentOptionId",
+ *   channel,
+ *   loop_count AS "loopCount",
+ *   goal_metric AS "goalMetric",
+ *   goal_target_value::float8 AS "goalTargetValue",
+ *   goal_basis AS "goalBasis",
  *   status
  * FROM ad_experiments
  * WHERE project_id = :projectId
@@ -2165,8 +2175,13 @@ export interface IUpsertDashboardAdExperimentFromApprovedContentParams {
 /** 'UpsertDashboardAdExperimentFromApprovedContent' return type */
 export interface IUpsertDashboardAdExperimentFromApprovedContentResult {
   adExperimentId: string;
+  channel: string;
   contentId: string;
   contentOptionId: string;
+  goalBasis: string;
+  goalMetric: string;
+  goalTargetValue: number | null;
+  loopCount: number;
   promotionId: string;
   promotionRunId: string;
   segmentId: string;
@@ -2179,7 +2194,7 @@ export interface IUpsertDashboardAdExperimentFromApprovedContentQuery {
   result: IUpsertDashboardAdExperimentFromApprovedContentResult;
 }
 
-const upsertDashboardAdExperimentFromApprovedContentIR: any = {"usedParamSet":{"adExperimentId":true,"projectId":true,"campaignId":true,"promotionId":true,"promotionRunId":true,"analysisId":true,"generationId":true,"segmentId":true,"segmentName":true,"contentId":true,"contentOptionId":true,"channel":true,"loopCount":true,"goalMetric":true,"goalTargetValue":true,"goalBasis":true},"params":[{"name":"adExperimentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":308,"b":322}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":327,"b":336}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":341,"b":351}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":356,"b":367}]},{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":372,"b":386}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":391,"b":401}]},{"name":"generationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":406,"b":418}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":423,"b":432}]},{"name":"segmentName","required":false,"transform":{"type":"scalar"},"locs":[{"a":437,"b":448}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":453,"b":462}]},{"name":"contentOptionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":467,"b":482}]},{"name":"channel","required":false,"transform":{"type":"scalar"},"locs":[{"a":487,"b":494}]},{"name":"loopCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":499,"b":508}]},{"name":"goalMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":527,"b":537}]},{"name":"goalTargetValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":542,"b":557}]},{"name":"goalBasis","required":false,"transform":{"type":"scalar"},"locs":[{"a":562,"b":571}]}],"statement":"INSERT INTO ad_experiments (\n  ad_experiment_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  promotion_run_id,\n  analysis_id,\n  generation_id,\n  segment_id,\n  segment_name,\n  content_id,\n  content_option_id,\n  channel,\n  loop_count,\n  status,\n  goal_metric,\n  goal_target_value,\n  goal_basis\n)\nVALUES (\n  :adExperimentId,\n  :projectId,\n  :campaignId,\n  :promotionId,\n  :promotionRunId,\n  :analysisId,\n  :generationId,\n  :segmentId,\n  :segmentName,\n  :contentId,\n  :contentOptionId,\n  :channel,\n  :loopCount,\n  'approved',\n  :goalMetric,\n  :goalTargetValue,\n  :goalBasis\n)\nON CONFLICT (promotion_run_id, segment_id)\nDO UPDATE SET\n  content_id = EXCLUDED.content_id,\n  content_option_id = EXCLUDED.content_option_id,\n  channel = EXCLUDED.channel,\n  status = 'approved',\n  goal_metric = EXCLUDED.goal_metric,\n  goal_target_value = EXCLUDED.goal_target_value,\n  goal_basis = EXCLUDED.goal_basis,\n  updated_at = now()\nRETURNING\n  ad_experiment_id AS \"adExperimentId\",\n  promotion_run_id AS \"promotionRunId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  status                                                "};
+const upsertDashboardAdExperimentFromApprovedContentIR: any = {"usedParamSet":{"adExperimentId":true,"projectId":true,"campaignId":true,"promotionId":true,"promotionRunId":true,"analysisId":true,"generationId":true,"segmentId":true,"segmentName":true,"contentId":true,"contentOptionId":true,"channel":true,"loopCount":true,"goalMetric":true,"goalTargetValue":true,"goalBasis":true},"params":[{"name":"adExperimentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":308,"b":322}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":327,"b":336}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":341,"b":351}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":356,"b":367}]},{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":372,"b":386}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":391,"b":401}]},{"name":"generationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":406,"b":418}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":423,"b":432}]},{"name":"segmentName","required":false,"transform":{"type":"scalar"},"locs":[{"a":437,"b":448}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":453,"b":462}]},{"name":"contentOptionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":467,"b":482}]},{"name":"channel","required":false,"transform":{"type":"scalar"},"locs":[{"a":487,"b":494}]},{"name":"loopCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":499,"b":508}]},{"name":"goalMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":527,"b":537}]},{"name":"goalTargetValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":542,"b":557}]},{"name":"goalBasis","required":false,"transform":{"type":"scalar"},"locs":[{"a":562,"b":571}]}],"statement":"INSERT INTO ad_experiments (\n  ad_experiment_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  promotion_run_id,\n  analysis_id,\n  generation_id,\n  segment_id,\n  segment_name,\n  content_id,\n  content_option_id,\n  channel,\n  loop_count,\n  status,\n  goal_metric,\n  goal_target_value,\n  goal_basis\n)\nVALUES (\n  :adExperimentId,\n  :projectId,\n  :campaignId,\n  :promotionId,\n  :promotionRunId,\n  :analysisId,\n  :generationId,\n  :segmentId,\n  :segmentName,\n  :contentId,\n  :contentOptionId,\n  :channel,\n  :loopCount,\n  'approved',\n  :goalMetric,\n  :goalTargetValue,\n  :goalBasis\n)\nON CONFLICT (promotion_run_id, segment_id)\nDO UPDATE SET\n  content_id = EXCLUDED.content_id,\n  content_option_id = EXCLUDED.content_option_id,\n  channel = EXCLUDED.channel,\n  status = 'approved',\n  goal_metric = EXCLUDED.goal_metric,\n  goal_target_value = EXCLUDED.goal_target_value,\n  goal_basis = EXCLUDED.goal_basis,\n  updated_at = now()\nRETURNING\n  ad_experiment_id AS \"adExperimentId\",\n  promotion_run_id AS \"promotionRunId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  channel,\n  loop_count AS \"loopCount\",\n  goal_metric AS \"goalMetric\",\n  goal_target_value::float8 AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  status                                                "};
 
 /**
  * Query generated from SQL:
@@ -2239,6 +2254,11 @@ const upsertDashboardAdExperimentFromApprovedContentIR: any = {"usedParamSet":{"
  *   segment_id AS "segmentId",
  *   content_id AS "contentId",
  *   content_option_id AS "contentOptionId",
+ *   channel,
+ *   loop_count AS "loopCount",
+ *   goal_metric AS "goalMetric",
+ *   goal_target_value::float8 AS "goalTargetValue",
+ *   goal_basis AS "goalBasis",
  *   status                                                
  * ```
  */

@@ -732,8 +732,13 @@ function toCampaignExperimentMetric(
 function toSegmentAdExperiment(row: IListDashboardSegmentAdExperimentsResult): DashboardAdExperiment {
   return {
     ad_experiment_id: row.adExperimentId,
+    channel: row.channel,
     content_id: row.contentId,
     content_option_id: row.contentOptionId,
+    goal_basis: row.goalBasis,
+    goal_metric: row.goalMetric,
+    goal_target_value: row.goalTargetValue ?? 0,
+    loop_count: row.loopCount,
     promotion_id: row.promotionId,
     promotion_run_id: row.promotionRunId,
     segment_id: row.segmentId,
@@ -773,8 +778,13 @@ function toAdExperiment(
 ): DashboardAdExperiment {
   return {
     ad_experiment_id: row.adExperimentId,
+    channel: row.channel,
     content_id: row.contentId,
     content_option_id: row.contentOptionId,
+    goal_basis: row.goalBasis,
+    goal_metric: row.goalMetric,
+    goal_target_value: row.goalTargetValue ?? 0,
+    loop_count: row.loopCount,
     promotion_id: row.promotionId,
     promotion_run_id: row.promotionRunId,
     segment_id: row.segmentId,

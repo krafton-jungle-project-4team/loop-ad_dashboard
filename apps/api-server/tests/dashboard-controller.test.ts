@@ -442,6 +442,11 @@ test("dashboard controller parses content approval body before delegating", asyn
         segment_id: segmentId,
         content_id: contentId,
         content_option_id: "option_a",
+        channel: "onsite_banner",
+        loop_count: 1,
+        goal_metric: "booking_conversion_rate",
+        goal_target_value: 0.03,
+        goal_basis: "all_segments",
         status: "approved"
       };
     }
