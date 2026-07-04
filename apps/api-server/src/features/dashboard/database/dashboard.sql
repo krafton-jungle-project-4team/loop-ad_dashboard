@@ -91,6 +91,7 @@ SELECT
   p.goal_metric AS "goalMetric",
   p.goal_target_value::float8 AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
+  p.min_sample_size AS "minSampleSize",
   p.offer_type AS "offerType",
   p.landing_url AS "landingUrl",
   p.status,
@@ -112,58 +113,98 @@ GROUP BY p.promotion_id;
 /* 목적: 캠페인 프로모션에 연결된 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardCampaignSegments */
 SELECT
-  promotion_id AS "promotionId",
-  segment_id AS "segmentId",
-  segment_name AS "segmentName",
-  estimated_size AS "estimatedSize",
-  priority,
-  status
-FROM promotion_target_segments
-WHERE project_id = :projectId
-  AND campaign_id = :campaignId
-ORDER BY promotion_id ASC, created_at DESC;
+  pts.promotion_id AS "promotionId",
+  pts.segment_id AS "segmentId",
+  pts.segment_name AS "segmentName",
+  sd.source,
+  sd.natural_language_query AS "naturalLanguageQuery",
+  pts.rule_json AS "ruleJson",
+  pts.profile_json AS "profileJson",
+  pts.content_brief_json AS "contentBriefJson",
+  pts.data_evidence_json AS "dataEvidenceJson",
+  pts.estimated_size AS "estimatedSize",
+  sd.sample_size AS "sampleSize",
+  sd.total_eligible_user_count AS "totalEligibleUserCount",
+  sd.sample_ratio::float8 AS "sampleRatio",
+  pts.priority,
+  pts.status
+FROM promotion_target_segments pts
+JOIN segment_definitions sd
+  ON sd.segment_id = pts.segment_id
+WHERE pts.project_id = :projectId
+  AND pts.campaign_id = :campaignId
+ORDER BY pts.promotion_id ASC, pts.created_at DESC;
 
 /* 목적: 프로모션에 연결된 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardPromotionSegments */
 SELECT
-  promotion_id AS "promotionId",
-  segment_id AS "segmentId",
-  segment_name AS "segmentName",
-  estimated_size AS "estimatedSize",
-  priority,
-  status
-FROM promotion_target_segments
-WHERE project_id = :projectId
-  AND promotion_id = :promotionId
-ORDER BY created_at DESC;
+  pts.promotion_id AS "promotionId",
+  pts.segment_id AS "segmentId",
+  pts.segment_name AS "segmentName",
+  sd.source,
+  sd.natural_language_query AS "naturalLanguageQuery",
+  pts.rule_json AS "ruleJson",
+  pts.profile_json AS "profileJson",
+  pts.content_brief_json AS "contentBriefJson",
+  pts.data_evidence_json AS "dataEvidenceJson",
+  pts.estimated_size AS "estimatedSize",
+  sd.sample_size AS "sampleSize",
+  sd.total_eligible_user_count AS "totalEligibleUserCount",
+  sd.sample_ratio::float8 AS "sampleRatio",
+  pts.priority,
+  pts.status
+FROM promotion_target_segments pts
+JOIN segment_definitions sd
+  ON sd.segment_id = pts.segment_id
+WHERE pts.project_id = :projectId
+  AND pts.promotion_id = :promotionId
+ORDER BY pts.created_at DESC;
 
 /* 목적: 프로모션 안의 특정 세그먼트 요약을 조회합니다. */
 /* @name GetDashboardPromotionSegment */
 SELECT
-  promotion_id AS "promotionId",
-  segment_id AS "segmentId",
-  segment_name AS "segmentName",
-  estimated_size AS "estimatedSize",
-  priority,
-  status
-FROM promotion_target_segments
-WHERE project_id = :projectId
-  AND promotion_id = :promotionId
-  AND segment_id = :segmentId;
+  pts.promotion_id AS "promotionId",
+  pts.segment_id AS "segmentId",
+  pts.segment_name AS "segmentName",
+  sd.source,
+  sd.natural_language_query AS "naturalLanguageQuery",
+  pts.rule_json AS "ruleJson",
+  pts.profile_json AS "profileJson",
+  pts.content_brief_json AS "contentBriefJson",
+  pts.data_evidence_json AS "dataEvidenceJson",
+  pts.estimated_size AS "estimatedSize",
+  sd.sample_size AS "sampleSize",
+  sd.total_eligible_user_count AS "totalEligibleUserCount",
+  sd.sample_ratio::float8 AS "sampleRatio",
+  pts.priority,
+  pts.status
+FROM promotion_target_segments pts
+JOIN segment_definitions sd
+  ON sd.segment_id = pts.segment_id
+WHERE pts.project_id = :projectId
+  AND pts.promotion_id = :promotionId
+  AND pts.segment_id = :segmentId;
 
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardCampaignExperimentMetrics */
 SELECT
   promotion_id AS "promotionId",
+  promotion_run_id AS "promotionRunId",
   ad_experiment_id AS "adExperimentId",
   segment_id AS "segmentId",
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
   metric,
   target_value::float8 AS "targetValue",
   actual_value::float8 AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
+  basis,
   status,
+  feedback,
+  next_loop_required AS "nextLoopRequired",
+  result_json AS "resultJson",
   created_at AS "createdAt"
 FROM promotion_evaluations
 WHERE project_id = :projectId
@@ -174,15 +215,22 @@ ORDER BY created_at DESC;
 /* @name ListDashboardPromotionExperimentMetrics */
 SELECT
   promotion_id AS "promotionId",
+  promotion_run_id AS "promotionRunId",
   ad_experiment_id AS "adExperimentId",
   segment_id AS "segmentId",
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
   metric,
   target_value::float8 AS "targetValue",
   actual_value::float8 AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
+  basis,
   status,
+  feedback,
+  next_loop_required AS "nextLoopRequired",
+  result_json AS "resultJson",
   created_at AS "createdAt"
 FROM promotion_evaluations
 WHERE project_id = :projectId
@@ -193,15 +241,22 @@ ORDER BY created_at DESC;
 /* @name ListDashboardSegmentExperimentMetrics */
 SELECT
   promotion_id AS "promotionId",
+  promotion_run_id AS "promotionRunId",
   ad_experiment_id AS "adExperimentId",
   segment_id AS "segmentId",
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
   metric,
   target_value::float8 AS "targetValue",
   actual_value::float8 AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
+  basis,
   status,
+  feedback,
+  next_loop_required AS "nextLoopRequired",
+  result_json AS "resultJson",
   created_at AS "createdAt"
 FROM promotion_evaluations
 WHERE project_id = :projectId
@@ -223,8 +278,11 @@ SELECT
   message,
   image_prompt AS "imagePrompt",
   landing_url AS "landingUrl",
+  generation_prompt AS "generationPrompt",
   reason_summary AS "reasonSummary",
+  data_evidence_json AS "dataEvidenceJson",
   message_strategy AS "messageStrategy",
+  metadata_json AS "metadataJson",
   status,
   updated_at AS "updatedAt"
 FROM content_candidates

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const RateSchema = z.number().min(0).max(1);
 const CountSchema = z.number().int().nonnegative();
+const JsonObjectSchema = z.record(z.string(), z.unknown());
 
 export const DashboardCampaignSummarySchema = z.object({
   campaign_id: z.string(),
@@ -42,6 +43,7 @@ export type DashboardCampaignPromotion = z.infer<typeof DashboardCampaignPromoti
 export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.extend({
   campaign_id: z.string(),
   target_audience: z.string(),
+  min_sample_size: CountSchema,
   offer_type: z.string().nullable(),
   landing_url: z.string().nullable()
 });
@@ -51,7 +53,16 @@ export const DashboardCampaignSegmentSchema = z.object({
   promotion_id: z.string(),
   segment_id: z.string(),
   segment_name: z.string(),
+  source: z.string().nullable(),
+  natural_language_query: z.string().nullable(),
+  rule_json: JsonObjectSchema,
+  profile_json: JsonObjectSchema,
+  content_brief_json: JsonObjectSchema,
+  data_evidence_json: JsonObjectSchema,
   estimated_size: CountSchema,
+  sample_size: CountSchema,
+  total_eligible_user_count: CountSchema,
+  sample_ratio: z.number().nonnegative(),
   priority: z.string().nullable(),
   status: z.string()
 });
@@ -69,8 +80,11 @@ export const DashboardContentCandidateSchema = z.object({
   message: z.string().nullable(),
   image_prompt: z.string().nullable(),
   landing_url: z.string().nullable(),
+  generation_prompt: z.string().nullable(),
   reason_summary: z.string().nullable(),
+  data_evidence_json: JsonObjectSchema,
   message_strategy: z.string().nullable(),
+  metadata_json: JsonObjectSchema,
   status: z.string(),
   updated_at: z.string()
 });
@@ -78,15 +92,22 @@ export type DashboardContentCandidate = z.infer<typeof DashboardContentCandidate
 
 export const DashboardCampaignExperimentMetricSchema = z.object({
   promotion_id: z.string(),
+  promotion_run_id: z.string(),
   ad_experiment_id: z.string().nullable(),
   segment_id: z.string().nullable(),
+  content_id: z.string().nullable(),
+  content_option_id: z.string().nullable(),
   metric: z.string(),
   target_value: z.number().nonnegative(),
   actual_value: z.number().nonnegative(),
   numerator_count: CountSchema,
   denominator_count: CountSchema,
   sample_size: CountSchema,
+  basis: z.string(),
   status: z.string(),
+  feedback: z.string().nullable(),
+  next_loop_required: z.boolean(),
+  result_json: JsonObjectSchema,
   created_at: z.string()
 });
 export type DashboardCampaignExperimentMetric = z.infer<

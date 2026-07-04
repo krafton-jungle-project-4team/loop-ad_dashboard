@@ -754,18 +754,219 @@ function SegmentDetailPanel({
     return <EmptyState message="세그먼트 상세를 불러오는 중입니다." />;
   }
 
+  const adExperimentIds = uniqueValues(
+    detail.experiment_metrics.map((metric) => metric.ad_experiment_id)
+  );
+  const latestMetric = detail.experiment_metrics[0];
+  const hasInsufficientData = detail.experiment_metrics.some(
+    (metric) => metric.status === "insufficient_data"
+  );
+
   return (
     <section className="grid gap-4">
       <h3 className="text-base font-semibold text-[#1d1d1f]">세그먼트 상세</h3>
       <div className="grid gap-3 md:grid-cols-4">
         <SummaryItem label="세그먼트" value={detail.segment.segment_name} />
+        <SummaryItem label="세그먼트 출처" value={detail.segment.source ?? "-"} />
         <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
+        <SummaryItem label="정의 표본" value={formatInteger(detail.segment.sample_size)} />
+        <SummaryItem
+          label="전체 적격 유저"
+          value={formatInteger(detail.segment.total_eligible_user_count)}
+        />
+        <SummaryItem label="표본 비율" value={formatPercentValue(detail.segment.sample_ratio)} />
         <SummaryItem label="상태" value={detail.segment.status} />
+        <SummaryItem label="우선순위" value={detail.segment.priority ?? "-"} />
+        <SummaryItem
+          label="연결 실험"
+          value={adExperimentIds.length > 0 ? formatInteger(adExperimentIds.length) : "-"}
+        />
+        <SummaryItem
+          label="최근 표본"
+          value={latestMetric ? formatInteger(latestMetric.sample_size) : "-"}
+        />
+        <SummaryItem
+          label="최근 지표"
+          value={
+            latestMetric
+              ? `${latestMetric.metric} ${formatGoalValue(latestMetric.actual_value)}`
+              : "-"
+          }
+        />
         <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
       </div>
+      {hasInsufficientData ? (
+        <Alert>
+          <AlertTitle>표본 부족 상태</AlertTitle>
+          <AlertDescription>실험 지표가 표본 부족 상태입니다.</AlertDescription>
+        </Alert>
+      ) : null}
+      <SegmentDefinitionPanel segment={detail.segment} />
+      <SegmentSampleSizePanel metrics={detail.experiment_metrics} />
+      <ContentCandidateCards candidates={detail.content_candidates} />
       <ContentCandidateTable candidates={detail.content_candidates} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
     </section>
+  );
+}
+
+function SegmentDefinitionPanel({ segment }: { segment: DashboardCampaignSegment }) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">세그먼트 조건과 데이터 근거</h3>
+      <div className="grid gap-3 md:grid-cols-2">
+        <InsightBlock label="자연어 조건" value={segment.natural_language_query ?? "-"} />
+        <InsightBlock label="조건 요약" value={formatJsonObject(segment.rule_json)} />
+        <InsightBlock label="프로필 요약" value={formatJsonObject(segment.profile_json)} />
+        <InsightBlock label="콘텐츠 브리프" value={formatJsonObject(segment.content_brief_json)} />
+        <InsightBlock label="데이터 근거" value={formatJsonObject(segment.data_evidence_json)} />
+      </div>
+    </section>
+  );
+}
+
+function SegmentSampleSizePanel({
+  metrics
+}: {
+  metrics: DashboardCampaignExperimentMetric[];
+}) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">sample size 검증</h3>
+      {metrics.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {metrics.map((metric) => {
+            const rate =
+              metric.denominator_count > 0
+                ? Math.min((metric.numerator_count / metric.denominator_count) * 100, 100)
+                : 0;
+
+            return (
+              <div
+                className="grid gap-3 rounded-md border bg-muted/20 p-3"
+                key={`${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-1">
+                    <div className="text-sm font-medium">{metric.metric}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {metric.ad_experiment_id ?? "-"}
+                    </div>
+                  </div>
+                  <Badge variant={metric.status === "insufficient_data" ? "outline" : "secondary"}>
+                    {metric.status}
+                  </Badge>
+                </div>
+                <div className="grid gap-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">평가 기준</span>
+                    <span className="font-medium">{metric.basis}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">표본</span>
+                    <span className="font-medium tabular-nums">
+                      {formatInteger(metric.sample_size)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">분자 / 분모</span>
+                    <span className="font-medium tabular-nums">
+                      {formatInteger(metric.numerator_count)} /{" "}
+                      {formatInteger(metric.denominator_count)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">목표 / 실제</span>
+                    <span className="font-medium tabular-nums">
+                      {formatGoalValue(metric.target_value)} / {formatGoalValue(metric.actual_value)}
+                    </span>
+                  </div>
+                </div>
+                <InsightBlock label="평가 피드백" value={metric.feedback ?? "-"} />
+                <InsightBlock label="평가 결과 JSON" value={formatJsonObject(metric.result_json)} />
+                <Progress value={rate} />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState message="표본 검증에 사용할 실험 지표가 없습니다." />
+      )}
+    </section>
+  );
+}
+
+function ContentCandidateCards({
+  candidates
+}: {
+  candidates: DashboardSegmentDetailResource["content_candidates"];
+}) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">생성 이유 리포트</h3>
+      {candidates.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {candidates.map((candidate) => (
+            <div className="grid gap-3 rounded-md border bg-muted/20 p-3" key={candidate.content_id}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="grid gap-1">
+                  <div className="text-sm font-medium">
+                    {candidate.title ?? candidate.content_option_id}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {candidate.channel} / {candidate.content_id}
+                  </div>
+                </div>
+                <Badge variant="secondary">{candidate.status}</Badge>
+              </div>
+              <InsightBlock label="메시지" value={candidate.message ?? candidate.body ?? "-"} />
+              <InsightBlock label="생성 이유" value={candidate.reason_summary ?? "-"} />
+              <InsightBlock label="데이터 근거" value={formatJsonObject(candidate.data_evidence_json)} />
+              <InsightBlock label="메시지 방향" value={candidate.message_strategy ?? "-"} />
+              <InsightBlock label="생성 프롬프트" value={candidate.generation_prompt ?? "-"} />
+              <InsightBlock label="이미지 프롬프트" value={candidate.image_prompt ?? "-"} />
+              <InsightBlock label="메타데이터" value={formatJsonObject(candidate.metadata_json)} />
+              <div className="grid gap-1 text-sm">
+                <div className="text-xs text-muted-foreground">CTA / 랜딩 URL</div>
+                <div className="font-medium">{candidate.cta ?? "-"}</div>
+                <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState message="생성 이유를 표시할 콘텐츠 후보가 없습니다." />
+      )}
+    </section>
+  );
+}
+
+function formatJsonObject(value: Record<string, unknown>): string {
+  const entries = Object.entries(value);
+  if (entries.length === 0) {
+    return "-";
+  }
+  return entries
+    .map(([key, entryValue]) => `${key}: ${formatJsonValue(entryValue)}`)
+    .join("\n");
+}
+
+function formatJsonValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function InsightBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1 text-sm">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="leading-6">{value}</div>
+    </div>
   );
 }
 
@@ -777,7 +978,7 @@ function ContentCandidateTable({
   return (
     <DetailTable
       emptyMessage="생성 콘텐츠 후보가 없습니다."
-      headers={["콘텐츠", "채널", "메시지", "이미지 프롬프트", "상태"]}
+      headers={["콘텐츠", "채널", "메시지", "생성 이유", "메시지 방향", "상태"]}
       title="생성 콘텐츠 카드"
     >
       {candidates.map((candidate) => (
@@ -795,7 +996,10 @@ function ContentCandidateTable({
             </div>
           </TableCell>
           <TableCell>
-            <div className="line-clamp-2 min-w-[220px]">{candidate.image_prompt ?? "-"}</div>
+            <div className="line-clamp-2 min-w-[220px]">{candidate.reason_summary ?? "-"}</div>
+          </TableCell>
+          <TableCell>
+            <div className="line-clamp-2 min-w-[220px]">{candidate.message_strategy ?? "-"}</div>
           </TableCell>
           <TableCell>
             <Badge variant="secondary">{candidate.status}</Badge>
@@ -804,6 +1008,10 @@ function ContentCandidateTable({
       ))}
     </DetailTable>
   );
+}
+
+function uniqueValues(values: Array<string | null>): string[] {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
 function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperimentMetric[] }) {
@@ -885,6 +1093,10 @@ function DetailTable({
 
 function formatGoalValue(value: number) {
   return value <= 1 ? formatPercent(value) : formatInteger(value);
+}
+
+function formatPercentValue(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
 }
 
 function formatPeriod(campaign: DashboardCampaignSummary) {

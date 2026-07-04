@@ -157,6 +157,7 @@ function toPromotionSummary(row: IGetDashboardPromotionSummaryResult): Dashboard
     goal_metric: row.goalMetric,
     goal_target_value: numberValue(row.goalTargetValue),
     goal_basis: row.goalBasis,
+    min_sample_size: countValue(row.minSampleSize),
     offer_type: row.offerType,
     landing_url: row.landingUrl,
     status: row.status,
@@ -177,7 +178,16 @@ function toCampaignSegment(
     promotion_id: row.promotionId,
     segment_id: row.segmentId,
     segment_name: row.segmentName,
+    source: row.source,
+    natural_language_query: row.naturalLanguageQuery,
+    rule_json: jsonObject(row.ruleJson),
+    profile_json: jsonObject(row.profileJson),
+    content_brief_json: jsonObject(row.contentBriefJson),
+    data_evidence_json: jsonObject(row.dataEvidenceJson),
     estimated_size: countValue(row.estimatedSize),
+    sample_size: countValue(row.sampleSize),
+    total_eligible_user_count: countValue(row.totalEligibleUserCount),
+    sample_ratio: numberValue(row.sampleRatio),
     priority: row.priority,
     status: row.status
   };
@@ -191,15 +201,22 @@ function toCampaignExperimentMetric(
 ): DashboardCampaignExperimentMetric {
   return {
     promotion_id: row.promotionId,
+    promotion_run_id: row.promotionRunId,
     ad_experiment_id: row.adExperimentId,
     segment_id: row.segmentId,
+    content_id: row.contentId,
+    content_option_id: row.contentOptionId,
     metric: row.metric,
     target_value: numberValue(row.targetValue),
     actual_value: numberValue(row.actualValue),
     numerator_count: countValue(row.numeratorCount),
     denominator_count: countValue(row.denominatorCount),
     sample_size: countValue(row.sampleSize),
+    basis: row.basis,
     status: row.status,
+    feedback: row.feedback,
+    next_loop_required: row.nextLoopRequired,
+    result_json: jsonObject(row.resultJson),
     created_at: row.createdAt.toISOString()
   };
 }
@@ -219,11 +236,20 @@ function toContentCandidate(
     message: row.message,
     image_prompt: row.imagePrompt,
     landing_url: row.landingUrl,
+    generation_prompt: row.generationPrompt,
     reason_summary: row.reasonSummary,
+    data_evidence_json: jsonObject(row.dataEvidenceJson),
     message_strategy: row.messageStrategy,
+    metadata_json: jsonObject(row.metadataJson),
     status: row.status,
     updated_at: row.updatedAt.toISOString()
   };
+}
+
+function jsonObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function countValue(value: number | string | null): number {
