@@ -14,6 +14,43 @@ export const DataExplorerObjectRefSchema = z.object({
 });
 export type DataExplorerObjectRef = z.infer<typeof DataExplorerObjectRefSchema>;
 
+const OptionalQueryStringSchema = z.preprocess(
+  (value) => (typeof value === "string" && !value.trim() ? undefined : value),
+  z.string().trim().min(1).optional()
+);
+
+export const DataExplorerObjectsQuerySchema = z
+  .object({
+    database: OptionalQueryStringSchema,
+    schema: OptionalQueryStringSchema,
+    type: DataExplorerObjectTypeSchema.optional(),
+    q: OptionalQueryStringSchema
+  })
+  .transform((query) => ({
+    databaseName: query.database,
+    schemaName: query.schema,
+    objectType: query.type,
+    q: query.q
+  }));
+export type DataExplorerObjectsQuery = z.infer<typeof DataExplorerObjectsQuerySchema>;
+
+export const DataExplorerObjectDetailQuerySchema = z
+  .object({
+    database: OptionalQueryStringSchema,
+    schema: OptionalQueryStringSchema,
+    object_type: DataExplorerObjectTypeSchema,
+    object_name: z.string().trim().min(1)
+  })
+  .transform((query) =>
+    DataExplorerObjectRefSchema.parse({
+      database_name: query.database ?? null,
+      schema_name: query.schema ?? null,
+      object_type: query.object_type,
+      object_name: query.object_name
+    })
+  );
+export type DataExplorerObjectDetailQuery = z.infer<typeof DataExplorerObjectDetailQuerySchema>;
+
 export const DataExplorerObjectSummarySchema = DataExplorerObjectRefSchema.extend({
   source_comment: z.string().nullable(),
   engine: z.string().nullable(),

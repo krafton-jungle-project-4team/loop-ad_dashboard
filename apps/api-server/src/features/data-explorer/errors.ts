@@ -2,11 +2,6 @@ import { HttpStatus } from "@nestjs/common";
 import { createDomainError } from "../../app-errors.js";
 
 export const DATA_EXPLORER_ERRORS = {
-  OBJECT_REF_REQUIRED: {
-    statusCode: HttpStatus.BAD_REQUEST,
-    code: "DATA_EXPLORER_OBJECT_REF_REQUIRED",
-    message: "object_type and object_name are required."
-  },
   SQL_VALIDATION_FAILED: {
     statusCode: HttpStatus.BAD_REQUEST,
     code: "DATA_EXPLORER_SQL_VALIDATION_FAILED",
@@ -41,7 +36,6 @@ function createDataExplorerError(key: DataExplorerErrorKey, options?: ErrorOptio
 }
 
 export const dataExplorerErrors = {
-  objectRefRequired: () => createDataExplorerError("OBJECT_REF_REQUIRED"),
   sqlValidationFailed: () => createDataExplorerError("SQL_VALIDATION_FAILED"),
   schemaInspectionFailed: (options?: ErrorOptions) =>
     createDataExplorerError("SCHEMA_INSPECTION_FAILED", options),
