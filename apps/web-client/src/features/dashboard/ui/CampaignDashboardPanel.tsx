@@ -2771,6 +2771,7 @@ function PromotionDetail({
   return (
     <section className="grid gap-4">
       <PromotionOverview detail={detail} />
+      <PromotionAnalysisPanel detail={detail} />
       <RealtimeEventTable
         emptyMessage="프로모션 실시간 이벤트가 아직 수집되지 않았습니다."
         metrics={detail.realtime_metrics}
@@ -2804,6 +2805,111 @@ function PromotionDetail({
       />
       <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
+    </section>
+  );
+}
+
+function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailResource }) {
+  const latestAnalysis = detail.analyses[0];
+  const completedCount = detail.analyses.filter((analysis) => analysis.status === "completed").length;
+  const failedCount = detail.analyses.filter((analysis) => analysis.status === "failed").length;
+  const focusSegmentCount = uniqueValues(
+    detail.analyses.flatMap((analysis) => analysis.focus_segment_ids)
+  ).length;
+
+  return (
+    <section className="grid gap-3">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 분석 히스토리</h3>
+        <p className="text-sm text-muted-foreground">
+          Decision 분석 요청, focus segment, 운영자 지시, 결과 JSON을 최신순으로 확인합니다.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="분석 요청" value={formatInteger(detail.analyses.length)} />
+        <SummaryItem label="완료" value={formatInteger(completedCount)} />
+        <SummaryItem label="실패" value={formatInteger(failedCount)} />
+        <SummaryItem label="focus segment" value={formatInteger(focusSegmentCount)} />
+      </div>
+      {latestAnalysis ? (
+        <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <div className="font-medium">{latestAnalysis.analysis_id}</div>
+              <div className="text-xs text-muted-foreground">
+                updated {latestAnalysis.updated_at}
+              </div>
+            </div>
+            <Badge variant={statusBadgeVariant(latestAnalysis.status)}>
+              {latestAnalysis.status}
+            </Badge>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <InsightBlock
+              label="운영자 지시"
+              value={latestAnalysis.operator_instruction ?? "-"}
+            />
+            <InsightBlock
+              label="focus segment"
+              value={
+                latestAnalysis.focus_segment_ids.length > 0
+                  ? latestAnalysis.focus_segment_ids.join("\n")
+                  : "-"
+              }
+            />
+            <InsightBlock
+              label="프로필 요약"
+              value={formatJsonObject(latestAnalysis.profile_summary_json)}
+            />
+            <InsightBlock
+              label="분석 결과"
+              value={
+                latestAnalysis.output_json ? formatJsonObject(latestAnalysis.output_json) : "-"
+              }
+            />
+          </div>
+        </div>
+      ) : (
+        <EmptyState message="프로모션 분석 히스토리가 없습니다." />
+      )}
+      {detail.analyses.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>분석 ID</TableHead>
+              <TableHead>focus segment</TableHead>
+              <TableHead>운영자 지시</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>업데이트</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {detail.analyses.map((analysis) => (
+              <TableRow key={analysis.analysis_id}>
+                <TableCell>
+                  <div className="min-w-[180px] font-medium">{analysis.analysis_id}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="line-clamp-2 min-w-[180px]">
+                    {analysis.focus_segment_ids.length > 0
+                      ? analysis.focus_segment_ids.join(", ")
+                      : "-"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="line-clamp-2 min-w-[220px]">
+                    {analysis.operator_instruction ?? "-"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={statusBadgeVariant(analysis.status)}>{analysis.status}</Badge>
+                </TableCell>
+                <TableCell>{analysis.updated_at}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : null}
     </section>
   );
 }

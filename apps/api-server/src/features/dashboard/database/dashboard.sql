@@ -605,6 +605,24 @@ RETURNING
   focus_segment_ids_json AS "focusSegmentIdsJson",
   status;
 
+/* 목적: 프로모션 상세에서 분석 요청과 결과 상태를 최신순으로 조회합니다. */
+/* @name ListDashboardPromotionAnalyses */
+SELECT
+  analysis_id AS "analysisId",
+  promotion_id AS "promotionId",
+  focus_segment_ids_json AS "focusSegmentIdsJson",
+  operator_instruction AS "operatorInstruction",
+  input_snapshot_json AS "inputSnapshotJson",
+  profile_summary_json AS "profileSummaryJson",
+  output_json AS "outputJson",
+  status,
+  created_at AS "createdAt",
+  updated_at AS "updatedAt"
+FROM promotion_analyses
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+ORDER BY updated_at DESC, created_at DESC;
+
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardCampaignExperimentMetrics */
 SELECT

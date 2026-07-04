@@ -15,6 +15,7 @@ import type {
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
   DashboardNextLoopAnalysis,
+  DashboardPromotionAnalysis,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
   DashboardRejectContentCandidateRequest,
@@ -47,6 +48,7 @@ import {
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
   listDashboardCampaignSegments,
+  listDashboardPromotionAnalyses,
   listDashboardPromotionExperimentMetrics,
   listDashboardPromotionSegments,
   listDashboardSegmentAdExperiments,
@@ -70,6 +72,7 @@ import {
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
   type IListDashboardCampaignSegmentsResult,
+  type IListDashboardPromotionAnalysesResult,
   type IListDashboardSegmentAdExperimentsResult,
   type IListDashboardSegmentContentCandidatesResult,
   type IListDashboardSegmentExperimentMetricsResult,
@@ -477,8 +480,9 @@ export class DashboardCampaignReader {
     projectId: string,
     promotionId: string
   ): Promise<Omit<DashboardPromotionDetail, "realtime_metrics" | "segment_realtime_summaries">> {
-    const [promotion, segments, experimentMetrics] = await Promise.all([
+    const [promotion, analyses, segments, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single(),
+      this.db.query(listDashboardPromotionAnalyses, { projectId, promotionId }).multiple(),
       this.db.query(listDashboardPromotionSegments, { projectId, promotionId }).multiple(),
       this.db
         .query(listDashboardPromotionExperimentMetrics, { projectId, promotionId })
@@ -487,6 +491,7 @@ export class DashboardCampaignReader {
 
     return {
       promotion: toPromotionSummary(promotion),
+      analyses: analyses.map(toPromotionAnalysis),
       segments: segments.map(toCampaignSegment),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
@@ -786,6 +791,21 @@ function toRejectContentCandidateResult(
     rejected_at: row.rejectedAt.toISOString(),
     segment_id: row.segmentId,
     status: "rejected"
+  };
+}
+
+function toPromotionAnalysis(row: IListDashboardPromotionAnalysesResult): DashboardPromotionAnalysis {
+  return {
+    analysis_id: row.analysisId,
+    created_at: row.createdAt.toISOString(),
+    focus_segment_ids: jsonStringArray(row.focusSegmentIdsJson),
+    input_snapshot_json: jsonObject(row.inputSnapshotJson),
+    operator_instruction: row.operatorInstruction,
+    output_json: row.outputJson === null ? null : jsonObject(row.outputJson),
+    profile_summary_json: jsonObject(row.profileSummaryJson),
+    promotion_id: row.promotionId,
+    status: row.status,
+    updated_at: row.updatedAt.toISOString()
   };
 }
 

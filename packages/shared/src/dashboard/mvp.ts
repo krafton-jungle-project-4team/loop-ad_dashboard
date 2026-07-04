@@ -431,8 +431,23 @@ export const DashboardCampaignDetailSchema = z.object({
 });
 export type DashboardCampaignDetail = z.infer<typeof DashboardCampaignDetailSchema>;
 
+export const DashboardPromotionAnalysisSchema = z.object({
+  analysis_id: z.string(),
+  promotion_id: z.string(),
+  focus_segment_ids: z.array(z.string()),
+  operator_instruction: z.string().nullable(),
+  input_snapshot_json: JsonObjectSchema,
+  profile_summary_json: JsonObjectSchema,
+  output_json: JsonObjectSchema.nullable(),
+  status: z.string(),
+  created_at: z.string(),
+  updated_at: z.string()
+});
+export type DashboardPromotionAnalysis = z.infer<typeof DashboardPromotionAnalysisSchema>;
+
 export const DashboardPromotionDetailSchema = z.object({
   promotion: DashboardPromotionSummarySchema,
+  analyses: z.array(DashboardPromotionAnalysisSchema),
   segments: z.array(DashboardCampaignSegmentSchema),
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
   realtime_metrics: DashboardPromotionRealtimeMetricsSchema,

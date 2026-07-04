@@ -1212,7 +1212,7 @@ export interface IInsertDashboardNextLoopAnalysisQuery {
   result: IInsertDashboardNextLoopAnalysisResult;
 }
 
-const insertDashboardNextLoopAnalysisIR: any = {"usedParamSet":{"analysisId":true,"projectId":true,"campaignId":true,"promotionId":true,"focusSegmentIdsJson":true,"operatorInstruction":true},"params":[{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":165,"b":175}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":180,"b":189}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":194,"b":204}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":209,"b":220}]},{"name":"focusSegmentIdsJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":225,"b":244}]},{"name":"operatorInstruction","required":false,"transform":{"type":"scalar"},"locs":[{"a":249,"b":268}]}],"statement":"INSERT INTO promotion_analyses (\n  analysis_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  focus_segment_ids_json,\n  operator_instruction,\n  status\n)\nVALUES (\n  :analysisId,\n  :projectId,\n  :campaignId,\n  :promotionId,\n  :focusSegmentIdsJson,\n  :operatorInstruction,\n  'requested'\n)\nRETURNING\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  focus_segment_ids_json AS \"focusSegmentIdsJson\",\n  status                                   "};
+const insertDashboardNextLoopAnalysisIR: any = {"usedParamSet":{"analysisId":true,"projectId":true,"campaignId":true,"promotionId":true,"focusSegmentIdsJson":true,"operatorInstruction":true},"params":[{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":165,"b":175}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":180,"b":189}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":194,"b":204}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":209,"b":220}]},{"name":"focusSegmentIdsJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":225,"b":244}]},{"name":"operatorInstruction","required":false,"transform":{"type":"scalar"},"locs":[{"a":249,"b":268}]}],"statement":"INSERT INTO promotion_analyses (\n  analysis_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  focus_segment_ids_json,\n  operator_instruction,\n  status\n)\nVALUES (\n  :analysisId,\n  :projectId,\n  :campaignId,\n  :promotionId,\n  :focusSegmentIdsJson,\n  :operatorInstruction,\n  'requested'\n)\nRETURNING\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  focus_segment_ids_json AS \"focusSegmentIdsJson\",\n  status                                              "};
 
 /**
  * Query generated from SQL:
@@ -1239,10 +1239,61 @@ const insertDashboardNextLoopAnalysisIR: any = {"usedParamSet":{"analysisId":tru
  *   analysis_id AS "analysisId",
  *   promotion_id AS "promotionId",
  *   focus_segment_ids_json AS "focusSegmentIdsJson",
- *   status                                   
+ *   status                                              
  * ```
  */
 export const insertDashboardNextLoopAnalysis = new PreparedQuery<IInsertDashboardNextLoopAnalysisParams,IInsertDashboardNextLoopAnalysisResult>(insertDashboardNextLoopAnalysisIR);
+
+
+/** 'ListDashboardPromotionAnalyses' parameters type */
+export interface IListDashboardPromotionAnalysesParams {
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'ListDashboardPromotionAnalyses' return type */
+export interface IListDashboardPromotionAnalysesResult {
+  analysisId: string;
+  createdAt: Date;
+  focusSegmentIdsJson: Json | null;
+  inputSnapshotJson: Json;
+  operatorInstruction: string | null;
+  outputJson: Json | null;
+  profileSummaryJson: Json;
+  promotionId: string;
+  status: string;
+  updatedAt: Date;
+}
+
+/** 'ListDashboardPromotionAnalyses' query type */
+export interface IListDashboardPromotionAnalysesQuery {
+  params: IListDashboardPromotionAnalysesParams;
+  result: IListDashboardPromotionAnalysesResult;
+}
+
+const listDashboardPromotionAnalysesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":406,"b":415}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":438,"b":449}]}],"statement":"SELECT\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  focus_segment_ids_json AS \"focusSegmentIdsJson\",\n  operator_instruction AS \"operatorInstruction\",\n  input_snapshot_json AS \"inputSnapshotJson\",\n  profile_summary_json AS \"profileSummaryJson\",\n  output_json AS \"outputJson\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM promotion_analyses\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\nORDER BY updated_at DESC, created_at DESC                                   "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   analysis_id AS "analysisId",
+ *   promotion_id AS "promotionId",
+ *   focus_segment_ids_json AS "focusSegmentIdsJson",
+ *   operator_instruction AS "operatorInstruction",
+ *   input_snapshot_json AS "inputSnapshotJson",
+ *   profile_summary_json AS "profileSummaryJson",
+ *   output_json AS "outputJson",
+ *   status,
+ *   created_at AS "createdAt",
+ *   updated_at AS "updatedAt"
+ * FROM promotion_analyses
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ * ORDER BY updated_at DESC, created_at DESC                                   
+ * ```
+ */
+export const listDashboardPromotionAnalyses = new PreparedQuery<IListDashboardPromotionAnalysesParams,IListDashboardPromotionAnalysesResult>(listDashboardPromotionAnalysesIR);
 
 
 /** 'ListDashboardCampaignExperimentMetrics' parameters type */
