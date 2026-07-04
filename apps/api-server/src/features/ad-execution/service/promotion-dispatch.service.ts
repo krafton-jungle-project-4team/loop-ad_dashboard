@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
+import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactional";
 import type { DispatchJobSummary, PromotionRunDispatchResponse } from "@loopad/shared";
 import { z, ZodError } from "zod";
+import { PgTypedTransactionalAdapter } from "../../../infra/database/index.js";
 import { env } from "../../../infra/env/env.js";
 import { logWithContext } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
@@ -48,6 +50,8 @@ export class PromotionDispatchService {
     private readonly reader: AdExecutionReader,
     @Inject(AdExecutionWriter)
     private readonly writer: AdExecutionWriter,
+    @InjectTransactionHost()
+    private readonly transactionHost: TransactionHost<PgTypedTransactionalAdapter>,
     @Inject(EmailSender)
     private readonly emailSender: EmailSender,
     @Inject(SmsSender)
@@ -138,16 +142,18 @@ export class PromotionDispatchService {
     summary: DispatchJobSummary,
     attempts: readonly DispatchAttemptSnapshot[]
   ) {
-    await this.writer.finishDispatchJob({
-      dispatchJobId,
-      status: toStoredDispatchJobStatus(summary.status),
-      dispatchedCount: summary.dispatched_count,
-      failedCount: summary.failed_count,
-      result: {
-        status: summary.status,
-        attempts
-      }
-    });
+    await this.transactionHost.withTransaction(() =>
+      this.writer.finishDispatchJob({
+        dispatchJobId,
+        status: toStoredDispatchJobStatus(summary.status),
+        dispatchedCount: summary.dispatched_count,
+        failedCount: summary.failed_count,
+        result: {
+          status: summary.status,
+          attempts
+        }
+      })
+    );
   }
 
   private async createDispatchJob(
@@ -156,22 +162,24 @@ export class PromotionDispatchService {
   ) {
     const first = requireFirstAssignment(assignments);
 
-    return this.writer.insertDispatchJob({
-      dispatchJobId: randomUUID(),
-      projectId: context.promotionRun.projectId,
-      campaignId: context.promotionRun.campaignId,
-      promotionId: context.promotionRun.promotionId,
-      promotionRunId: context.promotionRun.promotionRunId,
-      adExperimentId: first.adExperimentId,
-      channel: context.channel,
-      provider: this.providerNameFor(context.channel, context.promotionRun.promotionRunId),
-      targetCount: assignments.length,
-      request: {
-        segment_id: first.segmentId,
-        content_id: first.contentId,
-        content_option_id: first.contentOptionId
-      }
-    });
+    return this.transactionHost.withTransaction(() =>
+      this.writer.insertDispatchJob({
+        dispatchJobId: randomUUID(),
+        projectId: context.promotionRun.projectId,
+        campaignId: context.promotionRun.campaignId,
+        promotionId: context.promotionRun.promotionId,
+        promotionRunId: context.promotionRun.promotionRunId,
+        adExperimentId: first.adExperimentId,
+        channel: context.channel,
+        provider: this.providerNameFor(context.channel, context.promotionRun.promotionRunId),
+        targetCount: assignments.length,
+        request: {
+          segment_id: first.segmentId,
+          content_id: first.contentId,
+          content_option_id: first.contentOptionId
+        }
+      })
+    );
   }
 
   private async dispatchGroup(
@@ -233,22 +241,24 @@ export class PromotionDispatchService {
   private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
     const redirectId = randomUUID();
 
-    return this.writer.insertRedirectLink({
-      redirectLinkId: redirectId,
-      redirectToken: redirectId,
-      projectId: assignment.projectId,
-      campaignId: assignment.campaignId,
-      promotionId: assignment.promotionId,
-      promotionRunId: assignment.promotionRunId,
-      adExperimentId: assignment.adExperimentId,
-      segmentId: assignment.segmentId,
-      userId: assignment.userId,
-      contentId: assignment.contentId,
-      contentOptionId: assignment.contentOptionId,
-      destinationUrl: requiredContentTextSchema.parse(assignment.landingUrl),
-      metadata: {},
-      expiresAt: daysFromNow(7)
-    });
+    return this.transactionHost.withTransaction(() =>
+      this.writer.insertRedirectLink({
+        redirectLinkId: redirectId,
+        redirectToken: redirectId,
+        projectId: assignment.projectId,
+        campaignId: assignment.campaignId,
+        promotionId: assignment.promotionId,
+        promotionRunId: assignment.promotionRunId,
+        adExperimentId: assignment.adExperimentId,
+        segmentId: assignment.segmentId,
+        userId: assignment.userId,
+        contentId: assignment.contentId,
+        contentOptionId: assignment.contentOptionId,
+        destinationUrl: requiredContentTextSchema.parse(assignment.landingUrl),
+        metadata: {},
+        expiresAt: daysFromNow(7)
+      })
+    );
   }
 
   private assertDispatchAssignments(

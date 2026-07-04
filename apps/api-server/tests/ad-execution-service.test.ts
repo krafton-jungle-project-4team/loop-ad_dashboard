@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { TransactionHost } from "@nestjs-cls/transactional";
 import { AppError } from "../src/app-errors.js";
+import type { PgTypedTransactionalAdapter } from "../src/infra/database/index.js";
 import type {
   ActiveAdServingAssignmentEntity,
   AdExperimentEntity,
@@ -37,7 +39,8 @@ const { renderRedirectPage } =
 test("dispatch uses stored assignments and records mock sender success", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
-  const service = createDispatchService(reader, writer);
+  const transactionHost = countingTransactionHost();
+  const service = createDispatchService(reader, writer, transactionHost.host);
 
   reader.dispatchAssignments = [
     assignment({ userId: "user-ok" }),
@@ -58,6 +61,12 @@ test("dispatch uses stored assignments and records mock sender success", async (
   assert.equal(writer.redirectLinks[0]?.adExperimentId, "exp-1");
   assert.equal(writer.finishes[0]?.status, "completed");
   assert.equal(writer.finishes[0]?.failedCount, 0);
+  assert.deepEqual(transactionHost.calls, [
+    "withTransaction",
+    "withTransaction",
+    "withTransaction",
+    "withTransaction"
+  ]);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Mock ad dispatch sent").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
@@ -260,14 +269,16 @@ test("redirect page escapes script data and fallback href with stable libraries"
 function createDispatchService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
+  transactionHost = passthroughTransactionHost(),
   emailSender = new MockEmailSender(),
   smsSender = new MockSmsSender()
 ) {
   return new PromotionDispatchService(
     reader as ConstructorParameters<typeof PromotionDispatchService>[0],
     writer as ConstructorParameters<typeof PromotionDispatchService>[1],
-    emailSender as ConstructorParameters<typeof PromotionDispatchService>[2],
-    smsSender as ConstructorParameters<typeof PromotionDispatchService>[3]
+    transactionHost as ConstructorParameters<typeof PromotionDispatchService>[2],
+    emailSender as ConstructorParameters<typeof PromotionDispatchService>[3],
+    smsSender as ConstructorParameters<typeof PromotionDispatchService>[4]
   );
 }
 
@@ -451,6 +462,24 @@ class FakeAdExecutionWriter {
     this.redirectLinks.push(input);
     return input.redirectToken;
   }
+}
+
+function passthroughTransactionHost(): TransactionHost<PgTypedTransactionalAdapter> {
+  return {
+    withTransaction: async (callback: () => Promise<unknown>) => callback()
+  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
+}
+
+function countingTransactionHost() {
+  const calls: string[] = [];
+  const host = {
+    withTransaction: async (callback: () => Promise<unknown>) => {
+      calls.push("withTransaction");
+      return callback();
+    }
+  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
+
+  return { calls, host };
 }
 
 async function captureDispatchLogs<T>(callback: () => Promise<T>) {
