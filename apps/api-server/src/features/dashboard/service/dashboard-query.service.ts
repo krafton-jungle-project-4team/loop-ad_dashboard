@@ -6,19 +6,23 @@ import type {
   DashboardCampaignSummary,
   DashboardCreateCampaignRequest,
   DashboardDeleteCampaignResult,
+  DashboardCreatePromotionRequest,
+  DashboardDeletePromotionResult,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnelList,
   DashboardFunnelMetrics,
   DashboardMain,
   DashboardPromotionDetail,
+  DashboardPromotionSummary,
   DashboardSavedSegment,
   DashboardSavedSegmentList,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
-  DashboardUpdateCampaignRequest
+  DashboardUpdateCampaignRequest,
+  DashboardUpdatePromotionRequest
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
@@ -69,6 +73,35 @@ export class DashboardQueryService {
   ): Promise<DashboardDeleteCampaignResult> {
     return this.transactionHost.withTransaction(() =>
       this.campaignReader.stopCampaign(projectId, campaignId)
+    );
+  }
+
+  async createPromotion(
+    projectId: string,
+    campaignId: string,
+    request: DashboardCreatePromotionRequest
+  ): Promise<DashboardPromotionSummary> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.createPromotion(projectId, campaignId, request)
+    );
+  }
+
+  async updatePromotion(
+    projectId: string,
+    promotionId: string,
+    request: DashboardUpdatePromotionRequest
+  ): Promise<DashboardPromotionSummary> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.updatePromotion(projectId, promotionId, request)
+    );
+  }
+
+  async stopPromotion(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardDeletePromotionResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.stopPromotion(projectId, promotionId)
     );
   }
 

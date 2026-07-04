@@ -4,21 +4,25 @@ import {
   DashboardCampaignSummarySchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreatePromotionRequestSchema,
   DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
+  DashboardDeletePromotionResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionSummarySchema,
   DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
-  DashboardUpdateCampaignRequestSchema
+  DashboardUpdateCampaignRequestSchema,
+  DashboardUpdatePromotionRequestSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -69,6 +73,43 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardDeleteCampaignResultSchema.parse(
       await this.dashboardQuery.stopCampaign(requiredProjectId, campaignId)
+    );
+  }
+
+  @Post("campaigns/:campaign_id/promotions")
+  async createPromotion(
+    @Param("campaign_id") campaignId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardCreatePromotionRequestSchema.parse(body);
+    return DashboardPromotionSummarySchema.parse(
+      await this.dashboardQuery.createPromotion(requiredProjectId, campaignId, request)
+    );
+  }
+
+  @Patch("promotions/:promotion_id")
+  async updatePromotion(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardUpdatePromotionRequestSchema.parse(body);
+    return DashboardPromotionSummarySchema.parse(
+      await this.dashboardQuery.updatePromotion(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Delete("promotions/:promotion_id")
+  async deletePromotion(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardDeletePromotionResultSchema.parse(
+      await this.dashboardQuery.stopPromotion(requiredProjectId, promotionId)
     );
   }
 

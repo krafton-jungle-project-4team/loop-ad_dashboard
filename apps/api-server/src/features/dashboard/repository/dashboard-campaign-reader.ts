@@ -6,11 +6,14 @@ import type {
   DashboardCampaignSummary,
   DashboardContentCandidate,
   DashboardCreateCampaignRequest,
+  DashboardCreatePromotionRequest,
   DashboardDeleteCampaignResult,
+  DashboardDeletePromotionResult,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
   DashboardSegmentDetail,
-  DashboardUpdateCampaignRequest
+  DashboardUpdateCampaignRequest,
+  DashboardUpdatePromotionRequest
 } from "@loopad/shared";
 import { randomUUID } from "node:crypto";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
@@ -21,6 +24,7 @@ import {
   getDashboardPromotionSegment,
   getDashboardPromotionSummary,
   insertDashboardCampaign,
+  insertDashboardPromotion,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -30,7 +34,9 @@ import {
   listDashboardSegmentContentCandidates,
   listDashboardSegmentExperimentMetrics,
   stopDashboardCampaign,
+  stopDashboardPromotion,
   updateDashboardCampaign,
+  updateDashboardPromotion,
   type IGetDashboardCampaignSummaryResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
@@ -117,6 +123,80 @@ export class DashboardCampaignReader {
     };
   }
 
+  async createPromotion(
+    projectId: string,
+    campaignId: string,
+    request: DashboardCreatePromotionRequest
+  ): Promise<DashboardPromotionSummary> {
+    const promotionId = `promo_${randomUUID()}`;
+    await this.db
+      .query(insertDashboardPromotion, {
+        campaignId,
+        channel: request.channel,
+        goalBasis: request.goal_basis,
+        goalMetric: request.goal_metric,
+        goalTargetValue: request.goal_target_value,
+        landingType: request.landing_type ?? null,
+        landingUrl: request.landing_url ?? null,
+        marketingTheme: request.marketing_theme,
+        maxLoopCount: request.max_loop_count,
+        messageBrief: request.message_brief ?? null,
+        minSampleSize: request.min_sample_size,
+        offerType: request.offer_type ?? null,
+        projectId,
+        promotionId,
+        status: request.status,
+        targetAudience: request.target_audience
+      })
+      .single();
+
+    return this.getPromotionSummary(projectId, promotionId);
+  }
+
+  async updatePromotion(
+    projectId: string,
+    promotionId: string,
+    request: DashboardUpdatePromotionRequest
+  ): Promise<DashboardPromotionSummary> {
+    await this.db
+      .query(updateDashboardPromotion, {
+        channel: request.channel,
+        goalBasis: request.goal_basis,
+        goalMetric: request.goal_metric,
+        goalTargetValue: request.goal_target_value,
+        landingType: request.landing_type ?? null,
+        landingTypeIsSet: Object.hasOwn(request, "landing_type"),
+        landingUrl: request.landing_url ?? null,
+        landingUrlIsSet: Object.hasOwn(request, "landing_url"),
+        marketingTheme: request.marketing_theme,
+        maxLoopCount: request.max_loop_count,
+        messageBrief: request.message_brief ?? null,
+        messageBriefIsSet: Object.hasOwn(request, "message_brief"),
+        minSampleSize: request.min_sample_size,
+        offerType: request.offer_type ?? null,
+        offerTypeIsSet: Object.hasOwn(request, "offer_type"),
+        projectId,
+        promotionId,
+        status: request.status,
+        targetAudience: request.target_audience
+      })
+      .single();
+
+    return this.getPromotionSummary(projectId, promotionId);
+  }
+
+  async stopPromotion(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardDeletePromotionResult> {
+    const row = await this.db.query(stopDashboardPromotion, { projectId, promotionId }).single();
+
+    return {
+      promotion_id: row.promotionId,
+      status: "stopped"
+    };
+  }
+
   async getCampaignDetail(
     projectId: string,
     campaignId: string
@@ -185,6 +265,14 @@ export class DashboardCampaignReader {
   ): Promise<DashboardCampaignSummary> {
     const row = await this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single();
     return toCampaignSummary(row);
+  }
+
+  private async getPromotionSummary(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardPromotionSummary> {
+    const row = await this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single();
+    return toPromotionSummary(row);
   }
 }
 

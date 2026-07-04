@@ -161,6 +161,77 @@ WHERE p.project_id = :projectId
   AND p.promotion_id = :promotionId
 GROUP BY p.promotion_id;
 
+/* 목적: 캠페인 하위 프로모션을 생성합니다. */
+/* @name InsertDashboardPromotion */
+INSERT INTO promotions (
+  promotion_id,
+  project_id,
+  campaign_id,
+  channel,
+  marketing_theme,
+  target_audience,
+  goal_metric,
+  goal_target_value,
+  goal_basis,
+  min_sample_size,
+  max_loop_count,
+  message_brief,
+  offer_type,
+  landing_url,
+  landing_type,
+  status
+)
+VALUES (
+  :promotionId,
+  :projectId,
+  :campaignId,
+  :channel,
+  :marketingTheme,
+  :targetAudience,
+  :goalMetric,
+  :goalTargetValue,
+  :goalBasis,
+  :minSampleSize,
+  :maxLoopCount,
+  :messageBrief,
+  :offerType,
+  :landingUrl,
+  :landingType,
+  :status
+)
+RETURNING promotion_id AS "promotionId";
+
+/* 목적: 프로모션 기본 정보를 수정합니다. */
+/* @name UpdateDashboardPromotion */
+UPDATE promotions
+SET
+  channel = COALESCE(:channel, channel),
+  marketing_theme = COALESCE(:marketingTheme, marketing_theme),
+  target_audience = COALESCE(:targetAudience, target_audience),
+  goal_metric = COALESCE(:goalMetric, goal_metric),
+  goal_target_value = COALESCE(:goalTargetValue, goal_target_value),
+  goal_basis = COALESCE(:goalBasis, goal_basis),
+  min_sample_size = COALESCE(:minSampleSize, min_sample_size),
+  max_loop_count = COALESCE(:maxLoopCount, max_loop_count),
+  message_brief = CASE WHEN :messageBriefIsSet THEN :messageBrief ELSE message_brief END,
+  offer_type = CASE WHEN :offerTypeIsSet THEN :offerType ELSE offer_type END,
+  landing_url = CASE WHEN :landingUrlIsSet THEN :landingUrl ELSE landing_url END,
+  landing_type = CASE WHEN :landingTypeIsSet THEN :landingType ELSE landing_type END,
+  status = COALESCE(:status, status),
+  updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+RETURNING promotion_id AS "promotionId";
+
+/* 목적: FK가 연결된 프로모션을 물리 삭제하지 않고 중지 상태로 전환합니다. */
+/* @name StopDashboardPromotion */
+UPDATE promotions
+SET status = 'stopped',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+RETURNING promotion_id AS "promotionId", status;
+
 /* 목적: 캠페인 프로모션에 연결된 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardCampaignSegments */
 SELECT

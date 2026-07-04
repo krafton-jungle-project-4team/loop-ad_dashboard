@@ -366,7 +366,7 @@ export interface IGetDashboardPromotionSummaryQuery {
   result: IGetDashboardPromotionSummaryResult;
 }
 
-const getDashboardPromotionSummaryIR: any = {"usedParamSet":{"projectId":true,"promotionId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":874,"b":883}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":908,"b":919}]}],"statement":"SELECT\n  p.promotion_id AS \"promotionId\",\n  p.campaign_id AS \"campaignId\",\n  p.channel,\n  p.marketing_theme AS \"marketingTheme\",\n  p.target_audience AS \"targetAudience\",\n  p.goal_metric AS \"goalMetric\",\n  p.goal_target_value::float8 AS \"goalTargetValue\",\n  p.goal_basis AS \"goalBasis\",\n  p.min_sample_size AS \"minSampleSize\",\n  p.offer_type AS \"offerType\",\n  p.landing_url AS \"landingUrl\",\n  p.status,\n  COUNT(DISTINCT pts.segment_id)::int AS \"targetSegmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id)::int AS \"adExperimentCount\",\n  MAX(pe.actual_value)::float8 AS \"latestActualValue\",\n  p.updated_at AS \"updatedAt\"\nFROM promotions p\nLEFT JOIN promotion_target_segments pts\n  ON pts.promotion_id = p.promotion_id\nLEFT JOIN ad_experiments ae\n  ON ae.promotion_id = p.promotion_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.promotion_id = p.promotion_id\nWHERE p.project_id = :projectId\n  AND p.promotion_id = :promotionId\nGROUP BY p.promotion_id                                       "};
+const getDashboardPromotionSummaryIR: any = {"usedParamSet":{"projectId":true,"promotionId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":874,"b":883}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":908,"b":919}]}],"statement":"SELECT\n  p.promotion_id AS \"promotionId\",\n  p.campaign_id AS \"campaignId\",\n  p.channel,\n  p.marketing_theme AS \"marketingTheme\",\n  p.target_audience AS \"targetAudience\",\n  p.goal_metric AS \"goalMetric\",\n  p.goal_target_value::float8 AS \"goalTargetValue\",\n  p.goal_basis AS \"goalBasis\",\n  p.min_sample_size AS \"minSampleSize\",\n  p.offer_type AS \"offerType\",\n  p.landing_url AS \"landingUrl\",\n  p.status,\n  COUNT(DISTINCT pts.segment_id)::int AS \"targetSegmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id)::int AS \"adExperimentCount\",\n  MAX(pe.actual_value)::float8 AS \"latestActualValue\",\n  p.updated_at AS \"updatedAt\"\nFROM promotions p\nLEFT JOIN promotion_target_segments pts\n  ON pts.promotion_id = p.promotion_id\nLEFT JOIN ad_experiments ae\n  ON ae.promotion_id = p.promotion_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.promotion_id = p.promotion_id\nWHERE p.project_id = :projectId\n  AND p.promotion_id = :promotionId\nGROUP BY p.promotion_id                             "};
 
 /**
  * Query generated from SQL:
@@ -397,10 +397,185 @@ const getDashboardPromotionSummaryIR: any = {"usedParamSet":{"projectId":true,"p
  *   ON pe.promotion_id = p.promotion_id
  * WHERE p.project_id = :projectId
  *   AND p.promotion_id = :promotionId
- * GROUP BY p.promotion_id                                       
+ * GROUP BY p.promotion_id                             
  * ```
  */
 export const getDashboardPromotionSummary = new PreparedQuery<IGetDashboardPromotionSummaryParams,IGetDashboardPromotionSummaryResult>(getDashboardPromotionSummaryIR);
+
+
+/** 'InsertDashboardPromotion' parameters type */
+export interface IInsertDashboardPromotionParams {
+  campaignId?: string | null | void;
+  channel?: string | null | void;
+  goalBasis?: string | null | void;
+  goalMetric?: string | null | void;
+  goalTargetValue?: NumberOrString | null | void;
+  landingType?: string | null | void;
+  landingUrl?: string | null | void;
+  marketingTheme?: string | null | void;
+  maxLoopCount?: number | null | void;
+  messageBrief?: string | null | void;
+  minSampleSize?: number | null | void;
+  offerType?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  status?: string | null | void;
+  targetAudience?: string | null | void;
+}
+
+/** 'InsertDashboardPromotion' return type */
+export interface IInsertDashboardPromotionResult {
+  promotionId: string;
+}
+
+/** 'InsertDashboardPromotion' query type */
+export interface IInsertDashboardPromotionQuery {
+  params: IInsertDashboardPromotionParams;
+  result: IInsertDashboardPromotionResult;
+}
+
+const insertDashboardPromotionIR: any = {"usedParamSet":{"promotionId":true,"projectId":true,"campaignId":true,"channel":true,"marketingTheme":true,"targetAudience":true,"goalMetric":true,"goalTargetValue":true,"goalBasis":true,"minSampleSize":true,"maxLoopCount":true,"messageBrief":true,"offerType":true,"landingUrl":true,"landingType":true,"status":true},"params":[{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":290,"b":301}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":306,"b":315}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":320,"b":330}]},{"name":"channel","required":false,"transform":{"type":"scalar"},"locs":[{"a":335,"b":342}]},{"name":"marketingTheme","required":false,"transform":{"type":"scalar"},"locs":[{"a":347,"b":361}]},{"name":"targetAudience","required":false,"transform":{"type":"scalar"},"locs":[{"a":366,"b":380}]},{"name":"goalMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":385,"b":395}]},{"name":"goalTargetValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":400,"b":415}]},{"name":"goalBasis","required":false,"transform":{"type":"scalar"},"locs":[{"a":420,"b":429}]},{"name":"minSampleSize","required":false,"transform":{"type":"scalar"},"locs":[{"a":434,"b":447}]},{"name":"maxLoopCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":452,"b":464}]},{"name":"messageBrief","required":false,"transform":{"type":"scalar"},"locs":[{"a":469,"b":481}]},{"name":"offerType","required":false,"transform":{"type":"scalar"},"locs":[{"a":486,"b":495}]},{"name":"landingUrl","required":false,"transform":{"type":"scalar"},"locs":[{"a":500,"b":510}]},{"name":"landingType","required":false,"transform":{"type":"scalar"},"locs":[{"a":515,"b":526}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":531,"b":537}]}],"statement":"INSERT INTO promotions (\n  promotion_id,\n  project_id,\n  campaign_id,\n  channel,\n  marketing_theme,\n  target_audience,\n  goal_metric,\n  goal_target_value,\n  goal_basis,\n  min_sample_size,\n  max_loop_count,\n  message_brief,\n  offer_type,\n  landing_url,\n  landing_type,\n  status\n)\nVALUES (\n  :promotionId,\n  :projectId,\n  :campaignId,\n  :channel,\n  :marketingTheme,\n  :targetAudience,\n  :goalMetric,\n  :goalTargetValue,\n  :goalBasis,\n  :minSampleSize,\n  :maxLoopCount,\n  :messageBrief,\n  :offerType,\n  :landingUrl,\n  :landingType,\n  :status\n)\nRETURNING promotion_id AS \"promotionId\"                            "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * INSERT INTO promotions (
+ *   promotion_id,
+ *   project_id,
+ *   campaign_id,
+ *   channel,
+ *   marketing_theme,
+ *   target_audience,
+ *   goal_metric,
+ *   goal_target_value,
+ *   goal_basis,
+ *   min_sample_size,
+ *   max_loop_count,
+ *   message_brief,
+ *   offer_type,
+ *   landing_url,
+ *   landing_type,
+ *   status
+ * )
+ * VALUES (
+ *   :promotionId,
+ *   :projectId,
+ *   :campaignId,
+ *   :channel,
+ *   :marketingTheme,
+ *   :targetAudience,
+ *   :goalMetric,
+ *   :goalTargetValue,
+ *   :goalBasis,
+ *   :minSampleSize,
+ *   :maxLoopCount,
+ *   :messageBrief,
+ *   :offerType,
+ *   :landingUrl,
+ *   :landingType,
+ *   :status
+ * )
+ * RETURNING promotion_id AS "promotionId"                            
+ * ```
+ */
+export const insertDashboardPromotion = new PreparedQuery<IInsertDashboardPromotionParams,IInsertDashboardPromotionResult>(insertDashboardPromotionIR);
+
+
+/** 'UpdateDashboardPromotion' parameters type */
+export interface IUpdateDashboardPromotionParams {
+  channel?: string | null | void;
+  goalBasis?: string | null | void;
+  goalMetric?: string | null | void;
+  goalTargetValue?: NumberOrString | null | void;
+  landingType?: string | null | void;
+  landingTypeIsSet?: boolean | null | void;
+  landingUrl?: string | null | void;
+  landingUrlIsSet?: boolean | null | void;
+  marketingTheme?: string | null | void;
+  maxLoopCount?: number | null | void;
+  messageBrief?: string | null | void;
+  messageBriefIsSet?: boolean | null | void;
+  minSampleSize?: number | null | void;
+  offerType?: string | null | void;
+  offerTypeIsSet?: boolean | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  status?: string | null | void;
+  targetAudience?: string | null | void;
+}
+
+/** 'UpdateDashboardPromotion' return type */
+export interface IUpdateDashboardPromotionResult {
+  promotionId: string;
+}
+
+/** 'UpdateDashboardPromotion' query type */
+export interface IUpdateDashboardPromotionQuery {
+  params: IUpdateDashboardPromotionParams;
+  result: IUpdateDashboardPromotionResult;
+}
+
+const updateDashboardPromotionIR: any = {"usedParamSet":{"channel":true,"marketingTheme":true,"targetAudience":true,"goalMetric":true,"goalTargetValue":true,"goalBasis":true,"minSampleSize":true,"maxLoopCount":true,"messageBriefIsSet":true,"messageBrief":true,"offerTypeIsSet":true,"offerType":true,"landingUrlIsSet":true,"landingUrl":true,"landingTypeIsSet":true,"landingType":true,"status":true,"projectId":true,"promotionId":true},"params":[{"name":"channel","required":false,"transform":{"type":"scalar"},"locs":[{"a":43,"b":50}]},{"name":"marketingTheme","required":false,"transform":{"type":"scalar"},"locs":[{"a":92,"b":106}]},{"name":"targetAudience","required":false,"transform":{"type":"scalar"},"locs":[{"a":156,"b":170}]},{"name":"goalMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":216,"b":226}]},{"name":"goalTargetValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":274,"b":289}]},{"name":"goalBasis","required":false,"transform":{"type":"scalar"},"locs":[{"a":336,"b":345}]},{"name":"minSampleSize","required":false,"transform":{"type":"scalar"},"locs":[{"a":390,"b":403}]},{"name":"maxLoopCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":452,"b":464}]},{"name":"messageBriefIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":512,"b":529}]},{"name":"messageBrief","required":false,"transform":{"type":"scalar"},"locs":[{"a":536,"b":548}]},{"name":"offerTypeIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":599,"b":613}]},{"name":"offerType","required":false,"transform":{"type":"scalar"},"locs":[{"a":620,"b":629}]},{"name":"landingUrlIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":678,"b":693}]},{"name":"landingUrl","required":false,"transform":{"type":"scalar"},"locs":[{"a":700,"b":710}]},{"name":"landingTypeIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":761,"b":777}]},{"name":"landingType","required":false,"transform":{"type":"scalar"},"locs":[{"a":784,"b":795}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":840,"b":846}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":898,"b":907}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":930,"b":941}]}],"statement":"UPDATE promotions\nSET\n  channel = COALESCE(:channel, channel),\n  marketing_theme = COALESCE(:marketingTheme, marketing_theme),\n  target_audience = COALESCE(:targetAudience, target_audience),\n  goal_metric = COALESCE(:goalMetric, goal_metric),\n  goal_target_value = COALESCE(:goalTargetValue, goal_target_value),\n  goal_basis = COALESCE(:goalBasis, goal_basis),\n  min_sample_size = COALESCE(:minSampleSize, min_sample_size),\n  max_loop_count = COALESCE(:maxLoopCount, max_loop_count),\n  message_brief = CASE WHEN :messageBriefIsSet THEN :messageBrief ELSE message_brief END,\n  offer_type = CASE WHEN :offerTypeIsSet THEN :offerType ELSE offer_type END,\n  landing_url = CASE WHEN :landingUrlIsSet THEN :landingUrl ELSE landing_url END,\n  landing_type = CASE WHEN :landingTypeIsSet THEN :landingType ELSE landing_type END,\n  status = COALESCE(:status, status),\n  updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\nRETURNING promotion_id AS \"promotionId\"                                                "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE promotions
+ * SET
+ *   channel = COALESCE(:channel, channel),
+ *   marketing_theme = COALESCE(:marketingTheme, marketing_theme),
+ *   target_audience = COALESCE(:targetAudience, target_audience),
+ *   goal_metric = COALESCE(:goalMetric, goal_metric),
+ *   goal_target_value = COALESCE(:goalTargetValue, goal_target_value),
+ *   goal_basis = COALESCE(:goalBasis, goal_basis),
+ *   min_sample_size = COALESCE(:minSampleSize, min_sample_size),
+ *   max_loop_count = COALESCE(:maxLoopCount, max_loop_count),
+ *   message_brief = CASE WHEN :messageBriefIsSet THEN :messageBrief ELSE message_brief END,
+ *   offer_type = CASE WHEN :offerTypeIsSet THEN :offerType ELSE offer_type END,
+ *   landing_url = CASE WHEN :landingUrlIsSet THEN :landingUrl ELSE landing_url END,
+ *   landing_type = CASE WHEN :landingTypeIsSet THEN :landingType ELSE landing_type END,
+ *   status = COALESCE(:status, status),
+ *   updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ * RETURNING promotion_id AS "promotionId"                                                
+ * ```
+ */
+export const updateDashboardPromotion = new PreparedQuery<IUpdateDashboardPromotionParams,IUpdateDashboardPromotionResult>(updateDashboardPromotionIR);
+
+
+/** 'StopDashboardPromotion' parameters type */
+export interface IStopDashboardPromotionParams {
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'StopDashboardPromotion' return type */
+export interface IStopDashboardPromotionResult {
+  promotionId: string;
+  status: string;
+}
+
+/** 'StopDashboardPromotion' query type */
+export interface IStopDashboardPromotionQuery {
+  params: IStopDashboardPromotionParams;
+  result: IStopDashboardPromotionResult;
+}
+
+const stopDashboardPromotionIR: any = {"usedParamSet":{"projectId":true,"promotionId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":84,"b":93}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":116,"b":127}]}],"statement":"UPDATE promotions\nSET status = 'stopped',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\nRETURNING promotion_id AS \"promotionId\", status                                       "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE promotions
+ * SET status = 'stopped',
+ *     updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ * RETURNING promotion_id AS "promotionId", status                                       
+ * ```
+ */
+export const stopDashboardPromotion = new PreparedQuery<IStopDashboardPromotionParams,IStopDashboardPromotionResult>(stopDashboardPromotionIR);
 
 
 /** 'ListDashboardCampaignSegments' parameters type */
