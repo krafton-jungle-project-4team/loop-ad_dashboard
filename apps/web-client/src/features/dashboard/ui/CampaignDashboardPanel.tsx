@@ -3858,6 +3858,7 @@ function RealtimeEventTable({
             />
           </div>
           <RealtimeFunnelSummary metrics={metrics} />
+          <RealtimeDeliveryAndBannerSummary metrics={metrics} />
           <RealtimeBreakdownSummary metrics={metrics} />
           <ChartContainer
             className="min-h-[260px] w-full"
@@ -4065,6 +4066,74 @@ function RealtimeFunnelSummary({ metrics }: { metrics: DashboardRealtimeMetrics 
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function RealtimeDeliveryAndBannerSummary({
+  metrics
+}: {
+  metrics: DashboardRealtimeMetrics;
+}) {
+  const delivery = metrics.delivery_status;
+  const banner = metrics.banner_response;
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 rounded-md border bg-background p-3">
+        <div className="grid gap-1">
+          <h4 className="text-sm font-semibold text-foreground">SMS/Email 발송 상태</h4>
+          <p className="text-xs text-muted-foreground">
+            ad_dispatch_jobs와 수집 이벤트를 함께 집계합니다.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <SummaryItem label="scheduled" value={formatInteger(delivery.scheduled_count)} />
+          <SummaryItem label="sent" value={formatInteger(delivery.sent_count)} />
+          <SummaryItem label="delivered" value={formatInteger(delivery.delivered_count)} />
+          <SummaryItem label="opened" value={formatInteger(delivery.opened_count)} />
+          <SummaryItem label="clicked" value={formatInteger(delivery.clicked_count)} />
+          <SummaryItem label="failed" value={formatInteger(delivery.failed_count)} />
+        </div>
+        <Progress
+          value={
+            delivery.scheduled_count > 0
+              ? (delivery.delivered_count / delivery.scheduled_count) * 100
+              : 0
+          }
+        />
+      </div>
+      <div className="grid gap-3 rounded-md border bg-background p-3">
+        <div className="grid gap-1">
+          <h4 className="text-sm font-semibold text-foreground">배너 조회/클릭률</h4>
+          <p className="text-xs text-muted-foreground">
+            onsite_banner 노출, 클릭, 예약 이벤트를 함께 봅니다.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <SummaryItem
+            label="impression"
+            value={formatInteger(banner.promotion_impression_count)}
+          />
+          <SummaryItem label="click" value={formatInteger(banner.promotion_click_count)} />
+          <SummaryItem label="CTR" value={formatPercentValue(banner.promotion_click_rate)} />
+          <SummaryItem
+            label="hotel_search"
+            value={formatInteger(banner.hotel_search_count)}
+          />
+          <SummaryItem
+            label="hotel_detail"
+            value={formatInteger(banner.hotel_detail_view_count)}
+          />
+          <SummaryItem
+            label="booking_complete"
+            value={formatInteger(banner.booking_complete_count)}
+          />
+        </div>
+        <div className="text-xs text-muted-foreground">
+          banner_position: {banner.banner_position ?? "-"}
+        </div>
       </div>
     </div>
   );

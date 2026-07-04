@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { DashboardFunnelEventNameSchema } from "@loopad/shared";
 import type {
+  DashboardBannerResponse,
   DashboardCampaignRealtimeMetrics,
   DashboardCreateFunnelRequest,
   DashboardDeleteFunnelResult,
+  DashboardDeliveryStatus,
   DashboardEventCatalogItem,
   DashboardFunnel,
   DashboardFunnelMetrics,
@@ -23,12 +25,18 @@ import {
   deleteFunnelDefinition,
   deleteFunnelSteps,
   getActiveFunnelById,
+  getDashboardCampaignDeliveryStatus,
+  getDashboardPromotionDeliveryStatus,
+  getDashboardSegmentDeliveryStatus,
   insertFunnelDefinition,
   insertFunnelStep,
   listActiveFunnels,
   listActiveFunnelSteps,
   listActiveFunnelStepsByFunnelId,
   type IGetActiveFunnelByIdResult,
+  type IGetDashboardCampaignDeliveryStatusResult,
+  type IGetDashboardPromotionDeliveryStatusResult,
+  type IGetDashboardSegmentDeliveryStatusResult,
   type IInsertFunnelDefinitionResult,
   type IInsertFunnelStepResult,
   type IListActiveFunnelsResult,
@@ -77,6 +85,11 @@ type RealtimeBreakdowns = {
   landing_type_breakdown: DashboardRealtimeBreakdownItem[];
   hotel_cluster_breakdown: DashboardRealtimeBreakdownItem[];
 };
+
+type DeliveryStatusRow =
+  | IGetDashboardCampaignDeliveryStatusResult
+  | IGetDashboardPromotionDeliveryStatusResult
+  | IGetDashboardSegmentDeliveryStatusResult;
 
 @Injectable()
 export class DashboardFunnelReader {
@@ -154,12 +167,15 @@ export class DashboardFunnelReader {
       this.countRealtimeEvents(scope),
       this.countRealtimeBreakdowns(scope)
     ]);
+    const deliveryStatus = await this.getCampaignDeliveryStatus(projectId, campaignId, events);
 
     return {
       campaign_id: campaignId,
       total_event_count: totalEventCount(events),
       events,
-      ...breakdowns
+      ...breakdowns,
+      delivery_status: deliveryStatus,
+      banner_response: toBannerResponse(events)
     };
   }
 
@@ -176,12 +192,15 @@ export class DashboardFunnelReader {
       this.countRealtimeEvents(scope),
       this.countRealtimeBreakdowns(scope)
     ]);
+    const deliveryStatus = await this.getPromotionDeliveryStatus(projectId, promotionId, events);
 
     return {
       promotion_id: promotionId,
       total_event_count: totalEventCount(events),
       events,
-      ...breakdowns
+      ...breakdowns,
+      delivery_status: deliveryStatus,
+      banner_response: toBannerResponse(events)
     };
   }
 
@@ -200,13 +219,21 @@ export class DashboardFunnelReader {
       this.countRealtimeEvents(scope),
       this.countRealtimeBreakdowns(scope)
     ]);
+    const deliveryStatus = await this.getSegmentDeliveryStatus(
+      projectId,
+      promotionId,
+      segmentId,
+      events
+    );
 
     return {
       promotion_id: promotionId,
       segment_id: segmentId,
       total_event_count: totalEventCount(events),
       events,
-      ...breakdowns
+      ...breakdowns,
+      delivery_status: deliveryStatus,
+      banner_response: toBannerResponse(events)
     };
   }
 
@@ -299,6 +326,43 @@ export class DashboardFunnelReader {
       event_count: countValue(row.event_count),
       unique_user_count: countValue(row.unique_user_count)
     }));
+  }
+
+  private async getCampaignDeliveryStatus(
+    projectId: string,
+    campaignId: string,
+    events: DashboardRealtimeEvent[]
+  ): Promise<DashboardDeliveryStatus> {
+    const row = await this.db
+      .query(getDashboardCampaignDeliveryStatus, { campaignId, projectId })
+      .single();
+
+    return toDeliveryStatus(row, events);
+  }
+
+  private async getPromotionDeliveryStatus(
+    projectId: string,
+    promotionId: string,
+    events: DashboardRealtimeEvent[]
+  ): Promise<DashboardDeliveryStatus> {
+    const row = await this.db
+      .query(getDashboardPromotionDeliveryStatus, { projectId, promotionId })
+      .single();
+
+    return toDeliveryStatus(row, events);
+  }
+
+  private async getSegmentDeliveryStatus(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    events: DashboardRealtimeEvent[]
+  ): Promise<DashboardDeliveryStatus> {
+    const row = await this.db
+      .query(getDashboardSegmentDeliveryStatus, { projectId, promotionId, segmentId })
+      .single();
+
+    return toDeliveryStatus(row, events);
   }
 
   private async countRealtimeBreakdowns(
@@ -489,13 +553,47 @@ function toFunnel(
   };
 }
 
-function countValue(value: number | string): number {
+function countValue(value: number | string | null): number {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
 }
 
 function totalEventCount(events: DashboardRealtimeEvent[]): number {
   return events.reduce((sum, event) => sum + event.event_count, 0);
+}
+
+function toDeliveryStatus(
+  row: DeliveryStatusRow,
+  events: DashboardRealtimeEvent[]
+): DashboardDeliveryStatus {
+  return {
+    scheduled_count: countValue(row.scheduledCount),
+    sent_count: countValue(row.sentCount),
+    delivered_count: countValue(row.deliveredCount),
+    opened_count: countValue(row.openedCount),
+    clicked_count: eventCount(events, "campaign_redirect_click"),
+    bounced_count: countValue(row.bouncedCount),
+    failed_count: countValue(row.failedCount)
+  };
+}
+
+function toBannerResponse(events: DashboardRealtimeEvent[]): DashboardBannerResponse {
+  const impressionCount = eventCount(events, "promotion_impression");
+  const clickCount = eventCount(events, "promotion_click");
+
+  return {
+    promotion_impression_count: impressionCount,
+    promotion_click_count: clickCount,
+    promotion_click_rate: impressionCount > 0 ? clickCount / impressionCount : 0,
+    banner_position: null,
+    hotel_search_count: eventCount(events, "hotel_search"),
+    hotel_detail_view_count: eventCount(events, "hotel_detail_view"),
+    booking_complete_count: eventCount(events, "booking_complete")
+  };
+}
+
+function eventCount(events: DashboardRealtimeEvent[], eventName: string): number {
+  return events.find((event) => event.event_name === eventName)?.event_count ?? 0;
 }
 
 function eventDisplayName(eventName: string): string {

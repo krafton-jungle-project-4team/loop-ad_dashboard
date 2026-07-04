@@ -335,13 +335,37 @@ export type DashboardRealtimeBreakdownItem = z.infer<
   typeof DashboardRealtimeBreakdownItemSchema
 >;
 
+export const DashboardDeliveryStatusSchema = z.object({
+  scheduled_count: CountSchema,
+  sent_count: CountSchema,
+  delivered_count: CountSchema,
+  opened_count: CountSchema,
+  clicked_count: CountSchema,
+  bounced_count: CountSchema,
+  failed_count: CountSchema
+});
+export type DashboardDeliveryStatus = z.infer<typeof DashboardDeliveryStatusSchema>;
+
+export const DashboardBannerResponseSchema = z.object({
+  promotion_impression_count: CountSchema,
+  promotion_click_count: CountSchema,
+  promotion_click_rate: RateSchema,
+  banner_position: z.string().nullable(),
+  hotel_search_count: CountSchema,
+  hotel_detail_view_count: CountSchema,
+  booking_complete_count: CountSchema
+});
+export type DashboardBannerResponse = z.infer<typeof DashboardBannerResponseSchema>;
+
 export const DashboardRealtimeMetricsSchema = z.object({
   total_event_count: CountSchema,
   events: z.array(DashboardRealtimeEventSchema),
   time_buckets: z.array(DashboardRealtimeTimeBucketSchema),
   channel_breakdown: z.array(DashboardRealtimeBreakdownItemSchema),
   landing_type_breakdown: z.array(DashboardRealtimeBreakdownItemSchema),
-  hotel_cluster_breakdown: z.array(DashboardRealtimeBreakdownItemSchema)
+  hotel_cluster_breakdown: z.array(DashboardRealtimeBreakdownItemSchema),
+  delivery_status: DashboardDeliveryStatusSchema,
+  banner_response: DashboardBannerResponseSchema
 });
 export type DashboardRealtimeMetrics = z.infer<typeof DashboardRealtimeMetricsSchema>;
 
