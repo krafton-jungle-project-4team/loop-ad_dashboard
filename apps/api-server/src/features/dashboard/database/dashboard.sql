@@ -345,10 +345,10 @@ INSERT INTO promotion_target_segments (
   status
 )
 SELECT
-  :analysisId,
+  (:analysisId)::varchar,
   sd.project_id,
-  :campaignId,
-  :promotionId,
+  (:campaignId)::varchar,
+  (:promotionId)::varchar,
   sd.segment_id,
   COALESCE(:segmentName, sd.segment_name),
   sd.rule_json,
@@ -366,6 +366,14 @@ SELECT
 FROM segment_definitions sd
 WHERE sd.project_id = :projectId
   AND sd.segment_id = :segmentId
+  AND NOT EXISTS (
+    SELECT 1
+    FROM promotion_target_segments existing_pts
+    WHERE existing_pts.project_id = :projectId
+      AND existing_pts.promotion_id = :promotionId
+      AND existing_pts.segment_id = :segmentId
+      AND existing_pts.status <> 'stopped'
+  )
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 
 /* 목적: 프로모션에 연결된 세그먼트 표시 정보를 수정합니다. */
@@ -520,6 +528,200 @@ WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND segment_id = :segmentId
 ORDER BY updated_at DESC, created_at DESC;
+
+/* 목적: 특정 세그먼트에서 생성된 광고 실험 상태를 조회합니다. */
+/* @name ListDashboardSegmentAdExperiments */
+SELECT
+  ad_experiment_id AS "adExperimentId",
+  promotion_run_id AS "promotionRunId",
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  status
+FROM ad_experiments
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+ORDER BY loop_count DESC, updated_at DESC, created_at DESC;
+
+/* 목적: 콘텐츠 승인과 실험 생성을 위해 후보, 프로모션, 세그먼트 정보를 함께 조회합니다. */
+/* @name GetDashboardContentCandidateForApproval */
+SELECT
+  cc.content_id AS "contentId",
+  cc.content_option_id AS "contentOptionId",
+  cc.generation_id AS "generationId",
+  cc.analysis_id AS "analysisId",
+  cc.project_id AS "projectId",
+  cc.campaign_id AS "campaignId",
+  cc.promotion_id AS "promotionId",
+  cc.segment_id AS "segmentId",
+  COALESCE(pts.segment_name, sd.segment_name) AS "segmentName",
+  cc.channel,
+  p.goal_metric AS "goalMetric",
+  p.goal_target_value::float8 AS "goalTargetValue",
+  p.goal_basis AS "goalBasis",
+  cc.status AS "contentStatus"
+FROM content_candidates cc
+JOIN promotions p
+  ON p.promotion_id = cc.promotion_id
+JOIN segment_definitions sd
+  ON sd.segment_id = cc.segment_id
+LEFT JOIN promotion_target_segments pts
+  ON pts.promotion_id = cc.promotion_id
+ AND pts.segment_id = cc.segment_id
+WHERE cc.project_id = :projectId
+  AND cc.promotion_id = :promotionId
+  AND cc.segment_id = :segmentId
+  AND cc.content_id = :contentId;
+
+/* 목적: 같은 생성 실행/세그먼트 안에서 승인 대상이 아닌 후보를 거절 상태로 전환합니다. */
+/* @name RejectDashboardSiblingContentCandidates */
+UPDATE content_candidates
+SET status = 'rejected',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND generation_id = :generationId
+  AND segment_id = :segmentId
+  AND content_id <> :contentId
+  AND status IN ('draft', 'approved', 'active')
+RETURNING content_id AS "contentId";
+
+/* 목적: 관리자가 선택한 콘텐츠 후보 1개를 승인 상태로 전환합니다. */
+/* @name ApproveDashboardContentCandidate */
+UPDATE content_candidates
+SET status = 'approved',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+  AND content_id = :contentId
+RETURNING
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  status;
+
+/* 목적: 생성 실행에 이미 연결된 프로모션 루프가 있는지 조회합니다. */
+/* @name GetDashboardPromotionRunByGeneration */
+SELECT
+  promotion_run_id AS "promotionRunId",
+  loop_count AS "loopCount",
+  status
+FROM promotion_runs
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND generation_id = :generationId
+ORDER BY loop_count DESC
+LIMIT 1;
+
+/* 목적: 새 프로모션 루프를 만들 때 사용할 다음 loop_count를 계산합니다. */
+/* @name GetDashboardNextPromotionLoopCount */
+SELECT COALESCE(MAX(loop_count), 0)::int + 1 AS "loopCount"
+FROM promotion_runs
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId;
+
+/* 목적: 승인된 콘텐츠 후보를 묶을 프로모션 루프를 생성합니다. */
+/* @name InsertDashboardPromotionRun */
+INSERT INTO promotion_runs (
+  promotion_run_id,
+  project_id,
+  campaign_id,
+  promotion_id,
+  analysis_id,
+  generation_id,
+  loop_count,
+  status,
+  goal_snapshot_json
+)
+VALUES (
+  :promotionRunId,
+  :projectId,
+  :campaignId,
+  :promotionId,
+  :analysisId,
+  :generationId,
+  :loopCount,
+  'approved',
+  jsonb_build_object(
+    'goal_metric', (:goalMetric)::text,
+    'goal_target_value', (:goalTargetValue)::numeric,
+    'goal_basis', (:goalBasis)::text
+  )
+)
+RETURNING
+  promotion_run_id AS "promotionRunId",
+  loop_count AS "loopCount",
+  status;
+
+/* 목적: 세그먼트별 승인 콘텐츠 1개로 광고 실험 1개를 생성하거나 갱신합니다. */
+/* @name UpsertDashboardAdExperimentFromApprovedContent */
+INSERT INTO ad_experiments (
+  ad_experiment_id,
+  project_id,
+  campaign_id,
+  promotion_id,
+  promotion_run_id,
+  analysis_id,
+  generation_id,
+  segment_id,
+  segment_name,
+  content_id,
+  content_option_id,
+  channel,
+  loop_count,
+  status,
+  goal_metric,
+  goal_target_value,
+  goal_basis
+)
+VALUES (
+  :adExperimentId,
+  :projectId,
+  :campaignId,
+  :promotionId,
+  :promotionRunId,
+  :analysisId,
+  :generationId,
+  :segmentId,
+  :segmentName,
+  :contentId,
+  :contentOptionId,
+  :channel,
+  :loopCount,
+  'approved',
+  :goalMetric,
+  :goalTargetValue,
+  :goalBasis
+)
+ON CONFLICT (promotion_run_id, segment_id)
+DO UPDATE SET
+  content_id = EXCLUDED.content_id,
+  content_option_id = EXCLUDED.content_option_id,
+  channel = EXCLUDED.channel,
+  status = 'approved',
+  goal_metric = EXCLUDED.goal_metric,
+  goal_target_value = EXCLUDED.goal_target_value,
+  goal_basis = EXCLUDED.goal_basis,
+  updated_at = now()
+RETURNING
+  ad_experiment_id AS "adExperimentId",
+  promotion_run_id AS "promotionRunId",
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  status;
+
+/* 목적: 콘텐츠 승인 후 프로모션 타겟 세그먼트 상태를 승인됨으로 갱신합니다. */
+/* @name MarkDashboardPromotionTargetSegmentApproved */
+UPDATE promotion_target_segments
+SET status = 'approved'
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+  AND status <> 'stopped'
+RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status;
 
 /* 목적: 프로젝트에 저장된 사용자 정의 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardSavedSegments */

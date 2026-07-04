@@ -227,8 +227,53 @@ test("dashboard controller parses saved segment list response", async () => {
   assert.equal(response.segments[0]?.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
 });
 
+test("dashboard controller parses content approval body before delegating", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    approveContentCandidate: async (projectId, promotionId, segmentId, contentId, request) => {
+      writes.push({ contentId, projectId, promotionId, request, segmentId });
+      return {
+        ad_experiment_id: "ad_exp_vip_001",
+        promotion_run_id: "run_banner_001",
+        promotion_id: promotionId,
+        segment_id: segmentId,
+        content_id: contentId,
+        content_option_id: "option_a",
+        status: "approved"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.approveContentCandidate(
+    "promo_banner_001",
+    "seg_vip",
+    "content_vip_a",
+    "hotel-client-a",
+    { operator_note: "VIP 세그먼트 후보 A 승인" }
+  );
+
+  assert.deepEqual(writes, [
+    {
+      contentId: "content_vip_a",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001",
+      request: { operator_note: "VIP 세그먼트 후보 A 승인" },
+      segmentId: "seg_vip"
+    }
+  ]);
+  assert.equal(response.ad_experiment_id, "ad_exp_vip_001");
+  assert.equal(response.status, "approved");
+});
+
 function emptyDashboardQuery(): DashboardQueryService {
   return {
+    approveContentCandidate: async () => {
+      throw new Error("Unexpected approveContentCandidate call.");
+    },
     createFunnel: async () => {
       throw new Error("Unexpected createFunnel call.");
     },

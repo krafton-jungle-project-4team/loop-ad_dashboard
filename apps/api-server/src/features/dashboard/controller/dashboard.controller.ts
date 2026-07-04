@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
+  DashboardAdExperimentSchema,
+  DashboardApproveContentCandidateRequestSchema,
   DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
@@ -173,6 +175,27 @@ export class DashboardController {
     const request = DashboardStartNextLoopRequestSchema.parse(body);
     return DashboardNextLoopAnalysisSchema.parse(
       await this.dashboardQuery.startNextLoopAnalysis(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Post("promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/approve")
+  async approveContentCandidate(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardApproveContentCandidateRequestSchema.parse(body);
+    return DashboardAdExperimentSchema.parse(
+      await this.dashboardQuery.approveContentCandidate(
+        requiredProjectId,
+        promotionId,
+        segmentId,
+        contentId,
+        request
+      )
     );
   }
 

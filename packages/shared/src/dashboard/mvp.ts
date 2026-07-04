@@ -224,6 +224,24 @@ export const DashboardContentCandidateSchema = z.object({
 });
 export type DashboardContentCandidate = z.infer<typeof DashboardContentCandidateSchema>;
 
+export const DashboardApproveContentCandidateRequestSchema = z.object({
+  operator_note: z.string().nullable().optional()
+});
+export type DashboardApproveContentCandidateRequest = z.infer<
+  typeof DashboardApproveContentCandidateRequestSchema
+>;
+
+export const DashboardAdExperimentSchema = z.object({
+  ad_experiment_id: z.string(),
+  promotion_run_id: z.string(),
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  content_id: z.string(),
+  content_option_id: z.string(),
+  status: z.string()
+});
+export type DashboardAdExperiment = z.infer<typeof DashboardAdExperimentSchema>;
+
 export const DashboardCampaignExperimentMetricSchema = z.object({
   promotion_id: z.string(),
   promotion_run_id: z.string(),
@@ -317,6 +335,7 @@ export type DashboardPromotionDetail = z.infer<typeof DashboardPromotionDetailSc
 
 export const DashboardSegmentDetailSchema = z.object({
   segment: DashboardCampaignSegmentSchema,
+  ad_experiments: z.array(DashboardAdExperimentSchema),
   content_candidates: z.array(DashboardContentCandidateSchema),
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
   realtime_metrics: DashboardSegmentRealtimeMetricsSchema

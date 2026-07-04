@@ -1,6 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactional";
 import type {
+  DashboardAdExperiment,
+  DashboardApproveContentCandidateRequest,
   DashboardCreateFunnelRequest,
   DashboardCampaignDetail,
   DashboardCampaignSegment,
@@ -149,6 +151,24 @@ export class DashboardQueryService {
   ): Promise<DashboardNextLoopAnalysis> {
     return this.transactionHost.withTransaction(() =>
       this.campaignReader.startNextLoopAnalysis(projectId, promotionId, request)
+    );
+  }
+
+  async approveContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardApproveContentCandidateRequest
+  ): Promise<DashboardAdExperiment> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.approveContentCandidate(
+        projectId,
+        promotionId,
+        segmentId,
+        contentId,
+        request
+      )
     );
   }
 
