@@ -100,18 +100,17 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="h-full min-h-0 overflow-x-auto overflow-y-hidden bg-white">
+    <div className="h-full min-h-0 min-w-0 overflow-hidden bg-white">
       <ResizablePanelGroup
-        className="h-full min-h-0 min-w-[1260px] overflow-hidden border-t border-black/10 bg-white"
+        className="h-full min-h-0 min-w-0 overflow-hidden border-t border-black/10 bg-white"
         id="loopad-data-explorer-panels"
         orientation="horizontal"
       >
         <ResizablePanel
-          className="min-w-[220px]"
-          defaultSize="280px"
-          groupResizeBehavior="preserve-pixel-size"
-          maxSize="460px"
-          minSize="220px"
+          className="min-w-0 overflow-hidden"
+          defaultSize="22%"
+          maxSize="34%"
+          minSize="16%"
         >
           <SchemaBrowserPanel
             isLoading={objectsQuery.isLoading}
@@ -128,7 +127,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
           withHandle
         />
 
-        <ResizablePanel className="min-w-[560px]" minSize="560px">
+        <ResizablePanel className="min-w-0 overflow-hidden" defaultSize="51%" minSize="34%">
           <main className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-x border-black/10">
             <SqlEditorPanel
               onSqlTextChange={handleSqlTextChange}
@@ -136,7 +135,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
               validation={validation}
             />
 
-            <section className="flex min-h-0 flex-col border-t border-black/10 bg-white">
+            <section className="flex min-h-0 min-w-0 flex-col border-t border-black/10 bg-white">
               {queryError ? (
                 <Alert className="m-3 shrink-0" variant="destructive">
                   <AlertTitle>Data Explorer 요청 실패</AlertTitle>
@@ -144,13 +143,13 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                 </Alert>
               ) : null}
               <Tabs
-                className="min-h-0 flex-1 gap-0 overflow-hidden"
+                className="min-h-0 min-w-0 flex-1 gap-0 overflow-hidden"
                 onValueChange={(value) =>
                   setResultTab(value as "schema" | "result" | "visualization")
                 }
                 value={resultTab}
               >
-                <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
+                <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
                   <TabsList className="h-8">
                     <TabsTrigger value="schema">Schema</TabsTrigger>
                     <TabsTrigger value="result">Query Result</TabsTrigger>
@@ -183,9 +182,9 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                     </Button>
                   </div>
                 </div>
-                <div className="min-h-0 flex-1 overflow-hidden p-4">
+                <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-4">
                   <TabsContent
-                    className="h-full min-h-0 data-[state=inactive]:hidden"
+                    className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
                     value="schema"
                   >
                     <SchemaInspectorPanel
@@ -194,13 +193,13 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                     />
                   </TabsContent>
                   <TabsContent
-                    className="h-full min-h-0 data-[state=inactive]:hidden"
+                    className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
                     value="result"
                   >
                     <QueryResultTable result={queryResult} />
                   </TabsContent>
                   <TabsContent
-                    className="h-full min-h-0 data-[state=inactive]:hidden"
+                    className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
                     value="visualization"
                   >
                     <VisualizationPanel result={queryResult} />
@@ -217,11 +216,10 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
         />
 
         <ResizablePanel
-          className="min-w-[300px]"
-          defaultSize="340px"
-          groupResizeBehavior="preserve-pixel-size"
-          maxSize="560px"
-          minSize="300px"
+          className="min-w-0 overflow-hidden"
+          defaultSize="27%"
+          maxSize="40%"
+          minSize="18%"
         >
           <ChatKitQueryPanel
             currentResult={chatKitCurrentResult}

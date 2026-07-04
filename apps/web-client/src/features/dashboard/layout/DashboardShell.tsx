@@ -76,7 +76,7 @@ export function DashboardShell({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-w-0">
+      <SidebarInset className={isDataExplorer ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
           <div className="flex h-full min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1" />
