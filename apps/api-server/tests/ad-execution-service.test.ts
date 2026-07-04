@@ -28,6 +28,18 @@ process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
+process.env.LOOPAD_DEMO_DISPATCH_RECIPIENTS ??= JSON.stringify([
+  {
+    userId: "user-1",
+    email: "demo-recipient-1@loop-ad.org",
+    phoneNumber: "+821012345001"
+  },
+  {
+    userId: "user-2",
+    email: "demo-recipient-2@loop-ad.org",
+    phoneNumber: "+821012345002"
+  }
+]);
 
 const { BannerResolveService } =
   await import("../src/features/ad-execution/service/banner-resolve.service.js");
@@ -43,7 +55,7 @@ const {
   createEmailSender,
   createSmsSender
 } = await import("../src/features/ad-execution/ad-execution.module.js");
-const { HardcodedDemoRecipientDirectory } =
+const { EnvDemoRecipientDirectory } =
   await import("../src/features/ad-execution/repository/index.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
@@ -100,16 +112,17 @@ test("dispatch module always creates AWS senders from fixed code config", () => 
   assert.equal(AD_DISPATCH_EMAIL_FROM_ADDRESS, "noreply@loop-ad.org");
 });
 
-test("hardcoded demo recipient directory maps user_id to a demo allowlist contact", async () => {
-  const directory = new HardcodedDemoRecipientDirectory();
+test("env demo recipient directory maps user_id to configured contacts", async () => {
+  const directory = new EnvDemoRecipientDirectory();
 
-  const recipient = await directory.findRecipient("analysis-db-user-1");
+  const recipient = await directory.findRecipient("user-1");
 
-  assert.equal(recipient?.userId, "analysis-db-user-1");
-  assert.match(recipient?.email ?? "", /^demo-recipient-[1-3]@loop-ad\.org$/);
-  assert.match(recipient?.phoneNumber ?? "", /^\+82101234500[1-3]$/);
+  assert.equal(recipient?.userId, "user-1");
+  assert.equal(recipient?.email, "demo-recipient-1@loop-ad.org");
+  assert.equal(recipient?.phoneNumber, "+821012345001");
   assert.equal(recipient?.emailOptedIn, true);
   assert.equal(recipient?.smsOptedIn, true);
+  assert.equal(await directory.findRecipient("missing-user"), null);
 });
 
 test("dispatch resolves user_id to email before sending", async () => {
@@ -139,13 +152,13 @@ test("dispatch resolves user_id to email before sending", async () => {
   assert.notEqual(emailSender.inputs[0]?.recipient, "user-1");
 });
 
-test("dispatch records RECIPIENT_NOT_FOUND without creating a redirect", async () => {
+test("dispatch skips unmapped demo recipients as successful no-ops", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
   const recipientDirectory = new FakeRecipientDirectory(false);
   const emailSender = new RecordingEmailSender();
 
-  const { result: response } = await captureDispatchLogs(() =>
+  const { result: response, logs } = await captureDispatchLogs(() =>
     createDispatchService(
       reader,
       writer,
@@ -155,15 +168,17 @@ test("dispatch records RECIPIENT_NOT_FOUND without creating a redirect", async (
     ).dispatchPromotionRun("run-1")
   );
 
-  assert.equal(response.dispatched_count, 0);
-  assert.equal(response.failed_count, 1);
+  assert.equal(response.dispatched_count, 1);
+  assert.equal(response.failed_count, 0);
+  assert.equal(response.jobs[0]?.status, "completed");
   assert.deepEqual(
     response.jobs[0]?.attempts.map((attempt) => attempt.error_code),
-    ["RECIPIENT_NOT_FOUND"]
+    [undefined]
   );
-  assert.deepEqual(dispatchAttemptErrorCodes(writer), ["RECIPIENT_NOT_FOUND"]);
+  assert.deepEqual(dispatchAttemptErrorCodes(writer), []);
   assert.equal(emailSender.inputs.length, 0);
   assert.equal(writer.redirectLinks.length, 0);
+  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch recipient skipped").length, 1);
 });
 
 test("dispatch honors email opt-in before sending", async () => {

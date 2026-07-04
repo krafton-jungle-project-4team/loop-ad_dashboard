@@ -45,11 +45,7 @@ interface DispatchContext {
   channel: DispatchChannel;
 }
 
-type DispatchFailureCode =
-  | "RECIPIENT_NOT_FOUND"
-  | "EMAIL_NOT_OPTED_IN"
-  | "SMS_NOT_OPTED_IN"
-  | "RECIPIENT_CONTACT_INVALID";
+type DispatchFailureCode = "EMAIL_NOT_OPTED_IN" | "SMS_NOT_OPTED_IN" | "RECIPIENT_CONTACT_INVALID";
 
 /** 프로모션 외부 발행 요청을 저장된 assignment 기반으로 처리합니다. */
 @Injectable()
@@ -206,18 +202,32 @@ export class PromotionDispatchService {
   ): Promise<DispatchAttemptSnapshot> {
     // TODO: channel별 발송 실행은 EmailDispatchService/SmsDispatchService로 분리한다.
     const provider = this.providerNameFor(channel, assignment.promotionRunId);
+    let redirectId: string | undefined;
 
     logDispatchAttempt(channel, provider, assignment);
 
     try {
-      const { redirectId, sendResult } = await this.sendDispatch(channel, assignment);
+      const contact = await this.resolveRecipientContact(channel, assignment);
+
+      if (!contact) {
+        const attempt = toSkippedAttempt(assignment.userId);
+
+        logRecipientSkipped(channel, provider, assignment);
+        logDispatchResult(channel, provider, assignment, attempt);
+
+        return attempt;
+      }
+
+      redirectId = await this.createRedirectLink(assignment);
+      const targetUrl = redirectUrl(redirectId);
+      const sendResult = await this.sendToResolvedContact(channel, assignment, targetUrl, contact);
       const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
 
       logDispatchResult(channel, sendResult.provider, assignment, attempt);
 
       return attempt;
     } catch (error) {
-      const attempt = toFailedAttempt(assignment.userId, getDispatchErrorCode(error));
+      const attempt = toFailedAttempt(assignment.userId, getDispatchErrorCode(error), redirectId);
 
       logDispatchResult(channel, provider, assignment, attempt, getErrorName(error));
 
@@ -225,39 +235,14 @@ export class PromotionDispatchService {
     }
   }
 
-  private async sendDispatch(
+  private async resolveRecipientContact(
     channel: DispatchChannel,
     assignment: ActiveAdServingAssignmentEntity
-  ): Promise<{ redirectId: string; sendResult: DispatchSendResult }> {
-    const contact = await this.resolveRecipientContact(channel, assignment.userId);
-    const redirectId = await this.createRedirectLink(assignment);
-    const targetUrl = redirectUrl(redirectId);
-    const sendResult = await this.sendToResolvedContact(channel, assignment, targetUrl, contact);
-
-    return { redirectId, sendResult };
-  }
-
-  private async sendToResolvedContact(
-    channel: DispatchChannel,
-    assignment: ActiveAdServingAssignmentEntity,
-    targetUrl: string,
-    contact: string
-  ): Promise<DispatchSendResult> {
-    switch (channel) {
-      case "email":
-        return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl, contact));
-      case "sms":
-        return this.smsSender.sendSms(toSmsSendInput(assignment, targetUrl, contact));
-      default:
-        return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
-    }
-  }
-
-  private async resolveRecipientContact(channel: DispatchChannel, userId: string): Promise<string> {
-    const recipient = await this.recipientDirectory.findRecipient(userId);
+  ): Promise<string | null> {
+    const recipient = await this.recipientDirectory.findRecipient(assignment.userId);
 
     if (!recipient) {
-      return throwDispatchFailure("RECIPIENT_NOT_FOUND");
+      return null;
     }
 
     switch (channel) {
@@ -274,7 +259,23 @@ export class PromotionDispatchService {
 
         return requireValidSmsContact(recipient.phoneNumber);
       default:
-        return throwUnsupportedDispatchChannel(userId, channel);
+        return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
+    }
+  }
+
+  private async sendToResolvedContact(
+    channel: DispatchChannel,
+    assignment: ActiveAdServingAssignmentEntity,
+    targetUrl: string,
+    contact: string
+  ): Promise<DispatchSendResult> {
+    switch (channel) {
+      case "email":
+        return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl, contact));
+      case "sms":
+        return this.smsSender.sendSms(toSmsSendInput(assignment, targetUrl, contact));
+      default:
+        return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
     }
   }
 
@@ -380,6 +381,13 @@ function toSentAttempt(
   };
 }
 
+function toSkippedAttempt(userId: string): DispatchAttemptSnapshot {
+  return {
+    userId,
+    status: "sent"
+  };
+}
+
 function toFailedAttempt(
   userId: string,
   errorCode: string,
@@ -445,6 +453,20 @@ function logDispatchResult(
     errorCode: attempt.errorCode,
     providerMessageId: attempt.providerMessageId,
     errorName
+  });
+}
+
+function logRecipientSkipped(
+  channel: DispatchChannel,
+  provider: string,
+  assignment: ActiveAdServingAssignmentEntity
+) {
+  logWithContext("info", "Ad dispatch recipient skipped", {
+    channel,
+    provider,
+    ...dispatchLogContext(assignment),
+    skipReason: "DEMO_RECIPIENT_NOT_MAPPED",
+    status: "sent"
   });
 }
 

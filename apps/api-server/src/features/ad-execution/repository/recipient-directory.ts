@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
+import { env, type DemoDispatchRecipientConfig } from "../../../infra/env/env.js";
 
 const requiredStringSchema = z.string().trim().min(1);
 const nullableContactSchema = z.string().trim().nullable();
@@ -18,50 +19,32 @@ export abstract class RecipientDirectory {
   abstract findRecipient(userId: string): Promise<DispatchRecipient | null>;
 }
 
-const hardcodedDemoContacts = [
-  {
-    email: "demo-recipient-1@loop-ad.org",
-    phoneNumber: "+821012345001"
-  },
-  {
-    email: "demo-recipient-2@loop-ad.org",
-    phoneNumber: "+821012345002"
-  },
-  {
-    email: "demo-recipient-3@loop-ad.org",
-    phoneNumber: "+821012345003"
-  }
-] as const;
-
-/** 임시 demo recipient allowlist를 user_id에 매핑합니다. */
+/** env로 관리되는 demo recipient Map을 가상의 recipient DB처럼 사용합니다. */
 @Injectable()
-export class HardcodedDemoRecipientDirectory extends RecipientDirectory {
+export class EnvDemoRecipientDirectory extends RecipientDirectory {
+  private readonly recipientsByUserId: ReadonlyMap<string, DispatchRecipient>;
+
+  constructor(recipients: readonly DemoDispatchRecipientConfig[] = env.demoDispatchRecipients) {
+    super();
+    this.recipientsByUserId = toRecipientMap(recipients);
+  }
+
   async findRecipient(userId: string): Promise<DispatchRecipient | null> {
-    // TODO: demo recipient table이 분석 DB에 확정되면 PgTyped repository 조회로 교체한다.
-    const contact = pickDemoContact(userId);
-
-    return dispatchRecipientSchema.parse({
-      userId,
-      email: contact.email,
-      phoneNumber: contact.phoneNumber,
-      emailOptedIn: true,
-      smsOptedIn: true
-    });
+    return this.recipientsByUserId.get(userId) ?? null;
   }
 }
 
-function pickDemoContact(userId: string) {
-  const index = hashString(userId) % hardcodedDemoContacts.length;
-
-  return hardcodedDemoContacts[index] ?? hardcodedDemoContacts[0];
-}
-
-function hashString(value: string) {
-  let hash = 0;
-
-  for (const character of value) {
-    hash = (hash * 31 + character.charCodeAt(0)) % hardcodedDemoContacts.length;
-  }
-
-  return hash;
+function toRecipientMap(recipients: readonly DemoDispatchRecipientConfig[]) {
+  return new Map(
+    recipients.map((recipient) => [
+      recipient.userId,
+      dispatchRecipientSchema.parse({
+        userId: recipient.userId,
+        email: recipient.email,
+        phoneNumber: recipient.phoneNumber,
+        emailOptedIn: true,
+        smsOptedIn: true
+      })
+    ])
+  );
 }
