@@ -3,7 +3,6 @@ import { queryOptions, useMutation } from "@tanstack/react-query";
 import {
   fetchDataExplorerObjectDetail,
   fetchDataExplorerObjects,
-  runDataExplorerAiChat,
   runDataExplorerQuery
 } from "../api/data-explorer-api.js";
 
@@ -33,7 +32,6 @@ export function dataExplorerObjectDetailQueryOptions(ref: DataExplorerObjectRef 
 
 export function useDataExplorerMutations() {
   return {
-    chat: useMutation({ mutationFn: runDataExplorerAiChat }),
     runQuery: useMutation({ mutationFn: runDataExplorerQuery })
   };
 }

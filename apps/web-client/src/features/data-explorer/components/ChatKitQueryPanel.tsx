@@ -1,81 +1,128 @@
-import { Button } from "@loopad/ui/shadcn/button";
-import { ScrollArea } from "@loopad/ui/shadcn/scroll-area";
-import { Textarea } from "@loopad/ui/shadcn/textarea";
-import { cn } from "@loopad/ui/shadcn/utils";
-import { Loader2, Send } from "lucide-react";
-import type { FormEvent } from "react";
+import {
+  DataExplorerAiQueryPlanResponseSchema,
+  DataExplorerQueryRunResponseSchema,
+  type DataExplorerAiChatCurrentResult
+} from "@loopad/shared";
+import { ChatKit, useChatKit, type StartScreenPrompt } from "@openai/chatkit-react";
+import { useCallback, useMemo } from "react";
+import { z } from "zod";
+import {
+  createDataExplorerChatKitFetch,
+  dataExplorerChatKitUrl
+} from "../api/data-explorer-chatkit-api.js";
+import { dashboardConfig } from "../../dashboard/model/dashboard-config.js";
 
-export type ChatKitMessage = {
-  id: string;
-  role: "assistant" | "user";
-  content: string;
-};
+const START_SCREEN_PROMPTS: StartScreenPrompt[] = [
+  {
+    icon: "chart",
+    label: "최근 이벤트 추이",
+    prompt: "최근 7일 이벤트 추이를 조회하는 SQL을 만들고 실행해줘."
+  },
+  {
+    icon: "analytics",
+    label: "상위 이벤트",
+    prompt: "이 프로젝트에서 가장 많이 발생한 이벤트 TOP 10을 보여줘."
+  },
+  {
+    icon: "sparkle",
+    label: "결과 해석",
+    prompt: "현재 쿼리 결과에서 볼 만한 인사이트를 한국어로 요약해줘."
+  }
+];
+
+const ChatKitQueryRunEffectSchema = z.object({
+  action: z.literal("query_run"),
+  query_plan: DataExplorerAiQueryPlanResponseSchema,
+  query_result: DataExplorerQueryRunResponseSchema
+});
+
+export type DataExplorerChatKitQueryRunEffect = z.infer<typeof ChatKitQueryRunEffectSchema>;
 
 export function ChatKitQueryPanel({
-  message,
-  messages,
-  onMessageChange,
-  onSubmit,
-  pending
+  currentResult,
+  onError,
+  onQueryRun,
+  projectId
 }: {
-  message: string;
-  messages: ChatKitMessage[];
-  onMessageChange: (value: string) => void;
-  onSubmit: () => void;
-  pending: boolean;
+  currentResult: DataExplorerAiChatCurrentResult | null;
+  onError: (message: string) => void;
+  onQueryRun: (effect: DataExplorerChatKitQueryRunEffect) => void;
+  projectId: string;
 }) {
-  const canSubmit = message.trim().length > 0 && !pending;
+  const chatKitFetch = useMemo(
+    () =>
+      createDataExplorerChatKitFetch({
+        currentResult,
+        projectId
+      }),
+    [currentResult, projectId]
+  );
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (canSubmit) {
-      onSubmit();
+  const handleEffect = useCallback(
+    ({ data, name }: { data?: Record<string, unknown>; name: string }) => {
+      if (name !== "data_explorer_query_run") {
+        return;
+      }
+
+      const parsed = ChatKitQueryRunEffectSchema.safeParse(data);
+      if (!parsed.success) {
+        onError("ChatKit 쿼리 실행 결과를 해석하지 못했습니다.");
+        return;
+      }
+
+      onQueryRun(parsed.data);
+    },
+    [onError, onQueryRun]
+  );
+
+  const chatKit = useChatKit({
+    api: {
+      domainKey: dashboardConfig.chatKitDomainKey,
+      fetch: chatKitFetch,
+      url: dataExplorerChatKitUrl()
+    },
+    composer: {
+      placeholder: "보고 싶은 데이터를 입력하세요."
+    },
+    header: {
+      title: {
+        text: "AI Assistant"
+      }
+    },
+    history: {
+      enabled: false
+    },
+    locale: "ko-KR",
+    onEffect: handleEffect,
+    onError: ({ error }) => {
+      onError(error.message || "ChatKit 요청에 실패했습니다.");
+    },
+    startScreen: {
+      greeting: "무엇을 조회할까요?",
+      prompts: START_SCREEN_PROMPTS
+    },
+    theme: {
+      color: {
+        accent: {
+          level: 1,
+          primary: "#0066cc"
+        }
+      },
+      colorScheme: "light",
+      density: "compact",
+      radius: "soft"
+    },
+    thread: {
+      autoScroll: true
+    },
+    threadItemActions: {
+      feedback: false
     }
-  };
+  });
 
   return (
-    <aside className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-white">
-      <div className="border-b border-black/10 bg-white px-4 py-3">
-        <h2 className="text-base font-semibold tracking-tight text-[#111827]">AI Assistant</h2>
-      </div>
-
-      <ScrollArea className="h-full min-h-0 bg-[#fafafc]">
-        <div className="grid content-start gap-3 p-3">
-          {messages.map((chatMessage) => (
-            <div
-              className={cn(
-                "max-w-[92%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm leading-relaxed",
-                chatMessage.role === "user"
-                  ? "ml-auto bg-[#0066cc] text-white"
-                  : "mr-auto border border-black/10 bg-white text-[#1d1d1f]"
-              )}
-              key={chatMessage.id}
-            >
-              {chatMessage.content}
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
-
-      <form className="border-t border-black/10 bg-white p-3" onSubmit={handleSubmit}>
-        <div className="relative">
-          <Textarea
-            className="h-24 resize-none pr-14 text-sm leading-relaxed"
-            onChange={(event) => onMessageChange(event.target.value)}
-            placeholder="예: 최근 7일 이벤트 추이 쿼리 만들어줘"
-            value={message}
-          />
-          <Button
-            aria-label="AI에게 보내기"
-            className="absolute bottom-3 right-3"
-            disabled={!canSubmit}
-            size="icon"
-            type="submit"
-          >
-            {pending ? <Loader2 className="animate-spin" /> : <Send />}
-          </Button>
-        </div>
-      </form>
+    <aside className="h-full min-h-0 overflow-hidden bg-white">
+      <ChatKit control={chatKit.control} className="block h-full w-full" />
     </aside>
   );
 }

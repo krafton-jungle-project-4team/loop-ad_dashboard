@@ -1,11 +1,19 @@
-import { Body, Controller, Get, Inject, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Post, Query, Res } from "@nestjs/common";
 import {
-  DataExplorerAiChatRequestSchema,
   DataExplorerObjectDetailQuerySchema,
   DataExplorerObjectsQuerySchema,
   DataExplorerQueryRunRequestSchema
 } from "@loopad/shared";
+import { DataExplorerChatKitService } from "../service/data-explorer-chatkit.service.js";
 import { DataExplorerService } from "../service/data-explorer.service.js";
+
+type ChatKitHttpResponse = {
+  end: () => void;
+  json: (body: unknown) => void;
+  setHeader: (name: string, value: string) => void;
+  status: (statusCode: number) => ChatKitHttpResponse;
+  write: (chunk: string) => void;
+};
 
 /**
  * Data Explorer HTTP 요청을 받는다.
@@ -16,7 +24,9 @@ import { DataExplorerService } from "../service/data-explorer.service.js";
 export class DataExplorerController {
   constructor(
     @Inject(DataExplorerService)
-    private readonly dataExplorer: DataExplorerService
+    private readonly dataExplorer: DataExplorerService,
+    @Inject(DataExplorerChatKitService)
+    private readonly chatKit: DataExplorerChatKitService
   ) {}
 
   /** ClickHouse 테이블 목록을 조회한다. */
@@ -37,9 +47,25 @@ export class DataExplorerController {
     return this.dataExplorer.runQuery(DataExplorerQueryRunRequestSchema.parse(body));
   }
 
-  /** AI 질의를 SQL 실행 또는 현재 결과 분석으로 처리한다. */
-  @Post("ai/chat")
-  runAiChat(@Body() body: unknown) {
-    return this.dataExplorer.runAiChat(DataExplorerAiChatRequestSchema.parse(body));
+  /** OpenAI ChatKit SDK 요청을 처리하고, 필요하면 SSE로 답변을 스트리밍한다. */
+  @Post("chatkit")
+  async runChatKit(@Body() body: unknown, @Res() response: ChatKitHttpResponse) {
+    const result = await this.chatKit.process(body);
+
+    if (result.kind === "json") {
+      response.status(result.statusCode ?? 200).json(result.body);
+      return;
+    }
+
+    response.status(200);
+    response.setHeader("Content-Type", "text/event-stream");
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("Connection", "keep-alive");
+
+    for await (const event of result.events) {
+      response.write(`data: ${JSON.stringify(event)}\n\n`);
+    }
+
+    response.end();
   }
 }

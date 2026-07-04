@@ -18,6 +18,10 @@ type OpenAiDataExplorerResultAnalysis = {
   caveats: string[];
 };
 
+type OpenAiDataExplorerChatAction = {
+  action: "query_run" | "result_analysis";
+};
+
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const OPENAI_REQUEST_TIMEOUT_MS = 20_000;
 const OPENAI_QUERY_PLAN_MODEL = "gpt-5.5";
@@ -32,6 +36,10 @@ const OpenAiResultAnalysisSchema = z.object({
   caveats: z.array(z.string().trim().min(1))
 });
 
+const OpenAiChatActionSchema = z.object({
+  action: z.enum(["query_run", "result_analysis"])
+});
+
 /**
  * Data Explorer의 SQL 생성과 결과 해석을 OpenAI에 위임한다.
  *
@@ -39,6 +47,26 @@ const OpenAiResultAnalysisSchema = z.object({
  */
 @Injectable()
 export class OpenAiDataExplorerQueryPlannerProvider {
+  async chooseChatAction(input: {
+    currentResult: DataExplorerAiChatCurrentResult;
+    message: string;
+  }): Promise<OpenAiDataExplorerChatAction> {
+    const content = await requestOpenAiJson({
+      schema: OPENAI_CHAT_ACTION_JSON_SCHEMA,
+      schemaName: "data_explorer_chat_action",
+      systemPrompt: buildChatActionSystemPrompt(),
+      userPayload: buildChatActionPayload(input)
+    }).catch((error: unknown) => {
+      throw dataExplorerErrors.aiChatFailed({ cause: toError(error) });
+    });
+
+    try {
+      return OpenAiChatActionSchema.parse(JSON.parse(content));
+    } catch (error) {
+      throw dataExplorerErrors.aiChatFailed({ cause: toError(error) });
+    }
+  }
+
   async createQueryPlan(input: {
     detail: DataExplorerObjectDetail;
     request: DataExplorerAiQueryPlanRequest;
@@ -137,6 +165,30 @@ function buildQueryPlanSystemPrompt() {
     "Return at most 500 rows.",
     "Return JSON that exactly matches the provided schema."
   ].join("\n");
+}
+
+function buildChatActionSystemPrompt() {
+  return [
+    "Classify a LoopAd Data Explorer chat message.",
+    "Return query_run when the user asks for new data, a new SQL query, a different metric, filtering, grouping, or execution.",
+    "Return result_analysis only when the user asks to summarize, explain, compare, or find insights in the current result.",
+    "Return JSON that exactly matches the provided schema."
+  ].join("\n");
+}
+
+function buildChatActionPayload(input: {
+  currentResult: DataExplorerAiChatCurrentResult;
+  message: string;
+}) {
+  return {
+    user_message: input.message,
+    current_result: {
+      query_run_id: input.currentResult.query_run_id,
+      row_count: input.currentResult.row_count,
+      truncated: input.currentResult.truncated,
+      columns: input.currentResult.columns
+    }
+  };
 }
 
 function buildQueryPlanPayload(input: {
@@ -248,6 +300,18 @@ const OPENAI_QUERY_PLAN_JSON_SCHEMA = {
     }
   },
   required: ["sql_text"]
+} as const;
+
+const OPENAI_CHAT_ACTION_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    action: {
+      type: "string",
+      enum: ["query_run", "result_analysis"]
+    }
+  },
+  required: ["action"]
 } as const;
 
 const OPENAI_RESULT_ANALYSIS_JSON_SCHEMA = {

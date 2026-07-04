@@ -1,9 +1,7 @@
 import {
-  DataExplorerAiChatResponseSchema,
   DataExplorerObjectDetailSchema,
   DataExplorerObjectsResponseSchema,
   DataExplorerQueryRunResponseSchema,
-  type DataExplorerAiChatRequest,
   type DataExplorerObjectRef,
   type DataExplorerQueryRunRequest
 } from "@loopad/shared";
@@ -40,10 +38,6 @@ export function runDataExplorerQuery(body: DataExplorerQueryRunRequest) {
     DataExplorerQueryRunResponseSchema,
     body
   );
-}
-
-export function runDataExplorerAiChat(body: DataExplorerAiChatRequest) {
-  return apiPost(`${DATA_EXPLORER_BASE_PATH}/ai/chat`, DataExplorerAiChatResponseSchema, body);
 }
 
 function objectRefSearchParams(ref: DataExplorerObjectRef) {

@@ -122,7 +122,14 @@ export class DataExplorerService {
   }
 
   async runAiChat(input: DataExplorerAiChatRequest) {
-    if (input.current_result) {
+    const action = input.current_result
+      ? await this.openAiQueryPlanner.chooseChatAction({
+          currentResult: input.current_result,
+          message: input.message
+        })
+      : { action: "query_run" as const };
+
+    if (input.current_result && action.action === "result_analysis") {
       const analysis = await this.openAiQueryPlanner.analyzeResult({
         currentResult: input.current_result,
         message: input.message

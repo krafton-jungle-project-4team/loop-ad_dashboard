@@ -3,6 +3,7 @@ import { DatabaseModule } from "../../infra/database/index.js";
 import { DataExplorerController } from "./controller/data-explorer.controller.js";
 import { OpenAiDataExplorerQueryPlannerProvider } from "./provider/openai-query-planner.provider.js";
 import { ClickHouseEventsReader } from "./repository/clickhouse-events-reader.js";
+import { DataExplorerChatKitService } from "./service/data-explorer-chatkit.service.js";
 import { DataExplorerService } from "./service/data-explorer.service.js";
 
 /**
@@ -13,6 +14,11 @@ import { DataExplorerService } from "./service/data-explorer.service.js";
 @Module({
   imports: [DatabaseModule],
   controllers: [DataExplorerController],
-  providers: [DataExplorerService, ClickHouseEventsReader, OpenAiDataExplorerQueryPlannerProvider]
+  providers: [
+    DataExplorerService,
+    DataExplorerChatKitService,
+    ClickHouseEventsReader,
+    OpenAiDataExplorerQueryPlannerProvider
+  ]
 })
 export class DataExplorerModule {}

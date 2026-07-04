@@ -10,9 +10,11 @@ import { Button } from "@loopad/ui/shadcn/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Play } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
-import { useCallback, useEffect, useState } from "react";
-import { ChatKitQueryPanel, type ChatKitMessage } from "../components/ChatKitQueryPanel.js";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ChatKitQueryPanel,
+  type DataExplorerChatKitQueryRunEffect
+} from "../components/ChatKitQueryPanel.js";
 import { QueryResultTable } from "../components/QueryResultTable.js";
 import { SchemaBrowserPanel } from "../components/SchemaBrowserPanel.js";
 import { SchemaInspectorPanel } from "../components/SchemaInspectorPanel.js";
@@ -29,14 +31,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const [validation, setValidation] = useState<DataExplorerSqlValidation | null>(null);
   const [objectSearch, setObjectSearch] = useState("");
   const [selectedObject, setSelectedObject] = useState<DataExplorerObjectSummary | null>(null);
-  const [message, setMessage] = useState("");
-  const [chatMessages, setChatMessages] = useState<ChatKitMessage[]>([
-    {
-      content: "보고 싶은 데이터를 말하면 SQL을 만들고 실행까지 도와드릴게요.",
-      id: "welcome",
-      role: "assistant"
-    }
-  ]);
   const [queryResult, setQueryResult] = useState<DataExplorerQueryRunResponse | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<"schema" | "result" | "visualization">("schema");
@@ -45,6 +39,10 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const objects = objectsQuery.data?.objects ?? [];
   const objectDetailQuery = useQuery(dataExplorerObjectDetailQueryOptions(selectedObject));
   const hasInvalidValidation = validation?.status === "invalid";
+  const chatKitCurrentResult = useMemo(
+    () => (queryResult ? toCurrentResult(queryResult) : null),
+    [queryResult]
+  );
 
   useEffect(() => {
     if (!objects.length) {
@@ -83,38 +81,13 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     setValidation(null);
   }, []);
 
-  const handleChatSubmit = useCallback(async () => {
-    const normalizedMessage = message.trim();
-    if (!normalizedMessage) {
-      return;
-    }
-
-    setMessage("");
+  const handleChatKitQueryRun = useCallback((effect: DataExplorerChatKitQueryRunEffect) => {
     setQueryError(null);
-    appendChatMessage(setChatMessages, "user", normalizedMessage);
-
-    try {
-      const response = await mutations.chat.mutateAsync({
-        current_result: queryResult ? toCurrentResult(queryResult) : undefined,
-        message: normalizedMessage,
-        project_id: projectId
-      });
-
-      if (response.query_plan) {
-        setSqlText(response.query_plan.generated_sql);
-        setValidation(response.query_plan.validation);
-      }
-      if (response.query_result) {
-        setQueryResult(response.query_result);
-        setResultTab("result");
-      }
-      appendChatMessage(setChatMessages, "assistant", response.assistant_message);
-    } catch (error) {
-      const messageText = errorMessage(error);
-      setQueryError(messageText);
-      appendChatMessage(setChatMessages, "assistant", messageText);
-    }
-  }, [message, mutations.chat, projectId, queryResult]);
+    setSqlText(effect.query_plan.generated_sql);
+    setValidation(effect.query_plan.validation);
+    setQueryResult(effect.query_result);
+    setResultTab("result");
+  }, []);
 
   if (!projectId.trim()) {
     return (
@@ -209,11 +182,10 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
         </main>
 
         <ChatKitQueryPanel
-          message={message}
-          messages={chatMessages}
-          onMessageChange={setMessage}
-          onSubmit={handleChatSubmit}
-          pending={mutations.chat.isPending}
+          currentResult={chatKitCurrentResult}
+          onError={setQueryError}
+          onQueryRun={handleChatKitQueryRun}
+          projectId={projectId}
         />
       </div>
     </div>
@@ -236,17 +208,6 @@ function toCurrentResult(result: DataExplorerQueryRunResponse): DataExplorerAiCh
     rows: result.rows.slice(0, 100),
     truncated: result.truncated
   };
-}
-
-function appendChatMessage(
-  setChatMessages: Dispatch<SetStateAction<ChatKitMessage[]>>,
-  role: ChatKitMessage["role"],
-  content: string
-) {
-  setChatMessages((current) => [
-    ...current,
-    { content, id: `${Date.now()}-${current.length}`, role }
-  ]);
 }
 
 function defaultSqlText(projectId: string) {
