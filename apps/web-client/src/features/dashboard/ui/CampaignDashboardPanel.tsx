@@ -3569,11 +3569,44 @@ function RealtimeEventTable({
   metrics: DashboardRealtimeMetrics;
   title: string;
 }) {
+  const [eventNameFilter, setEventNameFilter] = useState("all");
+  const filteredEvents =
+    eventNameFilter === "all"
+      ? metrics.events
+      : metrics.events.filter((event) => event.event_name === eventNameFilter);
+  const filteredTotalEventCount = filteredEvents.reduce(
+    (sum, event) => sum + event.event_count,
+    0
+  );
+
   return (
     <>
       {metrics.events.length > 0 ? (
         <section className="grid gap-3">
-          <h3 className="text-base font-semibold text-[#1d1d1f]">{title}</h3>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="grid gap-1">
+              <h3 className="text-base font-semibold text-[#1d1d1f]">{title}</h3>
+              <p className="text-sm text-muted-foreground">
+                수집 이벤트를 event_name 기준으로 필터링합니다.
+              </p>
+            </div>
+            <Field className="max-w-[260px]">
+              <FieldLabel>이벤트 종류</FieldLabel>
+              <Select onValueChange={setEventNameFilter} value={eventNameFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="이벤트 종류" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 이벤트</SelectItem>
+                  {metrics.events.map((event) => (
+                    <SelectItem key={event.event_name} value={event.event_name}>
+                      {eventDisplayName(event.event_name)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
           <ChartContainer
             className="min-h-[260px] w-full"
             config={{
@@ -3587,7 +3620,7 @@ function RealtimeEventTable({
               }
             }}
           >
-            <BarChart data={chartEvents(metrics)}>
+            <BarChart data={chartEvents(filteredEvents)}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} tickMargin={10} axisLine={false} />
               <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
@@ -3610,7 +3643,7 @@ function RealtimeEventTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {metrics.events.map((event) => (
+              {filteredEvents.map((event) => (
                 <TableRow key={event.event_name}>
                   <TableCell>
                     <div className="grid gap-1">
@@ -3625,8 +3658,8 @@ function RealtimeEventTable({
                     {formatInteger(event.unique_user_count)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {metrics.total_event_count > 0
-                      ? formatPercentValue(event.event_count / metrics.total_event_count)
+                    {filteredTotalEventCount > 0
+                      ? formatPercentValue(event.event_count / filteredTotalEventCount)
                       : "-"}
                   </TableCell>
                 </TableRow>
@@ -3641,8 +3674,8 @@ function RealtimeEventTable({
   );
 }
 
-function chartEvents(metrics: DashboardRealtimeMetrics) {
-  return metrics.events.map((event) => ({
+function chartEvents(events: DashboardRealtimeMetrics["events"]) {
+  return events.map((event) => ({
     event_count: event.event_count,
     label: eventDisplayName(event.event_name),
     unique_user_count: event.unique_user_count
