@@ -9,6 +9,7 @@ import type {
   DashboardContentCandidate,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
+  DashboardCreateDefaultPromotionsResult,
   DashboardCreatePromotionRequest,
   DashboardDeleteCampaignResult,
   DashboardDeletePromotionResult,
@@ -178,6 +179,57 @@ export class DashboardCampaignReader {
       .single();
 
     return this.getPromotionSummary(projectId, promotionId);
+  }
+
+  async createDefaultPromotions(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardCreateDefaultPromotionsResult> {
+    const defaultPromotions: DashboardCreatePromotionRequest[] = [
+      {
+        channel: "email",
+        goal_basis: "promotion_average",
+        goal_metric: "inflow_rate",
+        goal_target_value: 0.1,
+        marketing_theme: "email_inflow",
+        max_loop_count: 3,
+        message_brief: "기존 고객에게 캠페인 혜택을 안내해 유입률을 높입니다.",
+        min_sample_size: 1000,
+        status: "draft",
+        target_audience: "existing_users"
+      },
+      {
+        channel: "onsite_banner",
+        goal_basis: "all_segments",
+        goal_metric: "booking_conversion_rate",
+        goal_target_value: 0.03,
+        marketing_theme: "onsite_booking_conversion",
+        max_loop_count: 3,
+        message_brief: "내부 배너로 숙소 탐색 고객의 예약 전환을 유도합니다.",
+        min_sample_size: 1000,
+        status: "draft",
+        target_audience: "existing_users"
+      },
+      {
+        channel: "sms",
+        goal_basis: "all_segments",
+        goal_metric: "inflow_rate",
+        goal_target_value: 0.08,
+        marketing_theme: "sms_reactivation",
+        max_loop_count: 3,
+        message_brief: "SMS 알림으로 캠페인 재방문과 유입을 보강합니다.",
+        min_sample_size: 1000,
+        status: "draft",
+        target_audience: "existing_users"
+      }
+    ];
+    const promotions: DashboardPromotionSummary[] = [];
+
+    for (const request of defaultPromotions) {
+      promotions.push(await this.createPromotion(projectId, campaignId, request));
+    }
+
+    return { campaign_id: campaignId, promotions };
   }
 
   async updatePromotion(

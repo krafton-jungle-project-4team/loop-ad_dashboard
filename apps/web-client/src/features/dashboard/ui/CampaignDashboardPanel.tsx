@@ -43,6 +43,7 @@ import {
   approveDashboardContentCandidate,
   attachDashboardSegmentToPromotion,
   createDashboardCampaign,
+  createDashboardDefaultPromotions,
   createDashboardPromotion,
   createDashboardSegmentQueryPreview,
   deleteDashboardCampaign,
@@ -988,6 +989,17 @@ function CampaignTabContent({
       });
     }
   });
+  const createDefaultPromotionsMutation = useMutation({
+    mutationFn: () => createDashboardDefaultPromotions(query, detail.campaign.campaign_id),
+    onSuccess: async (result) => {
+      const firstPromotion = result.promotions[0];
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedPromotionId: firstPromotion?.promotion_id ?? "",
+        selectedSegmentId: ""
+      });
+    }
+  });
   const updatePromotionMutation = useMutation({
     mutationFn: ({
       promotionId,
@@ -1153,9 +1165,13 @@ function CampaignTabContent({
           />
           <PromotionManagementPanel
             createError={createPromotionMutation.error}
+            createDefaultError={createDefaultPromotionsMutation.error}
+            createDefaultIsError={createDefaultPromotionsMutation.isError}
+            createDefaultIsPending={createDefaultPromotionsMutation.isPending}
             createIsError={createPromotionMutation.isError}
             createIsPending={createPromotionMutation.isPending}
             onCreate={(requestBody) => createPromotionMutation.mutate(requestBody)}
+            onCreateDefault={() => createDefaultPromotionsMutation.mutate()}
             onStop={(promotionId) => stopPromotionMutation.mutate(promotionId)}
             onUpdate={(promotionId, requestBody) =>
               updatePromotionMutation.mutate({ promotionId, requestBody })
@@ -1379,9 +1395,13 @@ function CampaignOpenTabs({
 
 function PromotionManagementPanel({
   createError,
+  createDefaultError,
+  createDefaultIsError,
+  createDefaultIsPending,
   createIsError,
   createIsPending,
   onCreate,
+  onCreateDefault,
   onStop,
   onUpdate,
   promotion,
@@ -1393,9 +1413,13 @@ function PromotionManagementPanel({
   updateIsPending
 }: {
   createError: Error | null;
+  createDefaultError: Error | null;
+  createDefaultIsError: boolean;
+  createDefaultIsPending: boolean;
   createIsError: boolean;
   createIsPending: boolean;
   onCreate: (requestBody: CreatePromotionInput) => void;
+  onCreateDefault: () => void;
   onStop: (promotionId: string) => void;
   onUpdate: (promotionId: string, requestBody: UpdatePromotionInput) => void;
   promotion: DashboardCampaignPromotion | undefined;
@@ -1420,6 +1444,12 @@ function PromotionManagementPanel({
           <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
         </Alert>
       ) : null}
+      {createDefaultIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>기본 프로모션을 생성하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(createDefaultError)}</AlertDescription>
+        </Alert>
+      ) : null}
       {updateIsError ? (
         <Alert variant="destructive">
           <AlertTitle>프로모션을 수정하지 못했습니다</AlertTitle>
@@ -1432,6 +1462,22 @@ function PromotionManagementPanel({
           <AlertDescription>{mutationErrorMessage(stopError)}</AlertDescription>
         </Alert>
       ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 p-4">
+        <div className="grid gap-1">
+          <h4 className="font-semibold text-foreground">기본 프로모션 세트</h4>
+          <p className="text-sm text-muted-foreground">
+            1.7 기준 email, onsite banner, sms 기본 프로모션 3개를 한 번에 생성합니다.
+          </p>
+        </div>
+        <Button
+          disabled={createDefaultIsPending}
+          onClick={onCreateDefault}
+          type="button"
+          variant="outline"
+        >
+          {createDefaultIsPending ? "생성 중" : "기본 프로모션 생성"}
+        </Button>
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <PromotionCreateForm isPending={createIsPending} onSubmit={onCreate} />
         <PromotionEditForm
