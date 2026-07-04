@@ -4661,6 +4661,18 @@ function ContentCandidateCards({
   rejectIsError: boolean;
   rejectIsPending: boolean;
 }) {
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
+  const statusOptions = uniqueValues(candidates.map((candidate) => candidate.status));
+  const channelOptions = uniqueValues(candidates.map((candidate) => candidate.channel));
+  const filteredCandidates = filterContentCandidates(
+    candidates,
+    candidateSearch,
+    statusFilter,
+    channelFilter
+  );
+
   return (
     <section className="grid gap-3">
       <h3 className="text-base font-semibold text-[#1d1d1f]">생성 이유 리포트</h3>
@@ -4676,77 +4688,135 @@ function ContentCandidateCards({
           <AlertDescription>{mutationErrorMessage(rejectError)}</AlertDescription>
         </Alert>
       ) : null}
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+        <Field>
+          <FieldLabel>콘텐츠 후보 검색</FieldLabel>
+          <Input
+            onChange={(event) => setCandidateSearch(event.target.value)}
+            placeholder="제목, 메시지, 이유, 콘텐츠 ID"
+            value={candidateSearch}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>상태 필터</FieldLabel>
+          <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 상태</SelectItem>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>채널 필터</FieldLabel>
+          <Select onValueChange={setChannelFilter} value={channelFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 채널</SelectItem>
+              {channelOptions.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {channel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="전체 후보" value={formatInteger(candidates.length)} />
+        <SummaryItem label="필터 결과" value={formatInteger(filteredCandidates.length)} />
+        <SummaryItem
+          label="승인 후보"
+          value={formatInteger(candidates.filter((candidate) => candidate.status === "approved").length)}
+        />
+        <SummaryItem
+          label="검수 대기"
+          value={formatInteger(candidates.filter((candidate) => candidate.status === "draft").length)}
+        />
+      </div>
       {candidates.length > 0 ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {candidates.map((candidate) => (
-            <div className="grid gap-3 rounded-md border bg-muted/20 p-3" key={candidate.content_id}>
-              <ContentCandidateVisual candidate={candidate} />
-              <div className="flex items-start justify-between gap-3">
-                <div className="grid gap-1">
-                  <div className="text-sm font-medium">
-                    {candidate.title ?? candidate.content_option_id}
+        filteredCandidates.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {filteredCandidates.map((candidate) => (
+              <div className="grid gap-3 rounded-md border bg-muted/20 p-3" key={candidate.content_id}>
+                <ContentCandidateVisual candidate={candidate} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-1">
+                    <div className="text-sm font-medium">
+                      {candidate.title ?? candidate.content_option_id}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {candidate.channel} / {candidate.content_id}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {candidate.channel} / {candidate.content_id}
-                  </div>
+                  <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
                 </div>
-                <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
+                <InsightBlock label="메시지" value={candidate.message ?? candidate.body ?? "-"} />
+                <InsightBlock label="생성 이유" value={candidate.reason_summary ?? "-"} />
+                <InsightBlock label="데이터 근거" value={formatJsonObject(candidate.data_evidence_json)} />
+                <InsightBlock label="메시지 방향" value={candidate.message_strategy ?? "-"} />
+                <InsightBlock label="생성 프롬프트" value={candidate.generation_prompt ?? "-"} />
+                <InsightBlock label="메타데이터" value={formatJsonObject(candidate.metadata_json)} />
+                <div className="grid gap-1 text-sm">
+                  <div className="text-xs text-muted-foreground">CTA / 랜딩 URL</div>
+                  <div className="font-medium">{candidate.cta ?? "-"}</div>
+                  <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    disabled={
+                      approveIsPending ||
+                      rejectIsPending ||
+                      candidate.status === "approved" ||
+                      candidate.status === "rejected"
+                    }
+                    onClick={() =>
+                      onReject(
+                        candidate.promotion_id,
+                        candidate.segment_id,
+                        candidate.content_id
+                      )
+                    }
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {candidate.status === "rejected" ? "거절됨" : "거절"}
+                  </Button>
+                  <Button
+                    disabled={
+                      approveIsPending ||
+                      rejectIsPending ||
+                      candidate.status === "approved" ||
+                      candidate.status === "rejected"
+                    }
+                    onClick={() =>
+                      onApprove(
+                        candidate.promotion_id,
+                        candidate.segment_id,
+                        candidate.content_id
+                      )
+                    }
+                    size="sm"
+                    type="button"
+                  >
+                    {candidate.status === "approved" ? "승인됨" : "승인하고 실험 생성"}
+                  </Button>
+                </div>
               </div>
-              <InsightBlock label="메시지" value={candidate.message ?? candidate.body ?? "-"} />
-              <InsightBlock label="생성 이유" value={candidate.reason_summary ?? "-"} />
-              <InsightBlock label="데이터 근거" value={formatJsonObject(candidate.data_evidence_json)} />
-              <InsightBlock label="메시지 방향" value={candidate.message_strategy ?? "-"} />
-              <InsightBlock label="생성 프롬프트" value={candidate.generation_prompt ?? "-"} />
-              <InsightBlock label="메타데이터" value={formatJsonObject(candidate.metadata_json)} />
-              <div className="grid gap-1 text-sm">
-                <div className="text-xs text-muted-foreground">CTA / 랜딩 URL</div>
-                <div className="font-medium">{candidate.cta ?? "-"}</div>
-                <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  disabled={
-                    approveIsPending ||
-                    rejectIsPending ||
-                    candidate.status === "approved" ||
-                    candidate.status === "rejected"
-                  }
-                  onClick={() =>
-                    onReject(
-                      candidate.promotion_id,
-                      candidate.segment_id,
-                      candidate.content_id
-                    )
-                  }
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  {candidate.status === "rejected" ? "거절됨" : "거절"}
-                </Button>
-                <Button
-                  disabled={
-                    approveIsPending ||
-                    rejectIsPending ||
-                    candidate.status === "approved" ||
-                    candidate.status === "rejected"
-                  }
-                  onClick={() =>
-                    onApprove(
-                      candidate.promotion_id,
-                      candidate.segment_id,
-                      candidate.content_id
-                    )
-                  }
-                  size="sm"
-                  type="button"
-                >
-                  {candidate.status === "approved" ? "승인됨" : "승인하고 실험 생성"}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="필터 조건에 맞는 콘텐츠 후보가 없습니다." />
+        )
       ) : (
         <EmptyState message="생성 이유를 표시할 콘텐츠 후보가 없습니다." />
       )}
@@ -4930,39 +5000,136 @@ function ContentCandidateTable({
 }: {
   candidates: DashboardSegmentDetailResource["content_candidates"];
 }) {
-  return (
-    <DetailTable
-      emptyMessage="생성 콘텐츠 후보가 없습니다."
-      headers={["콘텐츠", "채널", "메시지", "생성 이유", "메시지 방향", "상태"]}
-      title="생성 콘텐츠 카드"
-    >
-      {candidates.map((candidate) => (
-        <TableRow key={candidate.content_id}>
-          <TableCell>
-            <div className="flex min-w-[180px] flex-col gap-1">
-              <span className="font-medium">{candidate.content_option_id}</span>
-              <span className="text-xs text-muted-foreground">{candidate.content_id}</span>
-            </div>
-          </TableCell>
-          <TableCell>{candidate.channel}</TableCell>
-          <TableCell>
-            <div className="line-clamp-2 min-w-[220px]">
-              {candidate.title ?? candidate.message ?? candidate.body ?? "-"}
-            </div>
-          </TableCell>
-          <TableCell>
-            <div className="line-clamp-2 min-w-[220px]">{candidate.reason_summary ?? "-"}</div>
-          </TableCell>
-          <TableCell>
-            <div className="line-clamp-2 min-w-[220px]">{candidate.message_strategy ?? "-"}</div>
-          </TableCell>
-          <TableCell>
-            <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
-          </TableCell>
-        </TableRow>
-      ))}
-    </DetailTable>
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
+  const statusOptions = uniqueValues(candidates.map((candidate) => candidate.status));
+  const channelOptions = uniqueValues(candidates.map((candidate) => candidate.channel));
+  const filteredCandidates = filterContentCandidates(
+    candidates,
+    candidateSearch,
+    statusFilter,
+    channelFilter
   );
+
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">생성 콘텐츠 카드</h3>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+        <Field>
+          <FieldLabel>콘텐츠 후보 검색</FieldLabel>
+          <Input
+            onChange={(event) => setCandidateSearch(event.target.value)}
+            placeholder="제목, 메시지, 이유, 콘텐츠 ID"
+            value={candidateSearch}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>상태 필터</FieldLabel>
+          <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 상태</SelectItem>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>채널 필터</FieldLabel>
+          <Select onValueChange={setChannelFilter} value={channelFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 채널</SelectItem>
+              {channelOptions.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {channel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      {candidates.length > 0 ? (
+        filteredCandidates.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {["콘텐츠", "채널", "메시지", "생성 이유", "메시지 방향", "상태"].map((header) => (
+                  <TableHead key={header}>{header}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredCandidates.map((candidate) => (
+                <TableRow key={candidate.content_id}>
+                  <TableCell>
+                    <div className="flex min-w-[180px] flex-col gap-1">
+                      <span className="font-medium">{candidate.content_option_id}</span>
+                      <span className="text-xs text-muted-foreground">{candidate.content_id}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{candidate.channel}</TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[220px]">
+                      {candidate.title ?? candidate.message ?? candidate.body ?? "-"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[220px]">{candidate.reason_summary ?? "-"}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[220px]">{candidate.message_strategy ?? "-"}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState message="필터 조건에 맞는 생성 콘텐츠 후보가 없습니다." />
+        )
+      ) : (
+        <EmptyState message="생성 콘텐츠 후보가 없습니다." />
+      )}
+    </section>
+  );
+}
+
+function filterContentCandidates(
+  candidates: DashboardSegmentDetailResource["content_candidates"],
+  search: string,
+  statusFilter: string,
+  channelFilter: string
+) {
+  const normalizedSearch = search.trim().toLowerCase();
+
+  return candidates.filter((candidate) => {
+    const matchesSearch =
+      !normalizedSearch ||
+      [
+        candidate.content_id,
+        candidate.content_option_id,
+        candidate.title,
+        candidate.body,
+        candidate.message,
+        candidate.reason_summary,
+        candidate.message_strategy
+      ].some((value) => value?.toLowerCase().includes(normalizedSearch));
+    const matchesStatus = statusFilter === "all" || candidate.status === statusFilter;
+    const matchesChannel = channelFilter === "all" || candidate.channel === channelFilter;
+
+    return matchesSearch && matchesStatus && matchesChannel;
+  });
 }
 
 function uniqueValues(values: Array<string | null>): string[] {
