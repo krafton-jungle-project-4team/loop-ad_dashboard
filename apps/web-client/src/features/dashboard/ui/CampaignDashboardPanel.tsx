@@ -2819,9 +2819,12 @@ function SegmentTable({
               <TableHead>세그먼트</TableHead>
               <TableHead>조건</TableHead>
               <TableHead>프로모션</TableHead>
+              <TableHead>목표</TableHead>
+              <TableHead>실험</TableHead>
               <TableHead className="text-right">예상 규모</TableHead>
               <TableHead className="text-right">표본 비율</TableHead>
               <TableHead>상태</TableHead>
+              <TableHead>다음 액션</TableHead>
               {onSelectSegment ? <TableHead>상세</TableHead> : null}
             </TableRow>
           </TableHeader>
@@ -2855,6 +2858,17 @@ function SegmentTable({
                   </div>
                 </TableCell>
                 <TableCell>{segment.promotion_id}</TableCell>
+                <TableCell>
+                  <div className="grid min-w-[140px] gap-1">
+                    <span>{segment.goal_metric}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {segment.latest_actual_value === null
+                        ? "-"
+                        : formatGoalValue(segment.latest_actual_value)}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>{segment.ad_experiment_id ?? "-"}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatInteger(segment.estimated_size)}
                 </TableCell>
@@ -2866,6 +2880,9 @@ function SegmentTable({
                     <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
                     {segment.priority ? <Badge variant="outline">{segment.priority}</Badge> : null}
                   </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{segment.next_action}</Badge>
                 </TableCell>
                 {onSelectSegment ? (
                   <TableCell>
@@ -3731,6 +3748,17 @@ function SegmentOverview({
           label="최근 표본"
           value={latestMetric ? formatInteger(latestMetric.sample_size) : "-"}
         />
+        <SummaryItem label="목표 지표" value={detail.segment.goal_metric} />
+        <SummaryItem
+          label="현재 목표값"
+          value={
+            detail.segment.latest_actual_value === null
+              ? "-"
+              : formatGoalValue(detail.segment.latest_actual_value)
+          }
+        />
+        <SummaryItem label="연결 실험" value={detail.segment.ad_experiment_id ?? "-"} />
+        <SummaryItem label="다음 액션" value={detail.segment.next_action} />
         <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
         <SummaryItem
           label="실시간 이벤트"

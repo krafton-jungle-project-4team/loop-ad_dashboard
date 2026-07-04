@@ -205,6 +205,10 @@ export const DashboardCampaignSegmentSchema = z.object({
   sample_size: CountSchema,
   total_eligible_user_count: CountSchema,
   sample_ratio: z.number().nonnegative(),
+  goal_metric: z.string(),
+  latest_actual_value: RateSchema.nullable(),
+  ad_experiment_id: z.string().nullable(),
+  next_action: z.string(),
   priority: z.string().nullable(),
   status: z.string()
 });

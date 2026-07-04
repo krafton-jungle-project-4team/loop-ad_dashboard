@@ -665,10 +665,14 @@ export interface IListDashboardCampaignSegmentsParams {
 
 /** 'ListDashboardCampaignSegments' return type */
 export interface IListDashboardCampaignSegmentsResult {
+  adExperimentId: string | null;
   contentBriefJson: Json;
   dataEvidenceJson: Json;
   estimatedSize: number;
+  goalMetric: string;
+  latestActualValue: number | null;
   naturalLanguageQuery: string | null;
+  nextAction: string | null;
   priority: string | null;
   profileJson: Json;
   promotionId: string;
@@ -688,7 +692,7 @@ export interface IListDashboardCampaignSegmentsQuery {
   result: IListDashboardCampaignSegmentsResult;
 }
 
-const listDashboardCampaignSegmentsIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":676,"b":685}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":711,"b":721}]}],"statement":"SELECT\n  pts.promotion_id AS \"promotionId\",\n  pts.segment_id AS \"segmentId\",\n  pts.segment_name AS \"segmentName\",\n  sd.source,\n  sd.natural_language_query AS \"naturalLanguageQuery\",\n  pts.rule_json AS \"ruleJson\",\n  pts.profile_json AS \"profileJson\",\n  pts.content_brief_json AS \"contentBriefJson\",\n  pts.data_evidence_json AS \"dataEvidenceJson\",\n  pts.estimated_size AS \"estimatedSize\",\n  sd.sample_size AS \"sampleSize\",\n  sd.total_eligible_user_count AS \"totalEligibleUserCount\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nJOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.campaign_id = :campaignId\nORDER BY pts.promotion_id ASC, pts.created_at DESC                                   "};
+const listDashboardCampaignSegmentsIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1425,"b":1434}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1460,"b":1470}]}],"statement":"SELECT\n  pts.promotion_id AS \"promotionId\",\n  pts.segment_id AS \"segmentId\",\n  pts.segment_name AS \"segmentName\",\n  sd.source,\n  sd.natural_language_query AS \"naturalLanguageQuery\",\n  pts.rule_json AS \"ruleJson\",\n  pts.profile_json AS \"profileJson\",\n  pts.content_brief_json AS \"contentBriefJson\",\n  pts.data_evidence_json AS \"dataEvidenceJson\",\n  pts.estimated_size AS \"estimatedSize\",\n  sd.sample_size AS \"sampleSize\",\n  sd.total_eligible_user_count AS \"totalEligibleUserCount\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  p.goal_metric AS \"goalMetric\",\n  MAX(pe.actual_value)::float8 AS \"latestActualValue\",\n  MAX(ae.ad_experiment_id) AS \"adExperimentId\",\n  CASE\n    WHEN pts.status = 'planned' THEN 'create_content'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'\n    WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'\n    ELSE 'monitor'\n  END AS \"nextAction\",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nJOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nJOIN promotions p\n  ON p.promotion_id = pts.promotion_id\nLEFT JOIN ad_experiments ae\n  ON ae.promotion_id = pts.promotion_id\n AND ae.segment_id = pts.segment_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.promotion_id = pts.promotion_id\n AND pe.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.campaign_id = :campaignId\nGROUP BY\n  pts.promotion_id,\n  pts.segment_id,\n  pts.segment_name,\n  sd.source,\n  sd.natural_language_query,\n  pts.rule_json,\n  pts.profile_json,\n  pts.content_brief_json,\n  pts.data_evidence_json,\n  pts.estimated_size,\n  sd.sample_size,\n  sd.total_eligible_user_count,\n  sd.sample_ratio,\n  p.goal_metric,\n  pts.priority,\n  pts.status,\n  pts.created_at\nORDER BY pts.promotion_id ASC, pts.created_at DESC                                   "};
 
 /**
  * Query generated from SQL:
@@ -707,13 +711,49 @@ const listDashboardCampaignSegmentsIR: any = {"usedParamSet":{"projectId":true,"
  *   sd.sample_size AS "sampleSize",
  *   sd.total_eligible_user_count AS "totalEligibleUserCount",
  *   sd.sample_ratio::float8 AS "sampleRatio",
+ *   p.goal_metric AS "goalMetric",
+ *   MAX(pe.actual_value)::float8 AS "latestActualValue",
+ *   MAX(ae.ad_experiment_id) AS "adExperimentId",
+ *   CASE
+ *     WHEN pts.status = 'planned' THEN 'create_content'
+ *     WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+ *     WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'
+ *     WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+ *     ELSE 'monitor'
+ *   END AS "nextAction",
  *   pts.priority,
  *   pts.status
  * FROM promotion_target_segments pts
  * JOIN segment_definitions sd
  *   ON sd.segment_id = pts.segment_id
+ * JOIN promotions p
+ *   ON p.promotion_id = pts.promotion_id
+ * LEFT JOIN ad_experiments ae
+ *   ON ae.promotion_id = pts.promotion_id
+ *  AND ae.segment_id = pts.segment_id
+ * LEFT JOIN promotion_evaluations pe
+ *   ON pe.promotion_id = pts.promotion_id
+ *  AND pe.segment_id = pts.segment_id
  * WHERE pts.project_id = :projectId
  *   AND pts.campaign_id = :campaignId
+ * GROUP BY
+ *   pts.promotion_id,
+ *   pts.segment_id,
+ *   pts.segment_name,
+ *   sd.source,
+ *   sd.natural_language_query,
+ *   pts.rule_json,
+ *   pts.profile_json,
+ *   pts.content_brief_json,
+ *   pts.data_evidence_json,
+ *   pts.estimated_size,
+ *   sd.sample_size,
+ *   sd.total_eligible_user_count,
+ *   sd.sample_ratio,
+ *   p.goal_metric,
+ *   pts.priority,
+ *   pts.status,
+ *   pts.created_at
  * ORDER BY pts.promotion_id ASC, pts.created_at DESC                                   
  * ```
  */
@@ -728,10 +768,14 @@ export interface IListDashboardPromotionSegmentsParams {
 
 /** 'ListDashboardPromotionSegments' return type */
 export interface IListDashboardPromotionSegmentsResult {
+  adExperimentId: string | null;
   contentBriefJson: Json;
   dataEvidenceJson: Json;
   estimatedSize: number;
+  goalMetric: string;
+  latestActualValue: number | null;
   naturalLanguageQuery: string | null;
+  nextAction: string | null;
   priority: string | null;
   profileJson: Json;
   promotionId: string;
@@ -751,7 +795,7 @@ export interface IListDashboardPromotionSegmentsQuery {
   result: IListDashboardPromotionSegmentsResult;
 }
 
-const listDashboardPromotionSegmentsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":676,"b":685}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":723}]}],"statement":"SELECT\n  pts.promotion_id AS \"promotionId\",\n  pts.segment_id AS \"segmentId\",\n  pts.segment_name AS \"segmentName\",\n  sd.source,\n  sd.natural_language_query AS \"naturalLanguageQuery\",\n  pts.rule_json AS \"ruleJson\",\n  pts.profile_json AS \"profileJson\",\n  pts.content_brief_json AS \"contentBriefJson\",\n  pts.data_evidence_json AS \"dataEvidenceJson\",\n  pts.estimated_size AS \"estimatedSize\",\n  sd.sample_size AS \"sampleSize\",\n  sd.total_eligible_user_count AS \"totalEligibleUserCount\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nJOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.promotion_id = :promotionId\nORDER BY pts.created_at DESC                                    "};
+const listDashboardPromotionSegmentsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1425,"b":1434}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1461,"b":1472}]}],"statement":"SELECT\n  pts.promotion_id AS \"promotionId\",\n  pts.segment_id AS \"segmentId\",\n  pts.segment_name AS \"segmentName\",\n  sd.source,\n  sd.natural_language_query AS \"naturalLanguageQuery\",\n  pts.rule_json AS \"ruleJson\",\n  pts.profile_json AS \"profileJson\",\n  pts.content_brief_json AS \"contentBriefJson\",\n  pts.data_evidence_json AS \"dataEvidenceJson\",\n  pts.estimated_size AS \"estimatedSize\",\n  sd.sample_size AS \"sampleSize\",\n  sd.total_eligible_user_count AS \"totalEligibleUserCount\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  p.goal_metric AS \"goalMetric\",\n  MAX(pe.actual_value)::float8 AS \"latestActualValue\",\n  MAX(ae.ad_experiment_id) AS \"adExperimentId\",\n  CASE\n    WHEN pts.status = 'planned' THEN 'create_content'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'\n    WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'\n    ELSE 'monitor'\n  END AS \"nextAction\",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nJOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nJOIN promotions p\n  ON p.promotion_id = pts.promotion_id\nLEFT JOIN ad_experiments ae\n  ON ae.promotion_id = pts.promotion_id\n AND ae.segment_id = pts.segment_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.promotion_id = pts.promotion_id\n AND pe.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.promotion_id = :promotionId\nGROUP BY\n  pts.promotion_id,\n  pts.segment_id,\n  pts.segment_name,\n  sd.source,\n  sd.natural_language_query,\n  pts.rule_json,\n  pts.profile_json,\n  pts.content_brief_json,\n  pts.data_evidence_json,\n  pts.estimated_size,\n  sd.sample_size,\n  sd.total_eligible_user_count,\n  sd.sample_ratio,\n  p.goal_metric,\n  pts.priority,\n  pts.status,\n  pts.created_at\nORDER BY pts.created_at DESC                                    "};
 
 /**
  * Query generated from SQL:
@@ -770,13 +814,49 @@ const listDashboardPromotionSegmentsIR: any = {"usedParamSet":{"projectId":true,
  *   sd.sample_size AS "sampleSize",
  *   sd.total_eligible_user_count AS "totalEligibleUserCount",
  *   sd.sample_ratio::float8 AS "sampleRatio",
+ *   p.goal_metric AS "goalMetric",
+ *   MAX(pe.actual_value)::float8 AS "latestActualValue",
+ *   MAX(ae.ad_experiment_id) AS "adExperimentId",
+ *   CASE
+ *     WHEN pts.status = 'planned' THEN 'create_content'
+ *     WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+ *     WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'
+ *     WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+ *     ELSE 'monitor'
+ *   END AS "nextAction",
  *   pts.priority,
  *   pts.status
  * FROM promotion_target_segments pts
  * JOIN segment_definitions sd
  *   ON sd.segment_id = pts.segment_id
+ * JOIN promotions p
+ *   ON p.promotion_id = pts.promotion_id
+ * LEFT JOIN ad_experiments ae
+ *   ON ae.promotion_id = pts.promotion_id
+ *  AND ae.segment_id = pts.segment_id
+ * LEFT JOIN promotion_evaluations pe
+ *   ON pe.promotion_id = pts.promotion_id
+ *  AND pe.segment_id = pts.segment_id
  * WHERE pts.project_id = :projectId
  *   AND pts.promotion_id = :promotionId
+ * GROUP BY
+ *   pts.promotion_id,
+ *   pts.segment_id,
+ *   pts.segment_name,
+ *   sd.source,
+ *   sd.natural_language_query,
+ *   pts.rule_json,
+ *   pts.profile_json,
+ *   pts.content_brief_json,
+ *   pts.data_evidence_json,
+ *   pts.estimated_size,
+ *   sd.sample_size,
+ *   sd.total_eligible_user_count,
+ *   sd.sample_ratio,
+ *   p.goal_metric,
+ *   pts.priority,
+ *   pts.status,
+ *   pts.created_at
  * ORDER BY pts.created_at DESC                                    
  * ```
  */
@@ -792,10 +872,14 @@ export interface IGetDashboardPromotionSegmentParams {
 
 /** 'GetDashboardPromotionSegment' return type */
 export interface IGetDashboardPromotionSegmentResult {
+  adExperimentId: string | null;
   contentBriefJson: Json;
   dataEvidenceJson: Json;
   estimatedSize: number;
+  goalMetric: string;
+  latestActualValue: number | null;
   naturalLanguageQuery: string | null;
+  nextAction: string | null;
   priority: string | null;
   profileJson: Json;
   promotionId: string;
@@ -815,7 +899,7 @@ export interface IGetDashboardPromotionSegmentQuery {
   result: IGetDashboardPromotionSegmentResult;
 }
 
-const getDashboardPromotionSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":676,"b":685}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":723}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":748,"b":757}]}],"statement":"SELECT\n  pts.promotion_id AS \"promotionId\",\n  pts.segment_id AS \"segmentId\",\n  pts.segment_name AS \"segmentName\",\n  sd.source,\n  sd.natural_language_query AS \"naturalLanguageQuery\",\n  pts.rule_json AS \"ruleJson\",\n  pts.profile_json AS \"profileJson\",\n  pts.content_brief_json AS \"contentBriefJson\",\n  pts.data_evidence_json AS \"dataEvidenceJson\",\n  pts.estimated_size AS \"estimatedSize\",\n  sd.sample_size AS \"sampleSize\",\n  sd.total_eligible_user_count AS \"totalEligibleUserCount\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nJOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.promotion_id = :promotionId\n  AND pts.segment_id = :segmentId                                              "};
+const getDashboardPromotionSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1425,"b":1434}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1461,"b":1472}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1497,"b":1506}]}],"statement":"SELECT\n  pts.promotion_id AS \"promotionId\",\n  pts.segment_id AS \"segmentId\",\n  pts.segment_name AS \"segmentName\",\n  sd.source,\n  sd.natural_language_query AS \"naturalLanguageQuery\",\n  pts.rule_json AS \"ruleJson\",\n  pts.profile_json AS \"profileJson\",\n  pts.content_brief_json AS \"contentBriefJson\",\n  pts.data_evidence_json AS \"dataEvidenceJson\",\n  pts.estimated_size AS \"estimatedSize\",\n  sd.sample_size AS \"sampleSize\",\n  sd.total_eligible_user_count AS \"totalEligibleUserCount\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  p.goal_metric AS \"goalMetric\",\n  MAX(pe.actual_value)::float8 AS \"latestActualValue\",\n  MAX(ae.ad_experiment_id) AS \"adExperimentId\",\n  CASE\n    WHEN pts.status = 'planned' THEN 'create_content'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'\n    WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'\n    ELSE 'monitor'\n  END AS \"nextAction\",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nJOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nJOIN promotions p\n  ON p.promotion_id = pts.promotion_id\nLEFT JOIN ad_experiments ae\n  ON ae.promotion_id = pts.promotion_id\n AND ae.segment_id = pts.segment_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.promotion_id = pts.promotion_id\n AND pe.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.promotion_id = :promotionId\n  AND pts.segment_id = :segmentId\nGROUP BY\n  pts.promotion_id,\n  pts.segment_id,\n  pts.segment_name,\n  sd.source,\n  sd.natural_language_query,\n  pts.rule_json,\n  pts.profile_json,\n  pts.content_brief_json,\n  pts.data_evidence_json,\n  pts.estimated_size,\n  sd.sample_size,\n  sd.total_eligible_user_count,\n  sd.sample_ratio,\n  p.goal_metric,\n  pts.priority,\n  pts.status,\n  pts.created_at                                              "};
 
 /**
  * Query generated from SQL:
@@ -834,14 +918,50 @@ const getDashboardPromotionSegmentIR: any = {"usedParamSet":{"projectId":true,"p
  *   sd.sample_size AS "sampleSize",
  *   sd.total_eligible_user_count AS "totalEligibleUserCount",
  *   sd.sample_ratio::float8 AS "sampleRatio",
+ *   p.goal_metric AS "goalMetric",
+ *   MAX(pe.actual_value)::float8 AS "latestActualValue",
+ *   MAX(ae.ad_experiment_id) AS "adExperimentId",
+ *   CASE
+ *     WHEN pts.status = 'planned' THEN 'create_content'
+ *     WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+ *     WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'
+ *     WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+ *     ELSE 'monitor'
+ *   END AS "nextAction",
  *   pts.priority,
  *   pts.status
  * FROM promotion_target_segments pts
  * JOIN segment_definitions sd
  *   ON sd.segment_id = pts.segment_id
+ * JOIN promotions p
+ *   ON p.promotion_id = pts.promotion_id
+ * LEFT JOIN ad_experiments ae
+ *   ON ae.promotion_id = pts.promotion_id
+ *  AND ae.segment_id = pts.segment_id
+ * LEFT JOIN promotion_evaluations pe
+ *   ON pe.promotion_id = pts.promotion_id
+ *  AND pe.segment_id = pts.segment_id
  * WHERE pts.project_id = :projectId
  *   AND pts.promotion_id = :promotionId
- *   AND pts.segment_id = :segmentId                                              
+ *   AND pts.segment_id = :segmentId
+ * GROUP BY
+ *   pts.promotion_id,
+ *   pts.segment_id,
+ *   pts.segment_name,
+ *   sd.source,
+ *   sd.natural_language_query,
+ *   pts.rule_json,
+ *   pts.profile_json,
+ *   pts.content_brief_json,
+ *   pts.data_evidence_json,
+ *   pts.estimated_size,
+ *   sd.sample_size,
+ *   sd.total_eligible_user_count,
+ *   sd.sample_ratio,
+ *   p.goal_metric,
+ *   pts.priority,
+ *   pts.status,
+ *   pts.created_at                                              
  * ```
  */
 export const getDashboardPromotionSegment = new PreparedQuery<IGetDashboardPromotionSegmentParams,IGetDashboardPromotionSegmentResult>(getDashboardPromotionSegmentIR);

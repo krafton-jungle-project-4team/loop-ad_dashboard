@@ -633,6 +633,10 @@ function toCampaignSegment(
     sample_size: countValue(row.sampleSize),
     total_eligible_user_count: countValue(row.totalEligibleUserCount),
     sample_ratio: numberValue(row.sampleRatio),
+    goal_metric: row.goalMetric,
+    latest_actual_value: nullableRate(row.latestActualValue),
+    ad_experiment_id: row.adExperimentId,
+    next_action: row.nextAction ?? "monitor",
     priority: row.priority,
     status: row.status
   };
