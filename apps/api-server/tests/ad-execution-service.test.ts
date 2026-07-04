@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { TransactionHost } from "@nestjs-cls/transactional";
+import { TransactionHost } from "@nestjs-cls/transactional";
 import { AppError } from "../src/app-errors.js";
-import type { PgTypedTransactionalAdapter } from "../src/infra/database/index.js";
 import type {
   ActiveAdServingAssignmentEntity,
   AdExperimentEntity,
@@ -39,8 +38,8 @@ const { renderRedirectPage } =
 test("dispatch uses stored assignments and records mock sender success", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
-  const transactionHost = countingTransactionHost();
-  const service = createDispatchService(reader, writer, transactionHost.host);
+  const transactionHost = installCountingTransactionHost();
+  const service = createDispatchService(reader, writer);
 
   reader.dispatchAssignments = [
     assignment({ userId: "user-ok" }),
@@ -62,10 +61,10 @@ test("dispatch uses stored assignments and records mock sender success", async (
   assert.equal(writer.finishes[0]?.status, "completed");
   assert.equal(writer.finishes[0]?.failedCount, 0);
   assert.deepEqual(transactionHost.calls, [
-    "withTransaction",
-    "withTransaction",
-    "withTransaction",
-    "withTransaction"
+    "transactional",
+    "transactional",
+    "transactional",
+    "transactional"
   ]);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Mock ad dispatch sent").length, 2);
@@ -90,6 +89,7 @@ test("dispatch uses stored assignments and records mock sender success", async (
 test("dispatch fails invalid email content instead of synthesizing fallbacks", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
+  installCountingTransactionHost();
 
   reader.dispatchAssignments = [
     assignment({
@@ -269,16 +269,14 @@ test("redirect page escapes script data and fallback href with stable libraries"
 function createDispatchService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
-  transactionHost = passthroughTransactionHost(),
   emailSender = new MockEmailSender(),
   smsSender = new MockSmsSender()
 ) {
   return new PromotionDispatchService(
     reader as ConstructorParameters<typeof PromotionDispatchService>[0],
     writer as ConstructorParameters<typeof PromotionDispatchService>[1],
-    transactionHost as ConstructorParameters<typeof PromotionDispatchService>[2],
-    emailSender as ConstructorParameters<typeof PromotionDispatchService>[3],
-    smsSender as ConstructorParameters<typeof PromotionDispatchService>[4]
+    emailSender as ConstructorParameters<typeof PromotionDispatchService>[2],
+    smsSender as ConstructorParameters<typeof PromotionDispatchService>[3]
   );
 }
 
@@ -464,22 +462,22 @@ class FakeAdExecutionWriter {
   }
 }
 
-function passthroughTransactionHost(): TransactionHost<PgTypedTransactionalAdapter> {
-  return {
-    withTransaction: async (callback: () => Promise<unknown>) => callback()
-  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
-}
-
-function countingTransactionHost() {
+function installCountingTransactionHost() {
   const calls: string[] = [];
-  const host = {
-    withTransaction: async (callback: () => Promise<unknown>) => {
-      calls.push("withTransaction");
+
+  new TransactionHost({
+    connectionName: undefined,
+    defaultTxOptions: {},
+    enableTransactionProxy: false,
+    extraProviderTokens: [],
+    getFallbackInstance: () => ({}),
+    wrapWithTransaction: async (_options: unknown, callback: () => Promise<unknown>) => {
+      calls.push("transactional");
       return callback();
     }
-  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
+  } as never);
 
-  return { calls, host };
+  return { calls };
 }
 
 async function captureDispatchLogs<T>(callback: () => Promise<T>) {

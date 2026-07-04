@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { TransactionHost } from "@nestjs-cls/transactional";
+import { TransactionHost } from "@nestjs-cls/transactional";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
 import type { DashboardSegmentQueryRepository } from "../src/features/dashboard/repository/dashboard-segment-query-repository.js";
-import type { PgTypedTransactionalAdapter } from "../src/infra/database/pgtyped-transactional.adapter.js";
 
 test("dashboard main returns campaign summaries from the campaign reader", async () => {
   setRequiredEnv();
@@ -34,8 +33,7 @@ test("dashboard main returns campaign summaries from the campaign reader", async
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
-    emptySegmentQueryRepository(),
-    passthroughTransactionHost()
+    emptySegmentQueryRepository()
   );
 
   const main = await service.main("hotel-client-a");
@@ -66,8 +64,7 @@ test("dashboard event catalog returns collected funnel event options", async () 
         ];
       }
     } as unknown as DashboardFunnelReader,
-    emptySegmentQueryRepository(),
-    passthroughTransactionHost()
+    emptySegmentQueryRepository()
   );
 
   const eventCatalog = await service.eventCatalog("hotel-client-a");
@@ -87,6 +84,7 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
+  installCountingTransactionHost();
   const service = new DashboardQueryService(
     emptyCampaignReader(),
     {
@@ -108,8 +106,7 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
         };
       }
     } as unknown as DashboardFunnelReader,
-    emptySegmentQueryRepository(),
-    passthroughTransactionHost()
+    emptySegmentQueryRepository()
   );
 
   const funnel = await service.createFunnel("hotel-client-a", {
@@ -131,6 +128,7 @@ test("dashboard segment query preview delegates to the segment query repository"
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
+  installCountingTransactionHost();
   const service = new DashboardQueryService(
     emptyCampaignReader(),
     emptyFunnelReader(),
@@ -149,8 +147,7 @@ test("dashboard segment query preview delegates to the segment query repository"
           rows: [{ user_id: "user_001" }]
         };
       }
-    } as unknown as DashboardSegmentQueryRepository,
-    passthroughTransactionHost()
+    } as unknown as DashboardSegmentQueryRepository
   );
 
   const preview = await service.createSegmentQueryPreview("hotel-client-a", {
@@ -167,6 +164,7 @@ test("dashboard save segment delegates valid preview save to the segment query r
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
+  installCountingTransactionHost();
   const service = new DashboardQueryService(
     emptyCampaignReader(),
     emptyFunnelReader(),
@@ -188,8 +186,7 @@ test("dashboard save segment delegates valid preview save to the segment query r
           status: "active"
         };
       }
-    } as unknown as DashboardSegmentQueryRepository,
-    passthroughTransactionHost()
+    } as unknown as DashboardSegmentQueryRepository
   );
 
   const segment = await service.saveSegment("hotel-client-a", {
@@ -232,8 +229,7 @@ test("dashboard saved segments returns custom segments from the segment query re
           ]
         };
       }
-    } as unknown as DashboardSegmentQueryRepository,
-    passthroughTransactionHost()
+    } as unknown as DashboardSegmentQueryRepository
   );
 
   const segments = await service.savedSegments("hotel-client-a");
@@ -249,7 +245,7 @@ test("dashboard update saved segment runs inside transaction host", async () => 
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
-  const transactionHost = countingTransactionHost();
+  const transactionHost = installCountingTransactionHost();
   const service = new DashboardQueryService(
     emptyCampaignReader(),
     emptyFunnelReader(),
@@ -271,8 +267,7 @@ test("dashboard update saved segment runs inside transaction host", async () => 
           status: request.status ?? "active"
         };
       }
-    } as unknown as DashboardSegmentQueryRepository,
-    transactionHost.host
+    } as unknown as DashboardSegmentQueryRepository
   );
 
   const segment = await service.updateSavedSegment("hotel-client-a", "seg_custom_001", {
@@ -295,7 +290,7 @@ test("dashboard archive saved segment runs inside transaction host", async () =>
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
-  const transactionHost = countingTransactionHost();
+  const transactionHost = installCountingTransactionHost();
   const service = new DashboardQueryService(
     emptyCampaignReader(),
     emptyFunnelReader(),
@@ -309,8 +304,7 @@ test("dashboard archive saved segment runs inside transaction host", async () =>
           status: "archived"
         };
       }
-    } as unknown as DashboardSegmentQueryRepository,
-    transactionHost.host
+    } as unknown as DashboardSegmentQueryRepository
   );
 
   const result = await service.archiveSavedSegment("hotel-client-a", "seg_custom_001");
@@ -326,7 +320,7 @@ test("dashboard reject content candidate runs inside transaction host", async ()
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
-  const transactionHost = countingTransactionHost();
+  const transactionHost = installCountingTransactionHost();
   const service = new DashboardQueryService(
     {
       ...emptyCampaignReader(),
@@ -342,8 +336,7 @@ test("dashboard reject content candidate runs inside transaction host", async ()
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
-    emptySegmentQueryRepository(),
-    transactionHost.host
+    emptySegmentQueryRepository()
   );
 
   const result = await service.rejectContentCandidate(
@@ -407,22 +400,22 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
   } as unknown as DashboardSegmentQueryRepository;
 }
 
-function passthroughTransactionHost(): TransactionHost<PgTypedTransactionalAdapter> {
-  return {
-    withTransaction: async (callback: () => Promise<unknown>) => callback()
-  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
-}
-
-function countingTransactionHost() {
+function installCountingTransactionHost() {
   const calls: string[] = [];
-  const host = {
-    withTransaction: async (callback: () => Promise<unknown>) => {
-      calls.push("withTransaction");
+
+  new TransactionHost({
+    connectionName: undefined,
+    defaultTxOptions: {},
+    enableTransactionProxy: false,
+    extraProviderTokens: [],
+    getFallbackInstance: () => ({}),
+    wrapWithTransaction: async (_options: unknown, callback: () => Promise<unknown>) => {
+      calls.push("transactional");
       return callback();
     }
-  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
+  } as never);
 
-  return { calls, host };
+  return { calls };
 }
 
 function setRequiredEnv() {

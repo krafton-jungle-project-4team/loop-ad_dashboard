@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactional";
+import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardAdExperiment,
   DashboardApproveContentCandidateRequest,
@@ -36,7 +36,6 @@ import type {
   DashboardUpdatePromotionSegmentRequest,
   DashboardUpdateSavedSegmentRequest
 } from "@loopad/shared";
-import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
   DashboardCampaignReader,
   DashboardFunnelReader,
@@ -51,113 +50,102 @@ export class DashboardQueryService {
     @Inject(DashboardFunnelReader)
     private readonly funnelReader: DashboardFunnelReader,
     @Inject(DashboardSegmentQueryRepository)
-    private readonly segmentQueryRepository: DashboardSegmentQueryRepository,
-    @InjectTransactionHost()
-    private readonly transactionHost: TransactionHost<PgTypedTransactionalAdapter>
+    private readonly segmentQueryRepository: DashboardSegmentQueryRepository
   ) {}
 
   async main(projectId: string): Promise<DashboardMain> {
     return { campaigns: await this.campaignReader.listCampaigns(projectId) };
   }
 
+  @Transactional()
   async createCampaign(
     projectId: string,
     request: DashboardCreateCampaignRequest
   ): Promise<DashboardCampaignSummary> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.createCampaign(projectId, request)
-    );
+    return this.campaignReader.createCampaign(projectId, request);
   }
 
+  @Transactional()
   async updateCampaign(
     projectId: string,
     campaignId: string,
     request: DashboardUpdateCampaignRequest
   ): Promise<DashboardCampaignSummary> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.updateCampaign(projectId, campaignId, request)
-    );
+    return this.campaignReader.updateCampaign(projectId, campaignId, request);
   }
 
+  @Transactional()
   async stopCampaign(
     projectId: string,
     campaignId: string
   ): Promise<DashboardDeleteCampaignResult> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.stopCampaign(projectId, campaignId)
-    );
+    return this.campaignReader.stopCampaign(projectId, campaignId);
   }
 
+  @Transactional()
   async createPromotion(
     projectId: string,
     campaignId: string,
     request: DashboardCreatePromotionRequest
   ): Promise<DashboardPromotionSummary> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.createPromotion(projectId, campaignId, request)
-    );
+    return this.campaignReader.createPromotion(projectId, campaignId, request);
   }
 
+  @Transactional()
   async updatePromotion(
     projectId: string,
     promotionId: string,
     request: DashboardUpdatePromotionRequest
   ): Promise<DashboardPromotionSummary> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.updatePromotion(projectId, promotionId, request)
-    );
+    return this.campaignReader.updatePromotion(projectId, promotionId, request);
   }
 
+  @Transactional()
   async stopPromotion(
     projectId: string,
     promotionId: string
   ): Promise<DashboardDeletePromotionResult> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.stopPromotion(projectId, promotionId)
-    );
+    return this.campaignReader.stopPromotion(projectId, promotionId);
   }
 
+  @Transactional()
   async attachSegmentToPromotion(
     projectId: string,
     promotionId: string,
     request: DashboardAttachSegmentRequest
   ): Promise<DashboardCampaignSegment> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.attachSegmentToPromotion(projectId, promotionId, request)
-    );
+    return this.campaignReader.attachSegmentToPromotion(projectId, promotionId, request);
   }
 
+  @Transactional()
   async updatePromotionSegment(
     projectId: string,
     promotionId: string,
     segmentId: string,
     request: DashboardUpdatePromotionSegmentRequest
   ): Promise<DashboardCampaignSegment> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.updatePromotionSegment(projectId, promotionId, segmentId, request)
-    );
+    return this.campaignReader.updatePromotionSegment(projectId, promotionId, segmentId, request);
   }
 
+  @Transactional()
   async stopPromotionSegment(
     projectId: string,
     promotionId: string,
     segmentId: string
   ): Promise<DashboardDeletePromotionSegmentResult> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.stopPromotionSegment(projectId, promotionId, segmentId)
-    );
+    return this.campaignReader.stopPromotionSegment(projectId, promotionId, segmentId);
   }
 
+  @Transactional()
   async startNextLoopAnalysis(
     projectId: string,
     promotionId: string,
     request: DashboardStartNextLoopRequest
   ): Promise<DashboardNextLoopAnalysis> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.startNextLoopAnalysis(projectId, promotionId, request)
-    );
+    return this.campaignReader.startNextLoopAnalysis(projectId, promotionId, request);
   }
 
+  @Transactional()
   async approveContentCandidate(
     projectId: string,
     promotionId: string,
@@ -165,17 +153,16 @@ export class DashboardQueryService {
     contentId: string,
     request: DashboardApproveContentCandidateRequest
   ): Promise<DashboardAdExperiment> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.approveContentCandidate(
-        projectId,
-        promotionId,
-        segmentId,
-        contentId,
-        request
-      )
+    return this.campaignReader.approveContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      request
     );
   }
 
+  @Transactional()
   async rejectContentCandidate(
     projectId: string,
     promotionId: string,
@@ -183,9 +170,7 @@ export class DashboardQueryService {
     contentId: string,
     request: DashboardRejectContentCandidateRequest
   ): Promise<DashboardRejectContentCandidateResult> {
-    return this.transactionHost.withTransaction(() =>
-      this.campaignReader.rejectContentCandidate(projectId, promotionId, segmentId, contentId, request)
-    );
+    return this.campaignReader.rejectContentCandidate(projectId, promotionId, segmentId, contentId, request);
   }
 
   async campaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {
@@ -243,59 +228,53 @@ export class DashboardQueryService {
     return this.funnelReader.getFunnelMetrics(projectId, funnelId);
   }
 
+  @Transactional()
   async createFunnel(
     projectId: string,
     request: DashboardCreateFunnelRequest
   ): Promise<DashboardFunnelList["funnels"][number]> {
-    return this.transactionHost.withTransaction(() =>
-      this.funnelReader.createFunnel(projectId, request)
-    );
+    return this.funnelReader.createFunnel(projectId, request);
   }
 
+  @Transactional()
   async deleteFunnel(
     projectId: string,
     funnelId: string
   ): Promise<DashboardDeleteFunnelResult> {
-    return this.transactionHost.withTransaction(() =>
-      this.funnelReader.deleteFunnel(projectId, funnelId)
-    );
+    return this.funnelReader.deleteFunnel(projectId, funnelId);
   }
 
+  @Transactional()
   async createSegmentQueryPreview(
     projectId: string,
     request: DashboardSegmentQueryPreviewRequest
   ): Promise<DashboardSegmentQueryPreview> {
-    return this.transactionHost.withTransaction(() =>
-      this.segmentQueryRepository.createQueryPreview(projectId, request)
-    );
+    return this.segmentQueryRepository.createQueryPreview(projectId, request);
   }
 
+  @Transactional()
   async saveSegment(
     projectId: string,
     request: DashboardSaveSegmentRequest
   ): Promise<DashboardSavedSegment> {
-    return this.transactionHost.withTransaction(() =>
-      this.segmentQueryRepository.saveSegment(projectId, request)
-    );
+    return this.segmentQueryRepository.saveSegment(projectId, request);
   }
 
+  @Transactional()
   async updateSavedSegment(
     projectId: string,
     segmentId: string,
     request: DashboardUpdateSavedSegmentRequest
   ): Promise<DashboardSavedSegment> {
-    return this.transactionHost.withTransaction(() =>
-      this.segmentQueryRepository.updateSavedSegment(projectId, segmentId, request)
-    );
+    return this.segmentQueryRepository.updateSavedSegment(projectId, segmentId, request);
   }
 
+  @Transactional()
   async archiveSavedSegment(
     projectId: string,
     segmentId: string
   ): Promise<DashboardDeleteSavedSegmentResult> {
-    return this.transactionHost.withTransaction(() =>
-      this.segmentQueryRepository.archiveSavedSegment(projectId, segmentId)
-    );
+    return this.segmentQueryRepository.archiveSavedSegment(projectId, segmentId);
   }
 
   async savedSegments(projectId: string): Promise<DashboardSavedSegmentList> {
