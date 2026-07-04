@@ -405,23 +405,40 @@ function CampaignTabContent({
 function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
   const campaign = detail.campaign;
   return (
-    <div className="grid gap-3 md:grid-cols-4">
-      <SummaryItem label="상태" value={campaign.status} />
-      <SummaryItem label="기간" value={formatPeriod(campaign)} />
-      <SummaryItem label="프로모션" value={formatInteger(campaign.promotion_count)} />
-      <SummaryItem label="세그먼트" value={formatInteger(campaign.segment_count)} />
-      <SummaryItem label="광고 실험" value={formatInteger(campaign.ad_experiment_count)} />
-      <SummaryItem label="주요 지표" value={campaign.primary_metric ?? "-"} />
-      <SummaryItem
-        label="최근 목표 달성률"
-        value={
-          campaign.latest_goal_achievement_rate === null
-            ? "-"
-            : formatPercent(campaign.latest_goal_achievement_rate)
-        }
-      />
-      <SummaryItem label="업데이트" value={campaign.updated_at} />
-    </div>
+    <section className="grid gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xl font-semibold tracking-tight text-foreground">
+              {campaign.campaign_name}
+            </h3>
+            <Badge variant="secondary">{campaign.status}</Badge>
+          </div>
+          <div className="text-sm text-muted-foreground">{campaign.objective ?? "목표 미등록"}</div>
+          <div className="text-xs text-muted-foreground">{campaign.campaign_id}</div>
+        </div>
+        <SummaryItem
+          label="최근 목표 달성률"
+          value={
+            campaign.latest_goal_achievement_rate === null
+              ? "-"
+              : formatPercent(campaign.latest_goal_achievement_rate)
+          }
+        />
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="기간" value={formatPeriod(campaign)} />
+        <SummaryItem label="프로모션" value={formatInteger(campaign.promotion_count)} />
+        <SummaryItem label="세그먼트" value={formatInteger(campaign.segment_count)} />
+        <SummaryItem label="광고 실험" value={formatInteger(campaign.ad_experiment_count)} />
+        <SummaryItem label="주요 지표" value={campaign.primary_metric ?? "-"} />
+        <SummaryItem
+          label="실시간 이벤트"
+          value={formatInteger(detail.realtime_metrics.total_event_count)}
+        />
+        <SummaryItem label="업데이트" value={campaign.updated_at} />
+      </div>
+    </section>
   );
 }
 
@@ -525,16 +542,22 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
             (segment) => segment.promotion_id === promotion.promotion_id
           );
           return (
-            <div className="rounded-md border p-3" key={promotion.promotion_id}>
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium">{promotion.marketing_theme}</span>
-                <Badge variant="secondary">{promotion.status}</Badge>
-              </div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Campaign → Promotion → {formatInteger(segments.length)} Segment →{" "}
-                {formatInteger(promotion.ad_experiment_count)} Ad Experiment
-              </div>
-            </div>
+            <Card className="shadow-none" key={promotion.promotion_id}>
+              <CardHeader className="gap-1">
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
+                  <Badge variant="secondary">{promotion.status}</Badge>
+                </div>
+                <CardDescription>{promotion.promotion_id}</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm">
+                <div className="text-muted-foreground">
+                  Campaign → Promotion → {formatInteger(segments.length)} Segment →{" "}
+                  {formatInteger(promotion.ad_experiment_count)} Ad Experiment
+                </div>
+                <Progress value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)} />
+              </CardContent>
+            </Card>
           );
         })}
       </div>
@@ -658,17 +681,7 @@ function PromotionDetail({
 
   return (
     <section className="grid gap-4">
-      <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 상세</h3>
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="프로모션" value={promotion.promotion_id} />
-        <SummaryItem label="채널" value={promotion.channel} />
-        <SummaryItem label="마케팅 테마" value={promotion.marketing_theme} />
-        <SummaryItem label="목표 달성률" value={formatPercent(promotion.latest_actual_value ?? 0)} />
-        <SummaryItem
-          label="실시간 이벤트"
-          value={formatInteger(detail.realtime_metrics.total_event_count)}
-        />
-      </div>
+      <PromotionOverview detail={detail} />
       <RealtimeEventTable
         emptyMessage="프로모션 실시간 이벤트가 아직 수집되지 않았습니다."
         metrics={detail.realtime_metrics}
@@ -687,6 +700,55 @@ function PromotionDetail({
         selectedSegmentId={selectedSegmentId}
       />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
+    </section>
+  );
+}
+
+function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResource }) {
+  const promotion = detail.promotion;
+  const achievementRate = promotion.latest_actual_value ?? 0;
+
+  return (
+    <section className="grid gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xl font-semibold tracking-tight text-foreground">
+              {promotion.marketing_theme}
+            </h3>
+            <Badge variant="secondary">{promotion.status}</Badge>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {promotion.channel} · {promotion.target_audience}
+          </div>
+          <div className="text-xs text-muted-foreground">{promotion.promotion_id}</div>
+        </div>
+        {promotion.landing_url ? (
+          <Button asChild size="sm" variant="outline">
+            <a href={promotion.landing_url} rel="noreferrer" target="_blank">
+              랜딩 확인
+            </a>
+          </Button>
+        ) : (
+          <Button disabled size="sm" variant="outline">
+            랜딩 없음
+          </Button>
+        )}
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="목표 지표" value={promotion.goal_metric} />
+        <SummaryItem label="목표값" value={formatGoalValue(promotion.goal_target_value)} />
+        <SummaryItem label="목표 기준" value={promotion.goal_basis} />
+        <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
+        <SummaryItem label="세그먼트" value={formatInteger(detail.segments.length)} />
+        <SummaryItem label="실험 지표" value={formatInteger(detail.experiment_metrics.length)} />
+        <SummaryItem
+          label="실시간 이벤트"
+          value={formatInteger(detail.realtime_metrics.total_event_count)}
+        />
+        <SummaryItem label="목표 달성률" value={formatPercent(achievementRate)} />
+      </div>
+      <Progress value={Math.min(achievementRate * 100, 100)} />
     </section>
   );
 }
