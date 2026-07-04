@@ -50,7 +50,10 @@ export class DashboardCampaignReader {
     return rows.map(toCampaignSummary);
   }
 
-  async getCampaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {
+  async getCampaignDetail(
+    projectId: string,
+    campaignId: string
+  ): Promise<Omit<DashboardCampaignDetail, "realtime_metrics">> {
     const [campaign, promotions, segments, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single(),
       this.db.query(listDashboardCampaignPromotions, { campaignId, projectId }).multiple(),
@@ -71,7 +74,7 @@ export class DashboardCampaignReader {
   async getPromotionDetail(
     projectId: string,
     promotionId: string
-  ): Promise<DashboardPromotionDetail> {
+  ): Promise<Omit<DashboardPromotionDetail, "realtime_metrics">> {
     const [promotion, segments, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single(),
       this.db.query(listDashboardPromotionSegments, { projectId, promotionId }).multiple(),

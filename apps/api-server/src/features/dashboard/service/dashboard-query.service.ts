@@ -30,14 +30,30 @@ export class DashboardQueryService {
   }
 
   async campaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {
-    return this.campaignReader.getCampaignDetail(projectId, campaignId);
+    const [detail, realtimeMetrics] = await Promise.all([
+      this.campaignReader.getCampaignDetail(projectId, campaignId),
+      this.funnelReader.getCampaignRealtimeMetrics(projectId, campaignId)
+    ]);
+
+    return {
+      ...detail,
+      realtime_metrics: realtimeMetrics
+    };
   }
 
   async promotionDetail(
     projectId: string,
     promotionId: string
   ): Promise<DashboardPromotionDetail> {
-    return this.campaignReader.getPromotionDetail(projectId, promotionId);
+    const [detail, realtimeMetrics] = await Promise.all([
+      this.campaignReader.getPromotionDetail(projectId, promotionId),
+      this.funnelReader.getPromotionRealtimeMetrics(projectId, promotionId)
+    ]);
+
+    return {
+      ...detail,
+      realtime_metrics: realtimeMetrics
+    };
   }
 
   async segmentDetail(

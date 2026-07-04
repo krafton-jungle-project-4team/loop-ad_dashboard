@@ -6,12 +6,15 @@ import type {
   DashboardCampaignSummary,
   DashboardMain,
   DashboardPromotionDetail as DashboardPromotionDetailResource,
+  DashboardRealtimeMetrics,
   DashboardSegmentDetail as DashboardSegmentDetailResource
 } from "@loopad/shared";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import {
   Table,
@@ -457,9 +460,17 @@ function CampaignRealtimeTrend({ detail }: { detail: DashboardCampaignDetail }) 
       <div className="grid gap-3 md:grid-cols-3">
         <SummaryItem label="목표 달성률" value={formatPercent(achievementRate)} />
         <SummaryItem label="프로모션 집계" value={formatInteger(detail.promotions.length)} />
-        <SummaryItem label="실험 지표" value={formatInteger(detail.experiment_metrics.length)} />
+        <SummaryItem
+          label="실시간 이벤트"
+          value={formatInteger(detail.realtime_metrics.total_event_count)}
+        />
       </div>
       <Progress value={Math.min(achievementRate * 100, 100)} />
+      <RealtimeEventTable
+        emptyMessage="캠페인 실시간 이벤트가 아직 수집되지 않았습니다."
+        metrics={detail.realtime_metrics}
+        title="캠페인 이벤트 집계"
+      />
     </section>
   );
 }
@@ -653,7 +664,16 @@ function PromotionDetail({
         <SummaryItem label="채널" value={promotion.channel} />
         <SummaryItem label="마케팅 테마" value={promotion.marketing_theme} />
         <SummaryItem label="목표 달성률" value={formatPercent(promotion.latest_actual_value ?? 0)} />
+        <SummaryItem
+          label="실시간 이벤트"
+          value={formatInteger(detail.realtime_metrics.total_event_count)}
+        />
       </div>
+      <RealtimeEventTable
+        emptyMessage="프로모션 실시간 이벤트가 아직 수집되지 않았습니다."
+        metrics={detail.realtime_metrics}
+        title="프로모션 이벤트 집계"
+      />
       <SegmentTable
         onSelectSegment={onSelectSegment}
         segments={detail.segments}
@@ -806,7 +826,11 @@ function SegmentDetailPanel({
         </Alert>
       ) : null}
       <SegmentDefinitionPanel segment={detail.segment} />
-      <SegmentRealtimePanel metrics={detail.realtime_metrics} />
+      <RealtimeEventTable
+        emptyMessage="실시간 이벤트가 아직 수집되지 않았습니다."
+        metrics={detail.realtime_metrics}
+        title="실시간 추이"
+      />
       <SegmentSampleSizePanel metrics={detail.experiment_metrics} />
       <ContentCandidateCards candidates={detail.content_candidates} />
       <ContentCandidateTable candidates={detail.content_candidates} />
@@ -815,46 +839,93 @@ function SegmentDetailPanel({
   );
 }
 
-function SegmentRealtimePanel({
-  metrics
+function RealtimeEventTable({
+  emptyMessage,
+  metrics,
+  title
 }: {
-  metrics: DashboardSegmentDetailResource["realtime_metrics"];
+  emptyMessage: string;
+  metrics: DashboardRealtimeMetrics;
+  title: string;
 }) {
   return (
     <>
       {metrics.events.length > 0 ? (
-        <DetailTable
-          emptyMessage="실시간 이벤트가 없습니다."
-          headers={["이벤트", "이벤트 수", "유니크 유저", "비중"]}
-          title="실시간 추이"
-        >
-          {metrics.events.map((event) => (
-            <TableRow key={event.event_name}>
-              <TableCell>
-                <div className="grid gap-1">
-                  <span className="font-medium">{eventDisplayName(event.event_name)}</span>
-                  <span className="text-xs text-muted-foreground">{event.event_name}</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatInteger(event.event_count)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatInteger(event.unique_user_count)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {metrics.total_event_count > 0
-                  ? formatPercentValue(event.event_count / metrics.total_event_count)
-                  : "-"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </DetailTable>
+        <section className="grid gap-3">
+          <h3 className="text-base font-semibold text-[#1d1d1f]">{title}</h3>
+          <ChartContainer
+            className="min-h-[260px] w-full"
+            config={{
+              event_count: {
+                color: "var(--chart-1)",
+                label: "이벤트 수"
+              },
+              unique_user_count: {
+                color: "var(--chart-2)",
+                label: "유니크 유저"
+              }
+            }}
+          >
+            <BarChart data={chartEvents(metrics)}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="label" tickLine={false} tickMargin={10} axisLine={false} />
+              <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="event_count" fill="var(--color-event_count)" radius={4} />
+              <Bar
+                dataKey="unique_user_count"
+                fill="var(--color-unique_user_count)"
+                radius={4}
+              />
+            </BarChart>
+          </ChartContainer>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>이벤트</TableHead>
+                <TableHead className="text-right">이벤트 수</TableHead>
+                <TableHead className="text-right">유니크 유저</TableHead>
+                <TableHead className="text-right">비중</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {metrics.events.map((event) => (
+                <TableRow key={event.event_name}>
+                  <TableCell>
+                    <div className="grid gap-1">
+                      <span className="font-medium">{eventDisplayName(event.event_name)}</span>
+                      <span className="text-xs text-muted-foreground">{event.event_name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(event.event_count)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(event.unique_user_count)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {metrics.total_event_count > 0
+                      ? formatPercentValue(event.event_count / metrics.total_event_count)
+                      : "-"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </section>
       ) : (
-        <EmptyState message="실시간 이벤트가 아직 수집되지 않았습니다." />
+        <EmptyState message={emptyMessage} />
       )}
     </>
   );
+}
+
+function chartEvents(metrics: DashboardRealtimeMetrics) {
+  return metrics.events.map((event) => ({
+    event_count: event.event_count,
+    label: eventDisplayName(event.event_name),
+    unique_user_count: event.unique_user_count
+  }));
 }
 
 function SegmentDefinitionPanel({ segment }: { segment: DashboardCampaignSegment }) {

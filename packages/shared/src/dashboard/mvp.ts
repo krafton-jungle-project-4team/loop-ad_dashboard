@@ -129,20 +129,36 @@ export const DashboardFunnelEventNameSchema = z.enum([
 ]);
 export type DashboardFunnelEventName = z.infer<typeof DashboardFunnelEventNameSchema>;
 
-export const DashboardSegmentRealtimeEventSchema = z.object({
+export const DashboardRealtimeEventSchema = z.object({
   event_name: DashboardFunnelEventNameSchema,
   event_count: CountSchema,
   unique_user_count: CountSchema
 });
-export type DashboardSegmentRealtimeEvent = z.infer<
-  typeof DashboardSegmentRealtimeEventSchema
+export type DashboardRealtimeEvent = z.infer<typeof DashboardRealtimeEventSchema>;
+
+export const DashboardRealtimeMetricsSchema = z.object({
+  total_event_count: CountSchema,
+  events: z.array(DashboardRealtimeEventSchema)
+});
+export type DashboardRealtimeMetrics = z.infer<typeof DashboardRealtimeMetricsSchema>;
+
+export const DashboardCampaignRealtimeMetricsSchema = DashboardRealtimeMetricsSchema.extend({
+  campaign_id: z.string()
+});
+export type DashboardCampaignRealtimeMetrics = z.infer<
+  typeof DashboardCampaignRealtimeMetricsSchema
 >;
 
-export const DashboardSegmentRealtimeMetricsSchema = z.object({
+export const DashboardPromotionRealtimeMetricsSchema = DashboardRealtimeMetricsSchema.extend({
+  promotion_id: z.string()
+});
+export type DashboardPromotionRealtimeMetrics = z.infer<
+  typeof DashboardPromotionRealtimeMetricsSchema
+>;
+
+export const DashboardSegmentRealtimeMetricsSchema = DashboardRealtimeMetricsSchema.extend({
   promotion_id: z.string(),
-  segment_id: z.string(),
-  total_event_count: CountSchema,
-  events: z.array(DashboardSegmentRealtimeEventSchema)
+  segment_id: z.string()
 });
 export type DashboardSegmentRealtimeMetrics = z.infer<
   typeof DashboardSegmentRealtimeMetricsSchema
@@ -152,14 +168,16 @@ export const DashboardCampaignDetailSchema = z.object({
   campaign: DashboardCampaignSummarySchema,
   promotions: z.array(DashboardCampaignPromotionSchema),
   segments: z.array(DashboardCampaignSegmentSchema),
-  experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema)
+  experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
+  realtime_metrics: DashboardCampaignRealtimeMetricsSchema
 });
 export type DashboardCampaignDetail = z.infer<typeof DashboardCampaignDetailSchema>;
 
 export const DashboardPromotionDetailSchema = z.object({
   promotion: DashboardPromotionSummarySchema,
   segments: z.array(DashboardCampaignSegmentSchema),
-  experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema)
+  experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
+  realtime_metrics: DashboardPromotionRealtimeMetricsSchema
 });
 export type DashboardPromotionDetail = z.infer<typeof DashboardPromotionDetailSchema>;
 
