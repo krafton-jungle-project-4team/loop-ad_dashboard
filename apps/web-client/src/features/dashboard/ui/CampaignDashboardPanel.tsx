@@ -1936,8 +1936,8 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
       <div className="grid gap-1">
         <h3 className="text-base font-semibold text-[#1d1d1f]">워크플로우 View</h3>
         <p className="text-sm text-muted-foreground">
-          Campaign → Promotion → Segment → Ad Experiment → Evaluation 흐름을 DB 상태로
-          확인합니다.
+          Campaign → Promotion → Segment → Ad Experiment → Evaluation → Next Loop 흐름을
+          DB 상태로 확인합니다.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
@@ -1946,6 +1946,37 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
         <SummaryItem label="광고 실험" value={formatInteger(totalExperiments)} />
         <SummaryItem label="평가된 프로모션" value={formatInteger(evaluatedPromotionCount)} />
       </div>
+      <Card className="shadow-none">
+        <CardHeader className="gap-1">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-base">{detail.campaign.campaign_name}</CardTitle>
+            <Badge variant={statusBadgeVariant(detail.campaign.status)}>
+              {detail.campaign.status}
+            </Badge>
+          </div>
+          <CardDescription>
+            Campaign node · {detail.campaign.campaign_id} · {detail.campaign.primary_metric ?? "-"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm">
+          <div className="grid gap-3 md:grid-cols-4">
+            <SummaryItem label="목표" value={detail.campaign.objective ?? "-"} />
+            <SummaryItem label="기간" value={formatPeriod(detail.campaign)} />
+            <SummaryItem
+              label="최근 목표 달성률"
+              value={
+                detail.campaign.latest_goal_achievement_rate === null
+                  ? "-"
+                  : formatPercent(detail.campaign.latest_goal_achievement_rate)
+              }
+            />
+            <SummaryItem
+              label="계층"
+              value={`${formatInteger(detail.promotions.length)} promotions / ${formatInteger(totalSegments)} segments`}
+            />
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid gap-3">
         {detail.promotions.map((promotion) => {
           const segments = detail.segments.filter(
@@ -1954,7 +1985,7 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
           const metrics = detail.experiment_metrics.filter(
             (metric) => metric.promotion_id === promotion.promotion_id
           );
-          const workflowSteps = campaignWorkflowSteps(promotion, segments, metrics);
+          const workflowSteps = campaignWorkflowSteps(detail.campaign, promotion, segments, metrics);
           return (
             <Card className="shadow-none" key={promotion.promotion_id}>
               <CardHeader className="gap-1">
@@ -1962,10 +1993,13 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
                   <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
                   <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
                 </div>
-                <CardDescription>{promotion.promotion_id}</CardDescription>
+                <CardDescription>
+                  Promotion node · {promotion.promotion_id} · {promotion.channel} ·{" "}
+                  {promotion.goal_metric}
+                </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm">
-                <div className="grid gap-2 md:grid-cols-5">
+                <div className="grid gap-2 md:grid-cols-6">
                   {workflowSteps.map((step) => (
                     <div
                       className="grid gap-2 rounded-md border bg-muted/20 p-3"
@@ -1979,6 +2013,7 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
                     </div>
                   ))}
                 </div>
+                <WorkflowSegmentTable metrics={metrics} segments={segments} />
                 <WorkflowRiskNotice metrics={metrics} segments={segments} />
                 <Progress value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)} />
               </CardContent>
@@ -1991,6 +2026,7 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
 }
 
 function campaignWorkflowSteps(
+  campaign: DashboardCampaignSummary,
   promotion: DashboardCampaignPromotion,
   segments: DashboardCampaignSegment[],
   metrics: DashboardCampaignExperimentMetric[]
@@ -1998,8 +2034,26 @@ function campaignWorkflowSteps(
   const insufficientCount = metrics.filter((metric) => metric.status === "insufficient_data").length;
   const goalNotMetCount = metrics.filter((metric) => metric.status === "goal_not_met").length;
   const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
+  const experimentIds = uniqueValues(metrics.map((metric) => metric.ad_experiment_id));
+  const experimentCount = Math.max(promotion.ad_experiment_count, experimentIds.length);
+  const evaluationStatus =
+    metrics.length === 0
+      ? "waiting"
+      : insufficientCount > 0
+        ? "insufficient_data"
+        : goalNotMetCount > 0
+          ? "goal_not_met"
+          : metrics.some((metric) => metric.status === "goal_met")
+            ? "goal_met"
+            : "evaluated";
 
   return [
+    {
+      label: "Campaign",
+      status: campaign.status,
+      value: campaign.campaign_name,
+      variant: statusBadgeVariant(campaign.status)
+    },
     {
       label: "Promotion",
       status: promotion.status,
@@ -2014,15 +2068,15 @@ function campaignWorkflowSteps(
     },
     {
       label: "Ad Experiment",
-      status: promotion.ad_experiment_count > 0 ? "created" : "empty",
-      value: formatInteger(promotion.ad_experiment_count),
-      variant: promotion.ad_experiment_count > 0 ? "secondary" : "outline"
+      status: experimentCount > 0 ? "created" : "empty",
+      value: formatInteger(experimentCount),
+      variant: experimentCount > 0 ? "secondary" : "outline"
     },
     {
       label: "Evaluation",
-      status: metrics.length > 0 ? "evaluated" : "waiting",
+      status: evaluationStatus,
       value: formatInteger(metrics.length),
-      variant: metrics.length > 0 ? "secondary" : "outline"
+      variant: statusBadgeVariant(evaluationStatus)
     },
     {
       label: "Next Loop",
@@ -2036,6 +2090,110 @@ function campaignWorkflowSteps(
       variant: nextLoopCount > 0 ? "destructive" : "outline"
     }
   ] as const;
+}
+
+function WorkflowSegmentTable({
+  metrics,
+  segments
+}: {
+  metrics: DashboardCampaignExperimentMetric[];
+  segments: DashboardCampaignSegment[];
+}) {
+  if (segments.length === 0) {
+    return <EmptyState message="이 프로모션에 연결된 세그먼트가 없습니다." />;
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Segment</TableHead>
+          <TableHead>Ad Experiment</TableHead>
+          <TableHead>Evaluation</TableHead>
+          <TableHead className="text-right">Sample</TableHead>
+          <TableHead>Next Loop</TableHead>
+          <TableHead>근거 / 사유</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {segments.map((segment) => {
+          const segmentMetrics = metrics.filter((metric) => metric.segment_id === segment.segment_id);
+          const latestMetric = segmentMetrics[0] ?? null;
+          const experimentIds = uniqueValues(segmentMetrics.map((metric) => metric.ad_experiment_id));
+          const insufficientMetric = segmentMetrics.find(
+            (metric) => metric.status === "insufficient_data"
+          );
+          const insufficientDetails = insufficientMetric
+            ? insufficientDataDetails(insufficientMetric)
+            : null;
+          const nextLoopCount = segmentMetrics.filter((metric) => metric.next_loop_required).length;
+          const evaluationStatus = latestMetric?.status ?? segment.status;
+          const basis =
+            insufficientDetails?.reason ??
+            latestMetric?.feedback ??
+            segment.natural_language_query ??
+            "-";
+
+          return (
+            <TableRow key={segment.segment_id}>
+              <TableCell>
+                <div className="grid min-w-[180px] gap-1">
+                  <span className="font-medium">{segment.segment_name}</span>
+                  <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                    {segment.priority ? <Badge variant="outline">{segment.priority}</Badge> : null}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="grid min-w-[160px] gap-1">
+                  <span>{experimentIds.length > 0 ? experimentIds.join(", ") : "-"}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatInteger(segmentMetrics.length)} evaluations
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant={statusBadgeVariant(evaluationStatus)}>{evaluationStatus}</Badge>
+                  {latestMetric ? <Badge variant="outline">{latestMetric.metric}</Badge> : null}
+                </div>
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                <div className="grid gap-1">
+                  <span>{formatInteger(segment.sample_size)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatPercent(segment.sample_ratio)}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>
+                {nextLoopCount > 0 ? (
+                  <Badge variant="destructive">{formatInteger(nextLoopCount)} required</Badge>
+                ) : insufficientMetric ? (
+                  <Badge variant="outline">hold</Badge>
+                ) : (
+                  <Badge variant="outline">none</Badge>
+                )}
+              </TableCell>
+              <TableCell>
+                <div className="grid min-w-[240px] gap-1">
+                  <span className="line-clamp-2">{basis}</span>
+                  {insufficientDetails ? (
+                    <span className="text-xs text-muted-foreground">
+                      assigned {formatNullableInteger(insufficientDetails.assignedUserCount)} / min{" "}
+                      {formatNullableInteger(insufficientDetails.minimumRequiredSampleSize)}
+                    </span>
+                  ) : null}
+                </div>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
 }
 
 function WorkflowRiskNotice({
