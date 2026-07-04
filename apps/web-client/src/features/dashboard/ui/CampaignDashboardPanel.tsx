@@ -5047,12 +5047,30 @@ function EvaluationOutcomePanel({
 }
 
 function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperimentMetric[] }) {
-  const insufficientCount = metrics.filter((metric) => metric.status === "insufficient_data").length;
-  const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
-  const totalSampleSize = metrics.reduce((sum, metric) => sum + metric.sample_size, 0);
+  const [promotionFilter, setPromotionFilter] = useState("all");
+  const [segmentFilter, setSegmentFilter] = useState("all");
+  const [metricFilter, setMetricFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const promotionIds = uniqueValues(metrics.map((metric) => metric.promotion_id));
+  const segmentIds = uniqueValues(metrics.map((metric) => metric.segment_id).filter(Boolean));
+  const metricNames = uniqueValues(metrics.map((metric) => metric.metric));
+  const statusNames = uniqueValues(metrics.map((metric) => metric.status));
+  const filteredMetrics = metrics.filter(
+    (metric) =>
+      (promotionFilter === "all" || metric.promotion_id === promotionFilter) &&
+      (segmentFilter === "all" || metric.segment_id === segmentFilter) &&
+      (metricFilter === "all" || metric.metric === metricFilter) &&
+      (statusFilter === "all" || metric.status === statusFilter)
+  );
+  const insufficientCount = filteredMetrics.filter(
+    (metric) => metric.status === "insufficient_data"
+  ).length;
+  const nextLoopCount = filteredMetrics.filter((metric) => metric.next_loop_required).length;
+  const totalSampleSize = filteredMetrics.reduce((sum, metric) => sum + metric.sample_size, 0);
   const averageActualValue =
-    metrics.length > 0
-      ? metrics.reduce((sum, metric) => sum + metric.actual_value, 0) / metrics.length
+    filteredMetrics.length > 0
+      ? filteredMetrics.reduce((sum, metric) => sum + metric.actual_value, 0) /
+        filteredMetrics.length
       : 0;
 
   return (
@@ -5064,75 +5082,146 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
+        <Field>
+          <FieldLabel>프로모션 필터</FieldLabel>
+          <Select onValueChange={setPromotionFilter} value={promotionFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 프로모션</SelectItem>
+              {promotionIds.map((promotionId) => (
+                <SelectItem key={promotionId} value={promotionId}>
+                  {promotionId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>세그먼트 필터</FieldLabel>
+          <Select onValueChange={setSegmentFilter} value={segmentFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 세그먼트</SelectItem>
+              {segmentIds.map((segmentId) => (
+                <SelectItem key={segmentId} value={segmentId}>
+                  {segmentId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>지표 필터</FieldLabel>
+          <Select onValueChange={setMetricFilter} value={metricFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 지표</SelectItem>
+              {metricNames.map((metricName) => (
+                <SelectItem key={metricName} value={metricName}>
+                  {metricName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>상태 필터</FieldLabel>
+          <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 상태</SelectItem>
+              {statusNames.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
         <SummaryItem label="실험 지표" value={formatInteger(metrics.length)} />
+        <SummaryItem label="필터 결과" value={formatInteger(filteredMetrics.length)} />
         <SummaryItem label="표본 합계" value={formatInteger(totalSampleSize)} />
         <SummaryItem label="표본 부족" value={formatInteger(insufficientCount)} />
         <SummaryItem label="다음 루프 필요" value={formatInteger(nextLoopCount)} />
         <SummaryItem label="평균 실제값" value={formatGoalValue(averageActualValue)} />
       </div>
       {metrics.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>실험</TableHead>
-              <TableHead>지표</TableHead>
-              <TableHead className="text-right">목표 / 실제</TableHead>
-              <TableHead className="text-right">표본</TableHead>
-              <TableHead className="text-right">분자 / 분모</TableHead>
-              <TableHead>기준</TableHead>
-              <TableHead>상태</TableHead>
-              <TableHead>피드백</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {metrics.map((metric) => (
-              <TableRow
-                key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
-              >
-                <TableCell>
-                  <div className="grid min-w-[180px] gap-1">
-                    <span className="font-medium">{metric.ad_experiment_id ?? "-"}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {metric.promotion_id} · {metric.segment_id ?? "-"}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="grid gap-1">
-                    <span>{metric.metric}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {metric.content_option_id ?? metric.content_id ?? "-"}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatGoalValue(metric.target_value)} / {formatGoalValue(metric.actual_value)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(metric.sample_size)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(metric.numerator_count)} /{" "}
-                  {formatInteger(metric.denominator_count)}
-                </TableCell>
-                <TableCell>{metric.basis}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant={statusBadgeVariant(metric.status)}>
-                      {metric.status}
-                    </Badge>
-                    {metric.next_loop_required ? <Badge variant="outline">next loop</Badge> : null}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="line-clamp-2 min-w-[220px] text-sm">
-                    {metric.feedback ?? "-"}
-                  </div>
-                </TableCell>
+        filteredMetrics.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>실험</TableHead>
+                <TableHead>지표</TableHead>
+                <TableHead className="text-right">목표 / 실제</TableHead>
+                <TableHead className="text-right">표본</TableHead>
+                <TableHead className="text-right">분자 / 분모</TableHead>
+                <TableHead>기준</TableHead>
+                <TableHead>상태</TableHead>
+                <TableHead>피드백</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredMetrics.map((metric) => (
+                <TableRow
+                  key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
+                >
+                  <TableCell>
+                    <div className="grid min-w-[180px] gap-1">
+                      <span className="font-medium">{metric.ad_experiment_id ?? "-"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {metric.promotion_id} · {metric.segment_id ?? "-"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="grid gap-1">
+                      <span>{metric.metric}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {metric.content_option_id ?? metric.content_id ?? "-"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatGoalValue(metric.target_value)} / {formatGoalValue(metric.actual_value)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(metric.sample_size)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(metric.numerator_count)} /{" "}
+                    {formatInteger(metric.denominator_count)}
+                  </TableCell>
+                  <TableCell>{metric.basis}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant={statusBadgeVariant(metric.status)}>
+                        {metric.status}
+                      </Badge>
+                      {metric.next_loop_required ? <Badge variant="outline">next loop</Badge> : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[220px] text-sm">
+                      {metric.feedback ?? "-"}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState message="필터 조건에 맞는 실험 지표가 없습니다." />
+        )
       ) : (
         <EmptyState message="등록된 실험 지표가 없습니다." />
       )}
