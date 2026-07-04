@@ -7,7 +7,8 @@ import type {
   DashboardMain,
   DashboardPromotionDetail as DashboardPromotionDetailResource,
   DashboardRealtimeMetrics,
-  DashboardSegmentDetail as DashboardSegmentDetailResource
+  DashboardSegmentDetail as DashboardSegmentDetailResource,
+  DashboardSegmentQueryPreview
 } from "@loopad/shared";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
@@ -15,6 +16,8 @@ import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
+import { Field, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import {
   Table,
@@ -25,12 +28,15 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { Tabs, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, type ReactNode } from "react";
+import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState, type ReactNode } from "react";
 import {
+  createDashboardSegmentQueryPreview,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
-  fetchDashboardSegmentDetail
+  fetchDashboardSegmentDetail,
+  saveDashboardSegment
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
@@ -208,6 +214,7 @@ export function CampaignDashboardPanel({
         promotionError={promotionDetail.error}
         promotionIsError={promotionDetail.isError}
         promotionIsLoading={promotionDetail.isLoading}
+        query={query}
         segmentDetail={segmentDetail.data}
         segmentError={segmentDetail.error}
         segmentIsError={segmentDetail.isError}
@@ -337,6 +344,7 @@ function CampaignDetailPanel({
   promotionError,
   promotionIsError,
   promotionIsLoading,
+  query,
   segmentDetail,
   segmentError,
   segmentIsError,
@@ -358,6 +366,7 @@ function CampaignDetailPanel({
   promotionError: Error | null;
   promotionIsError: boolean;
   promotionIsLoading: boolean;
+  query: DashboardQuery;
   segmentDetail: DashboardSegmentDetailResource | undefined;
   segmentError: Error | null;
   segmentIsError: boolean;
@@ -400,6 +409,7 @@ function CampaignDetailPanel({
             promotionError={promotionError}
             promotionIsError={promotionIsError}
             promotionIsLoading={promotionIsLoading}
+            query={query}
             segmentDetail={segmentDetail}
             segmentError={segmentError}
             segmentIsError={segmentIsError}
@@ -425,6 +435,7 @@ function CampaignTabContent({
   promotionError,
   promotionIsError,
   promotionIsLoading,
+  query,
   segmentDetail,
   segmentError,
   segmentIsError,
@@ -443,6 +454,7 @@ function CampaignTabContent({
   promotionError: Error | null;
   promotionIsError: boolean;
   promotionIsLoading: boolean;
+  query: DashboardQuery;
   segmentDetail: DashboardSegmentDetailResource | undefined;
   segmentError: Error | null;
   segmentIsError: boolean;
@@ -498,6 +510,7 @@ function CampaignTabContent({
             selectedPromotion={selectedPromotion}
             selectedSegment={selectedSegment}
           />
+          <SegmentQueryPreviewPanel query={query} />
           <SegmentTable
             onSelectSegment={onSelectSegment}
             segments={promotionDetail?.segments ?? detail.segments}
@@ -1201,6 +1214,177 @@ function SegmentTable({
   );
 }
 
+function SegmentQueryPreviewPanel({ query }: { query: DashboardQuery }) {
+  const [naturalLanguageQuery, setNaturalLanguageQuery] = useState("");
+  const [segmentName, setSegmentName] = useState("");
+  const [preview, setPreview] = useState<DashboardSegmentQueryPreview | null>(null);
+  const previewMutation = useMutation({
+    mutationFn: () =>
+      createDashboardSegmentQueryPreview(query, {
+        natural_language_query: naturalLanguageQuery.trim()
+      }),
+    onSuccess: (result) => {
+      setPreview(result);
+      if (!segmentName.trim()) {
+        setSegmentName(segmentNameFromQuery(naturalLanguageQuery));
+      }
+    }
+  });
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      if (!preview) {
+        throw new Error("저장할 preview가 없습니다.");
+      }
+      return saveDashboardSegment(query, {
+        query_preview_id: preview.query_preview_id,
+        segment_name: segmentName.trim()
+      });
+    }
+  });
+  const canPreview = Boolean(naturalLanguageQuery.trim()) && !previewMutation.isPending;
+  const canSave =
+    preview?.sample_size_status === "valid" &&
+    Boolean(segmentName.trim()) &&
+    !saveMutation.isPending;
+
+  return (
+    <section className="grid gap-3">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">세그먼트 추가</h3>
+        <p className="text-sm text-muted-foreground">
+          자연어 조건을 ClickHouse read-only SQL로 미리 실행하고, sample size가 유효하면
+          사용자 정의 세그먼트로 저장합니다.
+        </p>
+      </div>
+      <div className="grid gap-4 rounded-md border bg-muted/20 p-4">
+        {previewMutation.isError ? (
+          <Alert variant="destructive">
+            <AlertTitle>SQL preview 생성 실패</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(previewMutation.error)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {saveMutation.isError ? (
+          <Alert variant="destructive">
+            <AlertTitle>세그먼트 저장 실패</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(saveMutation.error)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {saveMutation.isSuccess ? (
+          <Alert>
+            <AlertTitle>세그먼트를 저장했습니다</AlertTitle>
+            <AlertDescription>
+              {saveMutation.data.segment_name} / {saveMutation.data.segment_id}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="segment-natural-language-query">세그먼트 조건</FieldLabel>
+            <Textarea
+              disabled={previewMutation.isPending || saveMutation.isPending}
+              id="segment-natural-language-query"
+              onChange={(event) => {
+                setNaturalLanguageQuery(event.target.value);
+                setPreview(null);
+                saveMutation.reset();
+              }}
+              placeholder="예: 최근 7일간 숙소 상세를 3회 이상 봤지만 예약 완료가 없는 사용자"
+              value={naturalLanguageQuery}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="segment-name">세그먼트 이름</FieldLabel>
+            <Input
+              disabled={saveMutation.isPending}
+              id="segment-name"
+              onChange={(event) => setSegmentName(event.target.value)}
+              placeholder="같은 숙소 반복 조회 후 미예약 고객"
+              value={segmentName}
+            />
+          </Field>
+        </FieldGroup>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={!canPreview}
+            onClick={() => previewMutation.mutate()}
+            type="button"
+            variant="outline"
+          >
+            {previewMutation.isPending ? "preview 생성 중" : "조건 미리보기"}
+          </Button>
+          <Button disabled={!canSave} onClick={() => saveMutation.mutate()} type="button">
+            {saveMutation.isPending ? "저장 중" : "세그먼트 저장"}
+          </Button>
+        </div>
+        {preview ? <SegmentQueryPreviewResult preview={preview} /> : null}
+      </div>
+    </section>
+  );
+}
+
+function SegmentQueryPreviewResult({ preview }: { preview: DashboardSegmentQueryPreview }) {
+  const statusVariant = preview.sample_size_status === "valid" ? "secondary" : "outline";
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="sample size" value={formatInteger(preview.sample_size)} />
+        <SummaryItem
+          label="전체 적격 유저"
+          value={formatInteger(preview.total_eligible_user_count)}
+        />
+        <SummaryItem label="sample ratio" value={formatPercentValue(preview.sample_ratio)} />
+        <div className="rounded-md border bg-background p-3">
+          <div className="text-xs text-muted-foreground">저장 가능 상태</div>
+          <Badge className="mt-2" variant={statusVariant}>
+            {preview.sample_size_status}
+          </Badge>
+        </div>
+      </div>
+      <div className="grid gap-2">
+        <div className="text-xs text-muted-foreground">generated_sql</div>
+        <pre className="max-h-[220px] overflow-auto rounded-md border bg-background p-3 text-xs leading-5">
+          {preview.generated_sql}
+        </pre>
+      </div>
+      <PreviewRowsTable preview={preview} />
+    </div>
+  );
+}
+
+function PreviewRowsTable({ preview }: { preview: DashboardSegmentQueryPreview }) {
+  const columns = preview.columns.slice(0, 8);
+
+  if (preview.rows.length === 0 || columns.length === 0) {
+    return <EmptyState message="preview 결과 row가 없습니다." />;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((column) => (
+              <TableHead key={column}>{column}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {preview.rows.slice(0, 10).map((row, index) => (
+            <TableRow key={index}>
+              {columns.map((column) => (
+                <TableCell className="max-w-[220px] truncate" key={column}>
+                  {formatPreviewValue(row[column])}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 function SegmentDetailPanel({
   detail,
   error,
@@ -1572,6 +1756,28 @@ function formatJsonValue(value: unknown): string {
     return String(value);
   }
   return JSON.stringify(value);
+}
+
+function formatPreviewValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function segmentNameFromQuery(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
+}
+
+function mutationErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "API 요청 실패";
 }
 
 function InsightBlock({ label, value }: { label: string; value: string }) {
