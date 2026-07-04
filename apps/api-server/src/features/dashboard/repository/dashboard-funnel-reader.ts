@@ -34,6 +34,7 @@ import {
   listActiveFunnels,
   listActiveFunnelSteps,
   listActiveFunnelStepsByFunnelId,
+  listDashboardPromotionSegmentDeliverySummaries,
   type IGetActiveFunnelByIdResult,
   type IGetDashboardCampaignDeliveryStatusResult,
   type IGetDashboardPromotionDeliveryStatusResult,
@@ -42,7 +43,8 @@ import {
   type IInsertFunnelStepResult,
   type IListActiveFunnelsResult,
   type IListActiveFunnelStepsByFunnelIdResult,
-  type IListActiveFunnelStepsResult
+  type IListActiveFunnelStepsResult,
+  type IListDashboardPromotionSegmentDeliverySummariesResult
 } from "../database/__generated__/dashboard.queries.js";
 
 type EventCatalogRow = {
@@ -85,7 +87,6 @@ type RealtimePeakTimeRow = {
 type SegmentRealtimeSummaryRow = {
   segment_id: string;
   segment_user_count: number | string;
-  delivery_count: number | string;
   reach_count: number | string;
   promotion_impression_count: number | string;
   promotion_click_count: number | string;
@@ -276,12 +277,44 @@ export class DashboardFunnelReader {
     projectId: string,
     promotionId: string
   ): Promise<DashboardSegmentRealtimeSummary[]> {
+    const [eventRows, deliveryRows] = await Promise.all([
+      this.countPromotionSegmentRealtimeEvents(projectId, promotionId),
+      this.db
+        .query(listDashboardPromotionSegmentDeliverySummaries, { projectId, promotionId })
+        .multiple()
+    ]);
+    const deliveryBySegment = new Map(deliveryRows.map((row) => [row.segmentId, row]));
+    const eventBySegment = new Map(eventRows.map((row) => [row.segment_id, row]));
+    const segmentIds = [...new Set([...eventBySegment.keys(), ...deliveryBySegment.keys()])];
+
+    return segmentIds.map((segmentId) => {
+      const row = eventBySegment.get(segmentId);
+      const delivery = deliveryBySegment.get(segmentId);
+      return {
+        promotion_id: promotionId,
+        segment_id: segmentId,
+        segment_user_count: countValue(row?.segment_user_count ?? delivery?.scheduledCount ?? 0),
+        delivery_count: countValue(delivery?.deliveredCount ?? 0),
+        reach_count: countValue(row?.reach_count ?? 0),
+        promotion_impression_count: countValue(row?.promotion_impression_count ?? 0),
+        promotion_click_count: countValue(row?.promotion_click_count ?? 0),
+        campaign_redirect_click_count: countValue(row?.campaign_redirect_click_count ?? 0),
+        campaign_landing_count: countValue(row?.campaign_landing_count ?? 0),
+        booking_start_count: countValue(row?.booking_start_count ?? 0),
+        booking_complete_count: countValue(row?.booking_complete_count ?? 0)
+      };
+    });
+  }
+
+  private async countPromotionSegmentRealtimeEvents(
+    projectId: string,
+    promotionId: string
+  ): Promise<SegmentRealtimeSummaryRow[]> {
     const result = await this.clickhouse.query({
       query: `
         SELECT
           segment_id,
           uniqExact(user_id) AS segment_user_count,
-          countIf(event_name IN ('campaign_redirect_click', 'promotion_click')) AS delivery_count,
           uniqExactIf(user_id, event_name IN ('campaign_redirect_click', 'promotion_click', 'promotion_impression')) AS reach_count,
           countIf(event_name = 'promotion_impression') AS promotion_impression_count,
           countIf(event_name = 'promotion_click') AS promotion_click_count,
@@ -310,21 +343,8 @@ export class DashboardFunnelReader {
       format: "JSONEachRow",
       query_params: { projectId, promotionId }
     });
-    const rows = await result.json<SegmentRealtimeSummaryRow>();
 
-    return rows.map((row) => ({
-      promotion_id: promotionId,
-      segment_id: row.segment_id,
-      segment_user_count: countValue(row.segment_user_count),
-      delivery_count: countValue(row.delivery_count),
-      reach_count: countValue(row.reach_count),
-      promotion_impression_count: countValue(row.promotion_impression_count),
-      promotion_click_count: countValue(row.promotion_click_count),
-      campaign_redirect_click_count: countValue(row.campaign_redirect_click_count),
-      campaign_landing_count: countValue(row.campaign_landing_count),
-      booking_start_count: countValue(row.booking_start_count),
-      booking_complete_count: countValue(row.booking_complete_count)
-    }));
+    return result.json<SegmentRealtimeSummaryRow>();
   }
 
   async createFunnel(

@@ -1553,7 +1553,7 @@ export interface IGetDashboardSegmentDeliveryStatusQuery {
   result: IGetDashboardSegmentDeliveryStatusResult;
 }
 
-const getDashboardSegmentDeliveryStatusIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":421,"b":430}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":457,"b":468}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":492,"b":501}]}],"statement":"SELECT\n  COALESCE(SUM(adj.target_count), 0)::int AS \"scheduledCount\",\n  COALESCE(SUM(adj.sent_count), 0)::int AS \"sentCount\",\n  COALESCE(SUM(adj.sent_count), 0)::int AS \"deliveredCount\",\n  0::int AS \"openedCount\",\n  0::int AS \"bouncedCount\",\n  COALESCE(SUM(adj.failed_count), 0)::int AS \"failedCount\"\nFROM ad_dispatch_jobs adj\nJOIN ad_experiments ae\n  ON ae.ad_experiment_id = adj.ad_experiment_id\nWHERE adj.project_id = :projectId\n  AND adj.promotion_id = :promotionId\n  AND ae.segment_id = :segmentId\n  AND adj.channel IN ('email', 'sms')                                    "};
+const getDashboardSegmentDeliveryStatusIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":421,"b":430}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":457,"b":468}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":492,"b":501}]}],"statement":"SELECT\n  COALESCE(SUM(adj.target_count), 0)::int AS \"scheduledCount\",\n  COALESCE(SUM(adj.sent_count), 0)::int AS \"sentCount\",\n  COALESCE(SUM(adj.sent_count), 0)::int AS \"deliveredCount\",\n  0::int AS \"openedCount\",\n  0::int AS \"bouncedCount\",\n  COALESCE(SUM(adj.failed_count), 0)::int AS \"failedCount\"\nFROM ad_dispatch_jobs adj\nJOIN ad_experiments ae\n  ON ae.ad_experiment_id = adj.ad_experiment_id\nWHERE adj.project_id = :projectId\n  AND adj.promotion_id = :promotionId\n  AND ae.segment_id = :segmentId\n  AND adj.channel IN ('email', 'sms')                                              "};
 
 /**
  * Query generated from SQL:
@@ -1571,10 +1571,55 @@ const getDashboardSegmentDeliveryStatusIR: any = {"usedParamSet":{"projectId":tr
  * WHERE adj.project_id = :projectId
  *   AND adj.promotion_id = :promotionId
  *   AND ae.segment_id = :segmentId
- *   AND adj.channel IN ('email', 'sms')                                    
+ *   AND adj.channel IN ('email', 'sms')                                              
  * ```
  */
 export const getDashboardSegmentDeliveryStatus = new PreparedQuery<IGetDashboardSegmentDeliveryStatusParams,IGetDashboardSegmentDeliveryStatusResult>(getDashboardSegmentDeliveryStatusIR);
+
+
+/** 'ListDashboardPromotionSegmentDeliverySummaries' parameters type */
+export interface IListDashboardPromotionSegmentDeliverySummariesParams {
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'ListDashboardPromotionSegmentDeliverySummaries' return type */
+export interface IListDashboardPromotionSegmentDeliverySummariesResult {
+  deliveredCount: number | null;
+  failedCount: number | null;
+  scheduledCount: number | null;
+  segmentId: string;
+  sentCount: number | null;
+}
+
+/** 'ListDashboardPromotionSegmentDeliverySummaries' query type */
+export interface IListDashboardPromotionSegmentDeliverySummariesQuery {
+  params: IListDashboardPromotionSegmentDeliverySummariesParams;
+  result: IListDashboardPromotionSegmentDeliverySummariesResult;
+}
+
+const listDashboardPromotionSegmentDeliverySummariesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":398,"b":407}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":434,"b":445}]}],"statement":"SELECT\n  ae.segment_id AS \"segmentId\",\n  COALESCE(SUM(adj.target_count), 0)::int AS \"scheduledCount\",\n  COALESCE(SUM(adj.sent_count), 0)::int AS \"sentCount\",\n  COALESCE(SUM(adj.sent_count), 0)::int AS \"deliveredCount\",\n  COALESCE(SUM(adj.failed_count), 0)::int AS \"failedCount\"\nFROM ad_dispatch_jobs adj\nJOIN ad_experiments ae\n  ON ae.ad_experiment_id = adj.ad_experiment_id\nWHERE adj.project_id = :projectId\n  AND adj.promotion_id = :promotionId\n  AND adj.channel IN ('email', 'sms')\nGROUP BY ae.segment_id\nORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC                                    "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   ae.segment_id AS "segmentId",
+ *   COALESCE(SUM(adj.target_count), 0)::int AS "scheduledCount",
+ *   COALESCE(SUM(adj.sent_count), 0)::int AS "sentCount",
+ *   COALESCE(SUM(adj.sent_count), 0)::int AS "deliveredCount",
+ *   COALESCE(SUM(adj.failed_count), 0)::int AS "failedCount"
+ * FROM ad_dispatch_jobs adj
+ * JOIN ad_experiments ae
+ *   ON ae.ad_experiment_id = adj.ad_experiment_id
+ * WHERE adj.project_id = :projectId
+ *   AND adj.promotion_id = :promotionId
+ *   AND adj.channel IN ('email', 'sms')
+ * GROUP BY ae.segment_id
+ * ORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC                                    
+ * ```
+ */
+export const listDashboardPromotionSegmentDeliverySummaries = new PreparedQuery<IListDashboardPromotionSegmentDeliverySummariesParams,IListDashboardPromotionSegmentDeliverySummariesResult>(listDashboardPromotionSegmentDeliverySummariesIR);
 
 
 /** 'ListDashboardSegmentContentCandidates' parameters type */
