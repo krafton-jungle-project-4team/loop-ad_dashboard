@@ -2274,10 +2274,13 @@ function PromotionTable({
           <TableHeader>
             <TableRow>
               <TableHead>프로모션</TableHead>
+              <TableHead>대상</TableHead>
               <TableHead>대상 세그먼트</TableHead>
               <TableHead>목표</TableHead>
+              <TableHead className="text-right">루프</TableHead>
               <TableHead className="text-right">실험</TableHead>
               <TableHead>상태</TableHead>
+              <TableHead>다음 액션</TableHead>
               <TableHead>상세</TableHead>
             </TableRow>
           </TableHeader>
@@ -2308,6 +2311,7 @@ function PromotionTable({
                       </span>
                     </div>
                   </TableCell>
+                  <TableCell>{promotion.target_audience}</TableCell>
                   <TableCell>
                     <div className="flex min-w-[240px] flex-wrap gap-1.5">
                       {promotionSegments.slice(0, 3).map((segment) => (
@@ -2332,10 +2336,17 @@ function PromotionTable({
                     </div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
+                    {formatInteger(promotion.current_loop_count)} /{" "}
+                    {formatInteger(promotion.max_loop_count)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
                     {formatInteger(promotion.ad_experiment_count)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{promotion.next_action}</Badge>
                   </TableCell>
                   <TableCell>
                     <Button
@@ -2751,6 +2762,12 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
         <SummaryItem label="목표값" value={formatGoalValue(promotion.goal_target_value)} />
         <SummaryItem label="목표 기준" value={promotion.goal_basis} />
         <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
+        <SummaryItem
+          label="루프"
+          value={`${formatInteger(promotion.current_loop_count)} / ${formatInteger(promotion.max_loop_count)}`}
+        />
+        <SummaryItem label="랜딩 타입" value={promotion.landing_type ?? "-"} />
+        <SummaryItem label="오퍼" value={promotion.offer_type ?? "-"} />
         <SummaryItem label="세그먼트" value={formatInteger(detail.segments.length)} />
         <SummaryItem label="실험 지표" value={formatInteger(detail.experiment_metrics.length)} />
         <SummaryItem
@@ -2758,6 +2775,7 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
           value={formatInteger(detail.realtime_metrics.total_event_count)}
         />
         <SummaryItem label="목표 달성률" value={formatPercent(achievementRate)} />
+        <SummaryItem label="다음 액션" value={promotion.next_action} />
       </div>
       <Progress value={Math.min(achievementRate * 100, 100)} />
     </section>

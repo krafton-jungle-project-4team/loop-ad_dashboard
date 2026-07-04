@@ -87,13 +87,21 @@ export const DashboardCampaignPromotionSchema = z.object({
   promotion_id: z.string(),
   channel: z.string(),
   marketing_theme: z.string(),
+  target_audience: z.string(),
   goal_metric: z.string(),
   goal_target_value: z.number().nonnegative(),
   goal_basis: z.string(),
+  min_sample_size: CountSchema,
+  max_loop_count: CountSchema,
+  current_loop_count: CountSchema,
+  offer_type: z.string().nullable(),
+  landing_url: z.string().nullable(),
+  landing_type: z.string().nullable(),
   status: z.string(),
   target_segment_count: CountSchema,
   ad_experiment_count: CountSchema,
   latest_actual_value: RateSchema.nullable(),
+  next_action: z.string(),
   updated_at: z.string()
 });
 export type DashboardCampaignPromotion = z.infer<typeof DashboardCampaignPromotionSchema>;
@@ -179,11 +187,7 @@ export type DashboardDeletePromotionResult = z.infer<
 >;
 
 export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.extend({
-  campaign_id: z.string(),
-  target_audience: z.string(),
-  min_sample_size: CountSchema,
-  offer_type: z.string().nullable(),
-  landing_url: z.string().nullable()
+  campaign_id: z.string()
 });
 export type DashboardPromotionSummary = z.infer<typeof DashboardPromotionSummarySchema>;
 

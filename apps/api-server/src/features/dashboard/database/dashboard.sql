@@ -138,15 +138,31 @@ SELECT
   p.promotion_id AS "promotionId",
   p.channel,
   p.marketing_theme AS "marketingTheme",
+  p.target_audience AS "targetAudience",
   p.goal_metric AS "goalMetric",
   p.goal_target_value::float8 AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
+  p.min_sample_size AS "minSampleSize",
+  p.max_loop_count AS "maxLoopCount",
+  COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
+  p.offer_type AS "offerType",
+  p.landing_url AS "landingUrl",
+  p.landing_type AS "landingType",
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
   MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CASE
+    WHEN p.status = 'draft' THEN 'complete_plan'
+    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   p.updated_at AS "updatedAt"
 FROM promotions p
+LEFT JOIN promotion_runs pr
+  ON pr.promotion_id = p.promotion_id
 LEFT JOIN promotion_target_segments pts
   ON pts.promotion_id = p.promotion_id
 LEFT JOIN ad_experiments ae
@@ -170,14 +186,26 @@ SELECT
   p.goal_target_value::float8 AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
   p.min_sample_size AS "minSampleSize",
+  p.max_loop_count AS "maxLoopCount",
+  COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
   p.offer_type AS "offerType",
   p.landing_url AS "landingUrl",
+  p.landing_type AS "landingType",
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
   MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CASE
+    WHEN p.status = 'draft' THEN 'complete_plan'
+    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   p.updated_at AS "updatedAt"
 FROM promotions p
+LEFT JOIN promotion_runs pr
+  ON pr.promotion_id = p.promotion_id
 LEFT JOIN promotion_target_segments pts
   ON pts.promotion_id = p.promotion_id
 LEFT JOIN ad_experiments ae
