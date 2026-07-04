@@ -1,7 +1,11 @@
 /** Types generated for queries found in "src/features/dashboard/database/dashboard.sql" */
 import { PreparedQuery } from '@pgtyped/runtime';
 
+export type DateOrString = Date | string;
+
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+
+export type NumberOrString = number | string;
 
 /** 'ListDashboardCampaignSummaries' parameters type */
 export interface IListDashboardCampaignSummariesParams {
@@ -685,7 +689,7 @@ export interface IListDashboardSegmentContentCandidatesQuery {
   result: IListDashboardSegmentContentCandidatesResult;
 }
 
-const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":531,"b":540}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":563,"b":574}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":595,"b":604}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY updated_at DESC, created_at DESC                                  "};
+const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":531,"b":540}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":563,"b":574}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":595,"b":604}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY updated_at DESC, created_at DESC                                        "};
 
 /**
  * Query generated from SQL:
@@ -713,10 +717,264 @@ const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
  *   AND segment_id = :segmentId
- * ORDER BY updated_at DESC, created_at DESC                                  
+ * ORDER BY updated_at DESC, created_at DESC                                        
  * ```
  */
 export const listDashboardSegmentContentCandidates = new PreparedQuery<IListDashboardSegmentContentCandidatesParams,IListDashboardSegmentContentCandidatesResult>(listDashboardSegmentContentCandidatesIR);
+
+
+/** 'InsertDashboardSegmentQueryPreview' parameters type */
+export interface IInsertDashboardSegmentQueryPreviewParams {
+  baseTimeFrom?: DateOrString | null | void;
+  baseTimeTo?: DateOrString | null | void;
+  generatedSql?: string | null | void;
+  naturalLanguageQuery?: string | null | void;
+  projectId?: string | null | void;
+  queryParamsJson?: Json | null | void;
+  queryPreviewId?: string | null | void;
+  resultColumnsJson?: Json | null | void;
+  resultPreviewJson?: Json | null | void;
+  sampleRatio?: NumberOrString | null | void;
+  sampleSize?: number | null | void;
+  sampleSizeStatus?: string | null | void;
+  totalEligibleUserCount?: number | null | void;
+}
+
+/** 'InsertDashboardSegmentQueryPreview' return type */
+export interface IInsertDashboardSegmentQueryPreviewResult {
+  generatedSql: string;
+  naturalLanguageQuery: string;
+  projectId: string;
+  queryPreviewId: string;
+  resultColumnsJson: Json;
+  resultPreviewJson: Json;
+  sampleRatio: number | null;
+  sampleSize: number;
+  sampleSizeStatus: string;
+  status: string;
+  totalEligibleUserCount: number;
+}
+
+/** 'InsertDashboardSegmentQueryPreview' query type */
+export interface IInsertDashboardSegmentQueryPreviewQuery {
+  params: IInsertDashboardSegmentQueryPreviewParams;
+  result: IInsertDashboardSegmentQueryPreviewResult;
+}
+
+const insertDashboardSegmentQueryPreviewIR: any = {"usedParamSet":{"queryPreviewId":true,"projectId":true,"naturalLanguageQuery":true,"generatedSql":true,"queryParamsJson":true,"baseTimeFrom":true,"baseTimeTo":true,"sampleSize":true,"totalEligibleUserCount":true,"sampleRatio":true,"sampleSizeStatus":true,"resultColumnsJson":true,"resultPreviewJson":true},"params":[{"name":"queryPreviewId","required":false,"transform":{"type":"scalar"},"locs":[{"a":319,"b":333}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":338,"b":347}]},{"name":"naturalLanguageQuery","required":false,"transform":{"type":"scalar"},"locs":[{"a":352,"b":372}]},{"name":"generatedSql","required":false,"transform":{"type":"scalar"},"locs":[{"a":377,"b":389}]},{"name":"queryParamsJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":394,"b":409}]},{"name":"baseTimeFrom","required":false,"transform":{"type":"scalar"},"locs":[{"a":414,"b":426}]},{"name":"baseTimeTo","required":false,"transform":{"type":"scalar"},"locs":[{"a":431,"b":441}]},{"name":"sampleSize","required":false,"transform":{"type":"scalar"},"locs":[{"a":446,"b":456}]},{"name":"totalEligibleUserCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":461,"b":483}]},{"name":"sampleRatio","required":false,"transform":{"type":"scalar"},"locs":[{"a":488,"b":499}]},{"name":"sampleSizeStatus","required":false,"transform":{"type":"scalar"},"locs":[{"a":504,"b":520}]},{"name":"resultColumnsJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":525,"b":542}]},{"name":"resultPreviewJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":547,"b":564}]}],"statement":"INSERT INTO segment_query_previews (\n  query_preview_id,\n  project_id,\n  natural_language_query,\n  generated_sql,\n  query_params_json,\n  base_time_from,\n  base_time_to,\n  sample_size,\n  total_eligible_user_count,\n  sample_ratio,\n  sample_size_status,\n  result_columns_json,\n  result_preview_json,\n  status\n)\nVALUES (\n  :queryPreviewId,\n  :projectId,\n  :naturalLanguageQuery,\n  :generatedSql,\n  :queryParamsJson,\n  :baseTimeFrom,\n  :baseTimeTo,\n  :sampleSize,\n  :totalEligibleUserCount,\n  :sampleRatio,\n  :sampleSizeStatus,\n  :resultColumnsJson,\n  :resultPreviewJson,\n  'previewed'\n)\nRETURNING\n  query_preview_id AS \"queryPreviewId\",\n  project_id AS \"projectId\",\n  natural_language_query AS \"naturalLanguageQuery\",\n  generated_sql AS \"generatedSql\",\n  sample_size AS \"sampleSize\",\n  total_eligible_user_count AS \"totalEligibleUserCount\",\n  sample_ratio::float8 AS \"sampleRatio\",\n  sample_size_status AS \"sampleSizeStatus\",\n  result_columns_json AS \"resultColumnsJson\",\n  result_preview_json AS \"resultPreviewJson\",\n  status                                     "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * INSERT INTO segment_query_previews (
+ *   query_preview_id,
+ *   project_id,
+ *   natural_language_query,
+ *   generated_sql,
+ *   query_params_json,
+ *   base_time_from,
+ *   base_time_to,
+ *   sample_size,
+ *   total_eligible_user_count,
+ *   sample_ratio,
+ *   sample_size_status,
+ *   result_columns_json,
+ *   result_preview_json,
+ *   status
+ * )
+ * VALUES (
+ *   :queryPreviewId,
+ *   :projectId,
+ *   :naturalLanguageQuery,
+ *   :generatedSql,
+ *   :queryParamsJson,
+ *   :baseTimeFrom,
+ *   :baseTimeTo,
+ *   :sampleSize,
+ *   :totalEligibleUserCount,
+ *   :sampleRatio,
+ *   :sampleSizeStatus,
+ *   :resultColumnsJson,
+ *   :resultPreviewJson,
+ *   'previewed'
+ * )
+ * RETURNING
+ *   query_preview_id AS "queryPreviewId",
+ *   project_id AS "projectId",
+ *   natural_language_query AS "naturalLanguageQuery",
+ *   generated_sql AS "generatedSql",
+ *   sample_size AS "sampleSize",
+ *   total_eligible_user_count AS "totalEligibleUserCount",
+ *   sample_ratio::float8 AS "sampleRatio",
+ *   sample_size_status AS "sampleSizeStatus",
+ *   result_columns_json AS "resultColumnsJson",
+ *   result_preview_json AS "resultPreviewJson",
+ *   status                                     
+ * ```
+ */
+export const insertDashboardSegmentQueryPreview = new PreparedQuery<IInsertDashboardSegmentQueryPreviewParams,IInsertDashboardSegmentQueryPreviewResult>(insertDashboardSegmentQueryPreviewIR);
+
+
+/** 'GetDashboardSegmentQueryPreviewForSave' parameters type */
+export interface IGetDashboardSegmentQueryPreviewForSaveParams {
+  projectId?: string | null | void;
+  queryPreviewId?: string | null | void;
+}
+
+/** 'GetDashboardSegmentQueryPreviewForSave' return type */
+export interface IGetDashboardSegmentQueryPreviewForSaveResult {
+  generatedSql: string;
+  naturalLanguageQuery: string;
+  projectId: string;
+  queryPreviewId: string;
+  sampleRatio: number | null;
+  sampleSize: number;
+  sampleSizeStatus: string;
+  status: string;
+  totalEligibleUserCount: number;
+}
+
+/** 'GetDashboardSegmentQueryPreviewForSave' query type */
+export interface IGetDashboardSegmentQueryPreviewForSaveQuery {
+  params: IGetDashboardSegmentQueryPreviewForSaveParams;
+  result: IGetDashboardSegmentQueryPreviewForSaveResult;
+}
+
+const getDashboardSegmentQueryPreviewForSaveIR: any = {"usedParamSet":{"projectId":true,"queryPreviewId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":392,"b":401}]},{"name":"queryPreviewId","required":false,"transform":{"type":"scalar"},"locs":[{"a":428,"b":442}]}],"statement":"SELECT\n  query_preview_id AS \"queryPreviewId\",\n  project_id AS \"projectId\",\n  natural_language_query AS \"naturalLanguageQuery\",\n  generated_sql AS \"generatedSql\",\n  sample_size AS \"sampleSize\",\n  total_eligible_user_count AS \"totalEligibleUserCount\",\n  sample_ratio::float8 AS \"sampleRatio\",\n  sample_size_status AS \"sampleSizeStatus\",\n  status\nFROM segment_query_previews\nWHERE project_id = :projectId\n  AND query_preview_id = :queryPreviewId                                                  "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   query_preview_id AS "queryPreviewId",
+ *   project_id AS "projectId",
+ *   natural_language_query AS "naturalLanguageQuery",
+ *   generated_sql AS "generatedSql",
+ *   sample_size AS "sampleSize",
+ *   total_eligible_user_count AS "totalEligibleUserCount",
+ *   sample_ratio::float8 AS "sampleRatio",
+ *   sample_size_status AS "sampleSizeStatus",
+ *   status
+ * FROM segment_query_previews
+ * WHERE project_id = :projectId
+ *   AND query_preview_id = :queryPreviewId                                                  
+ * ```
+ */
+export const getDashboardSegmentQueryPreviewForSave = new PreparedQuery<IGetDashboardSegmentQueryPreviewForSaveParams,IGetDashboardSegmentQueryPreviewForSaveResult>(getDashboardSegmentQueryPreviewForSaveIR);
+
+
+/** 'InsertDashboardCustomSegmentDefinition' parameters type */
+export interface IInsertDashboardCustomSegmentDefinitionParams {
+  generatedSql?: string | null | void;
+  naturalLanguageQuery?: string | null | void;
+  projectId?: string | null | void;
+  queryPreviewId?: string | null | void;
+  sampleRatio?: NumberOrString | null | void;
+  sampleSize?: number | null | void;
+  segmentId?: string | null | void;
+  segmentName?: string | null | void;
+  totalEligibleUserCount?: number | null | void;
+}
+
+/** 'InsertDashboardCustomSegmentDefinition' return type */
+export interface IInsertDashboardCustomSegmentDefinitionResult {
+  projectId: string;
+  queryPreviewId: string | null;
+  sampleRatio: number | null;
+  sampleSize: number;
+  segmentId: string;
+  segmentName: string;
+  source: string;
+  status: string;
+  totalEligibleUserCount: number;
+}
+
+/** 'InsertDashboardCustomSegmentDefinition' query type */
+export interface IInsertDashboardCustomSegmentDefinitionQuery {
+  params: IInsertDashboardCustomSegmentDefinitionParams;
+  result: IInsertDashboardCustomSegmentDefinitionResult;
+}
+
+const insertDashboardCustomSegmentDefinitionIR: any = {"usedParamSet":{"segmentId":true,"projectId":true,"segmentName":true,"queryPreviewId":true,"naturalLanguageQuery":true,"generatedSql":true,"sampleSize":true,"totalEligibleUserCount":true,"sampleRatio":true},"params":[{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":262,"b":271}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":276,"b":285}]},{"name":"segmentName","required":false,"transform":{"type":"scalar"},"locs":[{"a":290,"b":301}]},{"name":"queryPreviewId","required":false,"transform":{"type":"scalar"},"locs":[{"a":326,"b":340}]},{"name":"naturalLanguageQuery","required":false,"transform":{"type":"scalar"},"locs":[{"a":345,"b":365}]},{"name":"generatedSql","required":false,"transform":{"type":"scalar"},"locs":[{"a":370,"b":382}]},{"name":"sampleSize","required":false,"transform":{"type":"scalar"},"locs":[{"a":417,"b":427}]},{"name":"totalEligibleUserCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":432,"b":454}]},{"name":"sampleRatio","required":false,"transform":{"type":"scalar"},"locs":[{"a":459,"b":470}]}],"statement":"INSERT INTO segment_definitions (\n  segment_id,\n  project_id,\n  segment_name,\n  source,\n  query_preview_id,\n  natural_language_query,\n  generated_sql,\n  rule_json,\n  profile_json,\n  sample_size,\n  total_eligible_user_count,\n  sample_ratio,\n  status\n)\nVALUES (\n  :segmentId,\n  :projectId,\n  :segmentName,\n  'custom_chatkit',\n  :queryPreviewId,\n  :naturalLanguageQuery,\n  :generatedSql,\n  '{}'::jsonb,\n  '{}'::jsonb,\n  :sampleSize,\n  :totalEligibleUserCount,\n  :sampleRatio,\n  'active'\n)\nRETURNING\n  segment_id AS \"segmentId\",\n  project_id AS \"projectId\",\n  segment_name AS \"segmentName\",\n  source,\n  query_preview_id AS \"queryPreviewId\",\n  sample_size AS \"sampleSize\",\n  total_eligible_user_count AS \"totalEligibleUserCount\",\n  sample_ratio::float8 AS \"sampleRatio\",\n  status                                   "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * INSERT INTO segment_definitions (
+ *   segment_id,
+ *   project_id,
+ *   segment_name,
+ *   source,
+ *   query_preview_id,
+ *   natural_language_query,
+ *   generated_sql,
+ *   rule_json,
+ *   profile_json,
+ *   sample_size,
+ *   total_eligible_user_count,
+ *   sample_ratio,
+ *   status
+ * )
+ * VALUES (
+ *   :segmentId,
+ *   :projectId,
+ *   :segmentName,
+ *   'custom_chatkit',
+ *   :queryPreviewId,
+ *   :naturalLanguageQuery,
+ *   :generatedSql,
+ *   '{}'::jsonb,
+ *   '{}'::jsonb,
+ *   :sampleSize,
+ *   :totalEligibleUserCount,
+ *   :sampleRatio,
+ *   'active'
+ * )
+ * RETURNING
+ *   segment_id AS "segmentId",
+ *   project_id AS "projectId",
+ *   segment_name AS "segmentName",
+ *   source,
+ *   query_preview_id AS "queryPreviewId",
+ *   sample_size AS "sampleSize",
+ *   total_eligible_user_count AS "totalEligibleUserCount",
+ *   sample_ratio::float8 AS "sampleRatio",
+ *   status                                   
+ * ```
+ */
+export const insertDashboardCustomSegmentDefinition = new PreparedQuery<IInsertDashboardCustomSegmentDefinitionParams,IInsertDashboardCustomSegmentDefinitionResult>(insertDashboardCustomSegmentDefinitionIR);
+
+
+/** 'MarkDashboardSegmentQueryPreviewSaved' parameters type */
+export interface IMarkDashboardSegmentQueryPreviewSavedParams {
+  projectId?: string | null | void;
+  queryPreviewId?: string | null | void;
+}
+
+/** 'MarkDashboardSegmentQueryPreviewSaved' return type */
+export interface IMarkDashboardSegmentQueryPreviewSavedResult {
+  queryPreviewId: string;
+}
+
+/** 'MarkDashboardSegmentQueryPreviewSaved' query type */
+export interface IMarkDashboardSegmentQueryPreviewSavedQuery {
+  params: IMarkDashboardSegmentQueryPreviewSavedParams;
+  result: IMarkDashboardSegmentQueryPreviewSavedResult;
+}
+
+const markDashboardSegmentQueryPreviewSavedIR: any = {"usedParamSet":{"projectId":true,"queryPreviewId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":70,"b":79}]},{"name":"queryPreviewId","required":false,"transform":{"type":"scalar"},"locs":[{"a":106,"b":120}]}],"statement":"UPDATE segment_query_previews\nSET status = 'saved'\nWHERE project_id = :projectId\n  AND query_preview_id = :queryPreviewId\nRETURNING query_preview_id AS \"queryPreviewId\"                                  "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE segment_query_previews
+ * SET status = 'saved'
+ * WHERE project_id = :projectId
+ *   AND query_preview_id = :queryPreviewId
+ * RETURNING query_preview_id AS "queryPreviewId"                                  
+ * ```
+ */
+export const markDashboardSegmentQueryPreviewSaved = new PreparedQuery<IMarkDashboardSegmentQueryPreviewSavedParams,IMarkDashboardSegmentQueryPreviewSavedResult>(markDashboardSegmentQueryPreviewSavedIR);
 
 
 /** 'ListActiveFunnels' parameters type */

@@ -189,6 +189,63 @@ export const DashboardSegmentDetailSchema = z.object({
 });
 export type DashboardSegmentDetail = z.infer<typeof DashboardSegmentDetailSchema>;
 
+export const DashboardSegmentPreviewRowSchema = z.record(z.string(), z.unknown());
+export type DashboardSegmentPreviewRow = z.infer<typeof DashboardSegmentPreviewRowSchema>;
+
+export const DashboardSegmentSampleSizeStatusSchema = z.enum([
+  "valid",
+  "too_small",
+  "too_large",
+  "failed"
+]);
+export type DashboardSegmentSampleSizeStatus = z.infer<
+  typeof DashboardSegmentSampleSizeStatusSchema
+>;
+
+export const DashboardSegmentQueryPreviewRequestSchema = z.object({
+  natural_language_query: z.string().min(1),
+  base_time_range: z
+    .object({
+      from: z.string().datetime(),
+      to: z.string().datetime()
+    })
+    .optional()
+});
+export type DashboardSegmentQueryPreviewRequest = z.infer<
+  typeof DashboardSegmentQueryPreviewRequestSchema
+>;
+
+export const DashboardSegmentQueryPreviewSchema = z.object({
+  query_preview_id: z.string(),
+  generated_sql: z.string(),
+  sample_size: CountSchema,
+  total_eligible_user_count: CountSchema,
+  sample_ratio: z.number().nonnegative(),
+  sample_size_status: DashboardSegmentSampleSizeStatusSchema,
+  columns: z.array(z.string()),
+  rows: z.array(DashboardSegmentPreviewRowSchema)
+});
+export type DashboardSegmentQueryPreview = z.infer<typeof DashboardSegmentQueryPreviewSchema>;
+
+export const DashboardSaveSegmentRequestSchema = z.object({
+  query_preview_id: z.string().min(1),
+  segment_name: z.string().min(1)
+});
+export type DashboardSaveSegmentRequest = z.infer<typeof DashboardSaveSegmentRequestSchema>;
+
+export const DashboardSavedSegmentSchema = z.object({
+  segment_id: z.string(),
+  project_id: z.string(),
+  segment_name: z.string(),
+  source: z.literal("custom_chatkit"),
+  query_preview_id: z.string(),
+  sample_size: CountSchema,
+  total_eligible_user_count: CountSchema,
+  sample_ratio: z.number().nonnegative(),
+  status: z.literal("active")
+});
+export type DashboardSavedSegment = z.infer<typeof DashboardSavedSegmentSchema>;
+
 export const DashboardFunnelStepSchema = z.object({
   step_order: CountSchema,
   step_name: z.string(),

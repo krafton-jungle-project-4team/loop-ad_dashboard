@@ -9,7 +9,11 @@ import {
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardPromotionDetailSchema,
-  DashboardSegmentDetailSchema
+  DashboardSavedSegmentSchema,
+  DashboardSaveSegmentRequestSchema,
+  DashboardSegmentDetailSchema,
+  DashboardSegmentQueryPreviewRequestSchema,
+  DashboardSegmentQueryPreviewSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -103,6 +107,27 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardDeleteFunnelResultSchema.parse(
       await this.dashboardQuery.deleteFunnel(requiredProjectId, funnelId)
+    );
+  }
+
+  @Post("segments/query-preview")
+  async createSegmentQueryPreview(
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardSegmentQueryPreviewRequestSchema.parse(body);
+    return DashboardSegmentQueryPreviewSchema.parse(
+      await this.dashboardQuery.createSegmentQueryPreview(requiredProjectId, request)
+    );
+  }
+
+  @Post("segments")
+  async saveSegment(@Query("project_id") projectId: string | undefined, @Body() body: unknown) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardSaveSegmentRequestSchema.parse(body);
+    return DashboardSavedSegmentSchema.parse(
+      await this.dashboardQuery.saveSegment(requiredProjectId, request)
     );
   }
 }

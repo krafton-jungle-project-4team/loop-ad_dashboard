@@ -9,7 +9,11 @@ import {
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardPromotionDetailSchema,
-  DashboardSegmentDetailSchema
+  DashboardSavedSegmentSchema,
+  DashboardSaveSegmentRequestSchema,
+  DashboardSegmentDetailSchema,
+  DashboardSegmentQueryPreviewRequestSchema,
+  DashboardSegmentQueryPreviewSchema
 } from "@loopad/shared";
 import type {
   DashboardCampaignDetail,
@@ -19,7 +23,11 @@ import type {
   DashboardFunnel,
   DashboardFunnelMetrics,
   DashboardPromotionDetail,
-  DashboardSegmentDetail
+  DashboardSavedSegment,
+  DashboardSaveSegmentRequest,
+  DashboardSegmentDetail,
+  DashboardSegmentQueryPreview,
+  DashboardSegmentQueryPreviewRequest
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -146,6 +154,52 @@ export async function deleteDashboardFunnel(
   return createApiSuccessResponseSchema(DashboardDeleteFunnelResultSchema).parse(
     await response.json()
   ).data;
+}
+
+export async function createDashboardSegmentQueryPreview(
+  query: DashboardQuery,
+  requestBody: DashboardSegmentQueryPreviewRequest
+): Promise<DashboardSegmentQueryPreview> {
+  const parsedBody = DashboardSegmentQueryPreviewRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments/query-preview`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardSegmentQueryPreviewSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function saveDashboardSegment(
+  query: DashboardQuery,
+  requestBody: DashboardSaveSegmentRequest
+): Promise<DashboardSavedSegment> {
+  const parsedBody = DashboardSaveSegmentRequestSchema.parse(requestBody);
+  const url = new URL(`${dashboardConfig.apiBaseUrl}/dashboard/v1/segments`, window.location.origin);
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
+    .data;
 }
 
 export async function fetchDashboardEventCatalog(

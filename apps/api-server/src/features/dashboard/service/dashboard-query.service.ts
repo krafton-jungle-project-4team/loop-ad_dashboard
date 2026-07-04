@@ -9,10 +9,18 @@ import type {
   DashboardFunnelMetrics,
   DashboardMain,
   DashboardPromotionDetail,
-  DashboardSegmentDetail
+  DashboardSavedSegment,
+  DashboardSaveSegmentRequest,
+  DashboardSegmentDetail,
+  DashboardSegmentQueryPreview,
+  DashboardSegmentQueryPreviewRequest
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
-import { DashboardCampaignReader, DashboardFunnelReader } from "../repository/index.js";
+import {
+  DashboardCampaignReader,
+  DashboardFunnelReader,
+  DashboardSegmentQueryRepository
+} from "../repository/index.js";
 
 @Injectable()
 export class DashboardQueryService {
@@ -21,6 +29,8 @@ export class DashboardQueryService {
     private readonly campaignReader: DashboardCampaignReader,
     @Inject(DashboardFunnelReader)
     private readonly funnelReader: DashboardFunnelReader,
+    @Inject(DashboardSegmentQueryRepository)
+    private readonly segmentQueryRepository: DashboardSegmentQueryRepository,
     @InjectTransactionHost()
     private readonly transactionHost: TransactionHost<PgTypedTransactionalAdapter>
   ) {}
@@ -99,6 +109,24 @@ export class DashboardQueryService {
   ): Promise<DashboardDeleteFunnelResult> {
     return this.transactionHost.withTransaction(() =>
       this.funnelReader.deleteFunnel(projectId, funnelId)
+    );
+  }
+
+  async createSegmentQueryPreview(
+    projectId: string,
+    request: DashboardSegmentQueryPreviewRequest
+  ): Promise<DashboardSegmentQueryPreview> {
+    return this.transactionHost.withTransaction(() =>
+      this.segmentQueryRepository.createQueryPreview(projectId, request)
+    );
+  }
+
+  async saveSegment(
+    projectId: string,
+    request: DashboardSaveSegmentRequest
+  ): Promise<DashboardSavedSegment> {
+    return this.transactionHost.withTransaction(() =>
+      this.segmentQueryRepository.saveSegment(projectId, request)
     );
   }
 }

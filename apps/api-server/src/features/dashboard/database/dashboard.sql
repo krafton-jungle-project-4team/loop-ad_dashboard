@@ -291,6 +291,120 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY updated_at DESC, created_at DESC;
 
+/* 목적: 자연어 세그먼트 조회 preview 결과를 저장합니다. */
+/* @name InsertDashboardSegmentQueryPreview */
+INSERT INTO segment_query_previews (
+  query_preview_id,
+  project_id,
+  natural_language_query,
+  generated_sql,
+  query_params_json,
+  base_time_from,
+  base_time_to,
+  sample_size,
+  total_eligible_user_count,
+  sample_ratio,
+  sample_size_status,
+  result_columns_json,
+  result_preview_json,
+  status
+)
+VALUES (
+  :queryPreviewId,
+  :projectId,
+  :naturalLanguageQuery,
+  :generatedSql,
+  :queryParamsJson,
+  :baseTimeFrom,
+  :baseTimeTo,
+  :sampleSize,
+  :totalEligibleUserCount,
+  :sampleRatio,
+  :sampleSizeStatus,
+  :resultColumnsJson,
+  :resultPreviewJson,
+  'previewed'
+)
+RETURNING
+  query_preview_id AS "queryPreviewId",
+  project_id AS "projectId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  sample_size_status AS "sampleSizeStatus",
+  result_columns_json AS "resultColumnsJson",
+  result_preview_json AS "resultPreviewJson",
+  status;
+
+/* 목적: 저장 가능한 세그먼트 preview를 조회합니다. */
+/* @name GetDashboardSegmentQueryPreviewForSave */
+SELECT
+  query_preview_id AS "queryPreviewId",
+  project_id AS "projectId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  sample_size_status AS "sampleSizeStatus",
+  status
+FROM segment_query_previews
+WHERE project_id = :projectId
+  AND query_preview_id = :queryPreviewId;
+
+/* 목적: 사용자 정의 세그먼트를 segment_definitions에 저장합니다. */
+/* @name InsertDashboardCustomSegmentDefinition */
+INSERT INTO segment_definitions (
+  segment_id,
+  project_id,
+  segment_name,
+  source,
+  query_preview_id,
+  natural_language_query,
+  generated_sql,
+  rule_json,
+  profile_json,
+  sample_size,
+  total_eligible_user_count,
+  sample_ratio,
+  status
+)
+VALUES (
+  :segmentId,
+  :projectId,
+  :segmentName,
+  'custom_chatkit',
+  :queryPreviewId,
+  :naturalLanguageQuery,
+  :generatedSql,
+  '{}'::jsonb,
+  '{}'::jsonb,
+  :sampleSize,
+  :totalEligibleUserCount,
+  :sampleRatio,
+  'active'
+)
+RETURNING
+  segment_id AS "segmentId",
+  project_id AS "projectId",
+  segment_name AS "segmentName",
+  source,
+  query_preview_id AS "queryPreviewId",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  status;
+
+/* 목적: 저장 완료된 preview 상태를 갱신합니다. */
+/* @name MarkDashboardSegmentQueryPreviewSaved */
+UPDATE segment_query_previews
+SET status = 'saved'
+WHERE project_id = :projectId
+  AND query_preview_id = :queryPreviewId
+RETURNING query_preview_id AS "queryPreviewId";
+
 /* 목적: 한 프로젝트의 활성 퍼널 목록을 조회합니다. */
 /* @name ListActiveFunnels */
 SELECT
