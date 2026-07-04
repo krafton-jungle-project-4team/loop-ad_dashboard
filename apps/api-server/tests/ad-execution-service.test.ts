@@ -28,7 +28,8 @@ process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
-process.env.LOOPAD_AD_DISPATCH_PROVIDER ??= "mock";
+process.env.LOOPAD_AWS_REGION ??= "ap-northeast-2";
+process.env.LOOPAD_AD_EMAIL_FROM_ADDRESS ??= "ads@example.test";
 
 const { BannerResolveService } =
   await import("../src/features/ad-execution/service/banner-resolve.service.js");
@@ -36,17 +37,18 @@ const { PromotionDispatchService } =
   await import("../src/features/ad-execution/service/promotion-dispatch.service.js");
 const { RedirectService } =
   await import("../src/features/ad-execution/service/redirect.service.js");
-const { AwsEndUserMessagingSmsSender, AwsSesEmailSender, MockEmailSender, MockSmsSender } =
+const { AwsEndUserMessagingSmsSender, AwsSesEmailSender } =
   await import("../src/features/ad-execution/adapters/dispatch-sender.js");
 const { createEmailSender, createSmsSender } =
   await import("../src/features/ad-execution/ad-execution.module.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
 
-test("dispatch uses stored assignments and records mock sender success", async () => {
+test("dispatch uses stored assignments and records sender success", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
-  const service = createDispatchService(reader, writer);
+  const emailSender = new RecordingEmailSender();
+  const service = createDispatchService(reader, writer, emailSender);
 
   reader.dispatchAssignments = [
     assignment({ userId: "user-ok" }),
@@ -68,8 +70,8 @@ test("dispatch uses stored assignments and records mock sender success", async (
   assert.equal(writer.finishes[0]?.status, "completed");
   assert.equal(writer.finishes[0]?.failedCount, 0);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
-  assert.equal(logs.filter((entry) => entry.message === "Mock ad dispatch sent").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
+  assert.equal(emailSender.inputs.length, 2);
   assert.deepEqual(
     logs
       .filter((entry) => entry.message === "Ad dispatch send result")
@@ -87,7 +89,7 @@ test("dispatch uses stored assignments and records mock sender success", async (
   );
 });
 
-test("dispatch provider selection creates mock and AWS senders from config", () => {
+test("dispatch module always creates AWS senders from config", () => {
   const awsConfig = {
     region: "ap-northeast-2",
     emailFromAddress: "ads@example.test",
@@ -96,10 +98,8 @@ test("dispatch provider selection creates mock and AWS senders from config", () 
     smsOriginationIdentity: "sender-id"
   };
 
-  assert.equal(createEmailSender("mock").providerName, "mock");
-  assert.equal(createSmsSender("mock").providerName, "mock");
-  assert.equal(createEmailSender("aws", awsConfig) instanceof AwsSesEmailSender, true);
-  assert.equal(createSmsSender("aws", awsConfig) instanceof AwsEndUserMessagingSmsSender, true);
+  assert.equal(createEmailSender(awsConfig) instanceof AwsSesEmailSender, true);
+  assert.equal(createSmsSender(awsConfig) instanceof AwsEndUserMessagingSmsSender, true);
 });
 
 test("dispatch resolves user_id to email before sending", async () => {
@@ -118,7 +118,7 @@ test("dispatch resolves user_id to email before sending", async () => {
       reader,
       writer,
       emailSender,
-      new MockSmsSender(),
+      new RecordingSmsSender(),
       recipientDirectory
     ).dispatchPromotionRun("run-1")
   );
@@ -140,7 +140,7 @@ test("dispatch records RECIPIENT_NOT_FOUND without creating a redirect", async (
       reader,
       writer,
       emailSender,
-      new MockSmsSender(),
+      new RecordingSmsSender(),
       recipientDirectory
     ).dispatchPromotionRun("run-1")
   );
@@ -169,7 +169,7 @@ test("dispatch honors email opt-in before sending", async () => {
       reader,
       writer,
       emailSender,
-      new MockSmsSender(),
+      new RecordingSmsSender(),
       recipientDirectory
     ).dispatchPromotionRun("run-1")
   );
@@ -205,7 +205,7 @@ test("dispatch honors sms opt-in and validates phone contact", async () => {
     createDispatchService(
       reader,
       writer,
-      new MockEmailSender(),
+      new RecordingEmailSender(),
       smsSender,
       recipientDirectory
     ).dispatchPromotionRun("run-1")
@@ -464,8 +464,8 @@ test("redirect page escapes script data and fallback href with stable libraries"
 function createDispatchService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
-  emailSender = new MockEmailSender(),
-  smsSender = new MockSmsSender(),
+  emailSender = new RecordingEmailSender(),
+  smsSender = new RecordingSmsSender(),
   recipientDirectory = new FakeRecipientDirectory()
 ) {
   return new PromotionDispatchService(

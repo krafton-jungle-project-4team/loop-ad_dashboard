@@ -4,7 +4,7 @@ const DASHBOARD_SERVICE_ID = "dashboard-api";
 
 const requiredString = z.string().trim().min(1);
 const optionalString = z.preprocess(emptyStringToUndefined, z.string().trim().min(1).optional());
-const optionalEmail = z.preprocess(emptyStringToUndefined, z.string().trim().email().optional());
+const requiredEmail = z.string().trim().email();
 const positivePort = z.coerce.number().int().min(1).max(65535);
 const optionalPort = z.preprocess(emptyStringToUndefined, positivePort.optional());
 const httpUrl = requiredString.url().refine(
@@ -15,54 +15,31 @@ const httpUrl = requiredString.url().refine(
   { message: "must be an http or https URL" }
 );
 
-const envSchema = z
-  .object({
-    LOOPAD_ENV: requiredString,
-    LOOPAD_SERVICE_ID: z.literal(DASHBOARD_SERVICE_ID),
-    PORT: positivePort,
-    LOOPAD_AURORA_HOST: requiredString,
-    LOOPAD_AURORA_PORT: positivePort,
-    LOOPAD_AURORA_DATABASE: requiredString,
-    LOOPAD_AURORA_USERNAME: requiredString,
-    LOOPAD_AURORA_PASSWORD: requiredString,
-    LOOPAD_CLICKHOUSE_URL: httpUrl,
-    LOOPAD_CLICKHOUSE_DATABASE: requiredString,
-    LOOPAD_CLICKHOUSE_USERNAME: requiredString,
-    LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
-    LOOPAD_OPENAI_API_KEY: requiredString,
-    LOOPAD_AD_DISPATCH_PROVIDER: z.enum(["mock", "aws"]),
-    LOOPAD_AWS_REGION: optionalString,
-    LOOPAD_AD_EMAIL_FROM_ADDRESS: optionalEmail,
-    LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET: optionalString,
-    LOOPAD_AD_SMS_CONFIGURATION_SET: optionalString,
-    LOOPAD_AD_SMS_ORIGINATION_IDENTITY: optionalString,
-    LOOPAD_DEMO_RECIPIENT_DB_HOST: optionalString,
-    LOOPAD_DEMO_RECIPIENT_DB_PORT: optionalPort,
-    LOOPAD_DEMO_RECIPIENT_DB_DATABASE: optionalString,
-    LOOPAD_DEMO_RECIPIENT_DB_USERNAME: optionalString,
-    LOOPAD_DEMO_RECIPIENT_DB_PASSWORD: optionalString
-  })
-  .superRefine((value, context) => {
-    if (value.LOOPAD_AD_DISPATCH_PROVIDER !== "aws") {
-      return;
-    }
-
-    if (!value.LOOPAD_AWS_REGION) {
-      context.addIssue({
-        code: "custom",
-        path: ["LOOPAD_AWS_REGION"],
-        message: "is required when LOOPAD_AD_DISPATCH_PROVIDER is aws"
-      });
-    }
-
-    if (!value.LOOPAD_AD_EMAIL_FROM_ADDRESS) {
-      context.addIssue({
-        code: "custom",
-        path: ["LOOPAD_AD_EMAIL_FROM_ADDRESS"],
-        message: "is required when LOOPAD_AD_DISPATCH_PROVIDER is aws"
-      });
-    }
-  });
+const envSchema = z.object({
+  LOOPAD_ENV: requiredString,
+  LOOPAD_SERVICE_ID: z.literal(DASHBOARD_SERVICE_ID),
+  PORT: positivePort,
+  LOOPAD_AURORA_HOST: requiredString,
+  LOOPAD_AURORA_PORT: positivePort,
+  LOOPAD_AURORA_DATABASE: requiredString,
+  LOOPAD_AURORA_USERNAME: requiredString,
+  LOOPAD_AURORA_PASSWORD: requiredString,
+  LOOPAD_CLICKHOUSE_URL: httpUrl,
+  LOOPAD_CLICKHOUSE_DATABASE: requiredString,
+  LOOPAD_CLICKHOUSE_USERNAME: requiredString,
+  LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
+  LOOPAD_OPENAI_API_KEY: requiredString,
+  LOOPAD_AWS_REGION: requiredString,
+  LOOPAD_AD_EMAIL_FROM_ADDRESS: requiredEmail,
+  LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET: optionalString,
+  LOOPAD_AD_SMS_CONFIGURATION_SET: optionalString,
+  LOOPAD_AD_SMS_ORIGINATION_IDENTITY: optionalString,
+  LOOPAD_DEMO_RECIPIENT_DB_HOST: optionalString,
+  LOOPAD_DEMO_RECIPIENT_DB_PORT: optionalPort,
+  LOOPAD_DEMO_RECIPIENT_DB_DATABASE: optionalString,
+  LOOPAD_DEMO_RECIPIENT_DB_USERNAME: optionalString,
+  LOOPAD_DEMO_RECIPIENT_DB_PASSWORD: optionalString
+});
 
 const parsedEnv = parseEnv(process.env);
 
@@ -87,7 +64,6 @@ export const env = Object.freeze({
     apiKey: parsedEnv.LOOPAD_OPENAI_API_KEY
   },
   dispatch: {
-    provider: parsedEnv.LOOPAD_AD_DISPATCH_PROVIDER,
     aws: {
       region: parsedEnv.LOOPAD_AWS_REGION,
       emailFromAddress: parsedEnv.LOOPAD_AD_EMAIL_FROM_ADDRESS,

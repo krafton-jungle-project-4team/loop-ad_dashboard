@@ -32,8 +32,7 @@ src
 - Env validation: 서버 시작 시 필수 외부 DB 연결 정보를 즉시 검증한다.
 - OpenAI env validation: Data Explorer AI query plan은 `LOOPAD_OPENAI_API_KEY`를
   필수로 검증하고, 누락/실패 시 fallback plan을 만들지 않는다. OpenAI model은 앱 코드 상수로 관리한다.
-- Ad dispatch env validation: Email/SMS 발송 provider, AWS region, SES/SMS 옵션,
-  demo recipient read DB 연결 정보를 서버 시작 시 검증한다.
+- Ad dispatch env validation: AWS region, SES/SMS 옵션, demo recipient read DB 연결 정보를 서버 시작 시 검증한다.
 - 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer/view query 계층만 ClickHouse/Postgres를 조회한다.
 
 ## 개발 규칙
@@ -49,7 +48,7 @@ src
 - 프론트는 백엔드 API 응답을 받아 shadcn/ui 기반 화면으로 렌더링한다.
 - DB 조회, 조인, 이벤트 count, 퍼널 계산, CTR/CVR 계산은 백엔드에서 수행한다.
 - 프론트는 숫자 포맷팅, 퍼센트 표시, UI 배치 정도만 수행한다.
-- mock success나 fallback 데이터를 만들지 않는다.
+- fallback 데이터를 만들지 않는다.
 - 인프라 파일은 명시 요청 없이는 수정하지 않는다.
 
 ## 실행
@@ -84,14 +83,14 @@ Dashboard FE
 - 목적: 대시보드 메인의 캠페인 목록을 조회한다.
 - 조회하는 DB: Aurora Postgres contract DB의 `campaigns`, `promotions`, `promotion_target_segments`, `ad_experiments`, `promotion_evaluations`.
 - 주요 응답 필드: `campaigns`, `promotion_count`, `segment_count`, `ad_experiment_count`, `latest_goal_achievement_rate`.
-- 실패 시 동작: mock 값 없이 API 에러를 반환하고 프론트는 Alert를 표시한다.
+- 실패 시 동작: fallback 값 없이 API 에러를 반환하고 프론트는 Alert를 표시한다.
 
 `GET /api/dashboard/v1/funnels?project_id=hotel-client-a`
 
 - 목적: 관리자가 저장한 활성 퍼널 정의와 단계를 조회한다.
 - 조회하는 DB: Aurora Postgres contract DB의 `funnel_definitions`, `funnel_steps`.
 - 주요 응답 필드: `funnels`, `steps`, `step_name`, `event_name`.
-- 실패 시 동작: mock 값 없이 API 에러를 반환한다.
+- 실패 시 동작: fallback 값 없이 API 에러를 반환한다.
 
 `GET /api/dashboard/v1/event-catalog?project_id=hotel-client-a`
 
@@ -112,10 +111,10 @@ Dashboard FE
 `POST /api/ad/promotion-runs/:promotion_run_id/dispatch`
 
 - 목적: 저장된 active assignment를 기준으로 Email/SMS promotion을 외부 provider로 발송한다.
-- Provider 선택: `LOOPAD_AD_DISPATCH_PROVIDER=mock|aws`로 선택한다. `mock`은 로컬 개발과 테스트용이며 실제 연락처를 외부로 보내지 않는다.
-- AWS Email: `aws` provider는 SES v2 `SendEmail`을 사용한다. `LOOPAD_AWS_REGION`,
-  `LOOPAD_AD_EMAIL_FROM_ADDRESS`, 선택 값 `LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET`을 사용한다.
-- AWS SMS: `aws` provider는 AWS End User Messaging SMS Voice v2 `SendTextMessage`를 사용한다.
+- Provider: Email/SMS dispatch는 항상 AWS provider를 사용한다.
+- AWS Email: SES v2 `SendEmail`을 사용한다. `LOOPAD_AWS_REGION`, `LOOPAD_AD_EMAIL_FROM_ADDRESS`,
+  선택 값 `LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET`을 사용한다.
+- AWS SMS: AWS End User Messaging SMS Voice v2 `SendTextMessage`를 사용한다.
   `LOOPAD_AD_SMS_CONFIGURATION_SET`, `LOOPAD_AD_SMS_ORIGINATION_IDENTITY`가 있으면 command input에 포함한다.
 - Recipient 해석: sender에는 `user_id`를 넘기지 않는다. `RecipientDirectory`가 별도 read-only pool로
   `demo_recipients` read model을 조회해 email, phone number, opt-in 상태를 반환한다.
@@ -157,7 +156,7 @@ Dashboard FE
 - ClickHouse/Postgres는 외부 데이터 저장소로 간주한다.
 - 프론트는 DB에 직접 접근하지 않는다.
 - 백엔드는 env/config로 주입된 연결 정보로 외부 DB에 접속한다.
-- 연결 실패 시 mock/fallback success를 반환하지 않는다.
+- 연결 실패 시 fallback success를 반환하지 않는다.
 - 실패는 명확한 에러로 드러낸다.
 
 ## 금지 사항
@@ -165,7 +164,7 @@ Dashboard FE
 - AI 서버 POST 호출 금지
 - 콘텐츠 생성 POST 호출 금지
 - 실험 평가 POST 호출 금지
-- mock success 금지
+- fallback success 금지
 - fallback content 금지
 - fallback image 금지
 - fallback project/segment/experiment 금지

@@ -1,12 +1,9 @@
-import { randomUUID } from "node:crypto";
 import {
   PinpointSMSVoiceV2Client,
   SendTextMessageCommand,
   type SendTextMessageCommandOutput
 } from "@aws-sdk/client-pinpoint-sms-voice-v2";
 import { SendEmailCommand, SESv2Client, type SendEmailCommandOutput } from "@aws-sdk/client-sesv2";
-import { Injectable } from "@nestjs/common";
-import { logWithContext } from "../../../infra/logger/index.js";
 
 export interface EmailSendInput {
   recipient: string;
@@ -56,40 +53,6 @@ export abstract class SmsSender {
   abstract readonly providerName: string;
   /** SMS 발송을 실행합니다. */
   abstract sendSms(input: SmsSendInput): Promise<DispatchSendResult>;
-}
-
-/** 로컬/현재 배포에서 사용하는 Mock Email sender입니다. */
-@Injectable()
-export class MockEmailSender extends EmailSender {
-  override readonly providerName = "mock";
-
-  /** 실패 없이 mock 전송 로그와 message id를 반환합니다. */
-  async sendEmail(input: EmailSendInput): Promise<DispatchSendResult> {
-    void input;
-    logMockSend("email", this.providerName);
-
-    return {
-      provider: this.providerName,
-      providerMessageId: `mock_email_${randomUUID()}`
-    };
-  }
-}
-
-/** 로컬/현재 배포에서 사용하는 Mock SMS sender입니다. */
-@Injectable()
-export class MockSmsSender extends SmsSender {
-  override readonly providerName = "mock";
-
-  /** 실패 없이 mock 전송 로그와 message id를 반환합니다. */
-  async sendSms(input: SmsSendInput): Promise<DispatchSendResult> {
-    void input;
-    logMockSend("sms", this.providerName);
-
-    return {
-      provider: this.providerName,
-      providerMessageId: `mock_sms_${randomUUID()}`
-    };
-  }
 }
 
 /** AWS SES v2로 Email을 발송하는 sender입니다. */
@@ -186,11 +149,4 @@ function optionalCommandField<TKey extends string>(
   value: string | undefined
 ): Partial<Record<TKey, string>> {
   return value ? ({ [key]: value } as Record<TKey, string>) : {};
-}
-
-function logMockSend(channel: "email" | "sms", provider: string) {
-  logWithContext("info", "Mock ad dispatch sent", {
-    channel,
-    provider
-  });
 }
