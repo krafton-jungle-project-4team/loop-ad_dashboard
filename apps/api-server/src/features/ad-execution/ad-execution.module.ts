@@ -21,7 +21,7 @@ import {
 } from "./service/index.js";
 
 export const AD_DISPATCH_AWS_REGION = "ap-northeast-2";
-export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@looapd.org";
+export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@loop-ad.org";
 
 /** 광고 실행 기능의 controller, service, adapter provider를 묶는 모듈입니다. */
 @Module({

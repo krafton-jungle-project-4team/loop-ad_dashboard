@@ -113,7 +113,7 @@ Dashboard FE
 - 목적: 저장된 active assignment를 기준으로 Email/SMS promotion을 외부 provider로 발송한다.
 - Provider: Email/SMS dispatch는 항상 AWS provider를 사용한다.
 - AWS Email: SES v2 `SendEmail`을 사용한다. Region은 `ap-northeast-2`, From address는
-  `noreply@looapd.org`로 코드에서 고정한다.
+  `noreply@loop-ad.org`로 코드에서 고정한다.
 - AWS SMS: AWS End User Messaging SMS Voice v2 `SendTextMessage`를 사용한다. Region은
   `ap-northeast-2`로 코드에서 고정한다.
 - Recipient 해석: sender에는 `user_id`를 넘기지 않는다. 현재 `RecipientDirectory`는 demo 발송을 위해

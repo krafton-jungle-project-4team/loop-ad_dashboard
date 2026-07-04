@@ -97,7 +97,7 @@ test("dispatch module always creates AWS senders from fixed code config", () => 
   assert.equal(createEmailSender() instanceof AwsSesEmailSender, true);
   assert.equal(createSmsSender() instanceof AwsEndUserMessagingSmsSender, true);
   assert.equal(AD_DISPATCH_AWS_REGION, "ap-northeast-2");
-  assert.equal(AD_DISPATCH_EMAIL_FROM_ADDRESS, "noreply@looapd.org");
+  assert.equal(AD_DISPATCH_EMAIL_FROM_ADDRESS, "noreply@loop-ad.org");
 });
 
 test("hardcoded demo recipient directory maps user_id to a demo allowlist contact", async () => {
@@ -106,7 +106,7 @@ test("hardcoded demo recipient directory maps user_id to a demo allowlist contac
   const recipient = await directory.findRecipient("analysis-db-user-1");
 
   assert.equal(recipient?.userId, "analysis-db-user-1");
-  assert.match(recipient?.email ?? "", /^demo-recipient-[1-3]@looapd\.org$/);
+  assert.match(recipient?.email ?? "", /^demo-recipient-[1-3]@loop-ad\.org$/);
   assert.match(recipient?.phoneNumber ?? "", /^\+82101234500[1-3]$/);
   assert.equal(recipient?.emailOptedIn, true);
   assert.equal(recipient?.smsOptedIn, true);

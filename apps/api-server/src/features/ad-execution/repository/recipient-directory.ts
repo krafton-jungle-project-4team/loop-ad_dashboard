@@ -20,15 +20,15 @@ export abstract class RecipientDirectory {
 
 const hardcodedDemoContacts = [
   {
-    email: "demo-recipient-1@looapd.org",
+    email: "demo-recipient-1@loop-ad.org",
     phoneNumber: "+821012345001"
   },
   {
-    email: "demo-recipient-2@looapd.org",
+    email: "demo-recipient-2@loop-ad.org",
     phoneNumber: "+821012345002"
   },
   {
-    email: "demo-recipient-3@looapd.org",
+    email: "demo-recipient-3@loop-ad.org",
     phoneNumber: "+821012345003"
   }
 ] as const;
