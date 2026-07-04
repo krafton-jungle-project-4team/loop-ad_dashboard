@@ -24,8 +24,9 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
+import { Tabs, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
@@ -77,6 +78,50 @@ export function CampaignDashboardPanel({
       selectedSegmentId
     )
   });
+  const selectedPromotion = campaignDetail.data?.promotions.find(
+    (promotion) => promotion.promotion_id === selectedPromotionId
+  );
+  const selectedSegment = (promotionDetail.data?.segments ?? campaignDetail.data?.segments ?? []).find(
+    (segment) =>
+      segment.segment_id === selectedSegmentId &&
+      (!selectedPromotionId || segment.promotion_id === selectedPromotionId)
+  );
+
+  useEffect(() => {
+    if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
+      void setDashboardQueryState({
+        selectedCampaignId: selectedCampaign.campaign_id,
+        selectedPromotionId: "",
+        selectedSegmentId: ""
+      });
+    }
+  }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
+
+  useEffect(() => {
+    if (!campaignDetail.data || !selectedPromotionId) {
+      return;
+    }
+
+    const hasSelectedPromotion = campaignDetail.data.promotions.some(
+      (promotion) => promotion.promotion_id === selectedPromotionId
+    );
+    if (!hasSelectedPromotion) {
+      void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+    }
+  }, [campaignDetail.data, selectedPromotionId, setDashboardQueryState]);
+
+  useEffect(() => {
+    if (!selectedSegmentId || !selectedPromotionId || !promotionDetail.data) {
+      return;
+    }
+
+    const hasSelectedSegment = promotionDetail.data.segments.some(
+      (segment) => segment.segment_id === selectedSegmentId
+    );
+    if (!hasSelectedSegment) {
+      void setDashboardQueryState({ selectedSegmentId: "" });
+    }
+  }, [promotionDetail.data, selectedPromotionId, selectedSegmentId, setDashboardQueryState]);
 
   return (
     <div className="grid gap-6">
@@ -126,6 +171,18 @@ export function CampaignDashboardPanel({
         </CardContent>
       </Card>
 
+      <CampaignSelectionContext
+        campaign={selectedCampaign}
+        onClearPromotion={() => {
+          void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+        }}
+        onClearSegment={() => {
+          void setDashboardQueryState({ selectedSegmentId: "" });
+        }}
+        promotion={selectedPromotion}
+        segment={selectedSegment}
+      />
+
       <CampaignDetailPanel
         campaign={selectedCampaign}
         detail={campaignDetail.data}
@@ -134,6 +191,12 @@ export function CampaignDashboardPanel({
         isLoading={campaignDetail.isLoading}
         onSelectPromotion={(promotionId) => {
           void setDashboardQueryState({ selectedPromotionId: promotionId, selectedSegmentId: "" });
+        }}
+        onClearPromotion={() => {
+          void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+        }}
+        onClearSegment={() => {
+          void setDashboardQueryState({ selectedSegmentId: "" });
         }}
         onSelectSegment={(promotionId, segmentId) => {
           void setDashboardQueryState({
@@ -154,6 +217,53 @@ export function CampaignDashboardPanel({
         tab={tab}
       />
     </div>
+  );
+}
+
+function CampaignSelectionContext({
+  campaign,
+  onClearPromotion,
+  onClearSegment,
+  promotion,
+  segment
+}: {
+  campaign: DashboardCampaignSummary | undefined;
+  onClearPromotion: () => void;
+  onClearSegment: () => void;
+  promotion: DashboardCampaignPromotion | undefined;
+  segment: DashboardCampaignSegment | undefined;
+}) {
+  if (!campaign) {
+    return null;
+  }
+
+  return (
+    <Card className="w-full min-w-0 rounded-[18px] bg-white py-4 shadow-none ring-1 ring-black/10">
+      <CardContent className="flex flex-wrap items-center gap-2 px-5">
+        <Badge variant="secondary">Campaign</Badge>
+        <span className="text-sm font-medium">{campaign.campaign_name}</span>
+        {promotion ? (
+          <>
+            <span className="text-sm text-muted-foreground">/</span>
+            <Badge variant="secondary">Promotion</Badge>
+            <span className="text-sm font-medium">{promotion.marketing_theme}</span>
+            <Button onClick={onClearPromotion} size="xs" type="button" variant="ghost">
+              선택 해제
+            </Button>
+          </>
+        ) : null}
+        {segment ? (
+          <>
+            <span className="text-sm text-muted-foreground">/</span>
+            <Badge variant="secondary">Segment</Badge>
+            <span className="text-sm font-medium">{segment.segment_name}</span>
+            <Button onClick={onClearSegment} size="xs" type="button" variant="ghost">
+              선택 해제
+            </Button>
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -219,6 +329,8 @@ function CampaignDetailPanel({
   error,
   isError,
   isLoading,
+  onClearPromotion,
+  onClearSegment,
   onSelectPromotion,
   onSelectSegment,
   promotionDetail,
@@ -238,6 +350,8 @@ function CampaignDetailPanel({
   error: Error | null;
   isError: boolean;
   isLoading: boolean;
+  onClearPromotion: () => void;
+  onClearSegment: () => void;
   onSelectPromotion: (promotionId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotionDetail: DashboardPromotionDetailResource | undefined;
@@ -278,6 +392,8 @@ function CampaignDetailPanel({
         {detail ? (
           <CampaignTabContent
             detail={detail}
+            onClearPromotion={onClearPromotion}
+            onClearSegment={onClearSegment}
             onSelectPromotion={onSelectPromotion}
             onSelectSegment={onSelectSegment}
             promotionDetail={promotionDetail}
@@ -301,6 +417,8 @@ function CampaignDetailPanel({
 
 function CampaignTabContent({
   detail,
+  onClearPromotion,
+  onClearSegment,
   onSelectPromotion,
   onSelectSegment,
   promotionDetail,
@@ -317,6 +435,8 @@ function CampaignTabContent({
   tab
 }: {
   detail: DashboardCampaignDetail;
+  onClearPromotion: () => void;
+  onClearSegment: () => void;
   onSelectPromotion: (promotionId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotionDetail: DashboardPromotionDetailResource | undefined;
@@ -332,10 +452,22 @@ function CampaignTabContent({
   selectedSegmentId: string;
   tab: DashboardTab;
 }) {
+  const selectedSegment = (promotionDetail?.segments ?? detail.segments).find(
+    (segment) =>
+      segment.segment_id === selectedSegmentId &&
+      (!selectedPromotionId || segment.promotion_id === selectedPromotionId)
+  );
+
   switch (tab) {
     case "campaign-promotions":
       return (
         <>
+          <CampaignOpenTabs
+            onClearPromotion={onClearPromotion}
+            onClearSegment={onClearSegment}
+            selectedPromotion={selectedPromotion}
+            selectedSegment={selectedSegment}
+          />
           <PromotionTable
             onSelectPromotion={onSelectPromotion}
             promotions={detail.promotions}
@@ -359,6 +491,12 @@ function CampaignTabContent({
     case "campaign-segments":
       return (
         <>
+          <CampaignOpenTabs
+            onClearPromotion={onClearPromotion}
+            onClearSegment={onClearSegment}
+            selectedPromotion={selectedPromotion}
+            selectedSegment={selectedSegment}
+          />
           <SegmentTable
             onSelectSegment={onSelectSegment}
             segments={promotionDetail?.segments ?? detail.segments}
@@ -375,9 +513,17 @@ function CampaignTabContent({
       );
     case "campaign-experiment-metrics":
       return (
-        <ExperimentMetricTable
-          metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
-        />
+        <>
+          <CampaignOpenTabs
+            onClearPromotion={onClearPromotion}
+            onClearSegment={onClearSegment}
+            selectedPromotion={selectedPromotion}
+            selectedSegment={selectedSegment}
+          />
+          <ExperimentMetricTable
+            metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
+          />
+        </>
       );
     case "campaign-promotion-metrics":
       return <PromotionMetricsPanel detail={detail} selectedPromotion={selectedPromotion} />;
@@ -388,6 +534,12 @@ function CampaignTabContent({
       return (
         <>
           <CampaignSummary detail={detail} />
+          <CampaignOpenTabs
+            onClearPromotion={onClearPromotion}
+            onClearSegment={onClearSegment}
+            selectedPromotion={selectedPromotion}
+            selectedSegment={selectedSegment}
+          />
           <MarketingPlan detail={detail} />
           <CampaignRealtimeTrend detail={detail} />
           <CampaignWorkflow detail={detail} />
@@ -400,6 +552,44 @@ function CampaignTabContent({
         </>
       );
   }
+}
+
+function CampaignOpenTabs({
+  onClearPromotion,
+  onClearSegment,
+  selectedPromotion,
+  selectedSegment
+}: {
+  onClearPromotion: () => void;
+  onClearSegment: () => void;
+  selectedPromotion: DashboardCampaignPromotion | undefined;
+  selectedSegment: DashboardCampaignSegment | undefined;
+}) {
+  const value = selectedSegment ? "segment" : selectedPromotion ? "promotion" : "all";
+
+  return (
+    <Tabs
+      onValueChange={(nextValue) => {
+        if (nextValue === "all") {
+          onClearPromotion();
+        }
+        if (nextValue === "promotion") {
+          onClearSegment();
+        }
+      }}
+      value={value}
+    >
+      <TabsList variant="line">
+        <TabsTrigger value="all">전체 목록</TabsTrigger>
+        {selectedPromotion ? (
+          <TabsTrigger value="promotion">{selectedPromotion.marketing_theme}</TabsTrigger>
+        ) : null}
+        {selectedSegment ? (
+          <TabsTrigger value="segment">{selectedSegment.segment_name}</TabsTrigger>
+        ) : null}
+      </TabsList>
+    </Tabs>
+  );
 }
 
 function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
@@ -590,7 +780,19 @@ function PromotionTable({
       title="프로모션 목록"
     >
       {promotions.map((promotion) => (
-        <TableRow key={promotion.promotion_id}>
+        <TableRow
+          aria-selected={selectedPromotionId === promotion.promotion_id}
+          className="cursor-pointer"
+          key={promotion.promotion_id}
+          onClick={() => onSelectPromotion(promotion.promotion_id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onSelectPromotion(promotion.promotion_id);
+            }
+          }}
+          tabIndex={0}
+        >
           <TableCell>{promotion.promotion_id}</TableCell>
           <TableCell>{promotion.channel}</TableCell>
           <TableCell>{promotion.goal_metric}</TableCell>
@@ -608,7 +810,10 @@ function PromotionTable({
           </TableCell>
           <TableCell>
             <Button
-              onClick={() => onSelectPromotion(promotion.promotion_id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectPromotion(promotion.promotion_id);
+              }}
               size="sm"
               variant={selectedPromotionId === promotion.promotion_id ? "default" : "outline"}
             >
@@ -776,7 +981,22 @@ function SegmentTable({
       title="세그먼트 목록"
     >
       {segments.map((segment) => (
-        <TableRow key={`${segment.promotion_id}-${segment.segment_id}`}>
+        <TableRow
+          aria-selected={selectedSegmentId === segment.segment_id}
+          className={onSelectSegment ? "cursor-pointer" : undefined}
+          key={`${segment.promotion_id}-${segment.segment_id}`}
+          onClick={() => onSelectSegment?.(segment.promotion_id, segment.segment_id)}
+          onKeyDown={(event) => {
+            if (!onSelectSegment) {
+              return;
+            }
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onSelectSegment(segment.promotion_id, segment.segment_id);
+            }
+          }}
+          tabIndex={onSelectSegment ? 0 : undefined}
+        >
           <TableCell>{segment.promotion_id}</TableCell>
           <TableCell>
             <div className="flex min-w-[180px] flex-col gap-1">
@@ -794,7 +1014,10 @@ function SegmentTable({
           {onSelectSegment ? (
             <TableCell>
               <Button
-                onClick={() => onSelectSegment(segment.promotion_id, segment.segment_id)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectSegment(segment.promotion_id, segment.segment_id);
+                }}
                 size="sm"
                 variant={selectedSegmentId === segment.segment_id ? "default" : "outline"}
               >
@@ -846,41 +1069,11 @@ function SegmentDetailPanel({
 
   return (
     <section className="grid gap-4">
-      <h3 className="text-base font-semibold text-[#1d1d1f]">세그먼트 상세</h3>
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="세그먼트" value={detail.segment.segment_name} />
-        <SummaryItem label="세그먼트 출처" value={detail.segment.source ?? "-"} />
-        <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
-        <SummaryItem label="정의 표본" value={formatInteger(detail.segment.sample_size)} />
-        <SummaryItem
-          label="전체 적격 유저"
-          value={formatInteger(detail.segment.total_eligible_user_count)}
-        />
-        <SummaryItem label="표본 비율" value={formatPercentValue(detail.segment.sample_ratio)} />
-        <SummaryItem label="상태" value={detail.segment.status} />
-        <SummaryItem label="우선순위" value={detail.segment.priority ?? "-"} />
-        <SummaryItem
-          label="연결 실험"
-          value={adExperimentIds.length > 0 ? formatInteger(adExperimentIds.length) : "-"}
-        />
-        <SummaryItem
-          label="최근 표본"
-          value={latestMetric ? formatInteger(latestMetric.sample_size) : "-"}
-        />
-        <SummaryItem
-          label="최근 지표"
-          value={
-            latestMetric
-              ? `${latestMetric.metric} ${formatGoalValue(latestMetric.actual_value)}`
-              : "-"
-          }
-        />
-        <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
-        <SummaryItem
-          label="실시간 이벤트"
-          value={formatInteger(detail.realtime_metrics.total_event_count)}
-        />
-      </div>
+      <SegmentOverview
+        adExperimentCount={adExperimentIds.length}
+        detail={detail}
+        latestMetric={latestMetric}
+      />
       {hasInsufficientData ? (
         <Alert>
           <AlertTitle>표본 부족 상태</AlertTitle>
@@ -897,6 +1090,74 @@ function SegmentDetailPanel({
       <ContentCandidateCards candidates={detail.content_candidates} />
       <ContentCandidateTable candidates={detail.content_candidates} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
+    </section>
+  );
+}
+
+function SegmentOverview({
+  adExperimentCount,
+  detail,
+  latestMetric
+}: {
+  adExperimentCount: number;
+  detail: DashboardSegmentDetailResource;
+  latestMetric: DashboardCampaignExperimentMetric | undefined;
+}) {
+  const sampleRatioPercent = Math.min(detail.segment.sample_ratio * 100, 100);
+
+  return (
+    <section className="grid gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xl font-semibold tracking-tight text-foreground">
+              {detail.segment.segment_name}
+            </h3>
+            <Badge variant="secondary">{detail.segment.status}</Badge>
+            {detail.segment.priority ? (
+              <Badge variant="outline">{detail.segment.priority}</Badge>
+            ) : null}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {detail.segment.natural_language_query ?? "세그먼트 조건 미등록"}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {detail.segment.promotion_id} · {detail.segment.segment_id}
+          </div>
+        </div>
+        <SummaryItem
+          label="최근 지표"
+          value={
+            latestMetric
+              ? `${latestMetric.metric} ${formatGoalValue(latestMetric.actual_value)}`
+              : "-"
+          }
+        />
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="세그먼트 출처" value={detail.segment.source ?? "-"} />
+        <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
+        <SummaryItem label="정의 표본" value={formatInteger(detail.segment.sample_size)} />
+        <SummaryItem
+          label="전체 적격 유저"
+          value={formatInteger(detail.segment.total_eligible_user_count)}
+        />
+        <SummaryItem label="표본 비율" value={formatPercentValue(detail.segment.sample_ratio)} />
+        <SummaryItem
+          label="연결 실험"
+          value={adExperimentCount > 0 ? formatInteger(adExperimentCount) : "-"}
+        />
+        <SummaryItem
+          label="최근 표본"
+          value={latestMetric ? formatInteger(latestMetric.sample_size) : "-"}
+        />
+        <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
+        <SummaryItem
+          label="실시간 이벤트"
+          value={formatInteger(detail.realtime_metrics.total_event_count)}
+        />
+      </div>
+      <Progress value={sampleRatioPercent} />
     </section>
   );
 }
@@ -1088,6 +1349,9 @@ function ContentCandidateCards({
         <div className="grid gap-3 md:grid-cols-2">
           {candidates.map((candidate) => (
             <div className="grid gap-3 rounded-md border bg-muted/20 p-3" key={candidate.content_id}>
+              <div className="flex min-h-[96px] items-center justify-center rounded-md border border-dashed bg-background px-3 text-center text-sm text-muted-foreground">
+                {candidate.image_prompt ?? "이미지 URL 계약 확정 후 실제 생성 이미지를 표시합니다."}
+              </div>
               <div className="flex items-start justify-between gap-3">
                 <div className="grid gap-1">
                   <div className="text-sm font-medium">
@@ -1104,7 +1368,6 @@ function ContentCandidateCards({
               <InsightBlock label="데이터 근거" value={formatJsonObject(candidate.data_evidence_json)} />
               <InsightBlock label="메시지 방향" value={candidate.message_strategy ?? "-"} />
               <InsightBlock label="생성 프롬프트" value={candidate.generation_prompt ?? "-"} />
-              <InsightBlock label="이미지 프롬프트" value={candidate.image_prompt ?? "-"} />
               <InsightBlock label="메타데이터" value={formatJsonObject(candidate.metadata_json)} />
               <div className="grid gap-1 text-sm">
                 <div className="text-xs text-muted-foreground">CTA / 랜딩 URL</div>
