@@ -57,6 +57,25 @@ export const DashboardCampaignSegmentSchema = z.object({
 });
 export type DashboardCampaignSegment = z.infer<typeof DashboardCampaignSegmentSchema>;
 
+export const DashboardContentCandidateSchema = z.object({
+  content_id: z.string(),
+  content_option_id: z.string(),
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  channel: z.string(),
+  title: z.string().nullable(),
+  body: z.string().nullable(),
+  cta: z.string().nullable(),
+  message: z.string().nullable(),
+  image_prompt: z.string().nullable(),
+  landing_url: z.string().nullable(),
+  reason_summary: z.string().nullable(),
+  message_strategy: z.string().nullable(),
+  status: z.string(),
+  updated_at: z.string()
+});
+export type DashboardContentCandidate = z.infer<typeof DashboardContentCandidateSchema>;
+
 export const DashboardCampaignExperimentMetricSchema = z.object({
   promotion_id: z.string(),
   ad_experiment_id: z.string().nullable(),
@@ -88,6 +107,13 @@ export const DashboardPromotionDetailSchema = z.object({
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema)
 });
 export type DashboardPromotionDetail = z.infer<typeof DashboardPromotionDetailSchema>;
+
+export const DashboardSegmentDetailSchema = z.object({
+  segment: DashboardCampaignSegmentSchema,
+  content_candidates: z.array(DashboardContentCandidateSchema),
+  experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema)
+});
+export type DashboardSegmentDetail = z.infer<typeof DashboardSegmentDetailSchema>;
 
 export const DashboardFunnelEventNameSchema = z.enum([
   "page_view",

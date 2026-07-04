@@ -55,6 +55,7 @@ export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   selectedCampaignId: "",
   selectedCustomerId: "cg-low-mobile",
   selectedPromotionId: "",
+  selectedSegmentId: "",
   sort: "conversion-asc",
   userScope: "all"
 };
@@ -79,6 +80,7 @@ export const dashboardQueryParsers = {
   selectedCampaignId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCampaignId),
   selectedCustomerId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCustomerId),
   selectedPromotionId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedPromotionId),
+  selectedSegmentId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedSegmentId),
   sort: parseAsStringLiteral(dashboardSortOptions.map((item) => item.value)).withDefault(
     defaultDashboardSearchQuery.sort
   ),
@@ -106,6 +108,7 @@ export function normalizeDashboardQuery(
     projectId: projectId.trim(),
     selectedCampaignId: query.selectedCampaignId.trim(),
     selectedCustomerId: query.selectedCustomerId.trim(),
-    selectedPromotionId: query.selectedPromotionId.trim()
+    selectedPromotionId: query.selectedPromotionId.trim(),
+    selectedSegmentId: query.selectedSegmentId.trim()
   };
 }

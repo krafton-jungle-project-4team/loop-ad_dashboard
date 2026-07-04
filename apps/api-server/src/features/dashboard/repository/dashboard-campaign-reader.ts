@@ -4,14 +4,17 @@ import type {
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
+  DashboardContentCandidate,
   DashboardPromotionDetail,
-  DashboardPromotionSummary
+  DashboardPromotionSummary,
+  DashboardSegmentDetail
 } from "@loopad/shared";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
   getDashboardCampaignSummary,
+  getDashboardPromotionSegment,
   getDashboardPromotionSummary,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
@@ -19,12 +22,17 @@ import {
   listDashboardCampaignSegments,
   listDashboardPromotionExperimentMetrics,
   listDashboardPromotionSegments,
+  listDashboardSegmentContentCandidates,
+  listDashboardSegmentExperimentMetrics,
   type IGetDashboardCampaignSummaryResult,
+  type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
   type IListDashboardCampaignExperimentMetricsResult,
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
   type IListDashboardCampaignSegmentsResult,
+  type IListDashboardSegmentContentCandidatesResult,
+  type IListDashboardSegmentExperimentMetricsResult,
   type IListDashboardPromotionExperimentMetricsResult,
   type IListDashboardPromotionSegmentsResult
 } from "../database/__generated__/dashboard.queries.js";
@@ -75,6 +83,28 @@ export class DashboardCampaignReader {
     return {
       promotion: toPromotionSummary(promotion),
       segments: segments.map(toCampaignSegment),
+      experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
+    };
+  }
+
+  async getSegmentDetail(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardSegmentDetail> {
+    const [segment, contentCandidates, experimentMetrics] = await Promise.all([
+      this.db.query(getDashboardPromotionSegment, { projectId, promotionId, segmentId }).single(),
+      this.db
+        .query(listDashboardSegmentContentCandidates, { projectId, promotionId, segmentId })
+        .multiple(),
+      this.db
+        .query(listDashboardSegmentExperimentMetrics, { projectId, promotionId, segmentId })
+        .multiple()
+    ]);
+
+    return {
+      segment: toCampaignSegment(segment),
+      content_candidates: contentCandidates.map(toContentCandidate),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
   }
@@ -138,7 +168,10 @@ function toPromotionSummary(row: IGetDashboardPromotionSummaryResult): Dashboard
 }
 
 function toCampaignSegment(
-  row: IListDashboardCampaignSegmentsResult | IListDashboardPromotionSegmentsResult
+  row:
+    | IGetDashboardPromotionSegmentResult
+    | IListDashboardCampaignSegmentsResult
+    | IListDashboardPromotionSegmentsResult
 ): DashboardCampaignSegment {
   return {
     promotion_id: row.promotionId,
@@ -151,7 +184,10 @@ function toCampaignSegment(
 }
 
 function toCampaignExperimentMetric(
-  row: IListDashboardCampaignExperimentMetricsResult | IListDashboardPromotionExperimentMetricsResult
+  row:
+    | IListDashboardCampaignExperimentMetricsResult
+    | IListDashboardPromotionExperimentMetricsResult
+    | IListDashboardSegmentExperimentMetricsResult
 ): DashboardCampaignExperimentMetric {
   return {
     promotion_id: row.promotionId,
@@ -165,6 +201,28 @@ function toCampaignExperimentMetric(
     sample_size: countValue(row.sampleSize),
     status: row.status,
     created_at: row.createdAt.toISOString()
+  };
+}
+
+function toContentCandidate(
+  row: IListDashboardSegmentContentCandidatesResult
+): DashboardContentCandidate {
+  return {
+    content_id: row.contentId,
+    content_option_id: row.contentOptionId,
+    promotion_id: row.promotionId,
+    segment_id: row.segmentId,
+    channel: row.channel,
+    title: row.title,
+    body: row.body,
+    cta: row.cta,
+    message: row.message,
+    image_prompt: row.imagePrompt,
+    landing_url: row.landingUrl,
+    reason_summary: row.reasonSummary,
+    message_strategy: row.messageStrategy,
+    status: row.status,
+    updated_at: row.updatedAt.toISOString()
   };
 }
 

@@ -137,6 +137,20 @@ WHERE project_id = :projectId
   AND promotion_id = :promotionId
 ORDER BY created_at DESC;
 
+/* 목적: 프로모션 안의 특정 세그먼트 요약을 조회합니다. */
+/* @name GetDashboardPromotionSegment */
+SELECT
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  segment_name AS "segmentName",
+  estimated_size AS "estimatedSize",
+  priority,
+  status
+FROM promotion_target_segments
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId;
+
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardCampaignExperimentMetrics */
 SELECT
@@ -174,6 +188,50 @@ FROM promotion_evaluations
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
 ORDER BY created_at DESC;
+
+/* 목적: 특정 세그먼트의 실험 지표 목록을 조회합니다. */
+/* @name ListDashboardSegmentExperimentMetrics */
+SELECT
+  promotion_id AS "promotionId",
+  ad_experiment_id AS "adExperimentId",
+  segment_id AS "segmentId",
+  metric,
+  target_value::float8 AS "targetValue",
+  actual_value::float8 AS "actualValue",
+  numerator_count AS "numeratorCount",
+  denominator_count AS "denominatorCount",
+  sample_size AS "sampleSize",
+  status,
+  created_at AS "createdAt"
+FROM promotion_evaluations
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+ORDER BY created_at DESC;
+
+/* 목적: 특정 세그먼트의 생성 콘텐츠 후보를 조회합니다. */
+/* @name ListDashboardSegmentContentCandidates */
+SELECT
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  channel,
+  title,
+  body,
+  cta,
+  message,
+  image_prompt AS "imagePrompt",
+  landing_url AS "landingUrl",
+  reason_summary AS "reasonSummary",
+  message_strategy AS "messageStrategy",
+  status,
+  updated_at AS "updatedAt"
+FROM content_candidates
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+ORDER BY updated_at DESC, created_at DESC;
 
 /* 목적: 한 프로젝트의 활성 퍼널 목록을 조회합니다. */
 /* @name ListActiveFunnels */

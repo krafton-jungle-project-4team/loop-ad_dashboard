@@ -20,6 +20,14 @@ export function dashboardPromotionDetailQueryKey(projectId: string, promotionId:
   return ["dashboard", "promotion-detail", projectId, promotionId] as const;
 }
 
+export function dashboardSegmentDetailQueryKey(
+  projectId: string,
+  promotionId: string,
+  segmentId: string
+) {
+  return ["dashboard", "segment-detail", projectId, promotionId, segmentId] as const;
+}
+
 export function dashboardFunnelMetricsQueryKey(projectId: string, funnelId: string) {
   return ["dashboard", "funnel-metrics", projectId, funnelId] as const;
 }

@@ -25,6 +25,7 @@ import {
   SidebarRail,
   SidebarTrigger
 } from "@loopad/ui/shadcn/sidebar";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { Link } from "@tanstack/react-router";
 import { Gauge } from "lucide-react";
 import {
@@ -190,25 +191,45 @@ function DashboardNavigationSubItems({
 }) {
   return (
     <SidebarMenuSub>
-      {items.map((item) => (
-        <SidebarMenuSubItem key={item.label}>
-          <SidebarMenuSubButton asChild isActive={activeTab === item.value}>
-            <Link
-              params={{ projectId, tabPath: item.pathSegment ?? "main" }}
-              to="/dashboard/$projectId/$tabPath"
+      {items.map((item) => {
+        const isExactActive = activeTab === item.value;
+        const isBranchActive = isNavigationItemActive(item, activeTab);
+
+        return (
+          <SidebarMenuSubItem key={item.label}>
+            <SidebarMenuSubButton
+              asChild
+              className={cn(
+                "relative transition-colors",
+                isExactActive &&
+                  "bg-sidebar-accent font-semibold text-sidebar-accent-foreground",
+                !isExactActive && isBranchActive && "bg-sidebar-accent/60 text-sidebar-foreground"
+              )}
+              isActive={isExactActive}
             >
-              <span>{item.label}</span>
-            </Link>
-          </SidebarMenuSubButton>
-          {item.children ? (
-            <DashboardNavigationSubItems
-              activeTab={activeTab}
-              items={item.children}
-              projectId={projectId}
-            />
-          ) : null}
-        </SidebarMenuSubItem>
-      ))}
+              <Link
+                params={{ projectId, tabPath: item.pathSegment ?? "main" }}
+                to="/dashboard/$projectId/$tabPath"
+              >
+                {isExactActive ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sidebar-primary"
+                  />
+                ) : null}
+                <span>{item.label}</span>
+              </Link>
+            </SidebarMenuSubButton>
+            {item.children ? (
+              <DashboardNavigationSubItems
+                activeTab={activeTab}
+                items={item.children}
+                projectId={projectId}
+              />
+            ) : null}
+          </SidebarMenuSubItem>
+        );
+      })}
     </SidebarMenuSub>
   );
 }

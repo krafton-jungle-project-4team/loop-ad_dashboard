@@ -8,7 +8,8 @@ import {
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
-  DashboardPromotionDetailSchema
+  DashboardPromotionDetailSchema,
+  DashboardSegmentDetailSchema
 } from "@loopad/shared";
 import type {
   DashboardCampaignDetail,
@@ -17,7 +18,8 @@ import type {
   DashboardEventCatalog,
   DashboardFunnel,
   DashboardFunnelMetrics,
-  DashboardPromotionDetail
+  DashboardPromotionDetail,
+  DashboardSegmentDetail
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -109,6 +111,20 @@ export async function fetchDashboardPromotionDetail(
   );
 }
 
+export async function fetchDashboardSegmentDetail(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  signal: AbortSignal
+): Promise<DashboardSegmentDetail> {
+  return request(
+    `/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}`,
+    DashboardSegmentDetailSchema,
+    query,
+    signal
+  );
+}
+
 export async function deleteDashboardFunnel(
   query: DashboardQuery,
   funnelId: string
@@ -168,6 +184,7 @@ async function request<T>(
   url.searchParams.set("selectedCustomerId", query.selectedCustomerId);
   url.searchParams.set("selectedCampaignId", query.selectedCampaignId);
   url.searchParams.set("selectedPromotionId", query.selectedPromotionId);
+  url.searchParams.set("selectedSegmentId", query.selectedSegmentId);
   url.searchParams.set("sort", query.sort);
   if (query.filter) {
     url.searchParams.set("filter", query.filter);

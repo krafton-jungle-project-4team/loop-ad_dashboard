@@ -54,6 +54,7 @@ export type DashboardQuery = {
   selectedCustomerId: string;
   selectedCampaignId: string;
   selectedPromotionId: string;
+  selectedSegmentId: string;
   sort: DashboardSort;
   filter: string;
 };

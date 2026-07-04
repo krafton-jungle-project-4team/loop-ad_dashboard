@@ -5,7 +5,8 @@ import type {
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardMain,
-  DashboardPromotionDetail as DashboardPromotionDetailResource
+  DashboardPromotionDetail as DashboardPromotionDetailResource,
+  DashboardSegmentDetail as DashboardSegmentDetailResource
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
@@ -24,13 +25,15 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import {
   fetchDashboardCampaignDetail,
-  fetchDashboardPromotionDetail
+  fetchDashboardPromotionDetail,
+  fetchDashboardSegmentDetail
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
-  dashboardPromotionDetailQueryKey
+  dashboardPromotionDetailQueryKey,
+  dashboardSegmentDetailQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
@@ -45,11 +48,12 @@ export function CampaignDashboardPanel({
   tab: DashboardTab;
 }) {
   const [, setDashboardQueryState] = useDashboardQueryState();
-  const selectedCampaignId = query.selectedCampaignId;
   const selectedPromotionId = query.selectedPromotionId;
-  const selectedCampaign = data.campaigns.find(
-    (campaign) => campaign.campaign_id === selectedCampaignId
-  );
+  const selectedSegmentId = query.selectedSegmentId;
+  const selectedCampaign =
+    data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
+    data.campaigns[0];
+  const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const campaignDetail = useQuery({
     enabled: Boolean(selectedCampaignId),
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
@@ -59,6 +63,16 @@ export function CampaignDashboardPanel({
     enabled: Boolean(selectedPromotionId),
     queryFn: ({ signal }) => fetchDashboardPromotionDetail(query, selectedPromotionId, signal),
     queryKey: dashboardPromotionDetailQueryKey(query.projectId, selectedPromotionId)
+  });
+  const segmentDetail = useQuery({
+    enabled: Boolean(selectedPromotionId && selectedSegmentId),
+    queryFn: ({ signal }) =>
+      fetchDashboardSegmentDetail(query, selectedPromotionId, selectedSegmentId, signal),
+    queryKey: dashboardSegmentDetailQueryKey(
+      query.projectId,
+      selectedPromotionId,
+      selectedSegmentId
+    )
   });
 
   return (
@@ -95,7 +109,8 @@ export function CampaignDashboardPanel({
                     onSelect={(campaignId) => {
                       void setDashboardQueryState({
                         selectedCampaignId: campaignId,
-                        selectedPromotionId: ""
+                        selectedPromotionId: "",
+                        selectedSegmentId: ""
                       });
                     }}
                   />
@@ -115,13 +130,24 @@ export function CampaignDashboardPanel({
         isError={campaignDetail.isError}
         isLoading={campaignDetail.isLoading}
         onSelectPromotion={(promotionId) => {
-          void setDashboardQueryState({ selectedPromotionId: promotionId });
+          void setDashboardQueryState({ selectedPromotionId: promotionId, selectedSegmentId: "" });
+        }}
+        onSelectSegment={(promotionId, segmentId) => {
+          void setDashboardQueryState({
+            selectedPromotionId: promotionId,
+            selectedSegmentId: segmentId
+          });
         }}
         promotionDetail={promotionDetail.data}
         promotionError={promotionDetail.error}
         promotionIsError={promotionDetail.isError}
         promotionIsLoading={promotionDetail.isLoading}
+        segmentDetail={segmentDetail.data}
+        segmentError={segmentDetail.error}
+        segmentIsError={segmentDetail.isError}
+        segmentIsLoading={segmentDetail.isLoading}
         selectedPromotionId={selectedPromotionId}
+        selectedSegmentId={selectedSegmentId}
         tab={tab}
       />
     </div>
@@ -191,11 +217,17 @@ function CampaignDetailPanel({
   isError,
   isLoading,
   onSelectPromotion,
+  onSelectSegment,
   promotionDetail,
   promotionError,
   promotionIsError,
   promotionIsLoading,
+  segmentDetail,
+  segmentError,
+  segmentIsError,
+  segmentIsLoading,
   selectedPromotionId,
+  selectedSegmentId,
   tab
 }: {
   campaign: DashboardCampaignSummary | undefined;
@@ -204,11 +236,17 @@ function CampaignDetailPanel({
   isError: boolean;
   isLoading: boolean;
   onSelectPromotion: (promotionId: string) => void;
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotionDetail: DashboardPromotionDetailResource | undefined;
   promotionError: Error | null;
   promotionIsError: boolean;
   promotionIsLoading: boolean;
+  segmentDetail: DashboardSegmentDetailResource | undefined;
+  segmentError: Error | null;
+  segmentIsError: boolean;
+  segmentIsLoading: boolean;
   selectedPromotionId: string;
+  selectedSegmentId: string;
   tab: DashboardTab;
 }) {
   const selectedPromotion = detail?.promotions.find(
@@ -238,12 +276,18 @@ function CampaignDetailPanel({
           <CampaignTabContent
             detail={detail}
             onSelectPromotion={onSelectPromotion}
+            onSelectSegment={onSelectSegment}
             promotionDetail={promotionDetail}
             promotionError={promotionError}
             promotionIsError={promotionIsError}
             promotionIsLoading={promotionIsLoading}
+            segmentDetail={segmentDetail}
+            segmentError={segmentError}
+            segmentIsError={segmentIsError}
+            segmentIsLoading={segmentIsLoading}
             selectedPromotion={selectedPromotion}
             selectedPromotionId={selectedPromotionId}
+            selectedSegmentId={selectedSegmentId}
             tab={tab}
           />
         ) : null}
@@ -255,22 +299,34 @@ function CampaignDetailPanel({
 function CampaignTabContent({
   detail,
   onSelectPromotion,
+  onSelectSegment,
   promotionDetail,
   promotionError,
   promotionIsError,
   promotionIsLoading,
+  segmentDetail,
+  segmentError,
+  segmentIsError,
+  segmentIsLoading,
   selectedPromotion,
   selectedPromotionId,
+  selectedSegmentId,
   tab
 }: {
   detail: DashboardCampaignDetail;
   onSelectPromotion: (promotionId: string) => void;
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotionDetail: DashboardPromotionDetailResource | undefined;
   promotionError: Error | null;
   promotionIsError: boolean;
   promotionIsLoading: boolean;
+  segmentDetail: DashboardSegmentDetailResource | undefined;
+  segmentError: Error | null;
+  segmentIsError: boolean;
+  segmentIsLoading: boolean;
   selectedPromotion: DashboardCampaignPromotion | undefined;
   selectedPromotionId: string;
+  selectedSegmentId: string;
   tab: DashboardTab;
 }) {
   switch (tab) {
@@ -287,12 +343,33 @@ function CampaignTabContent({
             error={promotionError}
             isError={promotionIsError}
             isLoading={promotionIsLoading}
+            onSelectSegment={onSelectSegment}
             selectedPromotionId={selectedPromotionId}
+            selectedSegmentId={selectedSegmentId}
+            segmentDetail={segmentDetail}
+            segmentError={segmentError}
+            segmentIsError={segmentIsError}
+            segmentIsLoading={segmentIsLoading}
           />
         </>
       );
     case "campaign-segments":
-      return <SegmentTable segments={promotionDetail?.segments ?? detail.segments} />;
+      return (
+        <>
+          <SegmentTable
+            onSelectSegment={onSelectSegment}
+            segments={promotionDetail?.segments ?? detail.segments}
+            selectedSegmentId={selectedSegmentId}
+          />
+          <SegmentDetailPanel
+            detail={segmentDetail}
+            error={segmentError}
+            isError={segmentIsError}
+            isLoading={segmentIsLoading}
+            selectedSegmentId={selectedSegmentId}
+          />
+        </>
+      );
     case "campaign-experiment-metrics":
       return (
         <ExperimentMetricTable
@@ -531,13 +608,25 @@ function PromotionDetail({
   error,
   isError,
   isLoading,
-  selectedPromotionId
+  onSelectSegment,
+  selectedPromotionId,
+  selectedSegmentId,
+  segmentDetail,
+  segmentError,
+  segmentIsError,
+  segmentIsLoading
 }: {
   detail: DashboardPromotionDetailResource | undefined;
   error: Error | null;
   isError: boolean;
   isLoading: boolean;
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
   selectedPromotionId: string;
+  selectedSegmentId: string;
+  segmentDetail: DashboardSegmentDetailResource | undefined;
+  segmentError: Error | null;
+  segmentIsError: boolean;
+  segmentIsLoading: boolean;
 }) {
   if (!selectedPromotionId) {
     return <EmptyState message="상세를 확인할 프로모션을 선택해주세요." />;
@@ -565,17 +654,43 @@ function PromotionDetail({
         <SummaryItem label="마케팅 테마" value={promotion.marketing_theme} />
         <SummaryItem label="목표 달성률" value={formatPercent(promotion.latest_actual_value ?? 0)} />
       </div>
-      <SegmentTable segments={detail.segments} />
+      <SegmentTable
+        onSelectSegment={onSelectSegment}
+        segments={detail.segments}
+        selectedSegmentId={selectedSegmentId}
+      />
+      <SegmentDetailPanel
+        detail={segmentDetail}
+        error={segmentError}
+        isError={segmentIsError}
+        isLoading={segmentIsLoading}
+        selectedSegmentId={selectedSegmentId}
+      />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
     </section>
   );
 }
 
-function SegmentTable({ segments }: { segments: DashboardCampaignSegment[] }) {
+function SegmentTable({
+  onSelectSegment,
+  segments,
+  selectedSegmentId
+}: {
+  onSelectSegment?: (promotionId: string, segmentId: string) => void;
+  segments: DashboardCampaignSegment[];
+  selectedSegmentId?: string;
+}) {
   return (
     <DetailTable
       emptyMessage="등록된 세그먼트가 없습니다."
-      headers={["프로모션", "세그먼트", "예상 규모", "우선순위", "상태"]}
+      headers={[
+        "프로모션",
+        "세그먼트",
+        "예상 규모",
+        "우선순위",
+        "상태",
+        ...(onSelectSegment ? ["상세"] : [])
+      ]}
       title="세그먼트 목록"
     >
       {segments.map((segment) => (
@@ -593,6 +708,97 @@ function SegmentTable({ segments }: { segments: DashboardCampaignSegment[] }) {
           <TableCell>{segment.priority ?? "-"}</TableCell>
           <TableCell>
             <Badge variant="secondary">{segment.status}</Badge>
+          </TableCell>
+          {onSelectSegment ? (
+            <TableCell>
+              <Button
+                onClick={() => onSelectSegment(segment.promotion_id, segment.segment_id)}
+                size="sm"
+                variant={selectedSegmentId === segment.segment_id ? "default" : "outline"}
+              >
+                {selectedSegmentId === segment.segment_id ? "열림" : "상세"}
+              </Button>
+            </TableCell>
+          ) : null}
+        </TableRow>
+      ))}
+    </DetailTable>
+  );
+}
+
+function SegmentDetailPanel({
+  detail,
+  error,
+  isError,
+  isLoading,
+  selectedSegmentId
+}: {
+  detail: DashboardSegmentDetailResource | undefined;
+  error: Error | null;
+  isError: boolean;
+  isLoading: boolean;
+  selectedSegmentId: string;
+}) {
+  if (!selectedSegmentId) {
+    return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
+  }
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>세그먼트 상세를 불러오지 못했습니다</AlertTitle>
+        <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (isLoading || !detail) {
+    return <EmptyState message="세그먼트 상세를 불러오는 중입니다." />;
+  }
+
+  return (
+    <section className="grid gap-4">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">세그먼트 상세</h3>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="세그먼트" value={detail.segment.segment_name} />
+        <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
+        <SummaryItem label="상태" value={detail.segment.status} />
+        <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
+      </div>
+      <ContentCandidateTable candidates={detail.content_candidates} />
+      <ExperimentMetricTable metrics={detail.experiment_metrics} />
+    </section>
+  );
+}
+
+function ContentCandidateTable({
+  candidates
+}: {
+  candidates: DashboardSegmentDetailResource["content_candidates"];
+}) {
+  return (
+    <DetailTable
+      emptyMessage="생성 콘텐츠 후보가 없습니다."
+      headers={["콘텐츠", "채널", "메시지", "이미지 프롬프트", "상태"]}
+      title="생성 콘텐츠 카드"
+    >
+      {candidates.map((candidate) => (
+        <TableRow key={candidate.content_id}>
+          <TableCell>
+            <div className="flex min-w-[180px] flex-col gap-1">
+              <span className="font-medium">{candidate.content_option_id}</span>
+              <span className="text-xs text-muted-foreground">{candidate.content_id}</span>
+            </div>
+          </TableCell>
+          <TableCell>{candidate.channel}</TableCell>
+          <TableCell>
+            <div className="line-clamp-2 min-w-[220px]">
+              {candidate.title ?? candidate.message ?? candidate.body ?? "-"}
+            </div>
+          </TableCell>
+          <TableCell>
+            <div className="line-clamp-2 min-w-[220px]">{candidate.image_prompt ?? "-"}</div>
+          </TableCell>
+          <TableCell>
+            <Badge variant="secondary">{candidate.status}</Badge>
           </TableCell>
         </TableRow>
       ))}

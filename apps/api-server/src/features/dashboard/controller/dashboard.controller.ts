@@ -8,7 +8,8 @@ import {
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
-  DashboardPromotionDetailSchema
+  DashboardPromotionDetailSchema,
+  DashboardSegmentDetailSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -45,6 +46,18 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardPromotionDetailSchema.parse(
       await this.dashboardQuery.promotionDetail(requiredProjectId, promotionId)
+    );
+  }
+
+  @Get("promotions/:promotion_id/segments/:segment_id")
+  async segmentDetail(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardSegmentDetailSchema.parse(
+      await this.dashboardQuery.segmentDetail(requiredProjectId, promotionId, segmentId)
     );
   }
 
