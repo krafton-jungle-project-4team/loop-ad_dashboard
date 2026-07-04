@@ -227,6 +227,87 @@ test("dashboard controller parses saved segment list response", async () => {
   assert.equal(response.segments[0]?.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
 });
 
+test("dashboard controller parses saved segment update body before delegating", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    updateSavedSegment: async (projectId, segmentId, request) => {
+      writes.push({ projectId, request, segmentId });
+      return {
+        segment_id: segmentId,
+        project_id: projectId,
+        segment_name: request.segment_name ?? "같은 숙소 반복 조회 후 미예약 고객",
+        source: "custom_chatkit",
+        query_preview_id: "seg_query_preview_001",
+        natural_language_query: "숙소 상세 조회 후 미예약 고객",
+        generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+        sample_size: 1342,
+        total_eligible_user_count: 10000,
+        sample_ratio: 0.1342,
+        status: request.status ?? "active"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.updateSavedSegment(
+    "seg_custom_001",
+    "hotel-client-a",
+    { segment_name: "반복 조회 후 미예약 고객" }
+  );
+
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      request: { segment_name: "반복 조회 후 미예약 고객" },
+      segmentId: "seg_custom_001"
+    }
+  ]);
+  assert.equal(response.segment_name, "반복 조회 후 미예약 고객");
+  assert.equal(response.status, "active");
+});
+
+test("dashboard controller rejects invalid saved segment update body", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const controller = new DashboardController(emptyDashboardQuery());
+
+  await assert.rejects(
+    () =>
+      controller.updateSavedSegment("seg_custom_001", "hotel-client-a", {
+        status: "stopped"
+      }),
+    (error) => error instanceof z.ZodError
+  );
+});
+
+test("dashboard controller parses saved segment archive response", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    archiveSavedSegment: async (projectId, segmentId) => {
+      writes.push({ projectId, segmentId });
+      return {
+        archived_at: "2026-07-04T00:00:00.000Z",
+        segment_id: segmentId,
+        status: "archived"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.deleteSavedSegment("seg_custom_001", "hotel-client-a");
+
+  assert.deepEqual(writes, [{ projectId: "hotel-client-a", segmentId: "seg_custom_001" }]);
+  assert.equal(response.segment_id, "seg_custom_001");
+  assert.equal(response.status, "archived");
+});
+
 test("dashboard controller parses content approval body before delegating", async () => {
   setRequiredEnv();
   const { DashboardController } =
@@ -286,6 +367,12 @@ function emptyDashboardQuery(): DashboardQueryService {
     savedSegments: async () => ({ segments: [] }),
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
+    },
+    updateSavedSegment: async () => {
+      throw new Error("Unexpected updateSavedSegment call.");
+    },
+    archiveSavedSegment: async () => {
+      throw new Error("Unexpected archiveSavedSegment call.");
     }
   } as unknown as DashboardQueryService;
 }

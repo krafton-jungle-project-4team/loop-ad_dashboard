@@ -244,6 +244,83 @@ test("dashboard saved segments returns custom segments from the segment query re
   assert.equal(segments.segments[0]?.sample_size, 1342);
 });
 
+test("dashboard update saved segment runs inside transaction host", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const transactionHost = countingTransactionHost();
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      updateSavedSegment: async (projectId, segmentId, request) => {
+        writes.push({ projectId, request, segmentId });
+        return {
+          segment_id: segmentId,
+          project_id: projectId,
+          segment_name: request.segment_name ?? "같은 숙소 반복 조회 후 미예약 고객",
+          source: "custom_chatkit",
+          query_preview_id: "seg_query_preview_001",
+          natural_language_query: "숙소 상세 조회 후 미예약 고객",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 1342,
+          total_eligible_user_count: 10000,
+          sample_ratio: 0.1342,
+          status: request.status ?? "active"
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    transactionHost.host
+  );
+
+  const segment = await service.updateSavedSegment("hotel-client-a", "seg_custom_001", {
+    segment_name: "반복 조회 후 미예약 고객"
+  });
+
+  assert.equal(transactionHost.calls.length, 1);
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      request: { segment_name: "반복 조회 후 미예약 고객" },
+      segmentId: "seg_custom_001"
+    }
+  ]);
+  assert.equal(segment.segment_name, "반복 조회 후 미예약 고객");
+});
+
+test("dashboard archive saved segment runs inside transaction host", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const transactionHost = countingTransactionHost();
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      archiveSavedSegment: async (projectId, segmentId) => {
+        writes.push({ projectId, segmentId });
+        return {
+          archived_at: "2026-07-04T00:00:00.000Z",
+          segment_id: segmentId,
+          status: "archived"
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    transactionHost.host
+  );
+
+  const result = await service.archiveSavedSegment("hotel-client-a", "seg_custom_001");
+
+  assert.equal(transactionHost.calls.length, 1);
+  assert.deepEqual(writes, [{ projectId: "hotel-client-a", segmentId: "seg_custom_001" }]);
+  assert.equal(result.segment_id, "seg_custom_001");
+  assert.equal(result.status, "archived");
+});
+
 function emptyCampaignReader(): DashboardCampaignReader {
   return {
     listCampaigns: async () => []
@@ -270,6 +347,12 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
     },
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
+    },
+    updateSavedSegment: async () => {
+      throw new Error("Unexpected updateSavedSegment call.");
+    },
+    archiveSavedSegment: async () => {
+      throw new Error("Unexpected archiveSavedSegment call.");
     }
   } as unknown as DashboardSegmentQueryRepository;
 }
@@ -278,6 +361,18 @@ function passthroughTransactionHost(): TransactionHost<PgTypedTransactionalAdapt
   return {
     withTransaction: async (callback: () => Promise<unknown>) => callback()
   } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
+}
+
+function countingTransactionHost() {
+  const calls: string[] = [];
+  const host = {
+    withTransaction: async (callback: () => Promise<unknown>) => {
+      calls.push("withTransaction");
+      return callback();
+    }
+  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
+
+  return { calls, host };
 }
 
 function setRequiredEnv() {
