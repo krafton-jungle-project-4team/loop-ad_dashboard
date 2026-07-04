@@ -32,6 +32,8 @@ src
 - Env validation: 서버 시작 시 필수 외부 DB 연결 정보를 즉시 검증한다.
 - OpenAI env validation: Data Explorer AI query plan은 `LOOPAD_OPENAI_API_KEY`를
   필수로 검증하고, 누락/실패 시 fallback plan을 만들지 않는다. OpenAI model은 앱 코드 상수로 관리한다.
+- Ad dispatch env validation: Email/SMS 발송 provider, AWS region, SES/SMS 옵션,
+  demo recipient read DB 연결 정보를 서버 시작 시 검증한다.
 - 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer/view query 계층만 ClickHouse/Postgres를 조회한다.
 
 ## 개발 규칙
@@ -48,7 +50,7 @@ src
 - DB 조회, 조인, 이벤트 count, 퍼널 계산, CTR/CVR 계산은 백엔드에서 수행한다.
 - 프론트는 숫자 포맷팅, 퍼센트 표시, UI 배치 정도만 수행한다.
 - mock success나 fallback 데이터를 만들지 않는다.
-- 인프라 파일은 수정하지 않는다.
+- 인프라 파일은 명시 요청 없이는 수정하지 않는다.
 
 ## 실행
 
@@ -105,6 +107,24 @@ Dashboard FE
 - Request body: `funnel_name`, `steps[].step_name`, `steps[].event_name`.
 - `event_name`은 shared schema에서 먼저 검증하고, DB CHECK 제약과 같은 허용 목록만 받는다.
 
+## Ad Dispatch API 계약
+
+`POST /api/ad/promotion-runs/:promotion_run_id/dispatch`
+
+- 목적: 저장된 active assignment를 기준으로 Email/SMS promotion을 외부 provider로 발송한다.
+- Provider 선택: `LOOPAD_AD_DISPATCH_PROVIDER=mock|aws`로 선택한다. `mock`은 로컬 개발과 테스트용이며 실제 연락처를 외부로 보내지 않는다.
+- AWS Email: `aws` provider는 SES v2 `SendEmail`을 사용한다. `LOOPAD_AWS_REGION`,
+  `LOOPAD_AD_EMAIL_FROM_ADDRESS`, 선택 값 `LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET`을 사용한다.
+- AWS SMS: `aws` provider는 AWS End User Messaging SMS Voice v2 `SendTextMessage`를 사용한다.
+  `LOOPAD_AD_SMS_CONFIGURATION_SET`, `LOOPAD_AD_SMS_ORIGINATION_IDENTITY`가 있으면 command input에 포함한다.
+- Recipient 해석: sender에는 `user_id`를 넘기지 않는다. `RecipientDirectory`가 별도 read-only pool로
+  `demo_recipients` read model을 조회해 email, phone number, opt-in 상태를 반환한다.
+- Demo recipient read model: `demo_recipients(user_id, email, phone_number, email_opted_in, sms_opted_in)`를 제공해야 한다.
+- 실패 코드: 응답의 `jobs[].attempts[].error_code`와 dispatch job result attempts에
+  `RECIPIENT_NOT_FOUND`, `EMAIL_NOT_OPTED_IN`, `SMS_NOT_OPTED_IN`, `RECIPIENT_CONTACT_INVALID`,
+  `PROVIDER_SEND_FAILED`, `CONTENT_INVALID`를 저장한다.
+- 개인정보 로그: 로그에는 project/campaign/promotion/user id와 provider 상태만 남기고 raw email/phone은 기록하지 않는다.
+
 ## Dashboard 페이지별 데이터 흐름
 
 1. 메인 대시보드
@@ -149,7 +169,7 @@ Dashboard FE
 - fallback content 금지
 - fallback image 금지
 - fallback project/segment/experiment 금지
-- 인프라 파일 수정 금지
+- 명시 요청 없는 인프라 파일 수정 금지
 - `.env`, `.env.local`, `.env.*.local` 커밋 금지
 - secret 노출 금지
 - 프론트에서 DB 직접 접근 금지

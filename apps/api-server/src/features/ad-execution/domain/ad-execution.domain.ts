@@ -1,5 +1,6 @@
 import type {
   BannerResolveResponse,
+  DispatchAttemptSummary,
   DispatchJobSummary,
   PromotionRunDispatchResponse
 } from "@loopad/shared";
@@ -157,7 +158,7 @@ export interface RedirectPageSnapshot {
 
 export interface DispatchAttemptSnapshot {
   userId: string;
-  redirectId: string;
+  redirectId?: string;
   status: "sent" | "failed";
   errorCode?: string;
   providerMessageId?: string;
@@ -262,7 +263,8 @@ export const AdExecutionDomain = {
       status: AdExecutionDomain.getDispatchStatus(dispatchedCount, failedCount),
       target_count: attempts.length,
       dispatched_count: dispatchedCount,
-      failed_count: failedCount
+      failed_count: failedCount,
+      attempts: attempts.map(toDispatchAttemptSummary)
     };
   },
 
@@ -335,4 +337,21 @@ function sum(
   key: keyof Pick<DispatchJobSummary, "target_count" | "dispatched_count" | "failed_count">
 ) {
   return items.reduce((total, item) => total + item[key], 0);
+}
+
+function toDispatchAttemptSummary(attempt: DispatchAttemptSnapshot): DispatchAttemptSummary {
+  return {
+    user_id: attempt.userId,
+    status: attempt.status,
+    ...optionalSummaryField("redirect_id", attempt.redirectId),
+    ...optionalSummaryField("error_code", attempt.errorCode),
+    ...optionalSummaryField("provider_message_id", attempt.providerMessageId)
+  };
+}
+
+function optionalSummaryField<TKey extends string>(
+  key: TKey,
+  value: string | undefined
+): Partial<Record<TKey, string>> {
+  return value ? ({ [key]: value } as Record<TKey, string>) : {};
 }

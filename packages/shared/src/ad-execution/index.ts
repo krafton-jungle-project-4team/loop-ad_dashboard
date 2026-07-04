@@ -39,6 +39,15 @@ export const PromotionRunDispatchParamsSchema = z.object({
 });
 export type PromotionRunDispatchParams = z.infer<typeof PromotionRunDispatchParamsSchema>;
 
+export const DispatchAttemptSummarySchema = z.object({
+  user_id: z.string().min(1),
+  redirect_id: z.string().min(1).optional(),
+  status: z.enum(["sent", "failed"]),
+  error_code: z.string().min(1).optional(),
+  provider_message_id: z.string().min(1).optional()
+});
+export type DispatchAttemptSummary = z.infer<typeof DispatchAttemptSummarySchema>;
+
 export const DispatchJobSummarySchema = z.object({
   dispatch_job_id: z.string().min(1),
   promotion_run_id: z.string().min(1),
@@ -48,7 +57,8 @@ export const DispatchJobSummarySchema = z.object({
   status: z.enum(["completed", "partial_failed", "failed"]),
   target_count: z.number().int().nonnegative(),
   dispatched_count: z.number().int().nonnegative(),
-  failed_count: z.number().int().nonnegative()
+  failed_count: z.number().int().nonnegative(),
+  attempts: z.array(DispatchAttemptSummarySchema)
 });
 export type DispatchJobSummary = z.infer<typeof DispatchJobSummarySchema>;
 
