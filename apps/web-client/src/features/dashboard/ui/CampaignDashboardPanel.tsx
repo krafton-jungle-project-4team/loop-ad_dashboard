@@ -22,12 +22,12 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useState } from "react";
 import {
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
+import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardPromotionDetailQueryKey
@@ -44,8 +44,9 @@ export function CampaignDashboardPanel({
   query: DashboardQuery;
   tab: DashboardTab;
 }) {
-  const [selectedCampaignId, setSelectedCampaignId] = useState("");
-  const [selectedPromotionId, setSelectedPromotionId] = useState("");
+  const [, setDashboardQueryState] = useDashboardQueryState();
+  const selectedCampaignId = query.selectedCampaignId;
+  const selectedPromotionId = query.selectedPromotionId;
   const selectedCampaign = data.campaigns.find(
     (campaign) => campaign.campaign_id === selectedCampaignId
   );
@@ -92,8 +93,10 @@ export function CampaignDashboardPanel({
                     isSelected={selectedCampaignId === campaign.campaign_id}
                     key={campaign.campaign_id}
                     onSelect={(campaignId) => {
-                      setSelectedCampaignId(campaignId);
-                      setSelectedPromotionId("");
+                      void setDashboardQueryState({
+                        selectedCampaignId: campaignId,
+                        selectedPromotionId: ""
+                      });
                     }}
                   />
                 ))}
@@ -111,7 +114,9 @@ export function CampaignDashboardPanel({
         error={campaignDetail.error}
         isError={campaignDetail.isError}
         isLoading={campaignDetail.isLoading}
-        onSelectPromotion={setSelectedPromotionId}
+        onSelectPromotion={(promotionId) => {
+          void setDashboardQueryState({ selectedPromotionId: promotionId });
+        }}
         promotionDetail={promotionDetail.data}
         promotionError={promotionDetail.error}
         promotionIsError={promotionDetail.isError}

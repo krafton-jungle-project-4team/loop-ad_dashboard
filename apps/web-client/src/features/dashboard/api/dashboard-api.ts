@@ -166,6 +166,8 @@ async function request<T>(
   url.searchParams.set("userScope", query.userScope);
   url.searchParams.set("conversionEvent", query.conversionEvent);
   url.searchParams.set("selectedCustomerId", query.selectedCustomerId);
+  url.searchParams.set("selectedCampaignId", query.selectedCampaignId);
+  url.searchParams.set("selectedPromotionId", query.selectedPromotionId);
   url.searchParams.set("sort", query.sort);
   if (query.filter) {
     url.searchParams.set("filter", query.filter);

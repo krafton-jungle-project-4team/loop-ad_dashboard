@@ -52,6 +52,8 @@ export type DashboardQuery = {
   userScope: DashboardUserScope;
   conversionEvent: DashboardConversionEvent;
   selectedCustomerId: string;
+  selectedCampaignId: string;
+  selectedPromotionId: string;
   sort: DashboardSort;
   filter: string;
 };
