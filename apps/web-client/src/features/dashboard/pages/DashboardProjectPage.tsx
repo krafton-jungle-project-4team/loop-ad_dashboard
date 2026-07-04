@@ -1,5 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { useMemo } from "react";
+import { DataExplorerPage } from "../../data-explorer/pages/DataExplorerPage.js";
 import { normalizeDashboardQuery, useDashboardQueryState } from "../model/dashboard-query.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { useSuspenseDashboardResources } from "../model/use-dashboard-resources.js";
@@ -21,9 +22,11 @@ export function DashboardProjectPage({ projectId, tab }: { projectId: string; ta
     );
   }
 
-  return (
-    <DashboardResourcePanel query={query} tab={tab} />
-  );
+  if (tab === "dataExplorer") {
+    return <DataExplorerPage projectId={query.projectId} />;
+  }
+
+  return <DashboardResourcePanel query={query} tab={tab} />;
 }
 
 function DashboardResourcePanel({

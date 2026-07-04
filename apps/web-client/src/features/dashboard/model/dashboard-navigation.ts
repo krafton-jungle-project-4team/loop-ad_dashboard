@@ -1,4 +1,4 @@
-import { Activity, ListFilter, type LucideIcon } from "lucide-react";
+import { Activity, DatabaseZap, ListFilter, type LucideIcon } from "lucide-react";
 import type { DashboardTab } from "./dashboard-types.js";
 
 export type DashboardNavItem = {
@@ -10,7 +10,13 @@ export type DashboardNavItem = {
 
 export const dashboardTabs = [
   { value: "main", label: "메인 대시보드", icon: Activity, pathSegment: "main" },
-  { value: "funnels", label: "퍼널", icon: ListFilter, pathSegment: "funnels" }
+  { value: "funnels", label: "퍼널", icon: ListFilter, pathSegment: "funnels" },
+  {
+    value: "dataExplorer",
+    label: "Data Explorer",
+    icon: DatabaseZap,
+    pathSegment: "data-explorer"
+  }
 ] satisfies DashboardNavItem[];
 
 export function getDashboardTabByPath(path: string): DashboardTab | null {

@@ -29,7 +29,7 @@ export class ApiResponseInterceptor<TData> implements NestInterceptor<
 
     setRequestIdHeader(response, requestId);
 
-    if (isRedirectRoute(request)) {
+    if (isRedirectRoute(request) || isChatKitRoute(request)) {
       return next.handle() as Observable<ReturnType<typeof createApiSuccess<TData>>>;
     }
 
@@ -45,4 +45,17 @@ function isRedirectRoute(request: RequestWithRequestId) {
   const path = routeRequest.originalUrl ?? routeRequest.url;
 
   return typeof path === "string" && /^\/r\/[^/]+\/?$/.test(path);
+}
+
+function isChatKitRoute(request: RequestWithRequestId) {
+  const routeRequest = request as RequestWithRequestId & {
+    originalUrl?: string;
+    url?: string;
+  };
+  const path = routeRequest.originalUrl ?? routeRequest.url;
+
+  return (
+    path === "/api/dashboard/data-explorer/chatkit" ||
+    path === "/api/dashboard/data-explorer/chatkit/"
+  );
 }

@@ -12,6 +12,7 @@
   "dependencies": {
     "@loopad/shared": "file:../../packages/shared",
     "@loopad/ui": "file:../../packages/ui",
+    "@openai/chatkit-react": "^1.5.1",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",

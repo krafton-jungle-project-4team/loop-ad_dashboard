@@ -1,6 +1,6 @@
 import type { DashboardFunnelList, DashboardMain } from "@loopad/shared";
 
-export const dashboardTabValues = ["main", "funnels"] as const;
+export const dashboardTabValues = ["main", "funnels", "dataExplorer"] as const;
 
 export type DashboardTab = (typeof dashboardTabValues)[number];
 

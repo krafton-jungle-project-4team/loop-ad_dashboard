@@ -30,6 +30,8 @@ src
 - Clean React: 프론트 변경은 화면별 응답 렌더링에 집중하고 불필요한 상태와 mutation 흐름을 만들지 않는다.
 - Apple Design Guidelines: Action Blue, 조용한 카드 표면, 큰 지표 타이포그래피를 대시보드 밀도에 맞게 적용한다.
 - Env validation: 서버 시작 시 필수 외부 DB 연결 정보를 즉시 검증한다.
+- OpenAI env validation: Data Explorer AI query plan은 `LOOPAD_OPENAI_API_KEY`를
+  필수로 검증하고, 누락/실패 시 fallback plan을 만들지 않는다. OpenAI model은 앱 코드 상수로 관리한다.
 - 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer/view query 계층만 ClickHouse/Postgres를 조회한다.
 
 ## 개발 규칙

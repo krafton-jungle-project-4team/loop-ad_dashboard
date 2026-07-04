@@ -3,7 +3,10 @@ import { Skeleton } from "@loopad/ui/shadcn/skeleton";
 import type { DashboardTab } from "../model/dashboard-types.js";
 
 export function LoadingState({ tab }: { tab: DashboardTab }) {
-  void tab;
+  if (tab === "dataExplorer") {
+    return <DataExplorerSkeleton />;
+  }
+
   return <MainSkeleton />;
 }
 
@@ -33,6 +36,22 @@ function MainSkeleton() {
         {Array.from({ length: 4 }, (_, index) => (
           <SectionSkeleton key={index} rows={4} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+function DataExplorerSkeleton() {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
+      <div className="grid gap-6">
+        <SectionSkeleton rows={3} />
+        <SectionSkeleton rows={6} />
+        <SectionSkeleton rows={5} />
+      </div>
+      <div className="grid content-start gap-6">
+        <SectionSkeleton rows={8} />
+        <SectionSkeleton rows={4} />
       </div>
     </div>
   );
