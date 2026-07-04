@@ -4760,6 +4760,8 @@ function ContentCandidateCards({
                   <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
                 </div>
                 <InsightBlock label="메시지" value={candidate.message ?? candidate.body ?? "-"} />
+                <InsightBlock label="이메일 제목" value={candidate.subject ?? "-"} />
+                <InsightBlock label="프리헤더" value={candidate.preheader ?? "-"} />
                 <InsightBlock label="생성 이유" value={candidate.reason_summary ?? "-"} />
                 <InsightBlock label="데이터 근거" value={formatJsonObject(candidate.data_evidence_json)} />
                 <InsightBlock label="메시지 방향" value={candidate.message_strategy ?? "-"} />
@@ -5062,7 +5064,7 @@ function ContentCandidateTable({
           <Table>
             <TableHeader>
               <TableRow>
-                {["콘텐츠", "채널", "메시지", "생성 이유", "메시지 방향", "상태"].map((header) => (
+                {["콘텐츠", "채널", "메시지", "이메일 제목", "생성 이유", "메시지 방향", "상태"].map((header) => (
                   <TableHead key={header}>{header}</TableHead>
                 ))}
               </TableRow>
@@ -5080,6 +5082,11 @@ function ContentCandidateTable({
                   <TableCell>
                     <div className="line-clamp-2 min-w-[220px]">
                       {candidate.title ?? candidate.message ?? candidate.body ?? "-"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="line-clamp-2 min-w-[180px]">
+                      {candidate.subject ?? candidate.preheader ?? "-"}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -5122,6 +5129,8 @@ function filterContentCandidates(
         candidate.title,
         candidate.body,
         candidate.message,
+        candidate.subject,
+        candidate.preheader,
         candidate.reason_summary,
         candidate.message_strategy
       ].some((value) => value?.toLowerCase().includes(normalizedSearch));

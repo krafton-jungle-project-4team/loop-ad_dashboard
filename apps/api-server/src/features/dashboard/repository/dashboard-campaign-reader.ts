@@ -745,6 +745,8 @@ function toContentCandidate(
     promotion_id: row.promotionId,
     segment_id: row.segmentId,
     channel: row.channel,
+    subject: row.subject,
+    preheader: row.preheader,
     title: row.title,
     body: row.body,
     cta: row.cta,

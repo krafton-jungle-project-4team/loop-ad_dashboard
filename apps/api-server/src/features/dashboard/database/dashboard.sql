@@ -754,6 +754,8 @@ SELECT
   promotion_id AS "promotionId",
   segment_id AS "segmentId",
   channel,
+  subject,
+  preheader,
   title,
   body,
   cta,

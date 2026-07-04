@@ -229,6 +229,8 @@ export const DashboardContentCandidateSchema = z.object({
   promotion_id: z.string(),
   segment_id: z.string(),
   channel: z.string(),
+  subject: z.string().nullable(),
+  preheader: z.string().nullable(),
   title: z.string().nullable(),
   body: z.string().nullable(),
   cta: z.string().nullable(),
