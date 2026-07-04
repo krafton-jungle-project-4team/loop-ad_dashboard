@@ -52,6 +52,7 @@ import {
   fetchDashboardSavedSegments,
   fetchDashboardSegmentDetail,
   saveDashboardSegment,
+  startDashboardNextLoopAnalysis,
   updateDashboardCampaign,
   updateDashboardPromotion,
   updateDashboardPromotionSegment
@@ -1213,7 +1214,7 @@ function CampaignTabContent({
             selectedPromotionId={selectedPromotionId}
           />
           <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
-          <CampaignNextAction detail={detail} />
+          <CampaignNextAction detail={detail} query={query} />
         </>
       );
   }
@@ -2079,7 +2080,15 @@ function PromotionTable({
   );
 }
 
-function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
+function CampaignNextAction({
+  detail,
+  query
+}: {
+  detail: DashboardCampaignDetail;
+  query: DashboardQuery;
+}) {
+  const queryClient = useQueryClient();
+  const [requestedAnalysisId, setRequestedAnalysisId] = useState("");
   const nextLoopMetrics = detail.experiment_metrics.filter((metric) => metric.next_loop_required);
   const goalNotMetMetrics = detail.experiment_metrics.filter(
     (metric) => metric.status === "goal_not_met"
@@ -2096,6 +2105,24 @@ function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
     goalNotMetSegmentCount: goalNotMetSegmentIds.length,
     insufficientCount: insufficientMetrics.length,
     nextLoopCount: nextLoopMetrics.length
+  });
+  const nextLoopTargets = nextLoopPromotionTargets(nextLoopMetrics);
+  const nextLoopMutation = useMutation({
+    mutationFn: ({
+      focusSegmentIds,
+      promotionId
+    }: {
+      focusSegmentIds: string[];
+      promotionId: string;
+    }) =>
+      startDashboardNextLoopAnalysis(query, promotionId, {
+        focus_segment_ids: focusSegmentIds,
+        operator_instruction: "Dashboard에서 목표 미달 세그먼트 next-loop 분석 요청"
+      }),
+    onSuccess: async (analysis) => {
+      setRequestedAnalysisId(analysis.analysis_id);
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    }
   });
 
   return (
@@ -2119,6 +2146,48 @@ function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
         <AlertTitle>{recommendation.title}</AlertTitle>
         <AlertDescription>{recommendation.description}</AlertDescription>
       </Alert>
+      {nextLoopMutation.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>next-loop 분석 요청 실패</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(nextLoopMutation.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {requestedAnalysisId ? (
+        <Alert>
+          <AlertTitle>next-loop 분석을 요청했습니다</AlertTitle>
+          <AlertDescription>{requestedAnalysisId}</AlertDescription>
+        </Alert>
+      ) : null}
+      {nextLoopTargets.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {nextLoopTargets.map((target) => (
+            <div
+              className="grid gap-3 rounded-md border bg-muted/20 p-3"
+              key={target.promotionId}
+            >
+              <div className="grid gap-1">
+                <div className="text-sm font-medium">{target.promotionId}</div>
+                <div className="text-xs text-muted-foreground">
+                  실패 세그먼트 {formatInteger(target.focusSegmentIds.length)}개만 재분석합니다.
+                </div>
+              </div>
+              <InsightBlock label="focus_segment_ids" value={target.focusSegmentIds.join("\n")} />
+              <Button
+                disabled={nextLoopMutation.isPending}
+                onClick={() =>
+                  nextLoopMutation.mutate({
+                    focusSegmentIds: target.focusSegmentIds,
+                    promotionId: target.promotionId
+                  })
+                }
+                type="button"
+              >
+                {nextLoopMutation.isPending ? "요청 중" : "next-loop 분석 요청"}
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="grid gap-3 md:grid-cols-3">
         <InsightBlock
           label="next-loop 대상 세그먼트"
@@ -2135,6 +2204,23 @@ function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
       </div>
     </section>
   );
+}
+
+function nextLoopPromotionTargets(metrics: DashboardCampaignExperimentMetric[]) {
+  const promotionToSegments = new Map<string, Set<string>>();
+  for (const metric of metrics) {
+    if (!metric.segment_id) {
+      continue;
+    }
+    const segments = promotionToSegments.get(metric.promotion_id) ?? new Set<string>();
+    segments.add(metric.segment_id);
+    promotionToSegments.set(metric.promotion_id, segments);
+  }
+
+  return [...promotionToSegments.entries()].map(([promotionId, segments]) => ({
+    focusSegmentIds: [...segments],
+    promotionId
+  }));
 }
 
 function campaignActionRecommendation({
