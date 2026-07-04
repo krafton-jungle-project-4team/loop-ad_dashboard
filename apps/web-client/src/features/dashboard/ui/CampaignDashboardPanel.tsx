@@ -3736,6 +3736,14 @@ function RealtimeEventTable({
     (sum, event) => sum + event.event_count,
     0
   );
+  const peakEvent = metrics.events.reduce<DashboardRealtimeMetrics["events"][number] | null>(
+    (current, event) => (!current || event.event_count > current.event_count ? event : current),
+    null
+  );
+  const uniqueUserTotal = metrics.events.reduce(
+    (sum, event) => sum + event.unique_user_count,
+    0
+  );
 
   return (
     <>
@@ -3765,6 +3773,39 @@ function RealtimeEventTable({
               </Select>
             </Field>
           </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            <SummaryItem label="이벤트 합계" value={formatInteger(metrics.total_event_count)} />
+            <SummaryItem label="유니크 유저 합계" value={formatInteger(uniqueUserTotal)} />
+            <SummaryItem
+              label="프로모션 노출"
+              value={formatInteger(realtimeEventCount(metrics, "promotion_impression"))}
+            />
+            <SummaryItem
+              label="프로모션 클릭"
+              value={formatInteger(realtimeEventCount(metrics, "promotion_click"))}
+            />
+            <SummaryItem
+              label="캠페인 랜딩"
+              value={formatInteger(realtimeEventCount(metrics, "campaign_landing"))}
+            />
+            <SummaryItem
+              label="예약 시작"
+              value={formatInteger(realtimeEventCount(metrics, "booking_start"))}
+            />
+            <SummaryItem
+              label="예약 완료"
+              value={formatInteger(realtimeEventCount(metrics, "booking_complete"))}
+            />
+            <SummaryItem
+              label="피크 이벤트"
+              value={
+                peakEvent
+                  ? `${eventDisplayName(peakEvent.event_name)} ${formatInteger(peakEvent.event_count)}`
+                  : "-"
+              }
+            />
+          </div>
+          <RealtimeFunnelSummary metrics={metrics} />
           <ChartContainer
             className="min-h-[260px] w-full"
             config={{
@@ -3832,12 +3873,77 @@ function RealtimeEventTable({
   );
 }
 
+function RealtimeFunnelSummary({ metrics }: { metrics: DashboardRealtimeMetrics }) {
+  const steps = [
+    "hotel_search",
+    "hotel_click",
+    "hotel_detail_view",
+    "booking_start",
+    "booking_complete"
+  ].map((eventName) => ({
+    count: realtimeEventCount(metrics, eventName),
+    eventName,
+    label: eventDisplayName(eventName),
+    uniqueUserCount: realtimeUniqueUserCount(metrics, eventName)
+  }));
+  const maxCount = Math.max(...steps.map((step) => step.count), 1);
+
+  return (
+    <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+      <div className="grid gap-1">
+        <h4 className="text-sm font-semibold text-foreground">예약 퍼널 집계</h4>
+        <p className="text-xs text-muted-foreground">
+          hotel_search → hotel_click → hotel_detail_view → booking_start → booking_complete
+        </p>
+      </div>
+      <div className="grid gap-3">
+        {steps.map((step, index) => {
+          const previousStep = index > 0 ? steps[index - 1] : null;
+          const stepRate =
+            previousStep && previousStep.count > 0 ? step.count / previousStep.count : null;
+
+          return (
+            <div className="grid gap-1.5" key={step.eventName}>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <div className="grid gap-0.5">
+                  <span className="font-medium">{step.label}</span>
+                  <span className="text-xs text-muted-foreground">{step.eventName}</span>
+                </div>
+                <div className="text-right tabular-nums">
+                  <div className="font-medium">{formatInteger(step.count)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    unique {formatInteger(step.uniqueUserCount)}
+                    {stepRate === null ? "" : ` · ${formatPercentValue(stepRate)}`}
+                  </div>
+                </div>
+              </div>
+              <Progress value={(step.count / maxCount) * 100} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function chartEvents(events: DashboardRealtimeMetrics["events"]) {
   return events.map((event) => ({
     event_count: event.event_count,
     label: eventDisplayName(event.event_name),
     unique_user_count: event.unique_user_count
   }));
+}
+
+function realtimeEventCount(metrics: DashboardRealtimeMetrics, eventName: string) {
+  return (
+    metrics.events.find((event) => event.event_name === eventName)?.event_count ?? 0
+  );
+}
+
+function realtimeUniqueUserCount(metrics: DashboardRealtimeMetrics, eventName: string) {
+  return (
+    metrics.events.find((event) => event.event_name === eventName)?.unique_user_count ?? 0
+  );
 }
 
 function SegmentDefinitionPanel({ segment }: { segment: DashboardCampaignSegment }) {
