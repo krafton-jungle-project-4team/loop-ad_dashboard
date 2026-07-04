@@ -53,12 +53,14 @@ export function ChatKitQueryPanel({
   currentResult,
   onError,
   onQueryRun,
-  projectId
+  projectId,
+  showTitle = true
 }: {
   currentResult: DataExplorerAiChatCurrentResult | null;
   onError: (message: string) => void;
   onQueryRun: (effect: DataExplorerChatKitQueryEffect) => void;
   projectId: string;
+  showTitle?: boolean;
 }) {
   const chatKitFetch = useMemo(
     () =>
@@ -93,7 +95,7 @@ export function ChatKitQueryPanel({
       url: dataExplorerChatKitUrl()
     },
     composer: {
-      placeholder: "보고 싶은 데이터를 입력하세요."
+      placeholder: ""
     },
     header: {
       enabled: false
@@ -130,12 +132,20 @@ export function ChatKitQueryPanel({
   });
 
   return (
-    <aside className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white">
-      <div className="border-b border-black/10 px-4 py-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-          AI Assistant
+    <aside
+      className={
+        showTitle
+          ? "grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white"
+          : "grid h-full min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-white"
+      }
+    >
+      {showTitle ? (
+        <div className="border-b border-black/10 px-4 py-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            AI Assistant
+          </div>
         </div>
-      </div>
+      ) : null}
       <div className="min-h-0 overflow-hidden">
         <ChatKit control={chatKit.control} className="block h-full w-full" />
       </div>

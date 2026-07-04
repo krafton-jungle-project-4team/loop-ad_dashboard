@@ -1,6 +1,7 @@
 import type { DataExplorerObjectRef } from "@loopad/shared";
 import { queryOptions, useMutation } from "@tanstack/react-query";
 import {
+  fetchDataExplorerEventCatalog,
   fetchDataExplorerObjectDetail,
   fetchDataExplorerObjects,
   runDataExplorerQuery
@@ -27,6 +28,14 @@ export function dataExplorerObjectDetailQueryOptions(ref: DataExplorerObjectRef 
       return fetchDataExplorerObjectDetail({ ref, signal });
     },
     queryKey: ["data-explorer", "object-detail", ref] as const
+  });
+}
+
+export function dataExplorerEventCatalogQueryOptions(projectId: string) {
+  return queryOptions({
+    enabled: !!projectId.trim(),
+    queryFn: ({ signal }) => fetchDataExplorerEventCatalog({ projectId, signal }),
+    queryKey: ["data-explorer", "event-catalog", projectId] as const
   });
 }
 

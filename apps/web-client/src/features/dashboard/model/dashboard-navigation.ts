@@ -109,6 +109,12 @@ export const dashboardNavigationTree = [
     value: "campaign-metrics",
     pathSegment: "campaign-metrics",
     icon: Megaphone
+  },
+  {
+    label: "Data Explorer",
+    value: "dataExplorer",
+    pathSegment: "data-explorer",
+    icon: DatabaseZap
   }
 ] satisfies DashboardNavTreeItem[];
 
