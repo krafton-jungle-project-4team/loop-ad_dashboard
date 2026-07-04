@@ -1588,6 +1588,7 @@ type PromotionFormState = {
   landingType: string;
   landingUrl: string;
   marketingTheme: string;
+  maxLoopCount: string;
   minSampleSize: string;
   offerType: string;
   status: string;
@@ -1696,6 +1697,16 @@ function PromotionFormFields({
           />
         </Field>
         <Field>
+          <FieldLabel htmlFor="dashboard-promotion-max-loop">최대 루프</FieldLabel>
+          <Input
+            id="dashboard-promotion-max-loop"
+            min="1"
+            onChange={(event) => update("maxLoopCount", event.target.value)}
+            type="number"
+            value={form.maxLoopCount}
+          />
+        </Field>
+        <Field>
           <FieldLabel htmlFor="dashboard-promotion-offer-type">오퍼</FieldLabel>
           <Input
             id="dashboard-promotion-offer-type"
@@ -1704,6 +1715,8 @@ function PromotionFormFields({
             value={form.offerType}
           />
         </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
         <Field>
           <FieldLabel>상태</FieldLabel>
           <Select onValueChange={(value) => update("status", value)} value={form.status}>
@@ -1762,6 +1775,7 @@ function createPromotionFormState(
     landingType: "none",
     landingUrl: "",
     marketingTheme: promotion?.marketing_theme ?? "",
+    maxLoopCount: String(promotion?.max_loop_count ?? 3),
     minSampleSize: "1000",
     offerType: "",
     status: promotion?.status ?? "draft",
@@ -1778,7 +1792,7 @@ function promotionFormToCreateRequest(form: PromotionFormState): CreatePromotion
     landing_type: nullableLandingType(form.landingType),
     landing_url: nullableText(form.landingUrl),
     marketing_theme: form.marketingTheme.trim(),
-    max_loop_count: 3,
+    max_loop_count: positiveInteger(form.maxLoopCount),
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     offer_type: nullableText(form.offerType),
     status: form.status as CreatePromotionInput["status"],
@@ -4812,6 +4826,11 @@ function nullableText(value: string): string | null {
 function nonnegativeNumber(value: string): number {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, number) : 0;
+}
+
+function positiveInteger(value: string): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(1, Math.trunc(number)) : 1;
 }
 
 function InsightBlock({ label, value }: { label: string; value: string }) {
