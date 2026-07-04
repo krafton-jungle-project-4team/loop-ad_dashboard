@@ -308,59 +308,6 @@ test("dashboard controller parses saved segment archive response", async () => {
   assert.equal(response.status, "archived");
 });
 
-test("dashboard controller parses default promotion creation response", async () => {
-  setRequiredEnv();
-  const { DashboardController } =
-    await import("../src/features/dashboard/controller/dashboard.controller.js");
-  const writes: unknown[] = [];
-  const controller = new DashboardController({
-    ...emptyDashboardQuery(),
-    createDefaultPromotions: async (projectId, campaignId) => {
-      writes.push({ campaignId, projectId });
-      return {
-        campaign_id: campaignId,
-        promotions: [
-          {
-            campaign_id: campaignId,
-            promotion_id: "promo_email_default",
-            channel: "email",
-            marketing_theme: "email_inflow",
-            target_audience: "existing_users",
-            goal_metric: "inflow_rate",
-            goal_target_value: 0.1,
-            goal_basis: "promotion_average",
-            min_sample_size: 1000,
-            max_loop_count: 3,
-            current_loop_count: 0,
-            message_brief: "기존 고객에게 캠페인 혜택을 안내해 유입률을 높입니다.",
-            offer_type: null,
-            landing_url: null,
-            landing_type: null,
-            status: "draft",
-            target_segment_count: 0,
-            ad_experiment_count: 0,
-            latest_actual_value: null,
-            next_action: "attach_segment",
-            updated_at: "2026-07-04T00:00:00.000Z"
-          }
-        ]
-      };
-    }
-  } as unknown as DashboardQueryService);
-
-  const response = await controller.createDefaultPromotions(
-    "camp_summer_2026",
-    "hotel-client-a"
-  );
-
-  assert.deepEqual(writes, [
-    { campaignId: "camp_summer_2026", projectId: "hotel-client-a" }
-  ]);
-  assert.equal(response.promotions.length, 1);
-  assert.equal(response.promotions[0]?.channel, "email");
-  assert.equal(response.promotions[0]?.goal_basis, "promotion_average");
-});
-
 test("dashboard controller parses promotion detail analyses response", async () => {
   setRequiredEnv();
   const { DashboardController } =
@@ -523,9 +470,6 @@ function emptyDashboardQuery(): DashboardQueryService {
     },
     createFunnel: async () => {
       throw new Error("Unexpected createFunnel call.");
-    },
-    createDefaultPromotions: async () => {
-      throw new Error("Unexpected createDefaultPromotions call.");
     },
     createSegmentQueryPreview: async () => {
       throw new Error("Unexpected createSegmentQueryPreview call.");

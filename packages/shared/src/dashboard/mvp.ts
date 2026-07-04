@@ -192,14 +192,6 @@ export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.
 });
 export type DashboardPromotionSummary = z.infer<typeof DashboardPromotionSummarySchema>;
 
-export const DashboardCreateDefaultPromotionsResultSchema = z.object({
-  campaign_id: z.string(),
-  promotions: z.array(DashboardPromotionSummarySchema)
-});
-export type DashboardCreateDefaultPromotionsResult = z.infer<
-  typeof DashboardCreateDefaultPromotionsResultSchema
->;
-
 export const DashboardCampaignSegmentSchema = z.object({
   promotion_id: z.string(),
   segment_id: z.string(),
