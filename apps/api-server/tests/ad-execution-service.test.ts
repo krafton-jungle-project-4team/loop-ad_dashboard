@@ -28,7 +28,6 @@ process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
-process.env.LOOPAD_AWS_REGION ??= "ap-northeast-2";
 
 const { BannerResolveService } =
   await import("../src/features/ad-execution/service/banner-resolve.service.js");
@@ -38,8 +37,12 @@ const { RedirectService } =
   await import("../src/features/ad-execution/service/redirect.service.js");
 const { AwsEndUserMessagingSmsSender, AwsSesEmailSender } =
   await import("../src/features/ad-execution/adapters/dispatch-sender.js");
-const { AD_DISPATCH_EMAIL_FROM_ADDRESS, createEmailSender, createSmsSender } =
-  await import("../src/features/ad-execution/ad-execution.module.js");
+const {
+  AD_DISPATCH_AWS_REGION,
+  AD_DISPATCH_EMAIL_FROM_ADDRESS,
+  createEmailSender,
+  createSmsSender
+} = await import("../src/features/ad-execution/ad-execution.module.js");
 const { HardcodedDemoRecipientDirectory } =
   await import("../src/features/ad-execution/repository/index.js");
 const { renderRedirectPage } =
@@ -90,16 +93,11 @@ test("dispatch uses stored assignments and records sender success", async () => 
   );
 });
 
-test("dispatch module always creates AWS senders from config", () => {
-  const awsConfig = {
-    region: "ap-northeast-2",
-    sesConfigurationSet: "ses-config",
-    smsConfigurationSet: "sms-config",
-    smsOriginationIdentity: "sender-id"
-  };
-
-  assert.equal(createEmailSender(awsConfig) instanceof AwsSesEmailSender, true);
-  assert.equal(createSmsSender(awsConfig) instanceof AwsEndUserMessagingSmsSender, true);
+test("dispatch module always creates AWS senders from fixed code config", () => {
+  assert.equal(createEmailSender() instanceof AwsSesEmailSender, true);
+  assert.equal(createSmsSender() instanceof AwsEndUserMessagingSmsSender, true);
+  assert.equal(AD_DISPATCH_AWS_REGION, "ap-northeast-2");
+  assert.equal(AD_DISPATCH_EMAIL_FROM_ADDRESS, "noreply@looapd.org");
 });
 
 test("hardcoded demo recipient directory maps user_id to a demo allowlist contact", async () => {

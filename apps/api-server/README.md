@@ -112,10 +112,10 @@ Dashboard FE
 
 - 목적: 저장된 active assignment를 기준으로 Email/SMS promotion을 외부 provider로 발송한다.
 - Provider: Email/SMS dispatch는 항상 AWS provider를 사용한다.
-- AWS Email: SES v2 `SendEmail`을 사용한다. From address는 코드에서 `noreply@looapd.org`로 고정하고,
-  `LOOPAD_AWS_REGION`, 선택 값 `LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET`을 사용한다.
-- AWS SMS: AWS End User Messaging SMS Voice v2 `SendTextMessage`를 사용한다.
-  `LOOPAD_AD_SMS_CONFIGURATION_SET`, `LOOPAD_AD_SMS_ORIGINATION_IDENTITY`가 있으면 command input에 포함한다.
+- AWS Email: SES v2 `SendEmail`을 사용한다. Region은 `ap-northeast-2`, From address는
+  `noreply@looapd.org`로 코드에서 고정한다.
+- AWS SMS: AWS End User Messaging SMS Voice v2 `SendTextMessage`를 사용한다. Region은
+  `ap-northeast-2`로 코드에서 고정한다.
 - Recipient 해석: sender에는 `user_id`를 넘기지 않는다. 현재 `RecipientDirectory`는 demo 발송을 위해
   코드에 하드코딩된 3개 수신 연락처 allowlist로 해석한다.
 - TODO: recipient table이 분석 DB에 확정되면 같은 Postgres repository/PgTyped 조회로 교체한다.

@@ -3,7 +3,6 @@ import { z } from "zod";
 const DASHBOARD_SERVICE_ID = "dashboard-api";
 
 const requiredString = z.string().trim().min(1);
-const optionalString = z.preprocess(emptyStringToUndefined, z.string().trim().min(1).optional());
 const positivePort = z.coerce.number().int().min(1).max(65535);
 const httpUrl = requiredString.url().refine(
   (value) => {
@@ -26,11 +25,7 @@ const envSchema = z.object({
   LOOPAD_CLICKHOUSE_DATABASE: requiredString,
   LOOPAD_CLICKHOUSE_USERNAME: requiredString,
   LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
-  LOOPAD_OPENAI_API_KEY: requiredString,
-  LOOPAD_AWS_REGION: requiredString,
-  LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET: optionalString,
-  LOOPAD_AD_SMS_CONFIGURATION_SET: optionalString,
-  LOOPAD_AD_SMS_ORIGINATION_IDENTITY: optionalString
+  LOOPAD_OPENAI_API_KEY: requiredString
 });
 
 const parsedEnv = parseEnv(process.env);
@@ -54,21 +49,9 @@ export const env = Object.freeze({
   },
   openai: {
     apiKey: parsedEnv.LOOPAD_OPENAI_API_KEY
-  },
-  dispatch: {
-    aws: {
-      region: parsedEnv.LOOPAD_AWS_REGION,
-      sesConfigurationSet: parsedEnv.LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET,
-      smsConfigurationSet: parsedEnv.LOOPAD_AD_SMS_CONFIGURATION_SET,
-      smsOriginationIdentity: parsedEnv.LOOPAD_AD_SMS_ORIGINATION_IDENTITY
-    }
   }
 });
 export type AppEnv = typeof env;
-
-function emptyStringToUndefined(value: unknown) {
-  return typeof value === "string" && value.trim() === "" ? undefined : value;
-}
 
 function parseEnv(source: NodeJS.ProcessEnv): z.infer<typeof envSchema> {
   const result = envSchema.safeParse(source);

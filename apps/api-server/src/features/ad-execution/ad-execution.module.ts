@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infra/database/index.js";
-import { env, type AppEnv } from "../../infra/env/env.js";
 import {
   AwsEndUserMessagingSmsSender,
   AwsSesEmailSender,
@@ -21,7 +20,7 @@ import {
   RedirectService
 } from "./service/index.js";
 
-type AwsDispatchConfig = AppEnv["dispatch"]["aws"];
+export const AD_DISPATCH_AWS_REGION = "ap-northeast-2";
 export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@looapd.org";
 
 /** 광고 실행 기능의 controller, service, adapter provider를 묶는 모듈입니다. */
@@ -40,28 +39,25 @@ export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@looapd.org";
     },
     {
       provide: EmailSender,
-      useFactory: () => createEmailSender(env.dispatch.aws)
+      useFactory: createEmailSender
     },
     {
       provide: SmsSender,
-      useFactory: () => createSmsSender(env.dispatch.aws)
+      useFactory: createSmsSender
     }
   ]
 })
 export class AdExecutionModule {}
 
-export function createEmailSender(awsConfig: AwsDispatchConfig = env.dispatch.aws) {
+export function createEmailSender() {
   return new AwsSesEmailSender({
-    region: awsConfig.region,
-    fromAddress: AD_DISPATCH_EMAIL_FROM_ADDRESS,
-    configurationSetName: awsConfig.sesConfigurationSet
+    region: AD_DISPATCH_AWS_REGION,
+    fromAddress: AD_DISPATCH_EMAIL_FROM_ADDRESS
   });
 }
 
-export function createSmsSender(awsConfig: AwsDispatchConfig = env.dispatch.aws) {
+export function createSmsSender() {
   return new AwsEndUserMessagingSmsSender({
-    region: awsConfig.region,
-    configurationSetName: awsConfig.smsConfigurationSet,
-    originationIdentity: awsConfig.smsOriginationIdentity
+    region: AD_DISPATCH_AWS_REGION
   });
 }
