@@ -12,7 +12,6 @@ import {
   SmsSender,
   type SmsSendInput
 } from "../adapters/dispatch-sender.js";
-import { RecipientDirectory } from "../adapters/recipient-directory.js";
 import {
   AdExecutionDomain,
   type ActiveAdServingAssignmentEntity,
@@ -21,7 +20,7 @@ import {
   type DispatchJobStatus,
   type PromotionRunEntity
 } from "../domain/index.js";
-import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
+import { AdExecutionReader, AdExecutionWriter, RecipientDirectory } from "../repository/index.js";
 
 const LOCAL_DASHBOARD_PUBLIC_BASE_URL = "http://localhost:8080";
 const DEV_DASHBOARD_PUBLIC_BASE_URL = "https://dashboard.api.dev.loop-ad.org";

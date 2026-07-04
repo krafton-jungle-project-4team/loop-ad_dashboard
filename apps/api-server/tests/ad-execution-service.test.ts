@@ -13,7 +13,7 @@ import type {
   EmailSendInput,
   SmsSendInput
 } from "../src/features/ad-execution/adapters/dispatch-sender.js";
-import type { DispatchRecipient } from "../src/features/ad-execution/adapters/recipient-directory.js";
+import type { DispatchRecipient } from "../src/features/ad-execution/repository/index.js";
 
 process.env.LOOPAD_ENV ??= "test";
 process.env.LOOPAD_SERVICE_ID ??= "dashboard-api";

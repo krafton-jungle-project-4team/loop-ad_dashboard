@@ -7,10 +7,14 @@ import {
   EmailSender,
   SmsSender
 } from "./adapters/dispatch-sender.js";
-import { DemoDbRecipientDirectory, RecipientDirectory } from "./adapters/recipient-directory.js";
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
 import { RedirectController } from "./controller/redirect.controller.js";
-import { AdExecutionReader, AdExecutionWriter } from "./repository/index.js";
+import {
+  AdExecutionReader,
+  AdExecutionWriter,
+  DemoDbRecipientDirectory,
+  RecipientDirectory
+} from "./repository/index.js";
 import {
   BannerResolveService,
   PromotionDispatchService,
