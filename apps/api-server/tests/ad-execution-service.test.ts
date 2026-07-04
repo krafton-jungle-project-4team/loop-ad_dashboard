@@ -120,8 +120,6 @@ test("env demo recipient directory maps user_id to configured contacts", async (
   assert.equal(recipient?.userId, "user-1");
   assert.equal(recipient?.email, "demo-recipient-1@loop-ad.org");
   assert.equal(recipient?.phoneNumber, "+821012345001");
-  assert.equal(recipient?.emailOptedIn, true);
-  assert.equal(recipient?.smsOptedIn, true);
   assert.equal(await directory.findRecipient("missing-user"), null);
 });
 
@@ -181,46 +179,14 @@ test("dispatch skips unmapped demo recipients as successful no-ops", async () =>
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch recipient skipped").length, 1);
 });
 
-test("dispatch honors email opt-in before sending", async () => {
-  const reader = new FakeAdExecutionReader();
-  const writer = new FakeAdExecutionWriter();
-  const recipientDirectory = new FakeRecipientDirectory(false);
-  const emailSender = new RecordingEmailSender();
-
-  recipientDirectory.recipients.set("user-1", recipient("user-1", { emailOptedIn: false }));
-
-  const { result: response } = await captureDispatchLogs(() =>
-    createDispatchService(
-      reader,
-      writer,
-      emailSender,
-      new RecordingSmsSender(),
-      recipientDirectory
-    ).dispatchPromotionRun("run-1")
-  );
-
-  assert.equal(response.dispatched_count, 0);
-  assert.equal(response.failed_count, 1);
-  assert.deepEqual(
-    response.jobs[0]?.attempts.map((attempt) => attempt.error_code),
-    ["EMAIL_NOT_OPTED_IN"]
-  );
-  assert.deepEqual(dispatchAttemptErrorCodes(writer), ["EMAIL_NOT_OPTED_IN"]);
-  assert.equal(emailSender.inputs.length, 0);
-});
-
-test("dispatch honors sms opt-in and validates phone contact", async () => {
+test("dispatch validates sms phone contact before sending", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
   const recipientDirectory = new FakeRecipientDirectory(false);
   const smsSender = new RecordingSmsSender();
 
   reader.promotion = { ...reader.promotion, channel: "sms" };
-  reader.dispatchAssignments = [
-    assignment({ channel: "sms", userId: "sms-off" }),
-    assignment({ channel: "sms", userId: "sms-invalid" })
-  ];
-  recipientDirectory.recipients.set("sms-off", recipient("sms-off", { smsOptedIn: false }));
+  reader.dispatchAssignments = [assignment({ channel: "sms", userId: "sms-invalid" })];
   recipientDirectory.recipients.set(
     "sms-invalid",
     recipient("sms-invalid", { phoneNumber: "010-1234-5678" })
@@ -237,15 +203,12 @@ test("dispatch honors sms opt-in and validates phone contact", async () => {
   );
 
   assert.equal(response.dispatched_count, 0);
-  assert.equal(response.failed_count, 2);
-  assert.deepEqual(response.jobs[0]?.attempts.map((attempt) => attempt.error_code).sort(), [
-    "RECIPIENT_CONTACT_INVALID",
-    "SMS_NOT_OPTED_IN"
-  ]);
-  assert.deepEqual(dispatchAttemptErrorCodes(writer).sort(), [
-    "RECIPIENT_CONTACT_INVALID",
-    "SMS_NOT_OPTED_IN"
-  ]);
+  assert.equal(response.failed_count, 1);
+  assert.deepEqual(
+    response.jobs[0]?.attempts.map((attempt) => attempt.error_code),
+    ["RECIPIENT_CONTACT_INVALID"]
+  );
+  assert.deepEqual(dispatchAttemptErrorCodes(writer), ["RECIPIENT_CONTACT_INVALID"]);
   assert.equal(smsSender.inputs.length, 0);
 });
 
@@ -545,8 +508,6 @@ function recipient(userId: string, overrides: Partial<DispatchRecipient> = {}): 
     userId,
     email: `${userId}@example.test`,
     phoneNumber: "+15555550123",
-    emailOptedIn: true,
-    smsOptedIn: true,
     ...overrides
   };
 }

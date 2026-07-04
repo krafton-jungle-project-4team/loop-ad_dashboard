@@ -121,8 +121,7 @@ Dashboard FE
 - Map에 없는 `user_id`는 raw contact 없이 로그만 남기고 성공 no-op으로 처리한다.
 - TODO: recipient table이 분석 DB에 확정되면 같은 Postgres repository/PgTyped 조회로 교체한다.
 - 실패 코드: 응답의 `jobs[].attempts[].error_code`와 dispatch job result attempts에
-  `EMAIL_NOT_OPTED_IN`, `SMS_NOT_OPTED_IN`, `RECIPIENT_CONTACT_INVALID`, `PROVIDER_SEND_FAILED`,
-  `CONTENT_INVALID`를 저장한다.
+  `RECIPIENT_CONTACT_INVALID`, `PROVIDER_SEND_FAILED`, `CONTENT_INVALID`를 저장한다.
 - 개인정보 로그: 로그에는 project/campaign/promotion/user id와 provider 상태만 남기고 raw email/phone은 기록하지 않는다.
 
 ## Dashboard 페이지별 데이터 흐름

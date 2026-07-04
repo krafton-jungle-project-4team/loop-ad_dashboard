@@ -7,9 +7,7 @@ const nullableContactSchema = z.string().trim().nullable();
 const dispatchRecipientSchema = z.object({
   userId: requiredStringSchema,
   email: nullableContactSchema,
-  phoneNumber: nullableContactSchema,
-  emailOptedIn: z.boolean(),
-  smsOptedIn: z.boolean()
+  phoneNumber: nullableContactSchema
 });
 
 export type DispatchRecipient = z.infer<typeof dispatchRecipientSchema>;
@@ -41,9 +39,7 @@ function toRecipientMap(recipients: ReadonlyArray<DemoDispatchRecipientConfig>) 
       dispatchRecipientSchema.parse({
         userId: recipient.userId,
         email: recipient.email,
-        phoneNumber: recipient.phoneNumber,
-        emailOptedIn: true,
-        smsOptedIn: true
+        phoneNumber: recipient.phoneNumber
       })
     ])
   );

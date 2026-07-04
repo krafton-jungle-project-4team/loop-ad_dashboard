@@ -45,7 +45,7 @@ interface DispatchContext {
   channel: DispatchChannel;
 }
 
-type DispatchFailureCode = "EMAIL_NOT_OPTED_IN" | "SMS_NOT_OPTED_IN" | "RECIPIENT_CONTACT_INVALID";
+type DispatchFailureCode = "RECIPIENT_CONTACT_INVALID";
 
 /** 프로모션 외부 발행 요청을 저장된 assignment 기반으로 처리합니다. */
 @Injectable()
@@ -247,16 +247,8 @@ export class PromotionDispatchService {
 
     switch (channel) {
       case "email":
-        if (!recipient.emailOptedIn) {
-          return throwDispatchFailure("EMAIL_NOT_OPTED_IN");
-        }
-
         return requireValidEmailContact(recipient.email);
       case "sms":
-        if (!recipient.smsOptedIn) {
-          return throwDispatchFailure("SMS_NOT_OPTED_IN");
-        }
-
         return requireValidSmsContact(recipient.phoneNumber);
       default:
         return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
