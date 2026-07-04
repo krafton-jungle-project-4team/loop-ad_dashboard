@@ -546,14 +546,18 @@ function toCampaignSummary(
     campaign_id: row.campaignId,
     campaign_name: row.campaignName,
     objective: row.objective,
+    target_audience: row.targetAudience,
     primary_metric: row.primaryMetric,
     status: row.status,
     start_date: formatDate(row.startDate),
     end_date: formatDate(row.endDate),
+    max_loop_count: countValue(row.maxLoopCount),
+    current_loop_count: countValue(row.currentLoopCount),
     promotion_count: countValue(row.promotionCount),
     segment_count: countValue(row.segmentCount),
     ad_experiment_count: countValue(row.adExperimentCount),
     latest_goal_achievement_rate: nullableRate(row.latestGoalAchievementRate),
+    next_action: row.nextAction ?? "monitor",
     updated_at: row.updatedAt.toISOString()
   };
 }
@@ -565,13 +569,21 @@ function toCampaignPromotion(
     promotion_id: row.promotionId,
     channel: row.channel,
     marketing_theme: row.marketingTheme,
+    target_audience: row.targetAudience,
     goal_metric: row.goalMetric,
     goal_target_value: numberValue(row.goalTargetValue),
     goal_basis: row.goalBasis,
+    min_sample_size: countValue(row.minSampleSize),
+    max_loop_count: countValue(row.maxLoopCount),
+    current_loop_count: countValue(row.currentLoopCount),
+    offer_type: row.offerType,
+    landing_url: row.landingUrl,
+    landing_type: row.landingType,
     status: row.status,
     target_segment_count: countValue(row.targetSegmentCount),
     ad_experiment_count: countValue(row.adExperimentCount),
     latest_actual_value: nullableRate(row.latestActualValue),
+    next_action: row.nextAction ?? "monitor",
     updated_at: row.updatedAt.toISOString()
   };
 }
@@ -587,12 +599,16 @@ function toPromotionSummary(row: IGetDashboardPromotionSummaryResult): Dashboard
     goal_target_value: numberValue(row.goalTargetValue),
     goal_basis: row.goalBasis,
     min_sample_size: countValue(row.minSampleSize),
+    max_loop_count: countValue(row.maxLoopCount),
+    current_loop_count: countValue(row.currentLoopCount),
     offer_type: row.offerType,
     landing_url: row.landingUrl,
+    landing_type: row.landingType,
     status: row.status,
     target_segment_count: countValue(row.targetSegmentCount),
     ad_experiment_count: countValue(row.adExperimentCount),
     latest_actual_value: nullableRate(row.latestActualValue),
+    next_action: row.nextAction ?? "monitor",
     updated_at: row.updatedAt.toISOString()
   };
 }
@@ -617,6 +633,10 @@ function toCampaignSegment(
     sample_size: countValue(row.sampleSize),
     total_eligible_user_count: countValue(row.totalEligibleUserCount),
     sample_ratio: numberValue(row.sampleRatio),
+    goal_metric: row.goalMetric,
+    latest_actual_value: nullableRate(row.latestActualValue),
+    ad_experiment_id: row.adExperimentId,
+    next_action: row.nextAction ?? "monitor",
     priority: row.priority,
     status: row.status
   };

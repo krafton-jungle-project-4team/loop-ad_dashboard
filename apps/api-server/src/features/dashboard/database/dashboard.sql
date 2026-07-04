@@ -4,18 +4,31 @@ SELECT
   c.campaign_id AS "campaignId",
   c.name AS "campaignName",
   c.objective,
+  c.target_audience AS "targetAudience",
   c.primary_metric AS "primaryMetric",
   c.status,
   c.start_date AS "startDate",
   c.end_date AS "endDate",
+  COALESCE(MAX(p.max_loop_count), 0)::int AS "maxLoopCount",
+  COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
   MAX(pe.actual_value)::float8 AS "latestGoalAchievementRate",
+  CASE
+    WHEN c.status = 'draft' THEN 'campaign_start'
+    WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'
+    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   c.updated_at AS "updatedAt"
 FROM campaigns c
 LEFT JOIN promotions p
   ON p.campaign_id = c.campaign_id
+LEFT JOIN promotion_runs pr
+  ON pr.campaign_id = c.campaign_id
 LEFT JOIN promotion_target_segments pts
   ON pts.campaign_id = c.campaign_id
 LEFT JOIN ad_experiments ae
@@ -32,18 +45,31 @@ SELECT
   c.campaign_id AS "campaignId",
   c.name AS "campaignName",
   c.objective,
+  c.target_audience AS "targetAudience",
   c.primary_metric AS "primaryMetric",
   c.status,
   c.start_date AS "startDate",
   c.end_date AS "endDate",
+  COALESCE(MAX(p.max_loop_count), 0)::int AS "maxLoopCount",
+  COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
   MAX(pe.actual_value)::float8 AS "latestGoalAchievementRate",
+  CASE
+    WHEN c.status = 'draft' THEN 'campaign_start'
+    WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'
+    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   c.updated_at AS "updatedAt"
 FROM campaigns c
 LEFT JOIN promotions p
   ON p.campaign_id = c.campaign_id
+LEFT JOIN promotion_runs pr
+  ON pr.campaign_id = c.campaign_id
 LEFT JOIN promotion_target_segments pts
   ON pts.campaign_id = c.campaign_id
 LEFT JOIN ad_experiments ae
@@ -112,15 +138,31 @@ SELECT
   p.promotion_id AS "promotionId",
   p.channel,
   p.marketing_theme AS "marketingTheme",
+  p.target_audience AS "targetAudience",
   p.goal_metric AS "goalMetric",
   p.goal_target_value::float8 AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
+  p.min_sample_size AS "minSampleSize",
+  p.max_loop_count AS "maxLoopCount",
+  COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
+  p.offer_type AS "offerType",
+  p.landing_url AS "landingUrl",
+  p.landing_type AS "landingType",
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
   MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CASE
+    WHEN p.status = 'draft' THEN 'complete_plan'
+    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   p.updated_at AS "updatedAt"
 FROM promotions p
+LEFT JOIN promotion_runs pr
+  ON pr.promotion_id = p.promotion_id
 LEFT JOIN promotion_target_segments pts
   ON pts.promotion_id = p.promotion_id
 LEFT JOIN ad_experiments ae
@@ -144,14 +186,26 @@ SELECT
   p.goal_target_value::float8 AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
   p.min_sample_size AS "minSampleSize",
+  p.max_loop_count AS "maxLoopCount",
+  COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
   p.offer_type AS "offerType",
   p.landing_url AS "landingUrl",
+  p.landing_type AS "landingType",
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
   MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CASE
+    WHEN p.status = 'draft' THEN 'complete_plan'
+    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   p.updated_at AS "updatedAt"
 FROM promotions p
+LEFT JOIN promotion_runs pr
+  ON pr.promotion_id = p.promotion_id
 LEFT JOIN promotion_target_segments pts
   ON pts.promotion_id = p.promotion_id
 LEFT JOIN ad_experiments ae
@@ -253,13 +307,49 @@ SELECT
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
   sd.sample_ratio::float8 AS "sampleRatio",
+  p.goal_metric AS "goalMetric",
+  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  MAX(ae.ad_experiment_id) AS "adExperimentId",
+  CASE
+    WHEN pts.status = 'planned' THEN 'create_content'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   pts.priority,
   pts.status
 FROM promotion_target_segments pts
 JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
+JOIN promotions p
+  ON p.promotion_id = pts.promotion_id
+LEFT JOIN ad_experiments ae
+  ON ae.promotion_id = pts.promotion_id
+ AND ae.segment_id = pts.segment_id
+LEFT JOIN promotion_evaluations pe
+  ON pe.promotion_id = pts.promotion_id
+ AND pe.segment_id = pts.segment_id
 WHERE pts.project_id = :projectId
   AND pts.campaign_id = :campaignId
+GROUP BY
+  pts.promotion_id,
+  pts.segment_id,
+  pts.segment_name,
+  sd.source,
+  sd.natural_language_query,
+  pts.rule_json,
+  pts.profile_json,
+  pts.content_brief_json,
+  pts.data_evidence_json,
+  pts.estimated_size,
+  sd.sample_size,
+  sd.total_eligible_user_count,
+  sd.sample_ratio,
+  p.goal_metric,
+  pts.priority,
+  pts.status,
+  pts.created_at
 ORDER BY pts.promotion_id ASC, pts.created_at DESC;
 
 /* 목적: 프로모션에 연결된 세그먼트 목록을 조회합니다. */
@@ -278,13 +368,49 @@ SELECT
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
   sd.sample_ratio::float8 AS "sampleRatio",
+  p.goal_metric AS "goalMetric",
+  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  MAX(ae.ad_experiment_id) AS "adExperimentId",
+  CASE
+    WHEN pts.status = 'planned' THEN 'create_content'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   pts.priority,
   pts.status
 FROM promotion_target_segments pts
 JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
+JOIN promotions p
+  ON p.promotion_id = pts.promotion_id
+LEFT JOIN ad_experiments ae
+  ON ae.promotion_id = pts.promotion_id
+ AND ae.segment_id = pts.segment_id
+LEFT JOIN promotion_evaluations pe
+  ON pe.promotion_id = pts.promotion_id
+ AND pe.segment_id = pts.segment_id
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
+GROUP BY
+  pts.promotion_id,
+  pts.segment_id,
+  pts.segment_name,
+  sd.source,
+  sd.natural_language_query,
+  pts.rule_json,
+  pts.profile_json,
+  pts.content_brief_json,
+  pts.data_evidence_json,
+  pts.estimated_size,
+  sd.sample_size,
+  sd.total_eligible_user_count,
+  sd.sample_ratio,
+  p.goal_metric,
+  pts.priority,
+  pts.status,
+  pts.created_at
 ORDER BY pts.created_at DESC;
 
 /* 목적: 프로모션 안의 특정 세그먼트 요약을 조회합니다. */
@@ -303,14 +429,50 @@ SELECT
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
   sd.sample_ratio::float8 AS "sampleRatio",
+  p.goal_metric AS "goalMetric",
+  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  MAX(ae.ad_experiment_id) AS "adExperimentId",
+  CASE
+    WHEN pts.status = 'planned' THEN 'create_content'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(*) FILTER (WHERE pe.status = 'insufficient_data') > 0 THEN 'review_sample'
+    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
+    ELSE 'monitor'
+  END AS "nextAction",
   pts.priority,
   pts.status
 FROM promotion_target_segments pts
 JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
+JOIN promotions p
+  ON p.promotion_id = pts.promotion_id
+LEFT JOIN ad_experiments ae
+  ON ae.promotion_id = pts.promotion_id
+ AND ae.segment_id = pts.segment_id
+LEFT JOIN promotion_evaluations pe
+  ON pe.promotion_id = pts.promotion_id
+ AND pe.segment_id = pts.segment_id
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
-  AND pts.segment_id = :segmentId;
+  AND pts.segment_id = :segmentId
+GROUP BY
+  pts.promotion_id,
+  pts.segment_id,
+  pts.segment_name,
+  sd.source,
+  sd.natural_language_query,
+  pts.rule_json,
+  pts.profile_json,
+  pts.content_brief_json,
+  pts.data_evidence_json,
+  pts.estimated_size,
+  sd.sample_size,
+  sd.total_eligible_user_count,
+  sd.sample_ratio,
+  p.goal_metric,
+  pts.priority,
+  pts.status,
+  pts.created_at;
 
 /* 목적: 사용자 정의 세그먼트 연결을 위한 수동 분석 row를 생성합니다. */
 /* @name InsertDashboardManualPromotionAnalysis */

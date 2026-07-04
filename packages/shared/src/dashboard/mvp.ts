@@ -8,14 +8,18 @@ export const DashboardCampaignSummarySchema = z.object({
   campaign_id: z.string(),
   campaign_name: z.string(),
   objective: z.string().nullable(),
+  target_audience: z.string(),
   primary_metric: z.string().nullable(),
   status: z.string(),
   start_date: z.string().nullable(),
   end_date: z.string().nullable(),
+  max_loop_count: CountSchema,
+  current_loop_count: CountSchema,
   promotion_count: CountSchema,
   segment_count: CountSchema,
   ad_experiment_count: CountSchema,
   latest_goal_achievement_rate: RateSchema.nullable(),
+  next_action: z.string(),
   updated_at: z.string()
 });
 export type DashboardCampaignSummary = z.infer<typeof DashboardCampaignSummarySchema>;
@@ -83,13 +87,21 @@ export const DashboardCampaignPromotionSchema = z.object({
   promotion_id: z.string(),
   channel: z.string(),
   marketing_theme: z.string(),
+  target_audience: z.string(),
   goal_metric: z.string(),
   goal_target_value: z.number().nonnegative(),
   goal_basis: z.string(),
+  min_sample_size: CountSchema,
+  max_loop_count: CountSchema,
+  current_loop_count: CountSchema,
+  offer_type: z.string().nullable(),
+  landing_url: z.string().nullable(),
+  landing_type: z.string().nullable(),
   status: z.string(),
   target_segment_count: CountSchema,
   ad_experiment_count: CountSchema,
   latest_actual_value: RateSchema.nullable(),
+  next_action: z.string(),
   updated_at: z.string()
 });
 export type DashboardCampaignPromotion = z.infer<typeof DashboardCampaignPromotionSchema>;
@@ -175,11 +187,7 @@ export type DashboardDeletePromotionResult = z.infer<
 >;
 
 export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.extend({
-  campaign_id: z.string(),
-  target_audience: z.string(),
-  min_sample_size: CountSchema,
-  offer_type: z.string().nullable(),
-  landing_url: z.string().nullable()
+  campaign_id: z.string()
 });
 export type DashboardPromotionSummary = z.infer<typeof DashboardPromotionSummarySchema>;
 
@@ -197,6 +205,10 @@ export const DashboardCampaignSegmentSchema = z.object({
   sample_size: CountSchema,
   total_eligible_user_count: CountSchema,
   sample_ratio: z.number().nonnegative(),
+  goal_metric: z.string(),
+  latest_actual_value: RateSchema.nullable(),
+  ad_experiment_id: z.string().nullable(),
+  next_action: z.string(),
   priority: z.string().nullable(),
   status: z.string()
 });
@@ -306,9 +318,30 @@ export const DashboardRealtimeEventSchema = z.object({
 });
 export type DashboardRealtimeEvent = z.infer<typeof DashboardRealtimeEventSchema>;
 
+export const DashboardRealtimeTimeBucketSchema = z.object({
+  time_bucket: z.string(),
+  event_count: CountSchema,
+  unique_user_count: CountSchema
+});
+export type DashboardRealtimeTimeBucket = z.infer<typeof DashboardRealtimeTimeBucketSchema>;
+
+export const DashboardRealtimeBreakdownItemSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  event_count: CountSchema,
+  unique_user_count: CountSchema
+});
+export type DashboardRealtimeBreakdownItem = z.infer<
+  typeof DashboardRealtimeBreakdownItemSchema
+>;
+
 export const DashboardRealtimeMetricsSchema = z.object({
   total_event_count: CountSchema,
-  events: z.array(DashboardRealtimeEventSchema)
+  events: z.array(DashboardRealtimeEventSchema),
+  time_buckets: z.array(DashboardRealtimeTimeBucketSchema),
+  channel_breakdown: z.array(DashboardRealtimeBreakdownItemSchema),
+  landing_type_breakdown: z.array(DashboardRealtimeBreakdownItemSchema),
+  hotel_cluster_breakdown: z.array(DashboardRealtimeBreakdownItemSchema)
 });
 export type DashboardRealtimeMetrics = z.infer<typeof DashboardRealtimeMetricsSchema>;
 
