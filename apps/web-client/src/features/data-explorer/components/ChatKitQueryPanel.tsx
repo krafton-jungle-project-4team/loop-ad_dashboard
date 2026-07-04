@@ -85,9 +85,7 @@ export function ChatKitQueryPanel({
       placeholder: "보고 싶은 데이터를 입력하세요."
     },
     header: {
-      title: {
-        text: "AI Assistant"
-      }
+      enabled: false
     },
     history: {
       enabled: false
@@ -121,8 +119,15 @@ export function ChatKitQueryPanel({
   });
 
   return (
-    <aside className="h-full min-h-0 overflow-hidden bg-white">
-      <ChatKit control={chatKit.control} className="block h-full w-full" />
+    <aside className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white">
+      <div className="border-b border-black/10 px-4 py-4">
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+          AI Assistant
+        </div>
+      </div>
+      <div className="min-h-0 overflow-hidden">
+        <ChatKit control={chatKit.control} className="block h-full w-full" />
+      </div>
     </aside>
   );
 }
