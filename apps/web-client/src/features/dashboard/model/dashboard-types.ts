@@ -1,6 +1,6 @@
 import type { DashboardFunnelList, DashboardMain } from "@loopad/shared";
 
-export const dashboardTabValues = ["main", "funnels", "dataExplorer"] as const;
+export const dashboardTabValues = ["main", "funnels", "campaigns", "dataExplorer"] as const;
 
 export type DashboardTab = (typeof dashboardTabValues)[number];
 
@@ -22,7 +22,8 @@ export type DashboardConversionEvent =
 
 export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
-  | { tab: "funnels"; data: DashboardFunnelList };
+  | { tab: "funnels"; data: DashboardFunnelList }
+  | { tab: "campaigns"; data: DashboardMain };
 
 export type DashboardQuery = {
   projectId: string;

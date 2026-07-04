@@ -41,6 +41,11 @@ export async function fetchDashboardPageResource(
         tab,
         data: await request("/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)
       };
+    case "campaigns":
+      return {
+        tab,
+        data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
+      };
     case "dataExplorer":
       throw new Error("Data Explorer uses its own API resource flow.");
   }
