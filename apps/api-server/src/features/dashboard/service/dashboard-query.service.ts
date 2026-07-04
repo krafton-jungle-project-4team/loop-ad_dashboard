@@ -10,6 +10,7 @@ import type {
   DashboardMain,
   DashboardPromotionDetail,
   DashboardSavedSegment,
+  DashboardSavedSegmentList,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
@@ -128,5 +129,9 @@ export class DashboardQueryService {
     return this.transactionHost.withTransaction(() =>
       this.segmentQueryRepository.saveSegment(projectId, request)
     );
+  }
+
+  async savedSegments(projectId: string): Promise<DashboardSavedSegmentList> {
+    return this.segmentQueryRepository.listSavedSegments(projectId);
   }
 }

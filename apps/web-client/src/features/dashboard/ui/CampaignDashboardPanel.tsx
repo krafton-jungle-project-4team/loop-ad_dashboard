@@ -7,6 +7,7 @@ import type {
   DashboardMain,
   DashboardPromotionDetail as DashboardPromotionDetailResource,
   DashboardRealtimeMetrics,
+  DashboardSavedSegment,
   DashboardSegmentDetail as DashboardSegmentDetailResource,
   DashboardSegmentQueryPreview
 } from "@loopad/shared";
@@ -29,12 +30,13 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { Tabs, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   createDashboardSegmentQueryPreview,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
+  fetchDashboardSavedSegments,
   fetchDashboardSegmentDetail,
   saveDashboardSegment
 } from "../api/dashboard-api.js";
@@ -43,6 +45,7 @@ import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardPromotionDetailQueryKey,
+  dashboardSavedSegmentsQueryKey,
   dashboardSegmentDetailQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
@@ -83,6 +86,10 @@ export function CampaignDashboardPanel({
       selectedPromotionId,
       selectedSegmentId
     )
+  });
+  const savedSegments = useQuery({
+    queryFn: ({ signal }) => fetchDashboardSavedSegments(query, signal),
+    queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
   });
   const selectedPromotion = campaignDetail.data?.promotions.find(
     (promotion) => promotion.promotion_id === selectedPromotionId
@@ -215,6 +222,10 @@ export function CampaignDashboardPanel({
         promotionIsError={promotionDetail.isError}
         promotionIsLoading={promotionDetail.isLoading}
         query={query}
+        savedSegments={savedSegments.data?.segments ?? []}
+        savedSegmentsError={savedSegments.error}
+        savedSegmentsIsError={savedSegments.isError}
+        savedSegmentsIsLoading={savedSegments.isLoading}
         segmentDetail={segmentDetail.data}
         segmentError={segmentDetail.error}
         segmentIsError={segmentDetail.isError}
@@ -345,6 +356,10 @@ function CampaignDetailPanel({
   promotionIsError,
   promotionIsLoading,
   query,
+  savedSegments,
+  savedSegmentsError,
+  savedSegmentsIsError,
+  savedSegmentsIsLoading,
   segmentDetail,
   segmentError,
   segmentIsError,
@@ -367,6 +382,10 @@ function CampaignDetailPanel({
   promotionIsError: boolean;
   promotionIsLoading: boolean;
   query: DashboardQuery;
+  savedSegments: DashboardSavedSegment[];
+  savedSegmentsError: Error | null;
+  savedSegmentsIsError: boolean;
+  savedSegmentsIsLoading: boolean;
   segmentDetail: DashboardSegmentDetailResource | undefined;
   segmentError: Error | null;
   segmentIsError: boolean;
@@ -410,6 +429,10 @@ function CampaignDetailPanel({
             promotionIsError={promotionIsError}
             promotionIsLoading={promotionIsLoading}
             query={query}
+            savedSegments={savedSegments}
+            savedSegmentsError={savedSegmentsError}
+            savedSegmentsIsError={savedSegmentsIsError}
+            savedSegmentsIsLoading={savedSegmentsIsLoading}
             segmentDetail={segmentDetail}
             segmentError={segmentError}
             segmentIsError={segmentIsError}
@@ -436,6 +459,10 @@ function CampaignTabContent({
   promotionIsError,
   promotionIsLoading,
   query,
+  savedSegments,
+  savedSegmentsError,
+  savedSegmentsIsError,
+  savedSegmentsIsLoading,
   segmentDetail,
   segmentError,
   segmentIsError,
@@ -455,6 +482,10 @@ function CampaignTabContent({
   promotionIsError: boolean;
   promotionIsLoading: boolean;
   query: DashboardQuery;
+  savedSegments: DashboardSavedSegment[];
+  savedSegmentsError: Error | null;
+  savedSegmentsIsError: boolean;
+  savedSegmentsIsLoading: boolean;
   segmentDetail: DashboardSegmentDetailResource | undefined;
   segmentError: Error | null;
   segmentIsError: boolean;
@@ -511,6 +542,12 @@ function CampaignTabContent({
             selectedSegment={selectedSegment}
           />
           <SegmentQueryPreviewPanel query={query} />
+          <SavedSegmentTable
+            error={savedSegmentsError}
+            isError={savedSegmentsIsError}
+            isLoading={savedSegmentsIsLoading}
+            segments={savedSegments}
+          />
           <SegmentTable
             onSelectSegment={onSelectSegment}
             segments={promotionDetail?.segments ?? detail.segments}
@@ -1215,6 +1252,7 @@ function SegmentTable({
 }
 
 function SegmentQueryPreviewPanel({ query }: { query: DashboardQuery }) {
+  const queryClient = useQueryClient();
   const [naturalLanguageQuery, setNaturalLanguageQuery] = useState("");
   const [segmentName, setSegmentName] = useState("");
   const [preview, setPreview] = useState<DashboardSegmentQueryPreview | null>(null);
@@ -1238,6 +1276,11 @@ function SegmentQueryPreviewPanel({ query }: { query: DashboardQuery }) {
       return saveDashboardSegment(query, {
         query_preview_id: preview.query_preview_id,
         segment_name: segmentName.trim()
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
       });
     }
   });
@@ -1320,6 +1363,105 @@ function SegmentQueryPreviewPanel({ query }: { query: DashboardQuery }) {
       </div>
     </section>
   );
+}
+
+function SavedSegmentTable({
+  error,
+  isError,
+  isLoading,
+  segments
+}: {
+  error: Error | null;
+  isError: boolean;
+  isLoading: boolean;
+  segments: DashboardSavedSegment[];
+}) {
+  return (
+    <section className="grid gap-3">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">사용자 정의 세그먼트 목록</h3>
+        <p className="text-sm text-muted-foreground">
+          SQL preview 검증을 통과해 segment_definitions에 저장된 세그먼트입니다.
+        </p>
+      </div>
+      {isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>사용자 정의 세그먼트를 불러오지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {isLoading ? <EmptyState message="사용자 정의 세그먼트를 불러오는 중입니다." /> : null}
+      {!isLoading && segments.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>세그먼트</TableHead>
+              <TableHead>조건</TableHead>
+              <TableHead>출처</TableHead>
+              <TableHead className="text-right">sample size</TableHead>
+              <TableHead className="text-right">sample ratio</TableHead>
+              <TableHead className="text-right">전체 적격 유저</TableHead>
+              <TableHead>상태</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {segments.map((segment) => (
+              <TableRow key={segment.segment_id}>
+                <TableCell>
+                  <div className="grid min-w-[220px] gap-1">
+                    <span className="font-medium">{segment.segment_name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {segment.segment_id} · {segment.query_preview_id}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="grid min-w-[280px] gap-2">
+                    <span className="line-clamp-2 text-sm">
+                      {segment.natural_language_query ?? "조건 설명이 저장되지 않았습니다."}
+                    </span>
+                    {segment.generated_sql ? (
+                      <details className="text-xs text-muted-foreground">
+                        <summary className="cursor-pointer">SQL preview</summary>
+                        <pre className="mt-2 max-h-[180px] overflow-auto rounded-md border bg-background p-2 leading-5">
+                          {segment.generated_sql}
+                        </pre>
+                      </details>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell>{segment.source}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatInteger(segment.sample_size)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatPercentValue(segment.sample_ratio)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatInteger(segment.total_eligible_user_count)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="secondary">{segment.status}</Badge>
+                    <Badge variant={isSavedSegmentSampleValid(segment) ? "outline" : "destructive"}>
+                      {isSavedSegmentSampleValid(segment) ? "sample valid" : "sample check"}
+                    </Badge>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : null}
+      {!isLoading && !isError && segments.length === 0 ? (
+        <EmptyState message="저장된 사용자 정의 세그먼트가 없습니다." />
+      ) : null}
+    </section>
+  );
+}
+
+function isSavedSegmentSampleValid(segment: DashboardSavedSegment) {
+  return segment.sample_size >= 100 && segment.sample_ratio >= 0.005;
 }
 
 function SegmentQueryPreviewResult({ preview }: { preview: DashboardSegmentQueryPreview }) {

@@ -4,6 +4,7 @@ import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Inject, Injectable } from "@nestjs/common";
 import type {
   DashboardSavedSegment,
+  DashboardSavedSegmentList,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
   DashboardSaveSegmentRequest,
@@ -16,9 +17,11 @@ import {
   getDashboardSegmentQueryPreviewForSave,
   insertDashboardCustomSegmentDefinition,
   insertDashboardSegmentQueryPreview,
+  listDashboardSavedSegments,
   markDashboardSegmentQueryPreviewSaved,
   type IInsertDashboardCustomSegmentDefinitionResult,
   type IInsertDashboardSegmentQueryPreviewResult,
+  type IListDashboardSavedSegmentsResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
 
@@ -80,6 +83,14 @@ export class DashboardSegmentQueryRepository {
       .single();
 
     return toSegmentQueryPreview(row);
+  }
+
+  async listSavedSegments(projectId: string): Promise<DashboardSavedSegmentList> {
+    const rows = await this.db.query(listDashboardSavedSegments, { projectId }).multiple();
+
+    return {
+      segments: rows.map(toSavedSegment)
+    };
   }
 
   async saveSegment(
@@ -317,17 +328,21 @@ function toSegmentQueryPreview(
   };
 }
 
-function toSavedSegment(row: IInsertDashboardCustomSegmentDefinitionResult): DashboardSavedSegment {
+function toSavedSegment(
+  row: IInsertDashboardCustomSegmentDefinitionResult | IListDashboardSavedSegmentsResult
+): DashboardSavedSegment {
   return {
     segment_id: row.segmentId,
     project_id: row.projectId,
     segment_name: row.segmentName,
     source: "custom_chatkit",
     query_preview_id: row.queryPreviewId ?? "",
+    natural_language_query: row.naturalLanguageQuery,
+    generated_sql: row.generatedSql,
     sample_size: countValue(row.sampleSize),
     total_eligible_user_count: countValue(row.totalEligibleUserCount),
     sample_ratio: numberValue(row.sampleRatio),
-    status: "active"
+    status: row.status
   };
 }
 

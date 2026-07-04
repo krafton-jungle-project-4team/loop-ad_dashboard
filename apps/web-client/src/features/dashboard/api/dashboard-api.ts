@@ -9,6 +9,7 @@ import {
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardPromotionDetailSchema,
+  DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
@@ -23,6 +24,7 @@ import type {
   DashboardFunnel,
   DashboardFunnelMetrics,
   DashboardPromotionDetail,
+  DashboardSavedSegmentList,
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
@@ -200,6 +202,13 @@ export async function saveDashboardSegment(
 
   return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
     .data;
+}
+
+export async function fetchDashboardSavedSegments(
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<DashboardSavedSegmentList> {
+  return request("/dashboard/v1/segments", DashboardSavedSegmentListSchema, query, signal);
 }
 
 export async function fetchDashboardEventCatalog(

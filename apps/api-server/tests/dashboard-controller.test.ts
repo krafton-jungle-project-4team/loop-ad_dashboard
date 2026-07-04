@@ -171,6 +171,8 @@ test("dashboard controller parses save segment body before delegating", async ()
         segment_name: request.segment_name,
         source: "custom_chatkit",
         query_preview_id: request.query_preview_id,
+        natural_language_query: "숙소 상세 조회 후 미예약 고객",
+        generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
         sample_size: 1342,
         total_eligible_user_count: 10000,
         sample_ratio: 0.1342,
@@ -189,6 +191,42 @@ test("dashboard controller parses save segment body before delegating", async ()
   assert.equal(response.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
 });
 
+test("dashboard controller parses saved segment list response", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const reads: string[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    savedSegments: async (projectId) => {
+      reads.push(projectId);
+      return {
+        segments: [
+          {
+            segment_id: "seg_custom_001",
+            project_id: projectId,
+            segment_name: "같은 숙소 반복 조회 후 미예약 고객",
+            source: "custom_chatkit",
+            query_preview_id: "seg_query_preview_001",
+            natural_language_query: "숙소 상세 조회 후 미예약 고객",
+            generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+            sample_size: 1342,
+            total_eligible_user_count: 10000,
+            sample_ratio: 0.1342,
+            status: "active"
+          }
+        ]
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.savedSegments("hotel-client-a");
+
+  assert.deepEqual(reads, ["hotel-client-a"]);
+  assert.equal(response.segments.length, 1);
+  assert.equal(response.segments[0]?.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
+});
+
 function emptyDashboardQuery(): DashboardQueryService {
   return {
     createFunnel: async () => {
@@ -200,6 +238,7 @@ function emptyDashboardQuery(): DashboardQueryService {
     eventCatalog: async () => ({ events: [] }),
     funnels: async () => ({ funnels: [] }),
     main: async () => ({ campaigns: [] }),
+    savedSegments: async () => ({ segments: [] }),
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
     }

@@ -291,6 +291,25 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY updated_at DESC, created_at DESC;
 
+/* 목적: 프로젝트에 저장된 사용자 정의 세그먼트 목록을 조회합니다. */
+/* @name ListDashboardSavedSegments */
+SELECT
+  segment_id AS "segmentId",
+  project_id AS "projectId",
+  segment_name AS "segmentName",
+  source,
+  query_preview_id AS "queryPreviewId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  status
+FROM segment_definitions
+WHERE project_id = :projectId
+  AND source = 'custom_chatkit'
+ORDER BY updated_at DESC, created_at DESC;
+
 /* 목적: 자연어 세그먼트 조회 preview 결과를 저장합니다. */
 /* @name InsertDashboardSegmentQueryPreview */
 INSERT INTO segment_query_previews (
@@ -392,6 +411,8 @@ RETURNING
   segment_name AS "segmentName",
   source,
   query_preview_id AS "queryPreviewId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
   sample_ratio::float8 AS "sampleRatio",

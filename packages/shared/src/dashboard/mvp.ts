@@ -239,12 +239,19 @@ export const DashboardSavedSegmentSchema = z.object({
   segment_name: z.string(),
   source: z.literal("custom_chatkit"),
   query_preview_id: z.string(),
+  natural_language_query: z.string().nullable(),
+  generated_sql: z.string().nullable(),
   sample_size: CountSchema,
   total_eligible_user_count: CountSchema,
   sample_ratio: z.number().nonnegative(),
-  status: z.literal("active")
+  status: z.string()
 });
 export type DashboardSavedSegment = z.infer<typeof DashboardSavedSegmentSchema>;
+
+export const DashboardSavedSegmentListSchema = z.object({
+  segments: z.array(DashboardSavedSegmentSchema)
+});
+export type DashboardSavedSegmentList = z.infer<typeof DashboardSavedSegmentListSchema>;
 
 export const DashboardFunnelStepSchema = z.object({
   step_order: CountSchema,

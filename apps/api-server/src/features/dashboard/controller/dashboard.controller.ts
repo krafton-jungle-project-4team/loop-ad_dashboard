@@ -9,6 +9,7 @@ import {
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardPromotionDetailSchema,
+  DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
@@ -119,6 +120,14 @@ export class DashboardController {
     const request = DashboardSegmentQueryPreviewRequestSchema.parse(body);
     return DashboardSegmentQueryPreviewSchema.parse(
       await this.dashboardQuery.createSegmentQueryPreview(requiredProjectId, request)
+    );
+  }
+
+  @Get("segments")
+  async savedSegments(@Query("project_id") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardSavedSegmentListSchema.parse(
+      await this.dashboardQuery.savedSegments(requiredProjectId)
     );
   }
 

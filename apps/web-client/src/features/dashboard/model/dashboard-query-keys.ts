@@ -28,6 +28,10 @@ export function dashboardSegmentDetailQueryKey(
   return ["dashboard", "segment-detail", projectId, promotionId, segmentId] as const;
 }
 
+export function dashboardSavedSegmentsQueryKey(projectId: string) {
+  return ["dashboard", "saved-segments", projectId] as const;
+}
+
 export function dashboardFunnelMetricsQueryKey(projectId: string, funnelId: string) {
   return ["dashboard", "funnel-metrics", projectId, funnelId] as const;
 }

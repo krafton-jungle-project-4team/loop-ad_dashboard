@@ -180,6 +180,8 @@ test("dashboard save segment delegates valid preview save to the segment query r
           segment_name: request.segment_name,
           source: "custom_chatkit",
           query_preview_id: request.query_preview_id,
+          natural_language_query: "숙소 상세 조회 후 미예약 고객",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
           sample_size: 1342,
           total_eligible_user_count: 10000,
           sample_ratio: 0.1342,
@@ -198,6 +200,48 @@ test("dashboard save segment delegates valid preview save to the segment query r
   assert.equal(writes.length, 1);
   assert.equal(segment.source, "custom_chatkit");
   assert.equal(segment.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
+});
+
+test("dashboard saved segments returns custom segments from the segment query repository", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const reads: string[] = [];
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      listSavedSegments: async (projectId) => {
+        reads.push(projectId);
+        return {
+          segments: [
+            {
+              segment_id: "seg_custom_001",
+              project_id: projectId,
+              segment_name: "같은 숙소 반복 조회 후 미예약 고객",
+              source: "custom_chatkit",
+              query_preview_id: "seg_query_preview_001",
+              natural_language_query: "숙소 상세 조회 후 미예약 고객",
+              generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+              sample_size: 1342,
+              total_eligible_user_count: 10000,
+              sample_ratio: 0.1342,
+              status: "active"
+            }
+          ]
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    passthroughTransactionHost()
+  );
+
+  const segments = await service.savedSegments("hotel-client-a");
+
+  assert.deepEqual(reads, ["hotel-client-a"]);
+  assert.equal(segments.segments.length, 1);
+  assert.equal(segments.segments[0]?.source, "custom_chatkit");
+  assert.equal(segments.segments[0]?.sample_size, 1342);
 });
 
 function emptyCampaignReader(): DashboardCampaignReader {
@@ -220,6 +264,9 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
   return {
     createQueryPreview: async () => {
       throw new Error("Unexpected createQueryPreview call.");
+    },
+    listSavedSegments: async () => {
+      throw new Error("Unexpected listSavedSegments call.");
     },
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
