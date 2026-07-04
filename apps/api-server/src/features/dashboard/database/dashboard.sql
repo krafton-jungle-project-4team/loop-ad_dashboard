@@ -762,6 +762,7 @@ SELECT
 FROM segment_definitions
 WHERE project_id = :projectId
   AND source = 'custom_chatkit'
+  AND status = 'active'
 ORDER BY updated_at DESC, created_at DESC;
 
 /* 목적: 자연어 세그먼트 조회 preview 결과를 저장합니다. */
@@ -871,6 +872,41 @@ RETURNING
   total_eligible_user_count AS "totalEligibleUserCount",
   sample_ratio::float8 AS "sampleRatio",
   status;
+
+/* 목적: 저장된 사용자 정의 세그먼트의 표시 이름과 상태를 수정합니다. */
+/* @name UpdateDashboardSavedSegment */
+UPDATE segment_definitions
+SET
+  segment_name = COALESCE(:segmentName, segment_name),
+  status = COALESCE(:status, status),
+  updated_at = now()
+WHERE project_id = :projectId
+  AND segment_id = :segmentId
+  AND source = 'custom_chatkit'
+  AND status <> 'archived'
+RETURNING
+  segment_id AS "segmentId",
+  project_id AS "projectId",
+  segment_name AS "segmentName",
+  source,
+  query_preview_id AS "queryPreviewId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  status;
+
+/* 목적: 저장된 사용자 정의 세그먼트를 FK 안전하게 보관 상태로 전환합니다. */
+/* @name ArchiveDashboardSavedSegment */
+UPDATE segment_definitions
+SET status = 'archived',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND segment_id = :segmentId
+  AND source = 'custom_chatkit'
+  AND status <> 'archived'
+RETURNING segment_id AS "segmentId", status;
 
 /* 목적: 저장 완료된 preview 상태를 갱신합니다. */
 /* @name MarkDashboardSegmentQueryPreviewSaved */

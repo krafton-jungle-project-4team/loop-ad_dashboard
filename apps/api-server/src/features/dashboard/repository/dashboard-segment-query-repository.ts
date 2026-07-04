@@ -3,25 +3,31 @@ import { type ClickHouseClient } from "@clickhouse/client";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Inject, Injectable } from "@nestjs/common";
 import type {
+  DashboardDeleteSavedSegmentResult,
   DashboardSavedSegment,
   DashboardSavedSegmentList,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
   DashboardSaveSegmentRequest,
-  DashboardSegmentSampleSizeStatus
+  DashboardSegmentSampleSizeStatus,
+  DashboardUpdateSavedSegmentRequest
 } from "@loopad/shared";
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import { dashboardErrors } from "../dashboard-errors.js";
 import {
+  archiveDashboardSavedSegment,
   getDashboardSegmentQueryPreviewForSave,
   insertDashboardCustomSegmentDefinition,
   insertDashboardSegmentQueryPreview,
   listDashboardSavedSegments,
   markDashboardSegmentQueryPreviewSaved,
+  updateDashboardSavedSegment,
+  type IArchiveDashboardSavedSegmentResult,
   type IInsertDashboardCustomSegmentDefinitionResult,
   type IInsertDashboardSegmentQueryPreviewResult,
   type IListDashboardSavedSegmentsResult,
+  type IUpdateDashboardSavedSegmentResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
 
@@ -129,6 +135,34 @@ export class DashboardSegmentQueryRepository {
       .single();
 
     return toSavedSegment(segment);
+  }
+
+  async updateSavedSegment(
+    projectId: string,
+    segmentId: string,
+    request: DashboardUpdateSavedSegmentRequest
+  ): Promise<DashboardSavedSegment> {
+    const segment = await this.db
+      .query(updateDashboardSavedSegment, {
+        projectId,
+        segmentId,
+        segmentName: request.segment_name,
+        status: request.status
+      })
+      .single();
+
+    return toSavedSegment(segment);
+  }
+
+  async archiveSavedSegment(
+    projectId: string,
+    segmentId: string
+  ): Promise<DashboardDeleteSavedSegmentResult> {
+    const row = await this.db
+      .query(archiveDashboardSavedSegment, { projectId, segmentId })
+      .single();
+
+    return toDeleteSavedSegmentResult(row);
   }
 
   private async executePreviewQuery(sql: string): Promise<{ columns: string[]; rows: PreviewRow[] }> {
@@ -329,7 +363,10 @@ function toSegmentQueryPreview(
 }
 
 function toSavedSegment(
-  row: IInsertDashboardCustomSegmentDefinitionResult | IListDashboardSavedSegmentsResult
+  row:
+    | IInsertDashboardCustomSegmentDefinitionResult
+    | IListDashboardSavedSegmentsResult
+    | IUpdateDashboardSavedSegmentResult
 ): DashboardSavedSegment {
   return {
     segment_id: row.segmentId,
@@ -342,7 +379,16 @@ function toSavedSegment(
     sample_size: countValue(row.sampleSize),
     total_eligible_user_count: countValue(row.totalEligibleUserCount),
     sample_ratio: numberValue(row.sampleRatio),
-    status: row.status
+    status: savedSegmentStatus(row.status)
+  };
+}
+
+function toDeleteSavedSegmentResult(
+  row: IArchiveDashboardSavedSegmentResult
+): DashboardDeleteSavedSegmentResult {
+  return {
+    segment_id: row.segmentId,
+    status: "archived"
   };
 }
 
@@ -363,6 +409,10 @@ function roundRatio(value: number): number {
 function countValue(value: number | string | null): number {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
+}
+
+function savedSegmentStatus(value: string): DashboardSavedSegment["status"] {
+  return value === "archived" ? "archived" : "active";
 }
 
 function numberValue(value: number | string | null): number {

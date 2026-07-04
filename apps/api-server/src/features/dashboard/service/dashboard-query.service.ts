@@ -10,6 +10,7 @@ import type {
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
   DashboardDeleteCampaignResult,
+  DashboardDeleteSavedSegmentResult,
   DashboardCreatePromotionRequest,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
@@ -30,7 +31,8 @@ import type {
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
-  DashboardUpdatePromotionSegmentRequest
+  DashboardUpdatePromotionSegmentRequest,
+  DashboardUpdateSavedSegmentRequest
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
@@ -260,6 +262,25 @@ export class DashboardQueryService {
   ): Promise<DashboardSavedSegment> {
     return this.transactionHost.withTransaction(() =>
       this.segmentQueryRepository.saveSegment(projectId, request)
+    );
+  }
+
+  async updateSavedSegment(
+    projectId: string,
+    segmentId: string,
+    request: DashboardUpdateSavedSegmentRequest
+  ): Promise<DashboardSavedSegment> {
+    return this.transactionHost.withTransaction(() =>
+      this.segmentQueryRepository.updateSavedSegment(projectId, segmentId, request)
+    );
+  }
+
+  async archiveSavedSegment(
+    projectId: string,
+    segmentId: string
+  ): Promise<DashboardDeleteSavedSegmentResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.segmentQueryRepository.archiveSavedSegment(projectId, segmentId)
     );
   }
 

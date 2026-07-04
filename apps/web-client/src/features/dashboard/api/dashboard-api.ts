@@ -13,6 +13,7 @@ import {
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
+  DashboardDeleteSavedSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
@@ -30,7 +31,8 @@ import {
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
-  DashboardUpdatePromotionSegmentRequestSchema
+  DashboardUpdatePromotionSegmentRequestSchema,
+  DashboardUpdateSavedSegmentRequestSchema
 } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
@@ -46,6 +48,7 @@ import type {
   DashboardDeleteFunnelResult,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
+  DashboardDeleteSavedSegmentResult,
   DashboardEventCatalog,
   DashboardFunnel,
   DashboardFunnelMetrics,
@@ -61,7 +64,8 @@ import type {
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
-  DashboardUpdatePromotionSegmentRequest
+  DashboardUpdatePromotionSegmentRequest,
+  DashboardUpdateSavedSegmentRequest
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -511,6 +515,54 @@ export async function saveDashboardSegment(
 
   return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
     .data;
+}
+
+export async function updateDashboardSavedSegment(
+  query: DashboardQuery,
+  segmentId: string,
+  requestBody: DashboardUpdateSavedSegmentRequest
+): Promise<DashboardSavedSegment> {
+  const parsedBody = DashboardUpdateSavedSegmentRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
+    .data;
+}
+
+export async function deleteDashboardSavedSegment(
+  query: DashboardQuery,
+  segmentId: string
+): Promise<DashboardDeleteSavedSegmentResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeleteSavedSegmentResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function fetchDashboardSavedSegments(
