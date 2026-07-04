@@ -14,7 +14,7 @@ import { Loader2, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChatKitQueryPanel,
-  type DataExplorerChatKitQueryRunEffect
+  type DataExplorerChatKitQueryEffect
 } from "../components/ChatKitQueryPanel.js";
 import { QueryResultTable } from "../components/QueryResultTable.js";
 import { SchemaBrowserPanel } from "../components/SchemaBrowserPanel.js";
@@ -82,12 +82,19 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     setValidation(null);
   }, []);
 
-  const handleChatKitQueryRun = useCallback((effect: DataExplorerChatKitQueryRunEffect) => {
+  const handleChatKitQueryRun = useCallback((effect: DataExplorerChatKitQueryEffect) => {
     setQueryError(null);
     setSqlText(effect.query_plan.generated_sql);
     setValidation(effect.query_plan.validation);
-    setQueryResult(effect.query_result);
-    setResultTab("result");
+
+    if (effect.action === "query_run") {
+      setQueryResult(effect.query_result);
+      setResultTab("result");
+      return;
+    }
+
+    setQueryResult(null);
+    setResultTab("schema");
   }, []);
 
   if (!projectId.trim()) {

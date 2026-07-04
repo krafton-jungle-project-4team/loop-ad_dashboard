@@ -6,7 +6,6 @@ import {
   DataExplorerObjectsResponseSchema,
   DataExplorerQueryRunResponseSchema,
   type DataExplorerAiChatRequest,
-  type DataExplorerAiQueryPlanRequest,
   type DataExplorerObjectRef,
   type DataExplorerObjectSummary,
   type DataExplorerQueryRunRequest
@@ -90,21 +89,10 @@ export class DataExplorerService {
     }
   }
 
-  private async createAiQueryPlan(input: DataExplorerAiQueryPlanRequest) {
+  private createAiQueryPlan(sqlText: string) {
     try {
-      const objects = await this.clickHouseEvents.listObjects({ q: "" });
-      const object = pickReferencedObject(objects);
-      if (!object) {
-        throw dataExplorerErrors.queryPlanFailed();
-      }
-
-      const detail = await this.clickHouseEvents.getObjectDetail(object);
-      const plan = await this.openAiQueryPlanner.createQueryPlan({
-        detail,
-        request: input
-      });
       const validation = validateSqlInput({
-        sqlText: plan.generatedSql
+        sqlText
       });
 
       if (validation.status !== "valid") {
@@ -113,7 +101,7 @@ export class DataExplorerService {
 
       return DataExplorerAiQueryPlanResponseSchema.parse({
         query_plan_id: createQueryRunId("qry_plan"),
-        generated_sql: plan.generatedSql,
+        generated_sql: validation.normalized_sql,
         validation
       });
     } catch (error) {
@@ -122,44 +110,49 @@ export class DataExplorerService {
   }
 
   async runAiChat(input: DataExplorerAiChatRequest) {
-    const action = input.current_result
-      ? await this.openAiQueryPlanner.chooseChatAction({
-          currentResult: input.current_result,
-          message: input.message
-        })
-      : { action: "query_run" as const };
+    const detail = await this.getPreferredObjectDetail();
+    const response = await this.openAiQueryPlanner.runChatAgent({
+      currentResult: input.current_result,
+      detail,
+      message: input.message,
+      projectId: input.project_id,
+      tools: {
+        analyzeResult: async (analysis) => formatResultAnalysis(analysis),
+        runQuery: async ({ sqlText }) => {
+          const queryPlan = this.createAiQueryPlan(sqlText);
+          const queryResult = await this.runQuery({
+            origin: "chatkit",
+            project_id: input.project_id,
+            row_limit: 500,
+            sql_text: queryPlan.generated_sql,
+            timeout_ms: 10_000
+          });
 
-    if (input.current_result && action.action === "result_analysis") {
-      const analysis = await this.openAiQueryPlanner.analyzeResult({
-        currentResult: input.current_result,
-        message: input.message
-      });
-      return DataExplorerAiChatResponseSchema.parse({
-        action: "result_analysis",
-        assistant_message: formatResultAnalysis(analysis),
-        query_plan: null,
-        query_result: null
-      });
-    }
-
-    const queryPlan = await this.createAiQueryPlan({
-      natural_language_query: input.message,
-      project_id: input.project_id
-    });
-    const queryResult = await this.runQuery({
-      origin: "chatkit",
-      project_id: input.project_id,
-      row_limit: 500,
-      sql_text: queryPlan.generated_sql,
-      timeout_ms: 10_000
+          return {
+            queryPlan,
+            queryResult
+          };
+        },
+        writeQuery: async ({ sqlText }) => this.createAiQueryPlan(sqlText)
+      }
     });
 
     return DataExplorerAiChatResponseSchema.parse({
-      action: "query_run",
-      assistant_message: `${queryResult.row_count}개 행을 조회했습니다. 아래 탭에서 테이블과 시각화를 확인하세요.`,
-      query_plan: queryPlan,
-      query_result: queryResult
+      action: response.action,
+      assistant_message: response.assistantMessage,
+      query_plan: response.queryPlan,
+      query_result: response.queryResult
     });
+  }
+
+  private async getPreferredObjectDetail() {
+    const objects = await this.clickHouseEvents.listObjects({ q: "" });
+    const object = pickReferencedObject(objects);
+    if (!object) {
+      throw dataExplorerErrors.queryPlanFailed();
+    }
+
+    return this.clickHouseEvents.getObjectDetail(object);
   }
 }
 

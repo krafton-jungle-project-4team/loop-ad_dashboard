@@ -166,7 +166,7 @@ export const DataExplorerAiChatRequestSchema = z.object({
 export type DataExplorerAiChatRequest = z.infer<typeof DataExplorerAiChatRequestSchema>;
 
 export const DataExplorerAiChatResponseSchema = z.object({
-  action: z.enum(["query_run", "result_analysis"]),
+  action: z.enum(["query_plan", "query_run", "result_analysis"]),
   assistant_message: z.string().min(1),
   query_plan: DataExplorerAiQueryPlanResponseSchema.nullable(),
   query_result: DataExplorerQueryRunResponseSchema.nullable()

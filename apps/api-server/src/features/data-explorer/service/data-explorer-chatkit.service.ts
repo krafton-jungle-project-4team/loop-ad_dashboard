@@ -83,7 +83,7 @@ type ChatKitStreamEvent =
     }
   | {
       data: Record<string, unknown>;
-      name: "data_explorer_query_run";
+      name: "data_explorer_query_plan" | "data_explorer_query_run";
       type: "client_effect";
     };
 
@@ -382,10 +382,10 @@ export class DataExplorerChatKitService {
       type: "thread.item.done"
     };
 
-    if (response.query_plan && response.query_result) {
+    if (response.query_plan) {
       yield {
         data: toQueryRunEffect(response),
-        name: "data_explorer_query_run",
+        name: response.query_result ? "data_explorer_query_run" : "data_explorer_query_plan",
         type: "client_effect"
       };
     }
@@ -504,7 +504,7 @@ function pageItems<T extends { id: string }>(
 
 function toQueryRunEffect(response: DataExplorerAiChatResponse): Record<string, unknown> {
   return {
-    action: "query_run",
+    action: response.action,
     query_plan: response.query_plan,
     query_result: response.query_result
   };

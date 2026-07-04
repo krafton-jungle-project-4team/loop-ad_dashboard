@@ -36,7 +36,18 @@ const ChatKitQueryRunEffectSchema = z.object({
   query_result: DataExplorerQueryRunResponseSchema
 });
 
-export type DataExplorerChatKitQueryRunEffect = z.infer<typeof ChatKitQueryRunEffectSchema>;
+const ChatKitQueryPlanEffectSchema = z.object({
+  action: z.literal("query_plan"),
+  query_plan: DataExplorerAiQueryPlanResponseSchema,
+  query_result: z.null()
+});
+
+const ChatKitQueryEffectSchema = z.discriminatedUnion("action", [
+  ChatKitQueryPlanEffectSchema,
+  ChatKitQueryRunEffectSchema
+]);
+
+export type DataExplorerChatKitQueryEffect = z.infer<typeof ChatKitQueryEffectSchema>;
 
 export function ChatKitQueryPanel({
   currentResult,
@@ -46,7 +57,7 @@ export function ChatKitQueryPanel({
 }: {
   currentResult: DataExplorerAiChatCurrentResult | null;
   onError: (message: string) => void;
-  onQueryRun: (effect: DataExplorerChatKitQueryRunEffect) => void;
+  onQueryRun: (effect: DataExplorerChatKitQueryEffect) => void;
   projectId: string;
 }) {
   const chatKitFetch = useMemo(
@@ -60,13 +71,13 @@ export function ChatKitQueryPanel({
 
   const handleEffect = useCallback(
     ({ data, name }: { data?: Record<string, unknown>; name: string }) => {
-      if (name !== "data_explorer_query_run") {
+      if (name !== "data_explorer_query_plan" && name !== "data_explorer_query_run") {
         return;
       }
 
-      const parsed = ChatKitQueryRunEffectSchema.safeParse(data);
+      const parsed = ChatKitQueryEffectSchema.safeParse(data);
       if (!parsed.success) {
-        onError("ChatKit 쿼리 실행 결과를 해석하지 못했습니다.");
+        onError("ChatKit 쿼리 결과를 해석하지 못했습니다.");
         return;
       }
 
