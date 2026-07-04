@@ -94,6 +94,7 @@ SET
   updated_at = now()
 WHERE project_id = :projectId
   AND campaign_id = :campaignId
+  AND status <> 'stopped'
 RETURNING campaign_id AS "campaignId";
 
 /* 목적: FK가 연결된 캠페인을 물리 삭제하지 않고 중지 상태로 전환합니다. */
@@ -181,10 +182,10 @@ INSERT INTO promotions (
   landing_type,
   status
 )
-VALUES (
+SELECT
   :promotionId,
-  :projectId,
-  :campaignId,
+  c.project_id,
+  c.campaign_id,
   :channel,
   :marketingTheme,
   :targetAudience,
@@ -198,7 +199,10 @@ VALUES (
   :landingUrl,
   :landingType,
   :status
-)
+FROM campaigns c
+WHERE c.project_id = :projectId
+  AND c.campaign_id = :campaignId
+  AND c.status <> 'stopped'
 RETURNING promotion_id AS "promotionId";
 
 /* 목적: 프로모션 기본 정보를 수정합니다. */
@@ -221,6 +225,7 @@ SET
   updated_at = now()
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
+  AND status <> 'stopped'
 RETURNING promotion_id AS "promotionId";
 
 /* 목적: FK가 연결된 프로모션을 물리 삭제하지 않고 중지 상태로 전환합니다. */
@@ -366,6 +371,18 @@ SELECT
 FROM segment_definitions sd
 WHERE sd.project_id = :projectId
   AND sd.segment_id = :segmentId
+  AND EXISTS (
+    SELECT 1
+    FROM campaigns c
+    JOIN promotions p
+      ON p.campaign_id = c.campaign_id
+    WHERE c.project_id = :projectId
+      AND c.campaign_id = :campaignId
+      AND c.status <> 'stopped'
+      AND p.project_id = :projectId
+      AND p.promotion_id = :promotionId
+      AND p.status <> 'stopped'
+  )
   AND NOT EXISTS (
     SELECT 1
     FROM promotion_target_segments existing_pts
@@ -386,6 +403,7 @@ SET
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND segment_id = :segmentId
+  AND status <> 'stopped'
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 
 /* 목적: 프로모션 세그먼트를 물리 삭제하지 않고 중지 상태로 전환합니다. */
@@ -567,13 +585,16 @@ JOIN promotions p
   ON p.promotion_id = cc.promotion_id
 JOIN segment_definitions sd
   ON sd.segment_id = cc.segment_id
-LEFT JOIN promotion_target_segments pts
+JOIN promotion_target_segments pts
   ON pts.promotion_id = cc.promotion_id
  AND pts.segment_id = cc.segment_id
 WHERE cc.project_id = :projectId
   AND cc.promotion_id = :promotionId
   AND cc.segment_id = :segmentId
-  AND cc.content_id = :contentId;
+  AND cc.content_id = :contentId
+  AND p.status <> 'stopped'
+  AND pts.status <> 'stopped'
+  AND cc.status IN ('draft', 'approved', 'active');
 
 /* 목적: 같은 생성 실행/세그먼트 안에서 승인 대상이 아닌 후보를 거절 상태로 전환합니다. */
 /* @name RejectDashboardSiblingContentCandidates */
@@ -596,10 +617,35 @@ WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND segment_id = :segmentId
   AND content_id = :contentId
+  AND status IN ('draft', 'approved', 'active')
 RETURNING
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
   status;
+
+/* 목적: 관리자가 선택한 콘텐츠 후보 1개를 거절 상태로 전환합니다. */
+/* @name RejectDashboardContentCandidate */
+UPDATE content_candidates cc
+SET status = 'rejected',
+    updated_at = now()
+FROM promotions p
+JOIN promotion_target_segments pts
+  ON pts.promotion_id = p.promotion_id
+WHERE cc.project_id = :projectId
+  AND cc.promotion_id = :promotionId
+  AND cc.segment_id = :segmentId
+  AND cc.content_id = :contentId
+  AND p.promotion_id = cc.promotion_id
+  AND pts.segment_id = cc.segment_id
+  AND p.status <> 'stopped'
+  AND pts.status <> 'stopped'
+  AND cc.status IN ('draft', 'approved', 'active')
+RETURNING
+  cc.content_id AS "contentId",
+  cc.promotion_id AS "promotionId",
+  cc.segment_id AS "segmentId",
+  cc.status,
+  cc.updated_at AS "rejectedAt";
 
 /* 목적: 생성 실행에 이미 연결된 프로모션 루프가 있는지 조회합니다. */
 /* @name GetDashboardPromotionRunByGeneration */
@@ -740,6 +786,7 @@ SELECT
 FROM segment_definitions
 WHERE project_id = :projectId
   AND source = 'custom_chatkit'
+  AND status = 'active'
 ORDER BY updated_at DESC, created_at DESC;
 
 /* 목적: 자연어 세그먼트 조회 preview 결과를 저장합니다. */
@@ -849,6 +896,41 @@ RETURNING
   total_eligible_user_count AS "totalEligibleUserCount",
   sample_ratio::float8 AS "sampleRatio",
   status;
+
+/* 목적: 저장된 사용자 정의 세그먼트의 표시 이름과 상태를 수정합니다. */
+/* @name UpdateDashboardSavedSegment */
+UPDATE segment_definitions
+SET
+  segment_name = COALESCE(:segmentName, segment_name),
+  status = COALESCE(:status, status),
+  updated_at = now()
+WHERE project_id = :projectId
+  AND segment_id = :segmentId
+  AND source = 'custom_chatkit'
+  AND status <> 'archived'
+RETURNING
+  segment_id AS "segmentId",
+  project_id AS "projectId",
+  segment_name AS "segmentName",
+  source,
+  query_preview_id AS "queryPreviewId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  status;
+
+/* 목적: 저장된 사용자 정의 세그먼트를 FK 안전하게 보관 상태로 전환합니다. */
+/* @name ArchiveDashboardSavedSegment */
+UPDATE segment_definitions
+SET status = 'archived',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND segment_id = :segmentId
+  AND source = 'custom_chatkit'
+  AND status <> 'archived'
+RETURNING segment_id AS "segmentId", status;
 
 /* 목적: 저장 완료된 preview 상태를 갱신합니다. */
 /* @name MarkDashboardSegmentQueryPreviewSaved */

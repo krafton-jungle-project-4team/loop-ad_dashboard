@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
+import { Transactional } from "@nestjs-cls/transactional";
 import type { DispatchJobSummary, PromotionRunDispatchResponse } from "@loopad/shared";
 import { z, ZodError } from "zod";
 import { env } from "../../../infra/env/env.js";
@@ -142,6 +143,7 @@ export class PromotionDispatchService {
     return summary;
   }
 
+  @Transactional()
   private async finishDispatchJob(
     dispatchJobId: string,
     summary: DispatchJobSummary,
@@ -159,6 +161,7 @@ export class PromotionDispatchService {
     });
   }
 
+  @Transactional()
   private async createDispatchJob(
     context: DispatchContext,
     assignments: readonly ActiveAdServingAssignmentEntity[]
@@ -271,6 +274,7 @@ export class PromotionDispatchService {
     }
   }
 
+  @Transactional()
   private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
     const redirectId = randomUUID();
 

@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { TransactionHost } from "@nestjs-cls/transactional";
+import { TransactionHost } from "@nestjs-cls/transactional";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
 import type { DashboardSegmentQueryRepository } from "../src/features/dashboard/repository/dashboard-segment-query-repository.js";
-import type { PgTypedTransactionalAdapter } from "../src/infra/database/pgtyped-transactional.adapter.js";
 
 test("dashboard main returns campaign summaries from the campaign reader", async () => {
   setRequiredEnv();
@@ -34,8 +33,7 @@ test("dashboard main returns campaign summaries from the campaign reader", async
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
-    emptySegmentQueryRepository(),
-    passthroughTransactionHost()
+    emptySegmentQueryRepository()
   );
 
   const main = await service.main("hotel-client-a");
@@ -66,8 +64,7 @@ test("dashboard event catalog returns collected funnel event options", async () 
         ];
       }
     } as unknown as DashboardFunnelReader,
-    emptySegmentQueryRepository(),
-    passthroughTransactionHost()
+    emptySegmentQueryRepository()
   );
 
   const eventCatalog = await service.eventCatalog("hotel-client-a");
@@ -87,6 +84,7 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
+  installCountingTransactionHost();
   const service = new DashboardQueryService(
     emptyCampaignReader(),
     {
@@ -108,8 +106,7 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
         };
       }
     } as unknown as DashboardFunnelReader,
-    emptySegmentQueryRepository(),
-    passthroughTransactionHost()
+    emptySegmentQueryRepository()
   );
 
   const funnel = await service.createFunnel("hotel-client-a", {
@@ -131,6 +128,7 @@ test("dashboard segment query preview delegates to the segment query repository"
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
+  installCountingTransactionHost();
   const service = new DashboardQueryService(
     emptyCampaignReader(),
     emptyFunnelReader(),
@@ -149,8 +147,7 @@ test("dashboard segment query preview delegates to the segment query repository"
           rows: [{ user_id: "user_001" }]
         };
       }
-    } as unknown as DashboardSegmentQueryRepository,
-    passthroughTransactionHost()
+    } as unknown as DashboardSegmentQueryRepository
   );
 
   const preview = await service.createSegmentQueryPreview("hotel-client-a", {
@@ -167,6 +164,7 @@ test("dashboard save segment delegates valid preview save to the segment query r
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const writes: unknown[] = [];
+  installCountingTransactionHost();
   const service = new DashboardQueryService(
     emptyCampaignReader(),
     emptyFunnelReader(),
@@ -188,8 +186,7 @@ test("dashboard save segment delegates valid preview save to the segment query r
           status: "active"
         };
       }
-    } as unknown as DashboardSegmentQueryRepository,
-    passthroughTransactionHost()
+    } as unknown as DashboardSegmentQueryRepository
   );
 
   const segment = await service.saveSegment("hotel-client-a", {
@@ -232,8 +229,7 @@ test("dashboard saved segments returns custom segments from the segment query re
           ]
         };
       }
-    } as unknown as DashboardSegmentQueryRepository,
-    passthroughTransactionHost()
+    } as unknown as DashboardSegmentQueryRepository
   );
 
   const segments = await service.savedSegments("hotel-client-a");
@@ -244,9 +240,133 @@ test("dashboard saved segments returns custom segments from the segment query re
   assert.equal(segments.segments[0]?.sample_size, 1342);
 });
 
+test("dashboard update saved segment runs inside transaction host", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const transactionHost = installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      updateSavedSegment: async (projectId, segmentId, request) => {
+        writes.push({ projectId, request, segmentId });
+        return {
+          segment_id: segmentId,
+          project_id: projectId,
+          segment_name: request.segment_name ?? "같은 숙소 반복 조회 후 미예약 고객",
+          source: "custom_chatkit",
+          query_preview_id: "seg_query_preview_001",
+          natural_language_query: "숙소 상세 조회 후 미예약 고객",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 1342,
+          total_eligible_user_count: 10000,
+          sample_ratio: 0.1342,
+          status: request.status ?? "active"
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository
+  );
+
+  const segment = await service.updateSavedSegment("hotel-client-a", "seg_custom_001", {
+    segment_name: "반복 조회 후 미예약 고객"
+  });
+
+  assert.equal(transactionHost.calls.length, 1);
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      request: { segment_name: "반복 조회 후 미예약 고객" },
+      segmentId: "seg_custom_001"
+    }
+  ]);
+  assert.equal(segment.segment_name, "반복 조회 후 미예약 고객");
+});
+
+test("dashboard archive saved segment runs inside transaction host", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const transactionHost = installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      archiveSavedSegment: async (projectId, segmentId) => {
+        writes.push({ projectId, segmentId });
+        return {
+          archived_at: "2026-07-04T00:00:00.000Z",
+          segment_id: segmentId,
+          status: "archived"
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository
+  );
+
+  const result = await service.archiveSavedSegment("hotel-client-a", "seg_custom_001");
+
+  assert.equal(transactionHost.calls.length, 1);
+  assert.deepEqual(writes, [{ projectId: "hotel-client-a", segmentId: "seg_custom_001" }]);
+  assert.equal(result.segment_id, "seg_custom_001");
+  assert.equal(result.status, "archived");
+});
+
+test("dashboard reject content candidate runs inside transaction host", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const transactionHost = installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      rejectContentCandidate: async (projectId, promotionId, segmentId, contentId, request) => {
+        writes.push({ contentId, projectId, promotionId, request, segmentId });
+        return {
+          content_id: contentId,
+          promotion_id: promotionId,
+          rejected_at: "2026-07-04T00:00:00.000Z",
+          segment_id: segmentId,
+          status: "rejected"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository()
+  );
+
+  const result = await service.rejectContentCandidate(
+    "hotel-client-a",
+    "promo_banner_001",
+    "seg_vip",
+    "content_vip_b",
+    { operator_note: "후보 B 거절" }
+  );
+
+  assert.equal(transactionHost.calls.length, 1);
+  assert.deepEqual(writes, [
+    {
+      contentId: "content_vip_b",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001",
+      request: { operator_note: "후보 B 거절" },
+      segmentId: "seg_vip"
+    }
+  ]);
+  assert.equal(result.content_id, "content_vip_b");
+  assert.equal(result.status, "rejected");
+});
+
 function emptyCampaignReader(): DashboardCampaignReader {
   return {
-    listCampaigns: async () => []
+    listCampaigns: async () => [],
+    rejectContentCandidate: async () => {
+      throw new Error("Unexpected rejectContentCandidate call.");
+    }
   } as unknown as DashboardCampaignReader;
 }
 
@@ -270,14 +390,32 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
     },
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
+    },
+    updateSavedSegment: async () => {
+      throw new Error("Unexpected updateSavedSegment call.");
+    },
+    archiveSavedSegment: async () => {
+      throw new Error("Unexpected archiveSavedSegment call.");
     }
   } as unknown as DashboardSegmentQueryRepository;
 }
 
-function passthroughTransactionHost(): TransactionHost<PgTypedTransactionalAdapter> {
-  return {
-    withTransaction: async (callback: () => Promise<unknown>) => callback()
-  } as unknown as TransactionHost<PgTypedTransactionalAdapter>;
+function installCountingTransactionHost() {
+  const calls: string[] = [];
+
+  new TransactionHost({
+    connectionName: undefined,
+    defaultTxOptions: {},
+    enableTransactionProxy: false,
+    extraProviderTokens: [],
+    getFallbackInstance: () => ({}),
+    wrapWithTransaction: async (_options: unknown, callback: () => Promise<unknown>) => {
+      calls.push("transactional");
+      return callback();
+    }
+  } as never);
+
+  return { calls };
 }
 
 function setRequiredEnv() {

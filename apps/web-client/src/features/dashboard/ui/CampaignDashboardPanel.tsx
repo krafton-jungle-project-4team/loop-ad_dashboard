@@ -48,15 +48,18 @@ import {
   deleteDashboardCampaign,
   deleteDashboardPromotionSegment,
   deleteDashboardPromotion,
+  deleteDashboardSavedSegment,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
   fetchDashboardSavedSegments,
   fetchDashboardSegmentDetail,
+  rejectDashboardContentCandidate,
   saveDashboardSegment,
   startDashboardNextLoopAnalysis,
   updateDashboardCampaign,
   updateDashboardPromotion,
-  updateDashboardPromotionSegment
+  updateDashboardPromotionSegment,
+  updateDashboardSavedSegment
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
@@ -85,6 +88,7 @@ type CreatePromotionInput = Parameters<typeof createDashboardPromotion>[2];
 type UpdatePromotionInput = Parameters<typeof updateDashboardPromotion>[2];
 type AttachSegmentInput = Parameters<typeof attachDashboardSegmentToPromotion>[2];
 type UpdatePromotionSegmentInput = Parameters<typeof updateDashboardPromotionSegment>[3];
+type UpdateSavedSegmentInput = Parameters<typeof updateDashboardSavedSegment>[2];
 
 const promotionChannelOptions = ["email", "sms", "onsite_banner"] as const;
 const promotionGoalMetricOptions = [
@@ -1085,6 +1089,57 @@ function CampaignTabContent({
       ]);
     }
   });
+  const rejectContentCandidateMutation = useMutation({
+    mutationFn: ({
+      contentId,
+      promotionId,
+      segmentId
+    }: {
+      contentId: string;
+      promotionId: string;
+      segmentId: string;
+    }) => rejectDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
+    onSuccess: async (result) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardCampaignDetailQueryKey(query.projectId, detail.campaign.campaign_id)
+        }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardPromotionDetailQueryKey(query.projectId, result.promotion_id)
+        }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardSegmentDetailQueryKey(
+            query.projectId,
+            result.promotion_id,
+            result.segment_id
+          )
+        })
+      ]);
+    }
+  });
+  const updateSavedSegmentMutation = useMutation({
+    mutationFn: ({
+      requestBody,
+      segmentId
+    }: {
+      requestBody: UpdateSavedSegmentInput;
+      segmentId: string;
+    }) => updateDashboardSavedSegment(query, segmentId, requestBody),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
+      });
+    }
+  });
+  const archiveSavedSegmentMutation = useMutation({
+    mutationFn: (segmentId: string) => deleteDashboardSavedSegment(query, segmentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
+      });
+    }
+  });
 
   switch (tab) {
     case "campaign-promotions":
@@ -1134,8 +1189,14 @@ function CampaignTabContent({
             approveContentCandidateError={approveContentCandidateMutation.error}
             approveContentCandidateIsError={approveContentCandidateMutation.isError}
             approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
+            rejectContentCandidateError={rejectContentCandidateMutation.error}
+            rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
+            rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
             onApproveContentCandidate={(promotionId, segmentId, contentId) =>
               approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
+            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
             }
           />
         </>
@@ -1151,10 +1212,20 @@ function CampaignTabContent({
           />
           <SegmentQueryPreviewPanel query={query} />
           <SavedSegmentTable
+            archiveError={archiveSavedSegmentMutation.error}
+            archiveIsError={archiveSavedSegmentMutation.isError}
+            archiveIsPending={archiveSavedSegmentMutation.isPending}
             error={savedSegmentsError}
             isError={savedSegmentsIsError}
             isLoading={savedSegmentsIsLoading}
+            onArchive={(segmentId) => archiveSavedSegmentMutation.mutate(segmentId)}
+            onUpdate={(segmentId, requestBody) =>
+              updateSavedSegmentMutation.mutate({ requestBody, segmentId })
+            }
             segments={savedSegments}
+            updateError={updateSavedSegmentMutation.error}
+            updateIsError={updateSavedSegmentMutation.isError}
+            updateIsPending={updateSavedSegmentMutation.isPending}
           />
           <SegmentAttachmentPanel
             attachError={attachSegmentMutation.error}
@@ -1188,12 +1259,18 @@ function CampaignTabContent({
             approveError={approveContentCandidateMutation.error}
             approveIsError={approveContentCandidateMutation.isError}
             approveIsPending={approveContentCandidateMutation.isPending}
+            rejectError={rejectContentCandidateMutation.error}
+            rejectIsError={rejectContentCandidateMutation.isError}
+            rejectIsPending={rejectContentCandidateMutation.isPending}
             detail={segmentDetail}
             error={segmentError}
             isError={segmentIsError}
             isLoading={segmentIsLoading}
             onApproveContentCandidate={(promotionId, segmentId, contentId) =>
               approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
+            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
             }
             selectedSegmentId={selectedSegmentId}
           />
@@ -2325,7 +2402,11 @@ function PromotionDetail({
   isError,
   isLoading,
   onApproveContentCandidate,
+  onRejectContentCandidate,
   onSelectSegment,
+  rejectContentCandidateError,
+  rejectContentCandidateIsError,
+  rejectContentCandidateIsPending,
   selectedPromotionId,
   selectedSegmentId,
   segmentDetail,
@@ -2341,7 +2422,11 @@ function PromotionDetail({
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
+  rejectContentCandidateError: Error | null;
+  rejectContentCandidateIsError: boolean;
+  rejectContentCandidateIsPending: boolean;
   selectedPromotionId: string;
   selectedSegmentId: string;
   segmentDetail: DashboardSegmentDetailResource | undefined;
@@ -2393,6 +2478,10 @@ function PromotionDetail({
         isError={segmentIsError}
         isLoading={segmentIsLoading}
         onApproveContentCandidate={onApproveContentCandidate}
+        onRejectContentCandidate={onRejectContentCandidate}
+        rejectError={rejectContentCandidateError}
+        rejectIsError={rejectContentCandidateIsError}
+        rejectIsPending={rejectContentCandidateIsPending}
         selectedSegmentId={selectedSegmentId}
       />
       <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
@@ -3045,15 +3134,31 @@ function SegmentQueryPreviewPanel({ query }: { query: DashboardQuery }) {
 }
 
 function SavedSegmentTable({
+  archiveError,
+  archiveIsError,
+  archiveIsPending,
   error,
   isError,
   isLoading,
-  segments
+  onArchive,
+  onUpdate,
+  segments,
+  updateError,
+  updateIsError,
+  updateIsPending
 }: {
+  archiveError: Error | null;
+  archiveIsError: boolean;
+  archiveIsPending: boolean;
   error: Error | null;
   isError: boolean;
   isLoading: boolean;
+  onArchive: (segmentId: string) => void;
+  onUpdate: (segmentId: string, requestBody: UpdateSavedSegmentInput) => void;
   segments: DashboardSavedSegment[];
+  updateError: Error | null;
+  updateIsError: boolean;
+  updateIsPending: boolean;
 }) {
   return (
     <section className="grid gap-3">
@@ -3069,6 +3174,18 @@ function SavedSegmentTable({
           <AlertDescription>{mutationErrorMessage(error)}</AlertDescription>
         </Alert>
       ) : null}
+      {updateIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>사용자 정의 세그먼트를 수정하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {archiveIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>사용자 정의 세그먼트를 보관하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(archiveError)}</AlertDescription>
+        </Alert>
+      ) : null}
       {isLoading ? <EmptyState message="사용자 정의 세그먼트를 불러오는 중입니다." /> : null}
       {!isLoading && segments.length > 0 ? (
         <Table>
@@ -3081,53 +3198,19 @@ function SavedSegmentTable({
               <TableHead className="text-right">sample ratio</TableHead>
               <TableHead className="text-right">전체 적격 유저</TableHead>
               <TableHead>상태</TableHead>
+              <TableHead className="text-right">관리</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {segments.map((segment) => (
-              <TableRow key={segment.segment_id}>
-                <TableCell>
-                  <div className="grid min-w-[220px] gap-1">
-                    <span className="font-medium">{segment.segment_name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {segment.segment_id} · {segment.query_preview_id}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="grid min-w-[280px] gap-2">
-                    <span className="line-clamp-2 text-sm">
-                      {segment.natural_language_query ?? "조건 설명이 저장되지 않았습니다."}
-                    </span>
-                    {segment.generated_sql ? (
-                      <details className="text-xs text-muted-foreground">
-                        <summary className="cursor-pointer">SQL preview</summary>
-                        <pre className="mt-2 max-h-[180px] overflow-auto rounded-md border bg-background p-2 leading-5">
-                          {segment.generated_sql}
-                        </pre>
-                      </details>
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell>{segment.source}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(segment.sample_size)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatPercentValue(segment.sample_ratio)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(segment.total_eligible_user_count)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
-                    <Badge variant={isSavedSegmentSampleValid(segment) ? "outline" : "destructive"}>
-                      {isSavedSegmentSampleValid(segment) ? "sample valid" : "sample check"}
-                    </Badge>
-                  </div>
-                </TableCell>
-              </TableRow>
+              <SavedSegmentRow
+                archiveIsPending={archiveIsPending}
+                key={segment.segment_id}
+                onArchive={onArchive}
+                onUpdate={onUpdate}
+                segment={segment}
+                updateIsPending={updateIsPending}
+              />
             ))}
           </TableBody>
         </Table>
@@ -3136,6 +3219,104 @@ function SavedSegmentTable({
         <EmptyState message="저장된 사용자 정의 세그먼트가 없습니다." />
       ) : null}
     </section>
+  );
+}
+
+function SavedSegmentRow({
+  archiveIsPending,
+  onArchive,
+  onUpdate,
+  segment,
+  updateIsPending
+}: {
+  archiveIsPending: boolean;
+  onArchive: (segmentId: string) => void;
+  onUpdate: (segmentId: string, requestBody: UpdateSavedSegmentInput) => void;
+  segment: DashboardSavedSegment;
+  updateIsPending: boolean;
+}) {
+  const [segmentName, setSegmentName] = useState(segment.segment_name);
+  const trimmedSegmentName = segmentName.trim();
+  const canUpdate =
+    trimmedSegmentName.length > 0 &&
+    trimmedSegmentName !== segment.segment_name &&
+    !updateIsPending &&
+    !archiveIsPending;
+
+  useEffect(() => {
+    setSegmentName(segment.segment_name);
+  }, [segment.segment_id, segment.segment_name]);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="grid min-w-[240px] gap-2">
+          <Input
+            aria-label={`${segment.segment_name} 세그먼트 이름`}
+            onChange={(event) => setSegmentName(event.target.value)}
+            value={segmentName}
+          />
+          <span className="text-xs text-muted-foreground">
+            {segment.segment_id} · {segment.query_preview_id}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="grid min-w-[280px] gap-2">
+          <span className="line-clamp-2 text-sm">
+            {segment.natural_language_query ?? "조건 설명이 저장되지 않았습니다."}
+          </span>
+          {segment.generated_sql ? (
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer">SQL preview</summary>
+              <pre className="mt-2 max-h-[180px] overflow-auto rounded-md border bg-background p-2 leading-5">
+                {segment.generated_sql}
+              </pre>
+            </details>
+          ) : null}
+        </div>
+      </TableCell>
+      <TableCell>{segment.source}</TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatInteger(segment.sample_size)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatPercentValue(segment.sample_ratio)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatInteger(segment.total_eligible_user_count)}
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+          <Badge variant={isSavedSegmentSampleValid(segment) ? "outline" : "destructive"}>
+            {isSavedSegmentSampleValid(segment) ? "sample valid" : "sample check"}
+          </Badge>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Button
+            disabled={!canUpdate}
+            onClick={() => onUpdate(segment.segment_id, { segment_name: trimmedSegmentName })}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            수정
+          </Button>
+          <Button
+            disabled={archiveIsPending || updateIsPending}
+            onClick={() => onArchive(segment.segment_id)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            보관
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -3220,6 +3401,10 @@ function SegmentDetailPanel({
   isError,
   isLoading,
   onApproveContentCandidate,
+  onRejectContentCandidate,
+  rejectError,
+  rejectIsError,
+  rejectIsPending,
   selectedSegmentId
 }: {
   approveError: Error | null;
@@ -3230,6 +3415,10 @@ function SegmentDetailPanel({
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  rejectError: Error | null;
+  rejectIsError: boolean;
+  rejectIsPending: boolean;
   selectedSegmentId: string;
 }) {
   if (!selectedSegmentId) {
@@ -3290,6 +3479,10 @@ function SegmentDetailPanel({
         approveIsPending={approveIsPending}
         candidates={detail.content_candidates}
         onApprove={onApproveContentCandidate}
+        onReject={onRejectContentCandidate}
+        rejectError={rejectError}
+        rejectIsError={rejectIsError}
+        rejectIsPending={rejectIsPending}
       />
       <ContentCandidateTable candidates={detail.content_candidates} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
@@ -3376,11 +3569,44 @@ function RealtimeEventTable({
   metrics: DashboardRealtimeMetrics;
   title: string;
 }) {
+  const [eventNameFilter, setEventNameFilter] = useState("all");
+  const filteredEvents =
+    eventNameFilter === "all"
+      ? metrics.events
+      : metrics.events.filter((event) => event.event_name === eventNameFilter);
+  const filteredTotalEventCount = filteredEvents.reduce(
+    (sum, event) => sum + event.event_count,
+    0
+  );
+
   return (
     <>
       {metrics.events.length > 0 ? (
         <section className="grid gap-3">
-          <h3 className="text-base font-semibold text-[#1d1d1f]">{title}</h3>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="grid gap-1">
+              <h3 className="text-base font-semibold text-[#1d1d1f]">{title}</h3>
+              <p className="text-sm text-muted-foreground">
+                수집 이벤트를 event_name 기준으로 필터링합니다.
+              </p>
+            </div>
+            <Field className="max-w-[260px]">
+              <FieldLabel>이벤트 종류</FieldLabel>
+              <Select onValueChange={setEventNameFilter} value={eventNameFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="이벤트 종류" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 이벤트</SelectItem>
+                  {metrics.events.map((event) => (
+                    <SelectItem key={event.event_name} value={event.event_name}>
+                      {eventDisplayName(event.event_name)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
           <ChartContainer
             className="min-h-[260px] w-full"
             config={{
@@ -3394,7 +3620,7 @@ function RealtimeEventTable({
               }
             }}
           >
-            <BarChart data={chartEvents(metrics)}>
+            <BarChart data={chartEvents(filteredEvents)}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} tickMargin={10} axisLine={false} />
               <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
@@ -3417,7 +3643,7 @@ function RealtimeEventTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {metrics.events.map((event) => (
+              {filteredEvents.map((event) => (
                 <TableRow key={event.event_name}>
                   <TableCell>
                     <div className="grid gap-1">
@@ -3432,8 +3658,8 @@ function RealtimeEventTable({
                     {formatInteger(event.unique_user_count)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {metrics.total_event_count > 0
-                      ? formatPercentValue(event.event_count / metrics.total_event_count)
+                    {filteredTotalEventCount > 0
+                      ? formatPercentValue(event.event_count / filteredTotalEventCount)
                       : "-"}
                   </TableCell>
                 </TableRow>
@@ -3448,8 +3674,8 @@ function RealtimeEventTable({
   );
 }
 
-function chartEvents(metrics: DashboardRealtimeMetrics) {
-  return metrics.events.map((event) => ({
+function chartEvents(events: DashboardRealtimeMetrics["events"]) {
+  return events.map((event) => ({
     event_count: event.event_count,
     label: eventDisplayName(event.event_name),
     unique_user_count: event.unique_user_count
@@ -3705,13 +3931,21 @@ function ContentCandidateCards({
   approveIsError,
   approveIsPending,
   candidates,
-  onApprove
+  onApprove,
+  onReject,
+  rejectError,
+  rejectIsError,
+  rejectIsPending
 }: {
   approveError: Error | null;
   approveIsError: boolean;
   approveIsPending: boolean;
   candidates: DashboardSegmentDetailResource["content_candidates"];
   onApprove: (promotionId: string, segmentId: string, contentId: string) => void;
+  onReject: (promotionId: string, segmentId: string, contentId: string) => void;
+  rejectError: Error | null;
+  rejectIsError: boolean;
+  rejectIsPending: boolean;
 }) {
   return (
     <section className="grid gap-3">
@@ -3720,6 +3954,12 @@ function ContentCandidateCards({
         <Alert variant="destructive">
           <AlertTitle>콘텐츠 후보를 승인하지 못했습니다</AlertTitle>
           <AlertDescription>{mutationErrorMessage(approveError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {rejectIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>콘텐츠 후보를 거절하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(rejectError)}</AlertDescription>
         </Alert>
       ) : null}
       {candidates.length > 0 ? (
@@ -3749,9 +3989,34 @@ function ContentCandidateCards({
                 <div className="font-medium">{candidate.cta ?? "-"}</div>
                 <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
                 <Button
-                  disabled={approveIsPending || candidate.status === "approved"}
+                  disabled={
+                    approveIsPending ||
+                    rejectIsPending ||
+                    candidate.status === "approved" ||
+                    candidate.status === "rejected"
+                  }
+                  onClick={() =>
+                    onReject(
+                      candidate.promotion_id,
+                      candidate.segment_id,
+                      candidate.content_id
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {candidate.status === "rejected" ? "거절됨" : "거절"}
+                </Button>
+                <Button
+                  disabled={
+                    approveIsPending ||
+                    rejectIsPending ||
+                    candidate.status === "approved" ||
+                    candidate.status === "rejected"
+                  }
                   onClick={() =>
                     onApprove(
                       candidate.promotion_id,

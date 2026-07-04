@@ -13,6 +13,7 @@ import {
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
+  DashboardDeleteSavedSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
@@ -21,6 +22,8 @@ import {
   DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionSummarySchema,
+  DashboardRejectContentCandidateRequestSchema,
+  DashboardRejectContentCandidateResultSchema,
   DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
@@ -30,7 +33,8 @@ import {
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
-  DashboardUpdatePromotionSegmentRequestSchema
+  DashboardUpdatePromotionSegmentRequestSchema,
+  DashboardUpdateSavedSegmentRequestSchema
 } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
@@ -46,12 +50,15 @@ import type {
   DashboardDeleteFunnelResult,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
+  DashboardDeleteSavedSegmentResult,
   DashboardEventCatalog,
   DashboardFunnel,
   DashboardFunnelMetrics,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
   DashboardNextLoopAnalysis,
+  DashboardRejectContentCandidateRequest,
+  DashboardRejectContentCandidateResult,
   DashboardSavedSegmentList,
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
@@ -61,7 +68,8 @@ import type {
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
-  DashboardUpdatePromotionSegmentRequest
+  DashboardUpdatePromotionSegmentRequest,
+  DashboardUpdateSavedSegmentRequest
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -444,6 +452,34 @@ export async function approveDashboardContentCandidate(
     .data;
 }
 
+export async function rejectDashboardContentCandidate(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  requestBody: DashboardRejectContentCandidateRequest
+): Promise<DashboardRejectContentCandidateResult> {
+  const parsedBody = DashboardRejectContentCandidateRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}/content-candidates/${encodeURIComponent(contentId)}/reject`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardRejectContentCandidateResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
 export async function deleteDashboardFunnel(
   query: DashboardQuery,
   funnelId: string
@@ -511,6 +547,54 @@ export async function saveDashboardSegment(
 
   return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
     .data;
+}
+
+export async function updateDashboardSavedSegment(
+  query: DashboardQuery,
+  segmentId: string,
+  requestBody: DashboardUpdateSavedSegmentRequest
+): Promise<DashboardSavedSegment> {
+  const parsedBody = DashboardUpdateSavedSegmentRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
+    .data;
+}
+
+export async function deleteDashboardSavedSegment(
+  query: DashboardQuery,
+  segmentId: string
+): Promise<DashboardDeleteSavedSegmentResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeleteSavedSegmentResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function fetchDashboardSavedSegments(

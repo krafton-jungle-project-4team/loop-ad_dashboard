@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { TransactionHost } from "@nestjs-cls/transactional";
 import { AppError } from "../src/app-errors.js";
 import type {
   ActiveAdServingAssignmentEntity,
@@ -63,6 +64,7 @@ const { renderRedirectPage } =
 test("dispatch uses stored assignments and records sender success", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
+  const transactionHost = installCountingTransactionHost();
   const emailSender = new RecordingEmailSender();
   const service = createDispatchService(reader, writer, emailSender);
 
@@ -85,6 +87,12 @@ test("dispatch uses stored assignments and records sender success", async () => 
   assert.equal(writer.redirectLinks[0]?.adExperimentId, "exp-1");
   assert.equal(writer.finishes[0]?.status, "completed");
   assert.equal(writer.finishes[0]?.failedCount, 0);
+  assert.deepEqual(transactionHost.calls, [
+    "transactional",
+    "transactional",
+    "transactional",
+    "transactional"
+  ]);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
   assert.equal(emailSender.inputs.length, 2);
@@ -273,6 +281,7 @@ test("AWS senders build SES and SMS v2 command inputs from options", async () =>
 test("dispatch fails invalid email content instead of synthesizing fallbacks", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
+  installCountingTransactionHost();
 
   reader.dispatchAssignments = [
     assignment({
@@ -717,6 +726,24 @@ class FakeAdExecutionWriter {
     this.redirectLinks.push(input);
     return input.redirectToken;
   }
+}
+
+function installCountingTransactionHost() {
+  const calls: string[] = [];
+
+  new TransactionHost({
+    connectionName: undefined,
+    defaultTxOptions: {},
+    enableTransactionProxy: false,
+    extraProviderTokens: [],
+    getFallbackInstance: () => ({}),
+    wrapWithTransaction: async (_options: unknown, callback: () => Promise<unknown>) => {
+      calls.push("transactional");
+      return callback();
+    }
+  } as never);
+
+  return { calls };
 }
 
 async function captureDispatchLogs<T>(callback: () => Promise<T>) {
