@@ -948,7 +948,7 @@ export interface IStopDashboardPromotionTargetSegmentQuery {
   result: IStopDashboardPromotionTargetSegmentResult;
 }
 
-const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":75,"b":84}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":107,"b":118}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":139,"b":148}]}],"statement":"UPDATE promotion_target_segments\nSET status = 'stopped'\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nRETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status                                   "};
+const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":75,"b":84}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":107,"b":118}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":139,"b":148}]}],"statement":"UPDATE promotion_target_segments\nSET status = 'stopped'\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nRETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status                                                  "};
 
 /**
  * Query generated from SQL:
@@ -958,10 +958,67 @@ const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
  *   AND segment_id = :segmentId
- * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status                                   
+ * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status                                                  
  * ```
  */
 export const stopDashboardPromotionTargetSegment = new PreparedQuery<IStopDashboardPromotionTargetSegmentParams,IStopDashboardPromotionTargetSegmentResult>(stopDashboardPromotionTargetSegmentIR);
+
+
+/** 'InsertDashboardNextLoopAnalysis' parameters type */
+export interface IInsertDashboardNextLoopAnalysisParams {
+  analysisId?: string | null | void;
+  campaignId?: string | null | void;
+  focusSegmentIdsJson?: Json | null | void;
+  operatorInstruction?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'InsertDashboardNextLoopAnalysis' return type */
+export interface IInsertDashboardNextLoopAnalysisResult {
+  analysisId: string;
+  focusSegmentIdsJson: Json | null;
+  promotionId: string;
+  status: string;
+}
+
+/** 'InsertDashboardNextLoopAnalysis' query type */
+export interface IInsertDashboardNextLoopAnalysisQuery {
+  params: IInsertDashboardNextLoopAnalysisParams;
+  result: IInsertDashboardNextLoopAnalysisResult;
+}
+
+const insertDashboardNextLoopAnalysisIR: any = {"usedParamSet":{"analysisId":true,"projectId":true,"campaignId":true,"promotionId":true,"focusSegmentIdsJson":true,"operatorInstruction":true},"params":[{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":165,"b":175}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":180,"b":189}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":194,"b":204}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":209,"b":220}]},{"name":"focusSegmentIdsJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":225,"b":244}]},{"name":"operatorInstruction","required":false,"transform":{"type":"scalar"},"locs":[{"a":249,"b":268}]}],"statement":"INSERT INTO promotion_analyses (\n  analysis_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  focus_segment_ids_json,\n  operator_instruction,\n  status\n)\nVALUES (\n  :analysisId,\n  :projectId,\n  :campaignId,\n  :promotionId,\n  :focusSegmentIdsJson,\n  :operatorInstruction,\n  'requested'\n)\nRETURNING\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  focus_segment_ids_json AS \"focusSegmentIdsJson\",\n  status                                   "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * INSERT INTO promotion_analyses (
+ *   analysis_id,
+ *   project_id,
+ *   campaign_id,
+ *   promotion_id,
+ *   focus_segment_ids_json,
+ *   operator_instruction,
+ *   status
+ * )
+ * VALUES (
+ *   :analysisId,
+ *   :projectId,
+ *   :campaignId,
+ *   :promotionId,
+ *   :focusSegmentIdsJson,
+ *   :operatorInstruction,
+ *   'requested'
+ * )
+ * RETURNING
+ *   analysis_id AS "analysisId",
+ *   promotion_id AS "promotionId",
+ *   focus_segment_ids_json AS "focusSegmentIdsJson",
+ *   status                                   
+ * ```
+ */
+export const insertDashboardNextLoopAnalysis = new PreparedQuery<IInsertDashboardNextLoopAnalysisParams,IInsertDashboardNextLoopAnalysisResult>(insertDashboardNextLoopAnalysisIR);
 
 
 /** 'ListDashboardCampaignExperimentMetrics' parameters type */

@@ -16,6 +16,7 @@ import {
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
+  DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionSummarySchema,
   DashboardSavedSegmentListSchema,
@@ -24,6 +25,7 @@ import {
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
+  DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
   DashboardUpdatePromotionSegmentRequestSchema
@@ -45,12 +47,14 @@ import type {
   DashboardFunnelMetrics,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
+  DashboardNextLoopAnalysis,
   DashboardSavedSegmentList,
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
+  DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
@@ -379,6 +383,32 @@ export async function deleteDashboardPromotionSegment(
   }
 
   return createApiSuccessResponseSchema(DashboardDeletePromotionSegmentResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function startDashboardNextLoopAnalysis(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardStartNextLoopRequest
+): Promise<DashboardNextLoopAnalysis> {
+  const parsedBody = DashboardStartNextLoopRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/next-loop`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardNextLoopAnalysisSchema).parse(
     await response.json()
   ).data;
 }

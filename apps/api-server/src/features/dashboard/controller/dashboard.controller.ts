@@ -16,6 +16,7 @@ import {
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
+  DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionSummarySchema,
   DashboardSavedSegmentListSchema,
@@ -24,6 +25,7 @@ import {
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
+  DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
   DashboardUpdatePromotionSegmentRequestSchema
@@ -158,6 +160,19 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardDeletePromotionSegmentResultSchema.parse(
       await this.dashboardQuery.stopPromotionSegment(requiredProjectId, promotionId, segmentId)
+    );
+  }
+
+  @Post("promotions/:promotion_id/next-loop")
+  async startNextLoopAnalysis(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardStartNextLoopRequestSchema.parse(body);
+    return DashboardNextLoopAnalysisSchema.parse(
+      await this.dashboardQuery.startNextLoopAnalysis(requiredProjectId, promotionId, request)
     );
   }
 

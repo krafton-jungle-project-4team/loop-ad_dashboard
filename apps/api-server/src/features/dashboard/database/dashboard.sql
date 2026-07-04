@@ -389,6 +389,32 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status;
 
+/* 목적: 목표 미달 세그먼트만 대상으로 next-loop 분석 요청을 생성합니다. */
+/* @name InsertDashboardNextLoopAnalysis */
+INSERT INTO promotion_analyses (
+  analysis_id,
+  project_id,
+  campaign_id,
+  promotion_id,
+  focus_segment_ids_json,
+  operator_instruction,
+  status
+)
+VALUES (
+  :analysisId,
+  :projectId,
+  :campaignId,
+  :promotionId,
+  :focusSegmentIdsJson,
+  :operatorInstruction,
+  'requested'
+)
+RETURNING
+  analysis_id AS "analysisId",
+  promotion_id AS "promotionId",
+  focus_segment_ids_json AS "focusSegmentIdsJson",
+  status;
+
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardCampaignExperimentMetrics */
 SELECT

@@ -432,6 +432,22 @@ export type DashboardDeletePromotionSegmentResult = z.infer<
   typeof DashboardDeletePromotionSegmentResultSchema
 >;
 
+export const DashboardStartNextLoopRequestSchema = z.object({
+  focus_segment_ids: z.array(z.string().min(1)).min(1),
+  operator_instruction: z.string().nullable().optional()
+});
+export type DashboardStartNextLoopRequest = z.infer<
+  typeof DashboardStartNextLoopRequestSchema
+>;
+
+export const DashboardNextLoopAnalysisSchema = z.object({
+  analysis_id: z.string(),
+  promotion_id: z.string(),
+  focus_segment_ids: z.array(z.string()),
+  status: z.literal("requested")
+});
+export type DashboardNextLoopAnalysis = z.infer<typeof DashboardNextLoopAnalysisSchema>;
+
 export const DashboardFunnelStepSchema = z.object({
   step_order: CountSchema,
   step_name: z.string(),

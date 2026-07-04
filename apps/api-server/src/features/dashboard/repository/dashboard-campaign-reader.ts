@@ -11,9 +11,11 @@ import type {
   DashboardDeleteCampaignResult,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
+  DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
   DashboardSegmentDetail,
+  DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
@@ -28,6 +30,7 @@ import {
   getDashboardPromotionSummary,
   insertDashboardCampaign,
   insertDashboardManualPromotionAnalysis,
+  insertDashboardNextLoopAnalysis,
   insertDashboardPromotion,
   insertDashboardPromotionTargetSegment,
   listDashboardCampaignSummaries,
@@ -273,6 +276,32 @@ export class DashboardCampaignReader {
     };
   }
 
+  async startNextLoopAnalysis(
+    projectId: string,
+    promotionId: string,
+    request: DashboardStartNextLoopRequest
+  ): Promise<DashboardNextLoopAnalysis> {
+    const promotion = await this.getPromotionSummary(projectId, promotionId);
+    const analysisId = `analysis_next_loop_${randomUUID()}`;
+    const row = await this.db
+      .query(insertDashboardNextLoopAnalysis, {
+        analysisId,
+        campaignId: promotion.campaign_id,
+        focusSegmentIdsJson: request.focus_segment_ids,
+        operatorInstruction: request.operator_instruction ?? null,
+        projectId,
+        promotionId
+      })
+      .single();
+
+    return {
+      analysis_id: row.analysisId,
+      focus_segment_ids: jsonStringArray(row.focusSegmentIdsJson),
+      promotion_id: row.promotionId,
+      status: "requested"
+    };
+  }
+
   async getCampaignDetail(
     projectId: string,
     campaignId: string
@@ -503,6 +532,12 @@ function jsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function jsonStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function countValue(value: number | string | null): number {

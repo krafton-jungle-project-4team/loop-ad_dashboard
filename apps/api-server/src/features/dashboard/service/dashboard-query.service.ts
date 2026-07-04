@@ -16,6 +16,7 @@ import type {
   DashboardFunnelList,
   DashboardFunnelMetrics,
   DashboardMain,
+  DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
   DashboardSavedSegment,
@@ -24,6 +25,7 @@ import type {
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
+  DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
@@ -137,6 +139,16 @@ export class DashboardQueryService {
   ): Promise<DashboardDeletePromotionSegmentResult> {
     return this.transactionHost.withTransaction(() =>
       this.campaignReader.stopPromotionSegment(projectId, promotionId, segmentId)
+    );
+  }
+
+  async startNextLoopAnalysis(
+    projectId: string,
+    promotionId: string,
+    request: DashboardStartNextLoopRequest
+  ): Promise<DashboardNextLoopAnalysis> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.startNextLoopAnalysis(projectId, promotionId, request)
     );
   }
 
