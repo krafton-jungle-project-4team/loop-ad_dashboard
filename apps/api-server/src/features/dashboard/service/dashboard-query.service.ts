@@ -3,11 +3,14 @@ import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactiona
 import type {
   DashboardCreateFunnelRequest,
   DashboardCampaignDetail,
+  DashboardCampaignSegment,
   DashboardCampaignSummary,
+  DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
   DashboardDeleteCampaignResult,
   DashboardCreatePromotionRequest,
   DashboardDeletePromotionResult,
+  DashboardDeletePromotionSegmentResult,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnelList,
@@ -22,7 +25,8 @@ import type {
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
   DashboardUpdateCampaignRequest,
-  DashboardUpdatePromotionRequest
+  DashboardUpdatePromotionRequest,
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
@@ -102,6 +106,37 @@ export class DashboardQueryService {
   ): Promise<DashboardDeletePromotionResult> {
     return this.transactionHost.withTransaction(() =>
       this.campaignReader.stopPromotion(projectId, promotionId)
+    );
+  }
+
+  async attachSegmentToPromotion(
+    projectId: string,
+    promotionId: string,
+    request: DashboardAttachSegmentRequest
+  ): Promise<DashboardCampaignSegment> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.attachSegmentToPromotion(projectId, promotionId, request)
+    );
+  }
+
+  async updatePromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    request: DashboardUpdatePromotionSegmentRequest
+  ): Promise<DashboardCampaignSegment> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.updatePromotionSegment(projectId, promotionId, segmentId, request)
+    );
+  }
+
+  async stopPromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardDeletePromotionSegmentResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.stopPromotionSegment(projectId, promotionId, segmentId)
     );
   }
 

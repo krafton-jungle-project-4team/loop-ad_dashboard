@@ -387,6 +387,51 @@ export const DashboardSavedSegmentListSchema = z.object({
 });
 export type DashboardSavedSegmentList = z.infer<typeof DashboardSavedSegmentListSchema>;
 
+export const DashboardSegmentPrioritySchema = z.enum(["low", "medium", "high"]);
+export type DashboardSegmentPriority = z.infer<typeof DashboardSegmentPrioritySchema>;
+
+export const DashboardPromotionSegmentStatusSchema = z.enum([
+  "planned",
+  "content_ready",
+  "approved",
+  "running",
+  "goal_met",
+  "goal_not_met",
+  "insufficient_data",
+  "stopped"
+]);
+export type DashboardPromotionSegmentStatus = z.infer<
+  typeof DashboardPromotionSegmentStatusSchema
+>;
+
+export const DashboardAttachSegmentRequestSchema = z.object({
+  segment_id: z.string().min(1),
+  segment_name: z.string().min(1).optional(),
+  priority: DashboardSegmentPrioritySchema.nullable().optional(),
+  status: DashboardPromotionSegmentStatusSchema.default("planned")
+});
+export type DashboardAttachSegmentRequest = z.infer<
+  typeof DashboardAttachSegmentRequestSchema
+>;
+
+export const DashboardUpdatePromotionSegmentRequestSchema = z.object({
+  segment_name: z.string().min(1).optional(),
+  priority: DashboardSegmentPrioritySchema.nullable().optional(),
+  status: DashboardPromotionSegmentStatusSchema.optional()
+});
+export type DashboardUpdatePromotionSegmentRequest = z.infer<
+  typeof DashboardUpdatePromotionSegmentRequestSchema
+>;
+
+export const DashboardDeletePromotionSegmentResultSchema = z.object({
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  status: z.literal("stopped")
+});
+export type DashboardDeletePromotionSegmentResult = z.infer<
+  typeof DashboardDeletePromotionSegmentResultSchema
+>;
+
 export const DashboardFunnelStepSchema = z.object({
   step_order: CountSchema,
   step_name: z.string(),

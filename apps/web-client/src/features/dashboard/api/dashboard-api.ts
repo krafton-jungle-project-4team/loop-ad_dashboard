@@ -1,6 +1,8 @@
 import {
   createApiSuccessResponseSchema,
+  DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
+  DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
@@ -8,6 +10,7 @@ import {
   DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
+  DashboardDeletePromotionSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
@@ -22,10 +25,13 @@ import {
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
   DashboardUpdateCampaignRequestSchema,
-  DashboardUpdatePromotionRequestSchema
+  DashboardUpdatePromotionRequestSchema,
+  DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
 import type {
+  DashboardAttachSegmentRequest,
   DashboardCampaignDetail,
+  DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardCreateCampaignRequest,
   DashboardCreateFunnelRequest,
@@ -33,6 +39,7 @@ import type {
   DashboardDeleteCampaignResult,
   DashboardDeleteFunnelResult,
   DashboardDeletePromotionResult,
+  DashboardDeletePromotionSegmentResult,
   DashboardEventCatalog,
   DashboardFunnel,
   DashboardFunnelMetrics,
@@ -45,7 +52,8 @@ import type {
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
   DashboardUpdateCampaignRequest,
-  DashboardUpdatePromotionRequest
+  DashboardUpdatePromotionRequest,
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -298,6 +306,81 @@ export async function fetchDashboardSegmentDetail(
     query,
     signal
   );
+}
+
+export async function attachDashboardSegmentToPromotion(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardAttachSegmentRequest
+): Promise<DashboardCampaignSegment> {
+  const parsedBody = DashboardAttachSegmentRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardCampaignSegmentSchema).parse(await response.json())
+    .data;
+}
+
+export async function updateDashboardPromotionSegment(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  requestBody: DashboardUpdatePromotionSegmentRequest
+): Promise<DashboardCampaignSegment> {
+  const parsedBody = DashboardUpdatePromotionSegmentRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardCampaignSegmentSchema).parse(await response.json())
+    .data;
+}
+
+export async function deleteDashboardPromotionSegment(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string
+): Promise<DashboardDeletePromotionSegmentResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeletePromotionSegmentResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function deleteDashboardFunnel(

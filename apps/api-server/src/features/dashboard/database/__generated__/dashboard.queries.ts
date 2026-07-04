@@ -736,7 +736,7 @@ export interface IGetDashboardPromotionSegmentQuery {
   result: IGetDashboardPromotionSegmentResult;
 }
 
-const getDashboardPromotionSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":676,"b":685}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":723}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":748,"b":757}]}],"statement":"SELECT\n  pts.promotion_id AS \"promotionId\",\n  pts.segment_id AS \"segmentId\",\n  pts.segment_name AS \"segmentName\",\n  sd.source,\n  sd.natural_language_query AS \"naturalLanguageQuery\",\n  pts.rule_json AS \"ruleJson\",\n  pts.profile_json AS \"profileJson\",\n  pts.content_brief_json AS \"contentBriefJson\",\n  pts.data_evidence_json AS \"dataEvidenceJson\",\n  pts.estimated_size AS \"estimatedSize\",\n  sd.sample_size AS \"sampleSize\",\n  sd.total_eligible_user_count AS \"totalEligibleUserCount\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nJOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.promotion_id = :promotionId\n  AND pts.segment_id = :segmentId                                   "};
+const getDashboardPromotionSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":676,"b":685}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":723}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":748,"b":757}]}],"statement":"SELECT\n  pts.promotion_id AS \"promotionId\",\n  pts.segment_id AS \"segmentId\",\n  pts.segment_name AS \"segmentName\",\n  sd.source,\n  sd.natural_language_query AS \"naturalLanguageQuery\",\n  pts.rule_json AS \"ruleJson\",\n  pts.profile_json AS \"profileJson\",\n  pts.content_brief_json AS \"contentBriefJson\",\n  pts.data_evidence_json AS \"dataEvidenceJson\",\n  pts.estimated_size AS \"estimatedSize\",\n  sd.sample_size AS \"sampleSize\",\n  sd.total_eligible_user_count AS \"totalEligibleUserCount\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nJOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.promotion_id = :promotionId\n  AND pts.segment_id = :segmentId                                              "};
 
 /**
  * Query generated from SQL:
@@ -762,10 +762,206 @@ const getDashboardPromotionSegmentIR: any = {"usedParamSet":{"projectId":true,"p
  *   ON sd.segment_id = pts.segment_id
  * WHERE pts.project_id = :projectId
  *   AND pts.promotion_id = :promotionId
- *   AND pts.segment_id = :segmentId                                   
+ *   AND pts.segment_id = :segmentId                                              
  * ```
  */
 export const getDashboardPromotionSegment = new PreparedQuery<IGetDashboardPromotionSegmentParams,IGetDashboardPromotionSegmentResult>(getDashboardPromotionSegmentIR);
+
+
+/** 'InsertDashboardManualPromotionAnalysis' parameters type */
+export interface IInsertDashboardManualPromotionAnalysisParams {
+  analysisId?: string | null | void;
+  campaignId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'InsertDashboardManualPromotionAnalysis' return type */
+export interface IInsertDashboardManualPromotionAnalysisResult {
+  analysisId: string;
+}
+
+/** 'InsertDashboardManualPromotionAnalysis' query type */
+export interface IInsertDashboardManualPromotionAnalysisQuery {
+  params: IInsertDashboardManualPromotionAnalysisParams;
+  result: IInsertDashboardManualPromotionAnalysisResult;
+}
+
+const insertDashboardManualPromotionAnalysisIR: any = {"usedParamSet":{"analysisId":true,"projectId":true,"campaignId":true,"promotionId":true},"params":[{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":139,"b":149}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":154,"b":163}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":168,"b":178}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":183,"b":194}]}],"statement":"INSERT INTO promotion_analyses (\n  analysis_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  operator_instruction,\n  status\n)\nVALUES (\n  :analysisId,\n  :projectId,\n  :campaignId,\n  :promotionId,\n  'dashboard_manual_segment_attach',\n  'completed'\n)\nRETURNING analysis_id AS \"analysisId\"                                        "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * INSERT INTO promotion_analyses (
+ *   analysis_id,
+ *   project_id,
+ *   campaign_id,
+ *   promotion_id,
+ *   operator_instruction,
+ *   status
+ * )
+ * VALUES (
+ *   :analysisId,
+ *   :projectId,
+ *   :campaignId,
+ *   :promotionId,
+ *   'dashboard_manual_segment_attach',
+ *   'completed'
+ * )
+ * RETURNING analysis_id AS "analysisId"                                        
+ * ```
+ */
+export const insertDashboardManualPromotionAnalysis = new PreparedQuery<IInsertDashboardManualPromotionAnalysisParams,IInsertDashboardManualPromotionAnalysisResult>(insertDashboardManualPromotionAnalysisIR);
+
+
+/** 'InsertDashboardPromotionTargetSegment' parameters type */
+export interface IInsertDashboardPromotionTargetSegmentParams {
+  analysisId?: string | null | void;
+  campaignId?: string | null | void;
+  priority?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+  segmentName?: string | null | void;
+  status?: string | null | void;
+}
+
+/** 'InsertDashboardPromotionTargetSegment' return type */
+export interface IInsertDashboardPromotionTargetSegmentResult {
+  promotionId: string;
+  segmentId: string;
+}
+
+/** 'InsertDashboardPromotionTargetSegment' query type */
+export interface IInsertDashboardPromotionTargetSegmentQuery {
+  params: IInsertDashboardPromotionTargetSegmentParams;
+  result: IInsertDashboardPromotionTargetSegmentResult;
+}
+
+const insertDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"analysisId":true,"campaignId":true,"promotionId":true,"segmentName":true,"priority":true,"status":true,"projectId":true,"segmentId":true},"params":[{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":253,"b":263}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":285,"b":295}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":300,"b":311}]},{"name":"segmentName","required":false,"transform":{"type":"scalar"},"locs":[{"a":342,"b":353}]},{"name":"priority","required":false,"transform":{"type":"scalar"},"locs":[{"a":612,"b":620}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":625,"b":631}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":683,"b":692}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":716,"b":725}]}],"statement":"INSERT INTO promotion_target_segments (\n  analysis_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  segment_id,\n  segment_name,\n  rule_json,\n  profile_json,\n  content_brief_json,\n  data_evidence_json,\n  estimated_size,\n  priority,\n  status\n)\nSELECT\n  :analysisId,\n  sd.project_id,\n  :campaignId,\n  :promotionId,\n  sd.segment_id,\n  COALESCE(:segmentName, sd.segment_name),\n  sd.rule_json,\n  sd.profile_json,\n  '{}'::jsonb,\n  jsonb_build_object(\n    'source', sd.source,\n    'query_preview_id', sd.query_preview_id,\n    'sample_size', sd.sample_size,\n    'sample_ratio', sd.sample_ratio\n  ),\n  sd.sample_size,\n  :priority,\n  :status\nFROM segment_definitions sd\nWHERE sd.project_id = :projectId\n  AND sd.segment_id = :segmentId\nRETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\"                                      "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * INSERT INTO promotion_target_segments (
+ *   analysis_id,
+ *   project_id,
+ *   campaign_id,
+ *   promotion_id,
+ *   segment_id,
+ *   segment_name,
+ *   rule_json,
+ *   profile_json,
+ *   content_brief_json,
+ *   data_evidence_json,
+ *   estimated_size,
+ *   priority,
+ *   status
+ * )
+ * SELECT
+ *   :analysisId,
+ *   sd.project_id,
+ *   :campaignId,
+ *   :promotionId,
+ *   sd.segment_id,
+ *   COALESCE(:segmentName, sd.segment_name),
+ *   sd.rule_json,
+ *   sd.profile_json,
+ *   '{}'::jsonb,
+ *   jsonb_build_object(
+ *     'source', sd.source,
+ *     'query_preview_id', sd.query_preview_id,
+ *     'sample_size', sd.sample_size,
+ *     'sample_ratio', sd.sample_ratio
+ *   ),
+ *   sd.sample_size,
+ *   :priority,
+ *   :status
+ * FROM segment_definitions sd
+ * WHERE sd.project_id = :projectId
+ *   AND sd.segment_id = :segmentId
+ * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId"                                      
+ * ```
+ */
+export const insertDashboardPromotionTargetSegment = new PreparedQuery<IInsertDashboardPromotionTargetSegmentParams,IInsertDashboardPromotionTargetSegmentResult>(insertDashboardPromotionTargetSegmentIR);
+
+
+/** 'UpdateDashboardPromotionTargetSegment' parameters type */
+export interface IUpdateDashboardPromotionTargetSegmentParams {
+  priority?: string | null | void;
+  priorityIsSet?: boolean | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+  segmentName?: string | null | void;
+  status?: string | null | void;
+}
+
+/** 'UpdateDashboardPromotionTargetSegment' return type */
+export interface IUpdateDashboardPromotionTargetSegmentResult {
+  promotionId: string;
+  segmentId: string;
+}
+
+/** 'UpdateDashboardPromotionTargetSegment' query type */
+export interface IUpdateDashboardPromotionTargetSegmentQuery {
+  params: IUpdateDashboardPromotionTargetSegmentParams;
+  result: IUpdateDashboardPromotionTargetSegmentResult;
+}
+
+const updateDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"segmentName":true,"priorityIsSet":true,"priority":true,"status":true,"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"segmentName","required":false,"transform":{"type":"scalar"},"locs":[{"a":63,"b":74}]},{"name":"priorityIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":115,"b":128}]},{"name":"priority","required":false,"transform":{"type":"scalar"},"locs":[{"a":135,"b":143}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":184,"b":190}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":220,"b":229}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":252,"b":263}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":284,"b":293}]}],"statement":"UPDATE promotion_target_segments\nSET\n  segment_name = COALESCE(:segmentName, segment_name),\n  priority = CASE WHEN :priorityIsSet THEN :priority ELSE priority END,\n  status = COALESCE(:status, status)\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nRETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\"                                             "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE promotion_target_segments
+ * SET
+ *   segment_name = COALESCE(:segmentName, segment_name),
+ *   priority = CASE WHEN :priorityIsSet THEN :priority ELSE priority END,
+ *   status = COALESCE(:status, status)
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ *   AND segment_id = :segmentId
+ * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId"                                             
+ * ```
+ */
+export const updateDashboardPromotionTargetSegment = new PreparedQuery<IUpdateDashboardPromotionTargetSegmentParams,IUpdateDashboardPromotionTargetSegmentResult>(updateDashboardPromotionTargetSegmentIR);
+
+
+/** 'StopDashboardPromotionTargetSegment' parameters type */
+export interface IStopDashboardPromotionTargetSegmentParams {
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+}
+
+/** 'StopDashboardPromotionTargetSegment' return type */
+export interface IStopDashboardPromotionTargetSegmentResult {
+  promotionId: string;
+  segmentId: string;
+  status: string;
+}
+
+/** 'StopDashboardPromotionTargetSegment' query type */
+export interface IStopDashboardPromotionTargetSegmentQuery {
+  params: IStopDashboardPromotionTargetSegmentParams;
+  result: IStopDashboardPromotionTargetSegmentResult;
+}
+
+const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":75,"b":84}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":107,"b":118}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":139,"b":148}]}],"statement":"UPDATE promotion_target_segments\nSET status = 'stopped'\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nRETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status                                   "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE promotion_target_segments
+ * SET status = 'stopped'
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ *   AND segment_id = :segmentId
+ * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status                                   
+ * ```
+ */
+export const stopDashboardPromotionTargetSegment = new PreparedQuery<IStopDashboardPromotionTargetSegmentParams,IStopDashboardPromotionTargetSegmentResult>(stopDashboardPromotionTargetSegmentIR);
 
 
 /** 'ListDashboardCampaignExperimentMetrics' parameters type */

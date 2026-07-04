@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
+  DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
+  DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
@@ -8,6 +10,7 @@ import {
   DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
+  DashboardDeletePromotionSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
@@ -22,7 +25,8 @@ import {
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
   DashboardUpdateCampaignRequestSchema,
-  DashboardUpdatePromotionRequestSchema
+  DashboardUpdatePromotionRequestSchema,
+  DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -110,6 +114,50 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardDeletePromotionResultSchema.parse(
       await this.dashboardQuery.stopPromotion(requiredProjectId, promotionId)
+    );
+  }
+
+  @Post("promotions/:promotion_id/segments")
+  async attachSegmentToPromotion(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardAttachSegmentRequestSchema.parse(body);
+    return DashboardCampaignSegmentSchema.parse(
+      await this.dashboardQuery.attachSegmentToPromotion(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Patch("promotions/:promotion_id/segments/:segment_id")
+  async updatePromotionSegment(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardUpdatePromotionSegmentRequestSchema.parse(body);
+    return DashboardCampaignSegmentSchema.parse(
+      await this.dashboardQuery.updatePromotionSegment(
+        requiredProjectId,
+        promotionId,
+        segmentId,
+        request
+      )
+    );
+  }
+
+  @Delete("promotions/:promotion_id/segments/:segment_id")
+  async deletePromotionSegment(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardDeletePromotionSegmentResultSchema.parse(
+      await this.dashboardQuery.stopPromotionSegment(requiredProjectId, promotionId, segmentId)
     );
   }
 

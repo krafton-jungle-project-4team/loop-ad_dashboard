@@ -5,15 +5,18 @@ import type {
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardContentCandidate,
+  DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
   DashboardCreatePromotionRequest,
   DashboardDeleteCampaignResult,
   DashboardDeletePromotionResult,
+  DashboardDeletePromotionSegmentResult,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
   DashboardSegmentDetail,
   DashboardUpdateCampaignRequest,
-  DashboardUpdatePromotionRequest
+  DashboardUpdatePromotionRequest,
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import { randomUUID } from "node:crypto";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
@@ -24,7 +27,9 @@ import {
   getDashboardPromotionSegment,
   getDashboardPromotionSummary,
   insertDashboardCampaign,
+  insertDashboardManualPromotionAnalysis,
   insertDashboardPromotion,
+  insertDashboardPromotionTargetSegment,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -35,8 +40,10 @@ import {
   listDashboardSegmentExperimentMetrics,
   stopDashboardCampaign,
   stopDashboardPromotion,
+  stopDashboardPromotionTargetSegment,
   updateDashboardCampaign,
   updateDashboardPromotion,
+  updateDashboardPromotionTargetSegment,
   type IGetDashboardCampaignSummaryResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
@@ -197,6 +204,75 @@ export class DashboardCampaignReader {
     };
   }
 
+  async attachSegmentToPromotion(
+    projectId: string,
+    promotionId: string,
+    request: DashboardAttachSegmentRequest
+  ): Promise<DashboardCampaignSegment> {
+    const promotion = await this.getPromotionSummary(projectId, promotionId);
+    const analysisId = `analysis_manual_${randomUUID()}`;
+
+    await this.db
+      .query(insertDashboardManualPromotionAnalysis, {
+        analysisId,
+        campaignId: promotion.campaign_id,
+        projectId,
+        promotionId
+      })
+      .single();
+    await this.db
+      .query(insertDashboardPromotionTargetSegment, {
+        analysisId,
+        campaignId: promotion.campaign_id,
+        priority: request.priority ?? null,
+        projectId,
+        promotionId,
+        segmentId: request.segment_id,
+        segmentName: request.segment_name,
+        status: request.status
+      })
+      .single();
+
+    return this.getPromotionSegment(projectId, promotionId, request.segment_id);
+  }
+
+  async updatePromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    request: DashboardUpdatePromotionSegmentRequest
+  ): Promise<DashboardCampaignSegment> {
+    await this.db
+      .query(updateDashboardPromotionTargetSegment, {
+        priority: request.priority ?? null,
+        priorityIsSet: Object.hasOwn(request, "priority"),
+        projectId,
+        promotionId,
+        segmentId,
+        segmentName: request.segment_name,
+        status: request.status
+      })
+      .single();
+
+    return this.getPromotionSegment(projectId, promotionId, segmentId);
+  }
+
+  async stopPromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardDeletePromotionSegmentResult> {
+    const row = await this.db
+      .query(stopDashboardPromotionTargetSegment, { projectId, promotionId, segmentId })
+      .single();
+
+    return {
+      promotion_id: row.promotionId,
+      segment_id: row.segmentId,
+      status: "stopped"
+    };
+  }
+
   async getCampaignDetail(
     projectId: string,
     campaignId: string
@@ -273,6 +349,17 @@ export class DashboardCampaignReader {
   ): Promise<DashboardPromotionSummary> {
     const row = await this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single();
     return toPromotionSummary(row);
+  }
+
+  private async getPromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardCampaignSegment> {
+    const row = await this.db
+      .query(getDashboardPromotionSegment, { projectId, promotionId, segmentId })
+      .single();
+    return toCampaignSegment(row);
   }
 }
 
