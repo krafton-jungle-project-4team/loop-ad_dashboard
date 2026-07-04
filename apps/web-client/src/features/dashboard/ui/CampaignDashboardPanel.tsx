@@ -3248,7 +3248,7 @@ function SegmentDetailPanel({
   }
 
   const adExperimentIds = uniqueValues(
-    detail.experiment_metrics.map((metric) => metric.ad_experiment_id)
+    detail.ad_experiments.map((experiment) => experiment.ad_experiment_id)
   );
   const latestMetric = detail.experiment_metrics[0];
   const hasInsufficientData = detail.experiment_metrics.some(
@@ -3276,6 +3276,7 @@ function SegmentDetailPanel({
       ) : null}
       <SegmentDefinitionPanel segment={detail.segment} />
       <SegmentExpectedEffectPanel detail={detail} latestMetric={latestMetric} />
+      <SegmentAdExperimentStatusPanel detail={detail} />
       <RealtimeEventTable
         emptyMessage="실시간 이벤트가 아직 수집되지 않았습니다."
         metrics={detail.realtime_metrics}
@@ -3518,6 +3519,42 @@ function SegmentExpectedEffectPanel({
         <InsightBlock label="콘텐츠 브리프 기반 예상 효과" value={contentBriefEffect ?? "-"} />
         <InsightBlock label="데이터 근거 기반 예상 효과" value={evidenceEffect ?? "-"} />
       </div>
+    </section>
+  );
+}
+
+function SegmentAdExperimentStatusPanel({
+  detail
+}: {
+  detail: DashboardSegmentDetailResource;
+}) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">광고 실험 상태</h3>
+      {detail.ad_experiments.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {detail.ad_experiments.map((experiment) => (
+            <div className="grid gap-3 rounded-md border bg-background p-3" key={experiment.ad_experiment_id}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="grid gap-1">
+                  <div className="text-sm font-medium">{experiment.ad_experiment_id}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {experiment.promotion_run_id} / {experiment.content_option_id}
+                  </div>
+                </div>
+                <Badge variant={statusBadgeVariant(experiment.status)}>{experiment.status}</Badge>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <SummaryItem label="프로모션" value={experiment.promotion_id} />
+                <SummaryItem label="세그먼트" value={experiment.segment_id} />
+                <SummaryItem label="콘텐츠" value={experiment.content_id} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState message="승인된 콘텐츠로 생성된 광고 실험이 아직 없습니다." />
+      )}
     </section>
   );
 }

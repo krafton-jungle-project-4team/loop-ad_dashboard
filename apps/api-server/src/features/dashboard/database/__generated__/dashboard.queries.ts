@@ -1267,7 +1267,7 @@ export interface IListDashboardSegmentContentCandidatesQuery {
   result: IListDashboardSegmentContentCandidatesResult;
 }
 
-const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":531,"b":540}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":563,"b":574}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":595,"b":604}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY updated_at DESC, created_at DESC                                                        "};
+const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":531,"b":540}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":563,"b":574}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":595,"b":604}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY updated_at DESC, created_at DESC                                        "};
 
 /**
  * Query generated from SQL:
@@ -1295,10 +1295,57 @@ const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
  *   AND segment_id = :segmentId
- * ORDER BY updated_at DESC, created_at DESC                                                        
+ * ORDER BY updated_at DESC, created_at DESC                                        
  * ```
  */
 export const listDashboardSegmentContentCandidates = new PreparedQuery<IListDashboardSegmentContentCandidatesParams,IListDashboardSegmentContentCandidatesResult>(listDashboardSegmentContentCandidatesIR);
+
+
+/** 'ListDashboardSegmentAdExperiments' parameters type */
+export interface IListDashboardSegmentAdExperimentsParams {
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+}
+
+/** 'ListDashboardSegmentAdExperiments' return type */
+export interface IListDashboardSegmentAdExperimentsResult {
+  adExperimentId: string;
+  contentId: string;
+  contentOptionId: string;
+  promotionId: string;
+  promotionRunId: string;
+  segmentId: string;
+  status: string;
+}
+
+/** 'ListDashboardSegmentAdExperiments' query type */
+export interface IListDashboardSegmentAdExperimentsQuery {
+  params: IListDashboardSegmentAdExperimentsParams;
+  result: IListDashboardSegmentAdExperimentsResult;
+}
+
+const listDashboardSegmentAdExperimentsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":268,"b":277}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":300,"b":311}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":332,"b":341}]}],"statement":"SELECT\n  ad_experiment_id AS \"adExperimentId\",\n  promotion_run_id AS \"promotionRunId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  status\nFROM ad_experiments\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY loop_count DESC, updated_at DESC, created_at DESC                                                        "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   ad_experiment_id AS "adExperimentId",
+ *   promotion_run_id AS "promotionRunId",
+ *   promotion_id AS "promotionId",
+ *   segment_id AS "segmentId",
+ *   content_id AS "contentId",
+ *   content_option_id AS "contentOptionId",
+ *   status
+ * FROM ad_experiments
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ *   AND segment_id = :segmentId
+ * ORDER BY loop_count DESC, updated_at DESC, created_at DESC                                                        
+ * ```
+ */
+export const listDashboardSegmentAdExperiments = new PreparedQuery<IListDashboardSegmentAdExperimentsParams,IListDashboardSegmentAdExperimentsResult>(listDashboardSegmentAdExperimentsIR);
 
 
 /** 'GetDashboardContentCandidateForApproval' parameters type */

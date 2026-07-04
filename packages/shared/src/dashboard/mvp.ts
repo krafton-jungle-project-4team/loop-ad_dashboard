@@ -335,6 +335,7 @@ export type DashboardPromotionDetail = z.infer<typeof DashboardPromotionDetailSc
 
 export const DashboardSegmentDetailSchema = z.object({
   segment: DashboardCampaignSegmentSchema,
+  ad_experiments: z.array(DashboardAdExperimentSchema),
   content_candidates: z.array(DashboardContentCandidateSchema),
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
   realtime_metrics: DashboardSegmentRealtimeMetricsSchema

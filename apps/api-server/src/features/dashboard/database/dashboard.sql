@@ -529,6 +529,22 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY updated_at DESC, created_at DESC;
 
+/* 목적: 특정 세그먼트에서 생성된 광고 실험 상태를 조회합니다. */
+/* @name ListDashboardSegmentAdExperiments */
+SELECT
+  ad_experiment_id AS "adExperimentId",
+  promotion_run_id AS "promotionRunId",
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  status
+FROM ad_experiments
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+ORDER BY loop_count DESC, updated_at DESC, created_at DESC;
+
 /* 목적: 콘텐츠 승인과 실험 생성을 위해 후보, 프로모션, 세그먼트 정보를 함께 조회합니다. */
 /* @name GetDashboardContentCandidateForApproval */
 SELECT

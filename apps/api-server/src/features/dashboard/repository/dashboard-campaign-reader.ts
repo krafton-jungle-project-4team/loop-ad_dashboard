@@ -46,6 +46,7 @@ import {
   listDashboardCampaignSegments,
   listDashboardPromotionExperimentMetrics,
   listDashboardPromotionSegments,
+  listDashboardSegmentAdExperiments,
   listDashboardSegmentContentCandidates,
   listDashboardSegmentExperimentMetrics,
   markDashboardPromotionTargetSegmentApproved,
@@ -64,6 +65,7 @@ import {
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
   type IListDashboardCampaignSegmentsResult,
+  type IListDashboardSegmentAdExperimentsResult,
   type IListDashboardSegmentContentCandidatesResult,
   type IListDashboardSegmentExperimentMetricsResult,
   type IListDashboardPromotionExperimentMetricsResult,
@@ -420,8 +422,11 @@ export class DashboardCampaignReader {
     promotionId: string,
     segmentId: string
   ): Promise<Omit<DashboardSegmentDetail, "realtime_metrics">> {
-    const [segment, contentCandidates, experimentMetrics] = await Promise.all([
+    const [segment, adExperiments, contentCandidates, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardPromotionSegment, { projectId, promotionId, segmentId }).single(),
+      this.db
+        .query(listDashboardSegmentAdExperiments, { projectId, promotionId, segmentId })
+        .multiple(),
       this.db
         .query(listDashboardSegmentContentCandidates, { projectId, promotionId, segmentId })
         .multiple(),
@@ -432,6 +437,7 @@ export class DashboardCampaignReader {
 
     return {
       segment: toCampaignSegment(segment),
+      ad_experiments: adExperiments.map(toSegmentAdExperiment),
       content_candidates: contentCandidates.map(toContentCandidate),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
@@ -618,6 +624,18 @@ function toCampaignExperimentMetric(
     next_loop_required: row.nextLoopRequired,
     result_json: jsonObject(row.resultJson),
     created_at: row.createdAt.toISOString()
+  };
+}
+
+function toSegmentAdExperiment(row: IListDashboardSegmentAdExperimentsResult): DashboardAdExperiment {
+  return {
+    ad_experiment_id: row.adExperimentId,
+    content_id: row.contentId,
+    content_option_id: row.contentOptionId,
+    promotion_id: row.promotionId,
+    promotion_run_id: row.promotionRunId,
+    segment_id: row.segmentId,
+    status: row.status
   };
 }
 
