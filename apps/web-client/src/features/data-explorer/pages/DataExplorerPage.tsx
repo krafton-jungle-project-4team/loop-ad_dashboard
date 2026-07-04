@@ -1,5 +1,6 @@
 import type {
   DataExplorerAiChatCurrentResult,
+  DataExplorerColumn,
   DataExplorerObjectSummary,
   DataExplorerQueryRunResponse,
   DataExplorerSqlValidation
@@ -10,7 +11,7 @@ import { Button } from "@loopad/ui/shadcn/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@loopad/ui/shadcn/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Play } from "lucide-react";
+import { Bot, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChatKitQueryPanel,
@@ -18,14 +19,17 @@ import {
 } from "../components/ChatKitQueryPanel.js";
 import { QueryResultTable } from "../components/QueryResultTable.js";
 import { SchemaBrowserPanel } from "../components/SchemaBrowserPanel.js";
-import { SchemaInspectorPanel } from "../components/SchemaInspectorPanel.js";
 import { SqlEditorPanel } from "../components/SqlEditorPanel.js";
 import { VisualizationPanel } from "../components/VisualizationPanel.js";
 import {
+  dataExplorerEventCatalogQueryOptions,
   dataExplorerObjectDetailQueryOptions,
   dataExplorerObjectsQueryOptions,
   useDataExplorerMutations
 } from "../hooks/use-data-explorer.js";
+
+const panelToggleButtonClass =
+  "size-7 border-0 bg-transparent shadow-none transition-none focus-visible:border-transparent focus-visible:ring-0 active:translate-y-0";
 
 export function DataExplorerPage({ projectId }: { projectId: string }) {
   const [sqlText, setSqlText] = useState(() => defaultSqlText(projectId));
@@ -34,12 +38,22 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const [selectedObject, setSelectedObject] = useState<DataExplorerObjectSummary | null>(null);
   const [queryResult, setQueryResult] = useState<DataExplorerQueryRunResponse | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
-  const [resultTab, setResultTab] = useState<"schema" | "result" | "visualization">("schema");
+  const [resultTab, setResultTab] = useState<"result" | "visualization">("result");
+  const [isSchemaPanelOpen, setIsSchemaPanelOpen] = useState(true);
+  const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(true);
   const mutations = useDataExplorerMutations();
   const objectsQuery = useQuery(dataExplorerObjectsQueryOptions({ q: objectSearch }));
+  const eventCatalogQuery = useQuery(dataExplorerEventCatalogQueryOptions(projectId));
   const objects = objectsQuery.data?.objects ?? [];
+  const events = eventCatalogQuery.data?.events ?? [];
   const objectDetailQuery = useQuery(dataExplorerObjectDetailQueryOptions(selectedObject));
   const hasInvalidValidation = validation?.status === "invalid";
+  const schemaPanelDefaultSize = 24;
+  const assistantPanelDefaultSize = 28;
+  const mainPanelDefaultSize =
+    100 -
+    (isSchemaPanelOpen ? schemaPanelDefaultSize : 0) -
+    (isAssistantPanelOpen ? assistantPanelDefaultSize : 0);
   const chatKitCurrentResult = useMemo(
     () => (queryResult ? toCurrentResult(queryResult) : null),
     [queryResult]
@@ -82,6 +96,36 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     setValidation(null);
   }, []);
 
+  const handleBuildObjectQuery = useCallback((object: DataExplorerObjectSummary) => {
+    setQueryError(null);
+    setValidation(null);
+    setSqlText(sampleObjectSqlText(object.object_name));
+  }, []);
+
+  const handleBuildColumnQuery = useCallback(
+    (object: DataExplorerObjectSummary, column: DataExplorerColumn) => {
+      setQueryError(null);
+      setValidation(null);
+      setSqlText(columnSqlText(object.object_name, column.column_name));
+    },
+    []
+  );
+
+  const handleBuildObjectDdlQuery = useCallback((object: DataExplorerObjectSummary) => {
+    setQueryError(null);
+    setValidation(null);
+    setSqlText(objectDdlSqlText(object.object_name));
+  }, []);
+
+  const handleBuildEventQuery = useCallback(
+    (eventName: string) => {
+      setQueryError(null);
+      setValidation(null);
+      setSqlText(recentEventSqlText(projectId, eventName));
+    },
+    [projectId]
+  );
+
   const handleChatKitQueryRun = useCallback((effect: DataExplorerChatKitQueryEffect) => {
     setQueryError(null);
     setSqlText(effect.query_plan.generated_sql);
@@ -94,7 +138,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     }
 
     setQueryResult(null);
-    setResultTab("schema");
+    setResultTab("result");
   }, []);
 
   if (!projectId.trim()) {
@@ -110,131 +154,178 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     <div className="h-full min-h-0 min-w-0 overflow-hidden bg-white">
       <ResizablePanelGroup
         className="h-full min-h-0 min-w-0 overflow-hidden border-t border-black/10 bg-white"
-        id="loopad-data-explorer-panels"
+        id="loopad-data-explorer-shell"
         orientation="horizontal"
       >
+        {isSchemaPanelOpen ? (
+          <>
+            <ResizablePanel
+              className="min-w-0 overflow-hidden"
+              defaultSize={`${schemaPanelDefaultSize}%`}
+              maxSize="40%"
+              minSize="16%"
+            >
+              <SchemaBrowserPanel
+                events={events}
+                isEventsLoading={eventCatalogQuery.isLoading}
+                isLoading={objectsQuery.isLoading}
+                isObjectDetailLoading={objectDetailQuery.isLoading}
+                objectSearch={objectSearch}
+                objects={objects}
+                onBuildColumnQuery={handleBuildColumnQuery}
+                onBuildEventQuery={handleBuildEventQuery}
+                onBuildObjectDdlQuery={handleBuildObjectDdlQuery}
+                onBuildObjectQuery={handleBuildObjectQuery}
+                onObjectSearchChange={setObjectSearch}
+                onSelectObject={setSelectedObject}
+                selectedObjectDetail={objectDetailQuery.data ?? null}
+                selectedObjectName={selectedObject?.object_name ?? null}
+              />
+            </ResizablePanel>
+            <ResizableHandle
+              className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
+              withHandle
+            />
+          </>
+        ) : null}
+
         <ResizablePanel
           className="min-w-0 overflow-hidden"
-          defaultSize="22%"
-          maxSize="34%"
-          minSize="16%"
+          defaultSize={`${mainPanelDefaultSize}%`}
+          minSize="36%"
         >
-          <SchemaBrowserPanel
-            isLoading={objectsQuery.isLoading}
-            objectSearch={objectSearch}
-            objects={objects}
-            onObjectSearchChange={setObjectSearch}
-            onSelectObject={setSelectedObject}
-            selectedObjectName={selectedObject?.object_name ?? null}
-          />
-        </ResizablePanel>
-
-        <ResizableHandle
-          className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
-          withHandle
-        />
-
-        <ResizablePanel className="min-w-0 overflow-hidden" defaultSize="51%" minSize="34%">
-          <main className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-x border-black/10">
-            <SqlEditorPanel
-              onSqlTextChange={handleSqlTextChange}
-              sqlText={sqlText}
-              validation={validation}
-            />
-
-            <section className="flex min-h-0 min-w-0 flex-col border-t border-black/10 bg-white">
-              {queryError ? (
-                <Alert className="m-3 shrink-0" variant="destructive">
-                  <AlertTitle>Data Explorer 요청 실패</AlertTitle>
-                  <AlertDescription>{queryError}</AlertDescription>
-                </Alert>
-              ) : null}
-              <Tabs
-                className="min-h-0 min-w-0 flex-1 gap-0 overflow-hidden"
-                onValueChange={(value) =>
-                  setResultTab(value as "schema" | "result" | "visualization")
-                }
-                value={resultTab}
-              >
-                <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
-                  <TabsList className="h-8">
-                    <TabsTrigger value="schema">Schema</TabsTrigger>
-                    <TabsTrigger value="result">Query Result</TabsTrigger>
-                    <TabsTrigger value="visualization">Visual Insights</TabsTrigger>
-                  </TabsList>
-                  <div className="flex items-center gap-2">
-                    {validation ? (
-                      <Badge variant={hasInvalidValidation ? "destructive" : "outline"}>
-                        {hasInvalidValidation ? "invalid" : "valid"}
-                      </Badge>
-                    ) : null}
-                    {queryResult ? (
-                      <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
-                        {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
-                      </Badge>
-                    ) : null}
+          <main className="h-full min-h-0 min-w-0 overflow-hidden bg-white">
+            <ResizablePanelGroup
+              className="h-full min-h-0 min-w-0"
+              id="loopad-data-explorer-workbench"
+              orientation="vertical"
+            >
+              <ResizablePanel className="min-h-0 overflow-hidden" defaultSize="42%" minSize="26%">
+                <SqlEditorPanel
+                  isRunning={mutations.runQuery.isPending}
+                  leftToolbar={
                     <Button
-                      className="bg-[#0066cc] text-white hover:bg-[#0057ad]"
-                      disabled={mutations.runQuery.isPending || !sqlText.trim()}
-                      onClick={handleRun}
-                      size="sm"
+                      aria-label={isSchemaPanelOpen ? "Close schema panel" : "Open schema panel"}
+                      className={panelToggleButtonClass}
+                      onClick={() => setIsSchemaPanelOpen((current) => !current)}
+                      size="icon-sm"
+                      title={isSchemaPanelOpen ? "Close schema panel" : "Open schema panel"}
                       type="button"
+                      variant="ghost"
                     >
-                      {mutations.runQuery.isPending ? (
-                        <Loader2 className="animate-spin" />
-                      ) : (
-                        <Play />
-                      )}
-                      Run Query
+                      {isSchemaPanelOpen ? <PanelLeftClose /> : <PanelLeft />}
                     </Button>
-                  </div>
-                </div>
-                <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-4">
-                  <TabsContent
-                    className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
-                    value="schema"
+                  }
+                  onRun={handleRun}
+                  onSqlTextChange={handleSqlTextChange}
+                  rightToolbar={
+                    <Button
+                      aria-label={isAssistantPanelOpen ? "Close AI panel" : "Open AI panel"}
+                      className={panelToggleButtonClass}
+                      onClick={() => setIsAssistantPanelOpen((current) => !current)}
+                      size="icon-sm"
+                      title={isAssistantPanelOpen ? "Close AI panel" : "Open AI panel"}
+                      type="button"
+                      variant="ghost"
+                    >
+                      {isAssistantPanelOpen ? <PanelRightClose /> : <PanelRight />}
+                    </Button>
+                  }
+                  runDisabled={mutations.runQuery.isPending || !sqlText.trim()}
+                  sqlText={sqlText}
+                  validation={validation}
+                />
+              </ResizablePanel>
+
+              <ResizableHandle
+                className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
+                withHandle
+              />
+
+              <ResizablePanel className="min-h-0 overflow-hidden" defaultSize="58%" minSize="28%">
+                <section className="flex h-full min-h-0 min-w-0 flex-col bg-white">
+                  {queryError ? (
+                    <Alert className="m-3 shrink-0" variant="destructive">
+                      <AlertTitle>Data Explorer 요청 실패</AlertTitle>
+                      <AlertDescription>{queryError}</AlertDescription>
+                    </Alert>
+                  ) : null}
+                  <Tabs
+                    className="min-h-0 min-w-0 flex-1 gap-0 overflow-hidden"
+                    onValueChange={(value) => setResultTab(value as "result" | "visualization")}
+                    value={resultTab}
                   >
-                    <SchemaInspectorPanel
-                      detail={objectDetailQuery.data ?? null}
-                      isLoading={objectDetailQuery.isLoading}
-                    />
-                  </TabsContent>
-                  <TabsContent
-                    className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
-                    value="result"
-                  >
-                    <QueryResultTable result={queryResult} />
-                  </TabsContent>
-                  <TabsContent
-                    className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
-                    value="visualization"
-                  >
-                    <VisualizationPanel result={queryResult} />
-                  </TabsContent>
-                </div>
-              </Tabs>
-            </section>
+                    <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
+                      <TabsList className="h-8">
+                        <TabsTrigger value="result">Query Result</TabsTrigger>
+                        <TabsTrigger value="visualization">Visual Insights</TabsTrigger>
+                      </TabsList>
+                      <div className="flex items-center gap-2">
+                        {validation ? (
+                          <Badge variant={hasInvalidValidation ? "destructive" : "outline"}>
+                            {hasInvalidValidation ? "invalid" : "valid"}
+                          </Badge>
+                        ) : null}
+                        {queryResult ? (
+                          <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
+                            {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-4">
+                      <TabsContent
+                        className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
+                        value="result"
+                      >
+                        <QueryResultTable result={queryResult} />
+                      </TabsContent>
+                      <TabsContent
+                        className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
+                        value="visualization"
+                      >
+                        <VisualizationPanel result={queryResult} />
+                      </TabsContent>
+                    </div>
+                  </Tabs>
+                </section>
+              </ResizablePanel>
+            </ResizablePanelGroup>
           </main>
         </ResizablePanel>
 
-        <ResizableHandle
-          className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
-          withHandle
-        />
-
-        <ResizablePanel
-          className="min-w-0 overflow-hidden"
-          defaultSize="27%"
-          maxSize="40%"
-          minSize="18%"
-        >
-          <ChatKitQueryPanel
-            currentResult={chatKitCurrentResult}
-            onError={setQueryError}
-            onQueryRun={handleChatKitQueryRun}
-            projectId={projectId}
-          />
-        </ResizablePanel>
+        {isAssistantPanelOpen ? (
+          <>
+            <ResizableHandle
+              className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
+              withHandle
+            />
+            <ResizablePanel
+              className="min-w-0 overflow-hidden"
+              defaultSize={`${assistantPanelDefaultSize}%`}
+              maxSize="42%"
+              minSize="20%"
+            >
+              <aside className="h-full min-h-0 min-w-0 overflow-hidden bg-white">
+                <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
+                  <Bot className="size-4 text-[#0066cc]" />
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    AI Assistant
+                  </div>
+                </div>
+                <div className="h-[calc(100%-49px)] min-h-0">
+                  <ChatKitQueryPanel
+                    currentResult={chatKitCurrentResult}
+                    onError={setQueryError}
+                    onQueryRun={handleChatKitQueryRun}
+                    projectId={projectId}
+                    showTitle={false}
+                  />
+                </div>
+              </aside>
+            </ResizablePanel>
+          </>
+        ) : null}
       </ResizablePanelGroup>
     </div>
   );
@@ -245,7 +336,12 @@ function objectKey(object: DataExplorerObjectSummary) {
 }
 
 function preferredObject(objects: DataExplorerObjectSummary[]): DataExplorerObjectSummary | null {
-  return objects.find((object) => object.object_name === "raw_events") ?? objects[0] ?? null;
+  return (
+    objects.find((object) => object.object_name === "funnel_step_events") ??
+    objects.find((object) => object.object_name === "raw_events") ??
+    objects[0] ??
+    null
+  );
 }
 
 function toCurrentResult(result: DataExplorerQueryRunResponse): DataExplorerAiChatCurrentResult {
@@ -259,19 +355,71 @@ function toCurrentResult(result: DataExplorerQueryRunResponse): DataExplorerAiCh
 }
 
 function defaultSqlText(projectId: string) {
-  const escapedProjectId = projectId.replaceAll("'", "''");
+  const escapedProjectId = escapeSqlLiteral(projectId);
 
   return [
     "SELECT",
     "  toDate(event_time) AS event_date,",
     "  event_name,",
     "  count() AS event_count",
-    "FROM raw_events",
+    "FROM funnel_step_events",
     `WHERE project_id = '${escapedProjectId}'`,
     "GROUP BY event_date, event_name",
     "ORDER BY event_date DESC, event_count DESC",
     "LIMIT 100"
   ].join("\n");
+}
+
+function sampleObjectSqlText(objectName: string) {
+  return ["SELECT", "  *", `FROM ${quoteClickHouseIdentifier(objectName)}`, "LIMIT 100"].join("\n");
+}
+
+function columnSqlText(objectName: string, columnName: string) {
+  return [
+    "SELECT",
+    `  ${quoteClickHouseIdentifier(columnName)}`,
+    `FROM ${quoteClickHouseIdentifier(objectName)}`,
+    "LIMIT 100"
+  ].join("\n");
+}
+
+function objectDdlSqlText(objectName: string) {
+  return [
+    "SELECT",
+    "  c.position,",
+    "  c.name AS column_name,",
+    "  c.type AS column_type,",
+    "  nullIf(c.default_expression, '') AS default_expression,",
+    "  nullIf(c.comment, '') AS comment,",
+    "  t.create_table_query AS ddl",
+    "FROM system.tables t",
+    "INNER JOIN system.columns c",
+    "  ON c.database = t.database",
+    " AND c.table = t.name",
+    "WHERE t.database = currentDatabase()",
+    `  AND t.name = '${escapeSqlLiteral(objectName)}'`,
+    "ORDER BY c.position"
+  ].join("\n");
+}
+
+function recentEventSqlText(projectId: string, eventName: string) {
+  return [
+    "SELECT",
+    "  *",
+    "FROM funnel_step_events",
+    `WHERE project_id = '${escapeSqlLiteral(projectId)}'`,
+    `  AND event_name = '${escapeSqlLiteral(eventName)}'`,
+    "ORDER BY event_time DESC",
+    "LIMIT 100"
+  ].join("\n");
+}
+
+function escapeSqlLiteral(value: string) {
+  return value.replaceAll("'", "''");
+}
+
+function quoteClickHouseIdentifier(identifier: string) {
+  return `\`${identifier.replaceAll("`", "``")}\``;
 }
 
 function errorMessage(error: unknown) {

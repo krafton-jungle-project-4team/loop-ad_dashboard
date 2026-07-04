@@ -1,7 +1,9 @@
 import {
+  DashboardEventCatalogSchema,
   DataExplorerObjectDetailSchema,
   DataExplorerObjectsResponseSchema,
   DataExplorerQueryRunResponseSchema,
+  type DashboardEventCatalog,
   type DataExplorerObjectRef,
   type DataExplorerQueryRunRequest
 } from "@loopad/shared";
@@ -28,6 +30,21 @@ export function fetchDataExplorerObjectDetail(input: {
   return apiGet(
     `${DATA_EXPLORER_BASE_PATH}/objects/detail?${searchParams.toString()}`,
     DataExplorerObjectDetailSchema,
+    input.signal
+  );
+}
+
+export function fetchDataExplorerEventCatalog(input: {
+  projectId: string;
+  signal: AbortSignal;
+}): Promise<DashboardEventCatalog> {
+  const searchParams = new URLSearchParams({
+    project_id: input.projectId
+  });
+
+  return apiGet(
+    `/dashboard/v1/event-catalog?${searchParams.toString()}`,
+    DashboardEventCatalogSchema,
     input.signal
   );
 }
