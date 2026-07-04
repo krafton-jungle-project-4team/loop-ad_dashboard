@@ -7,7 +7,8 @@ import type {
   DashboardEventCatalog,
   DashboardFunnelList,
   DashboardFunnelMetrics,
-  DashboardMain
+  DashboardMain,
+  DashboardPromotionDetail
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import { DashboardCampaignReader, DashboardFunnelReader } from "../repository/index.js";
@@ -29,6 +30,13 @@ export class DashboardQueryService {
 
   async campaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {
     return this.campaignReader.getCampaignDetail(projectId, campaignId);
+  }
+
+  async promotionDetail(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardPromotionDetail> {
+    return this.campaignReader.getPromotionDetail(projectId, promotionId);
   }
 
   async funnels(projectId: string): Promise<DashboardFunnelList> {

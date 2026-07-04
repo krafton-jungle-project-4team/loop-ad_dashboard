@@ -18,6 +18,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger
@@ -32,7 +35,11 @@ import {
   type PointerEvent,
   type ReactNode
 } from "react";
-import { dashboardTabs, getDashboardTabLabel } from "../model/dashboard-navigation.js";
+import {
+  dashboardNavigationTree,
+  getDashboardTabLabel,
+  type DashboardNavTreeItem
+} from "../model/dashboard-navigation.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
@@ -134,12 +141,12 @@ function DashboardNavigation({
 }) {
   return (
     <SidebarMenu>
-      {dashboardTabs.map((item) => {
+      {dashboardNavigationTree.map((item) => {
         const Icon = item.icon;
         const isActive = activeTab === item.value;
 
         return (
-          <SidebarMenuItem key={item.value}>
+          <SidebarMenuItem key={item.label}>
             <SidebarMenuButton
               asChild
               className={
@@ -151,17 +158,54 @@ function DashboardNavigation({
               tooltip={item.label}
             >
               <Link
-                params={{ projectId, tabPath: item.pathSegment }}
+                params={{ projectId, tabPath: item.pathSegment ?? "main" }}
                 to="/dashboard/$projectId/$tabPath"
               >
-                <Icon />
+                {Icon ? <Icon /> : null}
                 <span>{item.label}</span>
               </Link>
             </SidebarMenuButton>
+            {item.children ? (
+              <DashboardNavigationSubItems
+                items={item.children}
+                projectId={projectId}
+              />
+            ) : null}
           </SidebarMenuItem>
         );
       })}
     </SidebarMenu>
+  );
+}
+
+function DashboardNavigationSubItems({
+  items,
+  projectId
+}: {
+  items: DashboardNavTreeItem[];
+  projectId: string;
+}) {
+  return (
+    <SidebarMenuSub>
+      {items.map((item) => (
+        <SidebarMenuSubItem key={item.label}>
+          <SidebarMenuSubButton asChild isActive={false}>
+            <Link
+              params={{ projectId, tabPath: item.pathSegment ?? "main" }}
+              to="/dashboard/$projectId/$tabPath"
+            >
+              <span>{item.label}</span>
+            </Link>
+          </SidebarMenuSubButton>
+          {item.children ? (
+            <DashboardNavigationSubItems
+              items={item.children}
+              projectId={projectId}
+            />
+          ) : null}
+        </SidebarMenuSubItem>
+      ))}
+    </SidebarMenuSub>
   );
 }
 

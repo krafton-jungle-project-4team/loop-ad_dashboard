@@ -3,22 +3,30 @@ import type {
   DashboardCampaignExperimentMetric,
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
-  DashboardCampaignSummary
+  DashboardCampaignSummary,
+  DashboardPromotionDetail,
+  DashboardPromotionSummary
 } from "@loopad/shared";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
   getDashboardCampaignSummary,
+  getDashboardPromotionSummary,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
   listDashboardCampaignSegments,
+  listDashboardPromotionExperimentMetrics,
+  listDashboardPromotionSegments,
   type IGetDashboardCampaignSummaryResult,
+  type IGetDashboardPromotionSummaryResult,
   type IListDashboardCampaignExperimentMetricsResult,
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
-  type IListDashboardCampaignSegmentsResult
+  type IListDashboardCampaignSegmentsResult,
+  type IListDashboardPromotionExperimentMetricsResult,
+  type IListDashboardPromotionSegmentsResult
 } from "../database/__generated__/dashboard.queries.js";
 
 @Injectable()
@@ -47,6 +55,25 @@ export class DashboardCampaignReader {
     return {
       campaign: toCampaignSummary(campaign),
       promotions: promotions.map(toCampaignPromotion),
+      segments: segments.map(toCampaignSegment),
+      experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
+    };
+  }
+
+  async getPromotionDetail(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardPromotionDetail> {
+    const [promotion, segments, experimentMetrics] = await Promise.all([
+      this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single(),
+      this.db.query(listDashboardPromotionSegments, { projectId, promotionId }).multiple(),
+      this.db
+        .query(listDashboardPromotionExperimentMetrics, { projectId, promotionId })
+        .multiple()
+    ]);
+
+    return {
+      promotion: toPromotionSummary(promotion),
       segments: segments.map(toCampaignSegment),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
@@ -90,7 +117,29 @@ function toCampaignPromotion(
   };
 }
 
-function toCampaignSegment(row: IListDashboardCampaignSegmentsResult): DashboardCampaignSegment {
+function toPromotionSummary(row: IGetDashboardPromotionSummaryResult): DashboardPromotionSummary {
+  return {
+    promotion_id: row.promotionId,
+    campaign_id: row.campaignId,
+    channel: row.channel,
+    marketing_theme: row.marketingTheme,
+    target_audience: row.targetAudience,
+    goal_metric: row.goalMetric,
+    goal_target_value: numberValue(row.goalTargetValue),
+    goal_basis: row.goalBasis,
+    offer_type: row.offerType,
+    landing_url: row.landingUrl,
+    status: row.status,
+    target_segment_count: countValue(row.targetSegmentCount),
+    ad_experiment_count: countValue(row.adExperimentCount),
+    latest_actual_value: nullableRate(row.latestActualValue),
+    updated_at: row.updatedAt.toISOString()
+  };
+}
+
+function toCampaignSegment(
+  row: IListDashboardCampaignSegmentsResult | IListDashboardPromotionSegmentsResult
+): DashboardCampaignSegment {
   return {
     promotion_id: row.promotionId,
     segment_id: row.segmentId,
@@ -102,7 +151,7 @@ function toCampaignSegment(row: IListDashboardCampaignSegmentsResult): Dashboard
 }
 
 function toCampaignExperimentMetric(
-  row: IListDashboardCampaignExperimentMetricsResult
+  row: IListDashboardCampaignExperimentMetricsResult | IListDashboardPromotionExperimentMetricsResult
 ): DashboardCampaignExperimentMetric {
   return {
     promotion_id: row.promotionId,

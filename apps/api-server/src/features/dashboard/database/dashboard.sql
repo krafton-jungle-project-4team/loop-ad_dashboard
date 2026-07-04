@@ -80,6 +80,35 @@ WHERE p.project_id = :projectId
 GROUP BY p.promotion_id
 ORDER BY p.updated_at DESC, p.created_at DESC;
 
+/* 목적: 한 프로젝트 안에서 특정 프로모션 요약을 조회합니다. */
+/* @name GetDashboardPromotionSummary */
+SELECT
+  p.promotion_id AS "promotionId",
+  p.campaign_id AS "campaignId",
+  p.channel,
+  p.marketing_theme AS "marketingTheme",
+  p.target_audience AS "targetAudience",
+  p.goal_metric AS "goalMetric",
+  p.goal_target_value::float8 AS "goalTargetValue",
+  p.goal_basis AS "goalBasis",
+  p.offer_type AS "offerType",
+  p.landing_url AS "landingUrl",
+  p.status,
+  COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
+  COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
+  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  p.updated_at AS "updatedAt"
+FROM promotions p
+LEFT JOIN promotion_target_segments pts
+  ON pts.promotion_id = p.promotion_id
+LEFT JOIN ad_experiments ae
+  ON ae.promotion_id = p.promotion_id
+LEFT JOIN promotion_evaluations pe
+  ON pe.promotion_id = p.promotion_id
+WHERE p.project_id = :projectId
+  AND p.promotion_id = :promotionId
+GROUP BY p.promotion_id;
+
 /* 목적: 캠페인 프로모션에 연결된 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardCampaignSegments */
 SELECT
@@ -93,6 +122,20 @@ FROM promotion_target_segments
 WHERE project_id = :projectId
   AND campaign_id = :campaignId
 ORDER BY promotion_id ASC, created_at DESC;
+
+/* 목적: 프로모션에 연결된 세그먼트 목록을 조회합니다. */
+/* @name ListDashboardPromotionSegments */
+SELECT
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  segment_name AS "segmentName",
+  estimated_size AS "estimatedSize",
+  priority,
+  status
+FROM promotion_target_segments
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+ORDER BY created_at DESC;
 
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardCampaignExperimentMetrics */
@@ -111,6 +154,25 @@ SELECT
 FROM promotion_evaluations
 WHERE project_id = :projectId
   AND campaign_id = :campaignId
+ORDER BY created_at DESC;
+
+/* 목적: 프로모션 실험 지표 목록을 조회합니다. */
+/* @name ListDashboardPromotionExperimentMetrics */
+SELECT
+  promotion_id AS "promotionId",
+  ad_experiment_id AS "adExperimentId",
+  segment_id AS "segmentId",
+  metric,
+  target_value::float8 AS "targetValue",
+  actual_value::float8 AS "actualValue",
+  numerator_count AS "numeratorCount",
+  denominator_count AS "denominatorCount",
+  sample_size AS "sampleSize",
+  status,
+  created_at AS "createdAt"
+FROM promotion_evaluations
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
 ORDER BY created_at DESC;
 
 /* 목적: 한 프로젝트의 활성 퍼널 목록을 조회합니다. */

@@ -7,7 +7,8 @@ import {
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
-  DashboardMainSchema
+  DashboardMainSchema,
+  DashboardPromotionDetailSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -33,6 +34,17 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardCampaignDetailSchema.parse(
       await this.dashboardQuery.campaignDetail(requiredProjectId, campaignId)
+    );
+  }
+
+  @Get("promotions/:promotion_id")
+  async promotionDetail(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardPromotionDetailSchema.parse(
+      await this.dashboardQuery.promotionDetail(requiredProjectId, promotionId)
     );
   }
 

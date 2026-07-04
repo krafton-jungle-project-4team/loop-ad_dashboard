@@ -39,6 +39,14 @@ export const DashboardCampaignPromotionSchema = z.object({
 });
 export type DashboardCampaignPromotion = z.infer<typeof DashboardCampaignPromotionSchema>;
 
+export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.extend({
+  campaign_id: z.string(),
+  target_audience: z.string(),
+  offer_type: z.string().nullable(),
+  landing_url: z.string().nullable()
+});
+export type DashboardPromotionSummary = z.infer<typeof DashboardPromotionSummarySchema>;
+
 export const DashboardCampaignSegmentSchema = z.object({
   promotion_id: z.string(),
   segment_id: z.string(),
@@ -73,6 +81,13 @@ export const DashboardCampaignDetailSchema = z.object({
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema)
 });
 export type DashboardCampaignDetail = z.infer<typeof DashboardCampaignDetailSchema>;
+
+export const DashboardPromotionDetailSchema = z.object({
+  promotion: DashboardPromotionSummarySchema,
+  segments: z.array(DashboardCampaignSegmentSchema),
+  experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema)
+});
+export type DashboardPromotionDetail = z.infer<typeof DashboardPromotionDetailSchema>;
 
 export const DashboardFunnelEventNameSchema = z.enum([
   "page_view",

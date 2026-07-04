@@ -7,7 +7,8 @@ import {
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
-  DashboardMainSchema
+  DashboardMainSchema,
+  DashboardPromotionDetailSchema
 } from "@loopad/shared";
 import type {
   DashboardCampaignDetail,
@@ -15,7 +16,8 @@ import type {
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnel,
-  DashboardFunnelMetrics
+  DashboardFunnelMetrics,
+  DashboardPromotionDetail
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -82,6 +84,19 @@ export async function fetchDashboardCampaignDetail(
   return request(
     `/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}`,
     DashboardCampaignDetailSchema,
+    query,
+    signal
+  );
+}
+
+export async function fetchDashboardPromotionDetail(
+  query: DashboardQuery,
+  promotionId: string,
+  signal: AbortSignal
+): Promise<DashboardPromotionDetail> {
+  return request(
+    `/dashboard/v1/promotions/${encodeURIComponent(promotionId)}`,
+    DashboardPromotionDetailSchema,
     query,
     signal
   );

@@ -4,11 +4,14 @@ import type {
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
-  DashboardMain
+  DashboardMain,
+  DashboardPromotionDetail as DashboardPromotionDetailResource
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
+import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { Progress } from "@loopad/ui/shadcn/progress";
 import {
   Table,
   TableBody,
@@ -20,9 +23,15 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { fetchDashboardCampaignDetail } from "../api/dashboard-api.js";
+import {
+  fetchDashboardCampaignDetail,
+  fetchDashboardPromotionDetail
+} from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
-import { dashboardCampaignDetailQueryKey } from "../model/dashboard-query-keys.js";
+import {
+  dashboardCampaignDetailQueryKey,
+  dashboardPromotionDetailQueryKey
+} from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
@@ -34,6 +43,7 @@ export function CampaignDashboardPanel({
   query: DashboardQuery;
 }) {
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [selectedPromotionId, setSelectedPromotionId] = useState("");
   const selectedCampaign = data.campaigns.find(
     (campaign) => campaign.campaign_id === selectedCampaignId
   );
@@ -41,6 +51,11 @@ export function CampaignDashboardPanel({
     enabled: Boolean(selectedCampaignId),
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+  });
+  const promotionDetail = useQuery({
+    enabled: Boolean(selectedPromotionId),
+    queryFn: ({ signal }) => fetchDashboardPromotionDetail(query, selectedPromotionId, signal),
+    queryKey: dashboardPromotionDetailQueryKey(query.projectId, selectedPromotionId)
   });
 
   return (
@@ -74,7 +89,10 @@ export function CampaignDashboardPanel({
                     campaign={campaign}
                     isSelected={selectedCampaignId === campaign.campaign_id}
                     key={campaign.campaign_id}
-                    onSelect={setSelectedCampaignId}
+                    onSelect={(campaignId) => {
+                      setSelectedCampaignId(campaignId);
+                      setSelectedPromotionId("");
+                    }}
                   />
                 ))}
               </TableBody>
@@ -91,6 +109,12 @@ export function CampaignDashboardPanel({
         error={campaignDetail.error}
         isError={campaignDetail.isError}
         isLoading={campaignDetail.isLoading}
+        onSelectPromotion={setSelectedPromotionId}
+        promotionDetail={promotionDetail.data}
+        promotionError={promotionDetail.error}
+        promotionIsError={promotionDetail.isError}
+        promotionIsLoading={promotionDetail.isLoading}
+        selectedPromotionId={selectedPromotionId}
       />
     </div>
   );
@@ -157,13 +181,25 @@ function CampaignDetailPanel({
   detail,
   error,
   isError,
-  isLoading
+  isLoading,
+  onSelectPromotion,
+  promotionDetail,
+  promotionError,
+  promotionIsError,
+  promotionIsLoading,
+  selectedPromotionId
 }: {
   campaign: DashboardCampaignSummary | undefined;
   detail: DashboardCampaignDetail | undefined;
   error: Error | null;
   isError: boolean;
   isLoading: boolean;
+  onSelectPromotion: (promotionId: string) => void;
+  promotionDetail: DashboardPromotionDetailResource | undefined;
+  promotionError: Error | null;
+  promotionIsError: boolean;
+  promotionIsLoading: boolean;
+  selectedPromotionId: string;
 }) {
   return (
     <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
@@ -172,7 +208,7 @@ function CampaignDetailPanel({
           캠페인 상세
         </CardTitle>
         <CardDescription>
-          프로모션, 세그먼트, 광고 실험 지표를 캠페인 단위로 조회합니다.
+          캠페인 안에서 마케팅 기획, 실시간 추이, 워크플로우, 프로모션 목록을 관리합니다.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 px-5">
@@ -187,9 +223,22 @@ function CampaignDetailPanel({
         {detail ? (
           <>
             <CampaignSummary detail={detail} />
-            <PromotionTable promotions={detail.promotions} />
-            <SegmentTable segments={detail.segments} />
-            <ExperimentMetricTable metrics={detail.experiment_metrics} />
+            <MarketingPlan detail={detail} />
+            <CampaignRealtimeTrend detail={detail} />
+            <CampaignWorkflow detail={detail} />
+            <PromotionTable
+              onSelectPromotion={onSelectPromotion}
+              promotions={detail.promotions}
+              selectedPromotionId={selectedPromotionId}
+            />
+            <CampaignNextAction detail={detail} />
+            <PromotionDetail
+              detail={promotionDetail}
+              error={promotionError}
+              isError={promotionIsError}
+              isLoading={promotionIsLoading}
+              selectedPromotionId={selectedPromotionId}
+            />
           </>
         ) : null}
       </CardContent>
@@ -220,6 +269,75 @@ function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
   );
 }
 
+function MarketingPlan({ detail }: { detail: DashboardCampaignDetail }) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">마케팅 기획</h3>
+      <div className="grid gap-3 md:grid-cols-3">
+        {detail.promotions.map((promotion) => (
+          <Card className="shadow-none" key={promotion.promotion_id}>
+            <CardHeader>
+              <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
+              <CardDescription>
+                {promotion.channel} · {promotion.goal_metric}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-2 text-sm">
+              <div>목표값: {formatGoalValue(promotion.goal_target_value)}</div>
+              <div>목표 기준: {promotion.goal_basis}</div>
+              <div>세그먼트: {formatInteger(promotion.target_segment_count)}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CampaignRealtimeTrend({ detail }: { detail: DashboardCampaignDetail }) {
+  const campaign = detail.campaign;
+  const achievementRate = campaign.latest_goal_achievement_rate ?? 0;
+
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">실시간 추이</h3>
+      <div className="grid gap-3 md:grid-cols-3">
+        <SummaryItem label="목표 달성률" value={formatPercent(achievementRate)} />
+        <SummaryItem label="프로모션 집계" value={formatInteger(detail.promotions.length)} />
+        <SummaryItem label="실험 지표" value={formatInteger(detail.experiment_metrics.length)} />
+      </div>
+      <Progress value={Math.min(achievementRate * 100, 100)} />
+    </section>
+  );
+}
+
+function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">워크플로우 View</h3>
+      <div className="grid gap-3">
+        {detail.promotions.map((promotion) => {
+          const segments = detail.segments.filter(
+            (segment) => segment.promotion_id === promotion.promotion_id
+          );
+          return (
+            <div className="rounded-md border p-3" key={promotion.promotion_id}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium">{promotion.marketing_theme}</span>
+                <Badge variant="secondary">{promotion.status}</Badge>
+              </div>
+              <div className="mt-2 text-sm text-muted-foreground">
+                Campaign → Promotion → {formatInteger(segments.length)} Segment →{" "}
+                {formatInteger(promotion.ad_experiment_count)} Ad Experiment
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-muted/20 p-3">
@@ -229,11 +347,19 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PromotionTable({ promotions }: { promotions: DashboardCampaignPromotion[] }) {
+function PromotionTable({
+  onSelectPromotion,
+  promotions,
+  selectedPromotionId
+}: {
+  onSelectPromotion: (promotionId: string) => void;
+  promotions: DashboardCampaignPromotion[];
+  selectedPromotionId: string;
+}) {
   return (
     <DetailTable
       emptyMessage="등록된 프로모션이 없습니다."
-      headers={["프로모션", "채널", "목표 지표", "목표값", "세그먼트", "광고 실험", "상태"]}
+      headers={["프로모션", "채널", "목표 지표", "목표값", "세그먼트", "광고 실험", "상태", "상세"]}
       title="프로모션 목록"
     >
       {promotions.map((promotion) => (
@@ -253,9 +379,79 @@ function PromotionTable({ promotions }: { promotions: DashboardCampaignPromotion
           <TableCell>
             <Badge variant="secondary">{promotion.status}</Badge>
           </TableCell>
+          <TableCell>
+            <Button
+              onClick={() => onSelectPromotion(promotion.promotion_id)}
+              size="sm"
+              variant={selectedPromotionId === promotion.promotion_id ? "default" : "outline"}
+            >
+              {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
+            </Button>
+          </TableCell>
         </TableRow>
       ))}
     </DetailTable>
+  );
+}
+
+function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
+  const hasInsufficientData = detail.experiment_metrics.some(
+    (metric) => metric.status === "insufficient_data"
+  );
+  return (
+    <Alert>
+      <AlertTitle>다음 액션</AlertTitle>
+      <AlertDescription>
+        {hasInsufficientData
+          ? "insufficient_data 상태의 실험 지표를 확인하고 세그먼트 또는 기간을 조정하세요."
+          : "프로모션 상세에서 세그먼트별 진행 상태와 실험 지표를 확인하세요."}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function PromotionDetail({
+  detail,
+  error,
+  isError,
+  isLoading,
+  selectedPromotionId
+}: {
+  detail: DashboardPromotionDetailResource | undefined;
+  error: Error | null;
+  isError: boolean;
+  isLoading: boolean;
+  selectedPromotionId: string;
+}) {
+  if (!selectedPromotionId) {
+    return <EmptyState message="상세를 확인할 프로모션을 선택해주세요." />;
+  }
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>프로모션 상세를 불러오지 못했습니다</AlertTitle>
+        <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (isLoading || !detail) {
+    return <EmptyState message="프로모션 상세를 불러오는 중입니다." />;
+  }
+
+  const promotion = detail.promotion;
+
+  return (
+    <section className="grid gap-4">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 상세</h3>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="프로모션" value={promotion.promotion_id} />
+        <SummaryItem label="채널" value={promotion.channel} />
+        <SummaryItem label="마케팅 테마" value={promotion.marketing_theme} />
+        <SummaryItem label="목표 달성률" value={formatPercent(promotion.latest_actual_value ?? 0)} />
+      </div>
+      <SegmentTable segments={detail.segments} />
+      <ExperimentMetricTable metrics={detail.experiment_metrics} />
+    </section>
   );
 }
 
