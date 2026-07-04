@@ -434,4 +434,11 @@ function setRequiredEnv() {
   process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
   process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
   process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
+  process.env.LOOPAD_DEMO_DISPATCH_RECIPIENTS ??= JSON.stringify([
+    {
+      userId: "user-1",
+      email: "demo-recipient-1@loop-ad.org",
+      phoneNumber: "+821012345001"
+    }
+  ]);
 }

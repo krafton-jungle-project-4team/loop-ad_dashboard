@@ -9,6 +9,12 @@ import type {
   PromotionRunEntity,
   RedirectLinkEntity
 } from "../src/features/ad-execution/domain/index.js";
+import type {
+  DispatchSendResult,
+  EmailSendInput,
+  SmsSendInput
+} from "../src/features/ad-execution/adapters/dispatch-sender.js";
+import type { DispatchRecipient } from "../src/features/ad-execution/repository/index.js";
 
 process.env.LOOPAD_ENV ??= "test";
 process.env.LOOPAD_SERVICE_ID ??= "dashboard-api";
@@ -23,6 +29,18 @@ process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
 process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
+process.env.LOOPAD_DEMO_DISPATCH_RECIPIENTS ??= JSON.stringify([
+  {
+    userId: "user-1",
+    email: "demo-recipient-1@loop-ad.org",
+    phoneNumber: "+821012345001"
+  },
+  {
+    userId: "user-2",
+    email: "demo-recipient-2@loop-ad.org",
+    phoneNumber: "+821012345002"
+  }
+]);
 
 const { BannerResolveService } =
   await import("../src/features/ad-execution/service/banner-resolve.service.js");
@@ -30,16 +48,25 @@ const { PromotionDispatchService } =
   await import("../src/features/ad-execution/service/promotion-dispatch.service.js");
 const { RedirectService } =
   await import("../src/features/ad-execution/service/redirect.service.js");
-const { MockEmailSender, MockSmsSender } =
+const { AwsEndUserMessagingSmsSender, AwsSesEmailSender } =
   await import("../src/features/ad-execution/adapters/dispatch-sender.js");
+const {
+  AD_DISPATCH_AWS_REGION,
+  AD_DISPATCH_EMAIL_FROM_ADDRESS,
+  createEmailSender,
+  createSmsSender
+} = await import("../src/features/ad-execution/ad-execution.module.js");
+const { EnvDemoRecipientDirectory } =
+  await import("../src/features/ad-execution/repository/index.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
 
-test("dispatch uses stored assignments and records mock sender success", async () => {
+test("dispatch uses stored assignments and records sender success", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
   const transactionHost = installCountingTransactionHost();
-  const service = createDispatchService(reader, writer);
+  const emailSender = new RecordingEmailSender();
+  const service = createDispatchService(reader, writer, emailSender);
 
   reader.dispatchAssignments = [
     assignment({ userId: "user-ok" }),
@@ -67,8 +94,8 @@ test("dispatch uses stored assignments and records mock sender success", async (
     "transactional"
   ]);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
-  assert.equal(logs.filter((entry) => entry.message === "Mock ad dispatch sent").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
+  assert.equal(emailSender.inputs.length, 2);
   assert.deepEqual(
     logs
       .filter((entry) => entry.message === "Ad dispatch send result")
@@ -84,6 +111,171 @@ test("dispatch uses stored assignments and records mock sender success", async (
     logs.some((entry) => JSON.stringify(entry).includes("+1555")),
     false
   );
+});
+
+test("dispatch module always creates AWS senders from fixed code config", () => {
+  assert.equal(createEmailSender() instanceof AwsSesEmailSender, true);
+  assert.equal(createSmsSender() instanceof AwsEndUserMessagingSmsSender, true);
+  assert.equal(AD_DISPATCH_AWS_REGION, "ap-northeast-2");
+  assert.equal(AD_DISPATCH_EMAIL_FROM_ADDRESS, "noreply@loop-ad.org");
+});
+
+test("env demo recipient directory maps user_id to configured contacts", async () => {
+  const directory = new EnvDemoRecipientDirectory();
+
+  const recipient = await directory.findRecipient("user-1");
+
+  assert.equal(recipient?.userId, "user-1");
+  assert.equal(recipient?.email, "demo-recipient-1@loop-ad.org");
+  assert.equal(recipient?.phoneNumber, "+821012345001");
+  assert.equal(await directory.findRecipient("missing-user"), null);
+});
+
+test("dispatch resolves user_id to email before sending", async () => {
+  const reader = new FakeAdExecutionReader();
+  const writer = new FakeAdExecutionWriter();
+  const recipientDirectory = new FakeRecipientDirectory(false);
+  const emailSender = new RecordingEmailSender();
+
+  recipientDirectory.recipients.set(
+    "user-1",
+    recipient("user-1", { email: "resolved-recipient@example.test" })
+  );
+
+  const { result: response } = await captureDispatchLogs(() =>
+    createDispatchService(
+      reader,
+      writer,
+      emailSender,
+      new RecordingSmsSender(),
+      recipientDirectory
+    ).dispatchPromotionRun("run-1")
+  );
+
+  assert.equal(response.dispatched_count, 1);
+  assert.equal(emailSender.inputs.length, 1);
+  assert.equal(emailSender.inputs[0]?.recipient, "resolved-recipient@example.test");
+  assert.notEqual(emailSender.inputs[0]?.recipient, "user-1");
+});
+
+test("dispatch skips unmapped demo recipients as successful no-ops", async () => {
+  const reader = new FakeAdExecutionReader();
+  const writer = new FakeAdExecutionWriter();
+  const recipientDirectory = new FakeRecipientDirectory(false);
+  const emailSender = new RecordingEmailSender();
+
+  const { result: response, logs } = await captureDispatchLogs(() =>
+    createDispatchService(
+      reader,
+      writer,
+      emailSender,
+      new RecordingSmsSender(),
+      recipientDirectory
+    ).dispatchPromotionRun("run-1")
+  );
+
+  assert.equal(response.dispatched_count, 1);
+  assert.equal(response.failed_count, 0);
+  assert.equal(response.jobs[0]?.status, "completed");
+  assert.deepEqual(
+    response.jobs[0]?.attempts.map((attempt) => attempt.error_code),
+    [undefined]
+  );
+  assert.deepEqual(dispatchAttemptErrorCodes(writer), []);
+  assert.equal(emailSender.inputs.length, 0);
+  assert.equal(writer.redirectLinks.length, 0);
+  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch recipient skipped").length, 1);
+});
+
+test("dispatch validates sms phone contact before sending", async () => {
+  const reader = new FakeAdExecutionReader();
+  const writer = new FakeAdExecutionWriter();
+  const recipientDirectory = new FakeRecipientDirectory(false);
+  const smsSender = new RecordingSmsSender();
+
+  reader.promotion = { ...reader.promotion, channel: "sms" };
+  reader.dispatchAssignments = [assignment({ channel: "sms", userId: "sms-invalid" })];
+  recipientDirectory.recipients.set(
+    "sms-invalid",
+    recipient("sms-invalid", { phoneNumber: "010-1234-5678" })
+  );
+
+  const { result: response } = await captureDispatchLogs(() =>
+    createDispatchService(
+      reader,
+      writer,
+      new RecordingEmailSender(),
+      smsSender,
+      recipientDirectory
+    ).dispatchPromotionRun("run-1")
+  );
+
+  assert.equal(response.dispatched_count, 0);
+  assert.equal(response.failed_count, 1);
+  assert.deepEqual(
+    response.jobs[0]?.attempts.map((attempt) => attempt.error_code),
+    ["RECIPIENT_CONTACT_INVALID"]
+  );
+  assert.deepEqual(dispatchAttemptErrorCodes(writer), ["RECIPIENT_CONTACT_INVALID"]);
+  assert.equal(smsSender.inputs.length, 0);
+});
+
+test("AWS senders build SES and SMS v2 command inputs from options", async () => {
+  const emailClient = new RecordingAwsClient();
+  const smsClient = new RecordingAwsClient();
+  const emailSender = new AwsSesEmailSender({
+    region: "ap-northeast-2",
+    fromAddress: AD_DISPATCH_EMAIL_FROM_ADDRESS,
+    configurationSetName: "ses-config",
+    client: emailClient as ConstructorParameters<typeof AwsSesEmailSender>[0]["client"]
+  });
+  const smsSender = new AwsEndUserMessagingSmsSender({
+    region: "ap-northeast-2",
+    configurationSetName: "sms-config",
+    originationIdentity: "sender-id",
+    client: smsClient as ConstructorParameters<typeof AwsEndUserMessagingSmsSender>[0]["client"]
+  });
+
+  await emailSender.sendEmail({
+    recipient: "person@example.test",
+    subject: "Subject",
+    body: "Body",
+    redirectUrl: "https://loop-ad.example/r/1"
+  });
+  await smsSender.sendSms({
+    recipient: "+15555550123",
+    body: "Message https://loop-ad.example/r/1",
+    redirectUrl: "https://loop-ad.example/r/1"
+  });
+
+  assert.deepEqual(emailClient.inputs[0], {
+    FromEmailAddress: AD_DISPATCH_EMAIL_FROM_ADDRESS,
+    Destination: {
+      ToAddresses: ["person@example.test"]
+    },
+    Content: {
+      Simple: {
+        Subject: {
+          Data: "Subject",
+          Charset: "UTF-8"
+        },
+        Body: {
+          Text: {
+            Data: "Body",
+            Charset: "UTF-8"
+          }
+        }
+      }
+    },
+    ConfigurationSetName: "ses-config"
+  });
+  assert.deepEqual(smsClient.inputs[0], {
+    DestinationPhoneNumber: "+15555550123",
+    MessageBody: "Message https://loop-ad.example/r/1",
+    MessageType: "PROMOTIONAL",
+    ConfigurationSetName: "sms-config",
+    OriginationIdentity: "sender-id"
+  });
 });
 
 test("dispatch fails invalid email content instead of synthesizing fallbacks", async () => {
@@ -269,14 +461,16 @@ test("redirect page escapes script data and fallback href with stable libraries"
 function createDispatchService(
   reader = new FakeAdExecutionReader(),
   writer = new FakeAdExecutionWriter(),
-  emailSender = new MockEmailSender(),
-  smsSender = new MockSmsSender()
+  emailSender = new RecordingEmailSender(),
+  smsSender = new RecordingSmsSender(),
+  recipientDirectory = new FakeRecipientDirectory()
 ) {
   return new PromotionDispatchService(
     reader as ConstructorParameters<typeof PromotionDispatchService>[0],
     writer as ConstructorParameters<typeof PromotionDispatchService>[1],
-    emailSender as ConstructorParameters<typeof PromotionDispatchService>[2],
-    smsSender as ConstructorParameters<typeof PromotionDispatchService>[3]
+    recipientDirectory as ConstructorParameters<typeof PromotionDispatchService>[2],
+    emailSender as ConstructorParameters<typeof PromotionDispatchService>[3],
+    smsSender as ConstructorParameters<typeof PromotionDispatchService>[4]
   );
 }
 
@@ -316,6 +510,78 @@ function assignment(
     adExperimentStatus: "approved",
     ...overrides
   };
+}
+
+function recipient(userId: string, overrides: Partial<DispatchRecipient> = {}): DispatchRecipient {
+  return {
+    userId,
+    email: `${userId}@example.test`,
+    phoneNumber: "+15555550123",
+    ...overrides
+  };
+}
+
+function dispatchAttemptErrorCodes(writer: FakeAdExecutionWriter): string[] {
+  const result = writer.finishes[0]?.result as
+    | { attempts?: Array<{ errorCode?: string }> }
+    | undefined;
+
+  return result?.attempts?.map((attempt) => attempt.errorCode).filter(isString) ?? [];
+}
+
+function isString(value: string | undefined): value is string {
+  return typeof value === "string";
+}
+
+class FakeRecipientDirectory {
+  readonly recipients = new Map<string, DispatchRecipient>();
+
+  constructor(private readonly useDefaultRecipient = true) {}
+
+  async findRecipient(userId: string): Promise<DispatchRecipient | null> {
+    return this.recipients.get(userId) ?? (this.useDefaultRecipient ? recipient(userId) : null);
+  }
+}
+
+class RecordingEmailSender {
+  readonly providerName = "recording-email";
+  readonly inputs: EmailSendInput[] = [];
+
+  async sendEmail(input: EmailSendInput): Promise<DispatchSendResult> {
+    this.inputs.push(input);
+
+    return {
+      provider: this.providerName,
+      providerMessageId: `recording_email_${this.inputs.length}`
+    };
+  }
+}
+
+class RecordingSmsSender {
+  readonly providerName = "recording-sms";
+  readonly inputs: SmsSendInput[] = [];
+
+  async sendSms(input: SmsSendInput): Promise<DispatchSendResult> {
+    this.inputs.push(input);
+
+    return {
+      provider: this.providerName,
+      providerMessageId: `recording_sms_${this.inputs.length}`
+    };
+  }
+}
+
+class RecordingAwsClient {
+  readonly inputs: unknown[] = [];
+
+  async send(command: { input?: unknown }) {
+    this.inputs.push(command.input);
+
+    return {
+      MessageId: `aws_message_${this.inputs.length}`,
+      $metadata: {}
+    };
+  }
 }
 
 class FakeAdExecutionReader {

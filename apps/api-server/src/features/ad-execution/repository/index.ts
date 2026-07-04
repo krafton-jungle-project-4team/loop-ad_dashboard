@@ -5,3 +5,8 @@ export {
   type InsertDispatchJobInput,
   type InsertRedirectLinkInput
 } from "./ad-execution-writer.js";
+export {
+  EnvDemoRecipientDirectory,
+  RecipientDirectory,
+  type DispatchRecipient
+} from "./recipient-directory.js";
