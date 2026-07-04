@@ -114,10 +114,7 @@ export class DataExplorerService {
     const response = await this.openAiQueryPlanner.runChatAgent({
       currentResult: input.current_result,
       detail,
-      message: input.message,
-      projectId: input.project_id,
-      tools: {
-        analyzeResult: async (analysis) => formatResultAnalysis(analysis),
+      manualActions: {
         runQuery: async ({ sqlText }) => {
           const queryPlan = this.createAiQueryPlan(sqlText);
           const queryResult = await this.runQuery({
@@ -134,7 +131,9 @@ export class DataExplorerService {
           };
         },
         writeQuery: async ({ sqlText }) => this.createAiQueryPlan(sqlText)
-      }
+      },
+      message: input.message,
+      projectId: input.project_id
     });
 
     return DataExplorerAiChatResponseSchema.parse({
@@ -171,17 +170,4 @@ function pickReferencedObject(
 
 function createQueryRunId(prefix = "qry_run"): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function formatResultAnalysis(input: { summary: string; insights: string[]; caveats: string[] }) {
-  const insights = input.insights.map((insight) => `- ${insight}`).join("\n");
-  const caveats = input.caveats.map((caveat) => `- ${caveat}`).join("\n");
-
-  return [
-    input.summary,
-    insights ? `\n인사이트\n${insights}` : "",
-    caveats ? `\n주의할 점\n${caveats}` : ""
-  ]
-    .filter(Boolean)
-    .join("\n");
 }

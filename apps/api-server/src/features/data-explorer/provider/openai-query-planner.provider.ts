@@ -18,19 +18,12 @@ type DataExplorerAgentResult = {
   queryResult: DataExplorerQueryRunResponse | null;
 };
 
-type DataExplorerAgentTools = {
-  analyzeResult: (input: OpenAiResultAnalysis) => Promise<string>;
+type DataExplorerManualActions = {
   runQuery: (input: { sqlText: string }) => Promise<{
     queryPlan: DataExplorerAiQueryPlanResponse;
     queryResult: DataExplorerQueryRunResponse;
   }>;
   writeQuery: (input: { sqlText: string }) => Promise<DataExplorerAiQueryPlanResponse>;
-};
-
-type OpenAiResultAnalysis = {
-  caveats: string[];
-  insights: string[];
-  summary: string;
 };
 
 type AgentState = {
@@ -54,9 +47,7 @@ const RunQueryToolArgsSchema = z.object({
 });
 
 const AnalyzeResultToolArgsSchema = z.object({
-  summary: z.string().trim().min(1),
-  insights: z.array(z.string().trim().min(1)),
-  caveats: z.array(z.string().trim().min(1))
+  question: z.string().trim().min(1)
 });
 
 const OpenAiFunctionCallSchema = z
@@ -99,9 +90,9 @@ export class OpenAiDataExplorerQueryPlannerProvider {
   async runChatAgent(input: {
     currentResult?: DataExplorerAiChatCurrentResult;
     detail: DataExplorerObjectDetail;
+    manualActions: DataExplorerManualActions;
     message: string;
     projectId: string;
-    tools: DataExplorerAgentTools;
   }): Promise<DataExplorerAgentResult> {
     const responseInput: unknown[] = [
       {
@@ -138,8 +129,8 @@ export class OpenAiDataExplorerQueryPlannerProvider {
           const toolOutput = await runAgentTool({
             call,
             currentResult: input.currentResult,
-            state,
-            tools: input.tools
+            manualActions: input.manualActions,
+            state
           });
 
           responseInput.push({
@@ -187,13 +178,13 @@ async function requestOpenAiResponse(input: { input: unknown[]; toolChoice: "aut
 async function runAgentTool(input: {
   call: OpenAiFunctionCall;
   currentResult?: DataExplorerAiChatCurrentResult;
+  manualActions: DataExplorerManualActions;
   state: AgentState;
-  tools: DataExplorerAgentTools;
 }) {
   switch (input.call.name) {
     case "write_query": {
       const args = parseToolArguments(WriteQueryToolArgsSchema, input.call.arguments);
-      const queryPlan = await input.tools.writeQuery({ sqlText: args.sql_text });
+      const queryPlan = await input.manualActions.writeQuery({ sqlText: args.sql_text });
       input.state.action = "query_plan";
       input.state.queryPlan = queryPlan;
       input.state.queryResult = null;
@@ -205,7 +196,9 @@ async function runAgentTool(input: {
     }
     case "run_query": {
       const args = parseToolArguments(RunQueryToolArgsSchema, input.call.arguments);
-      const { queryPlan, queryResult } = await input.tools.runQuery({ sqlText: args.sql_text });
+      const { queryPlan, queryResult } = await input.manualActions.runQuery({
+        sqlText: args.sql_text
+      });
       input.state.action = "query_run";
       input.state.queryPlan = queryPlan;
       input.state.queryResult = queryResult;
@@ -222,15 +215,15 @@ async function runAgentTool(input: {
       }
 
       const args = parseToolArguments(AnalyzeResultToolArgsSchema, input.call.arguments);
-      const assistantMessage = await input.tools.analyzeResult(args);
       input.state.action = "result_analysis";
-      input.state.assistantMessage = assistantMessage;
+      input.state.assistantMessage = null;
       input.state.queryPlan = null;
       input.state.queryResult = null;
 
       return {
         tool: "analyze_result",
-        assistant_message: assistantMessage
+        question: args.question,
+        current_result: toCurrentResultToolOutput(input.currentResult)
       };
     }
     default:
@@ -306,6 +299,8 @@ function buildChatAgentInstructions() {
     "Use run_query when the user asks to fetch data, execute a query, calculate a metric, filter, group, or compare data.",
     "Use analyze_result only when current_result exists and the user asks to summarize, explain, compare, or find insights in the current result.",
     "For run_query, provide a complete read-only ClickHouse SQL query in the tool arguments.",
+    "For analyze_result, pass the user's analysis request as-is. The server will return the current result for analysis.",
+    "After receiving a tool result, answer the user directly in Korean unless another tool is clearly necessary.",
     "SQL must use only the provided table and columns.",
     "Always filter by project_id when the object has a project_id column.",
     "Use SELECT or WITH only. Never use INSERT, UPDATE, DELETE, ALTER, DROP, TRUNCATE, CREATE, or external table functions.",
@@ -369,6 +364,16 @@ function toQueryResultToolOutput(queryResult: DataExplorerQueryRunResponse) {
   };
 }
 
+function toCurrentResultToolOutput(currentResult: DataExplorerAiChatCurrentResult) {
+  return {
+    query_run_id: currentResult.query_run_id,
+    row_count: currentResult.row_count,
+    truncated: currentResult.truncated,
+    columns: currentResult.columns,
+    rows: currentResult.rows.slice(0, 50)
+  };
+}
+
 function toError(error: unknown) {
   return error instanceof Error ? error : new Error(String(error));
 }
@@ -411,26 +416,16 @@ const OPENAI_CHAT_AGENT_TOOLS = [
   {
     type: "function",
     name: "analyze_result",
-    description: "결과 분석: 현재 쿼리 결과를 한국어로 요약하고 인사이트를 정리한다.",
+    description: "결과 분석: 현재 쿼리 결과를 분석하기 위해 서버에 결과 컨텍스트를 요청한다.",
     parameters: {
       type: "object",
       properties: {
-        summary: {
+        question: {
           type: "string",
-          description: "현재 결과에 대한 간결한 한국어 요약."
-        },
-        insights: {
-          type: "array",
-          items: { type: "string" },
-          description: "현재 결과에서 확인할 수 있는 인사이트."
-        },
-        caveats: {
-          type: "array",
-          items: { type: "string" },
-          description: "표본 부족, truncation 등 해석 시 주의점."
+          description: "사용자의 결과 분석 요청."
         }
       },
-      required: ["summary", "insights", "caveats"],
+      required: ["question"],
       additionalProperties: false
     },
     strict: true
