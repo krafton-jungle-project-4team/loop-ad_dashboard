@@ -682,6 +682,68 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY created_at DESC;
 
+/* 목적: 캠페인 단위 Email/SMS 발송 상태를 조회합니다. */
+/* @name GetDashboardCampaignDeliveryStatus */
+SELECT
+  COALESCE(SUM(target_count), 0)::int AS "scheduledCount",
+  COALESCE(SUM(sent_count), 0)::int AS "sentCount",
+  COALESCE(SUM(sent_count), 0)::int AS "deliveredCount",
+  0::int AS "openedCount",
+  0::int AS "bouncedCount",
+  COALESCE(SUM(failed_count), 0)::int AS "failedCount"
+FROM ad_dispatch_jobs
+WHERE project_id = :projectId
+  AND campaign_id = :campaignId
+  AND channel IN ('email', 'sms');
+
+/* 목적: 프로모션 단위 Email/SMS 발송 상태를 조회합니다. */
+/* @name GetDashboardPromotionDeliveryStatus */
+SELECT
+  COALESCE(SUM(target_count), 0)::int AS "scheduledCount",
+  COALESCE(SUM(sent_count), 0)::int AS "sentCount",
+  COALESCE(SUM(sent_count), 0)::int AS "deliveredCount",
+  0::int AS "openedCount",
+  0::int AS "bouncedCount",
+  COALESCE(SUM(failed_count), 0)::int AS "failedCount"
+FROM ad_dispatch_jobs
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND channel IN ('email', 'sms');
+
+/* 목적: 세그먼트 단위 Email/SMS 발송 상태를 조회합니다. */
+/* @name GetDashboardSegmentDeliveryStatus */
+SELECT
+  COALESCE(SUM(adj.target_count), 0)::int AS "scheduledCount",
+  COALESCE(SUM(adj.sent_count), 0)::int AS "sentCount",
+  COALESCE(SUM(adj.sent_count), 0)::int AS "deliveredCount",
+  0::int AS "openedCount",
+  0::int AS "bouncedCount",
+  COALESCE(SUM(adj.failed_count), 0)::int AS "failedCount"
+FROM ad_dispatch_jobs adj
+JOIN ad_experiments ae
+  ON ae.ad_experiment_id = adj.ad_experiment_id
+WHERE adj.project_id = :projectId
+  AND adj.promotion_id = :promotionId
+  AND ae.segment_id = :segmentId
+  AND adj.channel IN ('email', 'sms');
+
+/* 목적: 프로모션 안 세그먼트별 Email/SMS 발송 상태를 조회합니다. */
+/* @name ListDashboardPromotionSegmentDeliverySummaries */
+SELECT
+  ae.segment_id AS "segmentId",
+  COALESCE(SUM(adj.target_count), 0)::int AS "scheduledCount",
+  COALESCE(SUM(adj.sent_count), 0)::int AS "sentCount",
+  COALESCE(SUM(adj.sent_count), 0)::int AS "deliveredCount",
+  COALESCE(SUM(adj.failed_count), 0)::int AS "failedCount"
+FROM ad_dispatch_jobs adj
+JOIN ad_experiments ae
+  ON ae.ad_experiment_id = adj.ad_experiment_id
+WHERE adj.project_id = :projectId
+  AND adj.promotion_id = :promotionId
+  AND adj.channel IN ('email', 'sms')
+GROUP BY ae.segment_id
+ORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC;
+
 /* 목적: 특정 세그먼트의 생성 콘텐츠 후보를 조회합니다. */
 /* @name ListDashboardSegmentContentCandidates */
 SELECT

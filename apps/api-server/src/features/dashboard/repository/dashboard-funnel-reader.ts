@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { DashboardFunnelEventNameSchema } from "@loopad/shared";
 import type {
+  DashboardBannerResponse,
   DashboardCampaignRealtimeMetrics,
   DashboardCreateFunnelRequest,
   DashboardDeleteFunnelResult,
+  DashboardDeliveryStatus,
   DashboardEventCatalogItem,
   DashboardFunnel,
   DashboardFunnelMetrics,
@@ -12,6 +14,7 @@ import type {
   DashboardRealtimeBreakdownItem,
   DashboardRealtimeEvent,
   DashboardRealtimeTimeBucket,
+  DashboardSegmentRealtimeSummary,
   DashboardSegmentRealtimeMetrics
 } from "@loopad/shared";
 import { type ClickHouseClient } from "@clickhouse/client";
@@ -23,17 +26,25 @@ import {
   deleteFunnelDefinition,
   deleteFunnelSteps,
   getActiveFunnelById,
+  getDashboardCampaignDeliveryStatus,
+  getDashboardPromotionDeliveryStatus,
+  getDashboardSegmentDeliveryStatus,
   insertFunnelDefinition,
   insertFunnelStep,
   listActiveFunnels,
   listActiveFunnelSteps,
   listActiveFunnelStepsByFunnelId,
+  listDashboardPromotionSegmentDeliverySummaries,
   type IGetActiveFunnelByIdResult,
+  type IGetDashboardCampaignDeliveryStatusResult,
+  type IGetDashboardPromotionDeliveryStatusResult,
+  type IGetDashboardSegmentDeliveryStatusResult,
   type IInsertFunnelDefinitionResult,
   type IInsertFunnelStepResult,
   type IListActiveFunnelsResult,
   type IListActiveFunnelStepsByFunnelIdResult,
-  type IListActiveFunnelStepsResult
+  type IListActiveFunnelStepsResult,
+  type IListDashboardPromotionSegmentDeliverySummariesResult
 } from "../database/__generated__/dashboard.queries.js";
 
 type EventCatalogRow = {
@@ -64,6 +75,27 @@ type RealtimeBreakdownRow = {
   unique_user_count: number | string;
 };
 
+type RealtimeWindowCountRow = {
+  recent_5m_event_count: number | string;
+  recent_1h_event_count: number | string;
+};
+
+type RealtimePeakTimeRow = {
+  peak_time: string | null;
+};
+
+type SegmentRealtimeSummaryRow = {
+  segment_id: string;
+  segment_user_count: number | string;
+  reach_count: number | string;
+  promotion_impression_count: number | string;
+  promotion_click_count: number | string;
+  campaign_redirect_click_count: number | string;
+  campaign_landing_count: number | string;
+  booking_start_count: number | string;
+  booking_complete_count: number | string;
+};
+
 type RealtimeMetricScope = {
   filterColumn: "campaign_id" | "promotion_id";
   filterValue: string;
@@ -76,6 +108,17 @@ type RealtimeBreakdowns = {
   channel_breakdown: DashboardRealtimeBreakdownItem[];
   landing_type_breakdown: DashboardRealtimeBreakdownItem[];
   hotel_cluster_breakdown: DashboardRealtimeBreakdownItem[];
+};
+
+type DeliveryStatusRow =
+  | IGetDashboardCampaignDeliveryStatusResult
+  | IGetDashboardPromotionDeliveryStatusResult
+  | IGetDashboardSegmentDeliveryStatusResult;
+
+type RealtimeWindowMetrics = {
+  recent_5m_event_count: number;
+  recent_1h_event_count: number;
+  peak_time: string | null;
 };
 
 @Injectable()
@@ -150,16 +193,21 @@ export class DashboardFunnelReader {
       filterValue: campaignId,
       projectId
     } as const;
-    const [events, breakdowns] = await Promise.all([
+    const [events, breakdowns, windowMetrics] = await Promise.all([
       this.countRealtimeEvents(scope),
-      this.countRealtimeBreakdowns(scope)
+      this.countRealtimeBreakdowns(scope),
+      this.countRealtimeWindowMetrics(scope)
     ]);
+    const deliveryStatus = await this.getCampaignDeliveryStatus(projectId, campaignId, events);
 
     return {
       campaign_id: campaignId,
       total_event_count: totalEventCount(events),
+      ...windowMetrics,
       events,
-      ...breakdowns
+      ...breakdowns,
+      delivery_status: deliveryStatus,
+      banner_response: toBannerResponse(events)
     };
   }
 
@@ -172,16 +220,21 @@ export class DashboardFunnelReader {
       filterValue: promotionId,
       projectId
     } as const;
-    const [events, breakdowns] = await Promise.all([
+    const [events, breakdowns, windowMetrics] = await Promise.all([
       this.countRealtimeEvents(scope),
-      this.countRealtimeBreakdowns(scope)
+      this.countRealtimeBreakdowns(scope),
+      this.countRealtimeWindowMetrics(scope)
     ]);
+    const deliveryStatus = await this.getPromotionDeliveryStatus(projectId, promotionId, events);
 
     return {
       promotion_id: promotionId,
       total_event_count: totalEventCount(events),
+      ...windowMetrics,
       events,
-      ...breakdowns
+      ...breakdowns,
+      delivery_status: deliveryStatus,
+      banner_response: toBannerResponse(events)
     };
   }
 
@@ -196,18 +249,102 @@ export class DashboardFunnelReader {
       projectId,
       segmentId
     } as const;
-    const [events, breakdowns] = await Promise.all([
+    const [events, breakdowns, windowMetrics] = await Promise.all([
       this.countRealtimeEvents(scope),
-      this.countRealtimeBreakdowns(scope)
+      this.countRealtimeBreakdowns(scope),
+      this.countRealtimeWindowMetrics(scope)
     ]);
+    const deliveryStatus = await this.getSegmentDeliveryStatus(
+      projectId,
+      promotionId,
+      segmentId,
+      events
+    );
 
     return {
       promotion_id: promotionId,
       segment_id: segmentId,
       total_event_count: totalEventCount(events),
+      ...windowMetrics,
       events,
-      ...breakdowns
+      ...breakdowns,
+      delivery_status: deliveryStatus,
+      banner_response: toBannerResponse(events)
     };
+  }
+
+  async getPromotionSegmentRealtimeSummaries(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardSegmentRealtimeSummary[]> {
+    const [eventRows, deliveryRows] = await Promise.all([
+      this.countPromotionSegmentRealtimeEvents(projectId, promotionId),
+      this.db
+        .query(listDashboardPromotionSegmentDeliverySummaries, { projectId, promotionId })
+        .multiple()
+    ]);
+    const deliveryBySegment = new Map(deliveryRows.map((row) => [row.segmentId, row]));
+    const eventBySegment = new Map(eventRows.map((row) => [row.segment_id, row]));
+    const segmentIds = [...new Set([...eventBySegment.keys(), ...deliveryBySegment.keys()])];
+
+    return segmentIds.map((segmentId) => {
+      const row = eventBySegment.get(segmentId);
+      const delivery = deliveryBySegment.get(segmentId);
+      return {
+        promotion_id: promotionId,
+        segment_id: segmentId,
+        segment_user_count: countValue(row?.segment_user_count ?? delivery?.scheduledCount ?? 0),
+        delivery_count: countValue(delivery?.deliveredCount ?? 0),
+        reach_count: countValue(row?.reach_count ?? 0),
+        promotion_impression_count: countValue(row?.promotion_impression_count ?? 0),
+        promotion_click_count: countValue(row?.promotion_click_count ?? 0),
+        campaign_redirect_click_count: countValue(row?.campaign_redirect_click_count ?? 0),
+        campaign_landing_count: countValue(row?.campaign_landing_count ?? 0),
+        booking_start_count: countValue(row?.booking_start_count ?? 0),
+        booking_complete_count: countValue(row?.booking_complete_count ?? 0)
+      };
+    });
+  }
+
+  private async countPromotionSegmentRealtimeEvents(
+    projectId: string,
+    promotionId: string
+  ): Promise<SegmentRealtimeSummaryRow[]> {
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          segment_id,
+          uniqExact(user_id) AS segment_user_count,
+          uniqExactIf(user_id, event_name IN ('campaign_redirect_click', 'promotion_click', 'promotion_impression')) AS reach_count,
+          countIf(event_name = 'promotion_impression') AS promotion_impression_count,
+          countIf(event_name = 'promotion_click') AS promotion_click_count,
+          countIf(event_name = 'campaign_redirect_click') AS campaign_redirect_click_count,
+          countIf(event_name = 'campaign_landing') AS campaign_landing_count,
+          countIf(event_name = 'booking_start') AS booking_start_count,
+          countIf(event_name = 'booking_complete') AS booking_complete_count
+        FROM (
+          SELECT segment_id, user_id, event_name
+          FROM promotion_touch_events
+          WHERE project_id = {projectId:String}
+            AND promotion_id = {promotionId:String}
+            AND segment_id != ''
+
+          UNION ALL
+
+          SELECT ifNull(segment_id, '') AS segment_id, user_id, event_name
+          FROM booking_outcome_events
+          WHERE project_id = {projectId:String}
+            AND ifNull(promotion_id, '') = {promotionId:String}
+            AND ifNull(segment_id, '') != ''
+        )
+        GROUP BY segment_id
+        ORDER BY booking_complete_count DESC, promotion_click_count DESC, segment_id ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { projectId, promotionId }
+    });
+
+    return result.json<SegmentRealtimeSummaryRow>();
   }
 
   async createFunnel(
@@ -299,6 +436,144 @@ export class DashboardFunnelReader {
       event_count: countValue(row.event_count),
       unique_user_count: countValue(row.unique_user_count)
     }));
+  }
+
+  private async getCampaignDeliveryStatus(
+    projectId: string,
+    campaignId: string,
+    events: DashboardRealtimeEvent[]
+  ): Promise<DashboardDeliveryStatus> {
+    const row = await this.db
+      .query(getDashboardCampaignDeliveryStatus, { campaignId, projectId })
+      .single();
+
+    return toDeliveryStatus(row, events);
+  }
+
+  private async getPromotionDeliveryStatus(
+    projectId: string,
+    promotionId: string,
+    events: DashboardRealtimeEvent[]
+  ): Promise<DashboardDeliveryStatus> {
+    const row = await this.db
+      .query(getDashboardPromotionDeliveryStatus, { projectId, promotionId })
+      .single();
+
+    return toDeliveryStatus(row, events);
+  }
+
+  private async getSegmentDeliveryStatus(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    events: DashboardRealtimeEvent[]
+  ): Promise<DashboardDeliveryStatus> {
+    const row = await this.db
+      .query(getDashboardSegmentDeliveryStatus, { projectId, promotionId, segmentId })
+      .single();
+
+    return toDeliveryStatus(row, events);
+  }
+
+  private async countRealtimeWindowMetrics(
+    scope: RealtimeMetricScope
+  ): Promise<RealtimeWindowMetrics> {
+    const [windowCounts, peakTime] = await Promise.all([
+      this.countRecentRealtimeEvents(scope),
+      this.findRealtimePeakTime(scope)
+    ]);
+
+    return {
+      ...windowCounts,
+      peak_time: peakTime
+    };
+  }
+
+  private async countRecentRealtimeEvents({
+    filterColumn,
+    filterValue,
+    projectId,
+    segmentId
+  }: RealtimeMetricScope): Promise<Omit<RealtimeWindowMetrics, "peak_time">> {
+    const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
+    const segmentBookingFilter = segmentId
+      ? "AND ifNull(segment_id, '') = {segmentId:String}"
+      : "";
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          countIf(event_time >= now() - INTERVAL 5 MINUTE) AS recent_5m_event_count,
+          countIf(event_time >= now() - INTERVAL 1 HOUR) AS recent_1h_event_count
+        FROM (
+          SELECT event_time
+          FROM promotion_touch_events
+          WHERE project_id = {projectId:String}
+            AND ${filterColumn} = {filterValue:String}
+            ${segmentTouchFilter}
+
+          UNION ALL
+
+          SELECT event_time
+          FROM booking_outcome_events
+          WHERE project_id = {projectId:String}
+            AND ifNull(${filterColumn}, '') = {filterValue:String}
+            ${segmentBookingFilter}
+        )
+      `,
+      format: "JSONEachRow",
+      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+    });
+    const [row] = await result.json<RealtimeWindowCountRow>();
+
+    return {
+      recent_5m_event_count: countValue(row?.recent_5m_event_count ?? 0),
+      recent_1h_event_count: countValue(row?.recent_1h_event_count ?? 0)
+    };
+  }
+
+  private async findRealtimePeakTime({
+    filterColumn,
+    filterValue,
+    projectId,
+    segmentId
+  }: RealtimeMetricScope): Promise<string | null> {
+    const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
+    const segmentBookingFilter = segmentId
+      ? "AND ifNull(segment_id, '') = {segmentId:String}"
+      : "";
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT toString(time_bucket) AS peak_time
+        FROM (
+          SELECT
+            toStartOfHour(event_time) AS time_bucket,
+            count() AS event_count
+          FROM (
+            SELECT event_time
+            FROM promotion_touch_events
+            WHERE project_id = {projectId:String}
+              AND ${filterColumn} = {filterValue:String}
+              ${segmentTouchFilter}
+
+            UNION ALL
+
+            SELECT event_time
+            FROM booking_outcome_events
+            WHERE project_id = {projectId:String}
+              AND ifNull(${filterColumn}, '') = {filterValue:String}
+              ${segmentBookingFilter}
+          )
+          GROUP BY time_bucket
+          ORDER BY event_count DESC, time_bucket DESC
+          LIMIT 1
+        )
+      `,
+      format: "JSONEachRow",
+      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+    });
+    const [row] = await result.json<RealtimePeakTimeRow>();
+
+    return row?.peak_time ?? null;
   }
 
   private async countRealtimeBreakdowns(
@@ -489,13 +764,47 @@ function toFunnel(
   };
 }
 
-function countValue(value: number | string): number {
+function countValue(value: number | string | null): number {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
 }
 
 function totalEventCount(events: DashboardRealtimeEvent[]): number {
   return events.reduce((sum, event) => sum + event.event_count, 0);
+}
+
+function toDeliveryStatus(
+  row: DeliveryStatusRow,
+  events: DashboardRealtimeEvent[]
+): DashboardDeliveryStatus {
+  return {
+    scheduled_count: countValue(row.scheduledCount),
+    sent_count: countValue(row.sentCount),
+    delivered_count: countValue(row.deliveredCount),
+    opened_count: countValue(row.openedCount),
+    clicked_count: eventCount(events, "campaign_redirect_click"),
+    bounced_count: countValue(row.bouncedCount),
+    failed_count: countValue(row.failedCount)
+  };
+}
+
+function toBannerResponse(events: DashboardRealtimeEvent[]): DashboardBannerResponse {
+  const impressionCount = eventCount(events, "promotion_impression");
+  const clickCount = eventCount(events, "promotion_click");
+
+  return {
+    promotion_impression_count: impressionCount,
+    promotion_click_count: clickCount,
+    promotion_click_rate: impressionCount > 0 ? clickCount / impressionCount : 0,
+    banner_position: null,
+    hotel_search_count: eventCount(events, "hotel_search"),
+    hotel_detail_view_count: eventCount(events, "hotel_detail_view"),
+    booking_complete_count: eventCount(events, "booking_complete")
+  };
+}
+
+function eventCount(events: DashboardRealtimeEvent[], eventName: string): number {
+  return events.find((event) => event.event_name === eventName)?.event_count ?? 0;
 }
 
 function eventDisplayName(eventName: string): string {
