@@ -159,5 +159,4 @@ function setRequiredEnv() {
   process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
   process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
   process.env.LOOPAD_AWS_REGION ??= "ap-northeast-2";
-  process.env.LOOPAD_AD_EMAIL_FROM_ADDRESS ??= "ads@example.test";
 }

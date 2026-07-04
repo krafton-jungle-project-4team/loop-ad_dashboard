@@ -1,8 +1,5 @@
-import { Inject, Injectable } from "@nestjs/common";
-import type { Pool } from "pg";
+import { Injectable } from "@nestjs/common";
 import { z } from "zod";
-import { createTxDb, DEMO_RECIPIENT_PG_POOL } from "../../../infra/database/index.js";
-import { findDemoDispatchRecipient } from "../database/__generated__/ad-execution.queries.js";
 
 const requiredStringSchema = z.string().trim().min(1);
 const nullableContactSchema = z.string().trim().nullable();
@@ -21,22 +18,50 @@ export abstract class RecipientDirectory {
   abstract findRecipient(userId: string): Promise<DispatchRecipient | null>;
 }
 
-/** 별도 read-only DB connection으로 demo recipient read model을 조회합니다. */
+const hardcodedDemoContacts = [
+  {
+    email: "demo-recipient-1@looapd.org",
+    phoneNumber: "+821012345001"
+  },
+  {
+    email: "demo-recipient-2@looapd.org",
+    phoneNumber: "+821012345002"
+  },
+  {
+    email: "demo-recipient-3@looapd.org",
+    phoneNumber: "+821012345003"
+  }
+] as const;
+
+/** 임시 demo recipient allowlist를 user_id에 매핑합니다. */
 @Injectable()
-export class DemoDbRecipientDirectory extends RecipientDirectory {
-  private readonly db: ReturnType<typeof createTxDb>;
-
-  constructor(
-    @Inject(DEMO_RECIPIENT_PG_POOL)
-    pool: Pool
-  ) {
-    super();
-    this.db = createTxDb(pool);
-  }
-
+export class HardcodedDemoRecipientDirectory extends RecipientDirectory {
   async findRecipient(userId: string): Promise<DispatchRecipient | null> {
-    const row = await this.db.query(findDemoDispatchRecipient, { userId }).singleOrNull();
+    // TODO: demo recipient table이 분석 DB에 확정되면 PgTyped repository 조회로 교체한다.
+    const contact = pickDemoContact(userId);
 
-    return row ? dispatchRecipientSchema.parse(row) : null;
+    return dispatchRecipientSchema.parse({
+      userId,
+      email: contact.email,
+      phoneNumber: contact.phoneNumber,
+      emailOptedIn: true,
+      smsOptedIn: true
+    });
   }
+}
+
+function pickDemoContact(userId: string) {
+  const index = hashString(userId) % hardcodedDemoContacts.length;
+
+  return hardcodedDemoContacts[index] ?? hardcodedDemoContacts[0];
+}
+
+function hashString(value: string) {
+  let hash = 0;
+
+  for (const character of value) {
+    hash = (hash * 31 + character.charCodeAt(0)) % hardcodedDemoContacts.length;
+  }
+
+  return hash;
 }

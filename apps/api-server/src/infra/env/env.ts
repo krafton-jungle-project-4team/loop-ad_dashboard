@@ -4,9 +4,7 @@ const DASHBOARD_SERVICE_ID = "dashboard-api";
 
 const requiredString = z.string().trim().min(1);
 const optionalString = z.preprocess(emptyStringToUndefined, z.string().trim().min(1).optional());
-const requiredEmail = z.string().trim().email();
 const positivePort = z.coerce.number().int().min(1).max(65535);
-const optionalPort = z.preprocess(emptyStringToUndefined, positivePort.optional());
 const httpUrl = requiredString.url().refine(
   (value) => {
     const protocol = new URL(value).protocol;
@@ -30,15 +28,9 @@ const envSchema = z.object({
   LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
   LOOPAD_OPENAI_API_KEY: requiredString,
   LOOPAD_AWS_REGION: requiredString,
-  LOOPAD_AD_EMAIL_FROM_ADDRESS: requiredEmail,
   LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET: optionalString,
   LOOPAD_AD_SMS_CONFIGURATION_SET: optionalString,
-  LOOPAD_AD_SMS_ORIGINATION_IDENTITY: optionalString,
-  LOOPAD_DEMO_RECIPIENT_DB_HOST: optionalString,
-  LOOPAD_DEMO_RECIPIENT_DB_PORT: optionalPort,
-  LOOPAD_DEMO_RECIPIENT_DB_DATABASE: optionalString,
-  LOOPAD_DEMO_RECIPIENT_DB_USERNAME: optionalString,
-  LOOPAD_DEMO_RECIPIENT_DB_PASSWORD: optionalString
+  LOOPAD_AD_SMS_ORIGINATION_IDENTITY: optionalString
 });
 
 const parsedEnv = parseEnv(process.env);
@@ -66,18 +58,10 @@ export const env = Object.freeze({
   dispatch: {
     aws: {
       region: parsedEnv.LOOPAD_AWS_REGION,
-      emailFromAddress: parsedEnv.LOOPAD_AD_EMAIL_FROM_ADDRESS,
       sesConfigurationSet: parsedEnv.LOOPAD_AD_EMAIL_SES_CONFIGURATION_SET,
       smsConfigurationSet: parsedEnv.LOOPAD_AD_SMS_CONFIGURATION_SET,
       smsOriginationIdentity: parsedEnv.LOOPAD_AD_SMS_ORIGINATION_IDENTITY
     }
-  },
-  demoRecipientPostgres: {
-    host: parsedEnv.LOOPAD_DEMO_RECIPIENT_DB_HOST ?? parsedEnv.LOOPAD_AURORA_HOST,
-    port: parsedEnv.LOOPAD_DEMO_RECIPIENT_DB_PORT ?? parsedEnv.LOOPAD_AURORA_PORT,
-    database: parsedEnv.LOOPAD_DEMO_RECIPIENT_DB_DATABASE ?? parsedEnv.LOOPAD_AURORA_DATABASE,
-    username: parsedEnv.LOOPAD_DEMO_RECIPIENT_DB_USERNAME ?? parsedEnv.LOOPAD_AURORA_USERNAME,
-    password: parsedEnv.LOOPAD_DEMO_RECIPIENT_DB_PASSWORD ?? parsedEnv.LOOPAD_AURORA_PASSWORD
   }
 });
 export type AppEnv = typeof env;

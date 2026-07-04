@@ -300,42 +300,6 @@ export const findActiveBannerAssignment = new PreparedQuery<
   IFindActiveBannerAssignmentResult
 >(queryIR(findActiveBannerAssignmentStatement, ["projectId", "promotionRunId", "userId"]));
 
-/** 'FindDemoDispatchRecipient' parameters type */
-export interface IFindDemoDispatchRecipientParams {
-  userId?: string | null | void;
-}
-
-/** 'FindDemoDispatchRecipient' return type */
-export interface IFindDemoDispatchRecipientResult {
-  email: string | null;
-  emailOptedIn: boolean;
-  phoneNumber: string | null;
-  smsOptedIn: boolean;
-  userId: string;
-}
-
-/** 'FindDemoDispatchRecipient' query type */
-export interface IFindDemoDispatchRecipientQuery {
-  params: IFindDemoDispatchRecipientParams;
-  result: IFindDemoDispatchRecipientResult;
-}
-
-const findDemoDispatchRecipientStatement = `
-SELECT
-  user_id AS "userId",
-  email,
-  phone_number AS "phoneNumber",
-  COALESCE(email_opted_in, false) AS "emailOptedIn",
-  COALESCE(sms_opted_in, false) AS "smsOptedIn"
-FROM demo_recipients
-WHERE user_id = :userId
-LIMIT 1`;
-
-export const findDemoDispatchRecipient = new PreparedQuery<
-  IFindDemoDispatchRecipientParams,
-  IFindDemoDispatchRecipientResult
->(queryIR(findDemoDispatchRecipientStatement, ["userId"]));
-
 /** 'InsertDispatchJob' parameters type */
 export interface IInsertDispatchJobParams {
   adExperimentId?: string | null | void;

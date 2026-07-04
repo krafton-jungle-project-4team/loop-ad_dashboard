@@ -29,7 +29,6 @@ process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
 process.env.LOOPAD_AWS_REGION ??= "ap-northeast-2";
-process.env.LOOPAD_AD_EMAIL_FROM_ADDRESS ??= "ads@example.test";
 
 const { BannerResolveService } =
   await import("../src/features/ad-execution/service/banner-resolve.service.js");
@@ -39,8 +38,10 @@ const { RedirectService } =
   await import("../src/features/ad-execution/service/redirect.service.js");
 const { AwsEndUserMessagingSmsSender, AwsSesEmailSender } =
   await import("../src/features/ad-execution/adapters/dispatch-sender.js");
-const { createEmailSender, createSmsSender } =
+const { AD_DISPATCH_EMAIL_FROM_ADDRESS, createEmailSender, createSmsSender } =
   await import("../src/features/ad-execution/ad-execution.module.js");
+const { HardcodedDemoRecipientDirectory } =
+  await import("../src/features/ad-execution/repository/index.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
 
@@ -92,7 +93,6 @@ test("dispatch uses stored assignments and records sender success", async () => 
 test("dispatch module always creates AWS senders from config", () => {
   const awsConfig = {
     region: "ap-northeast-2",
-    emailFromAddress: "ads@example.test",
     sesConfigurationSet: "ses-config",
     smsConfigurationSet: "sms-config",
     smsOriginationIdentity: "sender-id"
@@ -100,6 +100,18 @@ test("dispatch module always creates AWS senders from config", () => {
 
   assert.equal(createEmailSender(awsConfig) instanceof AwsSesEmailSender, true);
   assert.equal(createSmsSender(awsConfig) instanceof AwsEndUserMessagingSmsSender, true);
+});
+
+test("hardcoded demo recipient directory maps user_id to a demo allowlist contact", async () => {
+  const directory = new HardcodedDemoRecipientDirectory();
+
+  const recipient = await directory.findRecipient("analysis-db-user-1");
+
+  assert.equal(recipient?.userId, "analysis-db-user-1");
+  assert.match(recipient?.email ?? "", /^demo-recipient-[1-3]@looapd\.org$/);
+  assert.match(recipient?.phoneNumber ?? "", /^\+82101234500[1-3]$/);
+  assert.equal(recipient?.emailOptedIn, true);
+  assert.equal(recipient?.smsOptedIn, true);
 });
 
 test("dispatch resolves user_id to email before sending", async () => {
@@ -229,7 +241,7 @@ test("AWS senders build SES and SMS v2 command inputs from options", async () =>
   const smsClient = new RecordingAwsClient();
   const emailSender = new AwsSesEmailSender({
     region: "ap-northeast-2",
-    fromAddress: "ads@example.test",
+    fromAddress: AD_DISPATCH_EMAIL_FROM_ADDRESS,
     configurationSetName: "ses-config",
     client: emailClient as ConstructorParameters<typeof AwsSesEmailSender>[0]["client"]
   });
@@ -253,7 +265,7 @@ test("AWS senders build SES and SMS v2 command inputs from options", async () =>
   });
 
   assert.deepEqual(emailClient.inputs[0], {
-    FromEmailAddress: "ads@example.test",
+    FromEmailAddress: AD_DISPATCH_EMAIL_FROM_ADDRESS,
     Destination: {
       ToAddresses: ["person@example.test"]
     },

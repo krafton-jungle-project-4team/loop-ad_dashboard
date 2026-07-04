@@ -12,7 +12,7 @@ import { RedirectController } from "./controller/redirect.controller.js";
 import {
   AdExecutionReader,
   AdExecutionWriter,
-  DemoDbRecipientDirectory,
+  HardcodedDemoRecipientDirectory,
   RecipientDirectory
 } from "./repository/index.js";
 import {
@@ -22,6 +22,7 @@ import {
 } from "./service/index.js";
 
 type AwsDispatchConfig = AppEnv["dispatch"]["aws"];
+export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@looapd.org";
 
 /** 광고 실행 기능의 controller, service, adapter provider를 묶는 모듈입니다. */
 @Module({
@@ -35,7 +36,7 @@ type AwsDispatchConfig = AppEnv["dispatch"]["aws"];
     AdExecutionWriter,
     {
       provide: RecipientDirectory,
-      useClass: DemoDbRecipientDirectory
+      useClass: HardcodedDemoRecipientDirectory
     },
     {
       provide: EmailSender,
@@ -52,7 +53,7 @@ export class AdExecutionModule {}
 export function createEmailSender(awsConfig: AwsDispatchConfig = env.dispatch.aws) {
   return new AwsSesEmailSender({
     region: awsConfig.region,
-    fromAddress: awsConfig.emailFromAddress,
+    fromAddress: AD_DISPATCH_EMAIL_FROM_ADDRESS,
     configurationSetName: awsConfig.sesConfigurationSet
   });
 }

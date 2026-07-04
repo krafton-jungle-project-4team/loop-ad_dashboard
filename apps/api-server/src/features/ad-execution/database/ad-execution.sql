@@ -126,18 +126,6 @@ WHERE project_id = :projectId
   AND channel = 'onsite_banner'
 LIMIT 1;
 
-/* Purpose: Resolve one demo recipient contact and opt-in state for ad dispatch. */
-/* @name FindDemoDispatchRecipient */
-SELECT
-  user_id AS "userId",
-  email,
-  phone_number AS "phoneNumber",
-  COALESCE(email_opted_in, false) AS "emailOptedIn",
-  COALESCE(sms_opted_in, false) AS "smsOptedIn"
-FROM demo_recipients
-WHERE user_id = :userId
-LIMIT 1;
-
 /* Purpose: Create one dispatch job for an ad_experiment group. */
 /* @name InsertDispatchJob */
 INSERT INTO ad_dispatch_jobs (
