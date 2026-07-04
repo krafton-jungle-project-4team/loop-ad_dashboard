@@ -1589,6 +1589,7 @@ type PromotionFormState = {
   landingUrl: string;
   marketingTheme: string;
   maxLoopCount: string;
+  messageBrief: string;
   minSampleSize: string;
   offerType: string;
   status: string;
@@ -1615,6 +1616,15 @@ function PromotionFormFields({
           onChange={(event) => update("marketingTheme", event.target.value)}
           placeholder="여름 숙박 리마인드"
           value={form.marketingTheme}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="dashboard-promotion-message-brief">메시지 방향</FieldLabel>
+        <Textarea
+          id="dashboard-promotion-message-brief"
+          onChange={(event) => update("messageBrief", event.target.value)}
+          placeholder="세그먼트별 콘텐츠 생성에 사용할 메시지 방향을 입력하세요."
+          value={form.messageBrief}
         />
       </Field>
       <div className="grid gap-3 md:grid-cols-2">
@@ -1772,14 +1782,15 @@ function createPromotionFormState(
     goalBasis: promotion?.goal_basis ?? "promotion_average",
     goalMetric: promotion?.goal_metric ?? "inflow_rate",
     goalTargetValue: String(promotion?.goal_target_value ?? 0.1),
-    landingType: "none",
-    landingUrl: "",
+    landingType: promotion?.landing_type ?? "none",
+    landingUrl: promotion?.landing_url ?? "",
     marketingTheme: promotion?.marketing_theme ?? "",
     maxLoopCount: String(promotion?.max_loop_count ?? 3),
-    minSampleSize: "1000",
-    offerType: "",
+    messageBrief: promotion?.message_brief ?? "",
+    minSampleSize: String(promotion?.min_sample_size ?? 1000),
+    offerType: promotion?.offer_type ?? "",
     status: promotion?.status ?? "draft",
-    targetAudience: "existing_users"
+    targetAudience: promotion?.target_audience ?? "existing_users"
   };
 }
 
@@ -1793,6 +1804,7 @@ function promotionFormToCreateRequest(form: PromotionFormState): CreatePromotion
     landing_url: nullableText(form.landingUrl),
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
+    message_brief: nullableText(form.messageBrief),
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     offer_type: nullableText(form.offerType),
     status: form.status as CreatePromotionInput["status"],
@@ -2922,6 +2934,7 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
         <SummaryItem label="목표 달성률" value={formatPercent(achievementRate)} />
         <SummaryItem label="다음 액션" value={promotion.next_action} />
       </div>
+      <InsightBlock label="메시지 방향" value={promotion.message_brief ?? "-"} />
       <Progress value={Math.min(achievementRate * 100, 100)} />
     </section>
   );

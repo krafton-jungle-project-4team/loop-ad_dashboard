@@ -94,6 +94,7 @@ export const DashboardCampaignPromotionSchema = z.object({
   min_sample_size: CountSchema,
   max_loop_count: CountSchema,
   current_loop_count: CountSchema,
+  message_brief: z.string().nullable(),
   offer_type: z.string().nullable(),
   landing_url: z.string().nullable(),
   landing_type: z.string().nullable(),

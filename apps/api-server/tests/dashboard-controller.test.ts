@@ -332,6 +332,7 @@ test("dashboard controller parses default promotion creation response", async ()
             min_sample_size: 1000,
             max_loop_count: 3,
             current_loop_count: 0,
+            message_brief: "기존 고객에게 캠페인 혜택을 안내해 유입률을 높입니다.",
             offer_type: null,
             landing_url: null,
             landing_type: null,
