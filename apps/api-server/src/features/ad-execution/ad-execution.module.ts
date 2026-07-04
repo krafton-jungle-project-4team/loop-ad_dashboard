@@ -1,25 +1,27 @@
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infra/database/index.js";
 import {
+  AwsEndUserMessagingSmsSender,
   AwsSesEmailSender,
-  AwsSnsSmsSender,
   EmailSender,
-  MockEmailSender,
-  MockSmsSender,
   SmsSender
 } from "./adapters/dispatch-sender.js";
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
 import { RedirectController } from "./controller/redirect.controller.js";
-import { AdExecutionReader, AdExecutionWriter } from "./repository/index.js";
+import {
+  AdExecutionReader,
+  AdExecutionWriter,
+  EnvDemoRecipientDirectory,
+  RecipientDirectory
+} from "./repository/index.js";
 import {
   BannerResolveService,
   PromotionDispatchService,
   RedirectService
 } from "./service/index.js";
 
-type DispatchProviderName = "mock" | "aws";
-
-const DISPATCH_PROVIDER: DispatchProviderName = "mock";
+export const AD_DISPATCH_AWS_REGION = "ap-northeast-2";
+export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@loop-ad.org";
 
 /** 광고 실행 기능의 controller, service, adapter provider를 묶는 모듈입니다. */
 @Module({
@@ -32,39 +34,30 @@ const DISPATCH_PROVIDER: DispatchProviderName = "mock";
     AdExecutionReader,
     AdExecutionWriter,
     {
+      provide: RecipientDirectory,
+      useClass: EnvDemoRecipientDirectory
+    },
+    {
       provide: EmailSender,
-      useFactory: () => createEmailSender(DISPATCH_PROVIDER)
+      useFactory: createEmailSender
     },
     {
       provide: SmsSender,
-      useFactory: () => createSmsSender(DISPATCH_PROVIDER)
+      useFactory: createSmsSender
     }
   ]
 })
 export class AdExecutionModule {}
 
-function createEmailSender(provider: DispatchProviderName) {
-  switch (provider) {
-    case "mock":
-      return new MockEmailSender();
-    case "aws":
-      return new AwsSesEmailSender();
-    default:
-      return throwUnsupportedDispatchProvider(provider);
-  }
+export function createEmailSender() {
+  return new AwsSesEmailSender({
+    region: AD_DISPATCH_AWS_REGION,
+    fromAddress: AD_DISPATCH_EMAIL_FROM_ADDRESS
+  });
 }
 
-function createSmsSender(provider: DispatchProviderName) {
-  switch (provider) {
-    case "mock":
-      return new MockSmsSender();
-    case "aws":
-      return new AwsSnsSmsSender();
-    default:
-      return throwUnsupportedDispatchProvider(provider);
-  }
-}
-
-function throwUnsupportedDispatchProvider(provider: never): never {
-  throw new Error(`Unsupported ad dispatch provider '${String(provider)}'.`);
+export function createSmsSender() {
+  return new AwsEndUserMessagingSmsSender({
+    region: AD_DISPATCH_AWS_REGION
+  });
 }

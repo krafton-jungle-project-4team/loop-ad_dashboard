@@ -20,11 +20,16 @@ import {
   type DispatchJobStatus,
   type PromotionRunEntity
 } from "../domain/index.js";
-import { AdExecutionReader, AdExecutionWriter } from "../repository/index.js";
+import { AdExecutionReader, AdExecutionWriter, RecipientDirectory } from "../repository/index.js";
 
 const LOCAL_DASHBOARD_PUBLIC_BASE_URL = "http://localhost:8080";
 const DEV_DASHBOARD_PUBLIC_BASE_URL = "https://dashboard.api.dev.loop-ad.org";
 const requiredContentTextSchema = z.string().min(1);
+const emailAddressSchema = z.string().trim().email();
+const e164PhoneNumberSchema = z
+  .string()
+  .trim()
+  .regex(/^\+[1-9]\d{1,14}$/);
 const emailContentSchema = z.object({
   subject: requiredContentTextSchema,
   preheader: z.string().nullable(),
@@ -40,6 +45,8 @@ interface DispatchContext {
   channel: DispatchChannel;
 }
 
+type DispatchFailureCode = "RECIPIENT_CONTACT_INVALID";
+
 /** 프로모션 외부 발행 요청을 저장된 assignment 기반으로 처리합니다. */
 @Injectable()
 export class PromotionDispatchService {
@@ -48,6 +55,8 @@ export class PromotionDispatchService {
     private readonly reader: AdExecutionReader,
     @Inject(AdExecutionWriter)
     private readonly writer: AdExecutionWriter,
+    @Inject(RecipientDirectory)
+    private readonly recipientDirectory: RecipientDirectory,
     @Inject(EmailSender)
     private readonly emailSender: EmailSender,
     @Inject(SmsSender)
@@ -192,20 +201,33 @@ export class PromotionDispatchService {
     assignment: ActiveAdServingAssignmentEntity
   ): Promise<DispatchAttemptSnapshot> {
     // TODO: channel별 발송 실행은 EmailDispatchService/SmsDispatchService로 분리한다.
-    const redirectId = await this.createRedirectLink(assignment);
     const provider = this.providerNameFor(channel, assignment.promotionRunId);
+    let redirectId: string | undefined;
 
-    logDispatchAttempt(channel, provider, assignment, redirectId);
+    logDispatchAttempt(channel, provider, assignment);
 
     try {
-      const sendResult = await this.sendDispatch(channel, assignment, redirectId);
+      const contact = await this.resolveRecipientContact(channel, assignment);
+
+      if (!contact) {
+        const attempt = toSkippedAttempt(assignment.userId);
+
+        logRecipientSkipped(channel, provider, assignment);
+        logDispatchResult(channel, provider, assignment, attempt);
+
+        return attempt;
+      }
+
+      redirectId = await this.createRedirectLink(assignment);
+      const targetUrl = redirectUrl(redirectId);
+      const sendResult = await this.sendToResolvedContact(channel, assignment, targetUrl, contact);
       const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
 
       logDispatchResult(channel, sendResult.provider, assignment, attempt);
 
       return attempt;
     } catch (error) {
-      const attempt = toFailedAttempt(assignment.userId, redirectId, getDispatchErrorCode(error));
+      const attempt = toFailedAttempt(assignment.userId, getDispatchErrorCode(error), redirectId);
 
       logDispatchResult(channel, provider, assignment, attempt, getErrorName(error));
 
@@ -213,18 +235,37 @@ export class PromotionDispatchService {
     }
   }
 
-  private async sendDispatch(
+  private async resolveRecipientContact(
     channel: DispatchChannel,
-    assignment: ActiveAdServingAssignmentEntity,
-    redirectId: string
-  ): Promise<DispatchSendResult> {
-    const targetUrl = redirectUrl(redirectId);
+    assignment: ActiveAdServingAssignmentEntity
+  ): Promise<string | null> {
+    const recipient = await this.recipientDirectory.findRecipient(assignment.userId);
+
+    if (!recipient) {
+      return null;
+    }
 
     switch (channel) {
       case "email":
-        return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl));
+        return requireValidEmailContact(recipient.email);
       case "sms":
-        return this.smsSender.sendSms(toSmsSendInput(assignment, targetUrl));
+        return requireValidSmsContact(recipient.phoneNumber);
+      default:
+        return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
+    }
+  }
+
+  private async sendToResolvedContact(
+    channel: DispatchChannel,
+    assignment: ActiveAdServingAssignmentEntity,
+    targetUrl: string,
+    contact: string
+  ): Promise<DispatchSendResult> {
+    switch (channel) {
+      case "email":
+        return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl, contact));
+      case "sms":
+        return this.smsSender.sendSms(toSmsSendInput(assignment, targetUrl, contact));
       default:
         return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
     }
@@ -290,12 +331,13 @@ export class PromotionDispatchService {
 
 function toEmailSendInput(
   assignment: ActiveAdServingAssignmentEntity,
-  targetUrl: string
+  targetUrl: string,
+  recipient: string
 ): EmailSendInput {
   const content = emailContentSchema.parse(assignment);
 
   return {
-    recipient: assignment.userId,
+    recipient,
     subject: content.subject,
     body: [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
       .filter(Boolean)
@@ -306,12 +348,13 @@ function toEmailSendInput(
 
 function toSmsSendInput(
   assignment: ActiveAdServingAssignmentEntity,
-  targetUrl: string
+  targetUrl: string,
+  recipient: string
 ): SmsSendInput {
   const content = smsContentSchema.parse(assignment);
 
   return {
-    recipient: assignment.userId,
+    recipient,
     body: [content.message, targetUrl].join(" "),
     redirectUrl: targetUrl
   };
@@ -330,10 +373,17 @@ function toSentAttempt(
   };
 }
 
+function toSkippedAttempt(userId: string): DispatchAttemptSnapshot {
+  return {
+    userId,
+    status: "sent"
+  };
+}
+
 function toFailedAttempt(
   userId: string,
-  redirectId: string,
-  errorCode: string
+  errorCode: string,
+  redirectId?: string
 ): DispatchAttemptSnapshot {
   return {
     userId,
@@ -370,14 +420,12 @@ function daysFromNow(days: number) {
 function logDispatchAttempt(
   channel: DispatchChannel,
   provider: string,
-  assignment: ActiveAdServingAssignmentEntity,
-  redirectId: string
+  assignment: ActiveAdServingAssignmentEntity
 ) {
   logWithContext("info", "Ad dispatch send attempt", {
     channel,
     provider,
-    ...dispatchLogContext(assignment),
-    redirectId
+    ...dispatchLogContext(assignment)
   });
 }
 
@@ -400,6 +448,20 @@ function logDispatchResult(
   });
 }
 
+function logRecipientSkipped(
+  channel: DispatchChannel,
+  provider: string,
+  assignment: ActiveAdServingAssignmentEntity
+) {
+  logWithContext("info", "Ad dispatch recipient skipped", {
+    channel,
+    provider,
+    ...dispatchLogContext(assignment),
+    skipReason: "DEMO_RECIPIENT_NOT_MAPPED",
+    status: "sent"
+  });
+}
+
 function dispatchLogContext(assignment: ActiveAdServingAssignmentEntity) {
   return {
     projectId: assignment.projectId,
@@ -419,6 +481,10 @@ function getErrorName(error: unknown) {
 }
 
 function getDispatchErrorCode(error: unknown) {
+  if (error instanceof DispatchFailureError) {
+    return error.code;
+  }
+
   return error instanceof ZodError ? "CONTENT_INVALID" : "PROVIDER_SEND_FAILED";
 }
 
@@ -432,9 +498,38 @@ function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentE
   return first;
 }
 
-function throwUnsupportedDispatchChannel(
-  promotionRunId: string,
-  channel: never
-): never {
+function throwUnsupportedDispatchChannel(promotionRunId: string, channel: never): never {
   throw adExecutionErrors.unsupportedDispatchChannel(promotionRunId, String(channel));
+}
+
+function requireValidEmailContact(value: string): string {
+  const result = emailAddressSchema.safeParse(value);
+
+  if (!result.success) {
+    return throwDispatchFailure("RECIPIENT_CONTACT_INVALID");
+  }
+
+  return result.data;
+}
+
+function requireValidSmsContact(value: string): string {
+  const result = e164PhoneNumberSchema.safeParse(value);
+
+  if (!result.success) {
+    return throwDispatchFailure("RECIPIENT_CONTACT_INVALID");
+  }
+
+  return result.data;
+}
+
+function throwDispatchFailure(code: DispatchFailureCode): never {
+  throw new DispatchFailureError(code);
+}
+
+class DispatchFailureError extends Error {
+  override readonly name = "DispatchFailureError";
+
+  constructor(readonly code: DispatchFailureCode) {
+    super(code);
+  }
 }
