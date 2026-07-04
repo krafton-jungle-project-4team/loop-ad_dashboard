@@ -1,7 +1,7 @@
 import type { DashboardPageResource, DashboardQuery } from "../model/dashboard-types.js";
-import { CampaignDashboardPanel } from "./CampaignDashboardPanel.js";
-import { FunnelDashboardPanel } from "./FunnelDashboardPanel.js";
-import { MainDashboardPanel } from "./MainDashboardPanel.js";
+import { CampaignDashboardPanel } from "./CampaignDashboard.js";
+import { FunnelDashboardPanel } from "./FunnelDashboard.js";
+import { MainDashboardPanel } from "./MainDashboard.js";
 
 export function DashboardPanelRenderer({
   query,

@@ -78,7 +78,7 @@ import {
   promotionStatusOptions,
   type CreatePromotionInput,
   type UpdatePromotionInput
-} from "./PromotionPanel.js";
+} from "./Promotion.js";
 import { EmptyState } from "./EmptyState.js";
 
 const campaignPrimaryMetricOptions = [

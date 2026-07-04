@@ -4,7 +4,7 @@ import { DataExplorerPage } from "../../data-explorer/pages/DataExplorerPage.js"
 import { normalizeDashboardQuery, useDashboardQueryState } from "../model/dashboard-query.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { useSuspenseDashboardResources } from "../model/use-dashboard-resources.js";
-import { DashboardPanelRenderer } from "../ui/DashboardPanelRenderer.js";
+import { DashboardPanelRenderer } from "../ui/DashboardRenderer.js";
 
 export function DashboardProjectPage({ projectId, tab }: { projectId: string; tab: DashboardTab }) {
   const [queryState] = useDashboardQueryState();
