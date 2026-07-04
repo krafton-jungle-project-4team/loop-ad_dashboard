@@ -21,6 +21,13 @@ import { Field, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@loopad/ui/shadcn/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -33,12 +40,22 @@ import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  attachDashboardSegmentToPromotion,
+  createDashboardCampaign,
+  createDashboardPromotion,
   createDashboardSegmentQueryPreview,
+  deleteDashboardCampaign,
+  deleteDashboardPromotionSegment,
+  deleteDashboardPromotion,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
   fetchDashboardSavedSegments,
   fetchDashboardSegmentDetail,
-  saveDashboardSegment
+  saveDashboardSegment,
+  startDashboardNextLoopAnalysis,
+  updateDashboardCampaign,
+  updateDashboardPromotion,
+  updateDashboardPromotionSegment
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
@@ -51,6 +68,55 @@ import {
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
+const campaignPrimaryMetricOptions = [
+  "inflow_rate",
+  "booking_conversion_rate",
+  "funnel_step_rate",
+  "promotion_click_rate",
+  "goal_achievement_rate"
+] as const;
+
+const campaignStatusOptions = ["draft", "active", "paused", "completed", "stopped"] as const;
+
+type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
+type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
+type CreatePromotionInput = Parameters<typeof createDashboardPromotion>[2];
+type UpdatePromotionInput = Parameters<typeof updateDashboardPromotion>[2];
+type AttachSegmentInput = Parameters<typeof attachDashboardSegmentToPromotion>[2];
+type UpdatePromotionSegmentInput = Parameters<typeof updateDashboardPromotionSegment>[3];
+
+const promotionChannelOptions = ["email", "sms", "onsite_banner"] as const;
+const promotionGoalMetricOptions = [
+  "inflow_rate",
+  "booking_conversion_rate",
+  "funnel_step_rate"
+] as const;
+const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
+const promotionLandingTypeOptions = ["search_page", "hotel_detail_page", "booking_resume"] as const;
+const promotionStatusOptions = [
+  "draft",
+  "analysis_ready",
+  "content_ready",
+  "approved",
+  "running",
+  "evaluating",
+  "partial_goal_met",
+  "goal_met",
+  "goal_not_met",
+  "stopped"
+] as const;
+const segmentPriorityOptions = ["low", "medium", "high"] as const;
+const promotionSegmentStatusOptions = [
+  "planned",
+  "content_ready",
+  "approved",
+  "running",
+  "goal_met",
+  "goal_not_met",
+  "insufficient_data",
+  "stopped"
+] as const;
+
 export function CampaignDashboardPanel({
   data,
   query,
@@ -60,6 +126,7 @@ export function CampaignDashboardPanel({
   query: DashboardQuery;
   tab: DashboardTab;
 }) {
+  const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const selectedPromotionId = query.selectedPromotionId;
   const selectedSegmentId = query.selectedSegmentId;
@@ -99,6 +166,48 @@ export function CampaignDashboardPanel({
       segment.segment_id === selectedSegmentId &&
       (!selectedPromotionId || segment.promotion_id === selectedPromotionId)
   );
+  const createCampaignMutation = useMutation({
+    mutationFn: (requestBody: Parameters<typeof createDashboardCampaign>[1]) =>
+      createDashboardCampaign(query, requestBody),
+    onSuccess: async (campaign) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedCampaignId: campaign.campaign_id,
+        selectedPromotionId: "",
+        selectedSegmentId: ""
+      });
+    }
+  });
+  const updateCampaignMutation = useMutation({
+    mutationFn: ({
+      campaignId,
+      requestBody
+    }: {
+      campaignId: string;
+      requestBody: Parameters<typeof updateDashboardCampaign>[2];
+    }) => updateDashboardCampaign(query, campaignId, requestBody),
+    onSuccess: async (campaign) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedCampaignId: campaign.campaign_id,
+        selectedPromotionId: "",
+        selectedSegmentId: ""
+      });
+    }
+  });
+  const stopCampaignMutation = useMutation({
+    mutationFn: (campaignId: string) => deleteDashboardCampaign(query, campaignId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (query.selectedCampaignId === result.campaign_id) {
+        await setDashboardQueryState({
+          selectedCampaignId: "",
+          selectedPromotionId: "",
+          selectedSegmentId: ""
+        });
+      }
+    }
+  });
 
   useEffect(() => {
     if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
@@ -138,6 +247,23 @@ export function CampaignDashboardPanel({
 
   return (
     <div className="grid gap-6">
+      <CampaignManagementPanel
+        campaign={selectedCampaign}
+        createError={createCampaignMutation.error}
+        createIsError={createCampaignMutation.isError}
+        createIsPending={createCampaignMutation.isPending}
+        onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
+        onStop={(campaignId) => stopCampaignMutation.mutate(campaignId)}
+        onUpdate={(campaignId, requestBody) =>
+          updateCampaignMutation.mutate({ campaignId, requestBody })
+        }
+        stopError={stopCampaignMutation.error}
+        stopIsError={stopCampaignMutation.isError}
+        stopIsPending={stopCampaignMutation.isPending}
+        updateError={updateCampaignMutation.error}
+        updateIsError={updateCampaignMutation.isError}
+        updateIsPending={updateCampaignMutation.isPending}
+      />
       <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
         <CardHeader className="gap-1.5 px-5">
           <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
@@ -282,6 +408,350 @@ function CampaignSelectionContext({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function CampaignManagementPanel({
+  campaign,
+  createError,
+  createIsError,
+  createIsPending,
+  onCreate,
+  onStop,
+  onUpdate,
+  stopError,
+  stopIsError,
+  stopIsPending,
+  updateError,
+  updateIsError,
+  updateIsPending
+}: {
+  campaign: DashboardCampaignSummary | undefined;
+  createError: Error | null;
+  createIsError: boolean;
+  createIsPending: boolean;
+  onCreate: (requestBody: CreateCampaignInput) => void;
+  onStop: (campaignId: string) => void;
+  onUpdate: (campaignId: string, requestBody: UpdateCampaignInput) => void;
+  stopError: Error | null;
+  stopIsError: boolean;
+  stopIsPending: boolean;
+  updateError: Error | null;
+  updateIsError: boolean;
+  updateIsPending: boolean;
+}) {
+  return (
+    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+      <CardHeader className="gap-1.5 px-5">
+        <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+          캠페인 관리
+        </CardTitle>
+        <CardDescription>
+          1.7 기준 Campaign 최상위 단위를 생성하고 상태를 관리합니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 px-5">
+        {createIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>캠페인을 생성하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {updateIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>캠페인을 수정하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {stopIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>캠페인을 중지하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(stopError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <CampaignCreateForm isPending={createIsPending} onSubmit={onCreate} />
+          <CampaignEditForm
+            campaign={campaign}
+            isPending={updateIsPending || stopIsPending}
+            onStop={onStop}
+            onSubmit={onUpdate}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CampaignCreateForm({
+  isPending,
+  onSubmit
+}: {
+  isPending: boolean;
+  onSubmit: (requestBody: CreateCampaignInput) => void;
+}) {
+  const [campaignName, setCampaignName] = useState("");
+  const [objective, setObjective] = useState("");
+  const [targetAudience, setTargetAudience] = useState("existing_users");
+  const [primaryMetric, setPrimaryMetric] = useState<string>("none");
+  const [status, setStatus] = useState<CreateCampaignInput["status"]>("draft");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const canSubmit = Boolean(campaignName.trim()) && !isPending;
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-foreground">캠페인 생성</h3>
+        <p className="text-sm text-muted-foreground">
+          생성된 캠페인은 프로모션과 세그먼트의 상위 작업 단위가 됩니다.
+        </p>
+      </div>
+      <CampaignFormFields
+        campaignName={campaignName}
+        endDate={endDate}
+        objective={objective}
+        onCampaignNameChange={setCampaignName}
+        onEndDateChange={setEndDate}
+        onObjectiveChange={setObjective}
+        onPrimaryMetricChange={setPrimaryMetric}
+        onStartDateChange={setStartDate}
+        onStatusChange={(nextStatus) => setStatus(nextStatus as CreateCampaignInput["status"])}
+        onTargetAudienceChange={setTargetAudience}
+        primaryMetric={primaryMetric}
+        startDate={startDate}
+        status={status}
+        targetAudience={targetAudience}
+      />
+      <div className="flex justify-end">
+        <Button
+          disabled={!canSubmit}
+          onClick={() =>
+            onSubmit({
+              campaign_name: campaignName.trim(),
+              end_date: nullableDate(endDate),
+              objective: nullableText(objective),
+              primary_metric: nullableMetric(primaryMetric),
+              start_date: nullableDate(startDate),
+              status,
+              target_audience: targetAudience.trim() || "existing_users"
+            })
+          }
+          type="button"
+        >
+          {isPending ? "생성 중" : "캠페인 생성"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function CampaignEditForm({
+  campaign,
+  isPending,
+  onStop,
+  onSubmit
+}: {
+  campaign: DashboardCampaignSummary | undefined;
+  isPending: boolean;
+  onStop: (campaignId: string) => void;
+  onSubmit: (campaignId: string, requestBody: UpdateCampaignInput) => void;
+}) {
+  const [campaignName, setCampaignName] = useState(campaign?.campaign_name ?? "");
+  const [objective, setObjective] = useState(campaign?.objective ?? "");
+  const [targetAudience, setTargetAudience] = useState("existing_users");
+  const [primaryMetric, setPrimaryMetric] = useState<string>(campaign?.primary_metric ?? "none");
+  const [status, setStatus] = useState<string>(campaign?.status ?? "draft");
+  const [startDate, setStartDate] = useState(campaign?.start_date ?? "");
+  const [endDate, setEndDate] = useState(campaign?.end_date ?? "");
+
+  useEffect(() => {
+    setCampaignName(campaign?.campaign_name ?? "");
+    setObjective(campaign?.objective ?? "");
+    setPrimaryMetric(campaign?.primary_metric ?? "none");
+    setStatus(campaign?.status ?? "draft");
+    setStartDate(campaign?.start_date ?? "");
+    setEndDate(campaign?.end_date ?? "");
+  }, [campaign]);
+
+  if (!campaign) {
+    return (
+      <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+        수정할 캠페인을 목록에서 선택해주세요.
+      </section>
+    );
+  }
+
+  const canSubmit = Boolean(campaignName.trim()) && !isPending;
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-foreground">선택 캠페인 수정</h3>
+        <p className="text-sm text-muted-foreground">
+          FK가 연결된 캠페인은 삭제 대신 stopped 상태로 전환합니다.
+        </p>
+      </div>
+      <CampaignFormFields
+        campaignName={campaignName}
+        endDate={endDate}
+        objective={objective}
+        onCampaignNameChange={setCampaignName}
+        onEndDateChange={setEndDate}
+        onObjectiveChange={setObjective}
+        onPrimaryMetricChange={setPrimaryMetric}
+        onStartDateChange={setStartDate}
+        onStatusChange={setStatus}
+        onTargetAudienceChange={setTargetAudience}
+        primaryMetric={primaryMetric}
+        startDate={startDate}
+        status={status}
+        targetAudience={targetAudience}
+      />
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          disabled={isPending || campaign.status === "stopped"}
+          onClick={() => onStop(campaign.campaign_id)}
+          type="button"
+          variant="outline"
+        >
+          {isPending ? "처리 중" : "캠페인 중지"}
+        </Button>
+        <Button
+          disabled={!canSubmit}
+          onClick={() =>
+            onSubmit(campaign.campaign_id, {
+              campaign_name: campaignName.trim(),
+              end_date: nullableDate(endDate),
+              objective: nullableText(objective),
+              primary_metric: nullableMetric(primaryMetric),
+              start_date: nullableDate(startDate),
+              status: status as UpdateCampaignInput["status"],
+              target_audience: targetAudience.trim() || "existing_users"
+            })
+          }
+          type="button"
+        >
+          {isPending ? "저장 중" : "수정 저장"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function CampaignFormFields({
+  campaignName,
+  endDate,
+  objective,
+  onCampaignNameChange,
+  onEndDateChange,
+  onObjectiveChange,
+  onPrimaryMetricChange,
+  onStartDateChange,
+  onStatusChange,
+  onTargetAudienceChange,
+  primaryMetric,
+  startDate,
+  status,
+  targetAudience
+}: {
+  campaignName: string;
+  endDate: string;
+  objective: string;
+  onCampaignNameChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+  onObjectiveChange: (value: string) => void;
+  onPrimaryMetricChange: (value: string) => void;
+  onStartDateChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onTargetAudienceChange: (value: string) => void;
+  primaryMetric: string;
+  startDate: string;
+  status: string;
+  targetAudience: string;
+}) {
+  return (
+    <FieldGroup>
+      <Field>
+        <FieldLabel htmlFor="dashboard-campaign-name">캠페인 이름</FieldLabel>
+        <Input
+          id="dashboard-campaign-name"
+          onChange={(event) => onCampaignNameChange(event.target.value)}
+          placeholder="여름 특가 캠페인"
+          value={campaignName}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="dashboard-campaign-objective">목표</FieldLabel>
+        <Textarea
+          id="dashboard-campaign-objective"
+          onChange={(event) => onObjectiveChange(event.target.value)}
+          placeholder="기존 유저의 예약 전환 증가"
+          value={objective}
+        />
+      </Field>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor="dashboard-campaign-target-audience">대상</FieldLabel>
+          <Input
+            id="dashboard-campaign-target-audience"
+            onChange={(event) => onTargetAudienceChange(event.target.value)}
+            value={targetAudience}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>주요 지표</FieldLabel>
+          <Select onValueChange={onPrimaryMetricChange} value={primaryMetric}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="주요 지표 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">미설정</SelectItem>
+              {campaignPrimaryMetricOptions.map((metric) => (
+                <SelectItem key={metric} value={metric}>
+                  {metric}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Field>
+          <FieldLabel htmlFor="dashboard-campaign-start-date">시작일</FieldLabel>
+          <Input
+            id="dashboard-campaign-start-date"
+            onChange={(event) => onStartDateChange(event.target.value)}
+            type="date"
+            value={startDate}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="dashboard-campaign-end-date">종료일</FieldLabel>
+          <Input
+            id="dashboard-campaign-end-date"
+            onChange={(event) => onEndDateChange(event.target.value)}
+            type="date"
+            value={endDate}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>상태</FieldLabel>
+          <Select onValueChange={onStatusChange} value={status}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="상태 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {campaignStatusOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+    </FieldGroup>
   );
 }
 
@@ -500,6 +970,91 @@ function CampaignTabContent({
       segment.segment_id === selectedSegmentId &&
       (!selectedPromotionId || segment.promotion_id === selectedPromotionId)
   );
+  const queryClient = useQueryClient();
+  const [, setDashboardQueryState] = useDashboardQueryState();
+  const createPromotionMutation = useMutation({
+    mutationFn: (requestBody: CreatePromotionInput) =>
+      createDashboardPromotion(query, detail.campaign.campaign_id, requestBody),
+    onSuccess: async (promotion) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedPromotionId: promotion.promotion_id,
+        selectedSegmentId: ""
+      });
+    }
+  });
+  const updatePromotionMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody
+    }: {
+      promotionId: string;
+      requestBody: UpdatePromotionInput;
+    }) => updateDashboardPromotion(query, promotionId, requestBody),
+    onSuccess: async (promotion) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedPromotionId: promotion.promotion_id,
+        selectedSegmentId: ""
+      });
+    }
+  });
+  const stopPromotionMutation = useMutation({
+    mutationFn: (promotionId: string) => deleteDashboardPromotion(query, promotionId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (selectedPromotionId === result.promotion_id) {
+        await setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+      }
+    }
+  });
+  const attachSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody
+    }: {
+      promotionId: string;
+      requestBody: AttachSegmentInput;
+    }) => attachDashboardSegmentToPromotion(query, promotionId, requestBody),
+    onSuccess: async (segment) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedPromotionId: segment.promotion_id,
+        selectedSegmentId: segment.segment_id
+      });
+    }
+  });
+  const updateSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody,
+      segmentId
+    }: {
+      promotionId: string;
+      requestBody: UpdatePromotionSegmentInput;
+      segmentId: string;
+    }) => updateDashboardPromotionSegment(query, promotionId, segmentId, requestBody),
+    onSuccess: async (segment) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedPromotionId: segment.promotion_id,
+        selectedSegmentId: segment.segment_id
+      });
+    }
+  });
+  const stopSegmentMutation = useMutation({
+    mutationFn: ({ promotionId, segmentId }: { promotionId: string; segmentId: string }) =>
+      deleteDashboardPromotionSegment(query, promotionId, segmentId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (selectedSegmentId === result.segment_id) {
+        await setDashboardQueryState({
+          selectedPromotionId: result.promotion_id,
+          selectedSegmentId: ""
+        });
+      }
+    }
+  });
 
   switch (tab) {
     case "campaign-promotions":
@@ -510,6 +1065,23 @@ function CampaignTabContent({
             onClearSegment={onClearSegment}
             selectedPromotion={selectedPromotion}
             selectedSegment={selectedSegment}
+          />
+          <PromotionManagementPanel
+            createError={createPromotionMutation.error}
+            createIsError={createPromotionMutation.isError}
+            createIsPending={createPromotionMutation.isPending}
+            onCreate={(requestBody) => createPromotionMutation.mutate(requestBody)}
+            onStop={(promotionId) => stopPromotionMutation.mutate(promotionId)}
+            onUpdate={(promotionId, requestBody) =>
+              updatePromotionMutation.mutate({ promotionId, requestBody })
+            }
+            promotion={selectedPromotion}
+            stopError={stopPromotionMutation.error}
+            stopIsError={stopPromotionMutation.isError}
+            stopIsPending={stopPromotionMutation.isPending}
+            updateError={updatePromotionMutation.error}
+            updateIsError={updatePromotionMutation.isError}
+            updateIsPending={updatePromotionMutation.isPending}
           />
           <PromotionTable
             onSelectPromotion={onSelectPromotion}
@@ -547,6 +1119,29 @@ function CampaignTabContent({
             isError={savedSegmentsIsError}
             isLoading={savedSegmentsIsLoading}
             segments={savedSegments}
+          />
+          <SegmentAttachmentPanel
+            attachError={attachSegmentMutation.error}
+            attachIsError={attachSegmentMutation.isError}
+            attachIsPending={attachSegmentMutation.isPending}
+            onAttach={(promotionId, requestBody) =>
+              attachSegmentMutation.mutate({ promotionId, requestBody })
+            }
+            onStop={(promotionId, segmentId) =>
+              stopSegmentMutation.mutate({ promotionId, segmentId })
+            }
+            onUpdate={(promotionId, segmentId, requestBody) =>
+              updateSegmentMutation.mutate({ promotionId, requestBody, segmentId })
+            }
+            promotion={selectedPromotion}
+            savedSegments={savedSegments}
+            segment={selectedSegment}
+            stopError={stopSegmentMutation.error}
+            stopIsError={stopSegmentMutation.isError}
+            stopIsPending={stopSegmentMutation.isPending}
+            updateError={updateSegmentMutation.error}
+            updateIsError={updateSegmentMutation.isError}
+            updateIsPending={updateSegmentMutation.isPending}
           />
           <SegmentTable
             onSelectSegment={onSelectSegment}
@@ -619,7 +1214,7 @@ function CampaignTabContent({
             selectedPromotionId={selectedPromotionId}
           />
           <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
-          <CampaignNextAction detail={detail} />
+          <CampaignNextAction detail={detail} query={query} />
         </>
       );
   }
@@ -663,6 +1258,373 @@ function CampaignOpenTabs({
   );
 }
 
+function PromotionManagementPanel({
+  createError,
+  createIsError,
+  createIsPending,
+  onCreate,
+  onStop,
+  onUpdate,
+  promotion,
+  stopError,
+  stopIsError,
+  stopIsPending,
+  updateError,
+  updateIsError,
+  updateIsPending
+}: {
+  createError: Error | null;
+  createIsError: boolean;
+  createIsPending: boolean;
+  onCreate: (requestBody: CreatePromotionInput) => void;
+  onStop: (promotionId: string) => void;
+  onUpdate: (promotionId: string, requestBody: UpdatePromotionInput) => void;
+  promotion: DashboardCampaignPromotion | undefined;
+  stopError: Error | null;
+  stopIsError: boolean;
+  stopIsPending: boolean;
+  updateError: Error | null;
+  updateIsError: boolean;
+  updateIsPending: boolean;
+}) {
+  return (
+    <section className="grid gap-4">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 관리</h3>
+        <p className="text-sm text-muted-foreground">
+          선택된 캠페인 안에서 채널별 실행 단위인 프로모션을 생성하고 상태를 관리합니다.
+        </p>
+      </div>
+      {createIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>프로모션을 생성하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {updateIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>프로모션을 수정하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {stopIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>프로모션을 중지하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(stopError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <PromotionCreateForm isPending={createIsPending} onSubmit={onCreate} />
+        <PromotionEditForm
+          isPending={updateIsPending || stopIsPending}
+          onStop={onStop}
+          onSubmit={onUpdate}
+          promotion={promotion}
+        />
+      </div>
+    </section>
+  );
+}
+
+function PromotionCreateForm({
+  isPending,
+  onSubmit
+}: {
+  isPending: boolean;
+  onSubmit: (requestBody: CreatePromotionInput) => void;
+}) {
+  const [form, setForm] = useState(createPromotionFormState());
+  const canSubmit = Boolean(form.marketingTheme.trim()) && !isPending;
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <h4 className="font-semibold text-foreground">프로모션 생성</h4>
+        <p className="text-sm text-muted-foreground">
+          Email, SMS, 내부 배너 중 하나의 실행 단위를 생성합니다.
+        </p>
+      </div>
+      <PromotionFormFields form={form} onChange={setForm} />
+      <div className="flex justify-end">
+        <Button
+          disabled={!canSubmit}
+          onClick={() => onSubmit(promotionFormToCreateRequest(form))}
+          type="button"
+        >
+          {isPending ? "생성 중" : "프로모션 생성"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function PromotionEditForm({
+  isPending,
+  onStop,
+  onSubmit,
+  promotion
+}: {
+  isPending: boolean;
+  onStop: (promotionId: string) => void;
+  onSubmit: (promotionId: string, requestBody: UpdatePromotionInput) => void;
+  promotion: DashboardCampaignPromotion | undefined;
+}) {
+  const [form, setForm] = useState(createPromotionFormState(promotion));
+
+  useEffect(() => {
+    setForm(createPromotionFormState(promotion));
+  }, [promotion]);
+
+  if (!promotion) {
+    return (
+      <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+        수정할 프로모션을 목록에서 선택해주세요.
+      </section>
+    );
+  }
+
+  const canSubmit = Boolean(form.marketingTheme.trim()) && !isPending;
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <h4 className="font-semibold text-foreground">선택 프로모션 수정</h4>
+        <p className="text-sm text-muted-foreground">
+          연결된 세그먼트와 실험을 보존하기 위해 삭제 대신 stopped 상태로 전환합니다.
+        </p>
+      </div>
+      <PromotionFormFields form={form} onChange={setForm} />
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          disabled={isPending || promotion.status === "stopped"}
+          onClick={() => onStop(promotion.promotion_id)}
+          type="button"
+          variant="outline"
+        >
+          {isPending ? "처리 중" : "프로모션 중지"}
+        </Button>
+        <Button
+          disabled={!canSubmit}
+          onClick={() => onSubmit(promotion.promotion_id, promotionFormToUpdateRequest(form))}
+          type="button"
+        >
+          {isPending ? "저장 중" : "수정 저장"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+type PromotionFormState = {
+  channel: string;
+  goalBasis: string;
+  goalMetric: string;
+  goalTargetValue: string;
+  landingType: string;
+  landingUrl: string;
+  marketingTheme: string;
+  minSampleSize: string;
+  offerType: string;
+  status: string;
+  targetAudience: string;
+};
+
+function PromotionFormFields({
+  form,
+  onChange
+}: {
+  form: PromotionFormState;
+  onChange: (form: PromotionFormState) => void;
+}) {
+  const update = (key: keyof PromotionFormState, value: string) => {
+    onChange({ ...form, [key]: value });
+  };
+
+  return (
+    <FieldGroup>
+      <Field>
+        <FieldLabel htmlFor="dashboard-promotion-theme">마케팅 테마</FieldLabel>
+        <Input
+          id="dashboard-promotion-theme"
+          onChange={(event) => update("marketingTheme", event.target.value)}
+          placeholder="여름 숙박 리마인드"
+          value={form.marketingTheme}
+        />
+      </Field>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field>
+          <FieldLabel>채널</FieldLabel>
+          <Select onValueChange={(value) => update("channel", value)} value={form.channel}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="채널 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionChannelOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="dashboard-promotion-target">대상</FieldLabel>
+          <Input
+            id="dashboard-promotion-target"
+            onChange={(event) => update("targetAudience", event.target.value)}
+            value={form.targetAudience}
+          />
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Field>
+          <FieldLabel>목표 지표</FieldLabel>
+          <Select onValueChange={(value) => update("goalMetric", value)} value={form.goalMetric}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="목표 지표" />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionGoalMetricOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="dashboard-promotion-goal-value">목표값</FieldLabel>
+          <Input
+            id="dashboard-promotion-goal-value"
+            min="0"
+            onChange={(event) => update("goalTargetValue", event.target.value)}
+            step="0.001"
+            type="number"
+            value={form.goalTargetValue}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>목표 기준</FieldLabel>
+          <Select onValueChange={(value) => update("goalBasis", value)} value={form.goalBasis}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="목표 기준" />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionGoalBasisOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Field>
+          <FieldLabel htmlFor="dashboard-promotion-min-sample">최소 표본</FieldLabel>
+          <Input
+            id="dashboard-promotion-min-sample"
+            min="0"
+            onChange={(event) => update("minSampleSize", event.target.value)}
+            type="number"
+            value={form.minSampleSize}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="dashboard-promotion-offer-type">오퍼</FieldLabel>
+          <Input
+            id="dashboard-promotion-offer-type"
+            onChange={(event) => update("offerType", event.target.value)}
+            placeholder="coupon"
+            value={form.offerType}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>상태</FieldLabel>
+          <Select onValueChange={(value) => update("status", value)} value={form.status}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="상태" />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionStatusOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor="dashboard-promotion-landing-url">랜딩 URL</FieldLabel>
+          <Input
+            id="dashboard-promotion-landing-url"
+            onChange={(event) => update("landingUrl", event.target.value)}
+            placeholder="https://..."
+            value={form.landingUrl}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>랜딩 타입</FieldLabel>
+          <Select onValueChange={(value) => update("landingType", value)} value={form.landingType}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="랜딩 타입" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">미설정</SelectItem>
+              {promotionLandingTypeOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+    </FieldGroup>
+  );
+}
+
+function createPromotionFormState(
+  promotion?: DashboardCampaignPromotion
+): PromotionFormState {
+  return {
+    channel: promotion?.channel ?? "email",
+    goalBasis: promotion?.goal_basis ?? "promotion_average",
+    goalMetric: promotion?.goal_metric ?? "inflow_rate",
+    goalTargetValue: String(promotion?.goal_target_value ?? 0.1),
+    landingType: "none",
+    landingUrl: "",
+    marketingTheme: promotion?.marketing_theme ?? "",
+    minSampleSize: "1000",
+    offerType: "",
+    status: promotion?.status ?? "draft",
+    targetAudience: "existing_users"
+  };
+}
+
+function promotionFormToCreateRequest(form: PromotionFormState): CreatePromotionInput {
+  return {
+    channel: form.channel as CreatePromotionInput["channel"],
+    goal_basis: form.goalBasis as CreatePromotionInput["goal_basis"],
+    goal_metric: form.goalMetric as CreatePromotionInput["goal_metric"],
+    goal_target_value: nonnegativeNumber(form.goalTargetValue),
+    landing_type: nullableLandingType(form.landingType),
+    landing_url: nullableText(form.landingUrl),
+    marketing_theme: form.marketingTheme.trim(),
+    max_loop_count: 3,
+    min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
+    offer_type: nullableText(form.offerType),
+    status: form.status as CreatePromotionInput["status"],
+    target_audience: form.targetAudience.trim() || "existing_users"
+  };
+}
+
+function promotionFormToUpdateRequest(form: PromotionFormState): UpdatePromotionInput {
+  return promotionFormToCreateRequest(form);
+}
+
 function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
   const campaign = detail.campaign;
   return (
@@ -673,7 +1635,7 @@ function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
             <h3 className="text-xl font-semibold tracking-tight text-foreground">
               {campaign.campaign_name}
             </h3>
-            <Badge variant="secondary">{campaign.status}</Badge>
+            <Badge variant={statusBadgeVariant(campaign.status)}>{campaign.status}</Badge>
           </div>
           <div className="text-sm text-muted-foreground">{campaign.objective ?? "목표 미등록"}</div>
           <div className="text-xs text-muted-foreground">{campaign.campaign_id}</div>
@@ -1118,7 +2080,15 @@ function PromotionTable({
   );
 }
 
-function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
+function CampaignNextAction({
+  detail,
+  query
+}: {
+  detail: DashboardCampaignDetail;
+  query: DashboardQuery;
+}) {
+  const queryClient = useQueryClient();
+  const [requestedAnalysisId, setRequestedAnalysisId] = useState("");
   const nextLoopMetrics = detail.experiment_metrics.filter((metric) => metric.next_loop_required);
   const goalNotMetMetrics = detail.experiment_metrics.filter(
     (metric) => metric.status === "goal_not_met"
@@ -1135,6 +2105,24 @@ function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
     goalNotMetSegmentCount: goalNotMetSegmentIds.length,
     insufficientCount: insufficientMetrics.length,
     nextLoopCount: nextLoopMetrics.length
+  });
+  const nextLoopTargets = nextLoopPromotionTargets(nextLoopMetrics);
+  const nextLoopMutation = useMutation({
+    mutationFn: ({
+      focusSegmentIds,
+      promotionId
+    }: {
+      focusSegmentIds: string[];
+      promotionId: string;
+    }) =>
+      startDashboardNextLoopAnalysis(query, promotionId, {
+        focus_segment_ids: focusSegmentIds,
+        operator_instruction: "Dashboard에서 목표 미달 세그먼트 next-loop 분석 요청"
+      }),
+    onSuccess: async (analysis) => {
+      setRequestedAnalysisId(analysis.analysis_id);
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    }
   });
 
   return (
@@ -1158,6 +2146,48 @@ function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
         <AlertTitle>{recommendation.title}</AlertTitle>
         <AlertDescription>{recommendation.description}</AlertDescription>
       </Alert>
+      {nextLoopMutation.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>next-loop 분석 요청 실패</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(nextLoopMutation.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {requestedAnalysisId ? (
+        <Alert>
+          <AlertTitle>next-loop 분석을 요청했습니다</AlertTitle>
+          <AlertDescription>{requestedAnalysisId}</AlertDescription>
+        </Alert>
+      ) : null}
+      {nextLoopTargets.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {nextLoopTargets.map((target) => (
+            <div
+              className="grid gap-3 rounded-md border bg-muted/20 p-3"
+              key={target.promotionId}
+            >
+              <div className="grid gap-1">
+                <div className="text-sm font-medium">{target.promotionId}</div>
+                <div className="text-xs text-muted-foreground">
+                  실패 세그먼트 {formatInteger(target.focusSegmentIds.length)}개만 재분석합니다.
+                </div>
+              </div>
+              <InsightBlock label="focus_segment_ids" value={target.focusSegmentIds.join("\n")} />
+              <Button
+                disabled={nextLoopMutation.isPending}
+                onClick={() =>
+                  nextLoopMutation.mutate({
+                    focusSegmentIds: target.focusSegmentIds,
+                    promotionId: target.promotionId
+                  })
+                }
+                type="button"
+              >
+                {nextLoopMutation.isPending ? "요청 중" : "next-loop 분석 요청"}
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="grid gap-3 md:grid-cols-3">
         <InsightBlock
           label="next-loop 대상 세그먼트"
@@ -1174,6 +2204,23 @@ function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
       </div>
     </section>
   );
+}
+
+function nextLoopPromotionTargets(metrics: DashboardCampaignExperimentMetric[]) {
+  const promotionToSegments = new Map<string, Set<string>>();
+  for (const metric of metrics) {
+    if (!metric.segment_id) {
+      continue;
+    }
+    const segments = promotionToSegments.get(metric.promotion_id) ?? new Set<string>();
+    segments.add(metric.segment_id);
+    promotionToSegments.set(metric.promotion_id, segments);
+  }
+
+  return [...promotionToSegments.entries()].map(([promotionId, segments]) => ({
+    focusSegmentIds: [...segments],
+    promotionId
+  }));
 }
 
 function campaignActionRecommendation({
@@ -1516,6 +2563,315 @@ function SegmentTable({
       ) : (
         <EmptyState message="등록된 세그먼트가 없습니다." />
       )}
+    </section>
+  );
+}
+
+function SegmentAttachmentPanel({
+  attachError,
+  attachIsError,
+  attachIsPending,
+  onAttach,
+  onStop,
+  onUpdate,
+  promotion,
+  savedSegments,
+  segment,
+  stopError,
+  stopIsError,
+  stopIsPending,
+  updateError,
+  updateIsError,
+  updateIsPending
+}: {
+  attachError: Error | null;
+  attachIsError: boolean;
+  attachIsPending: boolean;
+  onAttach: (promotionId: string, requestBody: AttachSegmentInput) => void;
+  onStop: (promotionId: string, segmentId: string) => void;
+  onUpdate: (
+    promotionId: string,
+    segmentId: string,
+    requestBody: UpdatePromotionSegmentInput
+  ) => void;
+  promotion: DashboardCampaignPromotion | undefined;
+  savedSegments: DashboardSavedSegment[];
+  segment: DashboardCampaignSegment | undefined;
+  stopError: Error | null;
+  stopIsError: boolean;
+  stopIsPending: boolean;
+  updateError: Error | null;
+  updateIsError: boolean;
+  updateIsPending: boolean;
+}) {
+  return (
+    <section className="grid gap-4">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 세그먼트 연결</h3>
+        <p className="text-sm text-muted-foreground">
+          저장된 segment_definitions를 선택된 프로모션의 타겟 세그먼트로 연결합니다.
+        </p>
+      </div>
+      {attachIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>세그먼트를 연결하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(attachError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {updateIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>세그먼트를 수정하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {stopIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>세그먼트를 중지하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(stopError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SegmentAttachForm
+          isPending={attachIsPending}
+          onSubmit={onAttach}
+          promotion={promotion}
+          savedSegments={savedSegments}
+        />
+        <SegmentEditForm
+          isPending={updateIsPending || stopIsPending}
+          onStop={onStop}
+          onSubmit={onUpdate}
+          segment={segment}
+        />
+      </div>
+    </section>
+  );
+}
+
+function SegmentAttachForm({
+  isPending,
+  onSubmit,
+  promotion,
+  savedSegments
+}: {
+  isPending: boolean;
+  onSubmit: (promotionId: string, requestBody: AttachSegmentInput) => void;
+  promotion: DashboardCampaignPromotion | undefined;
+  savedSegments: DashboardSavedSegment[];
+}) {
+  const [segmentId, setSegmentId] = useState("");
+  const [segmentName, setSegmentName] = useState("");
+  const [priority, setPriority] = useState("none");
+  const [status, setStatus] = useState<AttachSegmentInput["status"]>("planned");
+  const selectedSavedSegment = savedSegments.find((segment) => segment.segment_id === segmentId);
+  const canSubmit = Boolean(promotion && segmentId) && !isPending;
+
+  useEffect(() => {
+    if (selectedSavedSegment && !segmentName.trim()) {
+      setSegmentName(selectedSavedSegment.segment_name);
+    }
+  }, [selectedSavedSegment, segmentName]);
+
+  if (!promotion) {
+    return (
+      <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+        세그먼트를 연결할 프로모션을 먼저 선택해주세요.
+      </section>
+    );
+  }
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <h4 className="font-semibold text-foreground">저장 세그먼트 연결</h4>
+        <p className="text-sm text-muted-foreground">{promotion.marketing_theme}</p>
+      </div>
+      <FieldGroup>
+        <Field>
+          <FieldLabel>저장 세그먼트</FieldLabel>
+          <Select onValueChange={setSegmentId} value={segmentId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="세그먼트 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {savedSegments.map((segment) => (
+                <SelectItem key={segment.segment_id} value={segment.segment_id}>
+                  {segment.segment_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="dashboard-segment-attach-name">표시 이름</FieldLabel>
+          <Input
+            id="dashboard-segment-attach-name"
+            onChange={(event) => setSegmentName(event.target.value)}
+            placeholder={selectedSavedSegment?.segment_name ?? "세그먼트 이름"}
+            value={segmentName}
+          />
+        </Field>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field>
+            <FieldLabel>우선순위</FieldLabel>
+            <Select onValueChange={setPriority} value={priority}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="우선순위" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">미설정</SelectItem>
+                {segmentPriorityOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>상태</FieldLabel>
+            <Select onValueChange={(value) => setStatus(value as AttachSegmentInput["status"])} value={status}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="상태" />
+              </SelectTrigger>
+              <SelectContent>
+                {promotionSegmentStatusOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </FieldGroup>
+      <div className="flex justify-end">
+        <Button
+          disabled={!canSubmit}
+          onClick={() =>
+            onSubmit(promotion.promotion_id, {
+              priority: nullablePriority(priority),
+              segment_id: segmentId,
+              segment_name: segmentName.trim() || selectedSavedSegment?.segment_name,
+              status
+            })
+          }
+          type="button"
+        >
+          {isPending ? "연결 중" : "세그먼트 연결"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function SegmentEditForm({
+  isPending,
+  onStop,
+  onSubmit,
+  segment
+}: {
+  isPending: boolean;
+  onStop: (promotionId: string, segmentId: string) => void;
+  onSubmit: (
+    promotionId: string,
+    segmentId: string,
+    requestBody: UpdatePromotionSegmentInput
+  ) => void;
+  segment: DashboardCampaignSegment | undefined;
+}) {
+  const [segmentName, setSegmentName] = useState(segment?.segment_name ?? "");
+  const [priority, setPriority] = useState(segment?.priority ?? "none");
+  const [status, setStatus] = useState(segment?.status ?? "planned");
+
+  useEffect(() => {
+    setSegmentName(segment?.segment_name ?? "");
+    setPriority(segment?.priority ?? "none");
+    setStatus(segment?.status ?? "planned");
+  }, [segment]);
+
+  if (!segment) {
+    return (
+      <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+        수정할 프로모션 세그먼트를 선택해주세요.
+      </section>
+    );
+  }
+
+  const canSubmit = Boolean(segmentName.trim()) && !isPending;
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <h4 className="font-semibold text-foreground">선택 세그먼트 수정</h4>
+        <p className="text-sm text-muted-foreground">{segment.segment_id}</p>
+      </div>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="dashboard-segment-edit-name">표시 이름</FieldLabel>
+          <Input
+            id="dashboard-segment-edit-name"
+            onChange={(event) => setSegmentName(event.target.value)}
+            value={segmentName}
+          />
+        </Field>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field>
+            <FieldLabel>우선순위</FieldLabel>
+            <Select onValueChange={setPriority} value={priority}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="우선순위" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">미설정</SelectItem>
+                {segmentPriorityOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>상태</FieldLabel>
+            <Select onValueChange={setStatus} value={status}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="상태" />
+              </SelectTrigger>
+              <SelectContent>
+                {promotionSegmentStatusOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </FieldGroup>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          disabled={isPending || segment.status === "stopped"}
+          onClick={() => onStop(segment.promotion_id, segment.segment_id)}
+          type="button"
+          variant="outline"
+        >
+          {isPending ? "처리 중" : "세그먼트 중지"}
+        </Button>
+        <Button
+          disabled={!canSubmit}
+          onClick={() =>
+            onSubmit(segment.promotion_id, segment.segment_id, {
+              priority: nullablePriority(priority),
+              segment_name: segmentName.trim(),
+              status: status as UpdatePromotionSegmentInput["status"]
+            })
+          }
+          type="button"
+        >
+          {isPending ? "저장 중" : "수정 저장"}
+        </Button>
+      </div>
     </section>
   );
 }
@@ -2413,6 +3769,32 @@ function segmentNameFromQuery(value: string): string {
 
 function mutationErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "API 요청 실패";
+}
+
+function nullableDate(value: string): string | null {
+  return value.trim() ? value : null;
+}
+
+function nullableMetric(value: string): CreateCampaignInput["primary_metric"] {
+  return value === "none" ? null : (value as CreateCampaignInput["primary_metric"]);
+}
+
+function nullableLandingType(value: string): CreatePromotionInput["landing_type"] {
+  return value === "none" ? null : (value as CreatePromotionInput["landing_type"]);
+}
+
+function nullablePriority(value: string): AttachSegmentInput["priority"] {
+  return value === "none" ? null : (value as AttachSegmentInput["priority"]);
+}
+
+function nullableText(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function nonnegativeNumber(value: string): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, number) : 0;
 }
 
 function InsightBlock({ label, value }: { label: string; value: string }) {

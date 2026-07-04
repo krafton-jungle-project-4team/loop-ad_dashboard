@@ -54,6 +54,57 @@ WHERE c.project_id = :projectId
   AND c.campaign_id = :campaignId
 GROUP BY c.campaign_id;
 
+/* 목적: 대시보드에서 새 캠페인을 생성합니다. */
+/* @name InsertDashboardCampaign */
+INSERT INTO campaigns (
+  campaign_id,
+  project_id,
+  name,
+  objective,
+  target_audience,
+  start_date,
+  end_date,
+  primary_metric,
+  status
+)
+VALUES (
+  :campaignId,
+  :projectId,
+  :campaignName,
+  :objective,
+  :targetAudience,
+  :startDate,
+  :endDate,
+  :primaryMetric,
+  :status
+)
+RETURNING campaign_id AS "campaignId";
+
+/* 목적: 대시보드에서 캠페인 기본 정보를 수정합니다. */
+/* @name UpdateDashboardCampaign */
+UPDATE campaigns
+SET
+  name = COALESCE(:campaignName, name),
+  objective = CASE WHEN :objectiveIsSet THEN :objective ELSE objective END,
+  target_audience = COALESCE(:targetAudience, target_audience),
+  start_date = CASE WHEN :startDateIsSet THEN :startDate ELSE start_date END,
+  end_date = CASE WHEN :endDateIsSet THEN :endDate ELSE end_date END,
+  primary_metric = CASE WHEN :primaryMetricIsSet THEN :primaryMetric ELSE primary_metric END,
+  status = COALESCE(:status, status),
+  updated_at = now()
+WHERE project_id = :projectId
+  AND campaign_id = :campaignId
+RETURNING campaign_id AS "campaignId";
+
+/* 목적: FK가 연결된 캠페인을 물리 삭제하지 않고 중지 상태로 전환합니다. */
+/* @name StopDashboardCampaign */
+UPDATE campaigns
+SET status = 'stopped',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND campaign_id = :campaignId
+RETURNING campaign_id AS "campaignId", status;
+
 /* 목적: 캠페인에 연결된 프로모션 요약 목록을 조회합니다. */
 /* @name ListDashboardCampaignPromotions */
 SELECT
@@ -109,6 +160,77 @@ LEFT JOIN promotion_evaluations pe
 WHERE p.project_id = :projectId
   AND p.promotion_id = :promotionId
 GROUP BY p.promotion_id;
+
+/* 목적: 캠페인 하위 프로모션을 생성합니다. */
+/* @name InsertDashboardPromotion */
+INSERT INTO promotions (
+  promotion_id,
+  project_id,
+  campaign_id,
+  channel,
+  marketing_theme,
+  target_audience,
+  goal_metric,
+  goal_target_value,
+  goal_basis,
+  min_sample_size,
+  max_loop_count,
+  message_brief,
+  offer_type,
+  landing_url,
+  landing_type,
+  status
+)
+VALUES (
+  :promotionId,
+  :projectId,
+  :campaignId,
+  :channel,
+  :marketingTheme,
+  :targetAudience,
+  :goalMetric,
+  :goalTargetValue,
+  :goalBasis,
+  :minSampleSize,
+  :maxLoopCount,
+  :messageBrief,
+  :offerType,
+  :landingUrl,
+  :landingType,
+  :status
+)
+RETURNING promotion_id AS "promotionId";
+
+/* 목적: 프로모션 기본 정보를 수정합니다. */
+/* @name UpdateDashboardPromotion */
+UPDATE promotions
+SET
+  channel = COALESCE(:channel, channel),
+  marketing_theme = COALESCE(:marketingTheme, marketing_theme),
+  target_audience = COALESCE(:targetAudience, target_audience),
+  goal_metric = COALESCE(:goalMetric, goal_metric),
+  goal_target_value = COALESCE(:goalTargetValue, goal_target_value),
+  goal_basis = COALESCE(:goalBasis, goal_basis),
+  min_sample_size = COALESCE(:minSampleSize, min_sample_size),
+  max_loop_count = COALESCE(:maxLoopCount, max_loop_count),
+  message_brief = CASE WHEN :messageBriefIsSet THEN :messageBrief ELSE message_brief END,
+  offer_type = CASE WHEN :offerTypeIsSet THEN :offerType ELSE offer_type END,
+  landing_url = CASE WHEN :landingUrlIsSet THEN :landingUrl ELSE landing_url END,
+  landing_type = CASE WHEN :landingTypeIsSet THEN :landingType ELSE landing_type END,
+  status = COALESCE(:status, status),
+  updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+RETURNING promotion_id AS "promotionId";
+
+/* 목적: FK가 연결된 프로모션을 물리 삭제하지 않고 중지 상태로 전환합니다. */
+/* @name StopDashboardPromotion */
+UPDATE promotions
+SET status = 'stopped',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+RETURNING promotion_id AS "promotionId", status;
 
 /* 목적: 캠페인 프로모션에 연결된 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardCampaignSegments */
@@ -184,6 +306,114 @@ JOIN segment_definitions sd
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
   AND pts.segment_id = :segmentId;
+
+/* 목적: 사용자 정의 세그먼트 연결을 위한 수동 분석 row를 생성합니다. */
+/* @name InsertDashboardManualPromotionAnalysis */
+INSERT INTO promotion_analyses (
+  analysis_id,
+  project_id,
+  campaign_id,
+  promotion_id,
+  operator_instruction,
+  status
+)
+VALUES (
+  :analysisId,
+  :projectId,
+  :campaignId,
+  :promotionId,
+  'dashboard_manual_segment_attach',
+  'completed'
+)
+RETURNING analysis_id AS "analysisId";
+
+/* 목적: 저장된 세그먼트를 프로모션 타겟 세그먼트로 연결합니다. */
+/* @name InsertDashboardPromotionTargetSegment */
+INSERT INTO promotion_target_segments (
+  analysis_id,
+  project_id,
+  campaign_id,
+  promotion_id,
+  segment_id,
+  segment_name,
+  rule_json,
+  profile_json,
+  content_brief_json,
+  data_evidence_json,
+  estimated_size,
+  priority,
+  status
+)
+SELECT
+  :analysisId,
+  sd.project_id,
+  :campaignId,
+  :promotionId,
+  sd.segment_id,
+  COALESCE(:segmentName, sd.segment_name),
+  sd.rule_json,
+  sd.profile_json,
+  '{}'::jsonb,
+  jsonb_build_object(
+    'source', sd.source,
+    'query_preview_id', sd.query_preview_id,
+    'sample_size', sd.sample_size,
+    'sample_ratio', sd.sample_ratio
+  ),
+  sd.sample_size,
+  :priority,
+  :status
+FROM segment_definitions sd
+WHERE sd.project_id = :projectId
+  AND sd.segment_id = :segmentId
+RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
+
+/* 목적: 프로모션에 연결된 세그먼트 표시 정보를 수정합니다. */
+/* @name UpdateDashboardPromotionTargetSegment */
+UPDATE promotion_target_segments
+SET
+  segment_name = COALESCE(:segmentName, segment_name),
+  priority = CASE WHEN :priorityIsSet THEN :priority ELSE priority END,
+  status = COALESCE(:status, status)
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
+
+/* 목적: 프로모션 세그먼트를 물리 삭제하지 않고 중지 상태로 전환합니다. */
+/* @name StopDashboardPromotionTargetSegment */
+UPDATE promotion_target_segments
+SET status = 'stopped'
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status;
+
+/* 목적: 목표 미달 세그먼트만 대상으로 next-loop 분석 요청을 생성합니다. */
+/* @name InsertDashboardNextLoopAnalysis */
+INSERT INTO promotion_analyses (
+  analysis_id,
+  project_id,
+  campaign_id,
+  promotion_id,
+  focus_segment_ids_json,
+  operator_instruction,
+  status
+)
+VALUES (
+  :analysisId,
+  :projectId,
+  :campaignId,
+  :promotionId,
+  :focusSegmentIdsJson,
+  :operatorInstruction,
+  'requested'
+)
+RETURNING
+  analysis_id AS "analysisId",
+  promotion_id AS "promotionId",
+  focus_segment_ids_json AS "focusSegmentIdsJson",
+  status;
 
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardCampaignExperimentMetrics */

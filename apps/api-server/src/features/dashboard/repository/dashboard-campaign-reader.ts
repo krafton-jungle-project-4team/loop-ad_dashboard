@@ -5,10 +5,22 @@ import type {
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardContentCandidate,
+  DashboardAttachSegmentRequest,
+  DashboardCreateCampaignRequest,
+  DashboardCreatePromotionRequest,
+  DashboardDeleteCampaignResult,
+  DashboardDeletePromotionResult,
+  DashboardDeletePromotionSegmentResult,
+  DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
   DashboardPromotionSummary,
-  DashboardSegmentDetail
+  DashboardSegmentDetail,
+  DashboardStartNextLoopRequest,
+  DashboardUpdateCampaignRequest,
+  DashboardUpdatePromotionRequest,
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
+import { randomUUID } from "node:crypto";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
@@ -16,6 +28,11 @@ import {
   getDashboardCampaignSummary,
   getDashboardPromotionSegment,
   getDashboardPromotionSummary,
+  insertDashboardCampaign,
+  insertDashboardManualPromotionAnalysis,
+  insertDashboardNextLoopAnalysis,
+  insertDashboardPromotion,
+  insertDashboardPromotionTargetSegment,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -24,6 +41,12 @@ import {
   listDashboardPromotionSegments,
   listDashboardSegmentContentCandidates,
   listDashboardSegmentExperimentMetrics,
+  stopDashboardCampaign,
+  stopDashboardPromotion,
+  stopDashboardPromotionTargetSegment,
+  updateDashboardCampaign,
+  updateDashboardPromotion,
+  updateDashboardPromotionTargetSegment,
   type IGetDashboardCampaignSummaryResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
@@ -48,6 +71,235 @@ export class DashboardCampaignReader {
     const rows = await this.db.query(listDashboardCampaignSummaries, { projectId }).multiple();
 
     return rows.map(toCampaignSummary);
+  }
+
+  async createCampaign(
+    projectId: string,
+    request: DashboardCreateCampaignRequest
+  ): Promise<DashboardCampaignSummary> {
+    const campaignId = `camp_${randomUUID()}`;
+    await this.db
+      .query(insertDashboardCampaign, {
+        campaignId,
+        campaignName: request.campaign_name,
+        endDate: request.end_date ?? null,
+        objective: request.objective ?? null,
+        primaryMetric: request.primary_metric ?? null,
+        projectId,
+        startDate: request.start_date ?? null,
+        status: request.status,
+        targetAudience: request.target_audience
+      })
+      .single();
+
+    return this.getCampaignSummary(projectId, campaignId);
+  }
+
+  async updateCampaign(
+    projectId: string,
+    campaignId: string,
+    request: DashboardUpdateCampaignRequest
+  ): Promise<DashboardCampaignSummary> {
+    await this.db
+      .query(updateDashboardCampaign, {
+        campaignId,
+        campaignName: request.campaign_name,
+        endDate: request.end_date ?? null,
+        endDateIsSet: Object.hasOwn(request, "end_date"),
+        objective: request.objective ?? null,
+        objectiveIsSet: Object.hasOwn(request, "objective"),
+        primaryMetric: request.primary_metric ?? null,
+        primaryMetricIsSet: Object.hasOwn(request, "primary_metric"),
+        projectId,
+        startDate: request.start_date ?? null,
+        startDateIsSet: Object.hasOwn(request, "start_date"),
+        status: request.status,
+        targetAudience: request.target_audience
+      })
+      .single();
+
+    return this.getCampaignSummary(projectId, campaignId);
+  }
+
+  async stopCampaign(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardDeleteCampaignResult> {
+    const row = await this.db.query(stopDashboardCampaign, { campaignId, projectId }).single();
+
+    return {
+      campaign_id: row.campaignId,
+      status: "stopped"
+    };
+  }
+
+  async createPromotion(
+    projectId: string,
+    campaignId: string,
+    request: DashboardCreatePromotionRequest
+  ): Promise<DashboardPromotionSummary> {
+    const promotionId = `promo_${randomUUID()}`;
+    await this.db
+      .query(insertDashboardPromotion, {
+        campaignId,
+        channel: request.channel,
+        goalBasis: request.goal_basis,
+        goalMetric: request.goal_metric,
+        goalTargetValue: request.goal_target_value,
+        landingType: request.landing_type ?? null,
+        landingUrl: request.landing_url ?? null,
+        marketingTheme: request.marketing_theme,
+        maxLoopCount: request.max_loop_count,
+        messageBrief: request.message_brief ?? null,
+        minSampleSize: request.min_sample_size,
+        offerType: request.offer_type ?? null,
+        projectId,
+        promotionId,
+        status: request.status,
+        targetAudience: request.target_audience
+      })
+      .single();
+
+    return this.getPromotionSummary(projectId, promotionId);
+  }
+
+  async updatePromotion(
+    projectId: string,
+    promotionId: string,
+    request: DashboardUpdatePromotionRequest
+  ): Promise<DashboardPromotionSummary> {
+    await this.db
+      .query(updateDashboardPromotion, {
+        channel: request.channel,
+        goalBasis: request.goal_basis,
+        goalMetric: request.goal_metric,
+        goalTargetValue: request.goal_target_value,
+        landingType: request.landing_type ?? null,
+        landingTypeIsSet: Object.hasOwn(request, "landing_type"),
+        landingUrl: request.landing_url ?? null,
+        landingUrlIsSet: Object.hasOwn(request, "landing_url"),
+        marketingTheme: request.marketing_theme,
+        maxLoopCount: request.max_loop_count,
+        messageBrief: request.message_brief ?? null,
+        messageBriefIsSet: Object.hasOwn(request, "message_brief"),
+        minSampleSize: request.min_sample_size,
+        offerType: request.offer_type ?? null,
+        offerTypeIsSet: Object.hasOwn(request, "offer_type"),
+        projectId,
+        promotionId,
+        status: request.status,
+        targetAudience: request.target_audience
+      })
+      .single();
+
+    return this.getPromotionSummary(projectId, promotionId);
+  }
+
+  async stopPromotion(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardDeletePromotionResult> {
+    const row = await this.db.query(stopDashboardPromotion, { projectId, promotionId }).single();
+
+    return {
+      promotion_id: row.promotionId,
+      status: "stopped"
+    };
+  }
+
+  async attachSegmentToPromotion(
+    projectId: string,
+    promotionId: string,
+    request: DashboardAttachSegmentRequest
+  ): Promise<DashboardCampaignSegment> {
+    const promotion = await this.getPromotionSummary(projectId, promotionId);
+    const analysisId = `analysis_manual_${randomUUID()}`;
+
+    await this.db
+      .query(insertDashboardManualPromotionAnalysis, {
+        analysisId,
+        campaignId: promotion.campaign_id,
+        projectId,
+        promotionId
+      })
+      .single();
+    await this.db
+      .query(insertDashboardPromotionTargetSegment, {
+        analysisId,
+        campaignId: promotion.campaign_id,
+        priority: request.priority ?? null,
+        projectId,
+        promotionId,
+        segmentId: request.segment_id,
+        segmentName: request.segment_name,
+        status: request.status
+      })
+      .single();
+
+    return this.getPromotionSegment(projectId, promotionId, request.segment_id);
+  }
+
+  async updatePromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    request: DashboardUpdatePromotionSegmentRequest
+  ): Promise<DashboardCampaignSegment> {
+    await this.db
+      .query(updateDashboardPromotionTargetSegment, {
+        priority: request.priority ?? null,
+        priorityIsSet: Object.hasOwn(request, "priority"),
+        projectId,
+        promotionId,
+        segmentId,
+        segmentName: request.segment_name,
+        status: request.status
+      })
+      .single();
+
+    return this.getPromotionSegment(projectId, promotionId, segmentId);
+  }
+
+  async stopPromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardDeletePromotionSegmentResult> {
+    const row = await this.db
+      .query(stopDashboardPromotionTargetSegment, { projectId, promotionId, segmentId })
+      .single();
+
+    return {
+      promotion_id: row.promotionId,
+      segment_id: row.segmentId,
+      status: "stopped"
+    };
+  }
+
+  async startNextLoopAnalysis(
+    projectId: string,
+    promotionId: string,
+    request: DashboardStartNextLoopRequest
+  ): Promise<DashboardNextLoopAnalysis> {
+    const promotion = await this.getPromotionSummary(projectId, promotionId);
+    const analysisId = `analysis_next_loop_${randomUUID()}`;
+    const row = await this.db
+      .query(insertDashboardNextLoopAnalysis, {
+        analysisId,
+        campaignId: promotion.campaign_id,
+        focusSegmentIdsJson: request.focus_segment_ids,
+        operatorInstruction: request.operator_instruction ?? null,
+        projectId,
+        promotionId
+      })
+      .single();
+
+    return {
+      analysis_id: row.analysisId,
+      focus_segment_ids: jsonStringArray(row.focusSegmentIdsJson),
+      promotion_id: row.promotionId,
+      status: "requested"
+    };
   }
 
   async getCampaignDetail(
@@ -110,6 +362,33 @@ export class DashboardCampaignReader {
       content_candidates: contentCandidates.map(toContentCandidate),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
+  }
+
+  private async getCampaignSummary(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardCampaignSummary> {
+    const row = await this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single();
+    return toCampaignSummary(row);
+  }
+
+  private async getPromotionSummary(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardPromotionSummary> {
+    const row = await this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single();
+    return toPromotionSummary(row);
+  }
+
+  private async getPromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardCampaignSegment> {
+    const row = await this.db
+      .query(getDashboardPromotionSegment, { projectId, promotionId, segmentId })
+      .single();
+    return toCampaignSegment(row);
   }
 }
 
@@ -253,6 +532,12 @@ function jsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function jsonStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function countValue(value: number | string | null): number {

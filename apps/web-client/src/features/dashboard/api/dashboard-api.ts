@@ -1,35 +1,63 @@
 import {
   createApiSuccessResponseSchema,
+  DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
+  DashboardCampaignSegmentSchema,
+  DashboardCampaignSummarySchema,
+  DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreatePromotionRequestSchema,
+  DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
+  DashboardDeletePromotionResultSchema,
+  DashboardDeletePromotionSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
+  DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionSummarySchema,
   DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
-  DashboardSegmentQueryPreviewSchema
+  DashboardSegmentQueryPreviewSchema,
+  DashboardStartNextLoopRequestSchema,
+  DashboardUpdateCampaignRequestSchema,
+  DashboardUpdatePromotionRequestSchema,
+  DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
 import type {
+  DashboardAttachSegmentRequest,
   DashboardCampaignDetail,
+  DashboardCampaignSegment,
+  DashboardCampaignSummary,
+  DashboardCreateCampaignRequest,
   DashboardCreateFunnelRequest,
+  DashboardCreatePromotionRequest,
+  DashboardDeleteCampaignResult,
   DashboardDeleteFunnelResult,
+  DashboardDeletePromotionResult,
+  DashboardDeletePromotionSegmentResult,
   DashboardEventCatalog,
   DashboardFunnel,
   DashboardFunnelMetrics,
   DashboardPromotionDetail,
+  DashboardPromotionSummary,
+  DashboardNextLoopAnalysis,
   DashboardSavedSegmentList,
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
-  DashboardSegmentQueryPreviewRequest
+  DashboardSegmentQueryPreviewRequest,
+  DashboardStartNextLoopRequest,
+  DashboardUpdateCampaignRequest,
+  DashboardUpdatePromotionRequest,
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -108,6 +136,80 @@ export async function fetchDashboardCampaignDetail(
   );
 }
 
+export async function createDashboardCampaign(
+  query: DashboardQuery,
+  requestBody: DashboardCreateCampaignRequest
+): Promise<DashboardCampaignSummary> {
+  const parsedBody = DashboardCreateCampaignRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/campaigns`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function updateDashboardCampaign(
+  query: DashboardQuery,
+  campaignId: string,
+  requestBody: DashboardUpdateCampaignRequest
+): Promise<DashboardCampaignSummary> {
+  const parsedBody = DashboardUpdateCampaignRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function deleteDashboardCampaign(
+  query: DashboardQuery,
+  campaignId: string
+): Promise<DashboardDeleteCampaignResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeleteCampaignResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
 export async function fetchDashboardPromotionDetail(
   query: DashboardQuery,
   promotionId: string,
@@ -119,6 +221,81 @@ export async function fetchDashboardPromotionDetail(
     query,
     signal
   );
+}
+
+export async function createDashboardPromotion(
+  query: DashboardQuery,
+  campaignId: string,
+  requestBody: DashboardCreatePromotionRequest
+): Promise<DashboardPromotionSummary> {
+  const parsedBody = DashboardCreatePromotionRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}/promotions`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardPromotionSummarySchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function updateDashboardPromotion(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardUpdatePromotionRequest
+): Promise<DashboardPromotionSummary> {
+  const parsedBody = DashboardUpdatePromotionRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardPromotionSummarySchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function deleteDashboardPromotion(
+  query: DashboardQuery,
+  promotionId: string
+): Promise<DashboardDeletePromotionResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeletePromotionResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function fetchDashboardSegmentDetail(
@@ -133,6 +310,107 @@ export async function fetchDashboardSegmentDetail(
     query,
     signal
   );
+}
+
+export async function attachDashboardSegmentToPromotion(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardAttachSegmentRequest
+): Promise<DashboardCampaignSegment> {
+  const parsedBody = DashboardAttachSegmentRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardCampaignSegmentSchema).parse(await response.json())
+    .data;
+}
+
+export async function updateDashboardPromotionSegment(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  requestBody: DashboardUpdatePromotionSegmentRequest
+): Promise<DashboardCampaignSegment> {
+  const parsedBody = DashboardUpdatePromotionSegmentRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardCampaignSegmentSchema).parse(await response.json())
+    .data;
+}
+
+export async function deleteDashboardPromotionSegment(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string
+): Promise<DashboardDeletePromotionSegmentResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeletePromotionSegmentResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function startDashboardNextLoopAnalysis(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardStartNextLoopRequest
+): Promise<DashboardNextLoopAnalysis> {
+  const parsedBody = DashboardStartNextLoopRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/next-loop`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardNextLoopAnalysisSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function deleteDashboardFunnel(

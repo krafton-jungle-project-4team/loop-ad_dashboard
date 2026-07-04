@@ -1,20 +1,34 @@
-import { Body, Controller, Delete, Get, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
+  DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
+  DashboardCampaignSegmentSchema,
+  DashboardCampaignSummarySchema,
+  DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreatePromotionRequestSchema,
+  DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
+  DashboardDeletePromotionResultSchema,
+  DashboardDeletePromotionSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
+  DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionSummarySchema,
   DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
-  DashboardSegmentQueryPreviewSchema
+  DashboardSegmentQueryPreviewSchema,
+  DashboardStartNextLoopRequestSchema,
+  DashboardUpdateCampaignRequestSchema,
+  DashboardUpdatePromotionRequestSchema,
+  DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -30,6 +44,136 @@ export class DashboardController {
   async main(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardMainSchema.parse(await this.dashboardQuery.main(requiredProjectId));
+  }
+
+  @Post("campaigns")
+  async createCampaign(
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardCreateCampaignRequestSchema.parse(body);
+    return DashboardCampaignSummarySchema.parse(
+      await this.dashboardQuery.createCampaign(requiredProjectId, request)
+    );
+  }
+
+  @Patch("campaigns/:campaign_id")
+  async updateCampaign(
+    @Param("campaign_id") campaignId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardUpdateCampaignRequestSchema.parse(body);
+    return DashboardCampaignSummarySchema.parse(
+      await this.dashboardQuery.updateCampaign(requiredProjectId, campaignId, request)
+    );
+  }
+
+  @Delete("campaigns/:campaign_id")
+  async deleteCampaign(
+    @Param("campaign_id") campaignId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardDeleteCampaignResultSchema.parse(
+      await this.dashboardQuery.stopCampaign(requiredProjectId, campaignId)
+    );
+  }
+
+  @Post("campaigns/:campaign_id/promotions")
+  async createPromotion(
+    @Param("campaign_id") campaignId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardCreatePromotionRequestSchema.parse(body);
+    return DashboardPromotionSummarySchema.parse(
+      await this.dashboardQuery.createPromotion(requiredProjectId, campaignId, request)
+    );
+  }
+
+  @Patch("promotions/:promotion_id")
+  async updatePromotion(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardUpdatePromotionRequestSchema.parse(body);
+    return DashboardPromotionSummarySchema.parse(
+      await this.dashboardQuery.updatePromotion(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Delete("promotions/:promotion_id")
+  async deletePromotion(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardDeletePromotionResultSchema.parse(
+      await this.dashboardQuery.stopPromotion(requiredProjectId, promotionId)
+    );
+  }
+
+  @Post("promotions/:promotion_id/segments")
+  async attachSegmentToPromotion(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardAttachSegmentRequestSchema.parse(body);
+    return DashboardCampaignSegmentSchema.parse(
+      await this.dashboardQuery.attachSegmentToPromotion(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Patch("promotions/:promotion_id/segments/:segment_id")
+  async updatePromotionSegment(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardUpdatePromotionSegmentRequestSchema.parse(body);
+    return DashboardCampaignSegmentSchema.parse(
+      await this.dashboardQuery.updatePromotionSegment(
+        requiredProjectId,
+        promotionId,
+        segmentId,
+        request
+      )
+    );
+  }
+
+  @Delete("promotions/:promotion_id/segments/:segment_id")
+  async deletePromotionSegment(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardDeletePromotionSegmentResultSchema.parse(
+      await this.dashboardQuery.stopPromotionSegment(requiredProjectId, promotionId, segmentId)
+    );
+  }
+
+  @Post("promotions/:promotion_id/next-loop")
+  async startNextLoopAnalysis(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardStartNextLoopRequestSchema.parse(body);
+    return DashboardNextLoopAnalysisSchema.parse(
+      await this.dashboardQuery.startNextLoopAnalysis(requiredProjectId, promotionId, request)
+    );
   }
 
   @Get("campaigns/:campaign_id")

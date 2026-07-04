@@ -3,18 +3,32 @@ import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactiona
 import type {
   DashboardCreateFunnelRequest,
   DashboardCampaignDetail,
+  DashboardCampaignSegment,
+  DashboardCampaignSummary,
+  DashboardAttachSegmentRequest,
+  DashboardCreateCampaignRequest,
+  DashboardDeleteCampaignResult,
+  DashboardCreatePromotionRequest,
+  DashboardDeletePromotionResult,
+  DashboardDeletePromotionSegmentResult,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnelList,
   DashboardFunnelMetrics,
   DashboardMain,
+  DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
+  DashboardPromotionSummary,
   DashboardSavedSegment,
   DashboardSavedSegmentList,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
-  DashboardSegmentQueryPreviewRequest
+  DashboardSegmentQueryPreviewRequest,
+  DashboardStartNextLoopRequest,
+  DashboardUpdateCampaignRequest,
+  DashboardUpdatePromotionRequest,
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
@@ -38,6 +52,104 @@ export class DashboardQueryService {
 
   async main(projectId: string): Promise<DashboardMain> {
     return { campaigns: await this.campaignReader.listCampaigns(projectId) };
+  }
+
+  async createCampaign(
+    projectId: string,
+    request: DashboardCreateCampaignRequest
+  ): Promise<DashboardCampaignSummary> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.createCampaign(projectId, request)
+    );
+  }
+
+  async updateCampaign(
+    projectId: string,
+    campaignId: string,
+    request: DashboardUpdateCampaignRequest
+  ): Promise<DashboardCampaignSummary> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.updateCampaign(projectId, campaignId, request)
+    );
+  }
+
+  async stopCampaign(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardDeleteCampaignResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.stopCampaign(projectId, campaignId)
+    );
+  }
+
+  async createPromotion(
+    projectId: string,
+    campaignId: string,
+    request: DashboardCreatePromotionRequest
+  ): Promise<DashboardPromotionSummary> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.createPromotion(projectId, campaignId, request)
+    );
+  }
+
+  async updatePromotion(
+    projectId: string,
+    promotionId: string,
+    request: DashboardUpdatePromotionRequest
+  ): Promise<DashboardPromotionSummary> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.updatePromotion(projectId, promotionId, request)
+    );
+  }
+
+  async stopPromotion(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardDeletePromotionResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.stopPromotion(projectId, promotionId)
+    );
+  }
+
+  async attachSegmentToPromotion(
+    projectId: string,
+    promotionId: string,
+    request: DashboardAttachSegmentRequest
+  ): Promise<DashboardCampaignSegment> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.attachSegmentToPromotion(projectId, promotionId, request)
+    );
+  }
+
+  async updatePromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    request: DashboardUpdatePromotionSegmentRequest
+  ): Promise<DashboardCampaignSegment> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.updatePromotionSegment(projectId, promotionId, segmentId, request)
+    );
+  }
+
+  async stopPromotionSegment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardDeletePromotionSegmentResult> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.stopPromotionSegment(projectId, promotionId, segmentId)
+    );
+  }
+
+  async startNextLoopAnalysis(
+    projectId: string,
+    promotionId: string,
+    request: DashboardStartNextLoopRequest
+  ): Promise<DashboardNextLoopAnalysis> {
+    return this.transactionHost.withTransaction(() =>
+      this.campaignReader.startNextLoopAnalysis(projectId, promotionId, request)
+    );
   }
 
   async campaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {

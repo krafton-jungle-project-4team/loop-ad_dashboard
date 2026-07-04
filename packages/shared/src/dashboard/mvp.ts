@@ -25,6 +25,60 @@ export const DashboardMainSchema = z.object({
 });
 export type DashboardMain = z.infer<typeof DashboardMainSchema>;
 
+export const DashboardCampaignPrimaryMetricSchema = z.enum([
+  "inflow_rate",
+  "booking_conversion_rate",
+  "funnel_step_rate",
+  "promotion_click_rate",
+  "goal_achievement_rate"
+]);
+export type DashboardCampaignPrimaryMetric = z.infer<
+  typeof DashboardCampaignPrimaryMetricSchema
+>;
+
+export const DashboardCampaignStatusSchema = z.enum([
+  "draft",
+  "active",
+  "paused",
+  "completed",
+  "stopped"
+]);
+export type DashboardCampaignStatus = z.infer<typeof DashboardCampaignStatusSchema>;
+
+export const DashboardCreateCampaignRequestSchema = z.object({
+  campaign_name: z.string().min(1),
+  objective: z.string().nullable().optional(),
+  target_audience: z.string().min(1).default("existing_users"),
+  primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
+  start_date: z.string().date().nullable().optional(),
+  end_date: z.string().date().nullable().optional(),
+  status: DashboardCampaignStatusSchema.default("draft")
+});
+export type DashboardCreateCampaignRequest = z.infer<
+  typeof DashboardCreateCampaignRequestSchema
+>;
+
+export const DashboardUpdateCampaignRequestSchema = z.object({
+  campaign_name: z.string().min(1).optional(),
+  objective: z.string().nullable().optional(),
+  target_audience: z.string().min(1).optional(),
+  primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
+  start_date: z.string().date().nullable().optional(),
+  end_date: z.string().date().nullable().optional(),
+  status: DashboardCampaignStatusSchema.optional()
+});
+export type DashboardUpdateCampaignRequest = z.infer<
+  typeof DashboardUpdateCampaignRequestSchema
+>;
+
+export const DashboardDeleteCampaignResultSchema = z.object({
+  campaign_id: z.string(),
+  status: z.literal("stopped")
+});
+export type DashboardDeleteCampaignResult = z.infer<
+  typeof DashboardDeleteCampaignResultSchema
+>;
+
 export const DashboardCampaignPromotionSchema = z.object({
   promotion_id: z.string(),
   channel: z.string(),
@@ -39,6 +93,86 @@ export const DashboardCampaignPromotionSchema = z.object({
   updated_at: z.string()
 });
 export type DashboardCampaignPromotion = z.infer<typeof DashboardCampaignPromotionSchema>;
+
+export const DashboardPromotionChannelSchema = z.enum(["email", "sms", "onsite_banner"]);
+export type DashboardPromotionChannel = z.infer<typeof DashboardPromotionChannelSchema>;
+
+export const DashboardPromotionGoalMetricSchema = z.enum([
+  "inflow_rate",
+  "booking_conversion_rate",
+  "funnel_step_rate"
+]);
+export type DashboardPromotionGoalMetric = z.infer<typeof DashboardPromotionGoalMetricSchema>;
+
+export const DashboardPromotionGoalBasisSchema = z.enum(["promotion_average", "all_segments"]);
+export type DashboardPromotionGoalBasis = z.infer<typeof DashboardPromotionGoalBasisSchema>;
+
+export const DashboardPromotionLandingTypeSchema = z.enum([
+  "search_page",
+  "hotel_detail_page",
+  "booking_resume"
+]);
+export type DashboardPromotionLandingType = z.infer<typeof DashboardPromotionLandingTypeSchema>;
+
+export const DashboardPromotionStatusSchema = z.enum([
+  "draft",
+  "analysis_ready",
+  "content_ready",
+  "approved",
+  "running",
+  "evaluating",
+  "partial_goal_met",
+  "goal_met",
+  "goal_not_met",
+  "stopped"
+]);
+export type DashboardPromotionStatus = z.infer<typeof DashboardPromotionStatusSchema>;
+
+export const DashboardCreatePromotionRequestSchema = z.object({
+  channel: DashboardPromotionChannelSchema,
+  marketing_theme: z.string().min(1),
+  target_audience: z.string().min(1).default("existing_users"),
+  goal_metric: DashboardPromotionGoalMetricSchema,
+  goal_target_value: z.number().nonnegative(),
+  goal_basis: DashboardPromotionGoalBasisSchema,
+  min_sample_size: z.number().int().nonnegative().default(1000),
+  max_loop_count: z.number().int().min(1).default(3),
+  message_brief: z.string().nullable().optional(),
+  offer_type: z.string().nullable().optional(),
+  landing_url: z.string().nullable().optional(),
+  landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
+  status: DashboardPromotionStatusSchema.default("draft")
+});
+export type DashboardCreatePromotionRequest = z.infer<
+  typeof DashboardCreatePromotionRequestSchema
+>;
+
+export const DashboardUpdatePromotionRequestSchema = z.object({
+  channel: DashboardPromotionChannelSchema.optional(),
+  marketing_theme: z.string().min(1).optional(),
+  target_audience: z.string().min(1).optional(),
+  goal_metric: DashboardPromotionGoalMetricSchema.optional(),
+  goal_target_value: z.number().nonnegative().optional(),
+  goal_basis: DashboardPromotionGoalBasisSchema.optional(),
+  min_sample_size: z.number().int().nonnegative().optional(),
+  max_loop_count: z.number().int().min(1).optional(),
+  message_brief: z.string().nullable().optional(),
+  offer_type: z.string().nullable().optional(),
+  landing_url: z.string().nullable().optional(),
+  landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
+  status: DashboardPromotionStatusSchema.optional()
+});
+export type DashboardUpdatePromotionRequest = z.infer<
+  typeof DashboardUpdatePromotionRequestSchema
+>;
+
+export const DashboardDeletePromotionResultSchema = z.object({
+  promotion_id: z.string(),
+  status: z.literal("stopped")
+});
+export type DashboardDeletePromotionResult = z.infer<
+  typeof DashboardDeletePromotionResultSchema
+>;
 
 export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.extend({
   campaign_id: z.string(),
@@ -252,6 +386,67 @@ export const DashboardSavedSegmentListSchema = z.object({
   segments: z.array(DashboardSavedSegmentSchema)
 });
 export type DashboardSavedSegmentList = z.infer<typeof DashboardSavedSegmentListSchema>;
+
+export const DashboardSegmentPrioritySchema = z.enum(["low", "medium", "high"]);
+export type DashboardSegmentPriority = z.infer<typeof DashboardSegmentPrioritySchema>;
+
+export const DashboardPromotionSegmentStatusSchema = z.enum([
+  "planned",
+  "content_ready",
+  "approved",
+  "running",
+  "goal_met",
+  "goal_not_met",
+  "insufficient_data",
+  "stopped"
+]);
+export type DashboardPromotionSegmentStatus = z.infer<
+  typeof DashboardPromotionSegmentStatusSchema
+>;
+
+export const DashboardAttachSegmentRequestSchema = z.object({
+  segment_id: z.string().min(1),
+  segment_name: z.string().min(1).optional(),
+  priority: DashboardSegmentPrioritySchema.nullable().optional(),
+  status: DashboardPromotionSegmentStatusSchema.default("planned")
+});
+export type DashboardAttachSegmentRequest = z.infer<
+  typeof DashboardAttachSegmentRequestSchema
+>;
+
+export const DashboardUpdatePromotionSegmentRequestSchema = z.object({
+  segment_name: z.string().min(1).optional(),
+  priority: DashboardSegmentPrioritySchema.nullable().optional(),
+  status: DashboardPromotionSegmentStatusSchema.optional()
+});
+export type DashboardUpdatePromotionSegmentRequest = z.infer<
+  typeof DashboardUpdatePromotionSegmentRequestSchema
+>;
+
+export const DashboardDeletePromotionSegmentResultSchema = z.object({
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  status: z.literal("stopped")
+});
+export type DashboardDeletePromotionSegmentResult = z.infer<
+  typeof DashboardDeletePromotionSegmentResultSchema
+>;
+
+export const DashboardStartNextLoopRequestSchema = z.object({
+  focus_segment_ids: z.array(z.string().min(1)).min(1),
+  operator_instruction: z.string().nullable().optional()
+});
+export type DashboardStartNextLoopRequest = z.infer<
+  typeof DashboardStartNextLoopRequestSchema
+>;
+
+export const DashboardNextLoopAnalysisSchema = z.object({
+  analysis_id: z.string(),
+  promotion_id: z.string(),
+  focus_segment_ids: z.array(z.string()),
+  status: z.literal("requested")
+});
+export type DashboardNextLoopAnalysis = z.infer<typeof DashboardNextLoopAnalysisSchema>;
 
 export const DashboardFunnelStepSchema = z.object({
   step_order: CountSchema,
