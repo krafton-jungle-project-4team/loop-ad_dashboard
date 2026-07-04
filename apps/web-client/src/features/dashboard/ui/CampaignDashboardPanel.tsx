@@ -3806,6 +3806,7 @@ function RealtimeEventTable({
             />
           </div>
           <RealtimeFunnelSummary metrics={metrics} />
+          <RealtimeBreakdownSummary metrics={metrics} />
           <ChartContainer
             className="min-h-[260px] w-full"
             config={{
@@ -3870,6 +3871,97 @@ function RealtimeEventTable({
         <EmptyState message={emptyMessage} />
       )}
     </>
+  );
+}
+
+function RealtimeBreakdownSummary({ metrics }: { metrics: DashboardRealtimeMetrics }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <RealtimeBreakdownList
+        emptyMessage="channel 집계가 없습니다."
+        items={metrics.channel_breakdown}
+        title="channel별 추이"
+      />
+      <RealtimeBreakdownList
+        emptyMessage="landing_type 집계가 없습니다."
+        items={metrics.landing_type_breakdown}
+        title="landing_type별 추이"
+      />
+      <RealtimeBreakdownList
+        emptyMessage="hotel_cluster 집계가 없습니다."
+        items={metrics.hotel_cluster_breakdown}
+        title="hotel_cluster별 추이"
+      />
+      <RealtimeTimeBucketList buckets={metrics.time_buckets} />
+    </div>
+  );
+}
+
+function RealtimeBreakdownList({
+  emptyMessage,
+  items,
+  title
+}: {
+  emptyMessage: string;
+  items: DashboardRealtimeMetrics["channel_breakdown"];
+  title: string;
+}) {
+  const maxCount = Math.max(...items.map((item) => item.event_count), 1);
+
+  return (
+    <div className="grid gap-3 rounded-md border bg-background p-3">
+      <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+      {items.length > 0 ? (
+        <div className="grid gap-3">
+          {items.map((item) => (
+            <div className="grid gap-1.5" key={item.key}>
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-medium">{item.key}</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {formatInteger(item.event_count)} / unique {formatInteger(item.unique_user_count)}
+                </span>
+              </div>
+              <Progress value={(item.event_count / maxCount) * 100} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-sm text-muted-foreground">{emptyMessage}</div>
+      )}
+    </div>
+  );
+}
+
+function RealtimeTimeBucketList({
+  buckets
+}: {
+  buckets: DashboardRealtimeMetrics["time_buckets"];
+}) {
+  const recentBuckets = buckets.slice(-6);
+  const maxCount = Math.max(...recentBuckets.map((bucket) => bucket.event_count), 1);
+
+  return (
+    <div className="grid gap-3 rounded-md border bg-background p-3">
+      <h4 className="text-sm font-semibold text-foreground">time_range별 추이</h4>
+      {recentBuckets.length > 0 ? (
+        <div className="grid gap-3">
+          {recentBuckets.map((bucket) => (
+            <div className="grid gap-1.5" key={bucket.time_bucket}>
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-medium">{bucket.time_bucket}</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {formatInteger(bucket.event_count)} / unique{" "}
+                  {formatInteger(bucket.unique_user_count)}
+                </span>
+              </div>
+              <Progress value={(bucket.event_count / maxCount) * 100} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-sm text-muted-foreground">time_range 집계가 없습니다.</div>
+      )}
+    </div>
   );
 }
 

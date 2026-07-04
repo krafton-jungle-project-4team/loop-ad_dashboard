@@ -306,9 +306,30 @@ export const DashboardRealtimeEventSchema = z.object({
 });
 export type DashboardRealtimeEvent = z.infer<typeof DashboardRealtimeEventSchema>;
 
+export const DashboardRealtimeTimeBucketSchema = z.object({
+  time_bucket: z.string(),
+  event_count: CountSchema,
+  unique_user_count: CountSchema
+});
+export type DashboardRealtimeTimeBucket = z.infer<typeof DashboardRealtimeTimeBucketSchema>;
+
+export const DashboardRealtimeBreakdownItemSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  event_count: CountSchema,
+  unique_user_count: CountSchema
+});
+export type DashboardRealtimeBreakdownItem = z.infer<
+  typeof DashboardRealtimeBreakdownItemSchema
+>;
+
 export const DashboardRealtimeMetricsSchema = z.object({
   total_event_count: CountSchema,
-  events: z.array(DashboardRealtimeEventSchema)
+  events: z.array(DashboardRealtimeEventSchema),
+  time_buckets: z.array(DashboardRealtimeTimeBucketSchema),
+  channel_breakdown: z.array(DashboardRealtimeBreakdownItemSchema),
+  landing_type_breakdown: z.array(DashboardRealtimeBreakdownItemSchema),
+  hotel_cluster_breakdown: z.array(DashboardRealtimeBreakdownItemSchema)
 });
 export type DashboardRealtimeMetrics = z.infer<typeof DashboardRealtimeMetricsSchema>;
 
