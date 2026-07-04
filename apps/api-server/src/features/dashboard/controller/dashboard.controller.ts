@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Inject, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Inject, Param, Post, Query } from "@nestjs/common";
 import {
   DashboardCreateFunnelRequestSchema,
+  DashboardDeleteFunnelResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
+  DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema
 } from "@loopad/shared";
@@ -28,6 +30,17 @@ export class DashboardController {
     return DashboardFunnelListSchema.parse(await this.dashboardQuery.funnels(requiredProjectId));
   }
 
+  @Get("funnels/:funnel_id/metrics")
+  async funnelMetrics(
+    @Param("funnel_id") funnelId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardFunnelMetricsSchema.parse(
+      await this.dashboardQuery.funnelMetrics(requiredProjectId, funnelId)
+    );
+  }
+
   @Get("event-catalog")
   async eventCatalog(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
@@ -42,6 +55,17 @@ export class DashboardController {
     const request = DashboardCreateFunnelRequestSchema.parse(body);
     return DashboardFunnelSchema.parse(
       await this.dashboardQuery.createFunnel(requiredProjectId, request)
+    );
+  }
+
+  @Delete("funnels/:funnel_id")
+  async deleteFunnel(
+    @Param("funnel_id") funnelId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardDeleteFunnelResultSchema.parse(
+      await this.dashboardQuery.deleteFunnel(requiredProjectId, funnelId)
     );
   }
 }
