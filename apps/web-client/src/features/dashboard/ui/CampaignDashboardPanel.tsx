@@ -4639,6 +4639,10 @@ function SegmentInsufficientDataPanel({
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <SummaryItem
+                    label="후보 유저"
+                    value={formatNullableInteger(details.candidateUserCount)}
+                  />
+                  <SummaryItem
                     label="최종 배정"
                     value={formatNullableInteger(details.assignedUserCount ?? metric.sample_size)}
                   />
@@ -4650,8 +4654,20 @@ function SegmentInsufficientDataPanel({
                     label="사전 추정"
                     value={formatInteger(segment.estimated_size)}
                   />
+                  <SummaryItem
+                    label="겹침 제외"
+                    value={formatNullableInteger(details.overlapExcludedUserCount)}
+                  />
+                  <SummaryItem
+                    label="다른 세그먼트 배정"
+                    value={formatNullableInteger(details.assignedToOtherSegmentCount)}
+                  />
                 </div>
                 <InsightBlock label="부족 사유" value={details.reason ?? metric.feedback ?? "-"} />
+                <InsightBlock
+                  label="교집합/배정 근거"
+                  value={insufficientAssignmentSummary(details)}
+                />
                 <InsightBlock label="상세 설명" value={details.note ?? "-"} />
               </div>
             );
@@ -5019,7 +5035,31 @@ function insufficientDataDetails(metric: DashboardCampaignExperimentMetric) {
       "assigned_user_count",
       "assignedUserCount",
       "final_assigned_user_count",
-      "finalAssignedUserCount"
+      "finalAssignedUserCount",
+      "final_assignment_count",
+      "finalAssignmentCount"
+    ]),
+    assignedToOtherSegmentCount: pickJsonNumber(metric.result_json, [
+      "assigned_to_other_segment_count",
+      "assignedToOtherSegmentCount",
+      "lost_to_other_segment_count",
+      "lostToOtherSegmentCount",
+      "other_segment_assigned_count",
+      "otherSegmentAssignedCount"
+    ]),
+    assignmentBuildId: pickJsonString(metric.result_json, [
+      "assignment_build_id",
+      "assignmentBuildId",
+      "segment_assignment_build_id",
+      "segmentAssignmentBuildId"
+    ]),
+    candidateUserCount: pickJsonNumber(metric.result_json, [
+      "candidate_user_count",
+      "candidateUserCount",
+      "estimated_candidate_user_count",
+      "estimatedCandidateUserCount",
+      "pre_assignment_user_count",
+      "preAssignmentUserCount"
     ]),
     minimumRequiredSampleSize: pickJsonNumber(metric.result_json, [
       "minimum_required_sample_size",
@@ -5027,14 +5067,54 @@ function insufficientDataDetails(metric: DashboardCampaignExperimentMetric) {
       "min_sample_size",
       "minSampleSize"
     ]),
+    overlapExcludedUserCount: pickJsonNumber(metric.result_json, [
+      "overlap_excluded_user_count",
+      "overlapExcludedUserCount",
+      "overlap_removed_user_count",
+      "overlapRemovedUserCount",
+      "excluded_by_overlap_count",
+      "excludedByOverlapCount"
+    ]),
+    thresholdFallbackCount: pickJsonNumber(metric.result_json, [
+      "threshold_fallback_count",
+      "thresholdFallbackCount",
+      "below_threshold_user_count",
+      "belowThresholdUserCount"
+    ]),
     note: pickJsonString(metric.result_json, ["note", "message", "description"]),
     reason: pickJsonString(metric.result_json, [
       "insufficient_reason",
       "insufficientReason",
       "reason",
       "cause"
+    ]),
+    overlapReason: pickJsonString(metric.result_json, [
+      "overlap_reason",
+      "overlapReason",
+      "assignment_reason",
+      "assignmentReason"
     ])
   };
+}
+
+function insufficientAssignmentSummary(
+  details: ReturnType<typeof insufficientDataDetails>
+): string {
+  const lines = [
+    details.assignmentBuildId ? `assignment_build_id: ${details.assignmentBuildId}` : null,
+    details.overlapReason ? `overlap_reason: ${details.overlapReason}` : null,
+    details.assignedToOtherSegmentCount !== null
+      ? `assigned_to_other_segment_count: ${formatInteger(details.assignedToOtherSegmentCount)}`
+      : null,
+    details.overlapExcludedUserCount !== null
+      ? `overlap_excluded_user_count: ${formatInteger(details.overlapExcludedUserCount)}`
+      : null,
+    details.thresholdFallbackCount !== null
+      ? `threshold_fallback_count: ${formatInteger(details.thresholdFallbackCount)}`
+      : null
+  ].filter((line): line is string => Boolean(line));
+
+  return lines.length > 0 ? lines.join("\n") : "-";
 }
 
 function formatNullableInteger(value: number | null | undefined) {
