@@ -546,14 +546,18 @@ function toCampaignSummary(
     campaign_id: row.campaignId,
     campaign_name: row.campaignName,
     objective: row.objective,
+    target_audience: row.targetAudience,
     primary_metric: row.primaryMetric,
     status: row.status,
     start_date: formatDate(row.startDate),
     end_date: formatDate(row.endDate),
+    max_loop_count: countValue(row.maxLoopCount),
+    current_loop_count: countValue(row.currentLoopCount),
     promotion_count: countValue(row.promotionCount),
     segment_count: countValue(row.segmentCount),
     ad_experiment_count: countValue(row.adExperimentCount),
     latest_goal_achievement_rate: nullableRate(row.latestGoalAchievementRate),
+    next_action: row.nextAction ?? "monitor",
     updated_at: row.updatedAt.toISOString()
   };
 }

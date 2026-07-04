@@ -8,14 +8,18 @@ export const DashboardCampaignSummarySchema = z.object({
   campaign_id: z.string(),
   campaign_name: z.string(),
   objective: z.string().nullable(),
+  target_audience: z.string(),
   primary_metric: z.string().nullable(),
   status: z.string(),
   start_date: z.string().nullable(),
   end_date: z.string().nullable(),
+  max_loop_count: CountSchema,
+  current_loop_count: CountSchema,
   promotion_count: CountSchema,
   segment_count: CountSchema,
   ad_experiment_count: CountSchema,
   latest_goal_achievement_rate: RateSchema.nullable(),
+  next_action: z.string(),
   updated_at: z.string()
 });
 export type DashboardCampaignSummary = z.infer<typeof DashboardCampaignSummarySchema>;

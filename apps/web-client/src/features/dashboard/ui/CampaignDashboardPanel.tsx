@@ -1769,11 +1769,17 @@ function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
         />
       </div>
       <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="대상" value={campaign.target_audience} />
         <SummaryItem label="기간" value={formatPeriod(campaign)} />
+        <SummaryItem
+          label="루프"
+          value={`${formatInteger(campaign.current_loop_count)} / ${formatInteger(campaign.max_loop_count)}`}
+        />
         <SummaryItem label="프로모션" value={formatInteger(campaign.promotion_count)} />
         <SummaryItem label="세그먼트" value={formatInteger(campaign.segment_count)} />
         <SummaryItem label="광고 실험" value={formatInteger(campaign.ad_experiment_count)} />
         <SummaryItem label="주요 지표" value={campaign.primary_metric ?? "-"} />
+        <SummaryItem label="다음 액션" value={campaign.next_action} />
         <SummaryItem
           label="실시간 이벤트"
           value={formatInteger(detail.realtime_metrics.total_event_count)}

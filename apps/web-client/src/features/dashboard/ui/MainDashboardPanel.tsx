@@ -28,11 +28,14 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
               <TableRow>
                 <TableHead>캠페인</TableHead>
                 <TableHead>상태</TableHead>
+                <TableHead>대상</TableHead>
                 <TableHead>기간</TableHead>
+                <TableHead className="text-right">루프</TableHead>
                 <TableHead className="text-right">프로모션</TableHead>
                 <TableHead className="text-right">세그먼트</TableHead>
                 <TableHead className="text-right">실험</TableHead>
                 <TableHead className="text-right">최근 목표 달성률</TableHead>
+                <TableHead>다음 액션</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -64,7 +67,11 @@ function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
       <TableCell>
         <Badge variant="secondary">{campaign.status}</Badge>
       </TableCell>
+      <TableCell>{campaign.target_audience}</TableCell>
       <TableCell>{formatPeriod(campaign)}</TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatInteger(campaign.current_loop_count)} / {formatInteger(campaign.max_loop_count)}
+      </TableCell>
       <TableCell className="text-right tabular-nums">
         {formatInteger(campaign.promotion_count)}
       </TableCell>
@@ -78,6 +85,9 @@ function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
         {campaign.latest_goal_achievement_rate === null
           ? "-"
           : formatPercent(campaign.latest_goal_achievement_rate)}
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline">{campaign.next_action}</Badge>
       </TableCell>
     </TableRow>
   );
