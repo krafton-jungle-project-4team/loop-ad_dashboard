@@ -47,9 +47,10 @@ import {
   BarChart3,
   CircleAlert,
   CircleCheck,
-  GitBranch,
+  Database,
   Map,
   Megaphone,
+  Repeat2,
   RefreshCw,
   Target,
   Workflow,
@@ -69,7 +70,7 @@ import { useDashboardQueryState } from "../model/dashboard-query.js";
 import { dashboardCampaignDetailQueryKey } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 
-type FlowNodeKind = "campaign" | "promotion" | "result" | "nextLoop";
+type FlowNodeKind = "campaign" | "promotion" | "collection" | "result" | "nextLoop";
 type FlowPathTone = "normal" | "warning" | "insufficient";
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost" | "link";
 
@@ -95,7 +96,9 @@ type FlowSummaryItem = {
 
 type SegmentSummary = {
   action: DetailAction;
+  contentTitle: string | null;
   estimatedSize: number;
+  goalAchievementRate: number | null;
   goalMetric: string;
   id: string;
   latestActualValue: number | null;
@@ -107,6 +110,7 @@ type SegmentSummary = {
   sampleRatio: number;
   sampleSize: number;
   status: string;
+  targetValue: number | null;
 };
 
 type PromotionEvaluationSummary = {
@@ -114,6 +118,7 @@ type PromotionEvaluationSummary = {
   goalNotMetCount: number;
   insufficientDataCount: number;
   latestMetric: DashboardCampaignExperimentMetric | null;
+  lowestGoalAchievementRate: number | null;
   metrics: DashboardCampaignExperimentMetric[];
   nextLoopCount: number;
   retrySegmentIds: string[];
@@ -145,13 +150,15 @@ type CampaignFlowGraph = {
 };
 
 const CAMPAIGN_X = 0;
-const PROMOTION_X = 360;
-const RESULT_X = 760;
-const NEXT_LOOP_X = 1110;
-const ROW_GAP = 238;
+const PROMOTION_X = 340;
+const COLLECTION_X = 690;
+const RESULT_X = 1010;
+const NEXT_LOOP_X = 1320;
+const ROW_GAP = 204;
 
 const nodeTypes = {
   campaign: CampaignNode,
+  collection: CollectionNode,
   nextLoop: NextLoopNode,
   promotion: PromotionNode,
   result: ResultNode
@@ -444,7 +451,8 @@ function CampaignNode(props: NodeProps) {
 
 function PromotionNode(props: NodeProps) {
   const data = props.data as FlowNodeData;
-  const segments = data.segments ?? [];
+  const promotion = data.promotion;
+  const weakestGoal = formatOptionalGoalAchievement(data.evaluation?.lowestGoalAchievementRate);
 
   return (
     <FlowNodeShell
@@ -457,21 +465,10 @@ function PromotionNode(props: NodeProps) {
       widthClassName="w-[340px]"
     >
       <NodeSummaryGrid items={data.summary} />
-      <div className="grid gap-1.5">
-        {segments.length > 0 ? (
-          segments
-            .slice(0, 10)
-            .map((segment) => <SegmentSummaryLink key={segment.id} segment={segment} />)
-        ) : (
-          <div className="rounded-md border border-dashed border-black/10 bg-zinc-50 px-2 py-2 text-xs text-muted-foreground">
-            연결 세그먼트 없음
-          </div>
-        )}
-        {segments.length > 10 ? (
-          <div className="text-xs text-muted-foreground">
-            +{formatInteger(segments.length - 10)} segments
-          </div>
-        ) : null}
+      <div className="grid gap-1.5 rounded-md bg-zinc-50 px-2 py-2 text-xs text-muted-foreground">
+        <MetricLine label="weakest goal" value={weakestGoal} />
+        <MetricLine label="next action" value={promotion?.next_action ?? "-"} />
+        <MetricLine label="audience" value={promotion?.target_audience ?? "-"} />
       </div>
       <Handle
         className="!size-2 !border-white !bg-zinc-400"
@@ -480,6 +477,46 @@ function PromotionNode(props: NodeProps) {
       />
       <Handle
         className="!size-2 !border-white !bg-zinc-400"
+        position={Position.Right}
+        type="source"
+      />
+      <Handle
+        className="!size-2 !border-white !bg-amber-500"
+        id="loop-target"
+        position={Position.Bottom}
+        type="target"
+      />
+    </FlowNodeShell>
+  );
+}
+
+function CollectionNode(props: NodeProps) {
+  const data = props.data as FlowNodeData;
+
+  return (
+    <FlowNodeShell
+      icon={Database}
+      kind="collection"
+      status={data.status}
+      subtitle={data.subtitle}
+      title={data.title}
+      tone={data.tone}
+      widthClassName="w-[260px]"
+    >
+      <NodeSummaryGrid items={data.summary} />
+      <div className="rounded-md bg-sky-50 px-2 py-2 text-xs text-sky-900">
+        <MetricLine
+          label="coverage"
+          value={formatCollectionCoverage(data.evaluation?.totalSampleSize, data.promotion)}
+        />
+      </div>
+      <Handle
+        className="!size-2 !border-white !bg-sky-500"
+        position={Position.Left}
+        type="target"
+      />
+      <Handle
+        className="!size-2 !border-white !bg-sky-500"
         position={Position.Right}
         type="source"
       />
@@ -536,7 +573,7 @@ function NextLoopNode(props: NodeProps) {
 
   return (
     <FlowNodeShell
-      icon={GitBranch}
+      icon={Repeat2}
       kind="nextLoop"
       status={data.status}
       subtitle={data.subtitle}
@@ -553,6 +590,12 @@ function NextLoopNode(props: NodeProps) {
         className="!size-2 !border-white !bg-amber-500"
         position={Position.Left}
         type="target"
+      />
+      <Handle
+        className="!size-2 !border-white !bg-amber-500"
+        id="loop-source"
+        position={Position.Bottom}
+        type="source"
       />
     </FlowNodeShell>
   );
@@ -594,6 +637,7 @@ function FlowNodeShell({
               "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md",
               kind === "campaign" && "bg-[#0066cc] text-white",
               kind === "promotion" && "bg-zinc-900 text-white",
+              kind === "collection" && "bg-sky-100 text-sky-800",
               kind === "result" && "bg-zinc-100 text-zinc-700",
               kind === "nextLoop" && "bg-amber-100 text-amber-800"
             )}
@@ -639,29 +683,6 @@ function NodeSummaryGrid({ items }: { items: FlowSummaryItem[] }) {
   );
 }
 
-function SegmentSummaryLink({ segment }: { segment: SegmentSummary }) {
-  return (
-    <DetailAnchor
-      action={segment.action}
-      className={cn(
-        "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-black/10 bg-white px-2 py-1.5 text-xs transition-colors hover:bg-zinc-50",
-        segment.nextLoopRequired && "border-amber-300 bg-amber-50"
-      )}
-    >
-      <span className="min-w-0">
-        <span className="block truncate font-medium text-[#1d1d1f]">{segment.name}</span>
-        <span className="block truncate text-[10px] text-muted-foreground">
-          {segment.goalMetric} · {formatInteger(segment.sampleSize)}
-        </span>
-      </span>
-      <span className="flex shrink-0 items-center gap-1">
-        <StatusBadge status={segment.status} />
-        <ArrowRight size={12} />
-      </span>
-    </DetailAnchor>
-  );
-}
-
 function NodeMetricsDrawer({
   node,
   onOpenChange
@@ -682,14 +703,16 @@ function NodeMetricsDrawer({
                   "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md",
                   data.kind === "campaign" && "bg-[#0066cc] text-white",
                   data.kind === "promotion" && "bg-zinc-900 text-white",
+                  data.kind === "collection" && "bg-sky-100 text-sky-800",
                   data.kind === "result" && "bg-zinc-100 text-zinc-700",
                   data.kind === "nextLoop" && "bg-amber-100 text-amber-800"
                 )}
               >
                 {data.kind === "campaign" ? <Map size={16} /> : null}
                 {data.kind === "promotion" ? <Megaphone size={16} /> : null}
+                {data.kind === "collection" ? <Database size={16} /> : null}
                 {data.kind === "result" ? <BarChart3 size={16} /> : null}
-                {data.kind === "nextLoop" ? <GitBranch size={16} /> : null}
+                {data.kind === "nextLoop" ? <Repeat2 size={16} /> : null}
               </div>
               <div className="min-w-0">
                 <DrawerTitle className="truncate text-base font-semibold">{data.title}</DrawerTitle>
@@ -729,7 +752,16 @@ function NodeMetricsDrawer({
             </section>
             <section className="grid min-w-0 content-start gap-4">
               {data.kind === "promotion" ? (
-                <SegmentSummaryList segments={data.segments ?? []} />
+                <>
+                  <PromotionNodeDetail promotion={data.promotion} />
+                  <SegmentSummaryList segments={data.segments ?? []} />
+                </>
+              ) : null}
+              {data.kind === "collection" ? (
+                <>
+                  <CollectionNodeDetail evaluation={data.evaluation} promotion={data.promotion} />
+                  <SegmentSummaryList segments={data.segments ?? []} />
+                </>
               ) : null}
               {data.kind === "result" ? (
                 <ExperimentMetricList metrics={data.evaluation?.metrics ?? []} />
@@ -771,7 +803,62 @@ function CampaignNodeDetail({ campaign }: { campaign: DashboardCampaignSummary |
   );
 }
 
+function PromotionNodeDetail({
+  promotion
+}: {
+  promotion: DashboardCampaignPromotion | undefined;
+}) {
+  if (!promotion) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-3 text-sm">
+      <MetricLine
+        label="루프 회차"
+        value={`${formatInteger(promotion.current_loop_count)} / ${formatInteger(promotion.max_loop_count)}`}
+      />
+      <MetricLine label="메시지" value={promotion.message_brief ?? "-"} />
+      <MetricLine label="오퍼" value={promotion.offer_type ?? "-"} />
+      <MetricLine label="랜딩" value={promotion.landing_type ?? promotion.landing_url ?? "-"} />
+      <MetricLine label="다음 액션" value={promotion.next_action} />
+    </div>
+  );
+}
+
+function CollectionNodeDetail({
+  evaluation,
+  promotion
+}: {
+  evaluation: PromotionEvaluationSummary | undefined;
+  promotion: DashboardCampaignPromotion | undefined;
+}) {
+  if (!promotion) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-3 text-sm">
+      <MetricLine
+        label="수집 표본"
+        value={formatInteger(evaluation?.totalSampleSize ?? 0)}
+      />
+      <MetricLine label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
+      <MetricLine
+        label="수집률"
+        value={formatCollectionCoverage(evaluation?.totalSampleSize, promotion)}
+      />
+      <MetricLine
+        label="최저 달성률"
+        value={formatOptionalGoalAchievement(evaluation?.lowestGoalAchievementRate)}
+      />
+    </div>
+  );
+}
+
 function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
+  const sortedSegments = sortSegmentsByGoalAchievement(segments);
+
   if (segments.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-black/10 bg-zinc-50 px-3 py-3 text-sm text-muted-foreground">
@@ -782,8 +869,10 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
 
   return (
     <div className="grid gap-2">
-      <div className="text-sm font-semibold text-[#1d1d1f]">세그먼트</div>
-      {segments.map((segment) => (
+      <div className="text-sm font-semibold text-[#1d1d1f]">
+        세그먼트 · 목표 달성률 낮은 순
+      </div>
+      {sortedSegments.map((segment) => (
         <DetailAnchor
           action={segment.action}
           className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-2 text-sm transition-colors hover:bg-zinc-50"
@@ -794,14 +883,21 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
             <StatusBadge status={segment.status} />
             {segment.nextLoopRequired ? <Badge variant="destructive">next loop</Badge> : null}
           </div>
-          <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
-            <MetricLine label="sample" value={formatInteger(segment.sampleSize)} />
-            <MetricLine label="ratio" value={formatRateValue(segment.sampleRatio)} />
+          <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-4">
             <MetricLine
-              label="latest"
+              label="achievement"
+              value={formatOptionalGoalAchievement(segment.goalAchievementRate)}
+            />
+            <MetricLine
+              label="actual"
               value={formatOptionalMetricValue(segment.latestActualValue)}
             />
+            <MetricLine label="target" value={formatOptionalMetricValue(segment.targetValue)} />
+            <MetricLine label="sample" value={formatInteger(segment.sampleSize)} />
           </div>
+          {segment.contentTitle ? (
+            <div className="text-xs text-muted-foreground">{segment.contentTitle}</div>
+          ) : null}
         </DetailAnchor>
       ))}
     </div>
@@ -809,7 +905,7 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
 }
 
 function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimentMetric[] }) {
-  const sortedMetrics = sortMetricsByNewest(metrics).slice(0, 8);
+  const sortedMetrics = sortMetricsByGoalAchievement(metrics).slice(0, 8);
 
   if (sortedMetrics.length === 0) {
     return (
@@ -821,7 +917,9 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
 
   return (
     <div className="grid gap-2">
-      <div className="text-sm font-semibold text-[#1d1d1f]">실험 지표</div>
+      <div className="text-sm font-semibold text-[#1d1d1f]">
+        실험 지표 · 목표 달성률 낮은 순
+      </div>
       {sortedMetrics.map((metric) => (
         <div
           className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-2 text-sm"
@@ -832,7 +930,11 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
             <StatusBadge status={metric.status} />
             {metric.next_loop_required ? <Badge variant="destructive">next loop</Badge> : null}
           </div>
-          <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-4">
+          <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-5">
+            <MetricLine
+              label="achievement"
+              value={formatOptionalGoalAchievement(goalAchievementRate(metric.actual_value, metric.target_value))}
+            />
             <MetricLine label="actual" value={formatMetricValue(metric.actual_value)} />
             <MetricLine label="target" value={formatMetricValue(metric.target_value)} />
             <MetricLine label="sample" value={formatInteger(metric.sample_size)} />
@@ -902,8 +1004,12 @@ function buildCampaignFlowGraph(
   const edges: Edge[] = [];
   const campaignId = detail.campaign.campaign_id;
   const campaignNodeId = `campaign:${campaignId}`;
+  const sortedPromotions = sortPromotionsByGoalAchievement(
+    detail.promotions,
+    detail.experiment_metrics
+  );
   const campaignY =
-    detail.promotions.length > 1 ? ((detail.promotions.length - 1) * ROW_GAP) / 2 : 0;
+    sortedPromotions.length > 1 ? ((sortedPromotions.length - 1) * ROW_GAP) / 2 : 0;
 
   nodes.push({
     data: {
@@ -934,7 +1040,7 @@ function buildCampaignFlowGraph(
 
   let nextLoopCandidateCount = 0;
 
-  detail.promotions.forEach((promotion, index) => {
+  sortedPromotions.forEach((promotion, index) => {
     const y = index * ROW_GAP;
     const promotionSegments = detail.segments.filter(
       (segment) => segment.promotion_id === promotion.promotion_id
@@ -945,13 +1051,15 @@ function buildCampaignFlowGraph(
     const evaluation = summarizeEvaluation(promotion, promotionSegments, promotionMetrics);
     const tone = pathToneForPromotion(promotion, promotionSegments, promotionMetrics);
     const segmentSummaries = promotionSegments.map((segment) =>
-      createSegmentSummary(segment, promotionMetrics, projectId, campaignId)
+      createSegmentSummary(segment, promotionMetrics, projectId, campaignId, promotion)
     );
     const nextLoopSegments = segmentSummaries.filter((segment) => segment.nextLoopRequired);
     const hasNextLoopNode = isNextLoopCandidate(promotion, promotionSegments, promotionMetrics);
     const promotionNodeId = `promotion:${promotion.promotion_id}`;
+    const collectionNodeId = `collection:${promotion.promotion_id}`;
     const resultNodeId = `result:${promotion.promotion_id}`;
     const nextLoopNodeId = `next-loop:${promotion.promotion_id}`;
+    const collectionTone = evaluation.insufficientDataCount > 0 ? "insufficient" : "normal";
 
     if (hasNextLoopNode) {
       nextLoopCandidateCount += 1;
@@ -973,13 +1081,17 @@ function buildCampaignFlowGraph(
         status: promotion.status,
         subtitle: promotion.channel,
         summary: [
-          { label: "segments", value: formatInteger(promotionSegments.length) },
           {
-            label: "loop",
-            value: `${formatInteger(promotion.current_loop_count)} / ${formatInteger(promotion.max_loop_count)}`
+            label: "loop run",
+            value: `L${formatInteger(promotion.current_loop_count)} / ${formatInteger(promotion.max_loop_count)}`
           },
           { label: "goal", value: formatMetricValue(promotion.goal_target_value) },
-          { label: "latest", value: formatOptionalMetricValue(promotion.latest_actual_value), tone }
+          {
+            label: "weakest",
+            value: formatOptionalGoalAchievement(evaluation.lowestGoalAchievementRate),
+            tone
+          },
+          { label: "segments", value: formatInteger(promotionSegments.length) }
         ],
         title: promotion.marketing_theme,
         tone
@@ -987,6 +1099,39 @@ function buildCampaignFlowGraph(
       id: promotionNodeId,
       position: { x: PROMOTION_X, y },
       type: "promotion"
+    });
+
+    nodes.push({
+      data: {
+        action: createAction(
+          projectId,
+          campaignId,
+          promotion.promotion_id,
+          "",
+          "campaign-experiment-metrics"
+        ),
+        evaluation,
+        kind: "collection",
+        promotion,
+        segments: segmentSummaries,
+        status: collectionStatusForPromotion(promotion, evaluation),
+        subtitle: promotion.goal_metric,
+        summary: [
+          { label: "sample", value: formatInteger(evaluation.totalSampleSize) },
+          { label: "min sample", value: formatInteger(promotion.min_sample_size) },
+          { label: "metrics", value: formatInteger(evaluation.metrics.length) },
+          {
+            label: "coverage",
+            value: formatCollectionCoverage(evaluation.totalSampleSize, promotion),
+            tone: collectionTone
+          }
+        ],
+        title: "수집",
+        tone: collectionTone
+      },
+      id: collectionNodeId,
+      position: { x: COLLECTION_X, y },
+      type: "collection"
     });
 
     nodes.push({
@@ -1043,6 +1188,14 @@ function buildCampaignFlowGraph(
           subtitle: promotion.marketing_theme,
           summary: [
             {
+              label: "next loop",
+              value:
+                promotion.current_loop_count < promotion.max_loop_count
+                  ? `L${formatInteger(promotion.current_loop_count + 1)} / ${formatInteger(promotion.max_loop_count)}`
+                  : "maxed",
+              tone
+            },
+            {
               label: "required metrics",
               value: formatInteger(evaluation.nextLoopCount),
               tone: evaluation.nextLoopCount > 0 ? "warning" : "normal"
@@ -1059,7 +1212,7 @@ function buildCampaignFlowGraph(
               tone: evaluation.insufficientDataCount > 0 ? "insufficient" : "normal"
             }
           ],
-          title: "Next Loop",
+          title: `Next Loop L${formatInteger(Math.min(promotion.current_loop_count + 1, promotion.max_loop_count))}`,
           tone
         },
         id: nextLoopNodeId,
@@ -1077,11 +1230,27 @@ function buildCampaignFlowGraph(
       )
     );
     edges.push(
-      createFlowEdge(`${promotionNodeId}->${resultNodeId}`, promotionNodeId, resultNodeId, tone)
+      createFlowEdge(
+        `${promotionNodeId}->${collectionNodeId}`,
+        promotionNodeId,
+        collectionNodeId,
+        "normal"
+      )
+    );
+    edges.push(
+      createFlowEdge(`${collectionNodeId}->${resultNodeId}`, collectionNodeId, resultNodeId, tone)
     );
     if (hasNextLoopNode) {
       edges.push(
         createFlowEdge(`${resultNodeId}->${nextLoopNodeId}`, resultNodeId, nextLoopNodeId, tone)
+      );
+      edges.push(
+        createLoopBackEdge(
+          `${nextLoopNodeId}->${promotionNodeId}:loop`,
+          nextLoopNodeId,
+          promotionNodeId,
+          promotion.current_loop_count + 1
+        )
       );
     }
   });
@@ -1114,16 +1283,45 @@ function createFlowEdge(id: string, source: string, target: string, tone: FlowPa
   };
 }
 
+function createLoopBackEdge(id: string, source: string, target: string, nextLoopCount: number): Edge {
+  return {
+    animated: true,
+    id,
+    label: `loop L${formatInteger(nextLoopCount)}`,
+    labelBgBorderRadius: 4,
+    labelBgPadding: [5, 3],
+    labelBgStyle: { fill: "#fffbeb", fillOpacity: 0.95 },
+    labelStyle: { fill: "#92400e", fontSize: 11, fontWeight: 600 },
+    markerEnd: {
+      color: "#d97706",
+      type: MarkerType.ArrowClosed
+    },
+    source,
+    sourceHandle: "loop-source",
+    style: {
+      stroke: "#d97706",
+      strokeDasharray: "8 5",
+      strokeWidth: 2.4
+    },
+    target,
+    targetHandle: "loop-target",
+    type: "smoothstep"
+  };
+}
+
 function createSegmentSummary(
   segment: DashboardCampaignSegment,
   metrics: DashboardCampaignExperimentMetric[],
   projectId: string,
-  campaignId: string
+  campaignId: string,
+  promotion: DashboardCampaignPromotion
 ): SegmentSummary {
   const segmentMetrics = metrics.filter((metric) => metric.segment_id === segment.segment_id);
   const latestMetric = latestMetricFrom(segmentMetrics);
   const nextLoopRequired =
     isRetryStatus(segment.status) || segmentMetrics.some((metric) => isRetryMetric(metric));
+  const targetValue = latestMetric?.target_value ?? promotion.goal_target_value;
+  const latestActualValue = latestMetric?.actual_value ?? segment.latest_actual_value;
 
   return {
     action: createAction(
@@ -1133,10 +1331,12 @@ function createSegmentSummary(
       segment.segment_id,
       "campaign-segments"
     ),
+    contentTitle: segmentContentTitle(segment),
     estimatedSize: segment.estimated_size,
+    goalAchievementRate: goalAchievementRate(latestActualValue, targetValue),
     goalMetric: segment.goal_metric,
     id: segment.segment_id,
-    latestActualValue: latestMetric?.actual_value ?? segment.latest_actual_value,
+    latestActualValue,
     metricsCount: segmentMetrics.length,
     name: segment.segment_name,
     nextLoopRequired,
@@ -1144,7 +1344,8 @@ function createSegmentSummary(
     promotionId: segment.promotion_id,
     sampleRatio: segment.sample_ratio,
     sampleSize: segment.sample_size,
-    status: segment.status
+    status: segment.status,
+    targetValue
   };
 }
 
@@ -1160,6 +1361,7 @@ function summarizeEvaluation(
   ).length;
   const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
   const latestMetric = latestMetricFrom(metrics);
+  const lowestGoalAchievementRate = lowestPromotionGoalAchievementRate(promotion, metrics);
   const retrySegmentIds = [
     ...new Set(
       [
@@ -1188,6 +1390,7 @@ function summarizeEvaluation(
     goalNotMetCount,
     insufficientDataCount,
     latestMetric,
+    lowestGoalAchievementRate,
     metrics,
     nextLoopCount,
     retrySegmentIds,
@@ -1206,6 +1409,103 @@ function isNextLoopCandidate(
     segments.some((segment) => isRetryStatus(segment.status)) ||
     metrics.some(isRetryMetric)
   );
+}
+
+function sortPromotionsByGoalAchievement(
+  promotions: DashboardCampaignPromotion[],
+  metrics: DashboardCampaignExperimentMetric[]
+) {
+  return [...promotions].sort((a, b) => {
+    const aRate = lowestPromotionGoalAchievementRate(
+      a,
+      metrics.filter((metric) => metric.promotion_id === a.promotion_id)
+    );
+    const bRate = lowestPromotionGoalAchievementRate(
+      b,
+      metrics.filter((metric) => metric.promotion_id === b.promotion_id)
+    );
+    const rateDiff = compareNullableNumber(aRate, bRate);
+    if (rateDiff !== 0) {
+      return rateDiff;
+    }
+    return a.marketing_theme.localeCompare(b.marketing_theme);
+  });
+}
+
+function sortSegmentsByGoalAchievement(segments: SegmentSummary[]) {
+  return [...segments].sort((a, b) => {
+    const rateDiff = compareNullableNumber(a.goalAchievementRate, b.goalAchievementRate);
+    if (rateDiff !== 0) {
+      return rateDiff;
+    }
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function sortMetricsByGoalAchievement(metrics: DashboardCampaignExperimentMetric[]) {
+  return [...metrics].sort((a, b) => {
+    const rateDiff = compareNullableNumber(
+      goalAchievementRate(a.actual_value, a.target_value),
+      goalAchievementRate(b.actual_value, b.target_value)
+    );
+    if (rateDiff !== 0) {
+      return rateDiff;
+    }
+    const timeDiff = metricTimestamp(b) - metricTimestamp(a);
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+    return `${a.segment_id ?? ""}:${a.metric}`.localeCompare(`${b.segment_id ?? ""}:${b.metric}`);
+  });
+}
+
+function lowestPromotionGoalAchievementRate(
+  promotion: DashboardCampaignPromotion,
+  metrics: DashboardCampaignExperimentMetric[]
+) {
+  const metricRates = metrics
+    .map((metric) => goalAchievementRate(metric.actual_value, metric.target_value))
+    .filter(isPresentNumber);
+  if (metricRates.length > 0) {
+    return Math.min(...metricRates);
+  }
+  return goalAchievementRate(promotion.latest_actual_value, promotion.goal_target_value);
+}
+
+function goalAchievementRate(
+  actualValue: number | null | undefined,
+  targetValue: number | null | undefined
+) {
+  if (actualValue === null || actualValue === undefined || !targetValue || targetValue <= 0) {
+    return null;
+  }
+  return actualValue / targetValue;
+}
+
+function compareNullableNumber(a: number | null, b: number | null) {
+  if (a === null && b === null) {
+    return 0;
+  }
+  if (a === null) {
+    return 1;
+  }
+  if (b === null) {
+    return -1;
+  }
+  return a - b;
+}
+
+function collectionStatusForPromotion(
+  promotion: DashboardCampaignPromotion,
+  evaluation: PromotionEvaluationSummary
+) {
+  if (evaluation.insufficientDataCount > 0) {
+    return "insufficient_data";
+  }
+  if (evaluation.metrics.length === 0 || evaluation.totalSampleSize < promotion.min_sample_size) {
+    return "collecting";
+  }
+  return "collected";
 }
 
 function pathToneForPromotion(
@@ -1322,14 +1622,33 @@ function formatOptionalMetricValue(value: number | null | undefined) {
   return value === null || value === undefined ? "-" : formatMetricValue(value);
 }
 
+function formatOptionalGoalAchievement(value: number | null | undefined) {
+  return value === null || value === undefined ? "-" : formatPercent(value);
+}
+
+function formatCollectionCoverage(
+  totalSampleSize: number | null | undefined,
+  promotion: DashboardCampaignPromotion | undefined
+) {
+  if (!promotion || !promotion.min_sample_size) {
+    return "-";
+  }
+  return formatPercent(Math.min((totalSampleSize ?? 0) / promotion.min_sample_size, 1));
+}
+
 function formatMetricValue(value: number) {
   return value <= 1 ? formatPercent(value) : formatInteger(value);
 }
 
-function formatRateValue(value: number) {
-  return value <= 1 ? formatPercent(value) : formatInteger(value);
+function segmentContentTitle(segment: DashboardCampaignSegment) {
+  const value = segment.content_brief_json.content_title;
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
 function isPresentString(value: string | null): value is string {
   return Boolean(value);
+}
+
+function isPresentNumber(value: number | null): value is number {
+  return value !== null;
 }
