@@ -1,5 +1,6 @@
 import type { DashboardPageResource, DashboardQuery } from "../model/dashboard-types.js";
 import { CampaignDashboardPanel } from "./CampaignDashboard.js";
+import { CampaignFlowMapPanel } from "./CampaignFlowMapPanel.js";
 import { FunnelDashboardPanel } from "./FunnelDashboard.js";
 import { MainDashboardPanel } from "./MainDashboard.js";
 import { PromotionPanel } from "./Promotion.js";
@@ -17,6 +18,8 @@ export function DashboardPanelRenderer({
       return <MainDashboardPanel data={resource.data} />;
     case "funnels":
       return <FunnelDashboardPanel data={resource.data} query={query} />;
+    case "campaign-flow-map":
+      return <CampaignFlowMapPanel data={resource.data} query={query} />;
     case "campaign-promotions":
       return <PromotionPanel data={resource.data} query={query} />;
     case "campaigns":

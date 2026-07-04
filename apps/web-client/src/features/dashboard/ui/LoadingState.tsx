@@ -6,8 +6,48 @@ export function LoadingState({ tab }: { tab: DashboardTab }) {
   if (tab === "dataExplorer") {
     return <DataExplorerSkeleton />;
   }
+  if (tab === "campaign-flow-map") {
+    return <CampaignFlowMapSkeleton />;
+  }
 
   return <MainSkeleton />;
+}
+
+function CampaignFlowMapSkeleton() {
+  return (
+    <div className="flex h-full min-h-[calc(100svh-3.5rem)] min-w-0 flex-col bg-[#f5f5f7]">
+      <div className="flex shrink-0 flex-col gap-3 border-b border-black/10 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-8 rounded-md" />
+          <div className="grid gap-1">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-8 w-36" />
+        </div>
+      </div>
+      <div className="grid min-h-[520px] flex-1 place-items-center p-4">
+        <div className="grid w-[min(960px,100%)] gap-6">
+          <div className="grid items-center gap-6 md:grid-cols-[220px_1fr_220px]">
+            <Skeleton className="h-36 rounded-md" />
+            <div className="grid gap-4">
+              <Skeleton className="h-40 rounded-md" />
+              <Skeleton className="h-40 rounded-md" />
+            </div>
+            <div className="grid gap-4">
+              <Skeleton className="h-32 rounded-md" />
+              <Skeleton className="h-32 rounded-md" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function MainSkeleton() {
