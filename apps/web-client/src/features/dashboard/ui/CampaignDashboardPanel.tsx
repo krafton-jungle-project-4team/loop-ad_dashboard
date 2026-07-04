@@ -2319,7 +2319,29 @@ function PromotionTable({
   segments: DashboardCampaignSegment[];
   selectedPromotionId: string;
 }) {
+  const [promotionSearch, setPromotionSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
   const activeCount = promotions.filter((promotion) => promotion.status === "active").length;
+  const normalizedSearch = promotionSearch.trim().toLowerCase();
+  const filteredPromotions = promotions.filter((promotion) => {
+    const matchesSearch =
+      !normalizedSearch ||
+      [
+        promotion.promotion_id,
+        promotion.marketing_theme,
+        promotion.channel,
+        promotion.target_audience,
+        promotion.goal_metric,
+        promotion.goal_basis,
+        promotion.next_action,
+        promotion.message_brief ?? ""
+      ].some((value) => value.toLowerCase().includes(normalizedSearch));
+    const matchesStatus = statusFilter === "all" || promotion.status === statusFilter;
+    const matchesChannel = channelFilter === "all" || promotion.channel === channelFilter;
+
+    return matchesSearch && matchesStatus && matchesChannel;
+  });
   const totalExperimentCount = promotions.reduce(
     (sum, promotion) => sum + promotion.ad_experiment_count,
     0
@@ -2335,110 +2357,158 @@ function PromotionTable({
           </p>
         </div>
       </div>
+      <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
+        <Field>
+          <FieldLabel htmlFor="dashboard-promotion-search">프로모션 검색</FieldLabel>
+          <Input
+            id="dashboard-promotion-search"
+            onChange={(event) => setPromotionSearch(event.target.value)}
+            placeholder="이름, ID, 채널, 목표, 메시지 방향"
+            value={promotionSearch}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>상태 필터</FieldLabel>
+          <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 상태</SelectItem>
+              {promotionStatusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>채널 필터</FieldLabel>
+          <Select onValueChange={setChannelFilter} value={channelFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 채널</SelectItem>
+              {promotionChannelOptions.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {channel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
       <div className="grid gap-3 md:grid-cols-4">
         <SummaryItem label="전체 프로모션" value={formatInteger(promotions.length)} />
+        <SummaryItem label="필터 결과" value={formatInteger(filteredPromotions.length)} />
         <SummaryItem label="활성 프로모션" value={formatInteger(activeCount)} />
         <SummaryItem label="연결 세그먼트" value={formatInteger(segments.length)} />
         <SummaryItem label="광고 실험" value={formatInteger(totalExperimentCount)} />
       </div>
       {promotions.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>프로모션</TableHead>
-              <TableHead>대상</TableHead>
-              <TableHead>대상 세그먼트</TableHead>
-              <TableHead>목표</TableHead>
-              <TableHead className="text-right">루프</TableHead>
-              <TableHead className="text-right">실험</TableHead>
-              <TableHead>상태</TableHead>
-              <TableHead>다음 액션</TableHead>
-              <TableHead>상세</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {promotions.map((promotion) => {
-              const promotionSegments = segments.filter(
-                (segment) => segment.promotion_id === promotion.promotion_id
-              );
-              return (
-                <TableRow
-                  aria-selected={selectedPromotionId === promotion.promotion_id}
-                  className="cursor-pointer"
-                  key={promotion.promotion_id}
-                  onClick={() => onSelectPromotion(promotion.promotion_id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onSelectPromotion(promotion.promotion_id);
-                    }
-                  }}
-                  tabIndex={0}
-                >
-                  <TableCell>
-                    <div className="flex min-w-[220px] flex-col gap-1">
-                      <span className="font-medium">{promotion.marketing_theme}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {promotion.channel} · {promotion.promotion_id}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{promotion.target_audience}</TableCell>
-                  <TableCell>
-                    <div className="flex min-w-[240px] flex-wrap gap-1.5">
-                      {promotionSegments.slice(0, 3).map((segment) => (
-                        <Badge key={segment.segment_id} variant="outline">
-                          {segment.segment_name}
-                        </Badge>
-                      ))}
-                      {promotionSegments.length > 3 ? (
-                        <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
-                      ) : null}
-                      {promotionSegments.length === 0 ? (
-                        <span className="text-sm text-muted-foreground">세그먼트 없음</span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="grid min-w-[160px] gap-1">
-                      <span className="text-sm">{promotion.goal_metric}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatGoalValue(promotion.goal_target_value)} · {promotion.goal_basis}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatInteger(promotion.current_loop_count)} /{" "}
-                    {formatInteger(promotion.max_loop_count)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatInteger(promotion.ad_experiment_count)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{promotion.next_action}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      onClick={(event) => {
-                        event.stopPropagation();
+        filteredPromotions.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>프로모션</TableHead>
+                <TableHead>대상</TableHead>
+                <TableHead>대상 세그먼트</TableHead>
+                <TableHead>목표</TableHead>
+                <TableHead className="text-right">루프</TableHead>
+                <TableHead className="text-right">실험</TableHead>
+                <TableHead>상태</TableHead>
+                <TableHead>다음 액션</TableHead>
+                <TableHead>상세</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPromotions.map((promotion) => {
+                const promotionSegments = segments.filter(
+                  (segment) => segment.promotion_id === promotion.promotion_id
+                );
+                return (
+                  <TableRow
+                    aria-selected={selectedPromotionId === promotion.promotion_id}
+                    className="cursor-pointer"
+                    key={promotion.promotion_id}
+                    onClick={() => onSelectPromotion(promotion.promotion_id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
                         onSelectPromotion(promotion.promotion_id);
-                      }}
-                      size="sm"
-                      variant={
-                        selectedPromotionId === promotion.promotion_id ? "default" : "outline"
                       }
-                    >
-                      {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    }}
+                    tabIndex={0}
+                  >
+                    <TableCell>
+                      <div className="flex min-w-[220px] flex-col gap-1">
+                        <span className="font-medium">{promotion.marketing_theme}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {promotion.channel} · {promotion.promotion_id}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{promotion.target_audience}</TableCell>
+                    <TableCell>
+                      <div className="flex min-w-[240px] flex-wrap gap-1.5">
+                        {promotionSegments.slice(0, 3).map((segment) => (
+                          <Badge key={segment.segment_id} variant="outline">
+                            {segment.segment_name}
+                          </Badge>
+                        ))}
+                        {promotionSegments.length > 3 ? (
+                          <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
+                        ) : null}
+                        {promotionSegments.length === 0 ? (
+                          <span className="text-sm text-muted-foreground">세그먼트 없음</span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="grid min-w-[160px] gap-1">
+                        <span className="text-sm">{promotion.goal_metric}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatGoalValue(promotion.goal_target_value)} · {promotion.goal_basis}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(promotion.current_loop_count)} /{" "}
+                      {formatInteger(promotion.max_loop_count)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(promotion.ad_experiment_count)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{promotion.next_action}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelectPromotion(promotion.promotion_id);
+                        }}
+                        size="sm"
+                        variant={
+                          selectedPromotionId === promotion.promotion_id ? "default" : "outline"
+                        }
+                      >
+                        {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState message="검색/필터 조건에 맞는 프로모션이 없습니다." />
+        )
       ) : (
         <EmptyState message="등록된 프로모션이 없습니다." />
       )}
