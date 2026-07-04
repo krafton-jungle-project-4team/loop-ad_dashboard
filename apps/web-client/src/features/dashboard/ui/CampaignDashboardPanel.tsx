@@ -320,7 +320,7 @@ function CampaignRow({
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant="secondary">{campaign.status}</Badge>
+        <Badge variant={statusBadgeVariant(campaign.status)}>{campaign.status}</Badge>
       </TableCell>
       <TableCell>{formatPeriod(campaign)}</TableCell>
       <TableCell className="text-right tabular-nums">
@@ -571,15 +571,33 @@ function CampaignTabContent({
             selectedPromotion={selectedPromotion}
             selectedSegment={selectedSegment}
           />
+          <EvaluationOutcomePanel
+            metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
+          />
           <ExperimentMetricTable
             metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
           />
         </>
       );
     case "campaign-promotion-metrics":
-      return <PromotionMetricsPanel detail={detail} selectedPromotion={selectedPromotion} />;
+      return (
+        <>
+          <CampaignOpenTabs
+            onClearPromotion={onClearPromotion}
+            onClearSegment={onClearSegment}
+            selectedPromotion={selectedPromotion}
+            selectedSegment={selectedSegment}
+          />
+          <PromotionMetricsPanel detail={detail} selectedPromotion={selectedPromotion} />
+        </>
+      );
     case "campaign-metrics":
-      return <CampaignRealtimeTrend detail={detail} />;
+      return (
+        <>
+          <CampaignRealtimeTrend detail={detail} />
+          <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
+        </>
+      );
     case "campaigns":
     default:
       return (
@@ -600,6 +618,7 @@ function CampaignTabContent({
             segments={detail.segments}
             selectedPromotionId={selectedPromotionId}
           />
+          <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
           <CampaignNextAction detail={detail} />
         </>
       );
@@ -742,61 +761,144 @@ function PromotionMetricsPanel({
   selectedPromotion: DashboardCampaignPromotion | undefined;
 }) {
   const promotions = selectedPromotion ? [selectedPromotion] : detail.promotions;
+  const metrics = selectedPromotion
+    ? detail.experiment_metrics.filter(
+        (metric) => metric.promotion_id === selectedPromotion.promotion_id
+      )
+    : detail.experiment_metrics;
 
   return (
-    <DetailTable
-      emptyMessage="표시할 프로모션 지표가 없습니다."
-      headers={["프로모션", "채널", "목표 지표", "목표값", "현재값", "세그먼트", "상태"]}
-      title="프로모션 지표"
-    >
-      {promotions.map((promotion) => (
-        <TableRow key={promotion.promotion_id}>
-          <TableCell>{promotion.promotion_id}</TableCell>
-          <TableCell>{promotion.channel}</TableCell>
-          <TableCell>{promotion.goal_metric}</TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatGoalValue(promotion.goal_target_value)}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">
-            {promotion.latest_actual_value === null
-              ? "-"
-              : formatGoalValue(promotion.latest_actual_value)}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatInteger(promotion.target_segment_count)}
-          </TableCell>
-          <TableCell>
-            <Badge variant="secondary">{promotion.status}</Badge>
-          </TableCell>
-        </TableRow>
-      ))}
-    </DetailTable>
+    <section className="grid gap-4">
+      <PromotionMetricSummary promotions={promotions} metrics={metrics} />
+      <DetailTable
+        emptyMessage="표시할 프로모션 지표가 없습니다."
+        headers={[
+          "프로모션",
+          "채널",
+          "목표 지표",
+          "목표값",
+          "현재값",
+          "세그먼트",
+          "상태"
+        ]}
+        title="프로모션 지표"
+      >
+        {promotions.map((promotion) => (
+          <TableRow key={promotion.promotion_id}>
+            <TableCell>{promotion.promotion_id}</TableCell>
+            <TableCell>{promotion.channel}</TableCell>
+            <TableCell>{promotion.goal_metric}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatGoalValue(promotion.goal_target_value)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {promotion.latest_actual_value === null
+                ? "-"
+                : formatGoalValue(promotion.latest_actual_value)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatInteger(promotion.target_segment_count)}
+            </TableCell>
+            <TableCell>
+              <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
+            </TableCell>
+          </TableRow>
+        ))}
+      </DetailTable>
+      <EvaluationOutcomePanel metrics={metrics} />
+    </section>
+  );
+}
+
+function PromotionMetricSummary({
+  metrics,
+  promotions
+}: {
+  metrics: DashboardCampaignExperimentMetric[];
+  promotions: DashboardCampaignPromotion[];
+}) {
+  const goalNotMetCount = metrics.filter((metric) => metric.status === "goal_not_met").length;
+  const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
+  const activePromotionCount = promotions.filter((promotion) => promotion.status === "active").length;
+  const averageActualValue =
+    promotions.length > 0
+      ? promotions.reduce((sum, promotion) => sum + (promotion.latest_actual_value ?? 0), 0) /
+        promotions.length
+      : 0;
+
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 지표 요약</h3>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="프로모션" value={formatInteger(promotions.length)} />
+        <SummaryItem label="활성 프로모션" value={formatInteger(activePromotionCount)} />
+        <SummaryItem label="목표 미달 실험" value={formatInteger(goalNotMetCount)} />
+        <SummaryItem label="next-loop 후보" value={formatInteger(nextLoopCount)} />
+        <SummaryItem label="평균 현재값" value={formatGoalValue(averageActualValue)} />
+      </div>
+    </section>
   );
 }
 
 function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
+  const totalSegments = detail.segments.length;
+  const totalExperiments = detail.promotions.reduce(
+    (sum, promotion) => sum + promotion.ad_experiment_count,
+    0
+  );
+  const evaluatedPromotionCount = detail.promotions.filter((promotion) =>
+    detail.experiment_metrics.some((metric) => metric.promotion_id === promotion.promotion_id)
+  ).length;
+
   return (
     <section className="grid gap-3">
-      <h3 className="text-base font-semibold text-[#1d1d1f]">워크플로우 View</h3>
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">워크플로우 View</h3>
+        <p className="text-sm text-muted-foreground">
+          Campaign → Promotion → Segment → Ad Experiment → Evaluation 흐름을 DB 상태로
+          확인합니다.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="프로모션" value={formatInteger(detail.promotions.length)} />
+        <SummaryItem label="세그먼트" value={formatInteger(totalSegments)} />
+        <SummaryItem label="광고 실험" value={formatInteger(totalExperiments)} />
+        <SummaryItem label="평가된 프로모션" value={formatInteger(evaluatedPromotionCount)} />
+      </div>
       <div className="grid gap-3">
         {detail.promotions.map((promotion) => {
           const segments = detail.segments.filter(
             (segment) => segment.promotion_id === promotion.promotion_id
           );
+          const metrics = detail.experiment_metrics.filter(
+            (metric) => metric.promotion_id === promotion.promotion_id
+          );
+          const workflowSteps = campaignWorkflowSteps(promotion, segments, metrics);
           return (
             <Card className="shadow-none" key={promotion.promotion_id}>
               <CardHeader className="gap-1">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
-                  <Badge variant="secondary">{promotion.status}</Badge>
+                  <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
                 </div>
                 <CardDescription>{promotion.promotion_id}</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm">
-                <div className="text-muted-foreground">
-                  Campaign → Promotion → {formatInteger(segments.length)} Segment →{" "}
-                  {formatInteger(promotion.ad_experiment_count)} Ad Experiment
+                <div className="grid gap-2 md:grid-cols-5">
+                  {workflowSteps.map((step) => (
+                    <div
+                      className="grid gap-2 rounded-md border bg-muted/20 p-3"
+                      key={`${promotion.promotion_id}-${step.label}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground">{step.label}</span>
+                        <Badge variant={step.variant}>{step.status}</Badge>
+                      </div>
+                      <div className="text-sm font-medium">{step.value}</div>
+                    </div>
+                  ))}
                 </div>
+                <WorkflowRiskNotice metrics={metrics} segments={segments} />
                 <Progress value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)} />
               </CardContent>
             </Card>
@@ -804,6 +906,79 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
         })}
       </div>
     </section>
+  );
+}
+
+function campaignWorkflowSteps(
+  promotion: DashboardCampaignPromotion,
+  segments: DashboardCampaignSegment[],
+  metrics: DashboardCampaignExperimentMetric[]
+) {
+  const insufficientCount = metrics.filter((metric) => metric.status === "insufficient_data").length;
+  const goalNotMetCount = metrics.filter((metric) => metric.status === "goal_not_met").length;
+  const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
+
+  return [
+    {
+      label: "Promotion",
+      status: promotion.status,
+      value: promotion.channel,
+      variant: statusBadgeVariant(promotion.status)
+    },
+    {
+      label: "Segment",
+      status: segments.length > 0 ? "ready" : "empty",
+      value: formatInteger(segments.length),
+      variant: segments.length > 0 ? "secondary" : "outline"
+    },
+    {
+      label: "Ad Experiment",
+      status: promotion.ad_experiment_count > 0 ? "created" : "empty",
+      value: formatInteger(promotion.ad_experiment_count),
+      variant: promotion.ad_experiment_count > 0 ? "secondary" : "outline"
+    },
+    {
+      label: "Evaluation",
+      status: metrics.length > 0 ? "evaluated" : "waiting",
+      value: formatInteger(metrics.length),
+      variant: metrics.length > 0 ? "secondary" : "outline"
+    },
+    {
+      label: "Next Loop",
+      status: nextLoopCount > 0 ? "required" : insufficientCount > 0 ? "hold" : "none",
+      value:
+        nextLoopCount > 0
+          ? `${formatInteger(nextLoopCount)} candidates`
+          : goalNotMetCount > 0
+            ? `${formatInteger(goalNotMetCount)} goal_not_met`
+            : "-",
+      variant: nextLoopCount > 0 ? "destructive" : "outline"
+    }
+  ] as const;
+}
+
+function WorkflowRiskNotice({
+  metrics,
+  segments
+}: {
+  metrics: DashboardCampaignExperimentMetric[];
+  segments: DashboardCampaignSegment[];
+}) {
+  const insufficientMetrics = metrics.filter((metric) => metric.status === "insufficient_data");
+  const insufficientSegments = segments.filter((segment) => segment.status === "insufficient_data");
+  const hasRisk = insufficientMetrics.length > 0 || insufficientSegments.length > 0;
+
+  if (!hasRisk) {
+    return null;
+  }
+
+  return (
+    <Alert>
+      <AlertTitle>표본 부족 확인 필요</AlertTitle>
+      <AlertDescription>
+        insufficient_data 상태가 있는 세그먼트는 숨기지 않고 표본 부족 이유를 확인해야 합니다.
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -915,7 +1090,7 @@ function PromotionTable({
                     {formatInteger(promotion.ad_experiment_count)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{promotion.status}</Badge>
+                    <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
                   </TableCell>
                   <TableCell>
                     <Button
@@ -944,19 +1119,112 @@ function PromotionTable({
 }
 
 function CampaignNextAction({ detail }: { detail: DashboardCampaignDetail }) {
-  const hasInsufficientData = detail.experiment_metrics.some(
+  const nextLoopMetrics = detail.experiment_metrics.filter((metric) => metric.next_loop_required);
+  const goalNotMetMetrics = detail.experiment_metrics.filter(
+    (metric) => metric.status === "goal_not_met"
+  );
+  const insufficientMetrics = detail.experiment_metrics.filter(
     (metric) => metric.status === "insufficient_data"
   );
-  return (
-    <Alert>
-      <AlertTitle>다음 액션</AlertTitle>
-      <AlertDescription>
-        {hasInsufficientData
-          ? "insufficient_data 상태의 실험 지표를 확인하고 세그먼트 또는 기간을 조정하세요."
-          : "프로모션 상세에서 세그먼트별 진행 상태와 실험 지표를 확인하세요."}
-      </AlertDescription>
-    </Alert>
+  const nextLoopSegmentIds = uniqueValues(nextLoopMetrics.map((metric) => metric.segment_id));
+  const goalNotMetSegmentIds = uniqueValues(goalNotMetMetrics.map((metric) => metric.segment_id));
+  const insufficientSegmentIds = uniqueValues(
+    insufficientMetrics.map((metric) => metric.segment_id)
   );
+  const recommendation = campaignActionRecommendation({
+    goalNotMetSegmentCount: goalNotMetSegmentIds.length,
+    insufficientCount: insufficientMetrics.length,
+    nextLoopCount: nextLoopMetrics.length
+  });
+
+  return (
+    <section className="grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-foreground">다음 액션</h3>
+          <p className="text-sm text-muted-foreground">
+            실험 지표 상태를 기준으로 재실험, 표본 보강, 유지 여부를 판단합니다.
+          </p>
+        </div>
+        <Badge variant={recommendation.variant}>{recommendation.label}</Badge>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="next-loop 후보" value={formatInteger(nextLoopMetrics.length)} />
+        <SummaryItem label="목표 미달" value={formatInteger(goalNotMetMetrics.length)} />
+        <SummaryItem label="표본 부족" value={formatInteger(insufficientMetrics.length)} />
+        <SummaryItem label="재검토 세그먼트" value={formatInteger(goalNotMetSegmentIds.length)} />
+      </div>
+      <Alert variant={recommendation.alertVariant}>
+        <AlertTitle>{recommendation.title}</AlertTitle>
+        <AlertDescription>{recommendation.description}</AlertDescription>
+      </Alert>
+      <div className="grid gap-3 md:grid-cols-3">
+        <InsightBlock
+          label="next-loop 대상 세그먼트"
+          value={nextLoopSegmentIds.length > 0 ? nextLoopSegmentIds.join("\n") : "-"}
+        />
+        <InsightBlock
+          label="목표 미달 세그먼트"
+          value={goalNotMetSegmentIds.length > 0 ? goalNotMetSegmentIds.join("\n") : "-"}
+        />
+        <InsightBlock
+          label="표본 부족 세그먼트"
+          value={insufficientSegmentIds.length > 0 ? insufficientSegmentIds.join("\n") : "-"}
+        />
+      </div>
+    </section>
+  );
+}
+
+function campaignActionRecommendation({
+  goalNotMetSegmentCount,
+  insufficientCount,
+  nextLoopCount
+}: {
+  goalNotMetSegmentCount: number;
+  insufficientCount: number;
+  nextLoopCount: number;
+}) {
+  if (nextLoopCount > 0) {
+    return {
+      alertVariant: "destructive" as const,
+      description:
+        "next_loop_required 실험이 있습니다. 해당 세그먼트의 소재, 채널, 조건을 조정한 뒤 재실험 대상으로 분리하세요.",
+      label: "재실험 필요",
+      title: "다음 루프를 생성해야 합니다.",
+      variant: "destructive" as const
+    };
+  }
+
+  if (goalNotMetSegmentCount > 0) {
+    return {
+      alertVariant: "default" as const,
+      description:
+        "목표 미달 세그먼트가 있습니다. 프로모션별 실험 지표에서 목표값과 실제값 차이를 확인하세요.",
+      label: "목표 미달",
+      title: "세그먼트 조건 또는 메시지 조정이 필요합니다.",
+      variant: "secondary" as const
+    };
+  }
+
+  if (insufficientCount > 0) {
+    return {
+      alertVariant: "default" as const,
+      description:
+        "표본 부족 상태가 있습니다. 1.7 규약에 따라 실패로 확정하지 않고 표본 보강 후 다시 평가해야 합니다.",
+      label: "표본 보강",
+      title: "insufficient_data 평가가 포함되어 있습니다.",
+      variant: "secondary" as const
+    };
+  }
+
+  return {
+    alertVariant: "default" as const,
+    description: "현재 응답 기준으로 즉시 재실험이 필요한 항목은 없습니다.",
+    label: "정상",
+    title: "캠페인 평가가 안정적입니다.",
+    variant: "outline" as const
+  };
 }
 
 function PromotionDetail({
@@ -1026,6 +1294,7 @@ function PromotionDetail({
         isLoading={segmentIsLoading}
         selectedSegmentId={selectedSegmentId}
       />
+      <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
     </section>
   );
@@ -1060,7 +1329,7 @@ function PromotionSegmentCards({
                     <span className="font-medium">{segment.segment_name}</span>
                     <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
                   </div>
-                  <Badge variant={isSelected ? "default" : "secondary"}>
+                  <Badge variant={isSelected ? "default" : statusBadgeVariant(segment.status)}>
                     {isSelected ? "열림" : segment.status}
                   </Badge>
                 </div>
@@ -1104,7 +1373,7 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
             <h3 className="text-xl font-semibold tracking-tight text-foreground">
               {promotion.marketing_theme}
             </h3>
-            <Badge variant="secondary">{promotion.status}</Badge>
+            <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
           </div>
           <div className="text-sm text-muted-foreground">
             {promotion.channel} · {promotion.target_audience}
@@ -1222,7 +1491,7 @@ function SegmentTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="secondary">{segment.status}</Badge>
+                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
                     {segment.priority ? <Badge variant="outline">{segment.priority}</Badge> : null}
                   </div>
                 </TableCell>
@@ -1442,7 +1711,7 @@ function SavedSegmentTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="secondary">{segment.status}</Badge>
+                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
                     <Badge variant={isSavedSegmentSampleValid(segment) ? "outline" : "destructive"}>
                       {isSavedSegmentSampleValid(segment) ? "sample valid" : "sample check"}
                     </Badge>
@@ -1465,7 +1734,7 @@ function isSavedSegmentSampleValid(segment: DashboardSavedSegment) {
 }
 
 function SegmentQueryPreviewResult({ preview }: { preview: DashboardSegmentQueryPreview }) {
-  const statusVariant = preview.sample_size_status === "valid" ? "secondary" : "outline";
+  const statusVariant = preview.sample_size_status === "valid" ? "secondary" : "destructive";
 
   return (
     <div className="grid gap-4">
@@ -1481,6 +1750,11 @@ function SegmentQueryPreviewResult({ preview }: { preview: DashboardSegmentQuery
           <Badge className="mt-2" variant={statusVariant}>
             {preview.sample_size_status}
           </Badge>
+          {preview.sample_size_status !== "valid" ? (
+            <div className="mt-2 text-xs text-muted-foreground">
+              표본 기준을 충족하지 못해 segment_definitions 저장을 막습니다.
+            </div>
+          ) : null}
         </div>
       </div>
       <div className="grid gap-2">
@@ -1562,6 +1836,9 @@ function SegmentDetailPanel({
   const hasInsufficientData = detail.experiment_metrics.some(
     (metric) => metric.status === "insufficient_data"
   );
+  const insufficientMetrics = detail.experiment_metrics.filter(
+    (metric) => metric.status === "insufficient_data"
+  );
 
   return (
     <section className="grid gap-4">
@@ -1571,17 +1848,22 @@ function SegmentDetailPanel({
         latestMetric={latestMetric}
       />
       {hasInsufficientData ? (
-        <Alert>
+        <Alert variant="destructive">
           <AlertTitle>표본 부족 상태</AlertTitle>
-          <AlertDescription>실험 지표가 표본 부족 상태입니다.</AlertDescription>
+          <AlertDescription>
+            선택한 세그먼트의 실험 평가가 insufficient_data 상태입니다. 표본 부족은 실패가
+            아니라 판단 보류 상태로 표시합니다.
+          </AlertDescription>
         </Alert>
       ) : null}
       <SegmentDefinitionPanel segment={detail.segment} />
+      <SegmentExpectedEffectPanel detail={detail} latestMetric={latestMetric} />
       <RealtimeEventTable
         emptyMessage="실시간 이벤트가 아직 수집되지 않았습니다."
         metrics={detail.realtime_metrics}
         title="실시간 추이"
       />
+      <SegmentInsufficientDataPanel metrics={insufficientMetrics} segment={detail.segment} />
       <SegmentSampleSizePanel metrics={detail.experiment_metrics} />
       <ContentCandidateCards candidates={detail.content_candidates} />
       <ContentCandidateTable candidates={detail.content_candidates} />
@@ -1609,7 +1891,9 @@ function SegmentOverview({
             <h3 className="text-xl font-semibold tracking-tight text-foreground">
               {detail.segment.segment_name}
             </h3>
-            <Badge variant="secondary">{detail.segment.status}</Badge>
+            <Badge variant={statusBadgeVariant(detail.segment.status)}>
+              {detail.segment.status}
+            </Badge>
             {detail.segment.priority ? (
               <Badge variant="outline">{detail.segment.priority}</Badge>
             ) : null}
@@ -1762,6 +2046,122 @@ function SegmentDefinitionPanel({ segment }: { segment: DashboardCampaignSegment
   );
 }
 
+function SegmentExpectedEffectPanel({
+  detail,
+  latestMetric
+}: {
+  detail: DashboardSegmentDetailResource;
+  latestMetric: DashboardCampaignExperimentMetric | undefined;
+}) {
+  const contentBriefEffect = pickJsonString(detail.segment.content_brief_json, [
+    "expected_effect",
+    "expectedEffect",
+    "effect",
+    "hypothesis"
+  ]);
+  const evidenceEffect = pickJsonString(detail.segment.data_evidence_json, [
+    "expected_effect",
+    "expectedEffect",
+    "expected_lift",
+    "conversion_lift",
+    "rationale"
+  ]);
+  const nextLoopMessage = latestMetric?.next_loop_required
+    ? "목표 미달 세그먼트로 다음 루프 후보입니다."
+    : "현재 지표 기준으로 자동 next-loop 대상은 아닙니다.";
+
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">예상 효과</h3>
+      <div className="grid gap-3 md:grid-cols-3">
+        <SummaryItem
+          label="최근 목표 대비"
+          value={
+            latestMetric
+              ? `${formatGoalValue(latestMetric.actual_value)} / ${formatGoalValue(
+                  latestMetric.target_value
+                )}`
+              : "-"
+          }
+        />
+        <SummaryItem
+          label="콘텐츠 후보"
+          value={formatInteger(detail.content_candidates.length)}
+        />
+        <SummaryItem label="다음 루프" value={nextLoopMessage} />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <InsightBlock label="콘텐츠 브리프 기반 예상 효과" value={contentBriefEffect ?? "-"} />
+        <InsightBlock label="데이터 근거 기반 예상 효과" value={evidenceEffect ?? "-"} />
+      </div>
+    </section>
+  );
+}
+
+function SegmentInsufficientDataPanel({
+  metrics,
+  segment
+}: {
+  metrics: DashboardCampaignExperimentMetric[];
+  segment: DashboardCampaignSegment;
+}) {
+  if (metrics.length === 0 && segment.status !== "insufficient_data") {
+    return null;
+  }
+
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">표본 부족 사유</h3>
+      {metrics.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {metrics.map((metric) => {
+            const details = insufficientDataDetails(metric);
+            return (
+              <div
+                className="grid gap-3 rounded-md border bg-muted/20 p-3"
+                key={`${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}-insufficient`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-1">
+                    <div className="text-sm font-medium">
+                      {metric.ad_experiment_id ?? metric.metric}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{metric.segment_id ?? "-"}</div>
+                  </div>
+                  <Badge variant="destructive">insufficient_data</Badge>
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <SummaryItem
+                    label="최종 배정"
+                    value={formatNullableInteger(details.assignedUserCount ?? metric.sample_size)}
+                  />
+                  <SummaryItem
+                    label="최소 필요"
+                    value={formatNullableInteger(details.minimumRequiredSampleSize)}
+                  />
+                  <SummaryItem
+                    label="사전 추정"
+                    value={formatInteger(segment.estimated_size)}
+                  />
+                </div>
+                <InsightBlock label="부족 사유" value={details.reason ?? metric.feedback ?? "-"} />
+                <InsightBlock label="상세 설명" value={details.note ?? "-"} />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <Alert>
+          <AlertTitle>세그먼트 상태가 insufficient_data입니다</AlertTitle>
+          <AlertDescription>
+            실험 지표가 아직 없어서 상세 사유는 표시할 수 없습니다.
+          </AlertDescription>
+        </Alert>
+      )}
+    </section>
+  );
+}
+
 function SegmentSampleSizePanel({
   metrics
 }: {
@@ -1790,7 +2190,7 @@ function SegmentSampleSizePanel({
                       {metric.ad_experiment_id ?? "-"}
                     </div>
                   </div>
-                  <Badge variant={metric.status === "insufficient_data" ? "outline" : "secondary"}>
+                  <Badge variant={statusBadgeVariant(metric.status)}>
                     {metric.status}
                   </Badge>
                 </div>
@@ -1820,6 +2220,12 @@ function SegmentSampleSizePanel({
                   </div>
                 </div>
                 <InsightBlock label="평가 피드백" value={metric.feedback ?? "-"} />
+                {metric.status === "insufficient_data" ? (
+                  <InsightBlock
+                    label="표본 부족 이유"
+                    value={insufficientDataDetails(metric).reason ?? metric.feedback ?? "-"}
+                  />
+                ) : null}
                 <InsightBlock label="평가 결과 JSON" value={formatJsonObject(metric.result_json)} />
                 <Progress value={rate} />
               </div>
@@ -1845,9 +2251,7 @@ function ContentCandidateCards({
         <div className="grid gap-3 md:grid-cols-2">
           {candidates.map((candidate) => (
             <div className="grid gap-3 rounded-md border bg-muted/20 p-3" key={candidate.content_id}>
-              <div className="flex min-h-[96px] items-center justify-center rounded-md border border-dashed bg-background px-3 text-center text-sm text-muted-foreground">
-                {candidate.image_prompt ?? "이미지 URL 계약 확정 후 실제 생성 이미지를 표시합니다."}
-              </div>
+              <ContentCandidateVisual candidate={candidate} />
               <div className="flex items-start justify-between gap-3">
                 <div className="grid gap-1">
                   <div className="text-sm font-medium">
@@ -1857,7 +2261,7 @@ function ContentCandidateCards({
                     {candidate.channel} / {candidate.content_id}
                   </div>
                 </div>
-                <Badge variant="secondary">{candidate.status}</Badge>
+                <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
               </div>
               <InsightBlock label="메시지" value={candidate.message ?? candidate.body ?? "-"} />
               <InsightBlock label="생성 이유" value={candidate.reason_summary ?? "-"} />
@@ -1880,6 +2284,43 @@ function ContentCandidateCards({
   );
 }
 
+function ContentCandidateVisual({
+  candidate
+}: {
+  candidate: DashboardSegmentDetailResource["content_candidates"][number];
+}) {
+  const imageUrl = candidateImageUrl(candidate);
+
+  if (imageUrl) {
+    return (
+      <div className="overflow-hidden rounded-md border bg-background">
+        <img
+          alt={candidate.title ?? candidate.content_option_id}
+          className="h-40 w-full object-cover"
+          src={imageUrl}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-[96px] items-center justify-center rounded-md border border-dashed bg-background px-3 text-center text-sm text-muted-foreground">
+      {candidate.image_prompt ?? "생성 이미지 URL이 metadata_json에 아직 저장되지 않았습니다."}
+    </div>
+  );
+}
+
+function candidateImageUrl(candidate: DashboardSegmentDetailResource["content_candidates"][number]) {
+  return pickJsonString(candidate.metadata_json, [
+    "image_url",
+    "imageUrl",
+    "asset_url",
+    "assetUrl",
+    "generated_image_url",
+    "generatedImageUrl"
+  ]);
+}
+
 function formatJsonObject(value: Record<string, unknown>): string {
   const entries = Object.entries(value);
   if (entries.length === 0) {
@@ -1898,6 +2339,58 @@ function formatJsonValue(value: unknown): string {
     return String(value);
   }
   return JSON.stringify(value);
+}
+
+function pickJsonString(value: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const foundValue = value[key];
+    if (typeof foundValue === "string" && foundValue.trim()) {
+      return foundValue;
+    }
+    if (typeof foundValue === "number" || typeof foundValue === "boolean") {
+      return String(foundValue);
+    }
+  }
+  return null;
+}
+
+function pickJsonNumber(value: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const foundValue = value[key];
+    const number = Number(foundValue);
+    if (Number.isFinite(number)) {
+      return number;
+    }
+  }
+  return null;
+}
+
+function insufficientDataDetails(metric: DashboardCampaignExperimentMetric) {
+  return {
+    assignedUserCount: pickJsonNumber(metric.result_json, [
+      "assigned_user_count",
+      "assignedUserCount",
+      "final_assigned_user_count",
+      "finalAssignedUserCount"
+    ]),
+    minimumRequiredSampleSize: pickJsonNumber(metric.result_json, [
+      "minimum_required_sample_size",
+      "minimumRequiredSampleSize",
+      "min_sample_size",
+      "minSampleSize"
+    ]),
+    note: pickJsonString(metric.result_json, ["note", "message", "description"]),
+    reason: pickJsonString(metric.result_json, [
+      "insufficient_reason",
+      "insufficientReason",
+      "reason",
+      "cause"
+    ])
+  };
+}
+
+function formatNullableInteger(value: number | null | undefined) {
+  return value === null || value === undefined ? "-" : formatInteger(value);
 }
 
 function formatPreviewValue(value: unknown): string {
@@ -1926,7 +2419,7 @@ function InsightBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 text-sm">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="leading-6">{value}</div>
+      <div className="whitespace-pre-line break-words leading-6">{value}</div>
     </div>
   );
 }
@@ -1963,7 +2456,7 @@ function ContentCandidateTable({
             <div className="line-clamp-2 min-w-[220px]">{candidate.message_strategy ?? "-"}</div>
           </TableCell>
           <TableCell>
-            <Badge variant="secondary">{candidate.status}</Badge>
+            <Badge variant={statusBadgeVariant(candidate.status)}>{candidate.status}</Badge>
           </TableCell>
         </TableRow>
       ))}
@@ -1973,6 +2466,83 @@ function ContentCandidateTable({
 
 function uniqueValues(values: Array<string | null>): string[] {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+function statusBadgeVariant(status: string) {
+  return status === "insufficient_data" ||
+    status === "failed" ||
+    status === "goal_not_met" ||
+    status === "cancelled"
+    ? "destructive"
+    : "secondary";
+}
+
+function EvaluationOutcomePanel({
+  metrics
+}: {
+  metrics: DashboardCampaignExperimentMetric[];
+}) {
+  const goalMetCount = metrics.filter((metric) => metric.status === "goal_met").length;
+  const goalNotMetMetrics = metrics.filter((metric) => metric.status === "goal_not_met");
+  const insufficientMetrics = metrics.filter((metric) => metric.status === "insufficient_data");
+  const nextLoopMetrics = metrics.filter((metric) => metric.next_loop_required);
+  const failedSegmentIds = uniqueValues(goalNotMetMetrics.map((metric) => metric.segment_id));
+  const failedExperimentIds = uniqueValues(
+    goalNotMetMetrics.map((metric) => metric.ad_experiment_id)
+  );
+  const nextLoopSegmentIds = uniqueValues(nextLoopMetrics.map((metric) => metric.segment_id));
+
+  if (metrics.length === 0) {
+    return <EmptyState message="종료 후 결과를 표시할 실험 평가가 없습니다." />;
+  }
+
+  return (
+    <section className="grid gap-3">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">종료 후 결과 / 재실험 흐름</h3>
+        <p className="text-sm text-muted-foreground">
+          promotion_evaluations 기준으로 목표 미달 세그먼트만 next-loop 후보로 분리합니다.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="평가 완료" value={formatInteger(metrics.length)} />
+        <SummaryItem label="목표 달성" value={formatInteger(goalMetCount)} />
+        <SummaryItem label="목표 미달" value={formatInteger(goalNotMetMetrics.length)} />
+        <SummaryItem label="표본 부족" value={formatInteger(insufficientMetrics.length)} />
+        <SummaryItem label="next-loop 후보" value={formatInteger(nextLoopMetrics.length)} />
+        <SummaryItem label="실패 세그먼트" value={formatInteger(failedSegmentIds.length)} />
+        <SummaryItem label="실패 실험" value={formatInteger(failedExperimentIds.length)} />
+      </div>
+      {nextLoopMetrics.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <InsightBlock
+            label="failed_segment_ids"
+            value={nextLoopSegmentIds.length > 0 ? nextLoopSegmentIds.join("\n") : "-"}
+          />
+          <InsightBlock
+            label="failed_ad_experiment_ids"
+            value={failedExperimentIds.length > 0 ? failedExperimentIds.join("\n") : "-"}
+          />
+        </div>
+      ) : (
+        <Alert>
+          <AlertTitle>재실험 후보 없음</AlertTitle>
+          <AlertDescription>
+            goal_not_met 상태의 평가가 없거나 next_loop_required가 false입니다.
+          </AlertDescription>
+        </Alert>
+      )}
+      {insufficientMetrics.length > 0 ? (
+        <Alert>
+          <AlertTitle>표본 부족은 자동 재실험 대상에서 분리합니다</AlertTitle>
+          <AlertDescription>
+            insufficient_data는 목표 미달이 아니라 판단 보류 상태이므로, 사용자가 명시적으로
+            다시 실험하기를 선택할 때만 next-loop 대상으로 다루는 흐름입니다.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </section>
+  );
 }
 
 function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperimentMetric[] }) {
@@ -2047,7 +2617,7 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
                 <TableCell>{metric.basis}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1.5">
-                    <Badge variant={metric.status === "insufficient_data" ? "outline" : "secondary"}>
+                    <Badge variant={statusBadgeVariant(metric.status)}>
                       {metric.status}
                     </Badge>
                     {metric.next_loop_required ? <Badge variant="outline">next loop</Badge> : null}
