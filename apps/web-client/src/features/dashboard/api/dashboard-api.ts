@@ -1,15 +1,19 @@
 import {
   createApiSuccessResponseSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardDeleteFunnelResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
+  DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
   DashboardMainSchema
 } from "@loopad/shared";
 import type {
   DashboardCreateFunnelRequest,
+  DashboardDeleteFunnelResult,
   DashboardEventCatalog,
-  DashboardFunnel
+  DashboardFunnel,
+  DashboardFunnelMetrics
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -61,11 +65,47 @@ export async function createDashboardFunnel(
   return createApiSuccessResponseSchema(DashboardFunnelSchema).parse(await response.json()).data;
 }
 
+export async function deleteDashboardFunnel(
+  query: DashboardQuery,
+  funnelId: string
+): Promise<DashboardDeleteFunnelResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels/${encodeURIComponent(funnelId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeleteFunnelResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
 export async function fetchDashboardEventCatalog(
   query: DashboardQuery,
   signal: AbortSignal
 ): Promise<DashboardEventCatalog> {
   return request("/dashboard/v1/event-catalog", DashboardEventCatalogSchema, query, signal);
+}
+
+export async function fetchDashboardFunnelMetrics(
+  query: DashboardQuery,
+  funnelId: string,
+  signal: AbortSignal
+): Promise<DashboardFunnelMetrics> {
+  return request(
+    `/dashboard/v1/funnels/${encodeURIComponent(funnelId)}/metrics`,
+    DashboardFunnelMetricsSchema,
+    query,
+    signal
+  );
 }
 
 async function request<T>(
