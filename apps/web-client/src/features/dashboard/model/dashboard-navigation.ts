@@ -1,4 +1,4 @@
-import { Activity, DatabaseZap, ListFilter, Megaphone, type LucideIcon } from "lucide-react";
+import { Activity, Bot, ListFilter, Megaphone, type LucideIcon } from "lucide-react";
 import type { DashboardTab } from "./dashboard-types.js";
 
 export type DashboardNavItem = {
@@ -64,8 +64,8 @@ export const dashboardTabs = [
   },
   {
     value: "dataExplorer",
-    label: "Data Explorer",
-    icon: DatabaseZap,
+    label: "ChatKit - 챗봇",
+    icon: Bot,
     pathSegment: "data-explorer"
   }
 ] satisfies DashboardNavItem[];
@@ -125,6 +125,19 @@ export const dashboardNavigationTree = [
         ]
       },
       { label: "지표", value: "campaign-metrics", pathSegment: "campaign-metrics" }
+    ]
+  },
+  {
+    label: "AI",
+    value: "dataExplorer",
+    pathSegment: "data-explorer",
+    icon: Bot,
+    children: [
+      {
+        label: "ChatKit - 챗봇",
+        value: "dataExplorer",
+        pathSegment: "data-explorer"
+      }
     ]
   }
 ] satisfies DashboardNavTreeItem[];
