@@ -94,7 +94,6 @@ export async function fetchDashboardPageResource(
         data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
     case "funnels":
-    case "funnel-builder":
       return {
         tab,
         data: await request("/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)

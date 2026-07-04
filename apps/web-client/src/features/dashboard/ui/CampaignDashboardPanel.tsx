@@ -253,68 +253,72 @@ export function CampaignDashboardPanel({
 
   return (
     <div className="grid gap-6">
-      <CampaignManagementPanel
-        campaign={selectedCampaign}
-        createError={createCampaignMutation.error}
-        createIsError={createCampaignMutation.isError}
-        createIsPending={createCampaignMutation.isPending}
-        onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
-        onStop={(campaignId) => stopCampaignMutation.mutate(campaignId)}
-        onUpdate={(campaignId, requestBody) =>
-          updateCampaignMutation.mutate({ campaignId, requestBody })
-        }
-        stopError={stopCampaignMutation.error}
-        stopIsError={stopCampaignMutation.isError}
-        stopIsPending={stopCampaignMutation.isPending}
-        updateError={updateCampaignMutation.error}
-        updateIsError={updateCampaignMutation.isError}
-        updateIsPending={updateCampaignMutation.isPending}
-      />
-      <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
-        <CardHeader className="gap-1.5 px-5">
-          <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-            캠페인 목록
-          </CardTitle>
-          <CardDescription>
-            Campaign → Promotion → Segment → Ad Experiment 실행 구조를 기준으로 조회합니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-5">
-          {data.campaigns.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>캠페인</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead>기간</TableHead>
-                  <TableHead className="text-right">프로모션</TableHead>
-                  <TableHead className="text-right">세그먼트</TableHead>
-                  <TableHead className="text-right">실험</TableHead>
-                  <TableHead className="text-right">최근 목표 달성률</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.campaigns.map((campaign) => (
-                  <CampaignRow
-                    campaign={campaign}
-                    isSelected={selectedCampaignId === campaign.campaign_id}
-                    key={campaign.campaign_id}
-                    onSelect={(campaignId) => {
-                      void setDashboardQueryState({
-                        selectedCampaignId: campaignId,
-                        selectedPromotionId: "",
-                        selectedSegmentId: ""
-                      });
-                    }}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <EmptyState message="등록된 캠페인이 없습니다." />
-          )}
-        </CardContent>
-      </Card>
+      {tab === "campaigns" ? (
+        <>
+          <CampaignManagementPanel
+            campaign={selectedCampaign}
+            createError={createCampaignMutation.error}
+            createIsError={createCampaignMutation.isError}
+            createIsPending={createCampaignMutation.isPending}
+            onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
+            onStop={(campaignId) => stopCampaignMutation.mutate(campaignId)}
+            onUpdate={(campaignId, requestBody) =>
+              updateCampaignMutation.mutate({ campaignId, requestBody })
+            }
+            stopError={stopCampaignMutation.error}
+            stopIsError={stopCampaignMutation.isError}
+            stopIsPending={stopCampaignMutation.isPending}
+            updateError={updateCampaignMutation.error}
+            updateIsError={updateCampaignMutation.isError}
+            updateIsPending={updateCampaignMutation.isPending}
+          />
+          <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+            <CardHeader className="gap-1.5 px-5">
+              <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+                캠페인 목록
+              </CardTitle>
+              <CardDescription>
+                Campaign → Promotion → Segment → Ad Experiment 실행 구조를 기준으로 조회합니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
+              {data.campaigns.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>캠페인</TableHead>
+                      <TableHead>상태</TableHead>
+                      <TableHead>기간</TableHead>
+                      <TableHead className="text-right">프로모션</TableHead>
+                      <TableHead className="text-right">세그먼트</TableHead>
+                      <TableHead className="text-right">실험</TableHead>
+                      <TableHead className="text-right">최근 목표 달성률</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.campaigns.map((campaign) => (
+                      <CampaignRow
+                        campaign={campaign}
+                        isSelected={selectedCampaignId === campaign.campaign_id}
+                        key={campaign.campaign_id}
+                        onSelect={(campaignId) => {
+                          void setDashboardQueryState({
+                            selectedCampaignId: campaignId,
+                            selectedPromotionId: "",
+                            selectedSegmentId: ""
+                          });
+                        }}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <EmptyState message="등록된 캠페인이 없습니다." />
+              )}
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
 
       <CampaignSelectionContext
         campaign={selectedCampaign}

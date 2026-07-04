@@ -15,7 +15,6 @@ export function DashboardPanelRenderer({
     case "main-campaign-list":
       return <MainDashboardPanel data={resource.data} />;
     case "funnels":
-    case "funnel-builder":
       return <FunnelDashboardPanel data={resource.data} query={query} />;
     case "campaigns":
     case "campaign-promotions":

@@ -1,4 +1,4 @@
-import { Activity, Bot, ListFilter, Megaphone, type LucideIcon } from "lucide-react";
+import { Activity, DatabaseZap, ListFilter, Megaphone, type LucideIcon } from "lucide-react";
 import type { DashboardTab } from "./dashboard-types.js";
 
 export type DashboardNavItem = {
@@ -25,12 +25,6 @@ export const dashboardTabs = [
     pathSegment: "main-campaign-list"
   },
   { value: "funnels", label: "퍼널", icon: ListFilter, pathSegment: "funnels" },
-  {
-    value: "funnel-builder",
-    label: "event_name 기반 퍼널 생성",
-    icon: ListFilter,
-    pathSegment: "funnel-builder"
-  },
   { value: "campaigns", label: "캠페인", icon: Megaphone, pathSegment: "campaigns" },
   {
     value: "campaign-promotions",
@@ -64,8 +58,8 @@ export const dashboardTabs = [
   },
   {
     value: "dataExplorer",
-    label: "ChatKit - 챗봇",
-    icon: Bot,
+    label: "Data Explorer",
+    icon: DatabaseZap,
     pathSegment: "data-explorer"
   }
 ] satisfies DashboardNavItem[];
@@ -84,61 +78,37 @@ export const dashboardNavigationTree = [
     label: "퍼널",
     value: "funnels",
     pathSegment: "funnels",
-    icon: ListFilter,
-    children: [
-      { label: "퍼널 목록", value: "funnels", pathSegment: "funnels" },
-      {
-        label: "event_name 기반 퍼널 생성",
-        value: "funnel-builder",
-        pathSegment: "funnel-builder"
-      }
-    ]
+    icon: ListFilter
   },
   {
-    label: "캠페인",
-    value: "campaigns",
-    pathSegment: "campaigns",
-    icon: Megaphone,
-    children: [
-      {
-        label: "프로모션",
-        value: "campaign-promotions",
-        pathSegment: "campaign-promotions",
-        children: [
-          {
-            label: "세그먼트",
-            value: "campaign-segments",
-            pathSegment: "campaign-segments",
-            children: [
-              {
-                label: "실험 지표",
-                value: "campaign-experiment-metrics",
-                pathSegment: "campaign-experiment-metrics"
-              }
-            ]
-          },
-          {
-            label: "지표",
-            value: "campaign-promotion-metrics",
-            pathSegment: "campaign-promotion-metrics"
-          }
-        ]
-      },
-      { label: "지표", value: "campaign-metrics", pathSegment: "campaign-metrics" }
-    ]
+    label: "프로모션",
+    value: "campaign-promotions",
+    pathSegment: "campaign-promotions",
+    icon: Megaphone
   },
   {
-    label: "AI",
-    value: "dataExplorer",
-    pathSegment: "data-explorer",
-    icon: Bot,
-    children: [
-      {
-        label: "ChatKit - 챗봇",
-        value: "dataExplorer",
-        pathSegment: "data-explorer"
-      }
-    ]
+    label: "세그먼트",
+    value: "campaign-segments",
+    pathSegment: "campaign-segments",
+    icon: Megaphone
+  },
+  {
+    label: "실험 지표",
+    value: "campaign-experiment-metrics",
+    pathSegment: "campaign-experiment-metrics",
+    icon: Megaphone
+  },
+  {
+    label: "프로모션 지표",
+    value: "campaign-promotion-metrics",
+    pathSegment: "campaign-promotion-metrics",
+    icon: Megaphone
+  },
+  {
+    label: "캠페인 지표",
+    value: "campaign-metrics",
+    pathSegment: "campaign-metrics",
+    icon: Megaphone
   }
 ] satisfies DashboardNavTreeItem[];
 
