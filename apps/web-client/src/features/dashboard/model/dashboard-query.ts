@@ -52,7 +52,10 @@ export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   excludeBotTraffic: true,
   excludeInternalTraffic: true,
   filter: "",
+  selectedCampaignId: "",
   selectedCustomerId: "cg-low-mobile",
+  selectedPromotionId: "",
+  selectedSegmentId: "",
   sort: "conversion-asc",
   userScope: "all"
 };
@@ -74,7 +77,10 @@ export const dashboardQueryParsers = {
     defaultDashboardSearchQuery.excludeInternalTraffic
   ),
   filter: parseAsString.withDefault(defaultDashboardSearchQuery.filter),
+  selectedCampaignId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCampaignId),
   selectedCustomerId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCustomerId),
+  selectedPromotionId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedPromotionId),
+  selectedSegmentId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedSegmentId),
   sort: parseAsStringLiteral(dashboardSortOptions.map((item) => item.value)).withDefault(
     defaultDashboardSearchQuery.sort
   ),
@@ -100,6 +106,9 @@ export function normalizeDashboardQuery(
     ...query,
     filter: query.filter.trim(),
     projectId: projectId.trim(),
-    selectedCustomerId: query.selectedCustomerId.trim()
+    selectedCampaignId: query.selectedCampaignId.trim(),
+    selectedCustomerId: query.selectedCustomerId.trim(),
+    selectedPromotionId: query.selectedPromotionId.trim(),
+    selectedSegmentId: query.selectedSegmentId.trim()
   };
 }

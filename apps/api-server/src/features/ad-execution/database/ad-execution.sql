@@ -7,11 +7,9 @@ SELECT
   promotion_id AS "promotionId",
   analysis_id AS "analysisId",
   generation_id AS "generationId",
-  previous_promotion_run_id AS "previousPromotionRunId",
   loop_count AS "loopCount",
-  operator_instruction AS "operatorInstruction",
   status,
-  summary_json AS "summaryJson",
+  goal_snapshot_json AS "goalSnapshotJson",
   started_at AS "startedAt",
   ended_at AS "endedAt",
   created_at AS "createdAt",
@@ -25,11 +23,11 @@ SELECT
   promotion_id AS "promotionId",
   project_id AS "projectId",
   campaign_id AS "campaignId",
-  name,
+  marketing_theme AS "marketingTheme",
   channel,
   target_audience AS "targetAudience",
   goal_metric AS "goalMetric",
-  target_value AS "targetValue",
+  goal_target_value AS "goalTargetValue",
   goal_basis AS "goalBasis",
   status,
   metadata_json AS "metadataJson",
@@ -129,7 +127,7 @@ LIMIT 1;
 /* Purpose: Create one dispatch job for an ad_experiment group. */
 /* @name InsertDispatchJob */
 INSERT INTO ad_dispatch_jobs (
-  dispatch_job_id,
+  ad_dispatch_job_id,
   project_id,
   campaign_id,
   promotion_id,
@@ -137,10 +135,11 @@ INSERT INTO ad_dispatch_jobs (
   ad_experiment_id,
   channel,
   status,
+  provider,
   target_count,
-  dispatched_count,
+  sent_count,
   failed_count,
-  request_json,
+  metadata_json,
   started_at
 )
 VALUES (
@@ -152,32 +151,33 @@ VALUES (
   :adExperimentId,
   :channel,
   'running',
+  :provider,
   :targetCount,
   0,
   0,
-  :requestJson::jsonb,
+  :metadataJson::jsonb,
   now()
 )
 RETURNING
-  dispatch_job_id AS "dispatchJobId";
+  ad_dispatch_job_id AS "dispatchJobId";
 
 /* Purpose: Finish one dispatch job without hiding provider failures. */
 /* @name UpdateDispatchJobResult */
 UPDATE ad_dispatch_jobs
 SET
   status = :status,
-  dispatched_count = :dispatchedCount,
+  sent_count = :sentCount,
   failed_count = :failedCount,
-  result_json = :resultJson::jsonb,
-  finished_at = now()
-WHERE dispatch_job_id = :dispatchJobId
+  metadata_json = metadata_json || jsonb_build_object('result', :resultJson::jsonb),
+  completed_at = now()
+WHERE ad_dispatch_job_id = :dispatchJobId
 RETURNING
-  dispatch_job_id AS "dispatchJobId";
+  ad_dispatch_job_id AS "dispatchJobId";
 
 /* Purpose: Create a redirect token carrying final ad-execution contract ids. */
 /* @name InsertRedirectLink */
 INSERT INTO redirect_links (
-  redirect_link_id,
+  redirect_id,
   project_id,
   campaign_id,
   promotion_id,
@@ -187,14 +187,11 @@ INSERT INTO redirect_links (
   user_id,
   content_id,
   content_option_id,
-  redirect_token,
-  destination_url,
-  status,
-  metadata_json,
+  target_url,
   expires_at
 )
 VALUES (
-  :redirectLinkId,
+  :redirectToken,
   :projectId,
   :campaignId,
   :promotionId,
@@ -204,19 +201,16 @@ VALUES (
   :userId,
   :contentId,
   :contentOptionId,
-  :redirectToken,
   :destinationUrl,
-  'active',
-  :metadataJson::jsonb,
   :expiresAt::timestamptz
 )
 RETURNING
-  redirect_token AS "redirectId";
+  redirect_id AS "redirectId";
 
 /* Purpose: Restore redirect link entity by public redirect token. */
 /* @name FindRedirectLinkByToken */
 SELECT
-  redirect_link_id AS "redirectLinkId",
+  redirect_id AS "redirectLinkId",
   project_id AS "projectId",
   campaign_id AS "campaignId",
   promotion_id AS "promotionId",
@@ -226,14 +220,14 @@ SELECT
   user_id AS "userId",
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
-  redirect_token AS "redirectToken",
-  destination_url AS "destinationUrl",
-  status,
-  metadata_json AS "metadataJson",
+  redirect_id AS "redirectToken",
+  target_url AS "destinationUrl",
+  'active' AS status,
+  '{}'::jsonb AS "metadataJson",
   expires_at AS "expiresAt",
-  clicked_at AS "clickedAt",
+  NULL::timestamptz AS "clickedAt",
   created_at AS "createdAt",
-  updated_at AS "updatedAt"
+  created_at AS "updatedAt"
 FROM redirect_links
-WHERE redirect_token = :redirectId
+WHERE redirect_id = :redirectId
 LIMIT 1;

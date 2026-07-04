@@ -65,9 +65,11 @@ export class AdExecutionWriter {
         promotionRunId: input.promotionRunId,
         adExperimentId: input.adExperimentId,
         channel: input.channel,
+        provider: input.provider,
         targetCount: input.targetCount,
-        requestJson: JSON.stringify({
+        metadataJson: JSON.stringify({
           provider: input.provider,
+          request: toJsonObject(input.request),
           ...toJsonObject(input.request)
         })
       })
@@ -82,7 +84,7 @@ export class AdExecutionWriter {
       .query(updateDispatchJobResult, {
         dispatchJobId: input.dispatchJobId,
         status: input.status,
-        dispatchedCount: input.dispatchedCount,
+        sentCount: input.dispatchedCount,
         failedCount: input.failedCount,
         resultJson: JSON.stringify(input.result)
       })
@@ -93,7 +95,6 @@ export class AdExecutionWriter {
   async insertRedirectLink(input: InsertRedirectLinkInput): Promise<string> {
     const row = await this.db
       .query(insertRedirectLink, {
-        redirectLinkId: input.redirectLinkId,
         projectId: input.projectId,
         campaignId: input.campaignId,
         promotionId: input.promotionId,
@@ -105,7 +106,6 @@ export class AdExecutionWriter {
         contentOptionId: input.contentOptionId,
         redirectToken: input.redirectToken,
         destinationUrl: input.destinationUrl,
-        metadataJson: JSON.stringify(input.metadata),
         expiresAt: input.expiresAt.toISOString()
       })
       .single();

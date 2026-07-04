@@ -34,11 +34,11 @@ const timestampsSchema = {
 
 export const promotionEntitySchema = z.object({
   ...promotionIdsSchema,
-  name: requiredStringSchema,
+  marketingTheme: requiredStringSchema,
   channel: adExecutionChannelSchema,
   targetAudience: requiredStringSchema,
   goalMetric: requiredStringSchema,
-  targetValue: requiredStringSchema,
+  goalTargetValue: requiredStringSchema,
   goalBasis: requiredStringSchema,
   status: requiredStringSchema,
   metadataJson: jsonObjectSchema,
@@ -51,11 +51,9 @@ export const promotionRunEntitySchema = z.object({
   ...promotionIdsSchema,
   analysisId: requiredStringSchema,
   generationId: requiredStringSchema,
-  previousPromotionRunId: requiredStringSchema.nullable(),
   loopCount: z.number(),
-  operatorInstruction: nullableStringSchema,
   status: requiredStringSchema,
-  summaryJson: jsonObjectSchema,
+  goalSnapshotJson: jsonObjectSchema,
   startedAt: dateFromDbSchema.nullable(),
   endedAt: dateFromDbSchema.nullable(),
   ...timestampsSchema

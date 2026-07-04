@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { DashboardFunnelEventNameSchema } from "@loopad/shared";
 import type {
+  DashboardCampaignRealtimeMetrics,
   DashboardCreateFunnelRequest,
   DashboardDeleteFunnelResult,
   DashboardEventCatalogItem,
   DashboardFunnel,
   DashboardFunnelMetrics,
-  DashboardFunnelStep
+  DashboardFunnelStep,
+  DashboardPromotionRealtimeMetrics,
+  DashboardRealtimeEvent,
+  DashboardSegmentRealtimeMetrics
 } from "@loopad/shared";
 import { type ClickHouseClient } from "@clickhouse/client";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
@@ -38,6 +42,12 @@ type EventCatalogRow = {
 type FunnelStepMetricRow = {
   event_name: string;
   event_count: number | string;
+};
+
+type SegmentRealtimeMetricRow = {
+  event_name: string;
+  event_count: number | string;
+  unique_user_count: number | string;
 };
 
 @Injectable()
@@ -103,6 +113,60 @@ export class DashboardFunnelReader {
     };
   }
 
+  async getCampaignRealtimeMetrics(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardCampaignRealtimeMetrics> {
+    const events = await this.countRealtimeEvents({
+      filterColumn: "campaign_id",
+      filterValue: campaignId,
+      projectId
+    });
+
+    return {
+      campaign_id: campaignId,
+      total_event_count: totalEventCount(events),
+      events
+    };
+  }
+
+  async getPromotionRealtimeMetrics(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardPromotionRealtimeMetrics> {
+    const events = await this.countRealtimeEvents({
+      filterColumn: "promotion_id",
+      filterValue: promotionId,
+      projectId
+    });
+
+    return {
+      promotion_id: promotionId,
+      total_event_count: totalEventCount(events),
+      events
+    };
+  }
+
+  async getSegmentRealtimeMetrics(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardSegmentRealtimeMetrics> {
+    const events = await this.countRealtimeEvents({
+      filterColumn: "promotion_id",
+      filterValue: promotionId,
+      projectId,
+      segmentId
+    });
+
+    return {
+      promotion_id: promotionId,
+      segment_id: segmentId,
+      total_event_count: totalEventCount(events),
+      events
+    };
+  }
+
   async createFunnel(
     projectId: string,
     request: DashboardCreateFunnelRequest
@@ -146,6 +210,57 @@ export class DashboardFunnelReader {
       funnel_id: deleted.funnelId,
       deleted: true
     };
+  }
+
+  private async countRealtimeEvents({
+    filterColumn,
+    filterValue,
+    projectId,
+    segmentId
+  }: {
+    filterColumn: "campaign_id" | "promotion_id";
+    filterValue: string;
+    projectId: string;
+    segmentId?: string;
+  }): Promise<DashboardRealtimeEvent[]> {
+    const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
+    const segmentBookingFilter = segmentId
+      ? "AND ifNull(segment_id, '') = {segmentId:String}"
+      : "";
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          event_name,
+          count() AS event_count,
+          uniqExact(user_id) AS unique_user_count
+        FROM (
+          SELECT event_name, user_id
+          FROM promotion_touch_events
+          WHERE project_id = {projectId:String}
+            AND ${filterColumn} = {filterValue:String}
+            ${segmentTouchFilter}
+
+          UNION ALL
+
+          SELECT event_name, user_id
+          FROM booking_outcome_events
+          WHERE project_id = {projectId:String}
+            AND ifNull(${filterColumn}, '') = {filterValue:String}
+            ${segmentBookingFilter}
+        )
+        GROUP BY event_name
+        ORDER BY event_count DESC, event_name ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+    });
+    const rows = await result.json<SegmentRealtimeMetricRow>();
+
+    return rows.map((row) => ({
+      event_name: DashboardFunnelEventNameSchema.parse(row.event_name),
+      event_count: countValue(row.event_count),
+      unique_user_count: countValue(row.unique_user_count)
+    }));
   }
 
   private async countFunnelStepEvents(
@@ -200,6 +315,10 @@ function toFunnel(
 function countValue(value: number | string): number {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
+}
+
+function totalEventCount(events: DashboardRealtimeEvent[]): number {
+  return events.reduce((sum, event) => sum + event.event_count, 0);
 }
 
 function eventDisplayName(eventName: string): string {

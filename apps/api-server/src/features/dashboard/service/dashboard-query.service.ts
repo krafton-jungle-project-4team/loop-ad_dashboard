@@ -2,14 +2,26 @@ import { Inject, Injectable } from "@nestjs/common";
 import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactional";
 import type {
   DashboardCreateFunnelRequest,
+  DashboardCampaignDetail,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnelList,
   DashboardFunnelMetrics,
-  DashboardMain
+  DashboardMain,
+  DashboardPromotionDetail,
+  DashboardSavedSegment,
+  DashboardSavedSegmentList,
+  DashboardSaveSegmentRequest,
+  DashboardSegmentDetail,
+  DashboardSegmentQueryPreview,
+  DashboardSegmentQueryPreviewRequest
 } from "@loopad/shared";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
-import { DashboardCampaignReader, DashboardFunnelReader } from "../repository/index.js";
+import {
+  DashboardCampaignReader,
+  DashboardFunnelReader,
+  DashboardSegmentQueryRepository
+} from "../repository/index.js";
 
 @Injectable()
 export class DashboardQueryService {
@@ -18,12 +30,57 @@ export class DashboardQueryService {
     private readonly campaignReader: DashboardCampaignReader,
     @Inject(DashboardFunnelReader)
     private readonly funnelReader: DashboardFunnelReader,
+    @Inject(DashboardSegmentQueryRepository)
+    private readonly segmentQueryRepository: DashboardSegmentQueryRepository,
     @InjectTransactionHost()
     private readonly transactionHost: TransactionHost<PgTypedTransactionalAdapter>
   ) {}
 
   async main(projectId: string): Promise<DashboardMain> {
     return { campaigns: await this.campaignReader.listCampaigns(projectId) };
+  }
+
+  async campaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {
+    const [detail, realtimeMetrics] = await Promise.all([
+      this.campaignReader.getCampaignDetail(projectId, campaignId),
+      this.funnelReader.getCampaignRealtimeMetrics(projectId, campaignId)
+    ]);
+
+    return {
+      ...detail,
+      realtime_metrics: realtimeMetrics
+    };
+  }
+
+  async promotionDetail(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardPromotionDetail> {
+    const [detail, realtimeMetrics] = await Promise.all([
+      this.campaignReader.getPromotionDetail(projectId, promotionId),
+      this.funnelReader.getPromotionRealtimeMetrics(projectId, promotionId)
+    ]);
+
+    return {
+      ...detail,
+      realtime_metrics: realtimeMetrics
+    };
+  }
+
+  async segmentDetail(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardSegmentDetail> {
+    const [detail, realtimeMetrics] = await Promise.all([
+      this.campaignReader.getSegmentDetail(projectId, promotionId, segmentId),
+      this.funnelReader.getSegmentRealtimeMetrics(projectId, promotionId, segmentId)
+    ]);
+
+    return {
+      ...detail,
+      realtime_metrics: realtimeMetrics
+    };
   }
 
   async funnels(projectId: string): Promise<DashboardFunnelList> {
@@ -54,5 +111,27 @@ export class DashboardQueryService {
     return this.transactionHost.withTransaction(() =>
       this.funnelReader.deleteFunnel(projectId, funnelId)
     );
+  }
+
+  async createSegmentQueryPreview(
+    projectId: string,
+    request: DashboardSegmentQueryPreviewRequest
+  ): Promise<DashboardSegmentQueryPreview> {
+    return this.transactionHost.withTransaction(() =>
+      this.segmentQueryRepository.createQueryPreview(projectId, request)
+    );
+  }
+
+  async saveSegment(
+    projectId: string,
+    request: DashboardSaveSegmentRequest
+  ): Promise<DashboardSavedSegment> {
+    return this.transactionHost.withTransaction(() =>
+      this.segmentQueryRepository.saveSegment(projectId, request)
+    );
+  }
+
+  async savedSegments(projectId: string): Promise<DashboardSavedSegmentList> {
+    return this.segmentQueryRepository.listSavedSegments(projectId);
   }
 }

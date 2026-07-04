@@ -18,10 +18,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger
 } from "@loopad/ui/shadcn/sidebar";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { Link } from "@tanstack/react-router";
 import { Gauge } from "lucide-react";
 import {
@@ -32,7 +36,11 @@ import {
   type PointerEvent,
   type ReactNode
 } from "react";
-import { dashboardTabs, getDashboardTabLabel } from "../model/dashboard-navigation.js";
+import {
+  dashboardNavigationTree,
+  getDashboardTabLabel,
+  type DashboardNavTreeItem
+} from "../model/dashboard-navigation.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
@@ -134,12 +142,12 @@ function DashboardNavigation({
 }) {
   return (
     <SidebarMenu>
-      {dashboardTabs.map((item) => {
+      {dashboardNavigationTree.map((item) => {
         const Icon = item.icon;
-        const isActive = activeTab === item.value;
+        const isActive = isNavigationItemActive(item, activeTab);
 
         return (
-          <SidebarMenuItem key={item.value}>
+          <SidebarMenuItem key={item.label}>
             <SidebarMenuButton
               asChild
               className={
@@ -151,18 +159,83 @@ function DashboardNavigation({
               tooltip={item.label}
             >
               <Link
-                params={{ projectId, tabPath: item.pathSegment }}
+                params={{ projectId, tabPath: item.pathSegment ?? "main" }}
                 to="/dashboard/$projectId/$tabPath"
               >
-                <Icon />
+                {Icon ? <Icon /> : null}
                 <span>{item.label}</span>
               </Link>
             </SidebarMenuButton>
+            {item.children ? (
+              <DashboardNavigationSubItems
+                activeTab={activeTab}
+                items={item.children}
+                projectId={projectId}
+              />
+            ) : null}
           </SidebarMenuItem>
         );
       })}
     </SidebarMenu>
   );
+}
+
+function DashboardNavigationSubItems({
+  activeTab,
+  items,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  items: DashboardNavTreeItem[];
+  projectId: string;
+}) {
+  return (
+    <SidebarMenuSub>
+      {items.map((item) => {
+        const isExactActive = activeTab === item.value;
+        const isBranchActive = isNavigationItemActive(item, activeTab);
+
+        return (
+          <SidebarMenuSubItem key={item.label}>
+            <SidebarMenuSubButton
+              asChild
+              className={cn(
+                "relative transition-colors",
+                isExactActive &&
+                  "bg-sidebar-accent font-semibold text-sidebar-accent-foreground",
+                !isExactActive && isBranchActive && "bg-sidebar-accent/60 text-sidebar-foreground"
+              )}
+              isActive={isExactActive}
+            >
+              <Link
+                params={{ projectId, tabPath: item.pathSegment ?? "main" }}
+                to="/dashboard/$projectId/$tabPath"
+              >
+                {isExactActive ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sidebar-primary"
+                  />
+                ) : null}
+                <span>{item.label}</span>
+              </Link>
+            </SidebarMenuSubButton>
+            {item.children ? (
+              <DashboardNavigationSubItems
+                activeTab={activeTab}
+                items={item.children}
+                projectId={projectId}
+              />
+            ) : null}
+          </SidebarMenuSubItem>
+        );
+      })}
+    </SidebarMenuSub>
+  );
+}
+
+function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: DashboardTab): boolean {
+  return item.value === activeTab || Boolean(item.children?.some((child) => isNavigationItemActive(child, activeTab)));
 }
 
 function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: DashboardTab }) {

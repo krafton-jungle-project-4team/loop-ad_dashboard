@@ -17,11 +17,9 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
     <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
       <CardHeader className="gap-1.5 px-5">
         <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-          캠페인 목록
+          메인 대시보드
         </CardTitle>
-        <CardDescription>
-          Campaign → Promotion → Segment → Ad Experiment 실행 구조를 기준으로 조회합니다.
-        </CardDescription>
+        <CardDescription>프로젝트의 캠페인 목록을 확인합니다.</CardDescription>
       </CardHeader>
       <CardContent className="px-5">
         {data.campaigns.length > 0 ? (
@@ -39,7 +37,7 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
             </TableHeader>
             <TableBody>
               {data.campaigns.map((campaign) => (
-                <CampaignRow campaign={campaign} key={campaign.campaign_id} />
+                <CampaignListRow campaign={campaign} key={campaign.campaign_id} />
               ))}
             </TableBody>
           </Table>
@@ -51,7 +49,7 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
   );
 }
 
-function CampaignRow({ campaign }: { campaign: DashboardCampaignSummary }) {
+function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
   return (
     <TableRow>
       <TableCell>

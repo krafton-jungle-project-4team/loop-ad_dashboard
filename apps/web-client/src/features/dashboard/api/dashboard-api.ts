@@ -1,19 +1,35 @@
 import {
   createApiSuccessResponseSchema,
+  DashboardCampaignDetailSchema,
   DashboardCreateFunnelRequestSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
-  DashboardMainSchema
+  DashboardMainSchema,
+  DashboardPromotionDetailSchema,
+  DashboardSavedSegmentListSchema,
+  DashboardSavedSegmentSchema,
+  DashboardSaveSegmentRequestSchema,
+  DashboardSegmentDetailSchema,
+  DashboardSegmentQueryPreviewRequestSchema,
+  DashboardSegmentQueryPreviewSchema
 } from "@loopad/shared";
 import type {
+  DashboardCampaignDetail,
   DashboardCreateFunnelRequest,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnel,
-  DashboardFunnelMetrics
+  DashboardFunnelMetrics,
+  DashboardPromotionDetail,
+  DashboardSavedSegmentList,
+  DashboardSavedSegment,
+  DashboardSaveSegmentRequest,
+  DashboardSegmentDetail,
+  DashboardSegmentQueryPreview,
+  DashboardSegmentQueryPreviewRequest
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -30,14 +46,26 @@ export async function fetchDashboardPageResource(
 ): Promise<DashboardPageResource> {
   switch (tab) {
     case "main":
+    case "main-campaign-list":
       return {
         tab,
         data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
     case "funnels":
+    case "funnel-builder":
       return {
         tab,
         data: await request("/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)
+      };
+    case "campaigns":
+    case "campaign-promotions":
+    case "campaign-segments":
+    case "campaign-experiment-metrics":
+    case "campaign-promotion-metrics":
+    case "campaign-metrics":
+      return {
+        tab,
+        data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
     case "dataExplorer":
       throw new Error("Data Explorer uses its own API resource flow.");
@@ -67,6 +95,46 @@ export async function createDashboardFunnel(
   return createApiSuccessResponseSchema(DashboardFunnelSchema).parse(await response.json()).data;
 }
 
+export async function fetchDashboardCampaignDetail(
+  query: DashboardQuery,
+  campaignId: string,
+  signal: AbortSignal
+): Promise<DashboardCampaignDetail> {
+  return request(
+    `/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}`,
+    DashboardCampaignDetailSchema,
+    query,
+    signal
+  );
+}
+
+export async function fetchDashboardPromotionDetail(
+  query: DashboardQuery,
+  promotionId: string,
+  signal: AbortSignal
+): Promise<DashboardPromotionDetail> {
+  return request(
+    `/dashboard/v1/promotions/${encodeURIComponent(promotionId)}`,
+    DashboardPromotionDetailSchema,
+    query,
+    signal
+  );
+}
+
+export async function fetchDashboardSegmentDetail(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  signal: AbortSignal
+): Promise<DashboardSegmentDetail> {
+  return request(
+    `/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}`,
+    DashboardSegmentDetailSchema,
+    query,
+    signal
+  );
+}
+
 export async function deleteDashboardFunnel(
   query: DashboardQuery,
   funnelId: string
@@ -88,6 +156,59 @@ export async function deleteDashboardFunnel(
   return createApiSuccessResponseSchema(DashboardDeleteFunnelResultSchema).parse(
     await response.json()
   ).data;
+}
+
+export async function createDashboardSegmentQueryPreview(
+  query: DashboardQuery,
+  requestBody: DashboardSegmentQueryPreviewRequest
+): Promise<DashboardSegmentQueryPreview> {
+  const parsedBody = DashboardSegmentQueryPreviewRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments/query-preview`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardSegmentQueryPreviewSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function saveDashboardSegment(
+  query: DashboardQuery,
+  requestBody: DashboardSaveSegmentRequest
+): Promise<DashboardSavedSegment> {
+  const parsedBody = DashboardSaveSegmentRequestSchema.parse(requestBody);
+  const url = new URL(`${dashboardConfig.apiBaseUrl}/dashboard/v1/segments`, window.location.origin);
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
+    .data;
+}
+
+export async function fetchDashboardSavedSegments(
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<DashboardSavedSegmentList> {
+  return request("/dashboard/v1/segments", DashboardSavedSegmentListSchema, query, signal);
 }
 
 export async function fetchDashboardEventCatalog(
@@ -124,6 +245,9 @@ async function request<T>(
   url.searchParams.set("userScope", query.userScope);
   url.searchParams.set("conversionEvent", query.conversionEvent);
   url.searchParams.set("selectedCustomerId", query.selectedCustomerId);
+  url.searchParams.set("selectedCampaignId", query.selectedCampaignId);
+  url.searchParams.set("selectedPromotionId", query.selectedPromotionId);
+  url.searchParams.set("selectedSegmentId", query.selectedSegmentId);
   url.searchParams.set("sort", query.sort);
   if (query.filter) {
     url.searchParams.set("filter", query.filter);

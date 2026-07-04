@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { TransactionHost } from "@nestjs-cls/transactional";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
+import type { DashboardSegmentQueryRepository } from "../src/features/dashboard/repository/dashboard-segment-query-repository.js";
 import type { PgTypedTransactionalAdapter } from "../src/infra/database/pgtyped-transactional.adapter.js";
 
 test("dashboard main returns campaign summaries from the campaign reader", async () => {
@@ -33,6 +34,7 @@ test("dashboard main returns campaign summaries from the campaign reader", async
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
+    emptySegmentQueryRepository(),
     passthroughTransactionHost()
   );
 
@@ -64,6 +66,7 @@ test("dashboard event catalog returns collected funnel event options", async () 
         ];
       }
     } as unknown as DashboardFunnelReader,
+    emptySegmentQueryRepository(),
     passthroughTransactionHost()
   );
 
@@ -105,6 +108,7 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
         };
       }
     } as unknown as DashboardFunnelReader,
+    emptySegmentQueryRepository(),
     passthroughTransactionHost()
   );
 
@@ -122,6 +126,124 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
   assert.equal(funnel.steps[2]?.step_name, "예약 완료");
 });
 
+test("dashboard segment query preview delegates to the segment query repository", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      createQueryPreview: async (projectId, request) => {
+        writes.push({ projectId, request });
+        return {
+          query_preview_id: "seg_query_preview_001",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 1342,
+          total_eligible_user_count: 10000,
+          sample_ratio: 0.1342,
+          sample_size_status: "valid",
+          columns: ["user_id"],
+          rows: [{ user_id: "user_001" }]
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    passthroughTransactionHost()
+  );
+
+  const preview = await service.createSegmentQueryPreview("hotel-client-a", {
+    natural_language_query: "숙소 상세 조회 후 미예약 고객"
+  });
+
+  assert.equal(writes.length, 1);
+  assert.equal(preview.sample_size_status, "valid");
+  assert.deepEqual(preview.columns, ["user_id"]);
+});
+
+test("dashboard save segment delegates valid preview save to the segment query repository", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      saveSegment: async (projectId, request) => {
+        writes.push({ projectId, request });
+        return {
+          segment_id: "seg_repeat_hotel_no_booking",
+          project_id: projectId,
+          segment_name: request.segment_name,
+          source: "custom_chatkit",
+          query_preview_id: request.query_preview_id,
+          natural_language_query: "숙소 상세 조회 후 미예약 고객",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 1342,
+          total_eligible_user_count: 10000,
+          sample_ratio: 0.1342,
+          status: "active"
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    passthroughTransactionHost()
+  );
+
+  const segment = await service.saveSegment("hotel-client-a", {
+    query_preview_id: "seg_query_preview_001",
+    segment_name: "같은 숙소 반복 조회 후 미예약 고객"
+  });
+
+  assert.equal(writes.length, 1);
+  assert.equal(segment.source, "custom_chatkit");
+  assert.equal(segment.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
+});
+
+test("dashboard saved segments returns custom segments from the segment query repository", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const reads: string[] = [];
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      listSavedSegments: async (projectId) => {
+        reads.push(projectId);
+        return {
+          segments: [
+            {
+              segment_id: "seg_custom_001",
+              project_id: projectId,
+              segment_name: "같은 숙소 반복 조회 후 미예약 고객",
+              source: "custom_chatkit",
+              query_preview_id: "seg_query_preview_001",
+              natural_language_query: "숙소 상세 조회 후 미예약 고객",
+              generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+              sample_size: 1342,
+              total_eligible_user_count: 10000,
+              sample_ratio: 0.1342,
+              status: "active"
+            }
+          ]
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    passthroughTransactionHost()
+  );
+
+  const segments = await service.savedSegments("hotel-client-a");
+
+  assert.deepEqual(reads, ["hotel-client-a"]);
+  assert.equal(segments.segments.length, 1);
+  assert.equal(segments.segments[0]?.source, "custom_chatkit");
+  assert.equal(segments.segments[0]?.sample_size, 1342);
+});
+
 function emptyCampaignReader(): DashboardCampaignReader {
   return {
     listCampaigns: async () => []
@@ -136,6 +258,20 @@ function emptyFunnelReader(): DashboardFunnelReader {
     listEventCatalog: async () => [],
     listFunnels: async () => []
   } as unknown as DashboardFunnelReader;
+}
+
+function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
+  return {
+    createQueryPreview: async () => {
+      throw new Error("Unexpected createQueryPreview call.");
+    },
+    listSavedSegments: async () => {
+      throw new Error("Unexpected listSavedSegments call.");
+    },
+    saveSegment: async () => {
+      throw new Error("Unexpected saveSegment call.");
+    }
+  } as unknown as DashboardSegmentQueryRepository;
 }
 
 function passthroughTransactionHost(): TransactionHost<PgTypedTransactionalAdapter> {
