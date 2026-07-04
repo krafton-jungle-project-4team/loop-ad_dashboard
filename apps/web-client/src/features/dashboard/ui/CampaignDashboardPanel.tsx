@@ -471,6 +471,7 @@ function CampaignTabContent({
           <PromotionTable
             onSelectPromotion={onSelectPromotion}
             promotions={detail.promotions}
+            segments={detail.segments}
             selectedPromotionId={selectedPromotionId}
           />
           <PromotionDetail
@@ -546,6 +547,7 @@ function CampaignTabContent({
           <PromotionTable
             onSelectPromotion={onSelectPromotion}
             promotions={detail.promotions}
+            segments={detail.segments}
             selectedPromotionId={selectedPromotionId}
           />
           <CampaignNextAction detail={detail} />
@@ -767,62 +769,127 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
 function PromotionTable({
   onSelectPromotion,
   promotions,
+  segments,
   selectedPromotionId
 }: {
   onSelectPromotion: (promotionId: string) => void;
   promotions: DashboardCampaignPromotion[];
+  segments: DashboardCampaignSegment[];
   selectedPromotionId: string;
 }) {
+  const activeCount = promotions.filter((promotion) => promotion.status === "active").length;
+  const totalExperimentCount = promotions.reduce(
+    (sum, promotion) => sum + promotion.ad_experiment_count,
+    0
+  );
+
   return (
-    <DetailTable
-      emptyMessage="등록된 프로모션이 없습니다."
-      headers={["프로모션", "채널", "목표 지표", "목표값", "세그먼트", "광고 실험", "상태", "상세"]}
-      title="프로모션 목록"
-    >
-      {promotions.map((promotion) => (
-        <TableRow
-          aria-selected={selectedPromotionId === promotion.promotion_id}
-          className="cursor-pointer"
-          key={promotion.promotion_id}
-          onClick={() => onSelectPromotion(promotion.promotion_id)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onSelectPromotion(promotion.promotion_id);
-            }
-          }}
-          tabIndex={0}
-        >
-          <TableCell>{promotion.promotion_id}</TableCell>
-          <TableCell>{promotion.channel}</TableCell>
-          <TableCell>{promotion.goal_metric}</TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatGoalValue(promotion.goal_target_value)}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatInteger(promotion.target_segment_count)}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatInteger(promotion.ad_experiment_count)}
-          </TableCell>
-          <TableCell>
-            <Badge variant="secondary">{promotion.status}</Badge>
-          </TableCell>
-          <TableCell>
-            <Button
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelectPromotion(promotion.promotion_id);
-              }}
-              size="sm"
-              variant={selectedPromotionId === promotion.promotion_id ? "default" : "outline"}
-            >
-              {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
-            </Button>
-          </TableCell>
-        </TableRow>
-      ))}
-    </DetailTable>
+    <section className="grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-1">
+          <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 목록</h3>
+          <p className="text-sm text-muted-foreground">
+            Promotion → Segment → Ad Experiment 연결 상태를 기준으로 확인합니다.
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="전체 프로모션" value={formatInteger(promotions.length)} />
+        <SummaryItem label="활성 프로모션" value={formatInteger(activeCount)} />
+        <SummaryItem label="연결 세그먼트" value={formatInteger(segments.length)} />
+        <SummaryItem label="광고 실험" value={formatInteger(totalExperimentCount)} />
+      </div>
+      {promotions.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>프로모션</TableHead>
+              <TableHead>대상 세그먼트</TableHead>
+              <TableHead>목표</TableHead>
+              <TableHead className="text-right">실험</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>상세</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {promotions.map((promotion) => {
+              const promotionSegments = segments.filter(
+                (segment) => segment.promotion_id === promotion.promotion_id
+              );
+              return (
+                <TableRow
+                  aria-selected={selectedPromotionId === promotion.promotion_id}
+                  className="cursor-pointer"
+                  key={promotion.promotion_id}
+                  onClick={() => onSelectPromotion(promotion.promotion_id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelectPromotion(promotion.promotion_id);
+                    }
+                  }}
+                  tabIndex={0}
+                >
+                  <TableCell>
+                    <div className="flex min-w-[220px] flex-col gap-1">
+                      <span className="font-medium">{promotion.marketing_theme}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {promotion.channel} · {promotion.promotion_id}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex min-w-[240px] flex-wrap gap-1.5">
+                      {promotionSegments.slice(0, 3).map((segment) => (
+                        <Badge key={segment.segment_id} variant="outline">
+                          {segment.segment_name}
+                        </Badge>
+                      ))}
+                      {promotionSegments.length > 3 ? (
+                        <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
+                      ) : null}
+                      {promotionSegments.length === 0 ? (
+                        <span className="text-sm text-muted-foreground">세그먼트 없음</span>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="grid min-w-[160px] gap-1">
+                      <span className="text-sm">{promotion.goal_metric}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatGoalValue(promotion.goal_target_value)} · {promotion.goal_basis}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(promotion.ad_experiment_count)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{promotion.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelectPromotion(promotion.promotion_id);
+                      }}
+                      size="sm"
+                      variant={
+                        selectedPromotionId === promotion.promotion_id ? "default" : "outline"
+                      }
+                    >
+                      {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      ) : (
+        <EmptyState message="등록된 프로모션이 없습니다." />
+      )}
+    </section>
   );
 }
 
@@ -892,6 +959,11 @@ function PromotionDetail({
         metrics={detail.realtime_metrics}
         title="프로모션 이벤트 집계"
       />
+      <PromotionSegmentCards
+        onSelectSegment={onSelectSegment}
+        segments={detail.segments}
+        selectedSegmentId={selectedSegmentId}
+      />
       <SegmentTable
         onSelectSegment={onSelectSegment}
         segments={detail.segments}
@@ -905,6 +977,67 @@ function PromotionDetail({
         selectedSegmentId={selectedSegmentId}
       />
       <ExperimentMetricTable metrics={detail.experiment_metrics} />
+    </section>
+  );
+}
+
+function PromotionSegmentCards({
+  onSelectSegment,
+  segments,
+  selectedSegmentId
+}: {
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
+  segments: DashboardCampaignSegment[];
+  selectedSegmentId: string;
+}) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-[#1d1d1f]">세그먼트 선택</h3>
+      {segments.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-3">
+          {segments.map((segment) => {
+            const isSelected = selectedSegmentId === segment.segment_id;
+            return (
+              <button
+                aria-pressed={isSelected}
+                className="grid gap-3 rounded-md border bg-background p-3 text-left transition-colors hover:bg-muted/60 aria-pressed:border-primary aria-pressed:bg-muted"
+                key={segment.segment_id}
+                onClick={() => onSelectSegment(segment.promotion_id, segment.segment_id)}
+                type="button"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-1">
+                    <span className="font-medium">{segment.segment_name}</span>
+                    <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
+                  </div>
+                  <Badge variant={isSelected ? "default" : "secondary"}>
+                    {isSelected ? "열림" : segment.status}
+                  </Badge>
+                </div>
+                <div className="line-clamp-2 text-sm text-muted-foreground">
+                  {segment.natural_language_query ?? segment.source ?? "-"}
+                </div>
+                <div className="grid gap-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">예상 규모</span>
+                    <span className="font-medium tabular-nums">
+                      {formatInteger(segment.estimated_size)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">표본 비율</span>
+                    <span className="font-medium tabular-nums">
+                      {formatPercentValue(segment.sample_ratio)}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState message="프로모션에 연결된 세그먼트가 없습니다." />
+      )}
     </section>
   );
 }
@@ -967,67 +1100,104 @@ function SegmentTable({
   segments: DashboardCampaignSegment[];
   selectedSegmentId?: string;
 }) {
+  const activeCount = segments.filter((segment) => segment.status === "active").length;
+  const totalEstimatedSize = segments.reduce((sum, segment) => sum + segment.estimated_size, 0);
+  const averageSampleRatio =
+    segments.length > 0
+      ? segments.reduce((sum, segment) => sum + segment.sample_ratio, 0) / segments.length
+      : 0;
+
   return (
-    <DetailTable
-      emptyMessage="등록된 세그먼트가 없습니다."
-      headers={[
-        "프로모션",
-        "세그먼트",
-        "예상 규모",
-        "우선순위",
-        "상태",
-        ...(onSelectSegment ? ["상세"] : [])
-      ]}
-      title="세그먼트 목록"
-    >
-      {segments.map((segment) => (
-        <TableRow
-          aria-selected={selectedSegmentId === segment.segment_id}
-          className={onSelectSegment ? "cursor-pointer" : undefined}
-          key={`${segment.promotion_id}-${segment.segment_id}`}
-          onClick={() => onSelectSegment?.(segment.promotion_id, segment.segment_id)}
-          onKeyDown={(event) => {
-            if (!onSelectSegment) {
-              return;
-            }
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onSelectSegment(segment.promotion_id, segment.segment_id);
-            }
-          }}
-          tabIndex={onSelectSegment ? 0 : undefined}
-        >
-          <TableCell>{segment.promotion_id}</TableCell>
-          <TableCell>
-            <div className="flex min-w-[180px] flex-col gap-1">
-              <span className="font-medium">{segment.segment_name}</span>
-              <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
-            </div>
-          </TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatInteger(segment.estimated_size)}
-          </TableCell>
-          <TableCell>{segment.priority ?? "-"}</TableCell>
-          <TableCell>
-            <Badge variant="secondary">{segment.status}</Badge>
-          </TableCell>
-          {onSelectSegment ? (
-            <TableCell>
-              <Button
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onSelectSegment(segment.promotion_id, segment.segment_id);
+    <section className="grid gap-3">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">세그먼트 목록</h3>
+        <p className="text-sm text-muted-foreground">
+          프로모션별 타겟 조건, 표본, 예상 규모를 기준으로 세그먼트를 확인합니다.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="전체 세그먼트" value={formatInteger(segments.length)} />
+        <SummaryItem label="활성 세그먼트" value={formatInteger(activeCount)} />
+        <SummaryItem label="예상 대상" value={formatInteger(totalEstimatedSize)} />
+        <SummaryItem label="평균 표본 비율" value={formatPercentValue(averageSampleRatio)} />
+      </div>
+      {segments.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>세그먼트</TableHead>
+              <TableHead>조건</TableHead>
+              <TableHead>프로모션</TableHead>
+              <TableHead className="text-right">예상 규모</TableHead>
+              <TableHead className="text-right">표본 비율</TableHead>
+              <TableHead>상태</TableHead>
+              {onSelectSegment ? <TableHead>상세</TableHead> : null}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {segments.map((segment) => (
+              <TableRow
+                aria-selected={selectedSegmentId === segment.segment_id}
+                className={onSelectSegment ? "cursor-pointer" : undefined}
+                key={`${segment.promotion_id}-${segment.segment_id}`}
+                onClick={() => onSelectSegment?.(segment.promotion_id, segment.segment_id)}
+                onKeyDown={(event) => {
+                  if (!onSelectSegment) {
+                    return;
+                  }
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectSegment(segment.promotion_id, segment.segment_id);
+                  }
                 }}
-                size="sm"
-                variant={selectedSegmentId === segment.segment_id ? "default" : "outline"}
+                tabIndex={onSelectSegment ? 0 : undefined}
               >
-                {selectedSegmentId === segment.segment_id ? "열림" : "상세"}
-              </Button>
-            </TableCell>
-          ) : null}
-        </TableRow>
-      ))}
-    </DetailTable>
+                <TableCell>
+                  <div className="flex min-w-[180px] flex-col gap-1">
+                    <span className="font-medium">{segment.segment_name}</span>
+                    <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="line-clamp-2 min-w-[220px] text-sm">
+                    {segment.natural_language_query ?? segment.source ?? "-"}
+                  </div>
+                </TableCell>
+                <TableCell>{segment.promotion_id}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatInteger(segment.estimated_size)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatPercentValue(segment.sample_ratio)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="secondary">{segment.status}</Badge>
+                    {segment.priority ? <Badge variant="outline">{segment.priority}</Badge> : null}
+                  </div>
+                </TableCell>
+                {onSelectSegment ? (
+                  <TableCell>
+                    <Button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelectSegment(segment.promotion_id, segment.segment_id);
+                      }}
+                      size="sm"
+                      variant={selectedSegmentId === segment.segment_id ? "default" : "outline"}
+                    >
+                      {selectedSegmentId === segment.segment_id ? "열림" : "상세"}
+                    </Button>
+                  </TableCell>
+                ) : null}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <EmptyState message="등록된 세그먼트가 없습니다." />
+      )}
+    </section>
   );
 }
 
@@ -1458,44 +1628,96 @@ function uniqueValues(values: Array<string | null>): string[] {
 }
 
 function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperimentMetric[] }) {
+  const insufficientCount = metrics.filter((metric) => metric.status === "insufficient_data").length;
+  const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
+  const totalSampleSize = metrics.reduce((sum, metric) => sum + metric.sample_size, 0);
+  const averageActualValue =
+    metrics.length > 0
+      ? metrics.reduce((sum, metric) => sum + metric.actual_value, 0) / metrics.length
+      : 0;
+
   return (
-    <DetailTable
-      emptyMessage="등록된 실험 지표가 없습니다."
-      headers={[
-        "프로모션",
-        "광고 실험",
-        "세그먼트",
-        "지표",
-        "목표",
-        "실제",
-        "표본",
-        "상태"
-      ]}
-      title="실험 지표"
-    >
-      {metrics.map((metric) => (
-        <TableRow key={`${metric.promotion_id}-${metric.ad_experiment_id}-${metric.created_at}`}>
-          <TableCell>{metric.promotion_id}</TableCell>
-          <TableCell>{metric.ad_experiment_id ?? "-"}</TableCell>
-          <TableCell>{metric.segment_id ?? "-"}</TableCell>
-          <TableCell>{metric.metric}</TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatGoalValue(metric.target_value)}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatGoalValue(metric.actual_value)}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">
-            {formatInteger(metric.sample_size)}
-          </TableCell>
-          <TableCell>
-            <Badge variant={metric.status === "insufficient_data" ? "outline" : "secondary"}>
-              {metric.status}
-            </Badge>
-          </TableCell>
-        </TableRow>
-      ))}
-    </DetailTable>
+    <section className="grid gap-3">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">실험 지표</h3>
+        <p className="text-sm text-muted-foreground">
+          광고 실험별 목표 대비 실제값, sample size, 재실행 필요 여부를 확인합니다.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SummaryItem label="실험 지표" value={formatInteger(metrics.length)} />
+        <SummaryItem label="표본 합계" value={formatInteger(totalSampleSize)} />
+        <SummaryItem label="표본 부족" value={formatInteger(insufficientCount)} />
+        <SummaryItem label="다음 루프 필요" value={formatInteger(nextLoopCount)} />
+        <SummaryItem label="평균 실제값" value={formatGoalValue(averageActualValue)} />
+      </div>
+      {metrics.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>실험</TableHead>
+              <TableHead>지표</TableHead>
+              <TableHead className="text-right">목표 / 실제</TableHead>
+              <TableHead className="text-right">표본</TableHead>
+              <TableHead className="text-right">분자 / 분모</TableHead>
+              <TableHead>기준</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>피드백</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {metrics.map((metric) => (
+              <TableRow
+                key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
+              >
+                <TableCell>
+                  <div className="grid min-w-[180px] gap-1">
+                    <span className="font-medium">{metric.ad_experiment_id ?? "-"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {metric.promotion_id} · {metric.segment_id ?? "-"}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="grid gap-1">
+                    <span>{metric.metric}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {metric.content_option_id ?? metric.content_id ?? "-"}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatGoalValue(metric.target_value)} / {formatGoalValue(metric.actual_value)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatInteger(metric.sample_size)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatInteger(metric.numerator_count)} /{" "}
+                  {formatInteger(metric.denominator_count)}
+                </TableCell>
+                <TableCell>{metric.basis}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant={metric.status === "insufficient_data" ? "outline" : "secondary"}>
+                      {metric.status}
+                    </Badge>
+                    {metric.next_loop_required ? <Badge variant="outline">next loop</Badge> : null}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="line-clamp-2 min-w-[220px] text-sm">
+                    {metric.feedback ?? "-"}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <EmptyState message="등록된 실험 지표가 없습니다." />
+      )}
+    </section>
   );
 }
 
