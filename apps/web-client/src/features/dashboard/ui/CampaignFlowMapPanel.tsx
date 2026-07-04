@@ -34,6 +34,7 @@ import {
   Handle,
   MarkerType,
   MiniMap,
+  Panel,
   Position,
   ReactFlow,
   type Edge,
@@ -150,11 +151,11 @@ type CampaignFlowGraph = {
 };
 
 const CAMPAIGN_X = 0;
-const PROMOTION_X = 340;
-const COLLECTION_X = 690;
-const RESULT_X = 1010;
-const NEXT_LOOP_X = 1320;
-const ROW_GAP = 204;
+const PROMOTION_X = 320;
+const COLLECTION_X = 640;
+const RESULT_X = 930;
+const NEXT_LOOP_X = 1210;
+const ROW_GAP = 178;
 
 const nodeTypes = {
   campaign: CampaignNode,
@@ -258,12 +259,11 @@ export function CampaignFlowMapPanel({
         {campaignDetail.data ? (
           <>
             <ReactFlow
-              className="bg-[#f5f5f7]"
+              className="bg-[#f7f8fa]"
+              defaultViewport={{ x: 44, y: 112, zoom: 0.76 }}
               edges={graph.edges}
-              fitView
-              fitViewOptions={{ maxZoom: 1, minZoom: 0.4, padding: 0.18 }}
               maxZoom={1.25}
-              minZoom={0.35}
+              minZoom={0.45}
               nodes={graph.nodes}
               nodesConnectable={false}
               nodesDraggable={false}
@@ -274,11 +274,17 @@ export function CampaignFlowMapPanel({
               proOptions={{ hideAttribution: true }}
               selectNodesOnDrag={false}
             >
-              <Background color="#d4d4d8" gap={24} size={1} variant={BackgroundVariant.Dots} />
+              <Background color="#d8dde6" gap={22} size={1} variant={BackgroundVariant.Dots} />
+              <Panel
+                className="pointer-events-none rounded-md border border-black/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur"
+                position="top-left"
+              >
+                <PipelineStageStrip />
+              </Panel>
               <Controls position="bottom-left" />
               <MiniMap
                 className="hidden rounded-md border border-black/10 bg-white/95 shadow-sm md:block"
-                maskColor="rgba(245, 245, 247, 0.62)"
+                maskColor="rgba(247, 248, 250, 0.66)"
                 nodeColor={(node) => miniMapNodeColor(node as CampaignFlowNode)}
                 nodeStrokeWidth={2}
                 pannable
@@ -324,14 +330,14 @@ function CampaignFlowToolbar({
   return (
     <div className="flex shrink-0 flex-col gap-3 border-b border-black/10 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#0066cc] text-white">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[#1f6feb]/20 bg-[#f0f6ff] text-[#0969da]">
           <Workflow size={17} />
         </div>
         <div className="min-w-0">
           <h1 className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
             워크플로우 맵
           </h1>
-          <p className="truncate text-xs text-muted-foreground">Campaign Flow Map</p>
+          <p className="truncate text-xs text-muted-foreground">Campaign pipeline</p>
         </div>
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -363,7 +369,7 @@ function CampaignFlowToolbar({
           label="최근 목표 달성률"
           value={formatOptionalRate(selectedCampaign?.latest_goal_achievement_rate)}
         />
-        <div className="flex h-8 items-center gap-2 rounded-md border border-black/10 bg-white px-2 text-xs text-muted-foreground">
+        <div className="flex h-8 items-center gap-2 rounded-md border border-black/10 bg-zinc-50 px-2 text-xs text-muted-foreground">
           <LegendItem label="normal" tone="normal" />
           <LegendItem label="warning" tone="warning" />
           <LegendItem label="insufficient_data" tone="insufficient" />
@@ -387,9 +393,9 @@ function ToolbarChip({
   return (
     <div
       className={cn(
-        "flex h-8 items-center gap-1.5 rounded-md border bg-white px-2 text-xs",
+        "flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs",
         tone === "warning" && "border-amber-300 bg-amber-50 text-amber-900",
-        tone !== "warning" && "border-black/10 text-[#1d1d1f]"
+        tone !== "warning" && "border-black/10 bg-zinc-50 text-[#1d1d1f]"
       )}
     >
       <Icon size={13} />
@@ -415,6 +421,27 @@ function LegendItem({ label, tone }: { label: string; tone: FlowPathTone }) {
   );
 }
 
+function PipelineStageStrip() {
+  const stages = [
+    "Campaign",
+    "Promotion task",
+    "Metric stream",
+    "Goal check",
+    "Retry loop"
+  ];
+
+  return (
+    <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+      {stages.map((stage, index) => (
+        <div className="flex items-center gap-2" key={stage}>
+          <span className="whitespace-nowrap">{stage}</span>
+          {index < stages.length - 1 ? <ArrowRight className="text-zinc-400" size={12} /> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CanvasNotice({ message, title }: { message: string; title: string }) {
   return (
     <div className="absolute inset-0 grid place-items-center p-4">
@@ -423,6 +450,31 @@ function CanvasNotice({ message, title }: { message: string; title: string }) {
         <div className="mt-1 text-sm text-muted-foreground">{message}</div>
       </div>
     </div>
+  );
+}
+
+function PipelineStatusPill({ status }: { status: string }) {
+  const tone = statusTone(status);
+
+  return (
+    <span
+      className={cn(
+        "inline-flex max-w-[104px] shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
+        tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-700",
+        tone === "warning" && "border-amber-200 bg-amber-50 text-amber-800",
+        tone === "neutral" && "border-zinc-200 bg-zinc-50 text-zinc-600"
+      )}
+    >
+      <span
+        className={cn(
+          "size-1.5 shrink-0 rounded-full",
+          tone === "success" && "bg-emerald-500",
+          tone === "warning" && "bg-amber-500",
+          tone === "neutral" && "bg-zinc-400"
+        )}
+      />
+      <span className="truncate">{status}</span>
+    </span>
   );
 }
 
@@ -437,11 +489,11 @@ function CampaignNode(props: NodeProps) {
       subtitle={data.subtitle}
       title={data.title}
       tone={data.tone}
-      widthClassName="w-[300px]"
+      widthClassName="w-[282px]"
     >
       <NodeSummaryGrid items={data.summary} />
       <Handle
-        className="!size-2 !border-white !bg-zinc-400"
+        className="!size-2 !border-white !bg-[#64748b]"
         position={Position.Right}
         type="source"
       />
@@ -452,7 +504,6 @@ function CampaignNode(props: NodeProps) {
 function PromotionNode(props: NodeProps) {
   const data = props.data as FlowNodeData;
   const promotion = data.promotion;
-  const weakestGoal = formatOptionalGoalAchievement(data.evaluation?.lowestGoalAchievementRate);
 
   return (
     <FlowNodeShell
@@ -462,21 +513,19 @@ function PromotionNode(props: NodeProps) {
       subtitle={data.subtitle}
       title={data.title}
       tone={data.tone}
-      widthClassName="w-[340px]"
+      widthClassName="w-[286px]"
     >
       <NodeSummaryGrid items={data.summary} />
-      <div className="grid gap-1.5 rounded-md bg-zinc-50 px-2 py-2 text-xs text-muted-foreground">
-        <MetricLine label="weakest goal" value={weakestGoal} />
+      <div className="grid gap-1 border-t border-black/10 pt-2 text-xs text-muted-foreground">
         <MetricLine label="next action" value={promotion?.next_action ?? "-"} />
-        <MetricLine label="audience" value={promotion?.target_audience ?? "-"} />
       </div>
       <Handle
-        className="!size-2 !border-white !bg-zinc-400"
+        className="!size-2 !border-white !bg-[#64748b]"
         position={Position.Left}
         type="target"
       />
       <Handle
-        className="!size-2 !border-white !bg-zinc-400"
+        className="!size-2 !border-white !bg-[#64748b]"
         position={Position.Right}
         type="source"
       />
@@ -501,15 +550,9 @@ function CollectionNode(props: NodeProps) {
       subtitle={data.subtitle}
       title={data.title}
       tone={data.tone}
-      widthClassName="w-[260px]"
+      widthClassName="w-[242px]"
     >
       <NodeSummaryGrid items={data.summary} />
-      <div className="rounded-md bg-sky-50 px-2 py-2 text-xs text-sky-900">
-        <MetricLine
-          label="coverage"
-          value={formatCollectionCoverage(data.evaluation?.totalSampleSize, data.promotion)}
-        />
-      </div>
       <Handle
         className="!size-2 !border-white !bg-sky-500"
         position={Position.Left}
@@ -536,10 +579,10 @@ function ResultNode(props: NodeProps) {
       subtitle={data.subtitle}
       title={data.title}
       tone={data.tone}
-      widthClassName="w-[286px]"
+      widthClassName="w-[248px]"
     >
       <NodeSummaryGrid items={data.summary} />
-      <div className="rounded-md bg-zinc-50 px-2 py-2 text-xs text-muted-foreground">
+      <div className="border-t border-black/10 pt-2 text-xs text-muted-foreground">
         <div className="flex items-center justify-between gap-2">
           <span>latest actual</span>
           <span className="font-medium text-[#1d1d1f]">
@@ -579,13 +622,15 @@ function NextLoopNode(props: NodeProps) {
       subtitle={data.subtitle}
       title={data.title}
       tone={data.tone}
-      widthClassName="w-[270px]"
+      widthClassName="w-[238px]"
     >
       <NodeSummaryGrid items={data.summary} />
-      <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-2 text-xs text-amber-900">
-        <span>candidate segments</span>
-        <span className="font-semibold tabular-nums">{formatInteger(candidateCount)}</span>
-      </div>
+      {candidateCount > 0 ? (
+        <div className="flex items-center justify-between border-t border-amber-200 pt-2 text-xs text-amber-900">
+          <span>candidate segments</span>
+          <span className="font-semibold tabular-nums">{formatInteger(candidateCount)}</span>
+        </div>
+      ) : null}
       <Handle
         className="!size-2 !border-white !bg-amber-500"
         position={Position.Left}
@@ -620,40 +665,46 @@ function FlowNodeShell({
   tone: FlowPathTone;
   widthClassName: string;
 }) {
+  const toneClassName = nodeToneClassName(tone);
+
   return (
     <div
       className={cn(
-        "relative grid gap-3 rounded-md border bg-white p-3 text-left shadow-sm",
+        "relative grid min-h-[126px] gap-2 rounded-md border bg-white px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.08)]",
         widthClassName,
-        tone === "normal" && "border-black/10",
-        tone === "warning" && "border-amber-300 shadow-amber-100",
-        tone === "insufficient" && "border-amber-300 border-dashed shadow-amber-100"
+        toneClassName.border,
+        tone === "insufficient" && "border-dashed"
       )}
     >
-      <div className="flex min-w-0 items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-2">
+      <div className={cn("absolute inset-y-2 left-0 w-1 rounded-r-full", toneClassName.rail)} />
+      <div className="flex min-w-0 items-start justify-between gap-3 pl-1">
+        <div className="flex min-w-0 items-start gap-2.5">
           <div
             className={cn(
-              "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md",
-              kind === "campaign" && "bg-[#0066cc] text-white",
-              kind === "promotion" && "bg-zinc-900 text-white",
-              kind === "collection" && "bg-sky-100 text-sky-800",
-              kind === "result" && "bg-zinc-100 text-zinc-700",
-              kind === "nextLoop" && "bg-amber-100 text-amber-800"
+              "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md border",
+              nodeKindIconClassName(kind)
             )}
           >
             <Icon size={15} />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold leading-5 text-[#1d1d1f]">{title}</div>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-[10px] font-semibold uppercase text-muted-foreground">
+                {nodeKindLabel(kind)}
+              </span>
+              <span className={cn("size-1.5 shrink-0 rounded-full", toneClassName.dot)} />
+            </div>
+            <div className="mt-0.5 truncate text-sm font-semibold leading-5 text-[#1d1d1f]">
+              {title}
+            </div>
             {subtitle ? (
-              <div className="mt-0.5 line-clamp-2 break-words text-xs text-muted-foreground">
+              <div className="mt-0.5 line-clamp-1 break-words text-xs text-muted-foreground">
                 {subtitle}
               </div>
             ) : null}
           </div>
         </div>
-        {status ? <StatusBadge status={status} /> : null}
+        {status ? <PipelineStatusPill status={status} /> : null}
       </div>
       {children}
     </div>
@@ -662,19 +713,19 @@ function FlowNodeShell({
 
 function NodeSummaryGrid({ items }: { items: FlowSummaryItem[] }) {
   return (
-    <div className="grid grid-cols-2 gap-1.5">
+    <div className="grid gap-1.5 border-t border-black/10 pt-2">
       {items.map((item) => (
         <div
           className={cn(
-            "min-w-0 rounded-md bg-zinc-50 px-2 py-1.5",
-            item.tone === "warning" && "bg-amber-50 text-amber-900",
+            "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs",
+            item.tone === "warning" && "text-amber-900",
             item.tone === "insufficient" &&
-              "border border-dashed border-amber-300 bg-amber-50 text-amber-900"
+              "text-amber-900"
           )}
           key={item.label}
         >
-          <div className="truncate text-[10px] text-muted-foreground">{item.label}</div>
-          <div className="truncate text-xs font-semibold tabular-nums text-[#1d1d1f]">
+          <div className="truncate text-muted-foreground">{item.label}</div>
+          <div className="truncate text-right font-semibold tabular-nums text-[#1d1d1f]">
             {item.value}
           </div>
         </div>
@@ -700,12 +751,8 @@ function NodeMetricsDrawer({
             <div className="flex min-w-0 items-start gap-3 pr-8">
               <div
                 className={cn(
-                  "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md",
-                  data.kind === "campaign" && "bg-[#0066cc] text-white",
-                  data.kind === "promotion" && "bg-zinc-900 text-white",
-                  data.kind === "collection" && "bg-sky-100 text-sky-800",
-                  data.kind === "result" && "bg-zinc-100 text-zinc-700",
-                  data.kind === "nextLoop" && "bg-amber-100 text-amber-800"
+                  "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border",
+                  nodeKindIconClassName(data.kind)
                 )}
               >
                 {data.kind === "campaign" ? <Map size={16} /> : null}
@@ -1126,7 +1173,7 @@ function buildCampaignFlowGraph(
             tone: collectionTone
           }
         ],
-        title: "수집",
+        title: "수집 스트림",
         tone: collectionTone
       },
       id: collectionNodeId,
@@ -1162,7 +1209,7 @@ function buildCampaignFlowGraph(
             tone: evaluation.insufficientDataCount > 0 ? "insufficient" : "normal"
           }
         ],
-        title: "Result Summary",
+        title: "목표 검증",
         tone
       },
       id: resultNodeId,
@@ -1212,7 +1259,7 @@ function buildCampaignFlowGraph(
               tone: evaluation.insufficientDataCount > 0 ? "insufficient" : "normal"
             }
           ],
-          title: `Next Loop L${formatInteger(Math.min(promotion.current_loop_count + 1, promotion.max_loop_count))}`,
+          title: `재시도 루프 L${formatInteger(Math.min(promotion.current_loop_count + 1, promotion.max_loop_count))}`,
           tone
         },
         id: nextLoopNodeId,
@@ -1263,11 +1310,12 @@ function buildCampaignFlowGraph(
 }
 
 function createFlowEdge(id: string, source: string, target: string, tone: FlowPathTone): Edge {
-  const stroke = tone === "normal" ? "#d4d4d8" : "#d97706";
+  const stroke = tone === "normal" ? "#94a3b8" : "#d97706";
 
   return {
     animated: tone === "warning",
     id,
+    interactionWidth: 18,
     markerEnd: {
       color: stroke,
       type: MarkerType.ArrowClosed
@@ -1276,7 +1324,7 @@ function createFlowEdge(id: string, source: string, target: string, tone: FlowPa
     style: {
       stroke,
       strokeDasharray: tone === "insufficient" ? "7 5" : undefined,
-      strokeWidth: tone === "normal" ? 1.7 : 2.4
+      strokeWidth: tone === "normal" ? 1.6 : 2.1
     },
     target,
     type: "smoothstep"
@@ -1296,6 +1344,7 @@ function createLoopBackEdge(id: string, source: string, target: string, nextLoop
       color: "#d97706",
       type: MarkerType.ArrowClosed
     },
+    interactionWidth: 18,
     source,
     sourceHandle: "loop-source",
     style: {
@@ -1601,9 +1650,84 @@ function statusBadgeVariant(status: string): BadgeVariant {
   return "outline";
 }
 
+function statusTone(status: string): "success" | "warning" | "neutral" {
+  if (
+    status === "goal_not_met" ||
+    status === "insufficient_data" ||
+    status === "stopped" ||
+    status === "failed"
+  ) {
+    return "warning";
+  }
+  if (
+    status === "goal_met" ||
+    status === "completed" ||
+    status === "approved" ||
+    status === "collected"
+  ) {
+    return "success";
+  }
+  return "neutral";
+}
+
+function nodeKindLabel(kind: FlowNodeKind) {
+  switch (kind) {
+    case "campaign":
+      return "Pipeline";
+    case "promotion":
+      return "Task";
+    case "collection":
+      return "Stream";
+    case "result":
+      return "Quality";
+    case "nextLoop":
+      return "Retry";
+  }
+}
+
+function nodeKindIconClassName(kind: FlowNodeKind) {
+  switch (kind) {
+    case "campaign":
+      return "border-[#0969da]/20 bg-[#f0f6ff] text-[#0969da]";
+    case "promotion":
+      return "border-zinc-300 bg-white text-zinc-700";
+    case "collection":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "result":
+      return "border-violet-200 bg-violet-50 text-violet-700";
+    case "nextLoop":
+      return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+}
+
+function nodeToneClassName(tone: FlowPathTone) {
+  if (tone === "warning") {
+    return {
+      border: "border-amber-300",
+      dot: "bg-amber-500",
+      rail: "bg-amber-500"
+    };
+  }
+  if (tone === "insufficient") {
+    return {
+      border: "border-amber-300",
+      dot: "bg-amber-500",
+      rail: "bg-amber-500"
+    };
+  }
+  return {
+    border: "border-black/10",
+    dot: "bg-emerald-500",
+    rail: "bg-emerald-500"
+  };
+}
+
 function miniMapNodeColor(node: CampaignFlowNode) {
   if (node.data.kind === "campaign") {
-    return "#0066cc";
+    return "#0969da";
+  }
+  if (node.data.kind === "collection") {
+    return "#0284c7";
   }
   if (node.data.tone === "warning" || node.data.tone === "insufficient") {
     return "#f59e0b";
