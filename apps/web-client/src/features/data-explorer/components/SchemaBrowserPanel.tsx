@@ -45,9 +45,7 @@ export function SchemaBrowserPanel({
             const isSelected = selectedObjectName === object.object_name;
 
             return (
-              <div
-                key={`${object.database_name ?? ""}.${object.object_type}.${object.object_name}`}
-              >
+              <div key={`${object.object_type}.${object.object_name}`}>
                 <button
                   className={cn(
                     "flex min-w-full items-center gap-1.5 rounded px-1 py-px text-left text-[7px] font-normal leading-3 transition-colors",

@@ -40,11 +40,8 @@ export function SchemaInspectorPanel({
           </div>
           <div className="grid gap-1">
             <h3 className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
-              {qualifiedObjectName(detail)}
+              {detail.object.object_name}
             </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {detail.object.source_comment ?? "등록된 table comment가 없습니다."}
-            </p>
           </div>
         </div>
 
@@ -80,7 +77,7 @@ export function SchemaInspectorPanel({
                       {column.default_value ?? "-"}
                     </TableCell>
                     <TableCell className="max-w-[360px] whitespace-normal text-sm text-muted-foreground">
-                      {column.source_comment ?? "-"}
+                      {column.comment ?? "-"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -91,10 +88,4 @@ export function SchemaInspectorPanel({
       </div>
     </ScrollArea>
   );
-}
-
-function qualifiedObjectName(detail: DataExplorerObjectDetail) {
-  return [detail.object.database_name, detail.object.schema_name, detail.object.object_name]
-    .filter(Boolean)
-    .join(".");
 }

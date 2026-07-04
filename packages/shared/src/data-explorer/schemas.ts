@@ -3,14 +3,9 @@ import { z } from "zod";
 export const DataExplorerObjectTypeSchema = z.enum(["table", "view", "materialized_view"]);
 export type DataExplorerObjectType = z.infer<typeof DataExplorerObjectTypeSchema>;
 
-export const DataExplorerDdlSourceSchema = z.enum(["live", "cache"]);
-export type DataExplorerDdlSource = z.infer<typeof DataExplorerDdlSourceSchema>;
-
 export const DataExplorerObjectRefSchema = z.object({
-  database_name: z.string().nullable(),
-  schema_name: z.string().nullable(),
   object_type: DataExplorerObjectTypeSchema,
-  object_name: z.string().min(1)
+  object_name: z.string().trim().min(1)
 });
 export type DataExplorerObjectRef = z.infer<typeof DataExplorerObjectRefSchema>;
 
@@ -19,40 +14,15 @@ const OptionalQueryStringSchema = z.preprocess(
   z.string().trim().min(1).optional()
 );
 
-export const DataExplorerObjectsQuerySchema = z
-  .object({
-    database: OptionalQueryStringSchema,
-    schema: OptionalQueryStringSchema,
-    type: DataExplorerObjectTypeSchema.optional(),
-    q: OptionalQueryStringSchema
-  })
-  .transform((query) => ({
-    databaseName: query.database,
-    schemaName: query.schema,
-    objectType: query.type,
-    q: query.q
-  }));
+export const DataExplorerObjectsQuerySchema = z.object({
+  q: OptionalQueryStringSchema
+});
 export type DataExplorerObjectsQuery = z.infer<typeof DataExplorerObjectsQuerySchema>;
 
-export const DataExplorerObjectDetailQuerySchema = z
-  .object({
-    database: OptionalQueryStringSchema,
-    schema: OptionalQueryStringSchema,
-    object_type: DataExplorerObjectTypeSchema,
-    object_name: z.string().trim().min(1)
-  })
-  .transform((query) =>
-    DataExplorerObjectRefSchema.parse({
-      database_name: query.database ?? null,
-      schema_name: query.schema ?? null,
-      object_type: query.object_type,
-      object_name: query.object_name
-    })
-  );
+export const DataExplorerObjectDetailQuerySchema = DataExplorerObjectRefSchema;
 export type DataExplorerObjectDetailQuery = z.infer<typeof DataExplorerObjectDetailQuerySchema>;
 
 export const DataExplorerObjectSummarySchema = DataExplorerObjectRefSchema.extend({
-  source_comment: z.string().nullable(),
   engine: z.string().nullable(),
   column_count: z.number().int().nonnegative(),
   row_count_estimate: z.number().int().nonnegative().nullable()
@@ -65,7 +35,7 @@ export const DataExplorerColumnSchema = z.object({
   nullable: z.boolean(),
   default_value: z.string().nullable(),
   ordinal_position: z.number().int().positive(),
-  source_comment: z.string().nullable()
+  comment: z.string().nullable()
 });
 export type DataExplorerColumn = z.infer<typeof DataExplorerColumnSchema>;
 
@@ -74,18 +44,12 @@ export const DataExplorerObjectDetailSchema = z.object({
   columns: z.array(DataExplorerColumnSchema),
   partition_key: z.array(z.string()).nullable(),
   order_by: z.array(z.string()).nullable(),
-  primary_key: z.array(z.string()).nullable(),
-  ddl_fetched_at: z.string().min(1),
-  ddl_source: DataExplorerDdlSourceSchema,
-  cache_hit: z.boolean()
+  primary_key: z.array(z.string()).nullable()
 });
 export type DataExplorerObjectDetail = z.infer<typeof DataExplorerObjectDetailSchema>;
 
 export const DataExplorerObjectsResponseSchema = z.object({
-  objects: z.array(DataExplorerObjectSummarySchema),
-  ddl_fetched_at: z.string().min(1),
-  ddl_source: DataExplorerDdlSourceSchema,
-  cache_hit: z.boolean()
+  objects: z.array(DataExplorerObjectSummarySchema)
 });
 export type DataExplorerObjectsResponse = z.infer<typeof DataExplorerObjectsResponseSchema>;
 

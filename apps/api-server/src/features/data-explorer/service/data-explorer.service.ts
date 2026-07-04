@@ -19,7 +19,6 @@ import {
   ClickHouseEventsReader,
   type ListObjectsInput
 } from "../repository/clickhouse-events-reader.js";
-import { createDataExplorerLiveMetadata } from "../repository/data-explorer-live-metadata.js";
 
 /**
  * Data Explorer의 스키마 조회, SQL 실행, AI 질의를 조율한다.
@@ -38,8 +37,7 @@ export class DataExplorerService {
   async listObjects(input: ListObjectsInput) {
     try {
       return DataExplorerObjectsResponseSchema.parse({
-        objects: await this.clickHouseEvents.listObjects(input),
-        ...createDataExplorerLiveMetadata()
+        objects: await this.clickHouseEvents.listObjects(input)
       });
     } catch (error) {
       throw dataExplorerErrors.schemaInspectionFailed({ cause: error });
@@ -94,7 +92,7 @@ export class DataExplorerService {
 
   private async createAiQueryPlan(input: DataExplorerAiQueryPlanRequest) {
     try {
-      const objects = await this.clickHouseEvents.searchObjects({ q: "" });
+      const objects = await this.clickHouseEvents.listObjects({ q: "" });
       const object = pickReferencedObject(objects);
       if (!object) {
         throw dataExplorerErrors.queryPlanFailed();

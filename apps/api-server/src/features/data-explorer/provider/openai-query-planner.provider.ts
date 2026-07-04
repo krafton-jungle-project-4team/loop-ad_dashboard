@@ -130,7 +130,7 @@ function buildQueryPlanSystemPrompt() {
   return [
     "You generate one read-only SQL query for LoopAd Data Explorer.",
     "SQL dialect: ClickHouse SQL.",
-    "Use only the provided source object and columns.",
+    "Use only the provided table and columns.",
     "Inline concrete values from the payload directly in SQL. Do not use parameter placeholders.",
     "Always filter by project_id when the object has a project_id column.",
     "Use SELECT or WITH only. Never use INSERT, UPDATE, DELETE, ALTER, DROP, TRUNCATE, CREATE, or external table functions.",
@@ -148,8 +148,6 @@ function buildQueryPlanPayload(input: {
     natural_language_query: input.request.natural_language_query,
     time_range: input.request.time_range ?? null,
     object: {
-      database_name: input.detail.object.database_name,
-      schema_name: input.detail.object.schema_name,
       object_name: input.detail.object.object_name,
       object_type: input.detail.object.object_type,
       columns: input.detail.columns.map((column) => ({

@@ -221,12 +221,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
 }
 
 function objectKey(object: DataExplorerObjectSummary) {
-  return [
-    object.database_name ?? "",
-    object.schema_name ?? "",
-    object.object_type,
-    object.object_name
-  ].join(".");
+  return [object.object_type, object.object_name].join(".");
 }
 
 function preferredObject(objects: DataExplorerObjectSummary[]): DataExplorerObjectSummary | null {

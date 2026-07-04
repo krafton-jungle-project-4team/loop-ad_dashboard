@@ -12,15 +12,11 @@ import type {
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { env } from "../../../infra/env/env.js";
 import { dataExplorerErrors } from "../errors.js";
-import { createDataExplorerLiveMetadata } from "./data-explorer-live-metadata.js";
 
 const SCHEMA_QUERY_TIMEOUT_SECONDS = 5;
 const LIST_OBJECTS_LIMIT = 1000;
 
 export type ListObjectsInput = {
-  databaseName?: string;
-  schemaName?: string;
-  objectType?: DataExplorerObjectType;
   q?: string;
 };
 
@@ -38,7 +34,6 @@ export type DataExplorerQueryExecutionResult = {
 };
 
 type ClickHouseObjectRow = {
-  database_name: string;
   object_name: string;
   engine: string;
   object_type: string;
@@ -51,11 +46,10 @@ type ClickHouseColumnRow = {
   data_type: string;
   default_value: string | null;
   ordinal_position: number;
-  source_comment: string | null;
+  comment: string | null;
 };
 
 type ClickHouseTableRow = {
-  database_name: string;
   object_name: string;
   engine: string;
   partition_key: string;
@@ -82,11 +76,9 @@ export class ClickHouseEventsReader {
   ) {}
 
   async listObjects(input: ListObjectsInput): Promise<DataExplorerObjectSummary[]> {
-    const databaseName = input.databaseName ?? env.clickhouse.database;
     const result = await this.clickhouse.query({
       query: `
         SELECT
-          t.database AS database_name,
           t.name AS object_name,
           t.engine AS engine,
           multiIf(t.engine = 'View', 'view', t.engine = 'MaterializedView', 'materialized_view', 'table') AS object_type,
@@ -101,7 +93,7 @@ export class ClickHouseEventsReader {
       `,
       format: "JSONEachRow",
       query_params: {
-        databaseName,
+        databaseName: env.clickhouse.database,
         limit: LIST_OBJECTS_LIMIT
       },
       clickhouse_settings: {
@@ -117,15 +109,10 @@ export class ClickHouseEventsReader {
       .slice(0, LIST_OBJECTS_LIMIT);
   }
 
-  async searchObjects(input: ListObjectsInput): Promise<DataExplorerObjectSummary[]> {
-    return this.listObjects(input);
-  }
-
   async getObjectDetail(ref: DataExplorerObjectRef): Promise<DataExplorerObjectDetail> {
-    const databaseName = ref.database_name ?? env.clickhouse.database;
     const [table, columns] = await Promise.all([
-      this.readTable(databaseName, ref.object_name),
-      this.readColumns(databaseName, ref.object_name)
+      this.readTable(env.clickhouse.database, ref.object_name),
+      this.readColumns(env.clickhouse.database, ref.object_name)
     ]);
     const object = tableToObjectSummary(table, columns.length);
 
@@ -134,8 +121,7 @@ export class ClickHouseEventsReader {
       columns,
       partition_key: splitExpression(table.partition_key),
       order_by: splitExpression(table.sorting_key),
-      primary_key: splitExpression(table.primary_key),
-      ...createDataExplorerLiveMetadata()
+      primary_key: splitExpression(table.primary_key)
     };
   }
 
@@ -154,15 +140,15 @@ export class ClickHouseEventsReader {
       }
     });
     const body = await result.json<ClickHouseJsonResponse>();
-    const sourceRows = body.data ?? [];
-    const rows = sourceRows.slice(0, input.rowLimit);
+    const resultRows = body.data ?? [];
+    const rows = resultRows.slice(0, input.rowLimit);
     const columns = (body.meta ?? []).map(toResultColumn);
 
     return {
       columns,
       rows,
       durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-      truncated: sourceRows.length > rows.length
+      truncated: resultRows.length > rows.length
     };
   }
 
@@ -170,7 +156,6 @@ export class ClickHouseEventsReader {
     const result = await this.clickhouse.query({
       query: `
         SELECT
-          database AS database_name,
           name AS object_name,
           engine,
           partition_key,
@@ -208,7 +193,7 @@ export class ClickHouseEventsReader {
           type AS data_type,
           default_expression AS default_value,
           toUInt32(position) AS ordinal_position,
-          comment AS source_comment
+          comment
         FROM system.columns
         WHERE database = {databaseName:String}
           AND table = {objectName:String}
@@ -229,7 +214,7 @@ export class ClickHouseEventsReader {
       nullable: row.data_type.startsWith("Nullable("),
       default_value: row.default_value || null,
       ordinal_position: Number(row.ordinal_position),
-      source_comment: row.source_comment || null
+      comment: row.comment || null
     }));
   }
 }
@@ -237,11 +222,8 @@ export class ClickHouseEventsReader {
 function toObjectSummary(row: ClickHouseObjectRow): DataExplorerObjectSummary {
   const objectType = normalizeClickHouseObjectType(row.object_type, row.engine);
   return {
-    database_name: row.database_name,
-    schema_name: null,
     object_type: objectType,
     object_name: row.object_name,
-    source_comment: null,
     engine: row.engine || null,
     column_count: Number(row.column_count ?? 0),
     row_count_estimate: row.row_count_estimate === null ? null : Number(row.row_count_estimate)
@@ -253,11 +235,8 @@ function tableToObjectSummary(
   columnCount: number
 ): DataExplorerObjectSummary {
   return {
-    database_name: row.database_name,
-    schema_name: null,
     object_type: normalizeClickHouseObjectType("table", row.engine),
     object_name: row.object_name,
-    source_comment: null,
     engine: row.engine || null,
     column_count: columnCount,
     row_count_estimate: row.total_rows === null ? null : Number(row.total_rows)
@@ -279,13 +258,12 @@ function normalizeClickHouseObjectType(
 
 function objectMatchesInput(object: DataExplorerObjectSummary, input: ListObjectsInput) {
   const q = input.q?.trim().toLowerCase();
-  const matchesType = input.objectType ? object.object_type === input.objectType : true;
   const matchesQuery = q
     ? object.object_name.toLowerCase().includes(q) ||
       (object.engine?.toLowerCase().includes(q) ?? false)
     : true;
 
-  return matchesType && matchesQuery;
+  return matchesQuery;
 }
 
 function toResultColumn(column: { name: string; type: string }): DataExplorerResultColumn {

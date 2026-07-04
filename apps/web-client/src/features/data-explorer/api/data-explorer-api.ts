@@ -5,24 +5,14 @@ import {
   DataExplorerQueryRunResponseSchema,
   type DataExplorerAiChatRequest,
   type DataExplorerObjectRef,
-  type DataExplorerObjectType,
   type DataExplorerQueryRunRequest
 } from "@loopad/shared";
 import { apiGet, apiPost } from "../../../shared/api/http-client.js";
 
 const DATA_EXPLORER_BASE_PATH = "/dashboard/data-explorer";
 
-export function fetchDataExplorerObjects(input: {
-  databaseName?: string;
-  schemaName?: string;
-  objectType?: DataExplorerObjectType;
-  q?: string;
-  signal: AbortSignal;
-}) {
+export function fetchDataExplorerObjects(input: { q?: string; signal: AbortSignal }) {
   const searchParams = new URLSearchParams();
-  setOptionalSearchParam(searchParams, "database", input.databaseName);
-  setOptionalSearchParam(searchParams, "schema", input.schemaName);
-  setOptionalSearchParam(searchParams, "type", input.objectType);
   setOptionalSearchParam(searchParams, "q", input.q);
 
   return apiGet(
@@ -61,8 +51,6 @@ function objectRefSearchParams(ref: DataExplorerObjectRef) {
     object_type: ref.object_type,
     object_name: ref.object_name
   });
-  setOptionalSearchParam(searchParams, "database", ref.database_name ?? undefined);
-  setOptionalSearchParam(searchParams, "schema", ref.schema_name ?? undefined);
   return searchParams;
 }
 
