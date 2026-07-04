@@ -40,10 +40,12 @@ import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  attachDashboardSegmentToPromotion,
   createDashboardCampaign,
   createDashboardPromotion,
   createDashboardSegmentQueryPreview,
   deleteDashboardCampaign,
+  deleteDashboardPromotionSegment,
   deleteDashboardPromotion,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
@@ -51,7 +53,8 @@ import {
   fetchDashboardSegmentDetail,
   saveDashboardSegment,
   updateDashboardCampaign,
-  updateDashboardPromotion
+  updateDashboardPromotion,
+  updateDashboardPromotionSegment
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
@@ -78,6 +81,8 @@ type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
 type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
 type CreatePromotionInput = Parameters<typeof createDashboardPromotion>[2];
 type UpdatePromotionInput = Parameters<typeof updateDashboardPromotion>[2];
+type AttachSegmentInput = Parameters<typeof attachDashboardSegmentToPromotion>[2];
+type UpdatePromotionSegmentInput = Parameters<typeof updateDashboardPromotionSegment>[3];
 
 const promotionChannelOptions = ["email", "sms", "onsite_banner"] as const;
 const promotionGoalMetricOptions = [
@@ -97,6 +102,17 @@ const promotionStatusOptions = [
   "partial_goal_met",
   "goal_met",
   "goal_not_met",
+  "stopped"
+] as const;
+const segmentPriorityOptions = ["low", "medium", "high"] as const;
+const promotionSegmentStatusOptions = [
+  "planned",
+  "content_ready",
+  "approved",
+  "running",
+  "goal_met",
+  "goal_not_met",
+  "insufficient_data",
   "stopped"
 ] as const;
 
@@ -991,6 +1007,53 @@ function CampaignTabContent({
       }
     }
   });
+  const attachSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody
+    }: {
+      promotionId: string;
+      requestBody: AttachSegmentInput;
+    }) => attachDashboardSegmentToPromotion(query, promotionId, requestBody),
+    onSuccess: async (segment) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedPromotionId: segment.promotion_id,
+        selectedSegmentId: segment.segment_id
+      });
+    }
+  });
+  const updateSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody,
+      segmentId
+    }: {
+      promotionId: string;
+      requestBody: UpdatePromotionSegmentInput;
+      segmentId: string;
+    }) => updateDashboardPromotionSegment(query, promotionId, segmentId, requestBody),
+    onSuccess: async (segment) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        selectedPromotionId: segment.promotion_id,
+        selectedSegmentId: segment.segment_id
+      });
+    }
+  });
+  const stopSegmentMutation = useMutation({
+    mutationFn: ({ promotionId, segmentId }: { promotionId: string; segmentId: string }) =>
+      deleteDashboardPromotionSegment(query, promotionId, segmentId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (selectedSegmentId === result.segment_id) {
+        await setDashboardQueryState({
+          selectedPromotionId: result.promotion_id,
+          selectedSegmentId: ""
+        });
+      }
+    }
+  });
 
   switch (tab) {
     case "campaign-promotions":
@@ -1055,6 +1118,29 @@ function CampaignTabContent({
             isError={savedSegmentsIsError}
             isLoading={savedSegmentsIsLoading}
             segments={savedSegments}
+          />
+          <SegmentAttachmentPanel
+            attachError={attachSegmentMutation.error}
+            attachIsError={attachSegmentMutation.isError}
+            attachIsPending={attachSegmentMutation.isPending}
+            onAttach={(promotionId, requestBody) =>
+              attachSegmentMutation.mutate({ promotionId, requestBody })
+            }
+            onStop={(promotionId, segmentId) =>
+              stopSegmentMutation.mutate({ promotionId, segmentId })
+            }
+            onUpdate={(promotionId, segmentId, requestBody) =>
+              updateSegmentMutation.mutate({ promotionId, requestBody, segmentId })
+            }
+            promotion={selectedPromotion}
+            savedSegments={savedSegments}
+            segment={selectedSegment}
+            stopError={stopSegmentMutation.error}
+            stopIsError={stopSegmentMutation.isError}
+            stopIsPending={stopSegmentMutation.isPending}
+            updateError={updateSegmentMutation.error}
+            updateIsError={updateSegmentMutation.isError}
+            updateIsPending={updateSegmentMutation.isPending}
           />
           <SegmentTable
             onSelectSegment={onSelectSegment}
@@ -2395,6 +2481,315 @@ function SegmentTable({
   );
 }
 
+function SegmentAttachmentPanel({
+  attachError,
+  attachIsError,
+  attachIsPending,
+  onAttach,
+  onStop,
+  onUpdate,
+  promotion,
+  savedSegments,
+  segment,
+  stopError,
+  stopIsError,
+  stopIsPending,
+  updateError,
+  updateIsError,
+  updateIsPending
+}: {
+  attachError: Error | null;
+  attachIsError: boolean;
+  attachIsPending: boolean;
+  onAttach: (promotionId: string, requestBody: AttachSegmentInput) => void;
+  onStop: (promotionId: string, segmentId: string) => void;
+  onUpdate: (
+    promotionId: string,
+    segmentId: string,
+    requestBody: UpdatePromotionSegmentInput
+  ) => void;
+  promotion: DashboardCampaignPromotion | undefined;
+  savedSegments: DashboardSavedSegment[];
+  segment: DashboardCampaignSegment | undefined;
+  stopError: Error | null;
+  stopIsError: boolean;
+  stopIsPending: boolean;
+  updateError: Error | null;
+  updateIsError: boolean;
+  updateIsPending: boolean;
+}) {
+  return (
+    <section className="grid gap-4">
+      <div className="grid gap-1">
+        <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 세그먼트 연결</h3>
+        <p className="text-sm text-muted-foreground">
+          저장된 segment_definitions를 선택된 프로모션의 타겟 세그먼트로 연결합니다.
+        </p>
+      </div>
+      {attachIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>세그먼트를 연결하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(attachError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {updateIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>세그먼트를 수정하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {stopIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>세그먼트를 중지하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(stopError)}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SegmentAttachForm
+          isPending={attachIsPending}
+          onSubmit={onAttach}
+          promotion={promotion}
+          savedSegments={savedSegments}
+        />
+        <SegmentEditForm
+          isPending={updateIsPending || stopIsPending}
+          onStop={onStop}
+          onSubmit={onUpdate}
+          segment={segment}
+        />
+      </div>
+    </section>
+  );
+}
+
+function SegmentAttachForm({
+  isPending,
+  onSubmit,
+  promotion,
+  savedSegments
+}: {
+  isPending: boolean;
+  onSubmit: (promotionId: string, requestBody: AttachSegmentInput) => void;
+  promotion: DashboardCampaignPromotion | undefined;
+  savedSegments: DashboardSavedSegment[];
+}) {
+  const [segmentId, setSegmentId] = useState("");
+  const [segmentName, setSegmentName] = useState("");
+  const [priority, setPriority] = useState("none");
+  const [status, setStatus] = useState<AttachSegmentInput["status"]>("planned");
+  const selectedSavedSegment = savedSegments.find((segment) => segment.segment_id === segmentId);
+  const canSubmit = Boolean(promotion && segmentId) && !isPending;
+
+  useEffect(() => {
+    if (selectedSavedSegment && !segmentName.trim()) {
+      setSegmentName(selectedSavedSegment.segment_name);
+    }
+  }, [selectedSavedSegment, segmentName]);
+
+  if (!promotion) {
+    return (
+      <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+        세그먼트를 연결할 프로모션을 먼저 선택해주세요.
+      </section>
+    );
+  }
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <h4 className="font-semibold text-foreground">저장 세그먼트 연결</h4>
+        <p className="text-sm text-muted-foreground">{promotion.marketing_theme}</p>
+      </div>
+      <FieldGroup>
+        <Field>
+          <FieldLabel>저장 세그먼트</FieldLabel>
+          <Select onValueChange={setSegmentId} value={segmentId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="세그먼트 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {savedSegments.map((segment) => (
+                <SelectItem key={segment.segment_id} value={segment.segment_id}>
+                  {segment.segment_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="dashboard-segment-attach-name">표시 이름</FieldLabel>
+          <Input
+            id="dashboard-segment-attach-name"
+            onChange={(event) => setSegmentName(event.target.value)}
+            placeholder={selectedSavedSegment?.segment_name ?? "세그먼트 이름"}
+            value={segmentName}
+          />
+        </Field>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field>
+            <FieldLabel>우선순위</FieldLabel>
+            <Select onValueChange={setPriority} value={priority}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="우선순위" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">미설정</SelectItem>
+                {segmentPriorityOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>상태</FieldLabel>
+            <Select onValueChange={(value) => setStatus(value as AttachSegmentInput["status"])} value={status}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="상태" />
+              </SelectTrigger>
+              <SelectContent>
+                {promotionSegmentStatusOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </FieldGroup>
+      <div className="flex justify-end">
+        <Button
+          disabled={!canSubmit}
+          onClick={() =>
+            onSubmit(promotion.promotion_id, {
+              priority: nullablePriority(priority),
+              segment_id: segmentId,
+              segment_name: segmentName.trim() || selectedSavedSegment?.segment_name,
+              status
+            })
+          }
+          type="button"
+        >
+          {isPending ? "연결 중" : "세그먼트 연결"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function SegmentEditForm({
+  isPending,
+  onStop,
+  onSubmit,
+  segment
+}: {
+  isPending: boolean;
+  onStop: (promotionId: string, segmentId: string) => void;
+  onSubmit: (
+    promotionId: string,
+    segmentId: string,
+    requestBody: UpdatePromotionSegmentInput
+  ) => void;
+  segment: DashboardCampaignSegment | undefined;
+}) {
+  const [segmentName, setSegmentName] = useState(segment?.segment_name ?? "");
+  const [priority, setPriority] = useState(segment?.priority ?? "none");
+  const [status, setStatus] = useState(segment?.status ?? "planned");
+
+  useEffect(() => {
+    setSegmentName(segment?.segment_name ?? "");
+    setPriority(segment?.priority ?? "none");
+    setStatus(segment?.status ?? "planned");
+  }, [segment]);
+
+  if (!segment) {
+    return (
+      <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+        수정할 프로모션 세그먼트를 선택해주세요.
+      </section>
+    );
+  }
+
+  const canSubmit = Boolean(segmentName.trim()) && !isPending;
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
+      <div className="grid gap-1">
+        <h4 className="font-semibold text-foreground">선택 세그먼트 수정</h4>
+        <p className="text-sm text-muted-foreground">{segment.segment_id}</p>
+      </div>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="dashboard-segment-edit-name">표시 이름</FieldLabel>
+          <Input
+            id="dashboard-segment-edit-name"
+            onChange={(event) => setSegmentName(event.target.value)}
+            value={segmentName}
+          />
+        </Field>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field>
+            <FieldLabel>우선순위</FieldLabel>
+            <Select onValueChange={setPriority} value={priority}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="우선순위" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">미설정</SelectItem>
+                {segmentPriorityOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>상태</FieldLabel>
+            <Select onValueChange={setStatus} value={status}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="상태" />
+              </SelectTrigger>
+              <SelectContent>
+                {promotionSegmentStatusOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </FieldGroup>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          disabled={isPending || segment.status === "stopped"}
+          onClick={() => onStop(segment.promotion_id, segment.segment_id)}
+          type="button"
+          variant="outline"
+        >
+          {isPending ? "처리 중" : "세그먼트 중지"}
+        </Button>
+        <Button
+          disabled={!canSubmit}
+          onClick={() =>
+            onSubmit(segment.promotion_id, segment.segment_id, {
+              priority: nullablePriority(priority),
+              segment_name: segmentName.trim(),
+              status: status as UpdatePromotionSegmentInput["status"]
+            })
+          }
+          type="button"
+        >
+          {isPending ? "저장 중" : "수정 저장"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 function SegmentQueryPreviewPanel({ query }: { query: DashboardQuery }) {
   const queryClient = useQueryClient();
   const [naturalLanguageQuery, setNaturalLanguageQuery] = useState("");
@@ -3300,6 +3695,10 @@ function nullableMetric(value: string): CreateCampaignInput["primary_metric"] {
 
 function nullableLandingType(value: string): CreatePromotionInput["landing_type"] {
   return value === "none" ? null : (value as CreatePromotionInput["landing_type"]);
+}
+
+function nullablePriority(value: string): AttachSegmentInput["priority"] {
+  return value === "none" ? null : (value as AttachSegmentInput["priority"]);
 }
 
 function nullableText(value: string): string | null {
