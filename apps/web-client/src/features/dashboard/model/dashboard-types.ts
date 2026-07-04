@@ -27,10 +27,10 @@ export type DashboardSort =
 export type DashboardUserScope = "all" | "active" | "new" | "returning" | "at-risk";
 
 export type DashboardConversionEvent =
-  | "purchase-complete"
-  | "sign-up"
-  | "add-to-cart"
-  | "contact";
+  | "booking_complete"
+  | "booking_start"
+  | "hotel_detail_view"
+  | "promotion_click";
 
 export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }

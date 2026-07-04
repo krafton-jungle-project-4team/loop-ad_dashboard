@@ -36,10 +36,10 @@ export const dashboardUserScopeOptions = [
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardUserScope }>;
 
 export const dashboardConversionEventOptions = [
-  { label: "구매 완료", value: "purchase-complete" },
-  { label: "회원가입", value: "sign-up" },
-  { label: "장바구니", value: "add-to-cart" },
-  { label: "문의", value: "contact" }
+  { label: "예약 완료", value: "booking_complete" },
+  { label: "예약 시작", value: "booking_start" },
+  { label: "숙소 상세 조회", value: "hotel_detail_view" },
+  { label: "프로모션 클릭", value: "promotion_click" }
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardConversionEvent }>;
 
 export const defaultDashboardProjectId = "demo-shop";
@@ -47,7 +47,7 @@ export const defaultDashboardProjectId = "demo-shop";
 export type DashboardSearchQuery = Omit<DashboardQuery, "projectId">;
 
 export const defaultDashboardSearchQuery: DashboardSearchQuery = {
-  conversionEvent: "purchase-complete",
+  conversionEvent: "booking_complete",
   dateRange: "last-7-days",
   excludeBotTraffic: true,
   excludeInternalTraffic: true,
