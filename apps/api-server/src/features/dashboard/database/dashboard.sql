@@ -345,10 +345,10 @@ INSERT INTO promotion_target_segments (
   status
 )
 SELECT
-  :analysisId,
+  (:analysisId)::varchar,
   sd.project_id,
-  :campaignId,
-  :promotionId,
+  (:campaignId)::varchar,
+  (:promotionId)::varchar,
   sd.segment_id,
   COALESCE(:segmentName, sd.segment_name),
   sd.rule_json,
@@ -366,6 +366,14 @@ SELECT
 FROM segment_definitions sd
 WHERE sd.project_id = :projectId
   AND sd.segment_id = :segmentId
+  AND NOT EXISTS (
+    SELECT 1
+    FROM promotion_target_segments existing_pts
+    WHERE existing_pts.project_id = :projectId
+      AND existing_pts.promotion_id = :promotionId
+      AND existing_pts.segment_id = :segmentId
+      AND existing_pts.status <> 'stopped'
+  )
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 
 /* 목적: 프로모션에 연결된 세그먼트 표시 정보를 수정합니다. */

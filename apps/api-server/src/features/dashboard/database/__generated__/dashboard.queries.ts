@@ -838,7 +838,7 @@ export interface IInsertDashboardPromotionTargetSegmentQuery {
   result: IInsertDashboardPromotionTargetSegmentResult;
 }
 
-const insertDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"analysisId":true,"campaignId":true,"promotionId":true,"segmentName":true,"priority":true,"status":true,"projectId":true,"segmentId":true},"params":[{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":253,"b":263}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":285,"b":295}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":300,"b":311}]},{"name":"segmentName","required":false,"transform":{"type":"scalar"},"locs":[{"a":342,"b":353}]},{"name":"priority","required":false,"transform":{"type":"scalar"},"locs":[{"a":612,"b":620}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":625,"b":631}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":683,"b":692}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":716,"b":725}]}],"statement":"INSERT INTO promotion_target_segments (\n  analysis_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  segment_id,\n  segment_name,\n  rule_json,\n  profile_json,\n  content_brief_json,\n  data_evidence_json,\n  estimated_size,\n  priority,\n  status\n)\nSELECT\n  :analysisId,\n  sd.project_id,\n  :campaignId,\n  :promotionId,\n  sd.segment_id,\n  COALESCE(:segmentName, sd.segment_name),\n  sd.rule_json,\n  sd.profile_json,\n  '{}'::jsonb,\n  jsonb_build_object(\n    'source', sd.source,\n    'query_preview_id', sd.query_preview_id,\n    'sample_size', sd.sample_size,\n    'sample_ratio', sd.sample_ratio\n  ),\n  sd.sample_size,\n  :priority,\n  :status\nFROM segment_definitions sd\nWHERE sd.project_id = :projectId\n  AND sd.segment_id = :segmentId\nRETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\"                                      "};
+const insertDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"analysisId":true,"campaignId":true,"promotionId":true,"segmentName":true,"priority":true,"status":true,"projectId":true,"segmentId":true},"params":[{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":254,"b":264}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":297,"b":307}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":323,"b":334},{"a":925,"b":936}]},{"name":"segmentName","required":false,"transform":{"type":"scalar"},"locs":[{"a":375,"b":386}]},{"name":"priority","required":false,"transform":{"type":"scalar"},"locs":[{"a":645,"b":653}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":658,"b":664}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":716,"b":725},{"a":876,"b":885}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":749,"b":758},{"a":974,"b":983}]}],"statement":"INSERT INTO promotion_target_segments (\n  analysis_id,\n  project_id,\n  campaign_id,\n  promotion_id,\n  segment_id,\n  segment_name,\n  rule_json,\n  profile_json,\n  content_brief_json,\n  data_evidence_json,\n  estimated_size,\n  priority,\n  status\n)\nSELECT\n  (:analysisId)::varchar,\n  sd.project_id,\n  (:campaignId)::varchar,\n  (:promotionId)::varchar,\n  sd.segment_id,\n  COALESCE(:segmentName, sd.segment_name),\n  sd.rule_json,\n  sd.profile_json,\n  '{}'::jsonb,\n  jsonb_build_object(\n    'source', sd.source,\n    'query_preview_id', sd.query_preview_id,\n    'sample_size', sd.sample_size,\n    'sample_ratio', sd.sample_ratio\n  ),\n  sd.sample_size,\n  :priority,\n  :status\nFROM segment_definitions sd\nWHERE sd.project_id = :projectId\n  AND sd.segment_id = :segmentId\n  AND NOT EXISTS (\n    SELECT 1\n    FROM promotion_target_segments existing_pts\n    WHERE existing_pts.project_id = :projectId\n      AND existing_pts.promotion_id = :promotionId\n      AND existing_pts.segment_id = :segmentId\n      AND existing_pts.status <> 'stopped'\n  )\nRETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\"                                      "};
 
 /**
  * Query generated from SQL:
@@ -859,10 +859,10 @@ const insertDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"analysisI
  *   status
  * )
  * SELECT
- *   :analysisId,
+ *   (:analysisId)::varchar,
  *   sd.project_id,
- *   :campaignId,
- *   :promotionId,
+ *   (:campaignId)::varchar,
+ *   (:promotionId)::varchar,
  *   sd.segment_id,
  *   COALESCE(:segmentName, sd.segment_name),
  *   sd.rule_json,
@@ -880,6 +880,14 @@ const insertDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"analysisI
  * FROM segment_definitions sd
  * WHERE sd.project_id = :projectId
  *   AND sd.segment_id = :segmentId
+ *   AND NOT EXISTS (
+ *     SELECT 1
+ *     FROM promotion_target_segments existing_pts
+ *     WHERE existing_pts.project_id = :projectId
+ *       AND existing_pts.promotion_id = :promotionId
+ *       AND existing_pts.segment_id = :segmentId
+ *       AND existing_pts.status <> 'stopped'
+ *   )
  * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId"                                      
  * ```
  */
