@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { InjectTransactionHost, TransactionHost } from "@nestjs-cls/transactional";
 import type {
   DashboardCreateFunnelRequest,
+  DashboardCampaignDetail,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardFunnelList,
@@ -24,6 +25,10 @@ export class DashboardQueryService {
 
   async main(projectId: string): Promise<DashboardMain> {
     return { campaigns: await this.campaignReader.listCampaigns(projectId) };
+  }
+
+  async campaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {
+    return this.campaignReader.getCampaignDetail(projectId, campaignId);
   }
 
   async funnels(projectId: string): Promise<DashboardFunnelList> {

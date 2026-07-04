@@ -28,7 +28,7 @@ export interface IListDashboardCampaignSummariesQuery {
   result: IListDashboardCampaignSummariesResult;
 }
 
-const listDashboardCampaignSummariesIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":776,"b":785}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id)::int AS \"adExperimentCount\",\n  MAX(pe.actual_value)::float8 AS \"latestGoalAchievementRate\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.campaign_id = c.campaign_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.campaign_id = c.campaign_id\nLEFT JOIN ad_experiments ae\n  ON ae.campaign_id = c.campaign_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.campaign_id = c.campaign_id\nWHERE c.project_id = :projectId\nGROUP BY c.campaign_id\nORDER BY c.updated_at DESC, c.created_at DESC                                                              "};
+const listDashboardCampaignSummariesIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":776,"b":785}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id)::int AS \"adExperimentCount\",\n  MAX(pe.actual_value)::float8 AS \"latestGoalAchievementRate\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.campaign_id = c.campaign_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.campaign_id = c.campaign_id\nLEFT JOIN ad_experiments ae\n  ON ae.campaign_id = c.campaign_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.campaign_id = c.campaign_id\nWHERE c.project_id = :projectId\nGROUP BY c.campaign_id\nORDER BY c.updated_at DESC, c.created_at DESC                                      "};
 
 /**
  * Query generated from SQL:
@@ -57,10 +57,229 @@ const listDashboardCampaignSummariesIR: any = {"usedParamSet":{"projectId":true}
  *   ON pe.campaign_id = c.campaign_id
  * WHERE c.project_id = :projectId
  * GROUP BY c.campaign_id
- * ORDER BY c.updated_at DESC, c.created_at DESC                                                              
+ * ORDER BY c.updated_at DESC, c.created_at DESC                                      
  * ```
  */
 export const listDashboardCampaignSummaries = new PreparedQuery<IListDashboardCampaignSummariesParams,IListDashboardCampaignSummariesResult>(listDashboardCampaignSummariesIR);
+
+
+/** 'GetDashboardCampaignSummary' parameters type */
+export interface IGetDashboardCampaignSummaryParams {
+  campaignId?: string | null | void;
+  projectId?: string | null | void;
+}
+
+/** 'GetDashboardCampaignSummary' return type */
+export interface IGetDashboardCampaignSummaryResult {
+  adExperimentCount: number | null;
+  campaignId: string;
+  campaignName: string;
+  endDate: Date | null;
+  latestGoalAchievementRate: number | null;
+  objective: string | null;
+  primaryMetric: string | null;
+  promotionCount: number | null;
+  segmentCount: number | null;
+  startDate: Date | null;
+  status: string;
+  updatedAt: Date;
+}
+
+/** 'GetDashboardCampaignSummary' query type */
+export interface IGetDashboardCampaignSummaryQuery {
+  params: IGetDashboardCampaignSummaryParams;
+  result: IGetDashboardCampaignSummaryResult;
+}
+
+const getDashboardCampaignSummaryIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":776,"b":785}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":809,"b":819}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id)::int AS \"adExperimentCount\",\n  MAX(pe.actual_value)::float8 AS \"latestGoalAchievementRate\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.campaign_id = c.campaign_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.campaign_id = c.campaign_id\nLEFT JOIN ad_experiments ae\n  ON ae.campaign_id = c.campaign_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.campaign_id = c.campaign_id\nWHERE c.project_id = :projectId\n  AND c.campaign_id = :campaignId\nGROUP BY c.campaign_id                                     "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   c.campaign_id AS "campaignId",
+ *   c.name AS "campaignName",
+ *   c.objective,
+ *   c.primary_metric AS "primaryMetric",
+ *   c.status,
+ *   c.start_date AS "startDate",
+ *   c.end_date AS "endDate",
+ *   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
+ *   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
+ *   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
+ *   MAX(pe.actual_value)::float8 AS "latestGoalAchievementRate",
+ *   c.updated_at AS "updatedAt"
+ * FROM campaigns c
+ * LEFT JOIN promotions p
+ *   ON p.campaign_id = c.campaign_id
+ * LEFT JOIN promotion_target_segments pts
+ *   ON pts.campaign_id = c.campaign_id
+ * LEFT JOIN ad_experiments ae
+ *   ON ae.campaign_id = c.campaign_id
+ * LEFT JOIN promotion_evaluations pe
+ *   ON pe.campaign_id = c.campaign_id
+ * WHERE c.project_id = :projectId
+ *   AND c.campaign_id = :campaignId
+ * GROUP BY c.campaign_id                                     
+ * ```
+ */
+export const getDashboardCampaignSummary = new PreparedQuery<IGetDashboardCampaignSummaryParams,IGetDashboardCampaignSummaryResult>(getDashboardCampaignSummaryIR);
+
+
+/** 'ListDashboardCampaignPromotions' parameters type */
+export interface IListDashboardCampaignPromotionsParams {
+  campaignId?: string | null | void;
+  projectId?: string | null | void;
+}
+
+/** 'ListDashboardCampaignPromotions' return type */
+export interface IListDashboardCampaignPromotionsResult {
+  adExperimentCount: number | null;
+  channel: string;
+  goalBasis: string;
+  goalMetric: string;
+  goalTargetValue: number | null;
+  latestActualValue: number | null;
+  marketingTheme: string;
+  promotionId: string;
+  status: string;
+  targetSegmentCount: number | null;
+  updatedAt: Date;
+}
+
+/** 'ListDashboardCampaignPromotions' query type */
+export interface IListDashboardCampaignPromotionsQuery {
+  params: IListDashboardCampaignPromotionsParams;
+  result: IListDashboardCampaignPromotionsResult;
+}
+
+const listDashboardCampaignPromotionsIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":696,"b":705}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":729,"b":739}]}],"statement":"SELECT\n  p.promotion_id AS \"promotionId\",\n  p.channel,\n  p.marketing_theme AS \"marketingTheme\",\n  p.goal_metric AS \"goalMetric\",\n  p.goal_target_value::float8 AS \"goalTargetValue\",\n  p.goal_basis AS \"goalBasis\",\n  p.status,\n  COUNT(DISTINCT pts.segment_id)::int AS \"targetSegmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id)::int AS \"adExperimentCount\",\n  MAX(pe.actual_value)::float8 AS \"latestActualValue\",\n  p.updated_at AS \"updatedAt\"\nFROM promotions p\nLEFT JOIN promotion_target_segments pts\n  ON pts.promotion_id = p.promotion_id\nLEFT JOIN ad_experiments ae\n  ON ae.promotion_id = p.promotion_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.promotion_id = p.promotion_id\nWHERE p.project_id = :projectId\n  AND p.campaign_id = :campaignId\nGROUP BY p.promotion_id\nORDER BY p.updated_at DESC, p.created_at DESC                                       "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   p.promotion_id AS "promotionId",
+ *   p.channel,
+ *   p.marketing_theme AS "marketingTheme",
+ *   p.goal_metric AS "goalMetric",
+ *   p.goal_target_value::float8 AS "goalTargetValue",
+ *   p.goal_basis AS "goalBasis",
+ *   p.status,
+ *   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
+ *   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
+ *   MAX(pe.actual_value)::float8 AS "latestActualValue",
+ *   p.updated_at AS "updatedAt"
+ * FROM promotions p
+ * LEFT JOIN promotion_target_segments pts
+ *   ON pts.promotion_id = p.promotion_id
+ * LEFT JOIN ad_experiments ae
+ *   ON ae.promotion_id = p.promotion_id
+ * LEFT JOIN promotion_evaluations pe
+ *   ON pe.promotion_id = p.promotion_id
+ * WHERE p.project_id = :projectId
+ *   AND p.campaign_id = :campaignId
+ * GROUP BY p.promotion_id
+ * ORDER BY p.updated_at DESC, p.created_at DESC                                       
+ * ```
+ */
+export const listDashboardCampaignPromotions = new PreparedQuery<IListDashboardCampaignPromotionsParams,IListDashboardCampaignPromotionsResult>(listDashboardCampaignPromotionsIR);
+
+
+/** 'ListDashboardCampaignSegments' parameters type */
+export interface IListDashboardCampaignSegmentsParams {
+  campaignId?: string | null | void;
+  projectId?: string | null | void;
+}
+
+/** 'ListDashboardCampaignSegments' return type */
+export interface IListDashboardCampaignSegmentsResult {
+  estimatedSize: number;
+  priority: string | null;
+  promotionId: string;
+  segmentId: string;
+  segmentName: string;
+  status: string;
+}
+
+/** 'ListDashboardCampaignSegments' query type */
+export interface IListDashboardCampaignSegmentsQuery {
+  params: IListDashboardCampaignSegmentsParams;
+  result: IListDashboardCampaignSegmentsResult;
+}
+
+const listDashboardCampaignSegmentsIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":210,"b":219}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":241,"b":251}]}],"statement":"SELECT\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  segment_name AS \"segmentName\",\n  estimated_size AS \"estimatedSize\",\n  priority,\n  status\nFROM promotion_target_segments\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\nORDER BY promotion_id ASC, created_at DESC                                   "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   promotion_id AS "promotionId",
+ *   segment_id AS "segmentId",
+ *   segment_name AS "segmentName",
+ *   estimated_size AS "estimatedSize",
+ *   priority,
+ *   status
+ * FROM promotion_target_segments
+ * WHERE project_id = :projectId
+ *   AND campaign_id = :campaignId
+ * ORDER BY promotion_id ASC, created_at DESC                                   
+ * ```
+ */
+export const listDashboardCampaignSegments = new PreparedQuery<IListDashboardCampaignSegmentsParams,IListDashboardCampaignSegmentsResult>(listDashboardCampaignSegmentsIR);
+
+
+/** 'ListDashboardCampaignExperimentMetrics' parameters type */
+export interface IListDashboardCampaignExperimentMetricsParams {
+  campaignId?: string | null | void;
+  projectId?: string | null | void;
+}
+
+/** 'ListDashboardCampaignExperimentMetrics' return type */
+export interface IListDashboardCampaignExperimentMetricsResult {
+  actualValue: number | null;
+  adExperimentId: string | null;
+  createdAt: Date;
+  denominatorCount: number;
+  metric: string;
+  numeratorCount: number;
+  promotionId: string;
+  sampleSize: number;
+  segmentId: string | null;
+  status: string;
+  targetValue: number | null;
+}
+
+/** 'ListDashboardCampaignExperimentMetrics' query type */
+export interface IListDashboardCampaignExperimentMetricsQuery {
+  params: IListDashboardCampaignExperimentMetricsParams;
+  result: IListDashboardCampaignExperimentMetricsResult;
+}
+
+const listDashboardCampaignExperimentMetricsIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":398,"b":407}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":429,"b":439}]}],"statement":"SELECT\n  promotion_id AS \"promotionId\",\n  ad_experiment_id AS \"adExperimentId\",\n  segment_id AS \"segmentId\",\n  metric,\n  target_value::float8 AS \"targetValue\",\n  actual_value::float8 AS \"actualValue\",\n  numerator_count AS \"numeratorCount\",\n  denominator_count AS \"denominatorCount\",\n  sample_size AS \"sampleSize\",\n  status,\n  created_at AS \"createdAt\"\nFROM promotion_evaluations\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\nORDER BY created_at DESC                                  "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   promotion_id AS "promotionId",
+ *   ad_experiment_id AS "adExperimentId",
+ *   segment_id AS "segmentId",
+ *   metric,
+ *   target_value::float8 AS "targetValue",
+ *   actual_value::float8 AS "actualValue",
+ *   numerator_count AS "numeratorCount",
+ *   denominator_count AS "denominatorCount",
+ *   sample_size AS "sampleSize",
+ *   status,
+ *   created_at AS "createdAt"
+ * FROM promotion_evaluations
+ * WHERE project_id = :projectId
+ *   AND campaign_id = :campaignId
+ * ORDER BY created_at DESC                                  
+ * ```
+ */
+export const listDashboardCampaignExperimentMetrics = new PreparedQuery<IListDashboardCampaignExperimentMetricsParams,IListDashboardCampaignExperimentMetricsResult>(listDashboardCampaignExperimentMetricsIR);
 
 
 /** 'ListActiveFunnels' parameters type */
@@ -84,7 +303,7 @@ export interface IListActiveFunnelsQuery {
   result: IListActiveFunnelsResult;
 }
 
-const listActiveFunnelsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":206,"b":215}]}],"statement":"SELECT\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM funnel_definitions\nWHERE project_id = :projectId\n  AND status = 'active'\nORDER BY updated_at DESC, created_at DESC                                                                "};
+const listActiveFunnelsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":206,"b":215}]}],"statement":"SELECT\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM funnel_definitions\nWHERE project_id = :projectId\n  AND status = 'active'\nORDER BY updated_at DESC, created_at DESC                                  "};
 
 /**
  * Query generated from SQL:
@@ -99,7 +318,7 @@ const listActiveFunnelsIR: any = {"usedParamSet":{"projectId":true},"params":[{"
  * FROM funnel_definitions
  * WHERE project_id = :projectId
  *   AND status = 'active'
- * ORDER BY updated_at DESC, created_at DESC                                                                
+ * ORDER BY updated_at DESC, created_at DESC                                  
  * ```
  */
 export const listActiveFunnels = new PreparedQuery<IListActiveFunnelsParams,IListActiveFunnelsResult>(listActiveFunnelsIR);
@@ -127,7 +346,7 @@ export interface IGetActiveFunnelByIdQuery {
   result: IGetActiveFunnelByIdResult;
 }
 
-const getActiveFunnelByIdIR: any = {"usedParamSet":{"projectId":true,"funnelId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":206,"b":215}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":235,"b":243}]}],"statement":"SELECT\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM funnel_definitions\nWHERE project_id = :projectId\n  AND funnel_id = :funnelId\n  AND status = 'active'                                                        "};
+const getActiveFunnelByIdIR: any = {"usedParamSet":{"projectId":true,"funnelId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":206,"b":215}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":235,"b":243}]}],"statement":"SELECT\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM funnel_definitions\nWHERE project_id = :projectId\n  AND funnel_id = :funnelId\n  AND status = 'active'                                     "};
 
 /**
  * Query generated from SQL:
@@ -142,7 +361,7 @@ const getActiveFunnelByIdIR: any = {"usedParamSet":{"projectId":true,"funnelId":
  * FROM funnel_definitions
  * WHERE project_id = :projectId
  *   AND funnel_id = :funnelId
- *   AND status = 'active'                                                        
+ *   AND status = 'active'                                     
  * ```
  */
 export const getActiveFunnelById = new PreparedQuery<IGetActiveFunnelByIdParams,IGetActiveFunnelByIdResult>(getActiveFunnelByIdIR);
@@ -167,7 +386,7 @@ export interface IListActiveFunnelStepsQuery {
   result: IListActiveFunnelStepsResult;
 }
 
-const listActiveFunnelStepsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":233,"b":242}]}],"statement":"SELECT\n  fs.funnel_id AS \"funnelId\",\n  fs.step_order AS \"stepOrder\",\n  fs.step_name AS \"stepName\",\n  fs.event_name AS \"eventName\"\nFROM funnel_steps fs\nJOIN funnel_definitions fd\n  ON fd.funnel_id = fs.funnel_id\nWHERE fd.project_id = :projectId\n  AND fd.status = 'active'\nORDER BY fs.funnel_id ASC, fs.step_order ASC                                                               "};
+const listActiveFunnelStepsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":233,"b":242}]}],"statement":"SELECT\n  fs.funnel_id AS \"funnelId\",\n  fs.step_order AS \"stepOrder\",\n  fs.step_name AS \"stepName\",\n  fs.event_name AS \"eventName\"\nFROM funnel_steps fs\nJOIN funnel_definitions fd\n  ON fd.funnel_id = fs.funnel_id\nWHERE fd.project_id = :projectId\n  AND fd.status = 'active'\nORDER BY fs.funnel_id ASC, fs.step_order ASC                                         "};
 
 /**
  * Query generated from SQL:
@@ -182,7 +401,7 @@ const listActiveFunnelStepsIR: any = {"usedParamSet":{"projectId":true},"params"
  *   ON fd.funnel_id = fs.funnel_id
  * WHERE fd.project_id = :projectId
  *   AND fd.status = 'active'
- * ORDER BY fs.funnel_id ASC, fs.step_order ASC                                                               
+ * ORDER BY fs.funnel_id ASC, fs.step_order ASC                                         
  * ```
  */
 export const listActiveFunnelSteps = new PreparedQuery<IListActiveFunnelStepsParams,IListActiveFunnelStepsResult>(listActiveFunnelStepsIR);
@@ -208,7 +427,7 @@ export interface IListActiveFunnelStepsByFunnelIdQuery {
   result: IListActiveFunnelStepsByFunnelIdResult;
 }
 
-const listActiveFunnelStepsByFunnelIdIR: any = {"usedParamSet":{"projectId":true,"funnelId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":233,"b":242}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":265,"b":273}]}],"statement":"SELECT\n  fs.funnel_id AS \"funnelId\",\n  fs.step_order AS \"stepOrder\",\n  fs.step_name AS \"stepName\",\n  fs.event_name AS \"eventName\"\nFROM funnel_steps fs\nJOIN funnel_definitions fd\n  ON fd.funnel_id = fs.funnel_id\nWHERE fd.project_id = :projectId\n  AND fd.funnel_id = :funnelId\n  AND fd.status = 'active'\nORDER BY fs.step_order ASC                                          "};
+const listActiveFunnelStepsByFunnelIdIR: any = {"usedParamSet":{"projectId":true,"funnelId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":233,"b":242}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":265,"b":273}]}],"statement":"SELECT\n  fs.funnel_id AS \"funnelId\",\n  fs.step_order AS \"stepOrder\",\n  fs.step_name AS \"stepName\",\n  fs.event_name AS \"eventName\"\nFROM funnel_steps fs\nJOIN funnel_definitions fd\n  ON fd.funnel_id = fs.funnel_id\nWHERE fd.project_id = :projectId\n  AND fd.funnel_id = :funnelId\n  AND fd.status = 'active'\nORDER BY fs.step_order ASC                          "};
 
 /**
  * Query generated from SQL:
@@ -224,7 +443,7 @@ const listActiveFunnelStepsByFunnelIdIR: any = {"usedParamSet":{"projectId":true
  * WHERE fd.project_id = :projectId
  *   AND fd.funnel_id = :funnelId
  *   AND fd.status = 'active'
- * ORDER BY fs.step_order ASC                                          
+ * ORDER BY fs.step_order ASC                          
  * ```
  */
 export const listActiveFunnelStepsByFunnelId = new PreparedQuery<IListActiveFunnelStepsByFunnelIdParams,IListActiveFunnelStepsByFunnelIdResult>(listActiveFunnelStepsByFunnelIdIR);
@@ -253,7 +472,7 @@ export interface IInsertFunnelDefinitionQuery {
   result: IInsertFunnelDefinitionResult;
 }
 
-const insertFunnelDefinitionIR: any = {"usedParamSet":{"funnelId":true,"projectId":true,"funnelName":true},"params":[{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":76,"b":84}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":87,"b":96}]},{"name":"funnelName","required":false,"transform":{"type":"scalar"},"locs":[{"a":99,"b":109}]}],"statement":"INSERT INTO funnel_definitions (funnel_id, project_id, funnel_name)\nVALUES (:funnelId, :projectId, :funnelName)\nRETURNING\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"                                      "};
+const insertFunnelDefinitionIR: any = {"usedParamSet":{"funnelId":true,"projectId":true,"funnelName":true},"params":[{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":76,"b":84}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":87,"b":96}]},{"name":"funnelName","required":false,"transform":{"type":"scalar"},"locs":[{"a":99,"b":109}]}],"statement":"INSERT INTO funnel_definitions (funnel_id, project_id, funnel_name)\nVALUES (:funnelId, :projectId, :funnelName)\nRETURNING\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"                          "};
 
 /**
  * Query generated from SQL:
@@ -266,7 +485,7 @@ const insertFunnelDefinitionIR: any = {"usedParamSet":{"funnelId":true,"projectI
  *   domain_type AS "domainType",
  *   status,
  *   created_at AS "createdAt",
- *   updated_at AS "updatedAt"                                      
+ *   updated_at AS "updatedAt"                          
  * ```
  */
 export const insertFunnelDefinition = new PreparedQuery<IInsertFunnelDefinitionParams,IInsertFunnelDefinitionResult>(insertFunnelDefinitionIR);
@@ -294,7 +513,7 @@ export interface IInsertFunnelStepQuery {
   result: IInsertFunnelStepResult;
 }
 
-const insertFunnelStepIR: any = {"usedParamSet":{"funnelId":true,"stepOrder":true,"stepName":true,"eventName":true},"params":[{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":80,"b":88}]},{"name":"stepOrder","required":false,"transform":{"type":"scalar"},"locs":[{"a":91,"b":100}]},{"name":"stepName","required":false,"transform":{"type":"scalar"},"locs":[{"a":103,"b":111}]},{"name":"eventName","required":false,"transform":{"type":"scalar"},"locs":[{"a":114,"b":123}]}],"statement":"INSERT INTO funnel_steps (funnel_id, step_order, step_name, event_name)\nVALUES (:funnelId, :stepOrder, :stepName, :eventName)\nRETURNING\n  funnel_id AS \"funnelId\",\n  step_order AS \"stepOrder\",\n  step_name AS \"stepName\",\n  event_name AS \"eventName\"                                                              "};
+const insertFunnelStepIR: any = {"usedParamSet":{"funnelId":true,"stepOrder":true,"stepName":true,"eventName":true},"params":[{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":80,"b":88}]},{"name":"stepOrder","required":false,"transform":{"type":"scalar"},"locs":[{"a":91,"b":100}]},{"name":"stepName","required":false,"transform":{"type":"scalar"},"locs":[{"a":103,"b":111}]},{"name":"eventName","required":false,"transform":{"type":"scalar"},"locs":[{"a":114,"b":123}]}],"statement":"INSERT INTO funnel_steps (funnel_id, step_order, step_name, event_name)\nVALUES (:funnelId, :stepOrder, :stepName, :eventName)\nRETURNING\n  funnel_id AS \"funnelId\",\n  step_order AS \"stepOrder\",\n  step_name AS \"stepName\",\n  event_name AS \"eventName\"                                         "};
 
 /**
  * Query generated from SQL:
@@ -305,7 +524,7 @@ const insertFunnelStepIR: any = {"usedParamSet":{"funnelId":true,"stepOrder":tru
  *   funnel_id AS "funnelId",
  *   step_order AS "stepOrder",
  *   step_name AS "stepName",
- *   event_name AS "eventName"                                                              
+ *   event_name AS "eventName"                                         
  * ```
  */
 export const insertFunnelStep = new PreparedQuery<IInsertFunnelStepParams,IInsertFunnelStepResult>(insertFunnelStepIR);
@@ -326,7 +545,7 @@ export interface IDeleteFunnelStepsQuery {
   result: IDeleteFunnelStepsResult;
 }
 
-const deleteFunnelStepsIR: any = {"usedParamSet":{"projectId":true,"funnelId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":112,"b":121}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":143,"b":151}]}],"statement":"DELETE FROM funnel_steps\nWHERE funnel_id IN (\n  SELECT funnel_id\n  FROM funnel_definitions\n  WHERE project_id = :projectId\n    AND funnel_id = :funnelId\n)                                                           "};
+const deleteFunnelStepsIR: any = {"usedParamSet":{"projectId":true,"funnelId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":112,"b":121}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":143,"b":151}]}],"statement":"DELETE FROM funnel_steps\nWHERE funnel_id IN (\n  SELECT funnel_id\n  FROM funnel_definitions\n  WHERE project_id = :projectId\n    AND funnel_id = :funnelId\n)                                        "};
 
 /**
  * Query generated from SQL:
@@ -337,7 +556,7 @@ const deleteFunnelStepsIR: any = {"usedParamSet":{"projectId":true,"funnelId":tr
  *   FROM funnel_definitions
  *   WHERE project_id = :projectId
  *     AND funnel_id = :funnelId
- * )                                                           
+ * )                                        
  * ```
  */
 export const deleteFunnelSteps = new PreparedQuery<IDeleteFunnelStepsParams,IDeleteFunnelStepsResult>(deleteFunnelStepsIR);

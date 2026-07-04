@@ -24,6 +24,56 @@ export const DashboardMainSchema = z.object({
 });
 export type DashboardMain = z.infer<typeof DashboardMainSchema>;
 
+export const DashboardCampaignPromotionSchema = z.object({
+  promotion_id: z.string(),
+  channel: z.string(),
+  marketing_theme: z.string(),
+  goal_metric: z.string(),
+  goal_target_value: z.number().nonnegative(),
+  goal_basis: z.string(),
+  status: z.string(),
+  target_segment_count: CountSchema,
+  ad_experiment_count: CountSchema,
+  latest_actual_value: RateSchema.nullable(),
+  updated_at: z.string()
+});
+export type DashboardCampaignPromotion = z.infer<typeof DashboardCampaignPromotionSchema>;
+
+export const DashboardCampaignSegmentSchema = z.object({
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  segment_name: z.string(),
+  estimated_size: CountSchema,
+  priority: z.string().nullable(),
+  status: z.string()
+});
+export type DashboardCampaignSegment = z.infer<typeof DashboardCampaignSegmentSchema>;
+
+export const DashboardCampaignExperimentMetricSchema = z.object({
+  promotion_id: z.string(),
+  ad_experiment_id: z.string().nullable(),
+  segment_id: z.string().nullable(),
+  metric: z.string(),
+  target_value: z.number().nonnegative(),
+  actual_value: z.number().nonnegative(),
+  numerator_count: CountSchema,
+  denominator_count: CountSchema,
+  sample_size: CountSchema,
+  status: z.string(),
+  created_at: z.string()
+});
+export type DashboardCampaignExperimentMetric = z.infer<
+  typeof DashboardCampaignExperimentMetricSchema
+>;
+
+export const DashboardCampaignDetailSchema = z.object({
+  campaign: DashboardCampaignSummarySchema,
+  promotions: z.array(DashboardCampaignPromotionSchema),
+  segments: z.array(DashboardCampaignSegmentSchema),
+  experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema)
+});
+export type DashboardCampaignDetail = z.infer<typeof DashboardCampaignDetailSchema>;
+
 export const DashboardFunnelEventNameSchema = z.enum([
   "page_view",
   "promotion_impression",

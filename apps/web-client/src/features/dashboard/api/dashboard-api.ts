@@ -1,5 +1,6 @@
 import {
   createApiSuccessResponseSchema,
+  DashboardCampaignDetailSchema,
   DashboardCreateFunnelRequestSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardEventCatalogSchema,
@@ -9,6 +10,7 @@ import {
   DashboardMainSchema
 } from "@loopad/shared";
 import type {
+  DashboardCampaignDetail,
   DashboardCreateFunnelRequest,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
@@ -65,6 +67,19 @@ export async function createDashboardFunnel(
   }
 
   return createApiSuccessResponseSchema(DashboardFunnelSchema).parse(await response.json()).data;
+}
+
+export async function fetchDashboardCampaignDetail(
+  query: DashboardQuery,
+  campaignId: string,
+  signal: AbortSignal
+): Promise<DashboardCampaignDetail> {
+  return request(
+    `/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}`,
+    DashboardCampaignDetailSchema,
+    query,
+    signal
+  );
 }
 
 export async function deleteDashboardFunnel(
