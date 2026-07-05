@@ -625,7 +625,7 @@ export class DashboardCampaignReader {
     return toCampaignSummary(row);
   }
 
-  private async getPromotionSummary(
+  async getPromotionSummary(
     projectId: string,
     promotionId: string
   ): Promise<DashboardPromotionSummary> {

@@ -965,41 +965,6 @@ function CampaignTabContent({
     }
   });
   switch (tab) {
-    case "campaign-segments":
-      return (
-        <>
-          <CampaignOpenTabs
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
-            selectedPromotion={selectedPromotion}
-            selectedSegment={selectedSegment}
-          />
-          <SegmentTable
-            onSelectSegment={onSelectSegment}
-            segments={promotionDetail?.segments ?? detail.segments}
-            selectedSegmentId={selectedSegmentId}
-          />
-          <SegmentDetailPanel
-            approveError={approveContentCandidateMutation.error}
-            approveIsError={approveContentCandidateMutation.isError}
-            approveIsPending={approveContentCandidateMutation.isPending}
-            rejectError={rejectContentCandidateMutation.error}
-            rejectIsError={rejectContentCandidateMutation.isError}
-            rejectIsPending={rejectContentCandidateMutation.isPending}
-            detail={segmentDetail}
-            error={segmentError}
-            isError={segmentIsError}
-            isLoading={segmentIsLoading}
-            onApproveContentCandidate={(promotionId, segmentId, contentId) =>
-              approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-            }
-            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
-              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-            }
-            selectedSegmentId={selectedSegmentId}
-          />
-        </>
-      );
     case "campaign-experiment-metrics":
       return (
         <>

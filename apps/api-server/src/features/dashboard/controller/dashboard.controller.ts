@@ -36,6 +36,8 @@ import {
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
+  DashboardStartPromotionAnalysisRequestSchema,
+  DashboardStartPromotionAnalysisResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
@@ -276,6 +278,19 @@ export class DashboardController {
         promotionId,
         analysisId ?? null
       )
+    );
+  }
+
+  @Post("promotions/:promotion_id/segment-suggestions/analyze")
+  async startPromotionAnalysis(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardStartPromotionAnalysisRequestSchema.parse(body ?? {});
+    return DashboardStartPromotionAnalysisResultSchema.parse(
+      await this.dashboardQuery.startPromotionAnalysis(requiredProjectId, promotionId, request)
     );
   }
 

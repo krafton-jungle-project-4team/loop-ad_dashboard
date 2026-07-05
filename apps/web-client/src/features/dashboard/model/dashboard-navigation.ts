@@ -46,12 +46,6 @@ export const dashboardTabs = [
     pathSegment: "campaign-promotions"
   },
   {
-    value: "campaign-segments",
-    label: "세그먼트",
-    icon: Megaphone,
-    pathSegment: "campaign-segments"
-  },
-  {
     value: "campaign-experiment-metrics",
     label: "실험 지표",
     icon: Megaphone,
@@ -103,12 +97,6 @@ export const dashboardNavigationTree = [
     label: "프로모션",
     value: "campaign-promotions",
     pathSegment: "campaign-promotions",
-    icon: Megaphone
-  },
-  {
-    label: "세그먼트",
-    value: "campaign-segments",
-    pathSegment: "campaign-segments",
     icon: Megaphone
   },
   {

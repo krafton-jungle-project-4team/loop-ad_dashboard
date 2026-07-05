@@ -36,6 +36,8 @@ import {
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
+  DashboardStartPromotionAnalysisRequestSchema,
+  DashboardStartPromotionAnalysisResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
@@ -76,6 +78,8 @@ import type {
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
+  DashboardStartPromotionAnalysisRequest,
+  DashboardStartPromotionAnalysisResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
@@ -109,7 +113,6 @@ export async function fetchDashboardPageResource(
     case "campaigns":
     case "campaign-flow-map":
     case "campaign-promotions":
-    case "campaign-segments":
     case "campaign-experiment-metrics":
     case "campaign-promotion-metrics":
     case "campaign-metrics":
@@ -430,6 +433,32 @@ export async function fetchDashboardPromotionSegmentSuggestions(
   }
 
   return createApiSuccessResponseSchema(DashboardPromotionSegmentSuggestionListSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function startDashboardPromotionAnalysis(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardStartPromotionAnalysisRequest
+): Promise<DashboardStartPromotionAnalysisResult> {
+  const parsedBody = DashboardStartPromotionAnalysisRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-suggestions/analyze`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardStartPromotionAnalysisResultSchema).parse(
     await response.json()
   ).data;
 }

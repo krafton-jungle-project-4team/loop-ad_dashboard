@@ -80,7 +80,6 @@ type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost
 type DetailTabPath =
   | "campaign-metrics"
   | "campaign-promotions"
-  | "campaign-segments"
   | "campaign-experiment-metrics";
 
 type DetailAction = {
@@ -1602,7 +1601,7 @@ function createSegmentSummary(
       campaignId,
       segment.promotion_id,
       segment.segment_id,
-      "campaign-segments"
+      "campaign-promotions"
     ),
     contentTitle: segmentContentTitle(segment),
     estimatedSize: segment.estimated_size,

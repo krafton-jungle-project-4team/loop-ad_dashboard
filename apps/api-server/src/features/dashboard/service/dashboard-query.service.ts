@@ -36,6 +36,8 @@ import type {
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
+  DashboardStartPromotionAnalysisRequest,
+  DashboardStartPromotionAnalysisResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
@@ -46,6 +48,7 @@ import {
   DashboardFunnelReader,
   DashboardSegmentQueryRepository
 } from "../repository/index.js";
+import { DashboardDecisionClient } from "../provider/index.js";
 
 @Injectable()
 export class DashboardQueryService {
@@ -55,7 +58,9 @@ export class DashboardQueryService {
     @Inject(DashboardFunnelReader)
     private readonly funnelReader: DashboardFunnelReader,
     @Inject(DashboardSegmentQueryRepository)
-    private readonly segmentQueryRepository: DashboardSegmentQueryRepository
+    private readonly segmentQueryRepository: DashboardSegmentQueryRepository,
+    @Inject(DashboardDecisionClient)
+    private readonly decisionClient: DashboardDecisionClient
   ) {}
 
   async main(projectId: string): Promise<DashboardMain> {
@@ -147,6 +152,20 @@ export class DashboardQueryService {
     analysisId?: string | null
   ): Promise<DashboardPromotionSegmentSuggestionList> {
     return this.campaignReader.listPromotionSegmentSuggestions(projectId, promotionId, analysisId);
+  }
+
+  async startPromotionAnalysis(
+    projectId: string,
+    promotionId: string,
+    request: DashboardStartPromotionAnalysisRequest
+  ): Promise<DashboardStartPromotionAnalysisResult> {
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    return this.decisionClient.startPromotionAnalysis({
+      campaignId: promotion.campaign_id,
+      projectId,
+      promotionId,
+      request
+    });
   }
 
   async promotionScopedSegmentDefinitions(

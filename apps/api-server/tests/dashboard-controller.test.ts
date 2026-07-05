@@ -279,6 +279,42 @@ test("dashboard controller parses promotion scoped segment create body", async (
   assert.equal(response.segment_name, "상세 조회 후 미예약 고객");
 });
 
+test("dashboard controller parses promotion analysis request before delegating", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    startPromotionAnalysis: async (projectId, promotionId, request) => {
+      writes.push({ projectId, promotionId, request });
+      return {
+        analysis_id: "analysis_promo_email_001",
+        promotion_id: promotionId,
+        status: "queued"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.startPromotionAnalysis("promo_email_001", "hotel-client-a", {
+    focus_segment_ids: null,
+    operator_instruction: "전환 가능성이 높은 세그먼트 추천"
+  });
+
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001",
+      request: {
+        focus_segment_ids: null,
+        operator_instruction: "전환 가능성이 높은 세그먼트 추천"
+      }
+    }
+  ]);
+  assert.equal(response.analysis_id, "analysis_promo_email_001");
+  assert.equal(response.status, "queued");
+});
+
 test("dashboard controller parses promotion detail analyses response", async () => {
   setRequiredEnv();
   const { DashboardController } =
@@ -450,6 +486,9 @@ function emptyDashboardQuery(): DashboardQueryService {
     main: async () => ({ campaigns: [] }),
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
+    },
+    startPromotionAnalysis: async () => {
+      throw new Error("Unexpected startPromotionAnalysis call.");
     }
   } as unknown as DashboardQueryService;
 }
@@ -500,6 +539,8 @@ function setRequiredEnv() {
   process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
   process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
   process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
+  process.env.LOOPAD_DECISION_API_BASE_URL ??= "http://localhost:8081";
+  process.env.LOOPAD_INTERNAL_API_KEY ??= "test-internal-key";
   process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
   process.env.LOOPAD_DEMO_DISPATCH_RECIPIENTS ??= JSON.stringify([
     {

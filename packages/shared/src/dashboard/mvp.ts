@@ -596,6 +596,23 @@ export type DashboardConfirmSegmentSuggestionsResult = z.infer<
   typeof DashboardConfirmSegmentSuggestionsResultSchema
 >;
 
+export const DashboardStartPromotionAnalysisRequestSchema = z.object({
+  focus_segment_ids: z.array(z.string().min(1)).nullable().optional(),
+  operator_instruction: z.string().nullable().optional()
+});
+export type DashboardStartPromotionAnalysisRequest = z.infer<
+  typeof DashboardStartPromotionAnalysisRequestSchema
+>;
+
+export const DashboardStartPromotionAnalysisResultSchema = z.object({
+  analysis_id: z.string(),
+  promotion_id: z.string(),
+  status: z.string()
+});
+export type DashboardStartPromotionAnalysisResult = z.infer<
+  typeof DashboardStartPromotionAnalysisResultSchema
+>;
+
 export const DashboardPromotionScopedSegmentSourceSchema = z.enum([
   "custom_chatkit",
   "manual_rule"

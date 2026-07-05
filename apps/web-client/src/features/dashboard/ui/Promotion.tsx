@@ -5,7 +5,8 @@ import type {
   DashboardCreatePromotionRequest,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
-  DashboardPromotionSegmentSuggestion
+  DashboardPromotionSegmentSuggestion,
+  DashboardStartPromotionAnalysisResult
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
@@ -48,7 +49,8 @@ import {
   decideDashboardPromotionSegmentSuggestion,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
-  fetchDashboardPromotionSegmentSuggestions
+  fetchDashboardPromotionSegmentSuggestions,
+  startDashboardPromotionAnalysis
 } from "../api/dashboard-api.js";
 import { formatInteger } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
@@ -85,6 +87,7 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null);
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
     data.campaigns[0];
@@ -192,17 +195,22 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     campaignDetail.data?.segments.filter(
       (segment) => segment.promotion_id === selectedOpenPromotion?.promotion_id
     ) ?? [];
+  useEffect(() => {
+    setActiveAnalysisId(null);
+  }, [selectedOpenPromotion?.promotion_id]);
   const segmentSuggestions = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
     queryFn: ({ signal }) =>
       fetchDashboardPromotionSegmentSuggestions(
         query,
         selectedOpenPromotion?.promotion_id ?? "",
-        signal
+        signal,
+        activeAnalysisId
       ),
     queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
       query.projectId,
-      selectedOpenPromotion?.promotion_id ?? ""
+      selectedOpenPromotion?.promotion_id ?? "",
+      activeAnalysisId
     )
   });
   const scopedSegmentDefinitions = useQuery({
@@ -234,6 +242,23 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       });
     }
   });
+  const startAnalysisMutation = useMutation({
+    mutationFn: () =>
+      startDashboardPromotionAnalysis(query, selectedOpenPromotion?.promotion_id ?? "", {
+        focus_segment_ids: null,
+        operator_instruction: null
+      }),
+    onSuccess: async (analysis) => {
+      setActiveAnalysisId(analysis.analysis_id);
+      await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? "",
+          analysis.analysis_id
+        )
+      });
+    }
+  });
   const decideSuggestionMutation = useMutation({
     mutationFn: ({
       status,
@@ -252,7 +277,8 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       await queryClient.invalidateQueries({
         queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
           query.projectId,
-          selectedOpenPromotion?.promotion_id ?? ""
+          selectedOpenPromotion?.promotion_id ?? "",
+          activeAnalysisId
         )
       });
       await queryClient.invalidateQueries({
@@ -278,7 +304,8 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       await queryClient.invalidateQueries({
         queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
           query.projectId,
-          selectedOpenPromotion?.promotion_id ?? ""
+          selectedOpenPromotion?.promotion_id ?? "",
+          activeAnalysisId
         )
       });
     }
@@ -346,7 +373,12 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 onDecideSuggestion={(suggestionId, status) =>
                   decideSuggestionMutation.mutate({ status, suggestionId })
                 }
+                onStartAnalysis={() => startAnalysisMutation.mutate()}
                 promotion={selectedOpenPromotion}
+                promotionAnalysis={startAnalysisMutation.data ?? null}
+                promotionAnalysisError={startAnalysisMutation.error}
+                promotionAnalysisIsError={startAnalysisMutation.isError}
+                promotionAnalysisIsPending={startAnalysisMutation.isPending}
                 segments={selectedPromotionSegments}
                 scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
                 scopedSegmentsError={scopedSegmentDefinitions.error}
@@ -528,7 +560,12 @@ function PromotionTabWorkspace({
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
+  onStartAnalysis,
   promotion,
+  promotionAnalysis,
+  promotionAnalysisError,
+  promotionAnalysisIsError,
+  promotionAnalysisIsPending,
   scopedSegmentCreateError,
   scopedSegmentCreateIsError,
   scopedSegmentCreateIsPending,
@@ -551,7 +588,12 @@ function PromotionTabWorkspace({
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  onStartAnalysis: () => void;
   promotion: DashboardCampaignPromotion;
+  promotionAnalysis: DashboardStartPromotionAnalysisResult | null;
+  promotionAnalysisError: Error | null;
+  promotionAnalysisIsError: boolean;
+  promotionAnalysisIsPending: boolean;
   scopedSegmentCreateError: Error | null;
   scopedSegmentCreateIsError: boolean;
   scopedSegmentCreateIsPending: boolean;
@@ -670,6 +712,11 @@ function PromotionTabWorkspace({
         onConfirmSuggestions={onConfirmSuggestions}
         onCreateScopedSegment={onCreateScopedSegment}
         onDecideSuggestion={onDecideSuggestion}
+        onStartAnalysis={onStartAnalysis}
+        promotionAnalysis={promotionAnalysis}
+        promotionAnalysisError={promotionAnalysisError}
+        promotionAnalysisIsError={promotionAnalysisIsError}
+        promotionAnalysisIsPending={promotionAnalysisIsPending}
         scopedSegments={scopedSegments}
         scopedSegmentsError={scopedSegmentsError}
         scopedSegmentsIsError={scopedSegmentsIsError}
@@ -696,6 +743,11 @@ function PromotionSegmentSuggestionPanel({
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
+  onStartAnalysis,
+  promotionAnalysis,
+  promotionAnalysisError,
+  promotionAnalysisIsError,
+  promotionAnalysisIsPending,
   scopedSegments,
   scopedSegmentsError,
   scopedSegmentsIsError,
@@ -717,6 +769,11 @@ function PromotionSegmentSuggestionPanel({
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  onStartAnalysis: () => void;
+  promotionAnalysis: DashboardStartPromotionAnalysisResult | null;
+  promotionAnalysisError: Error | null;
+  promotionAnalysisIsError: boolean;
+  promotionAnalysisIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
   scopedSegmentsError: Error | null;
   scopedSegmentsIsError: boolean;
@@ -742,6 +799,15 @@ function PromotionSegmentSuggestionPanel({
           </CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={promotionAnalysisIsPending}
+            onClick={onStartAnalysis}
+            type="button"
+            variant="outline"
+          >
+            <BarChart3 className="mr-2 size-4" />
+            {promotionAnalysisIsPending ? "분석 요청 중" : "AI 추천 요청"}
+          </Button>
           <Button onClick={() => setIsCreateDialogOpen(true)} type="button" variant="outline">
             <Plus className="mr-2 size-4" />
             직접 추가
@@ -757,6 +823,20 @@ function PromotionSegmentSuggestionPanel({
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
+        {promotionAnalysisIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>AI 추천 요청에 실패했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(promotionAnalysisError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {promotionAnalysis ? (
+          <Alert>
+            <AlertTitle>AI 추천 요청이 접수되었습니다</AlertTitle>
+            <AlertDescription>
+              분석 {promotionAnalysis.analysis_id} · 상태 {promotionAnalysis.status}
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {suggestionsIsError ? (
           <Alert variant="destructive">
             <AlertTitle>추천 세그먼트를 불러오지 못했습니다</AlertTitle>

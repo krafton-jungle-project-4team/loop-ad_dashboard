@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { TransactionHost } from "@nestjs-cls/transactional";
+import type { DashboardDecisionClient } from "../src/features/dashboard/provider/dashboard-decision-client.js";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
 import type { DashboardSegmentQueryRepository } from "../src/features/dashboard/repository/dashboard-segment-query-repository.js";
@@ -33,7 +34,8 @@ test("dashboard main returns campaign summaries from the campaign reader", async
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
-    emptySegmentQueryRepository()
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
   );
 
   const main = await service.main("hotel-client-a");
@@ -64,7 +66,8 @@ test("dashboard event catalog returns collected funnel event options", async () 
         ];
       }
     } as unknown as DashboardFunnelReader,
-    emptySegmentQueryRepository()
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
   );
 
   const eventCatalog = await service.eventCatalog("hotel-client-a");
@@ -106,7 +109,8 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
         };
       }
     } as unknown as DashboardFunnelReader,
-    emptySegmentQueryRepository()
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
   );
 
   const funnel = await service.createFunnel("hotel-client-a", {
@@ -147,7 +151,8 @@ test("dashboard segment query preview delegates to the segment query repository"
           rows: [{ user_id: "user_001" }]
         };
       }
-    } as unknown as DashboardSegmentQueryRepository
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient()
   );
 
   const preview = await service.createSegmentQueryPreview("hotel-client-a", {
@@ -186,7 +191,8 @@ test("dashboard save segment delegates valid preview save to the segment query r
           status: "active"
         };
       }
-    } as unknown as DashboardSegmentQueryRepository
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient()
   );
 
   const segment = await service.saveSegment("hotel-client-a", {
@@ -197,6 +203,82 @@ test("dashboard save segment delegates valid preview save to the segment query r
   assert.equal(writes.length, 1);
   assert.equal(segment.source, "custom_chatkit");
   assert.equal(segment.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
+});
+
+test("dashboard promotion analysis resolves campaign and calls decision API client", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async (projectId, promotionId) => {
+        calls.push({ kind: "read-promotion", projectId, promotionId });
+        return {
+          ad_experiment_count: 0,
+          campaign_id: "camp_summer_2026",
+          channel: "email",
+          current_loop_count: 0,
+          goal_basis: "promotion_average",
+          goal_metric: "inflow_rate",
+          goal_target_value: 0.1,
+          landing_type: null,
+          landing_url: null,
+          latest_actual_value: null,
+          marketing_theme: "여름 숙박 리마인드",
+          max_loop_count: 3,
+          message_brief: null,
+          min_sample_size: 1000,
+          next_action: "request_analysis",
+          offer_type: null,
+          promotion_id: promotionId,
+          status: "analysis_ready",
+          target_audience: "existing_users",
+          target_segment_count: 0,
+          updated_at: "2026-07-04T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      startPromotionAnalysis: async (request) => {
+        calls.push({ kind: "decision", request });
+        return {
+          analysis_id: "analysis_promo_email_001",
+          promotion_id: request.promotionId,
+          status: "queued"
+        };
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  const response = await service.startPromotionAnalysis("hotel-client-a", "promo_email_001", {
+    focus_segment_ids: null,
+    operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
+  });
+
+  assert.equal(response.analysis_id, "analysis_promo_email_001");
+  assert.deepEqual(calls, [
+    {
+      kind: "read-promotion",
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001"
+    },
+    {
+      kind: "decision",
+      request: {
+        campaignId: "camp_summer_2026",
+        projectId: "hotel-client-a",
+        promotionId: "promo_email_001",
+        request: {
+          focus_segment_ids: null,
+          operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
+        }
+      }
+    }
+  ]);
 });
 
 test("dashboard reject content candidate runs inside transaction host", async () => {
@@ -220,7 +302,8 @@ test("dashboard reject content candidate runs inside transaction host", async ()
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
-    emptySegmentQueryRepository()
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
   );
 
   const result = await service.rejectContentCandidate(
@@ -275,6 +358,14 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
   } as unknown as DashboardSegmentQueryRepository;
 }
 
+function emptyDecisionClient(): DashboardDecisionClient {
+  return {
+    startPromotionAnalysis: async () => {
+      throw new Error("Unexpected startPromotionAnalysis call.");
+    }
+  } as unknown as DashboardDecisionClient;
+}
+
 function installCountingTransactionHost() {
   const calls: string[] = [];
 
@@ -306,6 +397,8 @@ function setRequiredEnv() {
   process.env.LOOPAD_CLICKHOUSE_DATABASE ??= "loopad";
   process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
   process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
+  process.env.LOOPAD_DECISION_API_BASE_URL ??= "http://localhost:8081";
+  process.env.LOOPAD_INTERNAL_API_KEY ??= "test-internal-key";
   process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
   process.env.LOOPAD_DEMO_DISPATCH_RECIPIENTS ??= JSON.stringify([
     {

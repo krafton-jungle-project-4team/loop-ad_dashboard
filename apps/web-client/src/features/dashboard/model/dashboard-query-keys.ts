@@ -22,9 +22,16 @@ export function dashboardPromotionDetailQueryKey(projectId: string, promotionId:
 
 export function dashboardPromotionSegmentSuggestionsQueryKey(
   projectId: string,
-  promotionId: string
+  promotionId: string,
+  analysisId?: string | null
 ) {
-  return ["dashboard", "promotion-segment-suggestions", projectId, promotionId] as const;
+  return [
+    "dashboard",
+    "promotion-segment-suggestions",
+    projectId,
+    promotionId,
+    analysisId ?? "latest"
+  ] as const;
 }
 
 export function dashboardPromotionScopedSegmentDefinitionsQueryKey(
