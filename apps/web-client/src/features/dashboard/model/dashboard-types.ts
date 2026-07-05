@@ -8,6 +8,7 @@ export const dashboardTabValues = [
   "campaign-promotions",
   "experiments",
   "campaign-metrics",
+  "sdk",
   "dataExplorer"
 ] as const;
 

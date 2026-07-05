@@ -1,5 +1,6 @@
 import {
   Activity,
+  BookOpenText,
   DatabaseZap,
   FlaskConical,
   ListFilter,
@@ -53,6 +54,12 @@ export const dashboardTabs = [
     pathSegment: "campaign-metrics"
   },
   {
+    value: "sdk",
+    label: "SDK 연동",
+    icon: BookOpenText,
+    pathSegment: "sdk"
+  },
+  {
     value: "dataExplorer",
     label: "데이터 탐색기",
     icon: DatabaseZap,
@@ -96,6 +103,12 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     value: "campaign-metrics",
     pathSegment: "campaign-metrics",
     icon: Megaphone
+  },
+  {
+    label: "SDK 연동",
+    value: "sdk",
+    pathSegment: "sdk",
+    icon: BookOpenText
   },
   {
     label: "데이터 탐색기",

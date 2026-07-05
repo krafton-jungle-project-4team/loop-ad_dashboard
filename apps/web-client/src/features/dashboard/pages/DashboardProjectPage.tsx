@@ -5,6 +5,7 @@ import { normalizeDashboardQuery, useDashboardQueryState } from "../model/dashbo
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { useSuspenseDashboardResources } from "../model/use-dashboard-resources.js";
 import { DashboardPanelRenderer } from "../ui/DashboardRenderer.js";
+import { SdkIntegrationPage } from "./SdkIntegrationPage.js";
 
 export function DashboardProjectPage({ projectId, tab }: { projectId: string; tab: DashboardTab }) {
   const [queryState] = useDashboardQueryState();
@@ -24,6 +25,10 @@ export function DashboardProjectPage({ projectId, tab }: { projectId: string; ta
 
   if (tab === "dataExplorer") {
     return <DataExplorerPage projectId={query.projectId} />;
+  }
+
+  if (tab === "sdk") {
+    return <SdkIntegrationPage />;
   }
 
   return <DashboardResourcePanel query={query} tab={tab} />;
