@@ -5,14 +5,13 @@ const DashboardConfigSchema = z.object({
   chatKitDomainKey: z.string().min(1)
 });
 
+const chatKitDomainPublicKey = "domain_pk_6a4a82942b00819097182058ae4fcbe00457577e1f163c6d";
+
 export const dashboardConfig = DashboardConfigSchema.parse({
   apiBaseUrl: normalizeApiBaseUrl(
     requiredEnv("VITE_LOOPAD_API_BASE_URL", import.meta.env.VITE_LOOPAD_API_BASE_URL)
   ),
-  chatKitDomainKey: requiredEnv(
-    "VITE_LOOPAD_CHATKIT_DOMAIN_KEY",
-    import.meta.env.VITE_LOOPAD_CHATKIT_DOMAIN_KEY
-  )
+  chatKitDomainKey: chatKitDomainPublicKey
 });
 
 function requiredEnv(key: string, value: string | undefined) {
