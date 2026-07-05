@@ -22,6 +22,7 @@ import {
   type PromotionRunEntity
 } from "../domain/index.js";
 import { AdExecutionReader, AdExecutionWriter, RecipientDirectory } from "../repository/index.js";
+import { requirePromotionLandingUrl } from "./landing-url.guard.js";
 
 const LOCAL_DASHBOARD_PUBLIC_BASE_URL = "http://localhost:8080";
 const DEV_DASHBOARD_PUBLIC_BASE_URL = "https://dashboard.api.dev.loop-ad.org";
@@ -358,6 +359,7 @@ export class PromotionDispatchService {
     logDispatchStep("createRedirectLink", dispatchLogContext(assignment));
 
     const redirectId = randomUUID();
+    const destinationUrl = requirePromotionLandingUrl(assignment);
 
     return this.writer.insertRedirectLink({
       redirectLinkId: redirectId,
@@ -371,7 +373,7 @@ export class PromotionDispatchService {
       userId: assignment.userId,
       contentId: assignment.contentId,
       contentOptionId: assignment.contentOptionId,
-      destinationUrl: requiredContentTextSchema.parse(assignment.landingUrl),
+      destinationUrl,
       metadata: {},
       expiresAt: daysFromNow(7)
     });

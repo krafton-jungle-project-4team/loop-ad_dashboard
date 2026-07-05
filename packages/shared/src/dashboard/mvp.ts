@@ -181,6 +181,8 @@ export const DashboardPromotionStatusSchema = z.enum([
 ]);
 export type DashboardPromotionStatus = z.infer<typeof DashboardPromotionStatusSchema>;
 
+const DashboardPromotionLandingUrlSchema = z.string().trim().url();
+
 export const DashboardCreatePromotionRequestSchema = z.object({
   channel: DashboardPromotionChannelSchema,
   marketing_theme: z.string().min(1),
@@ -192,7 +194,7 @@ export const DashboardCreatePromotionRequestSchema = z.object({
   max_loop_count: z.number().int().min(1).default(3),
   message_brief: z.string().nullable().optional(),
   offer_type: z.string().nullable().optional(),
-  landing_url: z.string().nullable().optional(),
+  landing_url: DashboardPromotionLandingUrlSchema,
   landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
   status: DashboardPromotionStatusSchema.default("draft")
 });
@@ -211,7 +213,7 @@ export const DashboardUpdatePromotionRequestSchema = z.object({
   max_loop_count: z.number().int().min(1).optional(),
   message_brief: z.string().nullable().optional(),
   offer_type: z.string().nullable().optional(),
-  landing_url: z.string().nullable().optional(),
+  landing_url: DashboardPromotionLandingUrlSchema.optional(),
   landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
   status: DashboardPromotionStatusSchema.optional()
 });
