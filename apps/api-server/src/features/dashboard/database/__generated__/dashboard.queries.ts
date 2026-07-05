@@ -2623,12 +2623,14 @@ export interface IListDashboardSegmentContentCandidatesParams {
 
 /** 'ListDashboardSegmentContentCandidates' return type */
 export interface IListDashboardSegmentContentCandidatesResult {
+  analysisId: string;
   body: string | null;
   channel: string;
   contentId: string;
   contentOptionId: string;
   cta: string | null;
   dataEvidenceJson: Json;
+  generationId: string;
   generationPrompt: string | null;
   imagePrompt: string | null;
   imageUrl: string | null;
@@ -2652,7 +2654,7 @@ export interface IListDashboardSegmentContentCandidatesQuery {
   result: IListDashboardSegmentContentCandidatesResult;
 }
 
-const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":582,"b":591}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":614,"b":625}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":646,"b":655}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  image_url AS \"imageUrl\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY updated_at DESC, created_at DESC                                        "};
+const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":648,"b":657}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":680,"b":691}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":721}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  generation_id AS \"generationId\",\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  image_url AS \"imageUrl\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\nORDER BY updated_at DESC, created_at DESC                                        "};
 
 /**
  * Query generated from SQL:
@@ -2660,6 +2662,8 @@ const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId
  * SELECT
  *   content_id AS "contentId",
  *   content_option_id AS "contentOptionId",
+ *   generation_id AS "generationId",
+ *   analysis_id AS "analysisId",
  *   promotion_id AS "promotionId",
  *   segment_id AS "segmentId",
  *   channel,

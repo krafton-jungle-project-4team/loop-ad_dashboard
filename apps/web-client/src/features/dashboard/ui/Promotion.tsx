@@ -391,8 +391,20 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     }
   });
   const createPromotionRunMutation = useMutation({
-    mutationFn: (promotionId: string) =>
-      createDashboardPromotionRun(query, promotionId, { loop_count: 1 }),
+    mutationFn: ({
+      analysisId,
+      generationId,
+      promotionId
+    }: {
+      analysisId: string;
+      generationId: string;
+      promotionId: string;
+    }) =>
+      createDashboardPromotionRun(query, promotionId, {
+        analysis_id: analysisId,
+        generation_id: generationId,
+        loop_count: 1
+      }),
     onSuccess: async (run) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
@@ -728,8 +740,8 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 onApproveContentCandidate={(promotionId, segmentId, contentId) =>
                   approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
                 }
-                onCreatePromotionRun={(promotionId) =>
-                  createPromotionRunMutation.mutate(promotionId)
+                onCreatePromotionRun={(promotionId, analysisId, generationId) =>
+                  createPromotionRunMutation.mutate({ analysisId, generationId, promotionId })
                 }
                 onBuildAssignments={(promotionRunId) =>
                   buildPromotionRunAssignmentsMutation.mutate(promotionRunId)
@@ -1078,7 +1090,11 @@ function PromotionTabWorkspace({
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onCreatePromotionRun: (promotionId: string) => void;
+  onCreatePromotionRun: (
+    promotionId: string,
+    analysisId: string,
+    generationId: string
+  ) => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
@@ -1518,7 +1534,11 @@ function PromotionSegmentDetailTab({
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onCreatePromotionRun: (promotionId: string) => void;
+  onCreatePromotionRun: (
+    promotionId: string,
+    analysisId: string,
+    generationId: string
+  ) => void;
   onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
@@ -1890,7 +1910,15 @@ function PromotionSegmentDetailTab({
                 !approvedContentCandidate ||
                 detail.ad_experiments.length > 0
               }
-              onClick={() => onCreatePromotionRun(detail.segment.promotion_id)}
+              onClick={() => {
+                if (approvedContentCandidate) {
+                  onCreatePromotionRun(
+                    detail.segment.promotion_id,
+                    approvedContentCandidate.analysis_id,
+                    approvedContentCandidate.generation_id
+                  );
+                }
+              }}
               type="button"
               variant="outline"
             >

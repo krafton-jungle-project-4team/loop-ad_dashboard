@@ -954,6 +954,8 @@ function toContentCandidate(
   return {
     content_id: row.contentId,
     content_option_id: row.contentOptionId,
+    generation_id: row.generationId,
+    analysis_id: row.analysisId,
     promotion_id: row.promotionId,
     segment_id: row.segmentId,
     channel: row.channel,

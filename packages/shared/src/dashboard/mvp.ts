@@ -259,6 +259,8 @@ export type DashboardCampaignSegment = z.infer<typeof DashboardCampaignSegmentSc
 export const DashboardContentCandidateSchema = z.object({
   content_id: z.string(),
   content_option_id: z.string(),
+  generation_id: z.string(),
+  analysis_id: z.string(),
   promotion_id: z.string(),
   segment_id: z.string(),
   channel: z.string(),

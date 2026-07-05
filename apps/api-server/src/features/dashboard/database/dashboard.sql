@@ -1311,6 +1311,8 @@ ORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC;
 SELECT
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
+  generation_id AS "generationId",
+  analysis_id AS "analysisId",
   promotion_id AS "promotionId",
   segment_id AS "segmentId",
   channel,
