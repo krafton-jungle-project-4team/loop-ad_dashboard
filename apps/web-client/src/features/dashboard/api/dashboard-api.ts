@@ -7,7 +7,6 @@ import {
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
   DashboardCreateCampaignRequestSchema,
-  DashboardCreateDefaultPromotionsResultSchema,
   DashboardCreateFunnelRequestSchema,
   DashboardCreatePromotionRequestSchema,
   DashboardDeleteCampaignResultSchema,
@@ -45,7 +44,6 @@ import type {
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardCreateCampaignRequest,
-  DashboardCreateDefaultPromotionsResult,
   DashboardCreateFunnelRequest,
   DashboardCreatePromotionRequest,
   DashboardDeleteCampaignResult,
@@ -258,29 +256,6 @@ export async function createDashboardPromotion(
   }
 
   return createApiSuccessResponseSchema(DashboardPromotionSummarySchema).parse(
-    await response.json()
-  ).data;
-}
-
-export async function createDashboardDefaultPromotions(
-  query: DashboardQuery,
-  campaignId: string
-): Promise<DashboardCreateDefaultPromotionsResult> {
-  const url = new URL(
-    `${dashboardConfig.apiBaseUrl}/dashboard/v1/campaigns/${encodeURIComponent(campaignId)}/default-promotions`,
-    window.location.origin
-  );
-  url.searchParams.set("project_id", query.projectId);
-
-  const response = await fetch(url, {
-    headers: { Accept: "application/json" },
-    method: "POST"
-  });
-  if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
-  }
-
-  return createApiSuccessResponseSchema(DashboardCreateDefaultPromotionsResultSchema).parse(
     await response.json()
   ).data;
 }

@@ -172,6 +172,7 @@ LEFT JOIN promotion_evaluations pe
   ON pe.promotion_id = p.promotion_id
 WHERE p.project_id = :projectId
   AND p.campaign_id = :campaignId
+  AND p.status <> 'stopped'
 GROUP BY p.promotion_id
 ORDER BY p.updated_at DESC, p.created_at DESC;
 
