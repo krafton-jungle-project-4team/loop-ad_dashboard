@@ -25,12 +25,6 @@ export type DashboardNavTreeItem = {
 
 export const dashboardTabs = [
   { value: "main", label: "메인 대시보드", icon: Activity, pathSegment: "main" },
-  {
-    value: "main-campaign-list",
-    label: "캠페인 목록",
-    icon: Activity,
-    pathSegment: "main-campaign-list"
-  },
   { value: "funnels", label: "퍼널", icon: ListFilter, pathSegment: "funnels" },
   {
     value: "campaign-flow-map",
@@ -59,15 +53,12 @@ export const dashboardTabs = [
   }
 ] satisfies DashboardNavItem[];
 
-export const dashboardNavigationTree = [
+export const dashboardNavigationTree: DashboardNavTreeItem[] = [
   {
     label: "메인",
     value: "main",
     pathSegment: "main",
-    icon: Activity,
-    children: [
-      { label: "캠페인 목록", value: "main-campaign-list", pathSegment: "main-campaign-list" }
-    ]
+    icon: Activity
   },
   {
     label: "퍼널",
@@ -99,7 +90,7 @@ export const dashboardNavigationTree = [
     pathSegment: "data-explorer",
     icon: DatabaseZap
   }
-] satisfies DashboardNavTreeItem[];
+];
 
 export function getDashboardTabByPath(path: string): DashboardTab | null {
   return dashboardTabs.find((item) => item.pathSegment === path)?.value ?? null;

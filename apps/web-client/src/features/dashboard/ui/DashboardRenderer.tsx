@@ -14,7 +14,6 @@ export function DashboardPanelRenderer({
 }) {
   switch (resource.tab) {
     case "main":
-    case "main-campaign-list":
       return <MainDashboardPanel data={resource.data} />;
     case "funnels":
       return <FunnelDashboardPanel data={resource.data} query={query} />;

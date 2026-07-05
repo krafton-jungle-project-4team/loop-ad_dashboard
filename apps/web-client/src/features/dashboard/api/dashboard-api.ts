@@ -106,7 +106,6 @@ export async function fetchDashboardPageResource(
 ): Promise<DashboardPageResource> {
   switch (tab) {
     case "main":
-    case "main-campaign-list":
       return {
         tab,
         data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
