@@ -14,7 +14,7 @@ SELECT
   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
-  MAX(pe.actual_value)::float8 AS "latestGoalAchievementRate",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestGoalAchievementRate",
   CASE
     WHEN c.status = 'draft' THEN 'campaign_start'
     WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'
@@ -55,7 +55,7 @@ SELECT
   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
-  MAX(pe.actual_value)::float8 AS "latestGoalAchievementRate",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestGoalAchievementRate",
   CASE
     WHEN c.status = 'draft' THEN 'campaign_start'
     WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'
@@ -140,7 +140,7 @@ SELECT
   p.marketing_theme AS "marketingTheme",
   p.target_audience AS "targetAudience",
   p.goal_metric AS "goalMetric",
-  p.goal_target_value::float8 AS "goalTargetValue",
+  CAST(p.goal_target_value AS float8) AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
   p.min_sample_size AS "minSampleSize",
   p.max_loop_count AS "maxLoopCount",
@@ -152,7 +152,7 @@ SELECT
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   CASE
     WHEN p.status = 'draft' THEN 'complete_plan'
     WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
@@ -185,7 +185,7 @@ SELECT
   p.marketing_theme AS "marketingTheme",
   p.target_audience AS "targetAudience",
   p.goal_metric AS "goalMetric",
-  p.goal_target_value::float8 AS "goalTargetValue",
+  CAST(p.goal_target_value AS float8) AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
   p.min_sample_size AS "minSampleSize",
   p.max_loop_count AS "maxLoopCount",
@@ -197,7 +197,7 @@ SELECT
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   CASE
     WHEN p.status = 'draft' THEN 'complete_plan'
     WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
@@ -287,16 +287,87 @@ RETURNING promotion_id AS "promotionId";
 
 /* 목적: FK가 연결된 프로모션을 물리 삭제하지 않고 중지 상태로 전환합니다. */
 /* @name StopDashboardPromotion */
-UPDATE promotions
-SET status = 'stopped',
-    updated_at = now()
-WHERE project_id = :projectId
-  AND promotion_id = :promotionId
-RETURNING promotion_id AS "promotionId", status;
+WITH stopped_promotion AS (
+  UPDATE promotions
+  SET status = 'stopped',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+  RETURNING promotion_id, status
+),
+stopped_segments AS (
+  UPDATE promotion_target_segments
+  SET status = 'stopped'
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status <> 'stopped'
+  RETURNING segment_id
+),
+archived_segment_definitions AS (
+  UPDATE segment_definitions
+  SET status = 'archived',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND source IN ('custom_chatkit', 'manual_rule')
+    AND status = 'active'
+  RETURNING segment_id
+),
+dismissed_suggestions AS (
+  UPDATE promotion_segment_suggestions
+  SET status = 'dismissed',
+      decided_at = COALESCE(decided_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status IN ('suggested', 'accepted')
+  RETURNING suggestion_id
+),
+archived_content_candidates AS (
+  UPDATE content_candidates
+  SET status = 'archived',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status IN ('draft', 'approved', 'active')
+  RETURNING content_id
+),
+cancelled_dispatch_jobs AS (
+  UPDATE ad_dispatch_jobs
+  SET status = 'cancelled',
+      completed_at = COALESCE(completed_at, now())
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status IN ('queued', 'scheduled', 'running')
+  RETURNING ad_dispatch_job_id
+),
+stopped_runs AS (
+  UPDATE promotion_runs
+  SET status = 'stopped',
+      ended_at = COALESCE(ended_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status <> 'stopped'
+  RETURNING promotion_run_id
+),
+stopped_experiments AS (
+  UPDATE ad_experiments
+  SET status = 'stopped',
+      ended_at = COALESCE(ended_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status <> 'stopped'
+  RETURNING ad_experiment_id
+)
+SELECT promotion_id AS "promotionId", status
+FROM stopped_promotion;
 
 /* 목적: 캠페인 프로모션에 연결된 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardCampaignSegments */
 SELECT
+  pts.analysis_id AS "analysisId",
   pts.promotion_id AS "promotionId",
   pts.segment_id AS "segmentId",
   pts.segment_name AS "segmentName",
@@ -309,9 +380,9 @@ SELECT
   pts.estimated_size AS "estimatedSize",
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   p.goal_metric AS "goalMetric",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   MAX(ae.ad_experiment_id) AS "adExperimentId",
   CASE
     WHEN pts.status = 'planned' THEN 'create_content'
@@ -335,7 +406,9 @@ LEFT JOIN promotion_evaluations pe
  AND pe.segment_id = pts.segment_id
 WHERE pts.project_id = :projectId
   AND pts.campaign_id = :campaignId
+  AND pts.status <> 'stopped'
 GROUP BY
+  pts.analysis_id,
   pts.promotion_id,
   pts.segment_id,
   pts.segment_name,
@@ -358,6 +431,7 @@ ORDER BY pts.promotion_id ASC, pts.created_at DESC;
 /* 목적: 프로모션에 연결된 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardPromotionSegments */
 SELECT
+  pts.analysis_id AS "analysisId",
   pts.promotion_id AS "promotionId",
   pts.segment_id AS "segmentId",
   pts.segment_name AS "segmentName",
@@ -370,9 +444,9 @@ SELECT
   pts.estimated_size AS "estimatedSize",
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   p.goal_metric AS "goalMetric",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   MAX(ae.ad_experiment_id) AS "adExperimentId",
   CASE
     WHEN pts.status = 'planned' THEN 'create_content'
@@ -396,7 +470,9 @@ LEFT JOIN promotion_evaluations pe
  AND pe.segment_id = pts.segment_id
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
+  AND pts.status <> 'stopped'
 GROUP BY
+  pts.analysis_id,
   pts.promotion_id,
   pts.segment_id,
   pts.segment_name,
@@ -419,6 +495,7 @@ ORDER BY pts.created_at DESC;
 /* 목적: 프로모션 안의 특정 세그먼트 요약을 조회합니다. */
 /* @name GetDashboardPromotionSegment */
 SELECT
+  pts.analysis_id AS "analysisId",
   pts.promotion_id AS "promotionId",
   pts.segment_id AS "segmentId",
   pts.segment_name AS "segmentName",
@@ -431,9 +508,9 @@ SELECT
   pts.estimated_size AS "estimatedSize",
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   p.goal_metric AS "goalMetric",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   MAX(ae.ad_experiment_id) AS "adExperimentId",
   CASE
     WHEN pts.status = 'planned' THEN 'create_content'
@@ -459,6 +536,7 @@ WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
   AND pts.segment_id = :segmentId
 GROUP BY
+  pts.analysis_id,
   pts.promotion_id,
   pts.segment_id,
   pts.segment_name,
@@ -573,7 +651,7 @@ SELECT
   profile_json AS "profileJson",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   status
 FROM segment_definitions
 WHERE project_id = :projectId
@@ -581,6 +659,18 @@ WHERE project_id = :projectId
   AND source IN ('custom_chatkit', 'manual_rule')
   AND status = 'active'
 ORDER BY created_at DESC;
+
+/* 목적: 프로모션에 종속된 사용자 추가 세그먼트 후보를 보관 처리합니다. */
+/* @name ArchiveDashboardPromotionScopedSegmentDefinition */
+UPDATE segment_definitions
+SET status = 'archived',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+  AND source IN ('custom_chatkit', 'manual_rule')
+  AND status = 'active'
+RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status;
 
 /* 목적: ChatKit/SQL preview로 만든 세그먼트를 프로모션 종속 후보로 저장합니다. */
 /* @name InsertDashboardPromotionCustomSegmentDefinition */
@@ -635,7 +725,7 @@ RETURNING
   profile_json AS "profileJson",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   status;
 
 /* 목적: 수동 rule 세그먼트를 프로모션 종속 후보로 저장합니다. */
@@ -687,7 +777,7 @@ RETURNING
   profile_json AS "profileJson",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   status;
 
 /* 목적: AI가 제안한 프로모션 세그먼트 후보를 확정 전 상태로 조회합니다. */
@@ -708,7 +798,7 @@ SELECT
   sd.rule_json AS "ruleJson",
   sd.profile_json AS "profileJson",
   sd.sample_size AS "sampleSize",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   pss.created_at AS "createdAt",
   pss.updated_at AS "updatedAt",
   pss.decided_at AS "decidedAt"
@@ -749,7 +839,7 @@ SELECT
   sd.rule_json AS "ruleJson",
   sd.profile_json AS "profileJson",
   sd.sample_size AS "sampleSize",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   d.created_at AS "createdAt",
   d.updated_at AS "updatedAt",
   d.decided_at AS "decidedAt"
@@ -894,14 +984,52 @@ WHERE project_id = :projectId
   AND status <> 'stopped'
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 
-/* 목적: 프로모션 세그먼트를 물리 삭제하지 않고 중지 상태로 전환합니다. */
+/* 목적: 프로모션 세그먼트와 하위 실험 실행 단위를 물리 삭제하지 않고 중지 상태로 전환합니다. */
 /* @name StopDashboardPromotionTargetSegment */
-UPDATE promotion_target_segments
-SET status = 'stopped'
-WHERE project_id = :projectId
-  AND promotion_id = :promotionId
-  AND segment_id = :segmentId
-RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status;
+WITH stopped_segment AS (
+  UPDATE promotion_target_segments
+  SET status = 'stopped'
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND segment_id = :segmentId
+  RETURNING promotion_id, segment_id, status
+),
+archived_content_candidates AS (
+  UPDATE content_candidates
+  SET status = 'archived',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND segment_id = :segmentId
+    AND status IN ('draft', 'approved', 'active')
+  RETURNING content_id
+),
+stopped_experiments AS (
+  UPDATE ad_experiments
+  SET status = 'stopped',
+      ended_at = COALESCE(ended_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND segment_id = :segmentId
+    AND status <> 'stopped'
+  RETURNING ad_experiment_id
+),
+cancelled_dispatch_jobs AS (
+  UPDATE ad_dispatch_jobs
+  SET status = 'cancelled',
+      completed_at = COALESCE(completed_at, now())
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND ad_experiment_id IN (
+      SELECT ad_experiment_id
+      FROM stopped_experiments
+    )
+    AND status IN ('queued', 'scheduled', 'running')
+  RETURNING ad_dispatch_job_id
+)
+SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
+FROM stopped_segment;
 
 /* 목적: 목표 미달 세그먼트만 대상으로 next-loop 분석 요청을 생성합니다. */
 /* @name InsertDashboardNextLoopAnalysis */
@@ -957,8 +1085,8 @@ SELECT
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
   metric,
-  target_value::float8 AS "targetValue",
-  actual_value::float8 AS "actualValue",
+  CAST(target_value AS float8) AS "targetValue",
+  CAST(actual_value AS float8) AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
@@ -983,8 +1111,8 @@ SELECT
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
   metric,
-  target_value::float8 AS "targetValue",
-  actual_value::float8 AS "actualValue",
+  CAST(target_value AS float8) AS "targetValue",
+  CAST(actual_value AS float8) AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
@@ -1009,8 +1137,8 @@ SELECT
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
   metric,
-  target_value::float8 AS "targetValue",
-  actual_value::float8 AS "actualValue",
+  CAST(target_value AS float8) AS "targetValue",
+  CAST(actual_value AS float8) AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
@@ -1103,6 +1231,7 @@ SELECT
   cta,
   message,
   image_prompt AS "imagePrompt",
+  image_url AS "imageUrl",
   landing_url AS "landingUrl",
   generation_prompt AS "generationPrompt",
   reason_summary AS "reasonSummary",
@@ -1129,7 +1258,7 @@ SELECT
   channel,
   loop_count AS "loopCount",
   goal_metric AS "goalMetric",
-  goal_target_value::float8 AS "goalTargetValue",
+  CAST(goal_target_value AS float8) AS "goalTargetValue",
   goal_basis AS "goalBasis",
   status
 FROM ad_experiments
@@ -1152,7 +1281,7 @@ SELECT
   COALESCE(pts.segment_name, sd.segment_name) AS "segmentName",
   cc.channel,
   p.goal_metric AS "goalMetric",
-  p.goal_target_value::float8 AS "goalTargetValue",
+  CAST(p.goal_target_value AS float8) AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
   cc.status AS "contentStatus"
 FROM content_candidates cc
@@ -1335,7 +1464,7 @@ RETURNING
   channel,
   loop_count AS "loopCount",
   goal_metric AS "goalMetric",
-  goal_target_value::float8 AS "goalTargetValue",
+  CAST(goal_target_value AS float8) AS "goalTargetValue",
   goal_basis AS "goalBasis",
   status;
 
@@ -1390,7 +1519,7 @@ RETURNING
   generated_sql AS "generatedSql",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   sample_size_status AS "sampleSizeStatus",
   result_columns_json AS "resultColumnsJson",
   result_preview_json AS "resultPreviewJson",
@@ -1405,7 +1534,7 @@ SELECT
   generated_sql AS "generatedSql",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   sample_size_status AS "sampleSizeStatus",
   status
 FROM segment_query_previews
@@ -1454,7 +1583,7 @@ RETURNING
   generated_sql AS "generatedSql",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   status;
 
 /* 목적: 저장 완료된 preview 상태를 갱신합니다. */

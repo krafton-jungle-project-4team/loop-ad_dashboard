@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
   DashboardAdExperimentSchema,
+  DashboardArchivePromotionScopedSegmentDefinitionResultSchema,
   DashboardApproveContentCandidateRequestSchema,
   DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
@@ -38,6 +39,8 @@ import {
   DashboardSegmentQueryPreviewSchema,
   DashboardStartPromotionAnalysisRequestSchema,
   DashboardStartPromotionAnalysisResultSchema,
+  DashboardStartPromotionGenerationRequestSchema,
+  DashboardStartPromotionGenerationResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
@@ -294,6 +297,19 @@ export class DashboardController {
     );
   }
 
+  @Post("promotions/:promotion_id/generation")
+  async startPromotionGeneration(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardStartPromotionGenerationRequestSchema.parse(body ?? {});
+    return DashboardStartPromotionGenerationResultSchema.parse(
+      await this.dashboardQuery.startPromotionGeneration(requiredProjectId, promotionId, request)
+    );
+  }
+
   @Get("promotions/:promotion_id/segment-definitions")
   async promotionScopedSegmentDefinitions(
     @Param("promotion_id") promotionId: string,
@@ -318,6 +334,22 @@ export class DashboardController {
         requiredProjectId,
         promotionId,
         request
+      )
+    );
+  }
+
+  @Delete("promotions/:promotion_id/segment-definitions/:segment_id")
+  async archivePromotionScopedSegmentDefinition(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardArchivePromotionScopedSegmentDefinitionResultSchema.parse(
+      await this.dashboardQuery.archivePromotionScopedSegmentDefinition(
+        requiredProjectId,
+        promotionId,
+        segmentId
       )
     );
   }

@@ -1,5 +1,6 @@
 import type {
   DashboardAdExperiment,
+  DashboardArchivePromotionScopedSegmentDefinitionResult,
   DashboardApproveContentCandidateRequest,
   DashboardCampaignDetail,
   DashboardCampaignExperimentMetric,
@@ -39,6 +40,7 @@ import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
   approveDashboardContentCandidate,
+  archiveDashboardPromotionScopedSegmentDefinition,
   confirmDashboardPromotionSegmentSuggestions,
   decideDashboardPromotionSegmentSuggestion,
   getDashboardCampaignSummary,
@@ -389,6 +391,26 @@ export class DashboardCampaignReader {
       .single();
 
     return toPromotionScopedSegmentDefinition(row);
+  }
+
+  async archivePromotionScopedSegmentDefinition(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardArchivePromotionScopedSegmentDefinitionResult> {
+    const row = await this.db
+      .query(archiveDashboardPromotionScopedSegmentDefinition, {
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
+
+    return {
+      promotion_id: row.promotionId ?? promotionId,
+      segment_id: row.segmentId,
+      status: "archived"
+    };
   }
 
   async decidePromotionSegmentSuggestion(
@@ -773,6 +795,7 @@ function toCampaignSegment(
     | IListDashboardPromotionSegmentsResult
 ): DashboardCampaignSegment {
   return {
+    analysis_id: row.analysisId,
     promotion_id: row.promotionId,
     segment_id: row.segmentId,
     segment_name: row.segmentName,
@@ -908,6 +931,7 @@ function toContentCandidate(
     cta: row.cta,
     message: row.message,
     image_prompt: row.imagePrompt,
+    image_url: row.imageUrl,
     landing_url: row.landingUrl,
     generation_prompt: row.generationPrompt,
     reason_summary: row.reasonSummary,

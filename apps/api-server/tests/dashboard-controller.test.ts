@@ -279,6 +279,39 @@ test("dashboard controller parses promotion scoped segment create body", async (
   assert.equal(response.segment_name, "상세 조회 후 미예약 고객");
 });
 
+test("dashboard controller archives promotion scoped segment definition by promotion", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    archivePromotionScopedSegmentDefinition: async (projectId, promotionId, segmentId) => {
+      writes.push({ projectId, promotionId, segmentId });
+      return {
+        promotion_id: promotionId,
+        segment_id: segmentId,
+        status: "archived"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.archivePromotionScopedSegmentDefinition(
+    "promo_email_001",
+    "seg_manual_001",
+    "hotel-client-a"
+  );
+
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001",
+      segmentId: "seg_manual_001"
+    }
+  ]);
+  assert.equal(response.status, "archived");
+});
+
 test("dashboard controller parses promotion analysis request before delegating", async () => {
   setRequiredEnv();
   const { DashboardController } =
@@ -313,6 +346,45 @@ test("dashboard controller parses promotion analysis request before delegating",
   ]);
   assert.equal(response.analysis_id, "analysis_promo_email_001");
   assert.equal(response.status, "queued");
+});
+
+test("dashboard controller parses promotion generation request before delegating", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    startPromotionGeneration: async (projectId, promotionId, request) => {
+      writes.push({ projectId, promotionId, request });
+      return {
+        content_candidate_count: 3,
+        generation_id: "generation_promo_email_001",
+        promotion_id: promotionId,
+        status: "queued"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.startPromotionGeneration("promo_email_001", "hotel-client-a", {
+    analysis_id: "analysis_promo_email_001",
+    content_option_count: 3,
+    operator_instruction: null
+  });
+
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001",
+      request: {
+        analysis_id: "analysis_promo_email_001",
+        content_option_count: 3,
+        operator_instruction: null
+      }
+    }
+  ]);
+  assert.equal(response.generation_id, "generation_promo_email_001");
+  assert.equal(response.content_candidate_count, 3);
 });
 
 test("dashboard controller parses promotion detail analyses response", async () => {
@@ -489,6 +561,9 @@ function emptyDashboardQuery(): DashboardQueryService {
     },
     startPromotionAnalysis: async () => {
       throw new Error("Unexpected startPromotionAnalysis call.");
+    },
+    startPromotionGeneration: async () => {
+      throw new Error("Unexpected startPromotionGeneration call.");
     }
   } as unknown as DashboardQueryService;
 }

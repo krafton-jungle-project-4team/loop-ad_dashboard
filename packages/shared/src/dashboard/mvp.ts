@@ -193,6 +193,7 @@ export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.
 export type DashboardPromotionSummary = z.infer<typeof DashboardPromotionSummarySchema>;
 
 export const DashboardCampaignSegmentSchema = z.object({
+  analysis_id: z.string(),
   promotion_id: z.string(),
   segment_id: z.string(),
   segment_name: z.string(),
@@ -228,6 +229,7 @@ export const DashboardContentCandidateSchema = z.object({
   cta: z.string().nullable(),
   message: z.string().nullable(),
   image_prompt: z.string().nullable(),
+  image_url: z.string().nullable(),
   landing_url: z.string().nullable(),
   generation_prompt: z.string().nullable(),
   reason_summary: z.string().nullable(),
@@ -238,6 +240,25 @@ export const DashboardContentCandidateSchema = z.object({
   updated_at: z.string()
 });
 export type DashboardContentCandidate = z.infer<typeof DashboardContentCandidateSchema>;
+
+export const DashboardStartPromotionGenerationRequestSchema = z.object({
+  analysis_id: z.string().min(1),
+  content_option_count: z.number().int().min(1).max(10).optional(),
+  operator_instruction: z.string().nullable().optional()
+});
+export type DashboardStartPromotionGenerationRequest = z.infer<
+  typeof DashboardStartPromotionGenerationRequestSchema
+>;
+
+export const DashboardStartPromotionGenerationResultSchema = z.object({
+  generation_id: z.string(),
+  promotion_id: z.string(),
+  status: z.string(),
+  content_candidate_count: CountSchema.optional()
+});
+export type DashboardStartPromotionGenerationResult = z.infer<
+  typeof DashboardStartPromotionGenerationResultSchema
+>;
 
 export const DashboardApproveContentCandidateRequestSchema = z.object({
   operator_note: z.string().nullable().optional()
@@ -646,6 +667,15 @@ export const DashboardPromotionScopedSegmentDefinitionListSchema = z.object({
 });
 export type DashboardPromotionScopedSegmentDefinitionList = z.infer<
   typeof DashboardPromotionScopedSegmentDefinitionListSchema
+>;
+
+export const DashboardArchivePromotionScopedSegmentDefinitionResultSchema = z.object({
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  status: z.literal("archived")
+});
+export type DashboardArchivePromotionScopedSegmentDefinitionResult = z.infer<
+  typeof DashboardArchivePromotionScopedSegmentDefinitionResultSchema
 >;
 
 export const DashboardCreatePromotionSegmentDefinitionRequestSchema = z.object({

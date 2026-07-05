@@ -281,6 +281,85 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
   ]);
 });
 
+test("dashboard promotion generation resolves campaign and calls decision API client", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async (projectId, promotionId) => {
+        calls.push({ kind: "read-promotion", projectId, promotionId });
+        return {
+          ad_experiment_count: 0,
+          campaign_id: "camp_summer_2026",
+          channel: "email",
+          current_loop_count: 0,
+          goal_basis: "promotion_average",
+          goal_metric: "inflow_rate",
+          goal_target_value: 0.1,
+          landing_type: null,
+          landing_url: null,
+          latest_actual_value: null,
+          marketing_theme: "여름 숙박 리마인드",
+          max_loop_count: 3,
+          message_brief: null,
+          min_sample_size: 1000,
+          next_action: "create_content",
+          offer_type: null,
+          promotion_id: promotionId,
+          status: "content_ready",
+          target_audience: "existing_users",
+          target_segment_count: 2,
+          updated_at: "2026-07-04T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      startPromotionGeneration: async (request) => {
+        calls.push({ kind: "decision", request });
+        return {
+          content_candidate_count: 3,
+          generation_id: "generation_promo_email_001",
+          promotion_id: request.promotionId,
+          status: "queued"
+        };
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  const response = await service.startPromotionGeneration("hotel-client-a", "promo_email_001", {
+    analysis_id: "analysis_promo_email_001",
+    content_option_count: 3,
+    operator_instruction: null
+  });
+
+  assert.equal(response.generation_id, "generation_promo_email_001");
+  assert.deepEqual(calls, [
+    {
+      kind: "read-promotion",
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001"
+    },
+    {
+      kind: "decision",
+      request: {
+        campaignId: "camp_summer_2026",
+        projectId: "hotel-client-a",
+        promotionId: "promo_email_001",
+        request: {
+          analysis_id: "analysis_promo_email_001",
+          content_option_count: 3,
+          operator_instruction: null
+        }
+      }
+    }
+  ]);
+});
+
 test("dashboard reject content candidate runs inside transaction host", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -362,6 +441,9 @@ function emptyDecisionClient(): DashboardDecisionClient {
   return {
     startPromotionAnalysis: async () => {
       throw new Error("Unexpected startPromotionAnalysis call.");
+    },
+    startPromotionGeneration: async () => {
+      throw new Error("Unexpected startPromotionGeneration call.");
     }
   } as unknown as DashboardDecisionClient;
 }

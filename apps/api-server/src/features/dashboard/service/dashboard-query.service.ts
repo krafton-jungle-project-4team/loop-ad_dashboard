@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardAdExperiment,
+  DashboardArchivePromotionScopedSegmentDefinitionResult,
   DashboardApproveContentCandidateRequest,
   DashboardConfirmSegmentSuggestionsRequest,
   DashboardConfirmSegmentSuggestionsResult,
@@ -38,6 +39,8 @@ import type {
   DashboardSegmentQueryPreviewRequest,
   DashboardStartPromotionAnalysisRequest,
   DashboardStartPromotionAnalysisResult,
+  DashboardStartPromotionGenerationRequest,
+  DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
@@ -168,6 +171,20 @@ export class DashboardQueryService {
     });
   }
 
+  async startPromotionGeneration(
+    projectId: string,
+    promotionId: string,
+    request: DashboardStartPromotionGenerationRequest
+  ): Promise<DashboardStartPromotionGenerationResult> {
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    return this.decisionClient.startPromotionGeneration({
+      campaignId: promotion.campaign_id,
+      projectId,
+      promotionId,
+      request
+    });
+  }
+
   async promotionScopedSegmentDefinitions(
     projectId: string,
     promotionId: string
@@ -185,6 +202,19 @@ export class DashboardQueryService {
       projectId,
       promotionId,
       request
+    );
+  }
+
+  @Transactional()
+  async archivePromotionScopedSegmentDefinition(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardArchivePromotionScopedSegmentDefinitionResult> {
+    return this.campaignReader.archivePromotionScopedSegmentDefinition(
+      projectId,
+      promotionId,
+      segmentId
     );
   }
 

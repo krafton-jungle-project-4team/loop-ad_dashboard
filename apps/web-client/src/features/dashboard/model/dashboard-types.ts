@@ -2,7 +2,6 @@ import type { DashboardFunnelList, DashboardMain } from "@loopad/shared";
 
 export const dashboardTabValues = [
   "main",
-  "main-campaign-list",
   "funnels",
   "campaigns",
   "campaign-flow-map",
@@ -31,7 +30,6 @@ export type DashboardConversionEvent =
 
 export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
-  | { tab: "main-campaign-list"; data: DashboardMain }
   | { tab: "funnels"; data: DashboardFunnelList }
   | { tab: "campaign-flow-map"; data: DashboardMain }
   | { tab: "campaign-promotions"; data: DashboardMain }

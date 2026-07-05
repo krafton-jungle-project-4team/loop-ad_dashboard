@@ -1,12 +1,15 @@
 import type {
   DashboardCampaignPromotion,
+  DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
+  DashboardSegmentDetail,
   DashboardPromotionSegmentSuggestion,
-  DashboardStartPromotionAnalysisResult
+  DashboardStartPromotionAnalysisResult,
+  DashboardStartPromotionGenerationResult
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
@@ -30,6 +33,12 @@ import {
   SelectValue
 } from "@loopad/ui/shadcn/select";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@loopad/ui/shadcn/tabs";
+import {
   Table,
   TableBody,
   TableCell,
@@ -39,25 +48,30 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, CheckCircle2, Plus, Target, Users, X } from "lucide-react";
+import { BarChart3, CheckCircle2, ImageIcon, Plus, Target, Trash2, Users, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   confirmDashboardPromotionSegmentSuggestions,
+  archiveDashboardPromotionScopedSegmentDefinition,
   createDashboardPromotion,
   createDashboardPromotionScopedSegmentDefinition,
+  deleteDashboardPromotionSegment,
   deleteDashboardPromotion,
   decideDashboardPromotionSegmentSuggestion,
   fetchDashboardCampaignDetail,
+  fetchDashboardSegmentDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
   fetchDashboardPromotionSegmentSuggestions,
-  startDashboardPromotionAnalysis
+  startDashboardPromotionAnalysis,
+  startDashboardPromotionGeneration
 } from "../api/dashboard-api.js";
 import { formatInteger } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardPromotionScopedSegmentDefinitionsQueryKey,
-  dashboardPromotionSegmentSuggestionsQueryKey
+  dashboardPromotionSegmentSuggestionsQueryKey,
+  dashboardSegmentDetailQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
@@ -82,12 +96,14 @@ const promotionGoalMetricOptions = [
   "funnel_step_rate"
 ] as const;
 const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
+type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 
 export function PromotionPanel({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null);
+  const [workspaceTab, setWorkspaceTab] = useState<PromotionWorkspaceTab>("overview");
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
     data.campaigns[0];
@@ -195,9 +211,34 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     campaignDetail.data?.segments.filter(
       (segment) => segment.promotion_id === selectedOpenPromotion?.promotion_id
     ) ?? [];
+  const selectedPromotionSegmentId = selectedPromotionSegments.some(
+    (segment) => segment.segment_id === query.selectedSegmentId
+  )
+    ? query.selectedSegmentId
+    : "";
   useEffect(() => {
     setActiveAnalysisId(null);
   }, [selectedOpenPromotion?.promotion_id]);
+  useEffect(() => {
+    if (query.selectedSegmentId && !selectedPromotionSegmentId) {
+      void setDashboardQueryState({ selectedSegmentId: "" });
+    }
+  }, [query.selectedSegmentId, selectedPromotionSegmentId, setDashboardQueryState]);
+  const segmentDetail = useQuery({
+    enabled: Boolean(selectedOpenPromotion?.promotion_id && selectedPromotionSegmentId),
+    queryFn: ({ signal }) =>
+      fetchDashboardSegmentDetail(
+        query,
+        selectedOpenPromotion?.promotion_id ?? "",
+        selectedPromotionSegmentId,
+        signal
+      ),
+    queryKey: dashboardSegmentDetailQueryKey(
+      query.projectId,
+      selectedOpenPromotion?.promotion_id ?? "",
+      selectedPromotionSegmentId
+    )
+  });
   const segmentSuggestions = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
     queryFn: ({ signal }) =>
@@ -259,6 +300,33 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       });
     }
   });
+  const startGenerationMutation = useMutation({
+    mutationFn: ({
+      analysisId,
+      promotionId
+    }: {
+      analysisId: string;
+      promotionId: string;
+    }) =>
+      startDashboardPromotionGeneration(query, promotionId, {
+        analysis_id: analysisId,
+        content_option_count: 3,
+        operator_instruction: null
+      }),
+    onSuccess: async (_generation, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          variables.promotionId,
+          selectedPromotionSegmentId
+        )
+      });
+    }
+  });
   const decideSuggestionMutation = useMutation({
     mutationFn: ({
       status,
@@ -310,8 +378,73 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       });
     }
   });
+  const deleteConfirmedSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      segmentId
+    }: {
+      promotionId: string;
+      segmentId: string;
+    }) => deleteDashboardPromotionSegment(query, promotionId, segmentId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      queryClient.setQueryData<DashboardCampaignDetail>(
+        dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                segments: current.segments.filter(
+                  (segment) =>
+                    segment.promotion_id !== result.promotion_id ||
+                    segment.segment_id !== result.segment_id
+                )
+              }
+            : current
+      );
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          result.promotion_id,
+          result.segment_id
+        )
+      });
+      if (query.selectedSegmentId === result.segment_id) {
+        await setDashboardQueryState({ selectedSegmentId: "" });
+      }
+    }
+  });
+  const archiveScopedSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      segmentId
+    }: {
+      promotionId: string;
+      segmentId: string;
+    }) => archiveDashboardPromotionScopedSegmentDefinition(query, promotionId, segmentId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionScopedSegmentDefinitionsQueryKey(
+          query.projectId,
+          result.promotion_id
+        )
+      });
+    }
+  });
 
   const selectPromotion = (promotionId: string, segmentId = "") => {
+    void setDashboardQueryState({
+      selectedCampaignId,
+      selectedPromotionId: promotionId,
+      selectedSegmentId: segmentId
+    });
+  };
+
+  const selectSegment = (promotionId: string, segmentId: string) => {
+    setWorkspaceTab("segment-detail");
     void setDashboardQueryState({
       selectedCampaignId,
       selectedPromotionId: promotionId,
@@ -368,17 +501,50 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 decideError={decideSuggestionMutation.error}
                 decideIsError={decideSuggestionMutation.isError}
                 decideIsPending={decideSuggestionMutation.isPending}
+                deleteConfirmedSegmentError={deleteConfirmedSegmentMutation.error}
+                deleteConfirmedSegmentIsError={deleteConfirmedSegmentMutation.isError}
+                deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}
+                archiveScopedSegmentError={archiveScopedSegmentMutation.error}
+                archiveScopedSegmentIsError={archiveScopedSegmentMutation.isError}
+                archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
+                onArchiveScopedSegment={(segmentId) => {
+                  if (!selectedOpenPromotion) {
+                    return;
+                  }
+                  archiveScopedSegmentMutation.mutate({
+                    promotionId: selectedOpenPromotion.promotion_id,
+                    segmentId
+                  });
+                }}
                 onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
                 onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
                 onDecideSuggestion={(suggestionId, status) =>
                   decideSuggestionMutation.mutate({ status, suggestionId })
                 }
+                onDeleteConfirmedSegment={(promotionId, segmentId) =>
+                  deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
+                }
                 onStartAnalysis={() => startAnalysisMutation.mutate()}
+                onStartGeneration={(analysisId) => {
+                  if (!selectedOpenPromotion) {
+                    return;
+                  }
+                  startGenerationMutation.mutate({
+                    analysisId,
+                    promotionId: selectedOpenPromotion.promotion_id
+                  });
+                }}
+                onSelectSegment={selectSegment}
+                onTabChange={setWorkspaceTab}
                 promotion={selectedOpenPromotion}
                 promotionAnalysis={startAnalysisMutation.data ?? null}
                 promotionAnalysisError={startAnalysisMutation.error}
                 promotionAnalysisIsError={startAnalysisMutation.isError}
                 promotionAnalysisIsPending={startAnalysisMutation.isPending}
+                promotionGeneration={startGenerationMutation.data ?? null}
+                promotionGenerationError={startGenerationMutation.error}
+                promotionGenerationIsError={startGenerationMutation.isError}
+                promotionGenerationIsPending={startGenerationMutation.isPending}
                 segments={selectedPromotionSegments}
                 scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
                 scopedSegmentsError={scopedSegmentDefinitions.error}
@@ -387,10 +553,16 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 scopedSegmentCreateError={createScopedSegmentMutation.error}
                 scopedSegmentCreateIsError={createScopedSegmentMutation.isError}
                 scopedSegmentCreateIsPending={createScopedSegmentMutation.isPending}
+                selectedSegmentDetail={segmentDetail.data}
+                selectedSegmentDetailError={segmentDetail.error}
+                selectedSegmentDetailIsError={segmentDetail.isError}
+                selectedSegmentDetailIsLoading={segmentDetail.isLoading}
+                selectedSegmentId={selectedPromotionSegmentId}
                 suggestions={segmentSuggestions.data?.suggestions ?? []}
                 suggestionsError={segmentSuggestions.error}
                 suggestionsIsError={segmentSuggestions.isError}
                 suggestionsIsLoading={segmentSuggestions.isLoading}
+                tab={workspaceTab}
               />
             ) : null}
             <PromotionAddDialog
@@ -551,21 +723,36 @@ function PromotionGuideCard({
 }
 
 function PromotionTabWorkspace({
+  archiveScopedSegmentError,
+  archiveScopedSegmentIsError,
+  archiveScopedSegmentIsPending,
   confirmError,
   confirmIsError,
   confirmIsPending,
   decideError,
   decideIsError,
   decideIsPending,
+  deleteConfirmedSegmentError,
+  deleteConfirmedSegmentIsError,
+  deleteConfirmedSegmentIsPending,
+  onArchiveScopedSegment,
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
+  onDeleteConfirmedSegment,
+  onSelectSegment,
   onStartAnalysis,
+  onStartGeneration,
+  onTabChange,
   promotion,
   promotionAnalysis,
   promotionAnalysisError,
   promotionAnalysisIsError,
   promotionAnalysisIsPending,
+  promotionGeneration,
+  promotionGenerationError,
+  promotionGenerationIsError,
+  promotionGenerationIsPending,
   scopedSegmentCreateError,
   scopedSegmentCreateIsError,
   scopedSegmentCreateIsPending,
@@ -574,26 +761,47 @@ function PromotionTabWorkspace({
   scopedSegmentsIsError,
   scopedSegmentsIsLoading,
   segments,
+  selectedSegmentDetail,
+  selectedSegmentDetailError,
+  selectedSegmentDetailIsError,
+  selectedSegmentDetailIsLoading,
+  selectedSegmentId,
   suggestions,
   suggestionsError,
   suggestionsIsError,
-  suggestionsIsLoading
+  suggestionsIsLoading,
+  tab
 }: {
+  archiveScopedSegmentError: Error | null;
+  archiveScopedSegmentIsError: boolean;
+  archiveScopedSegmentIsPending: boolean;
   confirmError: Error | null;
   confirmIsError: boolean;
   confirmIsPending: boolean;
   decideError: Error | null;
   decideIsError: boolean;
   decideIsPending: boolean;
+  deleteConfirmedSegmentError: Error | null;
+  deleteConfirmedSegmentIsError: boolean;
+  deleteConfirmedSegmentIsPending: boolean;
+  onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
   onStartAnalysis: () => void;
+  onStartGeneration: (analysisId: string) => void;
+  onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
   promotionAnalysis: DashboardStartPromotionAnalysisResult | null;
   promotionAnalysisError: Error | null;
   promotionAnalysisIsError: boolean;
   promotionAnalysisIsPending: boolean;
+  promotionGeneration: DashboardStartPromotionGenerationResult | null;
+  promotionGenerationError: Error | null;
+  promotionGenerationIsError: boolean;
+  promotionGenerationIsPending: boolean;
   scopedSegmentCreateError: Error | null;
   scopedSegmentCreateIsError: boolean;
   scopedSegmentCreateIsPending: boolean;
@@ -602,10 +810,16 @@ function PromotionTabWorkspace({
   scopedSegmentsIsError: boolean;
   scopedSegmentsIsLoading: boolean;
   segments: DashboardCampaignSegment[];
+  selectedSegmentDetail: DashboardSegmentDetail | undefined;
+  selectedSegmentDetailError: Error | null;
+  selectedSegmentDetailIsError: boolean;
+  selectedSegmentDetailIsLoading: boolean;
+  selectedSegmentId: string;
   suggestions: DashboardPromotionSegmentSuggestion[];
   suggestionsError: Error | null;
   suggestionsIsError: boolean;
   suggestionsIsLoading: boolean;
+  tab: PromotionWorkspaceTab;
 }) {
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
   return (
@@ -636,101 +850,629 @@ function PromotionTabWorkspace({
         <PromotionMetricCard label="세그먼트" value={formatInteger(activeSegments.length)} />
         <PromotionMetricCard label="실험" value={formatInteger(promotion.ad_experiment_count)} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>프로모션 퍼널 효율</CardTitle>
-            <CardDescription>현재 프로모션 목표와 루프 상태를 기준으로 확인합니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <PromotionProgressRow
-              label="목표 달성"
-              value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)}
+      <Tabs
+        className="grid gap-4"
+        onValueChange={(value) => onTabChange(value as PromotionWorkspaceTab)}
+        value={tab}
+      >
+        <TabsList className="w-fit" variant="line">
+          <TabsTrigger value="overview">프로모션 개요</TabsTrigger>
+          <TabsTrigger value="segments">세그먼트 추천/확정</TabsTrigger>
+          <TabsTrigger value="segment-detail">세그먼트 상세</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+          <PromotionOverviewTab
+            activeSegments={activeSegments}
+            deleteError={deleteConfirmedSegmentError}
+            deleteIsError={deleteConfirmedSegmentIsError}
+            deleteIsPending={deleteConfirmedSegmentIsPending}
+            onDeleteSegment={onDeleteConfirmedSegment}
+            onSelectSegment={onSelectSegment}
+            promotion={promotion}
+            segments={activeSegments}
+            selectedSegmentId={selectedSegmentId}
+          />
+        </TabsContent>
+        <TabsContent value="segments">
+          <div className="grid gap-4">
+            <PromotionCurrentSegmentsPanel
+              deleteError={deleteConfirmedSegmentError}
+              deleteIsError={deleteConfirmedSegmentIsError}
+              deleteIsPending={deleteConfirmedSegmentIsPending}
+              onDeleteSegment={onDeleteConfirmedSegment}
+              onSelectSegment={onSelectSegment}
+              promotion={promotion}
+              segments={activeSegments}
+              selectedSegmentId={selectedSegmentId}
             />
-            <PromotionProgressRow
-              label="루프 진행"
-              value={
-                promotion.max_loop_count > 0
-                  ? Math.min((promotion.current_loop_count / promotion.max_loop_count) * 100, 100)
-                  : 0
-              }
+            <PromotionSegmentSuggestionPanel
+              confirmError={confirmError}
+              confirmIsError={confirmIsError}
+              confirmIsPending={confirmIsPending}
+              createScopedSegmentError={scopedSegmentCreateError}
+              createScopedSegmentIsError={scopedSegmentCreateIsError}
+              createScopedSegmentIsPending={scopedSegmentCreateIsPending}
+              decideError={decideError}
+              decideIsError={decideIsError}
+              decideIsPending={decideIsPending}
+              archiveScopedSegmentError={archiveScopedSegmentError}
+              archiveScopedSegmentIsError={archiveScopedSegmentIsError}
+              archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+              onArchiveScopedSegment={onArchiveScopedSegment}
+              onConfirmSuggestions={onConfirmSuggestions}
+              onCreateScopedSegment={onCreateScopedSegment}
+              onDecideSuggestion={onDecideSuggestion}
+              onStartAnalysis={onStartAnalysis}
+              promotionAnalysis={promotionAnalysis}
+              promotionAnalysisError={promotionAnalysisError}
+              promotionAnalysisIsError={promotionAnalysisIsError}
+              promotionAnalysisIsPending={promotionAnalysisIsPending}
+              scopedSegments={scopedSegments}
+              scopedSegmentsError={scopedSegmentsError}
+              scopedSegmentsIsError={scopedSegmentsIsError}
+              scopedSegmentsIsLoading={scopedSegmentsIsLoading}
+              suggestions={suggestions}
+              suggestionsError={suggestionsError}
+              suggestionsIsError={suggestionsIsError}
+              suggestionsIsLoading={suggestionsIsLoading}
             />
-            <div className="grid gap-3 md:grid-cols-3">
-              <SummaryItem label="목표 기준" value={promotion.goal_basis} />
-              <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
-              <SummaryItem label="다음 액션" value={promotion.next_action} />
+          </div>
+        </TabsContent>
+        <TabsContent value="segment-detail">
+          <PromotionSegmentDetailTab
+            detail={selectedSegmentDetail}
+            error={selectedSegmentDetailError}
+            generation={promotionGeneration}
+            generationError={promotionGenerationError}
+            generationIsError={promotionGenerationIsError}
+            generationIsPending={promotionGenerationIsPending}
+            isError={selectedSegmentDetailIsError}
+            isLoading={selectedSegmentDetailIsLoading}
+            onStartGeneration={onStartGeneration}
+            selectedSegmentId={selectedSegmentId}
+          />
+        </TabsContent>
+      </Tabs>
+    </section>
+  );
+}
+
+function PromotionOverviewTab({
+  activeSegments,
+  deleteError,
+  deleteIsError,
+  deleteIsPending,
+  onDeleteSegment,
+  onSelectSegment,
+  promotion,
+  segments,
+  selectedSegmentId
+}: {
+  activeSegments: DashboardCampaignSegment[];
+  deleteError: Error | null;
+  deleteIsError: boolean;
+  deleteIsPending: boolean;
+  onDeleteSegment: (promotionId: string, segmentId: string) => void;
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
+  promotion: DashboardCampaignPromotion;
+  segments: DashboardCampaignSegment[];
+  selectedSegmentId: string;
+}) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle>프로모션 퍼널 효율</CardTitle>
+          <CardDescription>현재 프로모션 목표와 루프 상태를 기준으로 확인합니다.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <PromotionProgressRow
+            label="목표 달성"
+            value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)}
+          />
+          <PromotionProgressRow
+            label="루프 진행"
+            value={
+              promotion.max_loop_count > 0
+                ? Math.min((promotion.current_loop_count / promotion.max_loop_count) * 100, 100)
+                : 0
+            }
+          />
+          <div className="grid gap-3 md:grid-cols-3">
+            <SummaryItem label="목표 기준" value={promotion.goal_basis} />
+            <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
+            <SummaryItem label="다음 액션" value={promotion.next_action} />
+          </div>
+        </CardContent>
+      </Card>
+      <div className="grid gap-4">
+        <PromotionCurrentSegmentsPanel
+          deleteError={deleteError}
+          deleteIsError={deleteIsError}
+          deleteIsPending={deleteIsPending}
+          onDeleteSegment={onDeleteSegment}
+          onSelectSegment={onSelectSegment}
+          promotion={promotion}
+          segments={segments}
+          selectedSegmentId={selectedSegmentId}
+        />
+        <Card className="border-[#3927d9]/20 bg-[#f2f6ff] shadow-none">
+          <CardContent className="grid gap-2 p-5">
+            <div className="flex items-center gap-2 font-semibold text-[#3927d9]">
+              <CheckCircle2 className="size-4" />
+              Optimization Hint
+            </div>
+            <p className="text-sm leading-6 text-muted-foreground">
+              목표 달성률과 세그먼트 반응을 기준으로 다음 루프 분석 후보를 확인하세요.
+            </p>
+            <div className="text-xs text-muted-foreground">
+              활성 세그먼트 {formatInteger(activeSegments.length)}개 · 실험{" "}
+              {formatInteger(promotion.ad_experiment_count)}개
             </div>
           </CardContent>
         </Card>
-        <div className="grid gap-4">
-          <Card className="shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">세그먼트</CardTitle>
-              <CardDescription>선택 프로모션에 연결된 세그먼트입니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              {segments.length > 0 ? (
-                segments.map((segment) => (
-                  <div className="rounded-md border p-3" key={segment.segment_id}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-medium">{segment.segment_name}</div>
-                      <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
-                    </div>
+      </div>
+    </div>
+  );
+}
+
+function PromotionCurrentSegmentsPanel({
+  deleteError,
+  deleteIsError,
+  deleteIsPending,
+  onDeleteSegment,
+  onSelectSegment,
+  promotion,
+  segments,
+  selectedSegmentId
+}: {
+  deleteError: Error | null;
+  deleteIsError: boolean;
+  deleteIsPending: boolean;
+  onDeleteSegment: (promotionId: string, segmentId: string) => void;
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
+  promotion: DashboardCampaignPromotion;
+  segments: DashboardCampaignSegment[];
+  selectedSegmentId: string;
+}) {
+  return (
+    <Card className="shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base">확정 세그먼트</CardTitle>
+        <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {deleteIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>확정 세그먼트를 삭제하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {segments.length > 0 ? (
+          segments.map((segment) => {
+            const isSelected = segment.segment_id === selectedSegmentId;
+            return (
+              <div
+                className={`rounded-md border p-3 text-left transition ${
+                  isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
+                }`}
+                key={segment.segment_id}
+                onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectSegment(promotion.promotion_id, segment.segment_id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{segment.segment_name}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {formatInteger(segment.estimated_size)}명 · {segment.goal_metric}
+                      {formatInteger(segment.estimated_size)}명 · 표본{" "}
+                      {formatInteger(segment.sample_size)} · {segment.goal_metric}
                     </div>
                   </div>
-                ))
-              ) : (
-                <EmptyState message="연결된 세그먼트가 없습니다." />
-              )}
-            </CardContent>
-          </Card>
-          <Card className="border-[#3927d9]/20 bg-[#f2f6ff] shadow-none">
-            <CardContent className="grid gap-2 p-5">
-              <div className="flex items-center gap-2 font-semibold text-[#3927d9]">
-                <CheckCircle2 className="size-4" />
-                Optimization Hint
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                    <Button
+                      aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
+                      disabled={deleteIsPending}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteSegment(promotion.promotion_id, segment.segment_id);
+                      }}
+                      size="icon"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm leading-6 text-muted-foreground">
-                목표 달성률과 세그먼트 반응을 기준으로 다음 루프 분석 후보를 확인하세요.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            );
+          })
+        ) : (
+          <EmptyState message="확정된 세그먼트가 없습니다. 세그먼트 추천/확정 탭에서 후보를 확정해주세요." />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PromotionSegmentDetailTab({
+  detail,
+  error,
+  generation,
+  generationError,
+  generationIsError,
+  generationIsPending,
+  isError,
+  isLoading,
+  onStartGeneration,
+  selectedSegmentId
+}: {
+  detail: DashboardSegmentDetail | undefined;
+  error: Error | null;
+  generation: DashboardStartPromotionGenerationResult | null;
+  generationError: Error | null;
+  generationIsError: boolean;
+  generationIsPending: boolean;
+  isError: boolean;
+  isLoading: boolean;
+  onStartGeneration: (analysisId: string) => void;
+  selectedSegmentId: string;
+}) {
+  if (!selectedSegmentId) {
+    return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
+  }
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>세그먼트 상세를 불러오지 못했습니다</AlertTitle>
+        <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (isLoading || !detail) {
+    return <EmptyState message="세그먼트 상세를 불러오는 중입니다." />;
+  }
+
+  const insufficientMetrics = detail.experiment_metrics.filter(
+    (metric) => metric.status === "insufficient_data"
+  );
+  const latestMetric = detail.experiment_metrics[0];
+
+  return (
+    <section className="grid gap-4">
+      <Card className="shadow-none">
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="grid gap-1">
+            <CardTitle>{detail.segment.segment_name}</CardTitle>
+            <CardDescription>
+              {detail.segment.promotion_id} · {detail.segment.segment_id}
+            </CardDescription>
+          </div>
+          <Badge variant={statusBadgeVariant(detail.segment.status)}>
+            {detail.segment.status}
+          </Badge>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-4">
+          <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
+          <SummaryItem label="sample size" value={formatInteger(detail.segment.sample_size)} />
+          <SummaryItem
+            label="sample ratio"
+            value={formatPercentValue(detail.segment.sample_ratio)}
+          />
+          <SummaryItem
+            label="연결 실험"
+            value={formatInteger(detail.ad_experiments.length)}
+          />
+          <SummaryItem label="목표 지표" value={detail.segment.goal_metric} />
+          <SummaryItem
+            label="최근 지표"
+            value={
+              latestMetric
+                ? `${latestMetric.metric} ${formatGoalValue(latestMetric.actual_value)}`
+                : "-"
+            }
+          />
+          <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
+          <SummaryItem
+            label="실시간 이벤트"
+            value={formatInteger(detail.realtime_metrics.total_event_count)}
+          />
+        </CardContent>
+      </Card>
+
+      {insufficientMetrics.length > 0 || detail.segment.status === "insufficient_data" ? (
+        <Alert variant="destructive">
+          <AlertTitle>insufficient_data 상태</AlertTitle>
+          <AlertDescription>
+            표본 부족은 실패가 아니라 판단 보류 상태입니다. 실험 대상 수와 평가 결과 JSON을
+            함께 확인해야 합니다.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base">세그먼트 조건/생성 이유</CardTitle>
+            <CardDescription>프로모션에 종속된 세그먼트 정의입니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <InsightBlock label="자연어 조건" value={detail.segment.natural_language_query ?? "-"} />
+            <InsightBlock label="조건 요약" value={formatJsonObject(detail.segment.rule_json)} />
+            <InsightBlock label="프로필 요약" value={formatJsonObject(detail.segment.profile_json)} />
+          </CardContent>
+        </Card>
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base">데이터 근거/예상 효과</CardTitle>
+            <CardDescription>추천과 확정에 사용된 근거를 숨기지 않습니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <InsightBlock
+              label="데이터 근거"
+              value={formatJsonObject(detail.segment.data_evidence_json)}
+            />
+            <InsightBlock
+              label="콘텐츠 브리프"
+              value={formatJsonObject(detail.segment.content_brief_json)}
+            />
+            <InsightBlock
+              label="예상 효과"
+              value={segmentExpectedEffect(detail.segment, latestMetric)}
+            />
+          </CardContent>
+        </Card>
       </div>
-      <PromotionSegmentSuggestionPanel
-        confirmError={confirmError}
-        confirmIsError={confirmIsError}
-        confirmIsPending={confirmIsPending}
-        createScopedSegmentError={scopedSegmentCreateError}
-        createScopedSegmentIsError={scopedSegmentCreateIsError}
-        createScopedSegmentIsPending={scopedSegmentCreateIsPending}
-        decideError={decideError}
-        decideIsError={decideIsError}
-        decideIsPending={decideIsPending}
-        onConfirmSuggestions={onConfirmSuggestions}
-        onCreateScopedSegment={onCreateScopedSegment}
-        onDecideSuggestion={onDecideSuggestion}
-        onStartAnalysis={onStartAnalysis}
-        promotionAnalysis={promotionAnalysis}
-        promotionAnalysisError={promotionAnalysisError}
-        promotionAnalysisIsError={promotionAnalysisIsError}
-        promotionAnalysisIsPending={promotionAnalysisIsPending}
-        scopedSegments={scopedSegments}
-        scopedSegmentsError={scopedSegmentsError}
-        scopedSegmentsIsError={scopedSegmentsIsError}
-        scopedSegmentsIsLoading={scopedSegmentsIsLoading}
-        suggestions={suggestions}
-        suggestionsError={suggestionsError}
-        suggestionsIsError={suggestionsIsError}
-        suggestionsIsLoading={suggestionsIsLoading}
-      />
+
+      <Card className="shadow-none">
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="grid gap-1">
+            <CardTitle className="text-base">세그먼트별 생성 광고</CardTitle>
+            <CardDescription>
+              Decision generation이 저장한 content_candidates를 세그먼트 기준으로 조회합니다.
+            </CardDescription>
+          </div>
+          <Button
+            disabled={generationIsPending || !detail.segment.analysis_id}
+            onClick={() => onStartGeneration(detail.segment.analysis_id)}
+            type="button"
+            variant="outline"
+          >
+            <ImageIcon className="mr-2 size-4" />
+            {generationIsPending ? "생성 요청 중" : "광고 생성 요청"}
+          </Button>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {generationIsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>광고 생성 요청에 실패했습니다</AlertTitle>
+              <AlertDescription>{mutationErrorMessage(generationError)}</AlertDescription>
+            </Alert>
+          ) : null}
+          {generation ? (
+            <Alert>
+              <AlertTitle>광고 생성 요청이 접수되었습니다</AlertTitle>
+              <AlertDescription>
+                {generation.generation_id} · {generation.status}
+                {generation.content_candidate_count === undefined
+                  ? ""
+                  : ` · 후보 ${formatInteger(generation.content_candidate_count)}개`}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {detail.content_candidates.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>광고 후보</TableHead>
+                  <TableHead>채널</TableHead>
+                  <TableHead>메시지</TableHead>
+                  <TableHead>CTA / 랜딩</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead>근거</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.content_candidates.map((candidate) => (
+                  <TableRow key={candidate.content_id}>
+                    <TableCell className="min-w-[220px] align-top">
+                      <div className="flex flex-col gap-2">
+                        {candidate.image_url ? (
+                          <img
+                            alt={`${contentCandidateTitle(candidate)} 이미지`}
+                            className="aspect-video w-full rounded-md border object-cover"
+                            src={candidate.image_url}
+                          />
+                        ) : null}
+                        <span className="font-medium">{contentCandidateTitle(candidate)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {candidate.content_option_id}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <Badge variant="outline">{candidate.channel}</Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[420px] align-top">
+                      <div className="flex flex-col gap-2">
+                        {candidate.subject ? (
+                          <span className="text-sm font-medium">{candidate.subject}</span>
+                        ) : null}
+                        {candidate.preheader ? (
+                          <span className="text-xs text-muted-foreground">
+                            {candidate.preheader}
+                          </span>
+                        ) : null}
+                        <span className="text-sm text-muted-foreground">
+                          {contentCandidateMessage(candidate)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-[260px] align-top">
+                      <div className="flex flex-col gap-1">
+                        <span>{candidate.cta ?? "-"}</span>
+                        {candidate.landing_url ? (
+                          <a
+                            className="truncate text-xs text-muted-foreground underline underline-offset-4"
+                            href={candidate.landing_url}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {candidate.landing_url}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">랜딩 URL 없음</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <Badge variant={statusBadgeVariant(candidate.status)}>
+                        {candidate.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[360px] align-top">
+                      <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                        <span>{candidate.reason_summary ?? "-"}</span>
+                        {candidate.message_strategy ? (
+                          <span>전략: {candidate.message_strategy}</span>
+                        ) : null}
+                        {candidate.image_prompt ? (
+                          <span>이미지: {candidate.image_prompt}</span>
+                        ) : null}
+                        {candidate.image_url ? (
+                          <a
+                            className="truncate underline underline-offset-4"
+                            href={candidate.image_url}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            이미지 URL
+                          </a>
+                        ) : null}
+                        <span>{formatJsonObject(candidate.data_evidence_json)}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState message="아직 생성된 광고 후보가 없습니다." />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle className="text-base">연결된 ad_experiment</CardTitle>
+          <CardDescription>세그먼트 하위 실험 단위입니다.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {detail.ad_experiments.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>실험</TableHead>
+                  <TableHead>콘텐츠</TableHead>
+                  <TableHead>채널</TableHead>
+                  <TableHead>루프</TableHead>
+                  <TableHead>목표</TableHead>
+                  <TableHead>상태</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.ad_experiments.map((experiment) => (
+                  <TableRow key={experiment.ad_experiment_id}>
+                    <TableCell className="font-medium">{experiment.ad_experiment_id}</TableCell>
+                    <TableCell>{experiment.content_id}</TableCell>
+                    <TableCell>{experiment.channel}</TableCell>
+                    <TableCell>{formatInteger(experiment.loop_count)}</TableCell>
+                    <TableCell>
+                      {experiment.goal_metric} · {formatGoalValue(experiment.goal_target_value)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(experiment.status)}>
+                        {experiment.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState message="아직 연결된 ad_experiment가 없습니다." />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle className="text-base">지표 / insufficient_data 사유</CardTitle>
+          <CardDescription>평가는 세그먼트 하위 실험 지표 기준으로 확인합니다.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {detail.experiment_metrics.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>지표</TableHead>
+                  <TableHead>실험</TableHead>
+                  <TableHead className="text-right">목표</TableHead>
+                  <TableHead className="text-right">실제</TableHead>
+                  <TableHead className="text-right">표본</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead>사유</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.experiment_metrics.map((metric) => (
+                  <TableRow
+                    key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
+                  >
+                    <TableCell className="font-medium">{metric.metric}</TableCell>
+                    <TableCell>{metric.ad_experiment_id ?? "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatGoalValue(metric.target_value)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatGoalValue(metric.actual_value)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(metric.sample_size)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(metric.status)}>{metric.status}</Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[360px]">
+                      {metric.status === "insufficient_data"
+                        ? insufficientReason(metric)
+                        : (metric.feedback ?? "-")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState message="아직 세그먼트 실험 지표가 없습니다." />
+          )}
+        </CardContent>
+      </Card>
     </section>
   );
 }
 
 function PromotionSegmentSuggestionPanel({
+  archiveScopedSegmentError,
+  archiveScopedSegmentIsError,
+  archiveScopedSegmentIsPending,
   confirmError,
   confirmIsError,
   confirmIsPending,
@@ -740,6 +1482,7 @@ function PromotionSegmentSuggestionPanel({
   decideError,
   decideIsError,
   decideIsPending,
+  onArchiveScopedSegment,
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
@@ -757,6 +1500,9 @@ function PromotionSegmentSuggestionPanel({
   suggestionsIsError,
   suggestionsIsLoading
 }: {
+  archiveScopedSegmentError: Error | null;
+  archiveScopedSegmentIsError: boolean;
+  archiveScopedSegmentIsPending: boolean;
   confirmError: Error | null;
   confirmIsError: boolean;
   confirmIsPending: boolean;
@@ -766,6 +1512,7 @@ function PromotionSegmentSuggestionPanel({
   decideError: Error | null;
   decideIsError: boolean;
   decideIsPending: boolean;
+  onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
@@ -867,6 +1614,12 @@ function PromotionSegmentSuggestionPanel({
             <AlertDescription>{mutationErrorMessage(createScopedSegmentError)}</AlertDescription>
           </Alert>
         ) : null}
+        {archiveScopedSegmentIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>직접 추가 세그먼트를 삭제하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(archiveScopedSegmentError)}</AlertDescription>
+          </Alert>
+        ) : null}
         {scopedSegmentsIsLoading ? (
           <EmptyState message="직접 추가 세그먼트를 불러오는 중입니다." />
         ) : null}
@@ -878,14 +1631,29 @@ function PromotionSegmentSuggestionPanel({
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {scopedSegments.map((segment) => (
-                <div className="grid gap-3 rounded-md border bg-[#f7fbff] p-4" key={segment.segment_id}>
+                <div
+                  className="grid gap-3 rounded-md border bg-[#f7fbff] p-4"
+                  key={segment.segment_id}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="grid gap-1">
                       <div className="text-xs font-semibold text-[#3927d9]">{segment.source}</div>
                       <h3 className="text-base font-semibold">{segment.segment_name}</h3>
                       <p className="text-xs text-muted-foreground">{segment.segment_id}</p>
                     </div>
-                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                      <Button
+                        aria-label={`${segment.segment_name} 직접 추가 후보 삭제`}
+                        disabled={archiveScopedSegmentIsPending}
+                        onClick={() => onArchiveScopedSegment(segment.segment_id)}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid gap-2 text-sm text-muted-foreground">
                     <div>
@@ -958,7 +1726,8 @@ function PromotionSegmentSuggestionPanel({
                       type="button"
                       variant="outline"
                     >
-                      제외
+                      <Trash2 className="mr-2 size-3.5" />
+                      삭제
                     </Button>
                   </div>
                 </div>
@@ -1606,8 +2375,101 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function InsightBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1 rounded-md border bg-muted/20 p-3">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="whitespace-pre-wrap text-sm leading-6">{value || "-"}</div>
+    </div>
+  );
+}
+
 function formatGoalValue(value: number) {
   return value <= 1 ? `${formatInteger(value * 100)}%` : formatInteger(value);
+}
+
+function formatPercentValue(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+function segmentExpectedEffect(
+  segment: DashboardCampaignSegment,
+  latestMetric: DashboardSegmentDetail["experiment_metrics"][number] | undefined
+) {
+  const explicitEffect =
+    pickJsonString(segment.content_brief_json, ["expected_effect", "expectedEffect", "effect"]) ??
+    pickJsonString(segment.data_evidence_json, [
+      "expected_effect",
+      "expectedEffect",
+      "expected_lift",
+      "conversion_lift",
+      "rationale"
+    ]);
+  if (explicitEffect) {
+    return explicitEffect;
+  }
+  if (latestMetric) {
+    return `${latestMetric.metric} 기준 실제 ${formatGoalValue(
+      latestMetric.actual_value
+    )}, 목표 ${formatGoalValue(latestMetric.target_value)}입니다.`;
+  }
+  return "실험 지표가 쌓이면 예상 효과와 실제 효과를 함께 비교합니다.";
+}
+
+function contentCandidateTitle(candidate: DashboardSegmentDetail["content_candidates"][number]) {
+  return candidate.title ?? candidate.subject ?? candidate.message ?? candidate.content_id;
+}
+
+function contentCandidateMessage(candidate: DashboardSegmentDetail["content_candidates"][number]) {
+  return candidate.body ?? candidate.message ?? candidate.generation_prompt ?? "-";
+}
+
+function insufficientReason(metric: DashboardSegmentDetail["experiment_metrics"][number]) {
+  const reason =
+    pickJsonString(metric.result_json, ["insufficient_reason", "reason", "message", "note"]) ??
+    metric.feedback;
+  const minimumRequiredSampleSize = pickJsonNumber(metric.result_json, [
+    "minimum_required_sample_size",
+    "min_sample_size"
+  ]);
+  const assignedUserCount = pickJsonNumber(metric.result_json, [
+    "assigned_user_count",
+    "final_assigned_user_count"
+  ]);
+  const sampleReason =
+    minimumRequiredSampleSize === null
+      ? null
+      : `최소 필요 ${formatInteger(minimumRequiredSampleSize)}명`;
+  const assignedReason =
+    assignedUserCount === null ? null : `최종 배정 ${formatInteger(assignedUserCount)}명`;
+
+  return [reason, assignedReason, sampleReason].filter(Boolean).join(" · ") || "-";
+}
+
+function pickJsonString(value: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const item = value[key];
+    if (typeof item === "string" && item.trim()) {
+      return item;
+    }
+  }
+  return null;
+}
+
+function pickJsonNumber(value: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const item = value[key];
+    if (typeof item === "number" && Number.isFinite(item)) {
+      return item;
+    }
+    if (typeof item === "string") {
+      const numberValue = Number(item);
+      if (Number.isFinite(numberValue)) {
+        return numberValue;
+      }
+    }
+  }
+  return null;
 }
 
 function statusBadgeVariant(status: string) {

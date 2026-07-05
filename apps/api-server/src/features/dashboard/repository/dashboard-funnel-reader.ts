@@ -585,7 +585,7 @@ export class DashboardFunnelReader {
         this.countRealtimeBreakdown(scope, {
           bookingKeyExpression: "nullIf(JSONExtractString(properties_json, 'promotion_channel'), '')",
           labelPrefix: "channel",
-          touchKeyExpression: "nullIf(channel, '')"
+          touchKeyExpression: "nullIf(toString(channel), '')"
         }),
         this.countRealtimeBreakdown(scope, {
           bookingKeyExpression: "nullIf(JSONExtractString(properties_json, 'landing_type'), '')",
