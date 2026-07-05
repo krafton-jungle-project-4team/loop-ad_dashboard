@@ -413,6 +413,56 @@ export type DashboardBuildPromotionRunAssignmentsResult = z.infer<
   typeof DashboardBuildPromotionRunAssignmentsResultSchema
 >;
 
+export const DashboardEvaluatePromotionRunRequestSchema = z.object({});
+export type DashboardEvaluatePromotionRunRequest = z.infer<
+  typeof DashboardEvaluatePromotionRunRequestSchema
+>;
+
+export const DashboardPromotionRunAdExperimentEvaluationSchema = z.object({
+  ad_experiment_id: z.string(),
+  segment_id: z.string(),
+  actual_value: z.coerce.number().nonnegative(),
+  status: z.string()
+});
+export type DashboardPromotionRunAdExperimentEvaluation = z.infer<
+  typeof DashboardPromotionRunAdExperimentEvaluationSchema
+>;
+
+export const DashboardEvaluatePromotionRunResultSchema = z.object({
+  promotion_run_id: z.string(),
+  promotion_id: z.string(),
+  status: z.string(),
+  ad_experiment_results: z.array(DashboardPromotionRunAdExperimentEvaluationSchema),
+  next_loop_required: z.boolean(),
+  failed_segment_ids: z.array(z.string()),
+  failed_ad_experiment_ids: z.array(z.string())
+});
+export type DashboardEvaluatePromotionRunResult = z.infer<
+  typeof DashboardEvaluatePromotionRunResultSchema
+>;
+
+export const DashboardCreateNextLoopRequestSchema = z.object({
+  failed_segment_ids: z.array(z.string()).default([]),
+  failed_ad_experiment_ids: z.array(z.string()).default([]),
+  operator_instruction: z.string().nullable().optional()
+});
+export type DashboardCreateNextLoopRequest = z.infer<
+  typeof DashboardCreateNextLoopRequestSchema
+>;
+
+export const DashboardCreateNextLoopResultSchema = z.object({
+  previous_promotion_run_id: z.string(),
+  next_promotion_run_id: z.string().nullable(),
+  promotion_id: z.string(),
+  loop_count: CountSchema,
+  next_analysis_id: z.string().nullable(),
+  next_generation_id: z.string().nullable(),
+  next_ad_experiments: z.array(DashboardPromotionRunAdExperimentSchema)
+});
+export type DashboardCreateNextLoopResult = z.infer<
+  typeof DashboardCreateNextLoopResultSchema
+>;
+
 export const DashboardCampaignExperimentMetricSchema = z.object({
   promotion_id: z.string(),
   promotion_run_id: z.string(),

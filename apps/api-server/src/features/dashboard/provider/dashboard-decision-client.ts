@@ -2,8 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 import type {
   DashboardBuildPromotionRunAssignmentsResult,
+  DashboardCreateNextLoopRequest,
+  DashboardCreateNextLoopResult,
   DashboardCreatePromotionRunRequest,
   DashboardCreatePromotionRunResult,
+  DashboardEvaluatePromotionRunResult,
   DashboardStartPromotionAnalysisRequest,
   DashboardStartPromotionAnalysisResult,
   DashboardStartPromotionGenerationRequest,
@@ -64,6 +67,42 @@ const decisionSegmentAssignmentBuildResponseSchema = z.object({
   skipped_existing_count: z.number().int().nonnegative(),
   insufficient_segment_count: z.number().int().nonnegative(),
   status: z.string()
+});
+const decisionPromotionRunEvaluateResponseSchema = z.object({
+  promotion_run_id: z.string(),
+  promotion_id: z.string(),
+  status: z.string(),
+  ad_experiment_results: z.array(
+    z.object({
+      ad_experiment_id: z.string(),
+      segment_id: z.string(),
+      actual_value: z.coerce.number().nonnegative(),
+      status: z.string()
+    })
+  ),
+  next_loop_required: z.boolean(),
+  failed_segment_ids: z.array(z.string()),
+  failed_ad_experiment_ids: z.array(z.string())
+});
+const decisionNextLoopResponseSchema = z.object({
+  previous_promotion_run_id: z.string(),
+  next_promotion_run_id: z.string().nullable(),
+  promotion_id: z.string(),
+  loop_count: z.number().int().min(1),
+  next_analysis_id: z.string().nullable(),
+  next_generation_id: z.string().nullable(),
+  next_ad_experiments: z.array(
+    z.object({
+      ad_experiment_id: z.string(),
+      segment_id: z.string(),
+      segment_name: z.string().nullable().optional(),
+      content_id: z.string(),
+      content_option_id: z.string(),
+      channel: z.string(),
+      loop_count: z.number().int().min(1),
+      status: z.string()
+    })
+  )
 });
 
 const DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT = 10_000;
@@ -245,6 +284,89 @@ export class DashboardDecisionClient {
 
     const body: unknown = await response.json();
     const parsed = decisionSegmentAssignmentBuildResponseSchema.safeParse(body);
+    if (!parsed.success) {
+      throw dashboardErrors.decisionRequestFailed(parsed.error);
+    }
+
+    return parsed.data;
+  }
+
+  async evaluatePromotionRun(request: {
+    promotionRunId: string;
+  }): Promise<DashboardEvaluatePromotionRunResult> {
+    const url = new URL(
+      `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/evaluate`,
+      env.decision.apiBaseUrl
+    );
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        body: JSON.stringify({}),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
+        },
+        method: "POST"
+      });
+    } catch (error) {
+      throw dashboardErrors.decisionRequestFailed(error);
+    }
+
+    if (!response.ok) {
+      throw dashboardErrors.decisionRequestFailed({
+        status: response.status,
+        statusText: response.statusText
+      });
+    }
+
+    const body: unknown = await response.json();
+    const parsed = decisionPromotionRunEvaluateResponseSchema.safeParse(body);
+    if (!parsed.success) {
+      throw dashboardErrors.decisionRequestFailed(parsed.error);
+    }
+
+    return parsed.data;
+  }
+
+  async createNextLoop(request: {
+    promotionRunId: string;
+    request: DashboardCreateNextLoopRequest;
+  }): Promise<DashboardCreateNextLoopResult> {
+    const url = new URL(
+      `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/next-loop`,
+      env.decision.apiBaseUrl
+    );
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        body: JSON.stringify({
+          failed_segment_ids: request.request.failed_segment_ids,
+          failed_ad_experiment_ids: request.request.failed_ad_experiment_ids,
+          operator_instruction: request.request.operator_instruction ?? null
+        }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
+        },
+        method: "POST"
+      });
+    } catch (error) {
+      throw dashboardErrors.decisionRequestFailed(error);
+    }
+
+    if (!response.ok) {
+      throw dashboardErrors.decisionRequestFailed({
+        status: response.status,
+        statusText: response.statusText
+      });
+    }
+
+    const body: unknown = await response.json();
+    const parsed = decisionNextLoopResponseSchema.safeParse(body);
     if (!parsed.success) {
       throw dashboardErrors.decisionRequestFailed(parsed.error);
     }

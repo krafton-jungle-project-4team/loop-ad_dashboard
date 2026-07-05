@@ -11,6 +11,8 @@ import {
   DashboardConfirmSegmentSuggestionsRequestSchema,
   DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
+  DashboardCreateNextLoopRequestSchema,
+  DashboardCreateNextLoopResultSchema,
   DashboardCreateProjectRequestSchema,
   DashboardCreateFunnelRequestSchema,
   DashboardCreatePromotionRunRequestSchema,
@@ -24,6 +26,7 @@ import {
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
   DashboardEventCatalogSchema,
+  DashboardEvaluatePromotionRunResultSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
@@ -259,6 +262,30 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardBuildPromotionRunAssignmentsResultSchema.parse(
       await this.dashboardQuery.buildPromotionRunAssignments(requiredProjectId, promotionRunId)
+    );
+  }
+
+  @Post("promotion-runs/:promotion_run_id/evaluate")
+  async evaluatePromotionRun(
+    @Param("promotion_run_id") promotionRunId: string,
+    @Query("project_id") projectId: string | undefined
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardEvaluatePromotionRunResultSchema.parse(
+      await this.dashboardQuery.evaluatePromotionRun(requiredProjectId, promotionRunId)
+    );
+  }
+
+  @Post("promotion-runs/:promotion_run_id/next-loop")
+  async createNextLoop(
+    @Param("promotion_run_id") promotionRunId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardCreateNextLoopRequestSchema.parse(body ?? {});
+    return DashboardCreateNextLoopResultSchema.parse(
+      await this.dashboardQuery.createNextLoop(requiredProjectId, promotionRunId, request)
     );
   }
 
