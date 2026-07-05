@@ -183,8 +183,9 @@ const CAMPAIGN_X = 0;
 const CAMPAIGN_Y = 262;
 const PROMOTION_X = 328;
 const EVALUATION_X = 724;
-const RETRY_QUEUE_X = 724;
-const RETRY_QUEUE_Y = 444;
+const EVALUATION_Y = 176;
+const RETRY_QUEUE_X = 1088;
+const RETRY_QUEUE_Y = 176;
 const PIPELINE_Y = 0;
 const PROMOTION_ROW_GAP = 176;
 
@@ -294,7 +295,7 @@ export function CampaignFlowMapPanel({
           <>
             <ReactFlow
               className="bg-[#f7f8fa]"
-              defaultViewport={{ x: 30, y: 42, zoom: 0.66 }}
+              defaultViewport={{ x: 18, y: 42, zoom: 0.52 }}
               edges={graph.edges}
               edgeTypes={edgeTypes}
               maxZoom={1.25}
@@ -599,7 +600,7 @@ function EvaluationNode(props: NodeProps) {
       <Handle
         className="!size-2 !border-white !bg-zinc-400"
         id="retry-source"
-        position={Position.Bottom}
+        position={Position.Right}
         type="source"
       />
     </FlowNodeShell>
@@ -625,7 +626,7 @@ function RetryQueueNode(props: NodeProps) {
       <Handle
         className="!size-2 !border-white !bg-amber-500"
         id="retry-target"
-        position={Position.Top}
+        position={Position.Left}
         type="target"
       />
       <Handle
@@ -1306,7 +1307,7 @@ function buildCampaignFlowGraph(
         totals
       },
       id: evaluationNodeId,
-      position: { x: EVALUATION_X, y: PIPELINE_Y },
+      position: { x: EVALUATION_X, y: EVALUATION_Y },
       type: "evaluation"
     });
 
@@ -1448,8 +1449,9 @@ function LoopBackEdge({
 }: EdgeProps) {
   const bottomY = Math.max(sourceY, targetY) + 76;
   const label = typeof data?.label === "string" ? data.label : "next loop";
-  const labelX = (sourceX + targetX) / 2;
-  const path = `M ${sourceX} ${sourceY} L ${sourceX} ${bottomY} L ${targetX} ${bottomY} L ${targetX} ${targetY}`;
+  const laneX = Math.min(sourceX, targetX) - 160;
+  const labelX = (sourceX + laneX) / 2;
+  const path = `M ${sourceX} ${sourceY} L ${sourceX} ${bottomY} L ${laneX} ${bottomY} L ${laneX} ${targetY} L ${targetX} ${targetY}`;
 
   return (
     <>
