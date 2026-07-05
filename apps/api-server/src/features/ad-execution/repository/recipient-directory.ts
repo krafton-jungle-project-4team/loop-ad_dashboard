@@ -21,9 +21,9 @@ export abstract class RecipientDirectory {
 export class EnvDemoRecipientDirectory extends RecipientDirectory {
   private readonly recipientsByUserId: ReadonlyMap<string, DispatchRecipient>;
 
-  constructor(recipients: readonly DemoDispatchRecipientConfig[] = env.demoDispatchRecipients) {
+  constructor() {
     super();
-    this.recipientsByUserId = toRecipientMap(recipients);
+    this.recipientsByUserId = toRecipientMap(env.demoDispatchRecipients);
   }
 
   async findRecipient(userId: string): Promise<DispatchRecipient | null> {
