@@ -7,6 +7,147 @@ export type Json = null | boolean | number | string | Json[] | { [key: string]: 
 
 export type NumberOrString = number | string;
 
+/** 'ListDashboardProjects' parameters type */
+export type IListDashboardProjectsParams = void;
+
+/** 'ListDashboardProjects' return type */
+export interface IListDashboardProjectsResult {
+  createdAt: Date;
+  domain: string;
+  industry: string;
+  projectId: string;
+  projectName: string;
+  status: string;
+  updatedAt: Date;
+  writeKey: string;
+}
+
+/** 'ListDashboardProjects' query type */
+export interface IListDashboardProjectsQuery {
+  params: IListDashboardProjectsParams;
+  result: IListDashboardProjectsResult;
+}
+
+const listDashboardProjectsIR: any = {"usedParamSet":{},"params":[],"statement":"SELECT\n  project_id AS \"projectId\",\n  project_name AS \"projectName\",\n  domain,\n  write_key AS \"writeKey\",\n  industry,\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM projects\nWHERE status <> 'archived'\nORDER BY updated_at DESC, created_at DESC"};
+
+/** Query generated from SQL:
+ * ```
+ * SELECT
+ *   project_id AS "projectId",
+ *   project_name AS "projectName",
+ *   domain,
+ *   write_key AS "writeKey",
+ *   industry,
+ *   status,
+ *   created_at AS "createdAt",
+ *   updated_at AS "updatedAt"
+ * FROM projects
+ * WHERE status <> 'archived'
+ * ORDER BY updated_at DESC, created_at DESC
+ * ```
+ */
+export const listDashboardProjects = new PreparedQuery<IListDashboardProjectsParams,IListDashboardProjectsResult>(listDashboardProjectsIR);
+
+/** 'InsertDashboardProject' parameters type */
+export interface IInsertDashboardProjectParams {
+  domain?: string | null | void;
+  industry?: string | null | void;
+  projectId?: string | null | void;
+  projectName?: string | null | void;
+  status?: string | null | void;
+  writeKey?: string | null | void;
+}
+
+/** 'InsertDashboardProject' return type */
+export interface IInsertDashboardProjectResult {
+  createdAt: Date;
+  domain: string;
+  industry: string;
+  projectId: string;
+  projectName: string;
+  status: string;
+  updatedAt: Date;
+  writeKey: string;
+}
+
+/** 'InsertDashboardProject' query type */
+export interface IInsertDashboardProjectQuery {
+  params: IInsertDashboardProjectParams;
+  result: IInsertDashboardProjectResult;
+}
+
+const insertDashboardProjectIR: any = {"usedParamSet":{"projectId":true,"projectName":true,"domain":true,"writeKey":true,"industry":true,"status":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":110,"b":119}]},{"name":"projectName","required":false,"transform":{"type":"scalar"},"locs":[{"a":124,"b":135}]},{"name":"domain","required":false,"transform":{"type":"scalar"},"locs":[{"a":140,"b":146}]},{"name":"writeKey","required":false,"transform":{"type":"scalar"},"locs":[{"a":151,"b":159}]},{"name":"industry","required":false,"transform":{"type":"scalar"},"locs":[{"a":164,"b":172}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":177,"b":183}]}],"statement":"INSERT INTO projects (\n  project_id,\n  project_name,\n  domain,\n  write_key,\n  industry,\n  status\n)\nVALUES (\n  :projectId,\n  :projectName,\n  :domain,\n  :writeKey,\n  :industry,\n  :status\n)\nON CONFLICT (project_id) DO UPDATE\nSET\n  project_name = EXCLUDED.project_name,\n  domain = EXCLUDED.domain,\n  write_key = EXCLUDED.write_key,\n  industry = EXCLUDED.industry,\n  status = 'active',\n  updated_at = now()\nRETURNING\n  project_id AS \"projectId\",\n  project_name AS \"projectName\",\n  domain,\n  write_key AS \"writeKey\",\n  industry,\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\""};
+
+/** Query generated from SQL:
+ * ```
+ * INSERT INTO projects (
+ *   project_id,
+ *   project_name,
+ *   domain,
+ *   write_key,
+ *   industry,
+ *   status
+ * )
+ * VALUES (
+ *   :projectId,
+ *   :projectName,
+ *   :domain,
+ *   :writeKey,
+ *   :industry,
+ *   :status
+ * )
+ * ON CONFLICT (project_id) DO UPDATE
+ * SET
+ *   project_name = EXCLUDED.project_name,
+ *   domain = EXCLUDED.domain,
+ *   write_key = EXCLUDED.write_key,
+ *   industry = EXCLUDED.industry,
+ *   status = 'active',
+ *   updated_at = now()
+ * RETURNING
+ *   project_id AS "projectId",
+ *   project_name AS "projectName",
+ *   domain,
+ *   write_key AS "writeKey",
+ *   industry,
+ *   status,
+ *   created_at AS "createdAt",
+ *   updated_at AS "updatedAt"
+ * ```
+ */
+export const insertDashboardProject = new PreparedQuery<IInsertDashboardProjectParams,IInsertDashboardProjectResult>(insertDashboardProjectIR);
+
+/** 'ArchiveDashboardProject' parameters type */
+export interface IArchiveDashboardProjectParams {
+  projectId?: string | null | void;
+}
+
+/** 'ArchiveDashboardProject' return type */
+export interface IArchiveDashboardProjectResult {
+  projectId: string;
+  status: string;
+}
+
+/** 'ArchiveDashboardProject' query type */
+export interface IArchiveDashboardProjectQuery {
+  params: IArchiveDashboardProjectParams;
+  result: IArchiveDashboardProjectResult;
+}
+
+const archiveDashboardProjectIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":83,"b":92}]}],"statement":"UPDATE projects\nSET status = 'archived',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND status <> 'archived'\nRETURNING project_id AS \"projectId\", status"};
+
+/** Query generated from SQL:
+ * ```
+ * UPDATE projects
+ * SET status = 'archived',
+ *     updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND status <> 'archived'
+ * RETURNING project_id AS "projectId", status
+ * ```
+ */
+export const archiveDashboardProject = new PreparedQuery<IArchiveDashboardProjectParams,IArchiveDashboardProjectResult>(archiveDashboardProjectIR);
+
 /** 'ListDashboardCampaignSummaries' parameters type */
 export interface IListDashboardCampaignSummariesParams {
   projectId?: string | null | void;
@@ -3591,5 +3732,3 @@ const deleteFunnelDefinitionIR: any = {"usedParamSet":{"projectId":true,"funnelI
  * ```
  */
 export const deleteFunnelDefinition = new PreparedQuery<IDeleteFunnelDefinitionParams,IDeleteFunnelDefinitionResult>(deleteFunnelDefinitionIR);
-
-

@@ -12,9 +12,11 @@ import type {
   DashboardCampaignSummary,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
+  DashboardCreateProjectRequest,
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
+  DashboardDeleteProjectResult,
   DashboardCreatePromotionRequest,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
@@ -24,6 +26,8 @@ import type {
   DashboardFunnelMetrics,
   DashboardMain,
   DashboardNextLoopAnalysis,
+  DashboardProject,
+  DashboardProjectList,
   DashboardPromotionDetail,
   DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionScopedSegmentDefinitionList,
@@ -68,6 +72,20 @@ export class DashboardQueryService {
 
   async main(projectId: string): Promise<DashboardMain> {
     return { campaigns: await this.campaignReader.listCampaigns(projectId) };
+  }
+
+  async projects(): Promise<DashboardProjectList> {
+    return this.campaignReader.listProjects();
+  }
+
+  @Transactional()
+  async createProject(request: DashboardCreateProjectRequest): Promise<DashboardProject> {
+    return this.campaignReader.createProject(request);
+  }
+
+  @Transactional()
+  async archiveProject(projectId: string): Promise<DashboardDeleteProjectResult> {
+    return this.campaignReader.archiveProject(projectId);
   }
 
   @Transactional()

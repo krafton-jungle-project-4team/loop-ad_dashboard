@@ -1,3 +1,63 @@
+/* 목적: 활성 프로젝트 목록을 조회합니다. */
+/* @name ListDashboardProjects */
+SELECT
+  project_id AS "projectId",
+  project_name AS "projectName",
+  domain,
+  write_key AS "writeKey",
+  industry,
+  status,
+  created_at AS "createdAt",
+  updated_at AS "updatedAt"
+FROM projects
+WHERE status <> 'archived'
+ORDER BY updated_at DESC, created_at DESC;
+
+/* 목적: 대시보드에서 새 프로젝트를 생성합니다. */
+/* @name InsertDashboardProject */
+INSERT INTO projects (
+  project_id,
+  project_name,
+  domain,
+  write_key,
+  industry,
+  status
+)
+VALUES (
+  :projectId,
+  :projectName,
+  :domain,
+  :writeKey,
+  :industry,
+  :status
+)
+ON CONFLICT (project_id) DO UPDATE
+SET
+  project_name = EXCLUDED.project_name,
+  domain = EXCLUDED.domain,
+  write_key = EXCLUDED.write_key,
+  industry = EXCLUDED.industry,
+  status = 'active',
+  updated_at = now()
+RETURNING
+  project_id AS "projectId",
+  project_name AS "projectName",
+  domain,
+  write_key AS "writeKey",
+  industry,
+  status,
+  created_at AS "createdAt",
+  updated_at AS "updatedAt";
+
+/* 목적: FK가 연결된 프로젝트를 물리 삭제하지 않고 보관 상태로 전환합니다. */
+/* @name ArchiveDashboardProject */
+UPDATE projects
+SET status = 'archived',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND status <> 'archived'
+RETURNING project_id AS "projectId", status;
+
 /* 목적: 메인 대시보드에 표시할 캠페인 요약 목록을 조회합니다. */
 /* @name ListDashboardCampaignSummaries */
 SELECT
