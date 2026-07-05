@@ -10,7 +10,6 @@ import type {
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
   DashboardDeleteCampaignResult,
-  DashboardDeleteSavedSegmentResult,
   DashboardCreatePromotionRequest,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
@@ -25,7 +24,6 @@ import type {
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
   DashboardSavedSegment,
-  DashboardSavedSegmentList,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
@@ -33,8 +31,7 @@ import type {
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
-  DashboardUpdatePromotionSegmentRequest,
-  DashboardUpdateSavedSegmentRequest
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import {
   DashboardCampaignReader,
@@ -262,24 +259,4 @@ export class DashboardQueryService {
     return this.segmentQueryRepository.saveSegment(projectId, request);
   }
 
-  @Transactional()
-  async updateSavedSegment(
-    projectId: string,
-    segmentId: string,
-    request: DashboardUpdateSavedSegmentRequest
-  ): Promise<DashboardSavedSegment> {
-    return this.segmentQueryRepository.updateSavedSegment(projectId, segmentId, request);
-  }
-
-  @Transactional()
-  async archiveSavedSegment(
-    projectId: string,
-    segmentId: string
-  ): Promise<DashboardDeleteSavedSegmentResult> {
-    return this.segmentQueryRepository.archiveSavedSegment(projectId, segmentId);
-  }
-
-  async savedSegments(projectId: string): Promise<DashboardSavedSegmentList> {
-    return this.segmentQueryRepository.listSavedSegments(projectId);
-  }
 }

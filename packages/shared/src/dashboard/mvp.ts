@@ -508,14 +508,6 @@ export type DashboardSaveSegmentRequest = z.infer<typeof DashboardSaveSegmentReq
 export const DashboardSavedSegmentStatusSchema = z.enum(["active", "archived"]);
 export type DashboardSavedSegmentStatus = z.infer<typeof DashboardSavedSegmentStatusSchema>;
 
-export const DashboardUpdateSavedSegmentRequestSchema = z.object({
-  segment_name: z.string().min(1).optional(),
-  status: DashboardSavedSegmentStatusSchema.optional()
-});
-export type DashboardUpdateSavedSegmentRequest = z.infer<
-  typeof DashboardUpdateSavedSegmentRequestSchema
->;
-
 export const DashboardSavedSegmentSchema = z.object({
   segment_id: z.string(),
   project_id: z.string(),
@@ -530,19 +522,6 @@ export const DashboardSavedSegmentSchema = z.object({
   status: DashboardSavedSegmentStatusSchema
 });
 export type DashboardSavedSegment = z.infer<typeof DashboardSavedSegmentSchema>;
-
-export const DashboardDeleteSavedSegmentResultSchema = z.object({
-  segment_id: z.string(),
-  status: z.literal("archived")
-});
-export type DashboardDeleteSavedSegmentResult = z.infer<
-  typeof DashboardDeleteSavedSegmentResultSchema
->;
-
-export const DashboardSavedSegmentListSchema = z.object({
-  segments: z.array(DashboardSavedSegmentSchema)
-});
-export type DashboardSavedSegmentList = z.infer<typeof DashboardSavedSegmentListSchema>;
 
 export const DashboardSegmentPrioritySchema = z.enum(["low", "medium", "high"]);
 export type DashboardSegmentPriority = z.infer<typeof DashboardSegmentPrioritySchema>;

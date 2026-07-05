@@ -2302,59 +2302,6 @@ const markDashboardPromotionTargetSegmentApprovedIR: any = {"usedParamSet":{"pro
 export const markDashboardPromotionTargetSegmentApproved = new PreparedQuery<IMarkDashboardPromotionTargetSegmentApprovedParams,IMarkDashboardPromotionTargetSegmentApprovedResult>(markDashboardPromotionTargetSegmentApprovedIR);
 
 
-/** 'ListDashboardSavedSegments' parameters type */
-export interface IListDashboardSavedSegmentsParams {
-  projectId?: string | null | void;
-}
-
-/** 'ListDashboardSavedSegments' return type */
-export interface IListDashboardSavedSegmentsResult {
-  generatedSql: string | null;
-  naturalLanguageQuery: string | null;
-  projectId: string;
-  queryPreviewId: string | null;
-  sampleRatio: number | null;
-  sampleSize: number;
-  segmentId: string;
-  segmentName: string;
-  source: string;
-  status: string;
-  totalEligibleUserCount: number;
-}
-
-/** 'ListDashboardSavedSegments' query type */
-export interface IListDashboardSavedSegmentsQuery {
-  params: IListDashboardSavedSegmentsParams;
-  result: IListDashboardSavedSegmentsResult;
-}
-
-const listDashboardSavedSegmentsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":417,"b":426}]}],"statement":"SELECT\n  segment_id AS \"segmentId\",\n  project_id AS \"projectId\",\n  segment_name AS \"segmentName\",\n  source,\n  query_preview_id AS \"queryPreviewId\",\n  natural_language_query AS \"naturalLanguageQuery\",\n  generated_sql AS \"generatedSql\",\n  sample_size AS \"sampleSize\",\n  total_eligible_user_count AS \"totalEligibleUserCount\",\n  sample_ratio::float8 AS \"sampleRatio\",\n  status\nFROM segment_definitions\nWHERE project_id = :projectId\n  AND source = 'custom_chatkit'\n  AND status = 'active'\nORDER BY updated_at DESC, created_at DESC                                        "};
-
-/**
- * Query generated from SQL:
- * ```
- * SELECT
- *   segment_id AS "segmentId",
- *   project_id AS "projectId",
- *   segment_name AS "segmentName",
- *   source,
- *   query_preview_id AS "queryPreviewId",
- *   natural_language_query AS "naturalLanguageQuery",
- *   generated_sql AS "generatedSql",
- *   sample_size AS "sampleSize",
- *   total_eligible_user_count AS "totalEligibleUserCount",
- *   sample_ratio::float8 AS "sampleRatio",
- *   status
- * FROM segment_definitions
- * WHERE project_id = :projectId
- *   AND source = 'custom_chatkit'
- *   AND status = 'active'
- * ORDER BY updated_at DESC, created_at DESC                                        
- * ```
- */
-export const listDashboardSavedSegments = new PreparedQuery<IListDashboardSavedSegmentsParams,IListDashboardSavedSegmentsResult>(listDashboardSavedSegmentsIR);
-
-
 /** 'InsertDashboardSegmentQueryPreview' parameters type */
 export interface IInsertDashboardSegmentQueryPreviewParams {
   baseTimeFrom?: DateOrString | null | void;
@@ -2579,102 +2526,6 @@ const insertDashboardCustomSegmentDefinitionIR: any = {"usedParamSet":{"segmentI
  * ```
  */
 export const insertDashboardCustomSegmentDefinition = new PreparedQuery<IInsertDashboardCustomSegmentDefinitionParams,IInsertDashboardCustomSegmentDefinitionResult>(insertDashboardCustomSegmentDefinitionIR);
-
-
-/** 'UpdateDashboardSavedSegment' parameters type */
-export interface IUpdateDashboardSavedSegmentParams {
-  projectId?: string | null | void;
-  segmentId?: string | null | void;
-  segmentName?: string | null | void;
-  status?: string | null | void;
-}
-
-/** 'UpdateDashboardSavedSegment' return type */
-export interface IUpdateDashboardSavedSegmentResult {
-  generatedSql: string | null;
-  naturalLanguageQuery: string | null;
-  projectId: string;
-  queryPreviewId: string | null;
-  sampleRatio: number | null;
-  sampleSize: number;
-  segmentId: string;
-  segmentName: string;
-  source: string;
-  status: string;
-  totalEligibleUserCount: number;
-}
-
-/** 'UpdateDashboardSavedSegment' query type */
-export interface IUpdateDashboardSavedSegmentQuery {
-  params: IUpdateDashboardSavedSegmentParams;
-  result: IUpdateDashboardSavedSegmentResult;
-}
-
-const updateDashboardSavedSegmentIR: any = {"usedParamSet":{"segmentName":true,"status":true,"projectId":true,"segmentId":true},"params":[{"name":"segmentName","required":false,"transform":{"type":"scalar"},"locs":[{"a":57,"b":68}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":106,"b":112}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":164,"b":173}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":194,"b":203}]}],"statement":"UPDATE segment_definitions\nSET\n  segment_name = COALESCE(:segmentName, segment_name),\n  status = COALESCE(:status, status),\n  updated_at = now()\nWHERE project_id = :projectId\n  AND segment_id = :segmentId\n  AND source = 'custom_chatkit'\n  AND status <> 'archived'\nRETURNING\n  segment_id AS \"segmentId\",\n  project_id AS \"projectId\",\n  segment_name AS \"segmentName\",\n  source,\n  query_preview_id AS \"queryPreviewId\",\n  natural_language_query AS \"naturalLanguageQuery\",\n  generated_sql AS \"generatedSql\",\n  sample_size AS \"sampleSize\",\n  total_eligible_user_count AS \"totalEligibleUserCount\",\n  sample_ratio::float8 AS \"sampleRatio\",\n  status                                                "};
-
-/**
- * Query generated from SQL:
- * ```
- * UPDATE segment_definitions
- * SET
- *   segment_name = COALESCE(:segmentName, segment_name),
- *   status = COALESCE(:status, status),
- *   updated_at = now()
- * WHERE project_id = :projectId
- *   AND segment_id = :segmentId
- *   AND source = 'custom_chatkit'
- *   AND status <> 'archived'
- * RETURNING
- *   segment_id AS "segmentId",
- *   project_id AS "projectId",
- *   segment_name AS "segmentName",
- *   source,
- *   query_preview_id AS "queryPreviewId",
- *   natural_language_query AS "naturalLanguageQuery",
- *   generated_sql AS "generatedSql",
- *   sample_size AS "sampleSize",
- *   total_eligible_user_count AS "totalEligibleUserCount",
- *   sample_ratio::float8 AS "sampleRatio",
- *   status                                                
- * ```
- */
-export const updateDashboardSavedSegment = new PreparedQuery<IUpdateDashboardSavedSegmentParams,IUpdateDashboardSavedSegmentResult>(updateDashboardSavedSegmentIR);
-
-
-/** 'ArchiveDashboardSavedSegment' parameters type */
-export interface IArchiveDashboardSavedSegmentParams {
-  projectId?: string | null | void;
-  segmentId?: string | null | void;
-}
-
-/** 'ArchiveDashboardSavedSegment' return type */
-export interface IArchiveDashboardSavedSegmentResult {
-  segmentId: string;
-  status: string;
-}
-
-/** 'ArchiveDashboardSavedSegment' query type */
-export interface IArchiveDashboardSavedSegmentQuery {
-  params: IArchiveDashboardSavedSegmentParams;
-  result: IArchiveDashboardSavedSegmentResult;
-}
-
-const archiveDashboardSavedSegmentIR: any = {"usedParamSet":{"projectId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":94,"b":103}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":124,"b":133}]}],"statement":"UPDATE segment_definitions\nSET status = 'archived',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND segment_id = :segmentId\n  AND source = 'custom_chatkit'\n  AND status <> 'archived'\nRETURNING segment_id AS \"segmentId\", status                                   "};
-
-/**
- * Query generated from SQL:
- * ```
- * UPDATE segment_definitions
- * SET status = 'archived',
- *     updated_at = now()
- * WHERE project_id = :projectId
- *   AND segment_id = :segmentId
- *   AND source = 'custom_chatkit'
- *   AND status <> 'archived'
- * RETURNING segment_id AS "segmentId", status                                   
- * ```
- */
-export const archiveDashboardSavedSegment = new PreparedQuery<IArchiveDashboardSavedSegmentParams,IArchiveDashboardSavedSegmentResult>(archiveDashboardSavedSegmentIR);
 
 
 /** 'MarkDashboardSegmentQueryPreviewSaved' parameters type */
@@ -3018,4 +2869,3 @@ const deleteFunnelDefinitionIR: any = {"usedParamSet":{"projectId":true,"funnelI
  * ```
  */
 export const deleteFunnelDefinition = new PreparedQuery<IDeleteFunnelDefinitionParams,IDeleteFunnelDefinitionResult>(deleteFunnelDefinitionIR);
-

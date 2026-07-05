@@ -83,8 +83,8 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
   });
   const createPromotionMutation = useMutation({
-    mutationFn: (requestBody: DashboardCreatePromotionRequest) =>
-      createDashboardPromotion(query, selectedCampaignId, requestBody),
+    mutationFn: (form: PromotionCreateFormState) =>
+      createDashboardPromotion(query, selectedCampaignId, promotionCreateFormToRequest(form)),
     onSuccess: (promotion) => {
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       void queryClient.invalidateQueries({
@@ -239,7 +239,7 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
               createError={createPromotionMutation.error}
               createIsError={createPromotionMutation.isError}
               createIsPending={createPromotionMutation.isPending}
-              onCreate={(requestBody) => createPromotionMutation.mutate(requestBody)}
+              onCreate={(form) => createPromotionMutation.mutate(form)}
               onOpenChange={setIsAddDialogOpen}
               open={isAddDialogOpen}
             />
@@ -529,7 +529,7 @@ function PromotionAddDialog({
   createError: Error | null;
   createIsError: boolean;
   createIsPending: boolean;
-  onCreate: (requestBody: DashboardCreatePromotionRequest) => void;
+  onCreate: (form: PromotionCreateFormState) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
@@ -589,12 +589,16 @@ function PromotionAddDialog({
                 </Select>
               </Field>
               <Field>
-                <FieldLabel htmlFor="promotion-create-audience">대상</FieldLabel>
+                <FieldLabel htmlFor="promotion-create-audience">대상 범위</FieldLabel>
                 <Input
                   id="promotion-create-audience"
                   onChange={(event) => setForm({ ...form, targetAudience: event.target.value })}
+                  placeholder="existing_users"
                   value={form.targetAudience}
                 />
+                <p className="text-xs text-muted-foreground">
+                  세그먼트는 프로모션 생성 후 프로모션 상세의 세그먼트 목록에서 생성/연결합니다.
+                </p>
               </Field>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
@@ -677,7 +681,7 @@ function PromotionAddDialog({
           <Button
             className="bg-[#3927d9] px-8"
             disabled={!canSubmit}
-            onClick={() => onCreate(promotionCreateFormToRequest(form))}
+            onClick={() => onCreate(form)}
             type="button"
           >
             {createIsPending ? "생성 중" : "프로모션 생성"}

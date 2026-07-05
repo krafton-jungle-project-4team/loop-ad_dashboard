@@ -13,7 +13,6 @@ import {
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
-  DashboardDeleteSavedSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
@@ -24,7 +23,6 @@ import {
   DashboardPromotionSummarySchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
-  DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
@@ -33,8 +31,7 @@ import {
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
-  DashboardUpdatePromotionSegmentRequestSchema,
-  DashboardUpdateSavedSegmentRequestSchema
+  DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -315,44 +312,12 @@ export class DashboardController {
     );
   }
 
-  @Get("segments")
-  async savedSegments(@Query("project_id") projectId?: string) {
-    const requiredProjectId = requireProjectId(projectId);
-    return DashboardSavedSegmentListSchema.parse(
-      await this.dashboardQuery.savedSegments(requiredProjectId)
-    );
-  }
-
   @Post("segments")
   async saveSegment(@Query("project_id") projectId: string | undefined, @Body() body: unknown) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardSaveSegmentRequestSchema.parse(body);
     return DashboardSavedSegmentSchema.parse(
       await this.dashboardQuery.saveSegment(requiredProjectId, request)
-    );
-  }
-
-  @Patch("segments/:segment_id")
-  async updateSavedSegment(
-    @Param("segment_id") segmentId: string,
-    @Query("project_id") projectId: string | undefined,
-    @Body() body: unknown
-  ) {
-    const requiredProjectId = requireProjectId(projectId);
-    const request = DashboardUpdateSavedSegmentRequestSchema.parse(body);
-    return DashboardSavedSegmentSchema.parse(
-      await this.dashboardQuery.updateSavedSegment(requiredProjectId, segmentId, request)
-    );
-  }
-
-  @Delete("segments/:segment_id")
-  async deleteSavedSegment(
-    @Param("segment_id") segmentId: string,
-    @Query("project_id") projectId?: string
-  ) {
-    const requiredProjectId = requireProjectId(projectId);
-    return DashboardDeleteSavedSegmentResultSchema.parse(
-      await this.dashboardQuery.archiveSavedSegment(requiredProjectId, segmentId)
     );
   }
 }

@@ -199,122 +199,6 @@ test("dashboard save segment delegates valid preview save to the segment query r
   assert.equal(segment.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
 });
 
-test("dashboard saved segments returns custom segments from the segment query repository", async () => {
-  setRequiredEnv();
-  const { DashboardQueryService } =
-    await import("../src/features/dashboard/service/dashboard-query.service.js");
-  const reads: string[] = [];
-  const service = new DashboardQueryService(
-    emptyCampaignReader(),
-    emptyFunnelReader(),
-    {
-      ...emptySegmentQueryRepository(),
-      listSavedSegments: async (projectId) => {
-        reads.push(projectId);
-        return {
-          segments: [
-            {
-              segment_id: "seg_custom_001",
-              project_id: projectId,
-              segment_name: "같은 숙소 반복 조회 후 미예약 고객",
-              source: "custom_chatkit",
-              query_preview_id: "seg_query_preview_001",
-              natural_language_query: "숙소 상세 조회 후 미예약 고객",
-              generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
-              sample_size: 1342,
-              total_eligible_user_count: 10000,
-              sample_ratio: 0.1342,
-              status: "active"
-            }
-          ]
-        };
-      }
-    } as unknown as DashboardSegmentQueryRepository
-  );
-
-  const segments = await service.savedSegments("hotel-client-a");
-
-  assert.deepEqual(reads, ["hotel-client-a"]);
-  assert.equal(segments.segments.length, 1);
-  assert.equal(segments.segments[0]?.source, "custom_chatkit");
-  assert.equal(segments.segments[0]?.sample_size, 1342);
-});
-
-test("dashboard update saved segment runs inside transaction host", async () => {
-  setRequiredEnv();
-  const { DashboardQueryService } =
-    await import("../src/features/dashboard/service/dashboard-query.service.js");
-  const writes: unknown[] = [];
-  const transactionHost = installCountingTransactionHost();
-  const service = new DashboardQueryService(
-    emptyCampaignReader(),
-    emptyFunnelReader(),
-    {
-      ...emptySegmentQueryRepository(),
-      updateSavedSegment: async (projectId, segmentId, request) => {
-        writes.push({ projectId, request, segmentId });
-        return {
-          segment_id: segmentId,
-          project_id: projectId,
-          segment_name: request.segment_name ?? "같은 숙소 반복 조회 후 미예약 고객",
-          source: "custom_chatkit",
-          query_preview_id: "seg_query_preview_001",
-          natural_language_query: "숙소 상세 조회 후 미예약 고객",
-          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
-          sample_size: 1342,
-          total_eligible_user_count: 10000,
-          sample_ratio: 0.1342,
-          status: request.status ?? "active"
-        };
-      }
-    } as unknown as DashboardSegmentQueryRepository
-  );
-
-  const segment = await service.updateSavedSegment("hotel-client-a", "seg_custom_001", {
-    segment_name: "반복 조회 후 미예약 고객"
-  });
-
-  assert.equal(transactionHost.calls.length, 1);
-  assert.deepEqual(writes, [
-    {
-      projectId: "hotel-client-a",
-      request: { segment_name: "반복 조회 후 미예약 고객" },
-      segmentId: "seg_custom_001"
-    }
-  ]);
-  assert.equal(segment.segment_name, "반복 조회 후 미예약 고객");
-});
-
-test("dashboard archive saved segment runs inside transaction host", async () => {
-  setRequiredEnv();
-  const { DashboardQueryService } =
-    await import("../src/features/dashboard/service/dashboard-query.service.js");
-  const writes: unknown[] = [];
-  const transactionHost = installCountingTransactionHost();
-  const service = new DashboardQueryService(
-    emptyCampaignReader(),
-    emptyFunnelReader(),
-    {
-      ...emptySegmentQueryRepository(),
-      archiveSavedSegment: async (projectId, segmentId) => {
-        writes.push({ projectId, segmentId });
-        return {
-          archived_at: "2026-07-04T00:00:00.000Z",
-          segment_id: segmentId,
-          status: "archived"
-        };
-      }
-    } as unknown as DashboardSegmentQueryRepository
-  );
-
-  const result = await service.archiveSavedSegment("hotel-client-a", "seg_custom_001");
-
-  assert.equal(transactionHost.calls.length, 1);
-  assert.deepEqual(writes, [{ projectId: "hotel-client-a", segmentId: "seg_custom_001" }]);
-  assert.equal(result.segment_id, "seg_custom_001");
-  assert.equal(result.status, "archived");
-});
-
 test("dashboard reject content candidate runs inside transaction host", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -385,17 +269,8 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
     createQueryPreview: async () => {
       throw new Error("Unexpected createQueryPreview call.");
     },
-    listSavedSegments: async () => {
-      throw new Error("Unexpected listSavedSegments call.");
-    },
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
-    },
-    updateSavedSegment: async () => {
-      throw new Error("Unexpected updateSavedSegment call.");
-    },
-    archiveSavedSegment: async () => {
-      throw new Error("Unexpected archiveSavedSegment call.");
     }
   } as unknown as DashboardSegmentQueryRepository;
 }
