@@ -80,6 +80,7 @@ import {
   dispatchDashboardPromotionRun,
   evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
+  fetchDashboardPromotionDetail,
   fetchDashboardSegmentDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
   fetchDashboardPromotionSegmentSuggestions,
@@ -91,6 +92,7 @@ import { formatInteger } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
+  dashboardPromotionDetailQueryKey,
   dashboardPromotionScopedSegmentDefinitionsQueryKey,
   dashboardPromotionSegmentSuggestionsQueryKey,
   dashboardSegmentDetailQueryKey
@@ -238,9 +240,19 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
   )
     ? query.selectedSegmentId
     : "";
+  const promotionDetail = useQuery({
+    enabled: Boolean(selectedOpenPromotion?.promotion_id),
+    queryFn: ({ signal }) =>
+      fetchDashboardPromotionDetail(query, selectedOpenPromotion?.promotion_id ?? "", signal),
+    queryKey: dashboardPromotionDetailQueryKey(
+      query.projectId,
+      selectedOpenPromotion?.promotion_id ?? ""
+    )
+  });
+  const latestAnalysisId = promotionDetail.data?.analyses[0]?.analysis_id ?? null;
   useEffect(() => {
-    setActiveAnalysisId(null);
-  }, [selectedOpenPromotion?.promotion_id]);
+    setActiveAnalysisId(selectedOpenPromotion?.promotion_id ? latestAnalysisId : null);
+  }, [latestAnalysisId, selectedOpenPromotion?.promotion_id]);
   useEffect(() => {
     if (query.selectedSegmentId && !selectedPromotionSegmentId) {
       void setDashboardQueryState({ selectedSegmentId: "" });
@@ -312,6 +324,12 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       }),
     onSuccess: async (analysis) => {
       setActiveAnalysisId(analysis.analysis_id);
+      await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionDetailQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? ""
+        )
+      });
       await queryClient.invalidateQueries({
         queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
           query.projectId,
