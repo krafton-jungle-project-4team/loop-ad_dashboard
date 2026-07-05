@@ -287,12 +287,82 @@ RETURNING promotion_id AS "promotionId";
 
 /* 목적: FK가 연결된 프로모션을 물리 삭제하지 않고 중지 상태로 전환합니다. */
 /* @name StopDashboardPromotion */
-UPDATE promotions
-SET status = 'stopped',
-    updated_at = now()
-WHERE project_id = :projectId
-  AND promotion_id = :promotionId
-RETURNING promotion_id AS "promotionId", status;
+WITH stopped_promotion AS (
+  UPDATE promotions
+  SET status = 'stopped',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+  RETURNING promotion_id, status
+),
+stopped_segments AS (
+  UPDATE promotion_target_segments
+  SET status = 'stopped'
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status <> 'stopped'
+  RETURNING segment_id
+),
+archived_segment_definitions AS (
+  UPDATE segment_definitions
+  SET status = 'archived',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND source IN ('custom_chatkit', 'manual_rule')
+    AND status = 'active'
+  RETURNING segment_id
+),
+dismissed_suggestions AS (
+  UPDATE promotion_segment_suggestions
+  SET status = 'dismissed',
+      decided_at = COALESCE(decided_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status IN ('suggested', 'accepted')
+  RETURNING suggestion_id
+),
+archived_content_candidates AS (
+  UPDATE content_candidates
+  SET status = 'archived',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status IN ('draft', 'approved', 'active')
+  RETURNING content_id
+),
+cancelled_dispatch_jobs AS (
+  UPDATE ad_dispatch_jobs
+  SET status = 'cancelled',
+      completed_at = COALESCE(completed_at, now())
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status IN ('queued', 'scheduled', 'running')
+  RETURNING ad_dispatch_job_id
+),
+stopped_runs AS (
+  UPDATE promotion_runs
+  SET status = 'stopped',
+      ended_at = COALESCE(ended_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status <> 'stopped'
+  RETURNING promotion_run_id
+),
+stopped_experiments AS (
+  UPDATE ad_experiments
+  SET status = 'stopped',
+      ended_at = COALESCE(ended_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND status <> 'stopped'
+  RETURNING ad_experiment_id
+)
+SELECT promotion_id AS "promotionId", status
+FROM stopped_promotion;
 
 /* 목적: 캠페인 프로모션에 연결된 세그먼트 목록을 조회합니다. */
 /* @name ListDashboardCampaignSegments */
