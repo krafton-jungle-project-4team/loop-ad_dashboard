@@ -596,6 +596,56 @@ export type DashboardConfirmSegmentSuggestionsResult = z.infer<
   typeof DashboardConfirmSegmentSuggestionsResultSchema
 >;
 
+export const DashboardPromotionScopedSegmentSourceSchema = z.enum([
+  "custom_chatkit",
+  "manual_rule"
+]);
+export type DashboardPromotionScopedSegmentSource = z.infer<
+  typeof DashboardPromotionScopedSegmentSourceSchema
+>;
+
+export const DashboardPromotionScopedSegmentDefinitionSchema = z.object({
+  segment_id: z.string(),
+  campaign_id: z.string(),
+  promotion_id: z.string(),
+  segment_name: z.string(),
+  source: DashboardPromotionScopedSegmentSourceSchema,
+  query_preview_id: z.string().nullable(),
+  natural_language_query: z.string().nullable(),
+  generated_sql: z.string().nullable(),
+  rule_json: JsonObjectSchema,
+  profile_json: JsonObjectSchema,
+  sample_size: CountSchema,
+  total_eligible_user_count: CountSchema,
+  sample_ratio: z.number().nonnegative(),
+  status: DashboardSavedSegmentStatusSchema
+});
+export type DashboardPromotionScopedSegmentDefinition = z.infer<
+  typeof DashboardPromotionScopedSegmentDefinitionSchema
+>;
+
+export const DashboardPromotionScopedSegmentDefinitionListSchema = z.object({
+  segments: z.array(DashboardPromotionScopedSegmentDefinitionSchema)
+});
+export type DashboardPromotionScopedSegmentDefinitionList = z.infer<
+  typeof DashboardPromotionScopedSegmentDefinitionListSchema
+>;
+
+export const DashboardCreatePromotionSegmentDefinitionRequestSchema = z.object({
+  segment_name: z.string().min(1),
+  source: DashboardPromotionScopedSegmentSourceSchema.default("manual_rule"),
+  query_preview_id: z.string().min(1).nullable().optional(),
+  natural_language_query: z.string().nullable().optional(),
+  rule_json: JsonObjectSchema.default({}),
+  profile_json: JsonObjectSchema.default({}),
+  sample_size: CountSchema.default(0),
+  total_eligible_user_count: CountSchema.default(0),
+  sample_ratio: z.number().nonnegative().default(0)
+});
+export type DashboardCreatePromotionSegmentDefinitionRequest = z.infer<
+  typeof DashboardCreatePromotionSegmentDefinitionRequestSchema
+>;
+
 export const DashboardSegmentPrioritySchema = z.enum(["low", "medium", "high"]);
 export type DashboardSegmentPriority = z.infer<typeof DashboardSegmentPrioritySchema>;
 

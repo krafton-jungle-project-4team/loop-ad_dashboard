@@ -27,6 +27,13 @@ export function dashboardPromotionSegmentSuggestionsQueryKey(
   return ["dashboard", "promotion-segment-suggestions", projectId, promotionId] as const;
 }
 
+export function dashboardPromotionScopedSegmentDefinitionsQueryKey(
+  projectId: string,
+  promotionId: string
+) {
+  return ["dashboard", "promotion-scoped-segment-definitions", projectId, promotionId] as const;
+}
+
 export function dashboardSegmentDetailQueryKey(
   projectId: string,
   promotionId: string,

@@ -11,6 +11,7 @@ import type {
   DashboardCampaignSummary,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
+  DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
   DashboardCreatePromotionRequest,
@@ -23,6 +24,8 @@ import type {
   DashboardMain,
   DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
+  DashboardPromotionScopedSegmentDefinition,
+  DashboardPromotionScopedSegmentDefinitionList,
   DashboardPromotionSegmentSuggestion,
   DashboardPromotionSegmentSuggestionList,
   DashboardPromotionSummary,
@@ -144,6 +147,26 @@ export class DashboardQueryService {
     analysisId?: string | null
   ): Promise<DashboardPromotionSegmentSuggestionList> {
     return this.campaignReader.listPromotionSegmentSuggestions(projectId, promotionId, analysisId);
+  }
+
+  async promotionScopedSegmentDefinitions(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardPromotionScopedSegmentDefinitionList> {
+    return this.campaignReader.listPromotionScopedSegmentDefinitions(projectId, promotionId);
+  }
+
+  @Transactional()
+  async createPromotionScopedSegmentDefinition(
+    projectId: string,
+    promotionId: string,
+    request: DashboardCreatePromotionSegmentDefinitionRequest
+  ): Promise<DashboardPromotionScopedSegmentDefinition> {
+    return this.campaignReader.createPromotionScopedSegmentDefinition(
+      projectId,
+      promotionId,
+      request
+    );
   }
 
   @Transactional()

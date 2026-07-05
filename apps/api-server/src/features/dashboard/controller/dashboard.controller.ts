@@ -10,6 +10,7 @@ import {
   DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreatePromotionSegmentDefinitionRequestSchema,
   DashboardCreatePromotionRequestSchema,
   DashboardDecideSegmentSuggestionRequestSchema,
   DashboardDeleteCampaignResultSchema,
@@ -23,6 +24,8 @@ import {
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionScopedSegmentDefinitionListSchema,
+  DashboardPromotionScopedSegmentDefinitionSchema,
   DashboardPromotionSegmentSuggestionListSchema,
   DashboardPromotionSegmentSuggestionSchema,
   DashboardPromotionSummarySchema,
@@ -272,6 +275,34 @@ export class DashboardController {
         requiredProjectId,
         promotionId,
         analysisId ?? null
+      )
+    );
+  }
+
+  @Get("promotions/:promotion_id/segment-definitions")
+  async promotionScopedSegmentDefinitions(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardPromotionScopedSegmentDefinitionListSchema.parse(
+      await this.dashboardQuery.promotionScopedSegmentDefinitions(requiredProjectId, promotionId)
+    );
+  }
+
+  @Post("promotions/:promotion_id/segment-definitions")
+  async createPromotionScopedSegmentDefinition(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardCreatePromotionSegmentDefinitionRequestSchema.parse(body);
+    return DashboardPromotionScopedSegmentDefinitionSchema.parse(
+      await this.dashboardQuery.createPromotionScopedSegmentDefinition(
+        requiredProjectId,
+        promotionId,
+        request
       )
     );
   }

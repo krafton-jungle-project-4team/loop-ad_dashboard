@@ -191,6 +191,94 @@ test("dashboard controller parses save segment body before delegating", async ()
   assert.equal(response.segment_name, "같은 숙소 반복 조회 후 미예약 고객");
 });
 
+test("dashboard controller lists promotion scoped segment definitions by promotion", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const reads: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    promotionScopedSegmentDefinitions: async (projectId, promotionId) => {
+      reads.push({ projectId, promotionId });
+      return {
+        segments: [
+          {
+            campaign_id: "camp_summer_2026",
+            generated_sql: null,
+            natural_language_query: "숙소 상세 조회 후 미예약 고객",
+            profile_json: {},
+            promotion_id: promotionId,
+            query_preview_id: null,
+            rule_json: { event_name: "hotel_detail_view" },
+            sample_ratio: 0.12,
+            sample_size: 1200,
+            segment_id: "seg_manual_001",
+            segment_name: "상세 조회 후 미예약 고객",
+            source: "manual_rule",
+            status: "active",
+            total_eligible_user_count: 10000
+          }
+        ]
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.promotionScopedSegmentDefinitions(
+    "promo_email_001",
+    "hotel-client-a"
+  );
+
+  assert.deepEqual(reads, [{ projectId: "hotel-client-a", promotionId: "promo_email_001" }]);
+  assert.equal(response.segments[0]?.promotion_id, "promo_email_001");
+  assert.equal(response.segments[0]?.source, "manual_rule");
+});
+
+test("dashboard controller parses promotion scoped segment create body", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    createPromotionScopedSegmentDefinition: async (projectId, promotionId, request) => {
+      writes.push({ projectId, promotionId, request });
+      return {
+        campaign_id: "camp_summer_2026",
+        generated_sql: null,
+        natural_language_query: request.natural_language_query ?? null,
+        profile_json: request.profile_json,
+        promotion_id: promotionId,
+        query_preview_id: null,
+        rule_json: request.rule_json,
+        sample_ratio: request.sample_ratio,
+        sample_size: request.sample_size,
+        segment_id: "seg_manual_001",
+        segment_name: request.segment_name,
+        source: "manual_rule",
+        status: "active",
+        total_eligible_user_count: request.total_eligible_user_count
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.createPromotionScopedSegmentDefinition(
+    "promo_email_001",
+    "hotel-client-a",
+    {
+      natural_language_query: "숙소 상세 조회 후 미예약 고객",
+      rule_json: { event_name: "hotel_detail_view" },
+      sample_ratio: 0.12,
+      sample_size: 1200,
+      segment_name: "상세 조회 후 미예약 고객",
+      total_eligible_user_count: 10000
+    }
+  );
+
+  assert.equal(writes.length, 1);
+  assert.equal(response.promotion_id, "promo_email_001");
+  assert.equal(response.segment_name, "상세 조회 후 미예약 고객");
+});
+
 test("dashboard controller parses promotion detail analyses response", async () => {
   setRequiredEnv();
   const { DashboardController } =

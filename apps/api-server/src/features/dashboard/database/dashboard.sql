@@ -558,6 +558,138 @@ WHERE sd.project_id = :projectId
   )
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 
+/* 목적: 프로모션에 종속된 사용자 추가 세그먼트 후보를 조회합니다. */
+/* @name ListDashboardPromotionScopedSegmentDefinitions */
+SELECT
+  segment_id AS "segmentId",
+  campaign_id AS "campaignId",
+  promotion_id AS "promotionId",
+  segment_name AS "segmentName",
+  source,
+  query_preview_id AS "queryPreviewId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
+  rule_json AS "ruleJson",
+  profile_json AS "profileJson",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  status
+FROM segment_definitions
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND source IN ('custom_chatkit', 'manual_rule')
+  AND status = 'active'
+ORDER BY created_at DESC;
+
+/* 목적: ChatKit/SQL preview로 만든 세그먼트를 프로모션 종속 후보로 저장합니다. */
+/* @name InsertDashboardPromotionCustomSegmentDefinition */
+INSERT INTO segment_definitions (
+  segment_id,
+  project_id,
+  campaign_id,
+  promotion_id,
+  segment_name,
+  source,
+  query_preview_id,
+  natural_language_query,
+  generated_sql,
+  rule_json,
+  profile_json,
+  sample_size,
+  total_eligible_user_count,
+  sample_ratio,
+  status
+)
+SELECT
+  :segmentId,
+  sqp.project_id,
+  :campaignId,
+  :promotionId,
+  :segmentName,
+  'custom_chatkit',
+  sqp.query_preview_id,
+  sqp.natural_language_query,
+  sqp.generated_sql,
+  '{}'::jsonb,
+  '{}'::jsonb,
+  sqp.sample_size,
+  sqp.total_eligible_user_count,
+  sqp.sample_ratio,
+  'active'
+FROM segment_query_previews sqp
+WHERE sqp.project_id = :projectId
+  AND sqp.query_preview_id = :queryPreviewId
+  AND sqp.sample_size_status = 'valid'
+  AND sqp.status = 'previewed'
+RETURNING
+  segment_id AS "segmentId",
+  campaign_id AS "campaignId",
+  promotion_id AS "promotionId",
+  segment_name AS "segmentName",
+  source,
+  query_preview_id AS "queryPreviewId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
+  rule_json AS "ruleJson",
+  profile_json AS "profileJson",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  status;
+
+/* 목적: 수동 rule 세그먼트를 프로모션 종속 후보로 저장합니다. */
+/* @name InsertDashboardPromotionManualSegmentDefinition */
+INSERT INTO segment_definitions (
+  segment_id,
+  project_id,
+  campaign_id,
+  promotion_id,
+  segment_name,
+  source,
+  query_preview_id,
+  natural_language_query,
+  generated_sql,
+  rule_json,
+  profile_json,
+  sample_size,
+  total_eligible_user_count,
+  sample_ratio,
+  status
+)
+VALUES (
+  :segmentId,
+  :projectId,
+  :campaignId,
+  :promotionId,
+  :segmentName,
+  'manual_rule',
+  NULL,
+  :naturalLanguageQuery,
+  NULL,
+  :ruleJson,
+  :profileJson,
+  :sampleSize,
+  :totalEligibleUserCount,
+  :sampleRatio,
+  'active'
+)
+RETURNING
+  segment_id AS "segmentId",
+  campaign_id AS "campaignId",
+  promotion_id AS "promotionId",
+  segment_name AS "segmentName",
+  source,
+  query_preview_id AS "queryPreviewId",
+  natural_language_query AS "naturalLanguageQuery",
+  generated_sql AS "generatedSql",
+  rule_json AS "ruleJson",
+  profile_json AS "profileJson",
+  sample_size AS "sampleSize",
+  total_eligible_user_count AS "totalEligibleUserCount",
+  sample_ratio::float8 AS "sampleRatio",
+  status;
+
 /* 목적: AI가 제안한 프로모션 세그먼트 후보를 확정 전 상태로 조회합니다. */
 /* @name ListDashboardPromotionSegmentSuggestions */
 SELECT
@@ -625,9 +757,60 @@ FROM decided d
 JOIN segment_definitions sd
   ON sd.segment_id = d.segment_id;
 
-/* 목적: 수락된 추천 후보를 프로모션의 최종 타겟 세그먼트로 확정합니다. */
+/* 목적: 수락된 추천 후보와 사용자 추가 후보를 프로모션의 최종 타겟 세그먼트로 확정합니다. */
 /* @name ConfirmDashboardPromotionSegmentSuggestions */
-WITH confirmed AS (
+WITH accepted_suggestions AS (
+  SELECT
+    pss.analysis_id,
+    pss.project_id,
+    pss.campaign_id,
+    pss.promotion_id,
+    sd.segment_id,
+    sd.segment_name,
+    sd.rule_json,
+    sd.profile_json,
+    sd.sample_size,
+    pss.suggestion_id,
+    jsonb_build_object(
+      'source', sd.source,
+      'suggestion_id', pss.suggestion_id,
+      'score', pss.score_json,
+      'reason', pss.reason_json,
+      'sample_size', sd.sample_size,
+      'sample_ratio', sd.sample_ratio
+    ) AS data_evidence_json
+  FROM promotion_segment_suggestions pss
+  JOIN segment_definitions sd
+    ON sd.segment_id = pss.segment_id
+  WHERE pss.project_id = :projectId
+    AND pss.promotion_id = :promotionId
+    AND pss.status = 'accepted'
+),
+manual_segments AS (
+  SELECT
+    (:manualAnalysisId)::varchar AS analysis_id,
+    sd.project_id,
+    sd.campaign_id,
+    sd.promotion_id,
+    sd.segment_id,
+    sd.segment_name,
+    sd.rule_json,
+    sd.profile_json,
+    sd.sample_size,
+    NULL::varchar AS suggestion_id,
+    jsonb_build_object(
+      'source', sd.source,
+      'query_preview_id', sd.query_preview_id,
+      'sample_size', sd.sample_size,
+      'sample_ratio', sd.sample_ratio
+    ) AS data_evidence_json
+  FROM segment_definitions sd
+  WHERE sd.project_id = :projectId
+    AND sd.promotion_id = :promotionId
+    AND sd.source IN ('custom_chatkit', 'manual_rule')
+    AND sd.status = 'active'
+),
+confirmed AS (
   INSERT INTO promotion_target_segments (
     analysis_id,
     project_id,
@@ -647,35 +830,27 @@ WITH confirmed AS (
     confirmed_at
   )
   SELECT
-    pss.analysis_id,
-    pss.project_id,
-    pss.campaign_id,
-    pss.promotion_id,
-    sd.segment_id,
-    sd.segment_name,
-    sd.rule_json,
-    sd.profile_json,
+    selected.analysis_id,
+    selected.project_id,
+    selected.campaign_id,
+    selected.promotion_id,
+    selected.segment_id,
+    selected.segment_name,
+    selected.rule_json,
+    selected.profile_json,
     '{}'::jsonb,
-    jsonb_build_object(
-      'source', sd.source,
-      'suggestion_id', pss.suggestion_id,
-      'score', pss.score_json,
-      'reason', pss.reason_json,
-      'sample_size', sd.sample_size,
-      'sample_ratio', sd.sample_ratio
-    ),
-    sd.sample_size,
+    selected.data_evidence_json,
+    selected.sample_size,
     NULL,
     'planned',
-    pss.suggestion_id,
+    selected.suggestion_id,
     :confirmedBy,
     now()
-  FROM promotion_segment_suggestions pss
-  JOIN segment_definitions sd
-    ON sd.segment_id = pss.segment_id
-  WHERE pss.project_id = :projectId
-    AND pss.promotion_id = :promotionId
-    AND pss.status = 'accepted'
+  FROM (
+    SELECT * FROM accepted_suggestions
+    UNION ALL
+    SELECT * FROM manual_segments
+  ) selected
   ON CONFLICT (analysis_id, segment_id) DO UPDATE
   SET
     suggestion_id = EXCLUDED.suggestion_id,

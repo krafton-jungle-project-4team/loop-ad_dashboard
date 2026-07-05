@@ -1,8 +1,10 @@
 import type {
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
+  DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
   DashboardMain,
+  DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
@@ -34,21 +36,25 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
+import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, CheckCircle2, Plus, Target, Users, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   confirmDashboardPromotionSegmentSuggestions,
   createDashboardPromotion,
+  createDashboardPromotionScopedSegmentDefinition,
   deleteDashboardPromotion,
   decideDashboardPromotionSegmentSuggestion,
   fetchDashboardCampaignDetail,
+  fetchDashboardPromotionScopedSegmentDefinitions,
   fetchDashboardPromotionSegmentSuggestions
 } from "../api/dashboard-api.js";
 import { formatInteger } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
+  dashboardPromotionScopedSegmentDefinitionsQueryKey,
   dashboardPromotionSegmentSuggestionsQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
@@ -199,6 +205,35 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       selectedOpenPromotion?.promotion_id ?? ""
     )
   });
+  const scopedSegmentDefinitions = useQuery({
+    enabled: Boolean(selectedOpenPromotion?.promotion_id),
+    queryFn: ({ signal }) =>
+      fetchDashboardPromotionScopedSegmentDefinitions(
+        query,
+        selectedOpenPromotion?.promotion_id ?? "",
+        signal
+      ),
+    queryKey: dashboardPromotionScopedSegmentDefinitionsQueryKey(
+      query.projectId,
+      selectedOpenPromotion?.promotion_id ?? ""
+    )
+  });
+  const createScopedSegmentMutation = useMutation({
+    mutationFn: (form: PromotionSegmentCreateFormState) =>
+      createDashboardPromotionScopedSegmentDefinition(
+        query,
+        selectedOpenPromotion?.promotion_id ?? "",
+        promotionSegmentCreateFormToRequest(form)
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionScopedSegmentDefinitionsQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? ""
+        )
+      });
+    }
+  });
   const decideSuggestionMutation = useMutation({
     mutationFn: ({
       status,
@@ -216,6 +251,12 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? ""
+        )
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionScopedSegmentDefinitionsQueryKey(
           query.projectId,
           selectedOpenPromotion?.promotion_id ?? ""
         )
@@ -301,11 +342,19 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 decideIsError={decideSuggestionMutation.isError}
                 decideIsPending={decideSuggestionMutation.isPending}
                 onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
+                onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
                 onDecideSuggestion={(suggestionId, status) =>
                   decideSuggestionMutation.mutate({ status, suggestionId })
                 }
                 promotion={selectedOpenPromotion}
                 segments={selectedPromotionSegments}
+                scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
+                scopedSegmentsError={scopedSegmentDefinitions.error}
+                scopedSegmentsIsError={scopedSegmentDefinitions.isError}
+                scopedSegmentsIsLoading={scopedSegmentDefinitions.isLoading}
+                scopedSegmentCreateError={createScopedSegmentMutation.error}
+                scopedSegmentCreateIsError={createScopedSegmentMutation.isError}
+                scopedSegmentCreateIsPending={createScopedSegmentMutation.isPending}
                 suggestions={segmentSuggestions.data?.suggestions ?? []}
                 suggestionsError={segmentSuggestions.error}
                 suggestionsIsError={segmentSuggestions.isError}
@@ -477,8 +526,16 @@ function PromotionTabWorkspace({
   decideIsError,
   decideIsPending,
   onConfirmSuggestions,
+  onCreateScopedSegment,
   onDecideSuggestion,
   promotion,
+  scopedSegmentCreateError,
+  scopedSegmentCreateIsError,
+  scopedSegmentCreateIsPending,
+  scopedSegments,
+  scopedSegmentsError,
+  scopedSegmentsIsError,
+  scopedSegmentsIsLoading,
   segments,
   suggestions,
   suggestionsError,
@@ -492,8 +549,16 @@ function PromotionTabWorkspace({
   decideIsError: boolean;
   decideIsPending: boolean;
   onConfirmSuggestions: () => void;
+  onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   promotion: DashboardCampaignPromotion;
+  scopedSegmentCreateError: Error | null;
+  scopedSegmentCreateIsError: boolean;
+  scopedSegmentCreateIsPending: boolean;
+  scopedSegments: DashboardPromotionScopedSegmentDefinition[];
+  scopedSegmentsError: Error | null;
+  scopedSegmentsIsError: boolean;
+  scopedSegmentsIsLoading: boolean;
   segments: DashboardCampaignSegment[];
   suggestions: DashboardPromotionSegmentSuggestion[];
   suggestionsError: Error | null;
@@ -596,11 +661,19 @@ function PromotionTabWorkspace({
         confirmError={confirmError}
         confirmIsError={confirmIsError}
         confirmIsPending={confirmIsPending}
+        createScopedSegmentError={scopedSegmentCreateError}
+        createScopedSegmentIsError={scopedSegmentCreateIsError}
+        createScopedSegmentIsPending={scopedSegmentCreateIsPending}
         decideError={decideError}
         decideIsError={decideIsError}
         decideIsPending={decideIsPending}
         onConfirmSuggestions={onConfirmSuggestions}
+        onCreateScopedSegment={onCreateScopedSegment}
         onDecideSuggestion={onDecideSuggestion}
+        scopedSegments={scopedSegments}
+        scopedSegmentsError={scopedSegmentsError}
+        scopedSegmentsIsError={scopedSegmentsIsError}
+        scopedSegmentsIsLoading={scopedSegmentsIsLoading}
         suggestions={suggestions}
         suggestionsError={suggestionsError}
         suggestionsIsError={suggestionsIsError}
@@ -614,11 +687,19 @@ function PromotionSegmentSuggestionPanel({
   confirmError,
   confirmIsError,
   confirmIsPending,
+  createScopedSegmentError,
+  createScopedSegmentIsError,
+  createScopedSegmentIsPending,
   decideError,
   decideIsError,
   decideIsPending,
   onConfirmSuggestions,
+  onCreateScopedSegment,
   onDecideSuggestion,
+  scopedSegments,
+  scopedSegmentsError,
+  scopedSegmentsIsError,
+  scopedSegmentsIsLoading,
   suggestions,
   suggestionsError,
   suggestionsIsError,
@@ -627,19 +708,29 @@ function PromotionSegmentSuggestionPanel({
   confirmError: Error | null;
   confirmIsError: boolean;
   confirmIsPending: boolean;
+  createScopedSegmentError: Error | null;
+  createScopedSegmentIsError: boolean;
+  createScopedSegmentIsPending: boolean;
   decideError: Error | null;
   decideIsError: boolean;
   decideIsPending: boolean;
   onConfirmSuggestions: () => void;
+  onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  scopedSegments: DashboardPromotionScopedSegmentDefinition[];
+  scopedSegmentsError: Error | null;
+  scopedSegmentsIsError: boolean;
+  scopedSegmentsIsLoading: boolean;
   suggestions: DashboardPromotionSegmentSuggestion[];
   suggestionsError: Error | null;
   suggestionsIsError: boolean;
   suggestionsIsLoading: boolean;
 }) {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const acceptedCount = suggestions.filter(
     (suggestion) => suggestion.suggestion_status === "accepted"
   ).length;
+  const confirmableCount = acceptedCount + scopedSegments.length;
 
   return (
     <Card className="shadow-none">
@@ -647,17 +738,23 @@ function PromotionSegmentSuggestionPanel({
         <div className="grid gap-1">
           <CardTitle>추천 세그먼트 후보</CardTitle>
           <CardDescription>
-            AI가 제안한 후보입니다. 수락한 후보만 확정 시 최종 타겟 세그먼트로 저장됩니다.
+            AI가 제안한 후보와 직접 추가한 후보를 확인합니다. 확정 시 최종 타겟 세그먼트로 저장됩니다.
           </CardDescription>
         </div>
-        <Button
-          className="bg-[#3927d9]"
-          disabled={acceptedCount === 0 || confirmIsPending}
-          onClick={onConfirmSuggestions}
-          type="button"
-        >
-          {confirmIsPending ? "확정 중" : `선택 후보 확정 (${acceptedCount})`}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setIsCreateDialogOpen(true)} type="button" variant="outline">
+            <Plus className="mr-2 size-4" />
+            직접 추가
+          </Button>
+          <Button
+            className="bg-[#3927d9]"
+            disabled={confirmableCount === 0 || confirmIsPending}
+            onClick={onConfirmSuggestions}
+            type="button"
+          >
+            {confirmIsPending ? "확정 중" : `후보 확정 (${confirmableCount})`}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-3">
         {suggestionsIsError ? (
@@ -678,9 +775,56 @@ function PromotionSegmentSuggestionPanel({
             <AlertDescription>{mutationErrorMessage(confirmError)}</AlertDescription>
           </Alert>
         ) : null}
+        {scopedSegmentsIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>직접 추가 세그먼트를 불러오지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(scopedSegmentsError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {createScopedSegmentIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>직접 추가 세그먼트를 저장하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(createScopedSegmentError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {scopedSegmentsIsLoading ? (
+          <EmptyState message="직접 추가 세그먼트를 불러오는 중입니다." />
+        ) : null}
+        {scopedSegments.length > 0 ? (
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">직접 추가 세그먼트 후보</h3>
+              <Badge variant="secondary">{formatInteger(scopedSegments.length)}</Badge>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {scopedSegments.map((segment) => (
+                <div className="grid gap-3 rounded-md border bg-[#f7fbff] p-4" key={segment.segment_id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="grid gap-1">
+                      <div className="text-xs font-semibold text-[#3927d9]">{segment.source}</div>
+                      <h3 className="text-base font-semibold">{segment.segment_name}</h3>
+                      <p className="text-xs text-muted-foreground">{segment.segment_id}</p>
+                    </div>
+                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                  </div>
+                  <div className="grid gap-2 text-sm text-muted-foreground">
+                    <div>
+                      표본 {formatInteger(segment.sample_size)}명 · 비율{" "}
+                      {formatInteger(segment.sample_ratio * 100)}%
+                    </div>
+                    <div className="line-clamp-2">
+                      {(segment.natural_language_query ?? formatJsonObject(segment.rule_json)) ||
+                        "조건 설명이 비어 있습니다."}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 세그먼트를 불러오는 중입니다." /> : null}
-        {!suggestionsIsLoading && suggestions.length === 0 ? (
-          <EmptyState message="표시할 추천 세그먼트 후보가 없습니다." />
+        {!suggestionsIsLoading && suggestions.length === 0 && scopedSegments.length === 0 ? (
+          <EmptyState message="표시할 세그먼트 후보가 없습니다." />
         ) : null}
         {suggestions.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -742,8 +886,148 @@ function PromotionSegmentSuggestionPanel({
             })}
           </div>
         ) : null}
+        <PromotionSegmentCreateDialog
+          createIsPending={createScopedSegmentIsPending}
+          onCreate={onCreateScopedSegment}
+          onOpenChange={setIsCreateDialogOpen}
+          open={isCreateDialogOpen}
+        />
       </CardContent>
     </Card>
+  );
+}
+
+function PromotionSegmentCreateDialog({
+  createIsPending,
+  onCreate,
+  onOpenChange,
+  open
+}: {
+  createIsPending: boolean;
+  onCreate: (form: PromotionSegmentCreateFormState) => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const [form, setForm] = useState<PromotionSegmentCreateFormState>(
+    createEmptyPromotionSegmentFormState()
+  );
+  const [jsonError, setJsonError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setForm(createEmptyPromotionSegmentFormState());
+      setJsonError("");
+    }
+  }, [open]);
+
+  const canSubmit = Boolean(form.segmentName.trim()) && !createIsPending;
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>프로모션 세그먼트 후보 추가</DialogTitle>
+          <DialogDescription>
+            현재 프로모션에 종속되는 세그먼트 후보를 저장합니다. 최종 타겟 반영은 후보 확정
+            버튼에서 처리합니다.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          {jsonError ? (
+            <Alert variant="destructive">
+              <AlertTitle>조건 JSON을 확인해주세요</AlertTitle>
+              <AlertDescription>{jsonError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="promotion-segment-name">세그먼트 이름</FieldLabel>
+            <Input
+              id="promotion-segment-name"
+              onChange={(event) => setForm({ ...form, segmentName: event.target.value })}
+              placeholder="VIP 장기 미구매 고객"
+              value={form.segmentName}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="promotion-segment-natural-query">생성 이유/조건 설명</FieldLabel>
+            <Textarea
+              id="promotion-segment-natural-query"
+              onChange={(event) =>
+                setForm({ ...form, naturalLanguageQuery: event.target.value })
+              }
+              placeholder="최근 30일 내 상세 조회는 했지만 예약 전환이 없는 고객"
+              value={form.naturalLanguageQuery}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="promotion-segment-rule-json">조건 JSON</FieldLabel>
+            <Textarea
+              className="font-mono text-xs"
+              id="promotion-segment-rule-json"
+              onChange={(event) => setForm({ ...form, ruleJsonText: event.target.value })}
+              value={form.ruleJsonText}
+            />
+          </Field>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field>
+              <FieldLabel htmlFor="promotion-segment-sample-size">샘플 수</FieldLabel>
+              <Input
+                id="promotion-segment-sample-size"
+                min="0"
+                onChange={(event) => setForm({ ...form, sampleSize: event.target.value })}
+                type="number"
+                value={form.sampleSize}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="promotion-segment-eligible-size">모수</FieldLabel>
+              <Input
+                id="promotion-segment-eligible-size"
+                min="0"
+                onChange={(event) =>
+                  setForm({ ...form, totalEligibleUserCount: event.target.value })
+                }
+                type="number"
+                value={form.totalEligibleUserCount}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="promotion-segment-sample-ratio">샘플 비율</FieldLabel>
+              <Input
+                id="promotion-segment-sample-ratio"
+                min="0"
+                onChange={(event) => setForm({ ...form, sampleRatio: event.target.value })}
+                step="0.001"
+                type="number"
+                value={form.sampleRatio}
+              />
+            </Field>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
+            취소
+          </Button>
+          <Button
+            className="bg-[#3927d9]"
+            disabled={!canSubmit}
+            onClick={() => {
+              const ruleJson = parseJsonObject(form.ruleJsonText);
+              if (!ruleJson) {
+                setJsonError("객체 형태의 JSON만 입력할 수 있습니다.");
+                return;
+              }
+              setJsonError("");
+              onCreate({ ...form, ruleJsonText: JSON.stringify(ruleJson) });
+              onOpenChange(false);
+            }}
+            type="button"
+          >
+            {createIsPending ? "저장 중" : "후보 저장"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -981,6 +1265,47 @@ function promotionCreateFormToRequest(
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     status: "draft",
     target_audience: form.targetAudience.trim() || "existing_users"
+  };
+}
+
+type PromotionSegmentCreateFormState = {
+  naturalLanguageQuery: string;
+  ruleJsonText: string;
+  sampleRatio: string;
+  sampleSize: string;
+  segmentName: string;
+  totalEligibleUserCount: string;
+};
+
+function createEmptyPromotionSegmentFormState(): PromotionSegmentCreateFormState {
+  return {
+    naturalLanguageQuery: "",
+    ruleJsonText: JSON.stringify({ source: "manual_rule" }, null, 2),
+    sampleRatio: "0",
+    sampleSize: "0",
+    segmentName: "",
+    totalEligibleUserCount: "0"
+  };
+}
+
+function promotionSegmentCreateFormToRequest(
+  form: PromotionSegmentCreateFormState
+): DashboardCreatePromotionSegmentDefinitionRequest {
+  const sampleSize = Math.trunc(nonnegativeNumber(form.sampleSize));
+  const totalEligibleUserCount = Math.trunc(nonnegativeNumber(form.totalEligibleUserCount));
+
+  return {
+    natural_language_query: form.naturalLanguageQuery.trim() || null,
+    profile_json: {
+      source: "dashboard_manual",
+      total_eligible_user_count: totalEligibleUserCount
+    },
+    rule_json: parseJsonObject(form.ruleJsonText) ?? {},
+    sample_ratio: nonnegativeNumber(form.sampleRatio),
+    sample_size: sampleSize,
+    segment_name: form.segmentName.trim(),
+    source: "manual_rule",
+    total_eligible_user_count: totalEligibleUserCount
   };
 }
 
@@ -1239,6 +1564,17 @@ function formatJsonValue(value: unknown): string {
     return Object.keys(value).join(", ");
   }
   return "";
+}
+
+function parseJsonObject(value: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function mutationErrorMessage(error: unknown) {
