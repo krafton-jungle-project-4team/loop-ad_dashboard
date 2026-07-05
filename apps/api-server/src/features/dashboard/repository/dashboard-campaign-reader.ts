@@ -68,6 +68,8 @@ import {
   listDashboardPromotionSegmentSuggestions,
   listDashboardPromotionScopedSegmentDefinitions,
   listDashboardProjects,
+  listDashboardCampaignAdExperiments,
+  listDashboardCampaignContentCandidates,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -100,6 +102,8 @@ import {
   type IListDashboardPromotionSegmentSuggestionsResult,
   type IListDashboardProjectsResult,
   type IRejectDashboardContentCandidateResult,
+  type IListDashboardCampaignAdExperimentsResult,
+  type IListDashboardCampaignContentCandidatesResult,
   type IListDashboardCampaignExperimentMetricsResult,
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
@@ -659,19 +663,28 @@ export class DashboardCampaignReader {
     projectId: string,
     campaignId: string
   ): Promise<Omit<DashboardCampaignDetail, "realtime_metrics">> {
-    const [campaign, promotions, segments, experimentMetrics] = await Promise.all([
+    const [
+      campaign,
+      promotions,
+      segments,
+      adExperiments,
+      contentCandidates,
+      experimentMetrics
+    ] = await Promise.all([
       this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single(),
       this.db.query(listDashboardCampaignPromotions, { campaignId, projectId }).multiple(),
       this.db.query(listDashboardCampaignSegments, { campaignId, projectId }).multiple(),
-      this.db
-        .query(listDashboardCampaignExperimentMetrics, { campaignId, projectId })
-        .multiple()
+      this.db.query(listDashboardCampaignAdExperiments, { campaignId, projectId }).multiple(),
+      this.db.query(listDashboardCampaignContentCandidates, { campaignId, projectId }).multiple(),
+      this.db.query(listDashboardCampaignExperimentMetrics, { campaignId, projectId }).multiple()
     ]);
 
     return {
       campaign: toCampaignSummary(campaign),
       promotions: promotions.map(toCampaignPromotion),
       segments: segments.map(toCampaignSegment),
+      ad_experiments: adExperiments.map(toCampaignAdExperiment),
+      content_candidates: contentCandidates.map(toContentCandidate),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
   }
@@ -953,7 +966,20 @@ function toCampaignExperimentMetric(
   };
 }
 
+function toCampaignAdExperiment(row: IListDashboardCampaignAdExperimentsResult): DashboardAdExperiment {
+  return toAdExperiment(row);
+}
+
 function toSegmentAdExperiment(row: IListDashboardSegmentAdExperimentsResult): DashboardAdExperiment {
+  return toAdExperiment(row);
+}
+
+function toAdExperiment(
+  row:
+    | IListDashboardCampaignAdExperimentsResult
+    | IListDashboardSegmentAdExperimentsResult
+    | IStartDashboardAdExperimentResult
+): DashboardAdExperiment {
   return {
     ad_experiment_id: row.adExperimentId,
     channel: row.channel,
@@ -962,6 +988,7 @@ function toSegmentAdExperiment(row: IListDashboardSegmentAdExperimentsResult): D
     goal_basis: row.goalBasis,
     goal_metric: row.goalMetric,
     goal_target_value: row.goalTargetValue ?? 0,
+    assignment_count: "assignmentCount" in row ? countValue(row.assignmentCount) : 0,
     loop_count: row.loopCount,
     promotion_id: row.promotionId,
     promotion_run_id: row.promotionRunId,
@@ -971,7 +998,7 @@ function toSegmentAdExperiment(row: IListDashboardSegmentAdExperimentsResult): D
 }
 
 function toContentCandidate(
-  row: IListDashboardSegmentContentCandidatesResult
+  row: IListDashboardCampaignContentCandidatesResult | IListDashboardSegmentContentCandidatesResult
 ): DashboardContentCandidate {
   return {
     content_id: row.contentId,
@@ -1000,22 +1027,6 @@ function toContentCandidate(
   };
 }
 
-function toAdExperiment(row: IStartDashboardAdExperimentResult): DashboardAdExperiment {
-  return {
-    ad_experiment_id: row.adExperimentId,
-    channel: row.channel,
-    content_id: row.contentId,
-    content_option_id: row.contentOptionId,
-    goal_basis: row.goalBasis,
-    goal_metric: row.goalMetric,
-    goal_target_value: row.goalTargetValue ?? 0,
-    loop_count: row.loopCount,
-    promotion_id: row.promotionId,
-    promotion_run_id: row.promotionRunId,
-    segment_id: row.segmentId,
-    status: row.status
-  };
-}
 
 function toRejectContentCandidateResult(
   row: IRejectDashboardContentCandidateResult

@@ -1,8 +1,10 @@
 import type {
+  DashboardAdExperiment,
   DashboardCampaignDetail,
   DashboardCampaignExperimentMetric,
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
+  DashboardContentCandidate,
   DashboardMain
 } from "@loopad/shared";
 import { Badge } from "@loopad/ui/shadcn/badge";
@@ -44,15 +46,18 @@ type ExperimentRow = {
   actualValue: number | null;
   contentId: string | null;
   createdAt: string | null;
+  evaluationStatus: string | null;
   experimentId: string;
   feedback: string | null;
+  experiment: DashboardAdExperiment | null;
+  contentCandidate: DashboardContentCandidate | null;
+  experimentStatus: string;
   latestMetric: DashboardCampaignExperimentMetric | null;
   metrics: DashboardCampaignExperimentMetric[];
   nextLoopRequired: boolean;
   promotion: DashboardCampaignPromotion | null;
   sampleSize: number;
   segment: DashboardCampaignSegment | null;
-  status: string;
   targetValue: number | null;
 };
 
@@ -147,15 +152,20 @@ function ExperimentDashboardContent({
   const [promotionFilter, setPromotionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const rows = useMemo(() => (detail ? buildExperimentRows(detail) : []), [detail]);
-  const statusOptions = uniqueValues(rows.map((row) => row.status));
+  const statusOptions = uniqueValues(rows.map((row) => row.experimentStatus));
   const filteredRows = rows.filter(
     (row) =>
       (promotionFilter === "all" || row.promotion?.promotion_id === promotionFilter) &&
-      (statusFilter === "all" || row.status === statusFilter)
+      (statusFilter === "all" || row.experimentStatus === statusFilter)
   );
   const nextLoopCount = rows.filter((row) => row.nextLoopRequired).length;
-  const insufficientCount = rows.filter((row) => row.status === "insufficient_data").length;
-  const totalSampleSize = rows.reduce((sum, row) => sum + row.sampleSize, 0);
+  const insufficientCount = rows.filter(
+    (row) => row.evaluationStatus === "insufficient_data"
+  ).length;
+  const totalAssignmentCount = rows.reduce(
+    (sum, row) => sum + (row.experiment?.assignment_count ?? 0),
+    0
+  );
 
   if (!detail) {
     return (
@@ -174,7 +184,7 @@ function ExperimentDashboardContent({
         <ExperimentSummaryCard label="프로모션" value={formatInteger(detail.promotions.length)} />
         <ExperimentSummaryCard label="세그먼트" value={formatInteger(detail.segments.length)} />
         <ExperimentSummaryCard label="실험" value={formatInteger(rows.length)} />
-        <ExperimentSummaryCard label="표본 합계" value={formatInteger(totalSampleSize)} />
+        <ExperimentSummaryCard label="배정 합계" value={formatInteger(totalAssignmentCount)} />
         <ExperimentSummaryCard
           label="재실험 필요"
           value={`${formatInteger(nextLoopCount)} / 부족 ${formatInteger(insufficientCount)}`}
@@ -206,7 +216,7 @@ function ExperimentDashboardContent({
             </Select>
           </Field>
           <Field className="w-full md:w-44">
-            <FieldLabel>상태</FieldLabel>
+            <FieldLabel>실험 상태</FieldLabel>
             <Select onValueChange={setStatusFilter} value={statusFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -238,66 +248,92 @@ function ExperimentDashboardContent({
 
 function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>실험</TableHead>
-          <TableHead>프로모션</TableHead>
-          <TableHead>세그먼트</TableHead>
-          <TableHead className="text-right">목표 / 실제</TableHead>
-          <TableHead className="text-right">표본</TableHead>
-          <TableHead>상태</TableHead>
-          <TableHead>업데이트</TableHead>
-          <TableHead>피드백</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <TableRow key={row.experimentId}>
-            <TableCell>
-              <div className="grid min-w-[180px] gap-1">
-                <span className="font-medium">{row.experimentId}</span>
-                <span className="text-xs text-muted-foreground">{row.contentId ?? "-"}</span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="grid min-w-[180px] gap-1">
-                <span>{row.promotion?.channel ?? "-"}</span>
-                <span className="text-xs text-muted-foreground">
-                  {row.promotion?.promotion_id ?? row.latestMetric?.promotion_id ?? "-"}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="grid min-w-[200px] gap-1">
-                <span className="font-medium">{row.segment?.segment_name ?? "-"}</span>
-                <span className="text-xs text-muted-foreground">
-                  {row.segment?.segment_id ?? row.latestMetric?.segment_id ?? "-"}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatGoalValue(row.targetValue)} / {formatGoalValue(row.actualValue)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatInteger(row.sampleSize)}
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap gap-1.5">
-                <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                {row.nextLoopRequired ? <Badge variant="outline">다음 루프</Badge> : null}
-              </div>
-            </TableCell>
-            <TableCell>{formatDateTime(row.createdAt)}</TableCell>
-            <TableCell>
-              <div className="line-clamp-2 min-w-[220px] text-sm">
-                {row.feedback ?? "-"}
-              </div>
-            </TableCell>
+    <div className="overflow-x-auto">
+      <Table className="min-w-[1180px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead>실험</TableHead>
+            <TableHead>프로모션</TableHead>
+            <TableHead>세그먼트</TableHead>
+            <TableHead>콘텐츠</TableHead>
+            <TableHead className="text-right">목표 / 실제</TableHead>
+            <TableHead className="text-right">배정 / 평가 표본</TableHead>
+            <TableHead>실험 상태</TableHead>
+            <TableHead>평가 상태</TableHead>
+            <TableHead>업데이트</TableHead>
+            <TableHead>피드백</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.experimentId}>
+              <TableCell>
+                <div className="grid min-w-[180px] gap-1">
+                  <span className="font-medium">{row.experimentId}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {row.experiment?.promotion_run_id ?? row.latestMetric?.promotion_run_id ?? "-"}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="grid min-w-[180px] gap-1">
+                  <span>{row.promotion?.channel ?? row.experiment?.channel ?? "-"}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {row.promotion?.promotion_id ??
+                      row.experiment?.promotion_id ??
+                      row.latestMetric?.promotion_id ??
+                      "-"}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="grid min-w-[200px] gap-1">
+                  <span className="font-medium">{row.segment?.segment_name ?? "-"}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {row.segment?.segment_id ??
+                      row.experiment?.segment_id ??
+                      row.latestMetric?.segment_id ??
+                      "-"}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="grid min-w-[220px] gap-1">
+                  <span className="font-medium">{contentCandidateTitle(row.contentCandidate)}</span>
+                  <span className="text-xs text-muted-foreground">{row.contentId ?? "-"}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatGoalValue(row.targetValue)} / {formatGoalValue(row.actualValue)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatInteger(row.experiment?.assignment_count ?? 0)} /{" "}
+                {row.latestMetric ? formatInteger(row.sampleSize) : "-"}
+              </TableCell>
+              <TableCell>
+                <Badge variant={statusBadgeVariant(row.experimentStatus)}>
+                  {row.experimentStatus}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant={statusBadgeVariant(row.evaluationStatus ?? "not_evaluated")}>
+                    {row.evaluationStatus ?? "not_evaluated"}
+                  </Badge>
+                  {row.nextLoopRequired ? <Badge variant="outline">다음 루프</Badge> : null}
+                </div>
+              </TableCell>
+              <TableCell>{formatDateTime(row.createdAt)}</TableCell>
+              <TableCell>
+                <div className="line-clamp-2 min-w-[220px] text-sm">
+                  {row.feedback ?? "-"}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -319,6 +355,12 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
   const segmentsByKey = new Map(
     detail.segments.map((segment) => [segmentKey(segment.promotion_id, segment.segment_id), segment])
   );
+  const experimentsById = new Map(
+    detail.ad_experiments.map((experiment) => [experiment.ad_experiment_id, experiment])
+  );
+  const contentCandidatesById = new Map(
+    detail.content_candidates.map((candidate) => [candidate.content_id, candidate])
+  );
   const groups = new Map<string, DashboardCampaignExperimentMetric[]>();
 
   for (const metric of detail.experiment_metrics) {
@@ -326,9 +368,9 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
     groups.set(key, [...(groups.get(key) ?? []), metric]);
   }
 
-  for (const segment of detail.segments) {
-    if (segment.ad_experiment_id && !groups.has(segment.ad_experiment_id)) {
-      groups.set(segment.ad_experiment_id, []);
+  for (const experiment of detail.ad_experiments) {
+    if (!groups.has(experiment.ad_experiment_id)) {
+      groups.set(experiment.ad_experiment_id, []);
     }
   }
 
@@ -336,32 +378,67 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
     .map(([experimentId, metrics]) => {
       const sortedMetrics = sortMetricsByNewest(metrics);
       const latestMetric = sortedMetrics[0] ?? null;
+      const experiment = experimentsById.get(experimentId) ?? null;
+      const contentCandidate = experiment
+        ? contentCandidatesById.get(experiment.content_id) ?? null
+        : latestMetric?.content_id
+          ? contentCandidatesById.get(latestMetric.content_id) ?? null
+          : null;
       const segment =
         findSegmentForExperiment(detail.segments, experimentId, latestMetric) ??
+        (experiment
+          ? segmentsByKey.get(segmentKey(experiment.promotion_id, experiment.segment_id)) ?? null
+          : null) ??
         (latestMetric?.segment_id
           ? segmentsByKey.get(segmentKey(latestMetric.promotion_id, latestMetric.segment_id)) ?? null
           : null);
-      const promotionId = latestMetric?.promotion_id ?? segment?.promotion_id ?? "";
+      const promotionId =
+        latestMetric?.promotion_id ?? experiment?.promotion_id ?? segment?.promotion_id ?? "";
       const promotion = promotionsById.get(promotionId) ?? null;
-      const status = latestMetric?.status ?? segment?.status ?? promotion?.status ?? "created";
+      const sampleSize =
+        sortedMetrics.length > 0
+          ? sortedMetrics.reduce((sum, metric) => sum + metric.sample_size, 0)
+          : 0;
 
       return {
-        actualValue: latestMetric?.actual_value ?? segment?.latest_actual_value ?? null,
-        contentId: latestMetric?.content_option_id ?? latestMetric?.content_id ?? null,
+        actualValue: latestMetric?.actual_value ?? null,
+        contentId:
+          latestMetric?.content_option_id ??
+          latestMetric?.content_id ??
+          experiment?.content_option_id ??
+          experiment?.content_id ??
+          null,
+        contentCandidate,
         createdAt: latestMetric?.created_at ?? null,
+        evaluationStatus: latestMetric?.status ?? null,
         experimentId,
+        experiment,
+        experimentStatus: experiment?.status ?? "missing_experiment",
         feedback: latestMetric?.feedback ?? segment?.natural_language_query ?? null,
         latestMetric,
         metrics: sortedMetrics,
         nextLoopRequired: sortedMetrics.some((metric) => metric.next_loop_required),
         promotion,
-        sampleSize: sortedMetrics.reduce((sum, metric) => sum + metric.sample_size, 0),
+        sampleSize,
         segment,
-        status,
-        targetValue: latestMetric?.target_value ?? null
+        targetValue: latestMetric?.target_value ?? experiment?.goal_target_value ?? null
       };
     })
-    .sort((a, b) => metricTimestamp(b.latestMetric) - metricTimestamp(a.latestMetric));
+    .sort(compareExperimentRows);
+}
+
+function compareExperimentRows(left: ExperimentRow, right: ExperimentRow) {
+  const timestampDelta = metricTimestamp(right.latestMetric) - metricTimestamp(left.latestMetric);
+  if (timestampDelta !== 0) {
+    return timestampDelta;
+  }
+
+  const loopDelta = (right.experiment?.loop_count ?? 0) - (left.experiment?.loop_count ?? 0);
+  if (loopDelta !== 0) {
+    return loopDelta;
+  }
+
+  return left.experimentId.localeCompare(right.experimentId);
 }
 
 function findSegmentForExperiment(
@@ -406,6 +483,16 @@ function metricTimestamp(metric: DashboardCampaignExperimentMetric | null) {
   }
   const timestamp = new Date(metric.created_at).getTime();
   return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function contentCandidateTitle(candidate: DashboardContentCandidate | null) {
+  return (
+    candidate?.title ??
+    candidate?.subject ??
+    candidate?.message ??
+    candidate?.content_option_id ??
+    "-"
+  );
 }
 
 function uniqueValues(values: string[]) {

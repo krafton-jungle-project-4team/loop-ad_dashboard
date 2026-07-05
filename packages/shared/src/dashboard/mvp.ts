@@ -350,6 +350,7 @@ export const DashboardAdExperimentSchema = z.object({
   goal_metric: z.string(),
   goal_target_value: z.number().nonnegative(),
   goal_basis: z.string(),
+  assignment_count: CountSchema.default(0),
   status: z.string()
 });
 export type DashboardAdExperiment = z.infer<typeof DashboardAdExperimentSchema>;
@@ -615,6 +616,8 @@ export const DashboardCampaignDetailSchema = z.object({
   campaign: DashboardCampaignSummarySchema,
   promotions: z.array(DashboardCampaignPromotionSchema),
   segments: z.array(DashboardCampaignSegmentSchema),
+  ad_experiments: z.array(DashboardAdExperimentSchema),
+  content_candidates: z.array(DashboardContentCandidateSchema),
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
   realtime_metrics: DashboardCampaignRealtimeMetricsSchema
 });
