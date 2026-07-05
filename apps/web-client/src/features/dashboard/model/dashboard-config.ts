@@ -9,8 +9,10 @@ export const dashboardConfig = DashboardConfigSchema.parse({
   apiBaseUrl: normalizeApiBaseUrl(
     requiredEnv("VITE_LOOPAD_API_BASE_URL", import.meta.env.VITE_LOOPAD_API_BASE_URL)
   ),
-  chatKitDomainKey:
-    import.meta.env.VITE_LOOPAD_CHATKIT_DOMAIN_KEY?.trim() || "domain_pk_localhost_dev"
+  chatKitDomainKey: requiredEnv(
+    "VITE_LOOPAD_CHATKIT_DOMAIN_KEY",
+    import.meta.env.VITE_LOOPAD_CHATKIT_DOMAIN_KEY
+  )
 });
 
 function requiredEnv(key: string, value: string | undefined) {

@@ -1,6 +1,7 @@
 import {
   Activity,
   DatabaseZap,
+  FlaskConical,
   ListFilter,
   Megaphone,
   Workflow,
@@ -40,6 +41,12 @@ export const dashboardTabs = [
     pathSegment: "campaign-promotions"
   },
   {
+    value: "experiments",
+    label: "실험",
+    icon: FlaskConical,
+    pathSegment: "experiments"
+  },
+  {
     value: "campaign-metrics",
     label: "캠페인 지표",
     icon: Megaphone,
@@ -77,6 +84,12 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     value: "campaign-promotions",
     pathSegment: "campaign-promotions",
     icon: Megaphone
+  },
+  {
+    label: "실험",
+    value: "experiments",
+    pathSegment: "experiments",
+    icon: FlaskConical
   },
   {
     label: "캠페인 지표",
