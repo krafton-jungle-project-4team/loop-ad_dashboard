@@ -48,7 +48,8 @@ import {
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
-  DashboardUpdatePromotionSegmentRequestSchema
+  DashboardUpdatePromotionSegmentRequestSchema,
+  PromotionRunDispatchResponseSchema
 } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
@@ -97,7 +98,8 @@ import type {
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
-  DashboardUpdatePromotionSegmentRequest
+  DashboardUpdatePromotionSegmentRequest,
+  PromotionRunDispatchResponse
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -762,6 +764,27 @@ export async function rejectDashboardContentCandidate(
   }
 
   return createApiSuccessResponseSchema(DashboardRejectContentCandidateResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function dispatchDashboardPromotionRun(
+  promotionRunId: string
+): Promise<PromotionRunDispatchResponse> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/ad/promotion-runs/${encodeURIComponent(promotionRunId)}/dispatch`,
+    window.location.origin
+  );
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(PromotionRunDispatchResponseSchema).parse(
     await response.json()
   ).data;
 }

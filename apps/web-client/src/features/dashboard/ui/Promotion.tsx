@@ -9,7 +9,8 @@ import type {
   DashboardSegmentDetail,
   DashboardPromotionSegmentSuggestion,
   DashboardStartPromotionAnalysisResult,
-  DashboardStartPromotionGenerationResult
+  DashboardStartPromotionGenerationResult,
+  PromotionRunDispatchResponse
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
@@ -48,20 +49,33 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, CheckCircle2, ImageIcon, Plus, Target, Trash2, Users, X } from "lucide-react";
+import {
+  BarChart3,
+  CheckCircle2,
+  ImageIcon,
+  Plus,
+  Send,
+  Target,
+  Trash2,
+  Users,
+  X
+} from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   confirmDashboardPromotionSegmentSuggestions,
   archiveDashboardPromotionScopedSegmentDefinition,
+  approveDashboardContentCandidate,
   createDashboardPromotion,
   createDashboardPromotionScopedSegmentDefinition,
   deleteDashboardPromotionSegment,
   deleteDashboardPromotion,
   decideDashboardPromotionSegmentSuggestion,
+  dispatchDashboardPromotionRun,
   fetchDashboardCampaignDetail,
   fetchDashboardSegmentDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
   fetchDashboardPromotionSegmentSuggestions,
+  rejectDashboardContentCandidate,
   startDashboardPromotionAnalysis,
   startDashboardPromotionGeneration
 } from "../api/dashboard-api.js";
@@ -326,6 +340,66 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       });
     }
   });
+  const approveContentCandidateMutation = useMutation({
+    mutationFn: ({
+      contentId,
+      promotionId,
+      segmentId
+    }: {
+      contentId: string;
+      promotionId: string;
+      segmentId: string;
+    }) => approveDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
+    onSuccess: async (experiment) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          experiment.promotion_id,
+          experiment.segment_id
+        )
+      });
+    }
+  });
+  const rejectContentCandidateMutation = useMutation({
+    mutationFn: ({
+      contentId,
+      promotionId,
+      segmentId
+    }: {
+      contentId: string;
+      promotionId: string;
+      segmentId: string;
+    }) => rejectDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          result.promotion_id,
+          result.segment_id
+        )
+      });
+    }
+  });
+  const dispatchPromotionRunMutation = useMutation({
+    mutationFn: (promotionRunId: string) => dispatchDashboardPromotionRun(promotionRunId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? "",
+          selectedPromotionSegmentId
+        )
+      });
+    }
+  });
   const decideSuggestionMutation = useMutation({
     mutationFn: ({
       status,
@@ -494,6 +568,9 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
             ) : null}
             {selectedOpenPromotion ? (
               <PromotionTabWorkspace
+                approveContentCandidateError={approveContentCandidateMutation.error}
+                approveContentCandidateIsError={approveContentCandidateMutation.isError}
+                approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
                 confirmError={confirmSuggestionsMutation.error}
                 confirmIsError={confirmSuggestionsMutation.isError}
                 confirmIsPending={confirmSuggestionsMutation.isPending}
@@ -503,6 +580,10 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 deleteConfirmedSegmentError={deleteConfirmedSegmentMutation.error}
                 deleteConfirmedSegmentIsError={deleteConfirmedSegmentMutation.isError}
                 deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}
+                dispatchPromotionRunError={dispatchPromotionRunMutation.error}
+                dispatchPromotionRunIsError={dispatchPromotionRunMutation.isError}
+                dispatchPromotionRunIsPending={dispatchPromotionRunMutation.isPending}
+                dispatchPromotionRunResult={dispatchPromotionRunMutation.data ?? null}
                 archiveScopedSegmentError={archiveScopedSegmentMutation.error}
                 archiveScopedSegmentIsError={archiveScopedSegmentMutation.isError}
                 archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
@@ -522,6 +603,15 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 }
                 onDeleteConfirmedSegment={(promotionId, segmentId) =>
                   deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
+                }
+                onApproveContentCandidate={(promotionId, segmentId, contentId) =>
+                  approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+                }
+                onDispatchPromotionRun={(promotionRunId) =>
+                  dispatchPromotionRunMutation.mutate(promotionRunId)
+                }
+                onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+                  rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
                 }
                 onStartAnalysis={() => startAnalysisMutation.mutate()}
                 onStartGeneration={(analysisId) => {
@@ -544,6 +634,9 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 promotionGenerationError={startGenerationMutation.error}
                 promotionGenerationIsError={startGenerationMutation.isError}
                 promotionGenerationIsPending={startGenerationMutation.isPending}
+                rejectContentCandidateError={rejectContentCandidateMutation.error}
+                rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
+                rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
                 segments={selectedPromotionSegments}
                 scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
                 scopedSegmentsError={scopedSegmentDefinitions.error}
@@ -725,6 +818,9 @@ function PromotionTabWorkspace({
   archiveScopedSegmentError,
   archiveScopedSegmentIsError,
   archiveScopedSegmentIsPending,
+  approveContentCandidateError,
+  approveContentCandidateIsError,
+  approveContentCandidateIsPending,
   confirmError,
   confirmIsError,
   confirmIsPending,
@@ -734,11 +830,18 @@ function PromotionTabWorkspace({
   deleteConfirmedSegmentError,
   deleteConfirmedSegmentIsError,
   deleteConfirmedSegmentIsPending,
+  dispatchPromotionRunError,
+  dispatchPromotionRunIsError,
+  dispatchPromotionRunIsPending,
+  dispatchPromotionRunResult,
   onArchiveScopedSegment,
+  onApproveContentCandidate,
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
+  onDispatchPromotionRun,
+  onRejectContentCandidate,
   onSelectSegment,
   onStartAnalysis,
   onStartGeneration,
@@ -752,6 +855,9 @@ function PromotionTabWorkspace({
   promotionGenerationError,
   promotionGenerationIsError,
   promotionGenerationIsPending,
+  rejectContentCandidateError,
+  rejectContentCandidateIsError,
+  rejectContentCandidateIsPending,
   scopedSegmentCreateError,
   scopedSegmentCreateIsError,
   scopedSegmentCreateIsPending,
@@ -774,6 +880,9 @@ function PromotionTabWorkspace({
   archiveScopedSegmentError: Error | null;
   archiveScopedSegmentIsError: boolean;
   archiveScopedSegmentIsPending: boolean;
+  approveContentCandidateError: Error | null;
+  approveContentCandidateIsError: boolean;
+  approveContentCandidateIsPending: boolean;
   confirmError: Error | null;
   confirmIsError: boolean;
   confirmIsPending: boolean;
@@ -783,11 +892,18 @@ function PromotionTabWorkspace({
   deleteConfirmedSegmentError: Error | null;
   deleteConfirmedSegmentIsError: boolean;
   deleteConfirmedSegmentIsPending: boolean;
+  dispatchPromotionRunError: Error | null;
+  dispatchPromotionRunIsError: boolean;
+  dispatchPromotionRunIsPending: boolean;
+  dispatchPromotionRunResult: PromotionRunDispatchResponse | null;
   onArchiveScopedSegment: (segmentId: string) => void;
+  onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
+  onDispatchPromotionRun: (promotionRunId: string) => void;
+  onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onStartAnalysis: () => void;
   onStartGeneration: (analysisId: string) => void;
@@ -801,6 +917,9 @@ function PromotionTabWorkspace({
   promotionGenerationError: Error | null;
   promotionGenerationIsError: boolean;
   promotionGenerationIsPending: boolean;
+  rejectContentCandidateError: Error | null;
+  rejectContentCandidateIsError: boolean;
+  rejectContentCandidateIsPending: boolean;
   scopedSegmentCreateError: Error | null;
   scopedSegmentCreateIsError: boolean;
   scopedSegmentCreateIsPending: boolean;
@@ -919,7 +1038,14 @@ function PromotionTabWorkspace({
         </TabsContent>
         <TabsContent value="segment-detail">
           <PromotionSegmentDetailTab
+            approveContentCandidateError={approveContentCandidateError}
+            approveContentCandidateIsError={approveContentCandidateIsError}
+            approveContentCandidateIsPending={approveContentCandidateIsPending}
             detail={selectedSegmentDetail}
+            dispatchPromotionRunError={dispatchPromotionRunError}
+            dispatchPromotionRunIsError={dispatchPromotionRunIsError}
+            dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
+            dispatchPromotionRunResult={dispatchPromotionRunResult}
             error={selectedSegmentDetailError}
             generation={promotionGeneration}
             generationError={promotionGenerationError}
@@ -927,7 +1053,13 @@ function PromotionTabWorkspace({
             generationIsPending={promotionGenerationIsPending}
             isError={selectedSegmentDetailIsError}
             isLoading={selectedSegmentDetailIsLoading}
+            onApproveContentCandidate={onApproveContentCandidate}
+            onDispatchPromotionRun={onDispatchPromotionRun}
+            onRejectContentCandidate={onRejectContentCandidate}
             onStartGeneration={onStartGeneration}
+            rejectContentCandidateError={rejectContentCandidateError}
+            rejectContentCandidateIsError={rejectContentCandidateIsError}
+            rejectContentCandidateIsPending={rejectContentCandidateIsPending}
             selectedSegmentId={selectedSegmentId}
           />
         </TabsContent>
@@ -1103,7 +1235,14 @@ function PromotionCurrentSegmentsPanel({
 }
 
 function PromotionSegmentDetailTab({
+  approveContentCandidateError,
+  approveContentCandidateIsError,
+  approveContentCandidateIsPending,
   detail,
+  dispatchPromotionRunError,
+  dispatchPromotionRunIsError,
+  dispatchPromotionRunIsPending,
+  dispatchPromotionRunResult,
   error,
   generation,
   generationError,
@@ -1111,10 +1250,23 @@ function PromotionSegmentDetailTab({
   generationIsPending,
   isError,
   isLoading,
+  onApproveContentCandidate,
+  onDispatchPromotionRun,
+  onRejectContentCandidate,
   onStartGeneration,
+  rejectContentCandidateError,
+  rejectContentCandidateIsError,
+  rejectContentCandidateIsPending,
   selectedSegmentId
 }: {
+  approveContentCandidateError: Error | null;
+  approveContentCandidateIsError: boolean;
+  approveContentCandidateIsPending: boolean;
   detail: DashboardSegmentDetail | undefined;
+  dispatchPromotionRunError: Error | null;
+  dispatchPromotionRunIsError: boolean;
+  dispatchPromotionRunIsPending: boolean;
+  dispatchPromotionRunResult: PromotionRunDispatchResponse | null;
   error: Error | null;
   generation: DashboardStartPromotionGenerationResult | null;
   generationError: Error | null;
@@ -1122,7 +1274,13 @@ function PromotionSegmentDetailTab({
   generationIsPending: boolean;
   isError: boolean;
   isLoading: boolean;
+  onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onDispatchPromotionRun: (promotionRunId: string) => void;
+  onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
+  rejectContentCandidateError: Error | null;
+  rejectContentCandidateIsError: boolean;
+  rejectContentCandidateIsPending: boolean;
   selectedSegmentId: string;
 }) {
   if (!selectedSegmentId) {
@@ -1267,6 +1425,22 @@ function PromotionSegmentDetailTab({
               </AlertDescription>
             </Alert>
           ) : null}
+          {approveContentCandidateIsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>광고 후보를 승인하지 못했습니다</AlertTitle>
+              <AlertDescription>
+                {mutationErrorMessage(approveContentCandidateError)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {rejectContentCandidateIsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>광고 후보를 거절하지 못했습니다</AlertTitle>
+              <AlertDescription>
+                {mutationErrorMessage(rejectContentCandidateError)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {detail.content_candidates.length > 0 ? (
             <Table>
               <TableHeader>
@@ -1277,6 +1451,7 @@ function PromotionSegmentDetailTab({
                   <TableHead>CTA / 랜딩</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>근거</TableHead>
+                  <TableHead>액션</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1359,6 +1534,50 @@ function PromotionSegmentDetailTab({
                         <span>{formatJsonObject(candidate.data_evidence_json)}</span>
                       </div>
                     </TableCell>
+                    <TableCell className="min-w-[160px] align-top">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          disabled={
+                            approveContentCandidateIsPending ||
+                            candidate.status === "approved" ||
+                            candidate.status === "rejected"
+                          }
+                          onClick={() =>
+                            onApproveContentCandidate(
+                              detail.segment.promotion_id,
+                              detail.segment.segment_id,
+                              candidate.content_id
+                            )
+                          }
+                          size="sm"
+                          type="button"
+                          variant={candidate.status === "approved" ? "secondary" : "default"}
+                        >
+                          <CheckCircle2 className="mr-2 size-4" />
+                          {candidate.status === "approved" ? "승인됨" : "승인"}
+                        </Button>
+                        <Button
+                          disabled={
+                            rejectContentCandidateIsPending ||
+                            candidate.status === "approved" ||
+                            candidate.status === "rejected"
+                          }
+                          onClick={() =>
+                            onRejectContentCandidate(
+                              detail.segment.promotion_id,
+                              detail.segment.segment_id,
+                              candidate.content_id
+                            )
+                          }
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <X className="mr-2 size-4" />
+                          {candidate.status === "rejected" ? "거절됨" : "거절"}
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1374,7 +1593,26 @@ function PromotionSegmentDetailTab({
           <CardTitle className="text-base">연결된 광고 실험</CardTitle>
           <CardDescription>세그먼트 하위 실험 단위입니다.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-3">
+          {dispatchPromotionRunIsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>광고 실행 요청에 실패했습니다</AlertTitle>
+              <AlertDescription>
+                {mutationErrorMessage(dispatchPromotionRunError)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {dispatchPromotionRunResult ? (
+            <Alert>
+              <AlertTitle>광고 실행 요청이 완료되었습니다</AlertTitle>
+              <AlertDescription>
+                {dispatchPromotionRunResult.promotion_run_id} · 발송{" "}
+                {formatInteger(dispatchPromotionRunResult.dispatched_count)} /{" "}
+                {formatInteger(dispatchPromotionRunResult.target_count)} · 실패{" "}
+                {formatInteger(dispatchPromotionRunResult.failed_count)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {detail.ad_experiments.length > 0 ? (
             <Table>
               <TableHeader>
@@ -1385,25 +1623,43 @@ function PromotionSegmentDetailTab({
                   <TableHead>루프</TableHead>
                   <TableHead>목표</TableHead>
                   <TableHead>상태</TableHead>
+                  <TableHead>액션</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detail.ad_experiments.map((experiment) => (
-                  <TableRow key={experiment.ad_experiment_id}>
-                    <TableCell className="font-medium">{experiment.ad_experiment_id}</TableCell>
-                    <TableCell>{experiment.content_id}</TableCell>
-                    <TableCell>{experiment.channel}</TableCell>
-                    <TableCell>{formatInteger(experiment.loop_count)}</TableCell>
-                    <TableCell>
-                      {experiment.goal_metric} · {formatGoalValue(experiment.goal_target_value)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusBadgeVariant(experiment.status)}>
-                        {experiment.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {detail.ad_experiments.map((experiment) => {
+                  const canDispatch =
+                    experiment.status === "approved" &&
+                    (experiment.channel === "email" || experiment.channel === "sms");
+                  return (
+                    <TableRow key={experiment.ad_experiment_id}>
+                      <TableCell className="font-medium">{experiment.ad_experiment_id}</TableCell>
+                      <TableCell>{experiment.content_id}</TableCell>
+                      <TableCell>{experiment.channel}</TableCell>
+                      <TableCell>{formatInteger(experiment.loop_count)}</TableCell>
+                      <TableCell>
+                        {experiment.goal_metric} · {formatGoalValue(experiment.goal_target_value)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusBadgeVariant(experiment.status)}>
+                          {experiment.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          disabled={!canDispatch || dispatchPromotionRunIsPending}
+                          onClick={() => onDispatchPromotionRun(experiment.promotion_run_id)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Send className="mr-2 size-4" />
+                          {experiment.channel === "onsite_banner" ? "배너 제외" : "실행"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
