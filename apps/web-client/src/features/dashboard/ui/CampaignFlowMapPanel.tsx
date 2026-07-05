@@ -1572,18 +1572,6 @@ function sortPromotionFlowsByGoalAchievement(flows: PromotionFlowSummary[]) {
   });
 }
 
-function formatAggregateCollectionCoverage(flows: PromotionFlowSummary[]) {
-  const minimumSampleSize = flows.reduce(
-    (total, flow) => total + flow.promotion.min_sample_size,
-    0
-  );
-  if (minimumSampleSize <= 0) {
-    return "-";
-  }
-  const totalSampleSize = flows.reduce((total, flow) => total + flow.evaluation.totalSampleSize, 0);
-  return formatPercent(Math.min(totalSampleSize / minimumSampleSize, 1));
-}
-
 function formatNextLoopLabel(flows: PromotionFlowSummary[]) {
   if (flows.length === 0) {
     return "-";
