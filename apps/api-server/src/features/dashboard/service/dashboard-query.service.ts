@@ -3,14 +3,17 @@ import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardAdExperiment,
   DashboardApproveContentCandidateRequest,
+  DashboardConfirmSegmentSuggestionsRequest,
+  DashboardConfirmSegmentSuggestionsResult,
   DashboardCreateFunnelRequest,
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
+  DashboardCreatePromotionSegmentDefinitionRequest,
+  DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
-  DashboardDeleteSavedSegmentResult,
   DashboardCreatePromotionRequest,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
@@ -21,26 +24,31 @@ import type {
   DashboardMain,
   DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
+  DashboardPromotionScopedSegmentDefinition,
+  DashboardPromotionScopedSegmentDefinitionList,
+  DashboardPromotionSegmentSuggestion,
+  DashboardPromotionSegmentSuggestionList,
   DashboardPromotionSummary,
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
   DashboardSavedSegment,
-  DashboardSavedSegmentList,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
+  DashboardStartPromotionAnalysisRequest,
+  DashboardStartPromotionAnalysisResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
-  DashboardUpdatePromotionSegmentRequest,
-  DashboardUpdateSavedSegmentRequest
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import {
   DashboardCampaignReader,
   DashboardFunnelReader,
   DashboardSegmentQueryRepository
 } from "../repository/index.js";
+import { DashboardDecisionClient } from "../provider/index.js";
 
 @Injectable()
 export class DashboardQueryService {
@@ -50,7 +58,9 @@ export class DashboardQueryService {
     @Inject(DashboardFunnelReader)
     private readonly funnelReader: DashboardFunnelReader,
     @Inject(DashboardSegmentQueryRepository)
-    private readonly segmentQueryRepository: DashboardSegmentQueryRepository
+    private readonly segmentQueryRepository: DashboardSegmentQueryRepository,
+    @Inject(DashboardDecisionClient)
+    private readonly decisionClient: DashboardDecisionClient
   ) {}
 
   async main(projectId: string): Promise<DashboardMain> {
@@ -134,6 +144,76 @@ export class DashboardQueryService {
     segmentId: string
   ): Promise<DashboardDeletePromotionSegmentResult> {
     return this.campaignReader.stopPromotionSegment(projectId, promotionId, segmentId);
+  }
+
+  async promotionSegmentSuggestions(
+    projectId: string,
+    promotionId: string,
+    analysisId?: string | null
+  ): Promise<DashboardPromotionSegmentSuggestionList> {
+    return this.campaignReader.listPromotionSegmentSuggestions(projectId, promotionId, analysisId);
+  }
+
+  async startPromotionAnalysis(
+    projectId: string,
+    promotionId: string,
+    request: DashboardStartPromotionAnalysisRequest
+  ): Promise<DashboardStartPromotionAnalysisResult> {
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    return this.decisionClient.startPromotionAnalysis({
+      campaignId: promotion.campaign_id,
+      projectId,
+      promotionId,
+      request
+    });
+  }
+
+  async promotionScopedSegmentDefinitions(
+    projectId: string,
+    promotionId: string
+  ): Promise<DashboardPromotionScopedSegmentDefinitionList> {
+    return this.campaignReader.listPromotionScopedSegmentDefinitions(projectId, promotionId);
+  }
+
+  @Transactional()
+  async createPromotionScopedSegmentDefinition(
+    projectId: string,
+    promotionId: string,
+    request: DashboardCreatePromotionSegmentDefinitionRequest
+  ): Promise<DashboardPromotionScopedSegmentDefinition> {
+    return this.campaignReader.createPromotionScopedSegmentDefinition(
+      projectId,
+      promotionId,
+      request
+    );
+  }
+
+  @Transactional()
+  async decidePromotionSegmentSuggestion(
+    projectId: string,
+    promotionId: string,
+    suggestionId: string,
+    request: DashboardDecideSegmentSuggestionRequest
+  ): Promise<DashboardPromotionSegmentSuggestion> {
+    return this.campaignReader.decidePromotionSegmentSuggestion(
+      projectId,
+      promotionId,
+      suggestionId,
+      request
+    );
+  }
+
+  @Transactional()
+  async confirmPromotionSegmentSuggestions(
+    projectId: string,
+    promotionId: string,
+    request: DashboardConfirmSegmentSuggestionsRequest
+  ): Promise<DashboardConfirmSegmentSuggestionsResult> {
+    return this.campaignReader.confirmPromotionSegmentSuggestions(
+      projectId,
+      promotionId,
+      request
+    );
   }
 
   @Transactional()
@@ -262,24 +342,4 @@ export class DashboardQueryService {
     return this.segmentQueryRepository.saveSegment(projectId, request);
   }
 
-  @Transactional()
-  async updateSavedSegment(
-    projectId: string,
-    segmentId: string,
-    request: DashboardUpdateSavedSegmentRequest
-  ): Promise<DashboardSavedSegment> {
-    return this.segmentQueryRepository.updateSavedSegment(projectId, segmentId, request);
-  }
-
-  @Transactional()
-  async archiveSavedSegment(
-    projectId: string,
-    segmentId: string
-  ): Promise<DashboardDeleteSavedSegmentResult> {
-    return this.segmentQueryRepository.archiveSavedSegment(projectId, segmentId);
-  }
-
-  async savedSegments(projectId: string): Promise<DashboardSavedSegmentList> {
-    return this.segmentQueryRepository.listSavedSegments(projectId);
-  }
 }

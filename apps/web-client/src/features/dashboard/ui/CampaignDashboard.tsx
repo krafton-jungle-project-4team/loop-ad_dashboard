@@ -7,9 +7,7 @@ import type {
   DashboardMain,
   DashboardPromotionDetail as DashboardPromotionDetailResource,
   DashboardRealtimeMetrics,
-  DashboardSavedSegment,
-  DashboardSegmentDetail as DashboardSegmentDetailResource,
-  DashboardSegmentQueryPreview
+  DashboardSegmentDetail as DashboardSegmentDetailResource
 } from "@loopad/shared";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
@@ -41,29 +39,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   approveDashboardContentCandidate,
-  attachDashboardSegmentToPromotion,
   createDashboardCampaign,
-  createDashboardSegmentQueryPreview,
   deleteDashboardCampaign,
-  deleteDashboardPromotionSegment,
-  deleteDashboardSavedSegment,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
-  fetchDashboardSavedSegments,
   fetchDashboardSegmentDetail,
   rejectDashboardContentCandidate,
-  saveDashboardSegment,
   startDashboardNextLoopAnalysis,
-  updateDashboardCampaign,
-  updateDashboardPromotionSegment,
-  updateDashboardSavedSegment
+  updateDashboardCampaign
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardPromotionDetailQueryKey,
-  dashboardSavedSegmentsQueryKey,
   dashboardSegmentDetailQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
@@ -86,21 +75,6 @@ const campaignStatusOptions = ["draft", "active", "paused", "completed", "stoppe
 
 type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
 type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
-type AttachSegmentInput = Parameters<typeof attachDashboardSegmentToPromotion>[2];
-type UpdatePromotionSegmentInput = Parameters<typeof updateDashboardPromotionSegment>[3];
-type UpdateSavedSegmentInput = Parameters<typeof updateDashboardSavedSegment>[2];
-
-const segmentPriorityOptions = ["low", "medium", "high"] as const;
-const promotionSegmentStatusOptions = [
-  "planned",
-  "content_ready",
-  "approved",
-  "running",
-  "goal_met",
-  "goal_not_met",
-  "insufficient_data",
-  "stopped"
-] as const;
 
 export function CampaignDashboardPanel({
   data,
@@ -138,10 +112,6 @@ export function CampaignDashboardPanel({
       selectedPromotionId,
       selectedSegmentId
     )
-  });
-  const savedSegments = useQuery({
-    queryFn: ({ signal }) => fetchDashboardSavedSegments(query, signal),
-    queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
   });
   const selectedPromotion = campaignDetail.data?.promotions.find(
     (promotion) => promotion.promotion_id === selectedPromotionId
@@ -337,10 +307,6 @@ export function CampaignDashboardPanel({
         promotionIsError={promotionDetail.isError}
         promotionIsLoading={promotionDetail.isLoading}
         query={query}
-        savedSegments={savedSegments.data?.segments ?? []}
-        savedSegmentsError={savedSegments.error}
-        savedSegmentsIsError={savedSegments.isError}
-        savedSegmentsIsLoading={savedSegments.isLoading}
         segmentDetail={segmentDetail.data}
         segmentError={segmentDetail.error}
         segmentIsError={segmentDetail.isError}
@@ -815,10 +781,6 @@ function CampaignDetailPanel({
   promotionIsError,
   promotionIsLoading,
   query,
-  savedSegments,
-  savedSegmentsError,
-  savedSegmentsIsError,
-  savedSegmentsIsLoading,
   segmentDetail,
   segmentError,
   segmentIsError,
@@ -841,10 +803,6 @@ function CampaignDetailPanel({
   promotionIsError: boolean;
   promotionIsLoading: boolean;
   query: DashboardQuery;
-  savedSegments: DashboardSavedSegment[];
-  savedSegmentsError: Error | null;
-  savedSegmentsIsError: boolean;
-  savedSegmentsIsLoading: boolean;
   segmentDetail: DashboardSegmentDetailResource | undefined;
   segmentError: Error | null;
   segmentIsError: boolean;
@@ -888,10 +846,6 @@ function CampaignDetailPanel({
             promotionIsError={promotionIsError}
             promotionIsLoading={promotionIsLoading}
             query={query}
-            savedSegments={savedSegments}
-            savedSegmentsError={savedSegmentsError}
-            savedSegmentsIsError={savedSegmentsIsError}
-            savedSegmentsIsLoading={savedSegmentsIsLoading}
             segmentDetail={segmentDetail}
             segmentError={segmentError}
             segmentIsError={segmentIsError}
@@ -918,10 +872,6 @@ function CampaignTabContent({
   promotionIsError,
   promotionIsLoading,
   query,
-  savedSegments,
-  savedSegmentsError,
-  savedSegmentsIsError,
-  savedSegmentsIsLoading,
   segmentDetail,
   segmentError,
   segmentIsError,
@@ -941,10 +891,6 @@ function CampaignTabContent({
   promotionIsError: boolean;
   promotionIsLoading: boolean;
   query: DashboardQuery;
-  savedSegments: DashboardSavedSegment[];
-  savedSegmentsError: Error | null;
-  savedSegmentsIsError: boolean;
-  savedSegmentsIsLoading: boolean;
   segmentDetail: DashboardSegmentDetailResource | undefined;
   segmentError: Error | null;
   segmentIsError: boolean;
@@ -960,54 +906,6 @@ function CampaignTabContent({
       (!selectedPromotionId || segment.promotion_id === selectedPromotionId)
   );
   const queryClient = useQueryClient();
-  const [, setDashboardQueryState] = useDashboardQueryState();
-  const attachSegmentMutation = useMutation({
-    mutationFn: ({
-      promotionId,
-      requestBody
-    }: {
-      promotionId: string;
-      requestBody: AttachSegmentInput;
-    }) => attachDashboardSegmentToPromotion(query, promotionId, requestBody),
-    onSuccess: async (segment) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await setDashboardQueryState({
-        selectedPromotionId: segment.promotion_id,
-        selectedSegmentId: segment.segment_id
-      });
-    }
-  });
-  const updateSegmentMutation = useMutation({
-    mutationFn: ({
-      promotionId,
-      requestBody,
-      segmentId
-    }: {
-      promotionId: string;
-      requestBody: UpdatePromotionSegmentInput;
-      segmentId: string;
-    }) => updateDashboardPromotionSegment(query, promotionId, segmentId, requestBody),
-    onSuccess: async (segment) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await setDashboardQueryState({
-        selectedPromotionId: segment.promotion_id,
-        selectedSegmentId: segment.segment_id
-      });
-    }
-  });
-  const stopSegmentMutation = useMutation({
-    mutationFn: ({ promotionId, segmentId }: { promotionId: string; segmentId: string }) =>
-      deleteDashboardPromotionSegment(query, promotionId, segmentId),
-    onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      if (selectedSegmentId === result.segment_id) {
-        await setDashboardQueryState({
-          selectedPromotionId: result.promotion_id,
-          selectedSegmentId: ""
-        });
-      }
-    }
-  });
   const approveContentCandidateMutation = useMutation({
     mutationFn: ({
       contentId,
@@ -1066,134 +964,7 @@ function CampaignTabContent({
       ]);
     }
   });
-  const updateSavedSegmentMutation = useMutation({
-    mutationFn: ({
-      requestBody,
-      segmentId
-    }: {
-      requestBody: UpdateSavedSegmentInput;
-      segmentId: string;
-    }) => updateDashboardSavedSegment(query, segmentId, requestBody),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
-      });
-    }
-  });
-  const archiveSavedSegmentMutation = useMutation({
-    mutationFn: (segmentId: string) => deleteDashboardSavedSegment(query, segmentId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
-      });
-    }
-  });
-
   switch (tab) {
-    case "campaign-segments":
-      return (
-        <>
-          <CampaignOpenTabs
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
-            selectedPromotion={selectedPromotion}
-            selectedSegment={selectedSegment}
-          />
-          <SegmentQueryPreviewPanel query={query} />
-          <SavedSegmentTable
-            archiveError={archiveSavedSegmentMutation.error}
-            archiveIsError={archiveSavedSegmentMutation.isError}
-            archiveIsPending={archiveSavedSegmentMutation.isPending}
-            error={savedSegmentsError}
-            isError={savedSegmentsIsError}
-            isLoading={savedSegmentsIsLoading}
-            onArchive={(segmentId) => archiveSavedSegmentMutation.mutate(segmentId)}
-            onUpdate={(segmentId, requestBody) =>
-              updateSavedSegmentMutation.mutate({ requestBody, segmentId })
-            }
-            segments={savedSegments}
-            updateError={updateSavedSegmentMutation.error}
-            updateIsError={updateSavedSegmentMutation.isError}
-            updateIsPending={updateSavedSegmentMutation.isPending}
-          />
-          <SegmentAttachmentPanel
-            attachError={attachSegmentMutation.error}
-            attachIsError={attachSegmentMutation.isError}
-            attachIsPending={attachSegmentMutation.isPending}
-            onAttach={(promotionId, requestBody) =>
-              attachSegmentMutation.mutate({ promotionId, requestBody })
-            }
-            onStop={(promotionId, segmentId) =>
-              stopSegmentMutation.mutate({ promotionId, segmentId })
-            }
-            onUpdate={(promotionId, segmentId, requestBody) =>
-              updateSegmentMutation.mutate({ promotionId, requestBody, segmentId })
-            }
-            promotion={selectedPromotion}
-            savedSegments={savedSegments}
-            segment={selectedSegment}
-            stopError={stopSegmentMutation.error}
-            stopIsError={stopSegmentMutation.isError}
-            stopIsPending={stopSegmentMutation.isPending}
-            updateError={updateSegmentMutation.error}
-            updateIsError={updateSegmentMutation.isError}
-            updateIsPending={updateSegmentMutation.isPending}
-          />
-          <SegmentTable
-            onSelectSegment={onSelectSegment}
-            segments={promotionDetail?.segments ?? detail.segments}
-            selectedSegmentId={selectedSegmentId}
-          />
-          <SegmentDetailPanel
-            approveError={approveContentCandidateMutation.error}
-            approveIsError={approveContentCandidateMutation.isError}
-            approveIsPending={approveContentCandidateMutation.isPending}
-            rejectError={rejectContentCandidateMutation.error}
-            rejectIsError={rejectContentCandidateMutation.isError}
-            rejectIsPending={rejectContentCandidateMutation.isPending}
-            detail={segmentDetail}
-            error={segmentError}
-            isError={segmentIsError}
-            isLoading={segmentIsLoading}
-            onApproveContentCandidate={(promotionId, segmentId, contentId) =>
-              approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-            }
-            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
-              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-            }
-            selectedSegmentId={selectedSegmentId}
-          />
-        </>
-      );
-    case "campaign-experiment-metrics":
-      return (
-        <>
-          <CampaignOpenTabs
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
-            selectedPromotion={selectedPromotion}
-            selectedSegment={selectedSegment}
-          />
-          <EvaluationOutcomePanel
-            metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
-          />
-          <ExperimentMetricTable
-            metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
-          />
-        </>
-      );
-    case "campaign-promotion-metrics":
-      return (
-        <>
-          <CampaignOpenTabs
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
-            selectedPromotion={selectedPromotion}
-            selectedSegment={selectedSegment}
-          />
-          <PromotionMetricsPanel detail={detail} selectedPromotion={selectedPromotion} />
-        </>
-      );
     case "campaign-metrics":
       return (
         <>
@@ -1358,93 +1129,6 @@ function CampaignRealtimeTrend({ detail }: { detail: DashboardCampaignDetail }) 
         metrics={detail.realtime_metrics}
         title="캠페인 이벤트 집계"
       />
-    </section>
-  );
-}
-
-function PromotionMetricsPanel({
-  detail,
-  selectedPromotion
-}: {
-  detail: DashboardCampaignDetail;
-  selectedPromotion: DashboardCampaignPromotion | undefined;
-}) {
-  const promotions = selectedPromotion ? [selectedPromotion] : detail.promotions;
-  const metrics = selectedPromotion
-    ? detail.experiment_metrics.filter(
-        (metric) => metric.promotion_id === selectedPromotion.promotion_id
-      )
-    : detail.experiment_metrics;
-
-  return (
-    <section className="grid gap-4">
-      <PromotionMetricSummary promotions={promotions} metrics={metrics} />
-      <DetailTable
-        emptyMessage="표시할 프로모션 지표가 없습니다."
-        headers={[
-          "프로모션",
-          "채널",
-          "목표 지표",
-          "목표값",
-          "현재값",
-          "세그먼트",
-          "상태"
-        ]}
-        title="프로모션 지표"
-      >
-        {promotions.map((promotion) => (
-          <TableRow key={promotion.promotion_id}>
-            <TableCell>{promotion.promotion_id}</TableCell>
-            <TableCell>{promotion.channel}</TableCell>
-            <TableCell>{promotion.goal_metric}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatGoalValue(promotion.goal_target_value)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {promotion.latest_actual_value === null
-                ? "-"
-                : formatGoalValue(promotion.latest_actual_value)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatInteger(promotion.target_segment_count)}
-            </TableCell>
-            <TableCell>
-              <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
-            </TableCell>
-          </TableRow>
-        ))}
-      </DetailTable>
-      <EvaluationOutcomePanel metrics={metrics} />
-    </section>
-  );
-}
-
-function PromotionMetricSummary({
-  metrics,
-  promotions
-}: {
-  metrics: DashboardCampaignExperimentMetric[];
-  promotions: DashboardCampaignPromotion[];
-}) {
-  const goalNotMetCount = metrics.filter((metric) => metric.status === "goal_not_met").length;
-  const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
-  const activePromotionCount = promotions.filter((promotion) => promotion.status === "active").length;
-  const averageActualValue =
-    promotions.length > 0
-      ? promotions.reduce((sum, promotion) => sum + (promotion.latest_actual_value ?? 0), 0) /
-        promotions.length
-      : 0;
-
-  return (
-    <section className="grid gap-3">
-      <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 지표 요약</h3>
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="프로모션" value={formatInteger(promotions.length)} />
-        <SummaryItem label="활성 프로모션" value={formatInteger(activePromotionCount)} />
-        <SummaryItem label="목표 미달 실험" value={formatInteger(goalNotMetCount)} />
-        <SummaryItem label="next-loop 후보" value={formatInteger(nextLoopCount)} />
-        <SummaryItem label="평균 현재값" value={formatGoalValue(averageActualValue)} />
-      </div>
     </section>
   );
 }
@@ -2482,688 +2166,6 @@ function SegmentTable({
         <EmptyState message="등록된 세그먼트가 없습니다." />
       )}
     </section>
-  );
-}
-
-function SegmentAttachmentPanel({
-  attachError,
-  attachIsError,
-  attachIsPending,
-  onAttach,
-  onStop,
-  onUpdate,
-  promotion,
-  savedSegments,
-  segment,
-  stopError,
-  stopIsError,
-  stopIsPending,
-  updateError,
-  updateIsError,
-  updateIsPending
-}: {
-  attachError: Error | null;
-  attachIsError: boolean;
-  attachIsPending: boolean;
-  onAttach: (promotionId: string, requestBody: AttachSegmentInput) => void;
-  onStop: (promotionId: string, segmentId: string) => void;
-  onUpdate: (
-    promotionId: string,
-    segmentId: string,
-    requestBody: UpdatePromotionSegmentInput
-  ) => void;
-  promotion: DashboardCampaignPromotion | undefined;
-  savedSegments: DashboardSavedSegment[];
-  segment: DashboardCampaignSegment | undefined;
-  stopError: Error | null;
-  stopIsError: boolean;
-  stopIsPending: boolean;
-  updateError: Error | null;
-  updateIsError: boolean;
-  updateIsPending: boolean;
-}) {
-  return (
-    <section className="grid gap-4">
-      <div className="grid gap-1">
-        <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 세그먼트 연결</h3>
-        <p className="text-sm text-muted-foreground">
-          저장된 segment_definitions를 선택된 프로모션의 타겟 세그먼트로 연결합니다.
-        </p>
-      </div>
-      {attachIsError ? (
-        <Alert variant="destructive">
-          <AlertTitle>세그먼트를 연결하지 못했습니다</AlertTitle>
-          <AlertDescription>{mutationErrorMessage(attachError)}</AlertDescription>
-        </Alert>
-      ) : null}
-      {updateIsError ? (
-        <Alert variant="destructive">
-          <AlertTitle>세그먼트를 수정하지 못했습니다</AlertTitle>
-          <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
-        </Alert>
-      ) : null}
-      {stopIsError ? (
-        <Alert variant="destructive">
-          <AlertTitle>세그먼트를 중지하지 못했습니다</AlertTitle>
-          <AlertDescription>{mutationErrorMessage(stopError)}</AlertDescription>
-        </Alert>
-      ) : null}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SegmentAttachForm
-          isPending={attachIsPending}
-          onSubmit={onAttach}
-          promotion={promotion}
-          savedSegments={savedSegments}
-        />
-        <SegmentEditForm
-          isPending={updateIsPending || stopIsPending}
-          onStop={onStop}
-          onSubmit={onUpdate}
-          segment={segment}
-        />
-      </div>
-    </section>
-  );
-}
-
-function SegmentAttachForm({
-  isPending,
-  onSubmit,
-  promotion,
-  savedSegments
-}: {
-  isPending: boolean;
-  onSubmit: (promotionId: string, requestBody: AttachSegmentInput) => void;
-  promotion: DashboardCampaignPromotion | undefined;
-  savedSegments: DashboardSavedSegment[];
-}) {
-  const [segmentId, setSegmentId] = useState("");
-  const [segmentName, setSegmentName] = useState("");
-  const [priority, setPriority] = useState("none");
-  const [status, setStatus] = useState<AttachSegmentInput["status"]>("planned");
-  const selectedSavedSegment = savedSegments.find((segment) => segment.segment_id === segmentId);
-  const canSubmit = Boolean(promotion && segmentId) && !isPending;
-
-  useEffect(() => {
-    if (selectedSavedSegment && !segmentName.trim()) {
-      setSegmentName(selectedSavedSegment.segment_name);
-    }
-  }, [selectedSavedSegment, segmentName]);
-
-  if (!promotion) {
-    return (
-      <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-        세그먼트를 연결할 프로모션을 먼저 선택해주세요.
-      </section>
-    );
-  }
-
-  return (
-    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
-      <div className="grid gap-1">
-        <h4 className="font-semibold text-foreground">저장 세그먼트 연결</h4>
-        <p className="text-sm text-muted-foreground">{promotion.marketing_theme}</p>
-      </div>
-      <FieldGroup>
-        <Field>
-          <FieldLabel>저장 세그먼트</FieldLabel>
-          <Select onValueChange={setSegmentId} value={segmentId}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="세그먼트 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {savedSegments.map((segment) => (
-                <SelectItem key={segment.segment_id} value={segment.segment_id}>
-                  {segment.segment_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="dashboard-segment-attach-name">표시 이름</FieldLabel>
-          <Input
-            id="dashboard-segment-attach-name"
-            onChange={(event) => setSegmentName(event.target.value)}
-            placeholder={selectedSavedSegment?.segment_name ?? "세그먼트 이름"}
-            value={segmentName}
-          />
-        </Field>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field>
-            <FieldLabel>우선순위</FieldLabel>
-            <Select onValueChange={setPriority} value={priority}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="우선순위" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">미설정</SelectItem>
-                {segmentPriorityOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel>상태</FieldLabel>
-            <Select onValueChange={(value) => setStatus(value as AttachSegmentInput["status"])} value={status}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="상태" />
-              </SelectTrigger>
-              <SelectContent>
-                {promotionSegmentStatusOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-      </FieldGroup>
-      <div className="flex justify-end">
-        <Button
-          disabled={!canSubmit}
-          onClick={() =>
-            onSubmit(promotion.promotion_id, {
-              priority: nullablePriority(priority),
-              segment_id: segmentId,
-              segment_name: segmentName.trim() || selectedSavedSegment?.segment_name,
-              status
-            })
-          }
-          type="button"
-        >
-          {isPending ? "연결 중" : "세그먼트 연결"}
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-function SegmentEditForm({
-  isPending,
-  onStop,
-  onSubmit,
-  segment
-}: {
-  isPending: boolean;
-  onStop: (promotionId: string, segmentId: string) => void;
-  onSubmit: (
-    promotionId: string,
-    segmentId: string,
-    requestBody: UpdatePromotionSegmentInput
-  ) => void;
-  segment: DashboardCampaignSegment | undefined;
-}) {
-  const [segmentName, setSegmentName] = useState(segment?.segment_name ?? "");
-  const [priority, setPriority] = useState(segment?.priority ?? "none");
-  const [status, setStatus] = useState(segment?.status ?? "planned");
-
-  useEffect(() => {
-    setSegmentName(segment?.segment_name ?? "");
-    setPriority(segment?.priority ?? "none");
-    setStatus(segment?.status ?? "planned");
-  }, [segment]);
-
-  if (!segment) {
-    return (
-      <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-        수정할 프로모션 세그먼트를 선택해주세요.
-      </section>
-    );
-  }
-
-  const canSubmit = Boolean(segmentName.trim()) && !isPending;
-
-  return (
-    <section className="grid gap-3 rounded-md border bg-muted/20 p-4">
-      <div className="grid gap-1">
-        <h4 className="font-semibold text-foreground">선택 세그먼트 수정</h4>
-        <p className="text-sm text-muted-foreground">{segment.segment_id}</p>
-      </div>
-      <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="dashboard-segment-edit-name">표시 이름</FieldLabel>
-          <Input
-            id="dashboard-segment-edit-name"
-            onChange={(event) => setSegmentName(event.target.value)}
-            value={segmentName}
-          />
-        </Field>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field>
-            <FieldLabel>우선순위</FieldLabel>
-            <Select onValueChange={setPriority} value={priority}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="우선순위" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">미설정</SelectItem>
-                {segmentPriorityOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel>상태</FieldLabel>
-            <Select onValueChange={setStatus} value={status}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="상태" />
-              </SelectTrigger>
-              <SelectContent>
-                {promotionSegmentStatusOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-      </FieldGroup>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          disabled={isPending || segment.status === "stopped"}
-          onClick={() => onStop(segment.promotion_id, segment.segment_id)}
-          type="button"
-          variant="outline"
-        >
-          {isPending ? "처리 중" : "세그먼트 중지"}
-        </Button>
-        <Button
-          disabled={!canSubmit}
-          onClick={() =>
-            onSubmit(segment.promotion_id, segment.segment_id, {
-              priority: nullablePriority(priority),
-              segment_name: segmentName.trim(),
-              status: status as UpdatePromotionSegmentInput["status"]
-            })
-          }
-          type="button"
-        >
-          {isPending ? "저장 중" : "수정 저장"}
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-function SegmentQueryPreviewPanel({ query }: { query: DashboardQuery }) {
-  const queryClient = useQueryClient();
-  const [naturalLanguageQuery, setNaturalLanguageQuery] = useState("");
-  const [segmentName, setSegmentName] = useState("");
-  const [preview, setPreview] = useState<DashboardSegmentQueryPreview | null>(null);
-  const previewMutation = useMutation({
-    mutationFn: () =>
-      createDashboardSegmentQueryPreview(query, {
-        natural_language_query: naturalLanguageQuery.trim()
-      }),
-    onSuccess: (result) => {
-      setPreview(result);
-      if (!segmentName.trim()) {
-        setSegmentName(segmentNameFromQuery(naturalLanguageQuery));
-      }
-    }
-  });
-  const saveMutation = useMutation({
-    mutationFn: () => {
-      if (!preview) {
-        throw new Error("저장할 preview가 없습니다.");
-      }
-      return saveDashboardSegment(query, {
-        query_preview_id: preview.query_preview_id,
-        segment_name: segmentName.trim()
-      });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: dashboardSavedSegmentsQueryKey(query.projectId)
-      });
-    }
-  });
-  const canPreview = Boolean(naturalLanguageQuery.trim()) && !previewMutation.isPending;
-  const canSave =
-    preview?.sample_size_status === "valid" &&
-    Boolean(segmentName.trim()) &&
-    !saveMutation.isPending;
-
-  return (
-    <section className="grid gap-3">
-      <div className="grid gap-1">
-        <h3 className="text-base font-semibold text-[#1d1d1f]">세그먼트 추가</h3>
-        <p className="text-sm text-muted-foreground">
-          자연어 조건을 ClickHouse read-only SQL로 미리 실행하고, sample size가 유효하면
-          사용자 정의 세그먼트로 저장합니다.
-        </p>
-      </div>
-      <div className="grid gap-4 rounded-md border bg-muted/20 p-4">
-        {previewMutation.isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>SQL preview 생성 실패</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(previewMutation.error)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {saveMutation.isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>세그먼트 저장 실패</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(saveMutation.error)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {saveMutation.isSuccess ? (
-          <Alert>
-            <AlertTitle>세그먼트를 저장했습니다</AlertTitle>
-            <AlertDescription>
-              {saveMutation.data.segment_name} / {saveMutation.data.segment_id}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="segment-natural-language-query">세그먼트 조건</FieldLabel>
-            <Textarea
-              disabled={previewMutation.isPending || saveMutation.isPending}
-              id="segment-natural-language-query"
-              onChange={(event) => {
-                setNaturalLanguageQuery(event.target.value);
-                setPreview(null);
-                saveMutation.reset();
-              }}
-              placeholder="예: 최근 7일간 숙소 상세를 3회 이상 봤지만 예약 완료가 없는 사용자"
-              value={naturalLanguageQuery}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="segment-name">세그먼트 이름</FieldLabel>
-            <Input
-              disabled={saveMutation.isPending}
-              id="segment-name"
-              onChange={(event) => setSegmentName(event.target.value)}
-              placeholder="같은 숙소 반복 조회 후 미예약 고객"
-              value={segmentName}
-            />
-          </Field>
-        </FieldGroup>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            disabled={!canPreview}
-            onClick={() => previewMutation.mutate()}
-            type="button"
-            variant="outline"
-          >
-            {previewMutation.isPending ? "preview 생성 중" : "조건 미리보기"}
-          </Button>
-          <Button disabled={!canSave} onClick={() => saveMutation.mutate()} type="button">
-            {saveMutation.isPending ? "저장 중" : "세그먼트 저장"}
-          </Button>
-        </div>
-        {preview ? <SegmentQueryPreviewResult preview={preview} /> : null}
-      </div>
-    </section>
-  );
-}
-
-function SavedSegmentTable({
-  archiveError,
-  archiveIsError,
-  archiveIsPending,
-  error,
-  isError,
-  isLoading,
-  onArchive,
-  onUpdate,
-  segments,
-  updateError,
-  updateIsError,
-  updateIsPending
-}: {
-  archiveError: Error | null;
-  archiveIsError: boolean;
-  archiveIsPending: boolean;
-  error: Error | null;
-  isError: boolean;
-  isLoading: boolean;
-  onArchive: (segmentId: string) => void;
-  onUpdate: (segmentId: string, requestBody: UpdateSavedSegmentInput) => void;
-  segments: DashboardSavedSegment[];
-  updateError: Error | null;
-  updateIsError: boolean;
-  updateIsPending: boolean;
-}) {
-  return (
-    <section className="grid gap-3">
-      <div className="grid gap-1">
-        <h3 className="text-base font-semibold text-[#1d1d1f]">사용자 정의 세그먼트 목록</h3>
-        <p className="text-sm text-muted-foreground">
-          SQL preview 검증을 통과해 segment_definitions에 저장된 세그먼트입니다.
-        </p>
-      </div>
-      {isError ? (
-        <Alert variant="destructive">
-          <AlertTitle>사용자 정의 세그먼트를 불러오지 못했습니다</AlertTitle>
-          <AlertDescription>{mutationErrorMessage(error)}</AlertDescription>
-        </Alert>
-      ) : null}
-      {updateIsError ? (
-        <Alert variant="destructive">
-          <AlertTitle>사용자 정의 세그먼트를 수정하지 못했습니다</AlertTitle>
-          <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
-        </Alert>
-      ) : null}
-      {archiveIsError ? (
-        <Alert variant="destructive">
-          <AlertTitle>사용자 정의 세그먼트를 보관하지 못했습니다</AlertTitle>
-          <AlertDescription>{mutationErrorMessage(archiveError)}</AlertDescription>
-        </Alert>
-      ) : null}
-      {isLoading ? <EmptyState message="사용자 정의 세그먼트를 불러오는 중입니다." /> : null}
-      {!isLoading && segments.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>세그먼트</TableHead>
-              <TableHead>조건</TableHead>
-              <TableHead>출처</TableHead>
-              <TableHead className="text-right">sample size</TableHead>
-              <TableHead className="text-right">sample ratio</TableHead>
-              <TableHead className="text-right">전체 적격 유저</TableHead>
-              <TableHead>상태</TableHead>
-              <TableHead className="text-right">관리</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {segments.map((segment) => (
-              <SavedSegmentRow
-                archiveIsPending={archiveIsPending}
-                key={segment.segment_id}
-                onArchive={onArchive}
-                onUpdate={onUpdate}
-                segment={segment}
-                updateIsPending={updateIsPending}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      ) : null}
-      {!isLoading && !isError && segments.length === 0 ? (
-        <EmptyState message="저장된 사용자 정의 세그먼트가 없습니다." />
-      ) : null}
-    </section>
-  );
-}
-
-function SavedSegmentRow({
-  archiveIsPending,
-  onArchive,
-  onUpdate,
-  segment,
-  updateIsPending
-}: {
-  archiveIsPending: boolean;
-  onArchive: (segmentId: string) => void;
-  onUpdate: (segmentId: string, requestBody: UpdateSavedSegmentInput) => void;
-  segment: DashboardSavedSegment;
-  updateIsPending: boolean;
-}) {
-  const [segmentName, setSegmentName] = useState(segment.segment_name);
-  const trimmedSegmentName = segmentName.trim();
-  const canUpdate =
-    trimmedSegmentName.length > 0 &&
-    trimmedSegmentName !== segment.segment_name &&
-    !updateIsPending &&
-    !archiveIsPending;
-
-  useEffect(() => {
-    setSegmentName(segment.segment_name);
-  }, [segment.segment_id, segment.segment_name]);
-
-  return (
-    <TableRow>
-      <TableCell>
-        <div className="grid min-w-[240px] gap-2">
-          <Input
-            aria-label={`${segment.segment_name} 세그먼트 이름`}
-            onChange={(event) => setSegmentName(event.target.value)}
-            value={segmentName}
-          />
-          <span className="text-xs text-muted-foreground">
-            {segment.segment_id} · {segment.query_preview_id}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell>
-        <div className="grid min-w-[280px] gap-2">
-          <span className="line-clamp-2 text-sm">
-            {segment.natural_language_query ?? "조건 설명이 저장되지 않았습니다."}
-          </span>
-          {segment.generated_sql ? (
-            <details className="text-xs text-muted-foreground">
-              <summary className="cursor-pointer">SQL preview</summary>
-              <pre className="mt-2 max-h-[180px] overflow-auto rounded-md border bg-background p-2 leading-5">
-                {segment.generated_sql}
-              </pre>
-            </details>
-          ) : null}
-        </div>
-      </TableCell>
-      <TableCell>{segment.source}</TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatInteger(segment.sample_size)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatPercentValue(segment.sample_ratio)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatInteger(segment.total_eligible_user_count)}
-      </TableCell>
-      <TableCell>
-        <div className="flex flex-wrap gap-1.5">
-          <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
-          <Badge variant={isSavedSegmentSampleValid(segment) ? "outline" : "destructive"}>
-            {isSavedSegmentSampleValid(segment) ? "sample valid" : "sample check"}
-          </Badge>
-        </div>
-      </TableCell>
-      <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
-          <Button
-            disabled={!canUpdate}
-            onClick={() => onUpdate(segment.segment_id, { segment_name: trimmedSegmentName })}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            수정
-          </Button>
-          <Button
-            disabled={archiveIsPending || updateIsPending}
-            onClick={() => onArchive(segment.segment_id)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            보관
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function isSavedSegmentSampleValid(segment: DashboardSavedSegment) {
-  return segment.sample_size >= 100 && segment.sample_ratio >= 0.005;
-}
-
-function SegmentQueryPreviewResult({ preview }: { preview: DashboardSegmentQueryPreview }) {
-  const statusVariant = preview.sample_size_status === "valid" ? "secondary" : "destructive";
-
-  return (
-    <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="sample size" value={formatInteger(preview.sample_size)} />
-        <SummaryItem
-          label="전체 적격 유저"
-          value={formatInteger(preview.total_eligible_user_count)}
-        />
-        <SummaryItem label="sample ratio" value={formatPercentValue(preview.sample_ratio)} />
-        <div className="rounded-md border bg-background p-3">
-          <div className="text-xs text-muted-foreground">저장 가능 상태</div>
-          <Badge className="mt-2" variant={statusVariant}>
-            {preview.sample_size_status}
-          </Badge>
-          {preview.sample_size_status !== "valid" ? (
-            <div className="mt-2 text-xs text-muted-foreground">
-              표본 기준을 충족하지 못해 segment_definitions 저장을 막습니다.
-            </div>
-          ) : null}
-        </div>
-      </div>
-      <div className="grid gap-2">
-        <div className="text-xs text-muted-foreground">generated_sql</div>
-        <pre className="max-h-[220px] overflow-auto rounded-md border bg-background p-3 text-xs leading-5">
-          {preview.generated_sql}
-        </pre>
-      </div>
-      <PreviewRowsTable preview={preview} />
-    </div>
-  );
-}
-
-function PreviewRowsTable({ preview }: { preview: DashboardSegmentQueryPreview }) {
-  const columns = preview.columns.slice(0, 8);
-
-  if (preview.rows.length === 0 || columns.length === 0) {
-    return <EmptyState message="preview 결과 row가 없습니다." />;
-  }
-
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {columns.map((column) => (
-              <TableHead key={column}>{column}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {preview.rows.slice(0, 10).map((row, index) => (
-            <TableRow key={index}>
-              {columns.map((column) => (
-                <TableCell className="max-w-[220px] truncate" key={column}>
-                  {formatPreviewValue(row[column])}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
   );
 }
 
@@ -4370,24 +3372,6 @@ function formatNullableInteger(value: number | null | undefined) {
   return value === null || value === undefined ? "-" : formatInteger(value);
 }
 
-function formatPreviewValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return "-";
-  }
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return JSON.stringify(value);
-}
-
-function segmentNameFromQuery(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "";
-  }
-  return trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
-}
-
 function mutationErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "API 요청 실패";
 }
@@ -4398,10 +3382,6 @@ function nullableDate(value: string): string | null {
 
 function nullableMetric(value: string): CreateCampaignInput["primary_metric"] {
   return value === "none" ? null : (value as CreateCampaignInput["primary_metric"]);
-}
-
-function nullablePriority(value: string): AttachSegmentInput["priority"] {
-  return value === "none" ? null : (value as AttachSegmentInput["priority"]);
 }
 
 function nullableText(value: string): string | null {

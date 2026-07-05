@@ -6,6 +6,7 @@ import {
   DashboardFunnelReader,
   DashboardSegmentQueryRepository
 } from "./repository/index.js";
+import { DashboardDecisionClient } from "./provider/index.js";
 import { DashboardQueryService } from "./service/index.js";
 
 @Module({
@@ -13,6 +14,7 @@ import { DashboardQueryService } from "./service/index.js";
   controllers: [DashboardController],
   providers: [
     DashboardQueryService,
+    DashboardDecisionClient,
     DashboardCampaignReader,
     DashboardFunnelReader,
     DashboardSegmentQueryRepository

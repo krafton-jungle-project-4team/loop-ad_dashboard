@@ -35,6 +35,8 @@ const envSchema = z.object({
   LOOPAD_CLICKHOUSE_DATABASE: requiredString,
   LOOPAD_CLICKHOUSE_USERNAME: requiredString,
   LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
+  LOOPAD_DECISION_API_BASE_URL: httpUrl,
+  LOOPAD_INTERNAL_API_KEY: requiredString,
   LOOPAD_OPENAI_API_KEY: requiredString,
   LOOPAD_DEMO_DISPATCH_RECIPIENTS: requiredString
 });
@@ -60,6 +62,10 @@ export const env = Object.freeze({
     database: parsedEnv.LOOPAD_CLICKHOUSE_DATABASE,
     username: parsedEnv.LOOPAD_CLICKHOUSE_USERNAME,
     password: parsedEnv.LOOPAD_CLICKHOUSE_PASSWORD
+  },
+  decision: {
+    apiBaseUrl: parsedEnv.LOOPAD_DECISION_API_BASE_URL,
+    internalApiKey: parsedEnv.LOOPAD_INTERNAL_API_KEY
   },
   openai: {
     apiKey: parsedEnv.LOOPAD_OPENAI_API_KEY

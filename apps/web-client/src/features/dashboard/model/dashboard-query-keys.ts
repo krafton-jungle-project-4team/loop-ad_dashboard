@@ -20,16 +20,33 @@ export function dashboardPromotionDetailQueryKey(projectId: string, promotionId:
   return ["dashboard", "promotion-detail", projectId, promotionId] as const;
 }
 
+export function dashboardPromotionSegmentSuggestionsQueryKey(
+  projectId: string,
+  promotionId: string,
+  analysisId?: string | null
+) {
+  return [
+    "dashboard",
+    "promotion-segment-suggestions",
+    projectId,
+    promotionId,
+    analysisId ?? "latest"
+  ] as const;
+}
+
+export function dashboardPromotionScopedSegmentDefinitionsQueryKey(
+  projectId: string,
+  promotionId: string
+) {
+  return ["dashboard", "promotion-scoped-segment-definitions", projectId, promotionId] as const;
+}
+
 export function dashboardSegmentDetailQueryKey(
   projectId: string,
   promotionId: string,
   segmentId: string
 ) {
   return ["dashboard", "segment-detail", projectId, promotionId, segmentId] as const;
-}
-
-export function dashboardSavedSegmentsQueryKey(projectId: string) {
-  return ["dashboard", "saved-segments", projectId] as const;
 }
 
 export function dashboardFunnelMetricsQueryKey(projectId: string, funnelId: string) {

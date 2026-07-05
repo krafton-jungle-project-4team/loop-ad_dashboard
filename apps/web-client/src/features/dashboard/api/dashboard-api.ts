@@ -6,14 +6,17 @@ import {
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
+  DashboardConfirmSegmentSuggestionsRequestSchema,
+  DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreatePromotionSegmentDefinitionRequestSchema,
   DashboardCreatePromotionRequestSchema,
+  DashboardDecideSegmentSuggestionRequestSchema,
   DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
-  DashboardDeleteSavedSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
@@ -21,20 +24,24 @@ import {
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionScopedSegmentDefinitionListSchema,
+  DashboardPromotionScopedSegmentDefinitionSchema,
+  DashboardPromotionSegmentSuggestionListSchema,
+  DashboardPromotionSegmentSuggestionSchema,
   DashboardPromotionSummarySchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
-  DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
+  DashboardStartPromotionAnalysisRequestSchema,
+  DashboardStartPromotionAnalysisResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
-  DashboardUpdatePromotionSegmentRequestSchema,
-  DashboardUpdateSavedSegmentRequestSchema
+  DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
@@ -43,33 +50,40 @@ import type {
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
+  DashboardConfirmSegmentSuggestionsRequest,
+  DashboardConfirmSegmentSuggestionsResult,
   DashboardCreateCampaignRequest,
   DashboardCreateFunnelRequest,
+  DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
+  DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
   DashboardDeleteFunnelResult,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
-  DashboardDeleteSavedSegmentResult,
   DashboardEventCatalog,
   DashboardFunnel,
   DashboardFunnelMetrics,
   DashboardPromotionDetail,
+  DashboardPromotionScopedSegmentDefinition,
+  DashboardPromotionScopedSegmentDefinitionList,
+  DashboardPromotionSegmentSuggestion,
+  DashboardPromotionSegmentSuggestionList,
   DashboardPromotionSummary,
   DashboardNextLoopAnalysis,
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
-  DashboardSavedSegmentList,
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
+  DashboardStartPromotionAnalysisRequest,
+  DashboardStartPromotionAnalysisResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
-  DashboardUpdatePromotionSegmentRequest,
-  DashboardUpdateSavedSegmentRequest
+  DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../model/dashboard-config.js";
@@ -99,9 +113,6 @@ export async function fetchDashboardPageResource(
     case "campaigns":
     case "campaign-flow-map":
     case "campaign-promotions":
-    case "campaign-segments":
-    case "campaign-experiment-metrics":
-    case "campaign-promotion-metrics":
     case "campaign-metrics":
       return {
         tab,
@@ -399,6 +410,157 @@ export async function deleteDashboardPromotionSegment(
   ).data;
 }
 
+export async function fetchDashboardPromotionSegmentSuggestions(
+  query: DashboardQuery,
+  promotionId: string,
+  signal: AbortSignal,
+  analysisId?: string | null
+): Promise<DashboardPromotionSegmentSuggestionList> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-suggestions`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+  if (analysisId) {
+    url.searchParams.set("analysis_id", analysisId);
+  }
+
+  const response = await fetch(url, { headers: { Accept: "application/json" }, signal });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardPromotionSegmentSuggestionListSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function startDashboardPromotionAnalysis(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardStartPromotionAnalysisRequest
+): Promise<DashboardStartPromotionAnalysisResult> {
+  const parsedBody = DashboardStartPromotionAnalysisRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-suggestions/analyze`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardStartPromotionAnalysisResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function fetchDashboardPromotionScopedSegmentDefinitions(
+  query: DashboardQuery,
+  promotionId: string,
+  signal: AbortSignal
+): Promise<DashboardPromotionScopedSegmentDefinitionList> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-definitions`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, { headers: { Accept: "application/json" }, signal });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardPromotionScopedSegmentDefinitionListSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function createDashboardPromotionScopedSegmentDefinition(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardCreatePromotionSegmentDefinitionRequest
+): Promise<DashboardPromotionScopedSegmentDefinition> {
+  const parsedBody = DashboardCreatePromotionSegmentDefinitionRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-definitions`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardPromotionScopedSegmentDefinitionSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function decideDashboardPromotionSegmentSuggestion(
+  query: DashboardQuery,
+  promotionId: string,
+  suggestionId: string,
+  requestBody: DashboardDecideSegmentSuggestionRequest
+): Promise<DashboardPromotionSegmentSuggestion> {
+  const parsedBody = DashboardDecideSegmentSuggestionRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-suggestions/${encodeURIComponent(suggestionId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardPromotionSegmentSuggestionSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function confirmDashboardPromotionSegmentSuggestions(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardConfirmSegmentSuggestionsRequest
+): Promise<DashboardConfirmSegmentSuggestionsResult> {
+  const parsedBody = DashboardConfirmSegmentSuggestionsRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-suggestions/confirm`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardConfirmSegmentSuggestionsResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
 export async function startDashboardNextLoopAnalysis(
   query: DashboardQuery,
   promotionId: string,
@@ -547,61 +709,6 @@ export async function saveDashboardSegment(
 
   return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
     .data;
-}
-
-export async function updateDashboardSavedSegment(
-  query: DashboardQuery,
-  segmentId: string,
-  requestBody: DashboardUpdateSavedSegmentRequest
-): Promise<DashboardSavedSegment> {
-  const parsedBody = DashboardUpdateSavedSegmentRequestSchema.parse(requestBody);
-  const url = new URL(
-    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments/${encodeURIComponent(segmentId)}`,
-    window.location.origin
-  );
-  url.searchParams.set("project_id", query.projectId);
-
-  const response = await fetch(url, {
-    body: JSON.stringify(parsedBody),
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    method: "PATCH"
-  });
-  if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
-  }
-
-  return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
-    .data;
-}
-
-export async function deleteDashboardSavedSegment(
-  query: DashboardQuery,
-  segmentId: string
-): Promise<DashboardDeleteSavedSegmentResult> {
-  const url = new URL(
-    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments/${encodeURIComponent(segmentId)}`,
-    window.location.origin
-  );
-  url.searchParams.set("project_id", query.projectId);
-
-  const response = await fetch(url, {
-    headers: { Accept: "application/json" },
-    method: "DELETE"
-  });
-  if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
-  }
-
-  return createApiSuccessResponseSchema(DashboardDeleteSavedSegmentResultSchema).parse(
-    await response.json()
-  ).data;
-}
-
-export async function fetchDashboardSavedSegments(
-  query: DashboardQuery,
-  signal: AbortSignal
-): Promise<DashboardSavedSegmentList> {
-  return request("/dashboard/v1/segments", DashboardSavedSegmentListSchema, query, signal);
 }
 
 export async function fetchDashboardEventCatalog(

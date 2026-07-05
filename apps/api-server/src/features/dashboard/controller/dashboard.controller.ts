@@ -6,14 +6,17 @@ import {
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
+  DashboardConfirmSegmentSuggestionsRequestSchema,
+  DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreatePromotionSegmentDefinitionRequestSchema,
   DashboardCreatePromotionRequestSchema,
+  DashboardDecideSegmentSuggestionRequestSchema,
   DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
-  DashboardDeleteSavedSegmentResultSchema,
   DashboardEventCatalogSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
@@ -21,20 +24,24 @@ import {
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionScopedSegmentDefinitionListSchema,
+  DashboardPromotionScopedSegmentDefinitionSchema,
+  DashboardPromotionSegmentSuggestionListSchema,
+  DashboardPromotionSegmentSuggestionSchema,
   DashboardPromotionSummarySchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
-  DashboardSavedSegmentListSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
+  DashboardStartPromotionAnalysisRequestSchema,
+  DashboardStartPromotionAnalysisResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
-  DashboardUpdatePromotionSegmentRequestSchema,
-  DashboardUpdateSavedSegmentRequestSchema
+  DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
@@ -258,6 +265,99 @@ export class DashboardController {
     );
   }
 
+  @Get("promotions/:promotion_id/segment-suggestions")
+  async promotionSegmentSuggestions(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId?: string,
+    @Query("analysis_id") analysisId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardPromotionSegmentSuggestionListSchema.parse(
+      await this.dashboardQuery.promotionSegmentSuggestions(
+        requiredProjectId,
+        promotionId,
+        analysisId ?? null
+      )
+    );
+  }
+
+  @Post("promotions/:promotion_id/segment-suggestions/analyze")
+  async startPromotionAnalysis(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardStartPromotionAnalysisRequestSchema.parse(body ?? {});
+    return DashboardStartPromotionAnalysisResultSchema.parse(
+      await this.dashboardQuery.startPromotionAnalysis(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Get("promotions/:promotion_id/segment-definitions")
+  async promotionScopedSegmentDefinitions(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardPromotionScopedSegmentDefinitionListSchema.parse(
+      await this.dashboardQuery.promotionScopedSegmentDefinitions(requiredProjectId, promotionId)
+    );
+  }
+
+  @Post("promotions/:promotion_id/segment-definitions")
+  async createPromotionScopedSegmentDefinition(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardCreatePromotionSegmentDefinitionRequestSchema.parse(body);
+    return DashboardPromotionScopedSegmentDefinitionSchema.parse(
+      await this.dashboardQuery.createPromotionScopedSegmentDefinition(
+        requiredProjectId,
+        promotionId,
+        request
+      )
+    );
+  }
+
+  @Patch("promotions/:promotion_id/segment-suggestions/:suggestion_id")
+  async decidePromotionSegmentSuggestion(
+    @Param("promotion_id") promotionId: string,
+    @Param("suggestion_id") suggestionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardDecideSegmentSuggestionRequestSchema.parse(body);
+    return DashboardPromotionSegmentSuggestionSchema.parse(
+      await this.dashboardQuery.decidePromotionSegmentSuggestion(
+        requiredProjectId,
+        promotionId,
+        suggestionId,
+        request
+      )
+    );
+  }
+
+  @Post("promotions/:promotion_id/segment-suggestions/confirm")
+  async confirmPromotionSegmentSuggestions(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardConfirmSegmentSuggestionsRequestSchema.parse(body);
+    return DashboardConfirmSegmentSuggestionsResultSchema.parse(
+      await this.dashboardQuery.confirmPromotionSegmentSuggestions(
+        requiredProjectId,
+        promotionId,
+        request
+      )
+    );
+  }
+
   @Get("funnels")
   async funnels(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
@@ -315,44 +415,12 @@ export class DashboardController {
     );
   }
 
-  @Get("segments")
-  async savedSegments(@Query("project_id") projectId?: string) {
-    const requiredProjectId = requireProjectId(projectId);
-    return DashboardSavedSegmentListSchema.parse(
-      await this.dashboardQuery.savedSegments(requiredProjectId)
-    );
-  }
-
   @Post("segments")
   async saveSegment(@Query("project_id") projectId: string | undefined, @Body() body: unknown) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardSaveSegmentRequestSchema.parse(body);
     return DashboardSavedSegmentSchema.parse(
       await this.dashboardQuery.saveSegment(requiredProjectId, request)
-    );
-  }
-
-  @Patch("segments/:segment_id")
-  async updateSavedSegment(
-    @Param("segment_id") segmentId: string,
-    @Query("project_id") projectId: string | undefined,
-    @Body() body: unknown
-  ) {
-    const requiredProjectId = requireProjectId(projectId);
-    const request = DashboardUpdateSavedSegmentRequestSchema.parse(body);
-    return DashboardSavedSegmentSchema.parse(
-      await this.dashboardQuery.updateSavedSegment(requiredProjectId, segmentId, request)
-    );
-  }
-
-  @Delete("segments/:segment_id")
-  async deleteSavedSegment(
-    @Param("segment_id") segmentId: string,
-    @Query("project_id") projectId?: string
-  ) {
-    const requiredProjectId = requireProjectId(projectId);
-    return DashboardDeleteSavedSegmentResultSchema.parse(
-      await this.dashboardQuery.archiveSavedSegment(requiredProjectId, segmentId)
     );
   }
 }
