@@ -307,6 +307,17 @@ export type DashboardApproveContentCandidateRequest = z.infer<
   typeof DashboardApproveContentCandidateRequestSchema
 >;
 
+export const DashboardApproveContentCandidateResultSchema = z.object({
+  content_id: z.string(),
+  content_option_id: z.string(),
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  status: z.literal("approved")
+});
+export type DashboardApproveContentCandidateResult = z.infer<
+  typeof DashboardApproveContentCandidateResultSchema
+>;
+
 export const DashboardRejectContentCandidateRequestSchema = z.object({
   operator_note: z.string().nullable().optional()
 });
@@ -340,6 +351,67 @@ export const DashboardAdExperimentSchema = z.object({
   status: z.string()
 });
 export type DashboardAdExperiment = z.infer<typeof DashboardAdExperimentSchema>;
+
+export const DashboardCreatePromotionRunRequestSchema = z.object({
+  analysis_id: z.string().min(1).optional(),
+  generation_id: z.string().min(1).optional(),
+  loop_count: z.number().int().min(1).default(1)
+});
+export type DashboardCreatePromotionRunRequest = z.infer<
+  typeof DashboardCreatePromotionRunRequestSchema
+>;
+
+export const DashboardPromotionRunAdExperimentSchema = z.object({
+  ad_experiment_id: z.string(),
+  segment_id: z.string(),
+  segment_name: z.string().nullable().optional(),
+  content_id: z.string(),
+  content_option_id: z.string(),
+  channel: z.string(),
+  loop_count: CountSchema,
+  status: z.string()
+});
+export type DashboardPromotionRunAdExperiment = z.infer<
+  typeof DashboardPromotionRunAdExperimentSchema
+>;
+
+export const DashboardCreatePromotionRunResultSchema = z.object({
+  promotion_run_id: z.string(),
+  project_id: z.string(),
+  campaign_id: z.string(),
+  promotion_id: z.string(),
+  analysis_id: z.string(),
+  generation_id: z.string(),
+  loop_count: CountSchema,
+  status: z.string(),
+  goal_snapshot_json: JsonObjectSchema,
+  ad_experiments: z.array(DashboardPromotionRunAdExperimentSchema)
+});
+export type DashboardCreatePromotionRunResult = z.infer<
+  typeof DashboardCreatePromotionRunResultSchema
+>;
+
+export const DashboardBuildPromotionRunAssignmentsResultSchema = z.object({
+  promotion_run_id: z.string(),
+  matching_mode: z.string(),
+  vector_version: z.string(),
+  ann_candidate_limit: CountSchema,
+  ann_candidate_count: CountSchema,
+  exact_reranked_pair_count: CountSchema,
+  assignment_count: CountSchema,
+  batch_has_fallback: z.boolean(),
+  fallback_count: CountSchema,
+  below_threshold_fallback_count: CountSchema,
+  no_candidate_fallback_count: CountSchema,
+  invalid_user_vector_fallback_count: CountSchema,
+  ann_underfilled_user_count: CountSchema,
+  skipped_existing_count: CountSchema,
+  insufficient_segment_count: CountSchema,
+  status: z.string()
+});
+export type DashboardBuildPromotionRunAssignmentsResult = z.infer<
+  typeof DashboardBuildPromotionRunAssignmentsResultSchema
+>;
 
 export const DashboardCampaignExperimentMetricSchema = z.object({
   promotion_id: z.string(),

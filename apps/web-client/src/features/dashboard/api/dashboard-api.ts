@@ -1,9 +1,11 @@
 import {
+  apiFailureResponseSchema,
   createApiSuccessResponseSchema,
-  DashboardAdExperimentSchema,
   DashboardArchivePromotionScopedSegmentDefinitionResultSchema,
   DashboardApproveContentCandidateRequestSchema,
+  DashboardApproveContentCandidateResultSchema,
   DashboardAttachSegmentRequestSchema,
+  DashboardBuildPromotionRunAssignmentsResultSchema,
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
@@ -13,6 +15,8 @@ import {
   DashboardCreateFunnelRequestSchema,
   DashboardCreateProjectRequestSchema,
   DashboardCreatePromotionSegmentDefinitionRequestSchema,
+  DashboardCreatePromotionRunRequestSchema,
+  DashboardCreatePromotionRunResultSchema,
   DashboardCreatePromotionRequestSchema,
   DashboardDecideSegmentSuggestionRequestSchema,
   DashboardDeleteCampaignResultSchema,
@@ -52,10 +56,11 @@ import {
   PromotionRunDispatchResponseSchema
 } from "@loopad/shared";
 import type {
-  DashboardAdExperiment,
   DashboardArchivePromotionScopedSegmentDefinitionResult,
   DashboardApproveContentCandidateRequest,
+  DashboardApproveContentCandidateResult,
   DashboardAttachSegmentRequest,
+  DashboardBuildPromotionRunAssignmentsResult,
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
@@ -65,6 +70,8 @@ import type {
   DashboardCreateFunnelRequest,
   DashboardCreateProjectRequest,
   DashboardCreatePromotionSegmentDefinitionRequest,
+  DashboardCreatePromotionRunRequest,
+  DashboardCreatePromotionRunResult,
   DashboardCreatePromotionRequest,
   DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
@@ -719,7 +726,7 @@ export async function approveDashboardContentCandidate(
   segmentId: string,
   contentId: string,
   requestBody: DashboardApproveContentCandidateRequest
-): Promise<DashboardAdExperiment> {
+): Promise<DashboardApproveContentCandidateResult> {
   const parsedBody = DashboardApproveContentCandidateRequestSchema.parse(requestBody);
   const url = new URL(
     `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segments/${encodeURIComponent(segmentId)}/content-candidates/${encodeURIComponent(contentId)}/approve`,
@@ -736,8 +743,58 @@ export async function approveDashboardContentCandidate(
     throw new Error(`API 요청 실패: ${response.status}`);
   }
 
-  return createApiSuccessResponseSchema(DashboardAdExperimentSchema).parse(await response.json())
-    .data;
+  return createApiSuccessResponseSchema(DashboardApproveContentCandidateResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function createDashboardPromotionRun(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardCreatePromotionRunRequest = { loop_count: 1 }
+): Promise<DashboardCreatePromotionRunResult> {
+  const parsedBody = DashboardCreatePromotionRunRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/runs`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
+
+  return createApiSuccessResponseSchema(DashboardCreatePromotionRunResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function buildDashboardPromotionRunAssignments(
+  query: DashboardQuery,
+  promotionRunId: string
+): Promise<DashboardBuildPromotionRunAssignmentsResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotion-runs/${encodeURIComponent(promotionRunId)}/segment-assignments/build`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
+
+  return createApiSuccessResponseSchema(DashboardBuildPromotionRunAssignmentsResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function rejectDashboardContentCandidate(
@@ -781,7 +838,7 @@ export async function dispatchDashboardPromotionRun(
     method: "POST"
   });
   if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   return createApiSuccessResponseSchema(PromotionRunDispatchResponseSchema).parse(
@@ -909,4 +966,34 @@ async function request<T>(
   }
 
   return createApiSuccessResponseSchema(schema).parse(await response.json()).data;
+}
+
+async function readApiErrorMessage(response: Response) {
+  const fallbackMessage = `API 요청 실패: ${response.status}`;
+
+  try {
+    const body: unknown = await response.clone().json();
+    const parsed = apiFailureResponseSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return fallbackMessage;
+    }
+
+    return toDashboardApiErrorMessage(parsed.data.error.code, parsed.data.error.message);
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+function toDashboardApiErrorMessage(code: string, message: string) {
+  switch (code) {
+    case "ACTIVE_ASSIGNMENT_NOT_FOUND":
+      return "광고 실행 대상 배정이 아직 없습니다. 승인된 광고 실험에 대한 세그먼트 매칭/assignment 생성이 먼저 필요합니다.";
+    case "PROMOTION_RUN_NOT_FOUND":
+      return "광고 실행에 사용할 promotion_run을 찾지 못했습니다. 광고 후보 승인 후 다시 시도해주세요.";
+    case "UNSUPPORTED_DISPATCH_CHANNEL":
+      return "현재 광고 실행은 Email/SMS 채널만 지원합니다.";
+    default:
+      return message;
+  }
 }

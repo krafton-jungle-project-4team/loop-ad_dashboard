@@ -1,9 +1,10 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
-  DashboardAdExperimentSchema,
   DashboardArchivePromotionScopedSegmentDefinitionResultSchema,
   DashboardApproveContentCandidateRequestSchema,
+  DashboardApproveContentCandidateResultSchema,
   DashboardAttachSegmentRequestSchema,
+  DashboardBuildPromotionRunAssignmentsResultSchema,
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
@@ -12,6 +13,8 @@ import {
   DashboardCreateCampaignRequestSchema,
   DashboardCreateProjectRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreatePromotionRunRequestSchema,
+  DashboardCreatePromotionRunResultSchema,
   DashboardCreatePromotionSegmentDefinitionRequestSchema,
   DashboardCreatePromotionRequestSchema,
   DashboardDecideSegmentSuggestionRequestSchema,
@@ -224,7 +227,7 @@ export class DashboardController {
   ) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardApproveContentCandidateRequestSchema.parse(body);
-    return DashboardAdExperimentSchema.parse(
+    return DashboardApproveContentCandidateResultSchema.parse(
       await this.dashboardQuery.approveContentCandidate(
         requiredProjectId,
         promotionId,
@@ -232,6 +235,30 @@ export class DashboardController {
         contentId,
         request
       )
+    );
+  }
+
+  @Post("promotions/:promotion_id/runs")
+  async createPromotionRun(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardCreatePromotionRunRequestSchema.parse(body ?? {});
+    return DashboardCreatePromotionRunResultSchema.parse(
+      await this.dashboardQuery.createPromotionRun(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Post("promotion-runs/:promotion_run_id/segment-assignments/build")
+  async buildPromotionRunAssignments(
+    @Param("promotion_run_id") promotionRunId: string,
+    @Query("project_id") projectId: string | undefined
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardBuildPromotionRunAssignmentsResultSchema.parse(
+      await this.dashboardQuery.buildPromotionRunAssignments(requiredProjectId, promotionRunId)
     );
   }
 

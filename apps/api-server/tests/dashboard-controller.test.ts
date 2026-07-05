@@ -462,17 +462,10 @@ test("dashboard controller parses content approval body before delegating", asyn
     approveContentCandidate: async (projectId, promotionId, segmentId, contentId, request) => {
       writes.push({ contentId, projectId, promotionId, request, segmentId });
       return {
-        ad_experiment_id: "ad_exp_vip_001",
-        promotion_run_id: "run_banner_001",
-        promotion_id: promotionId,
-        segment_id: segmentId,
         content_id: contentId,
         content_option_id: "option_a",
-        channel: "onsite_banner",
-        loop_count: 1,
-        goal_metric: "booking_conversion_rate",
-        goal_target_value: 0.03,
-        goal_basis: "all_segments",
+        promotion_id: promotionId,
+        segment_id: segmentId,
         status: "approved"
       };
     }
@@ -495,7 +488,7 @@ test("dashboard controller parses content approval body before delegating", asyn
       segmentId: "seg_vip"
     }
   ]);
-  assert.equal(response.ad_experiment_id, "ad_exp_vip_001");
+  assert.equal(response.content_id, "content_vip_a");
   assert.equal(response.status, "approved");
 });
 

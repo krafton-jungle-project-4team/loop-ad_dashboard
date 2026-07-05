@@ -1,6 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 import type {
+  DashboardBuildPromotionRunAssignmentsResult,
+  DashboardCreatePromotionRunRequest,
+  DashboardCreatePromotionRunResult,
   DashboardStartPromotionAnalysisRequest,
   DashboardStartPromotionAnalysisResult,
   DashboardStartPromotionGenerationRequest,
@@ -21,6 +24,49 @@ const decisionPromotionGenerationResponseSchema = z.object({
   status: z.string(),
   content_candidate_count: z.number().int().nonnegative().optional()
 });
+const decisionPromotionRunResponseSchema = z.object({
+  promotion_run_id: z.string(),
+  project_id: z.string(),
+  campaign_id: z.string(),
+  promotion_id: z.string(),
+  analysis_id: z.string(),
+  generation_id: z.string(),
+  loop_count: z.number().int().min(1),
+  status: z.string(),
+  goal_snapshot_json: z.record(z.string(), z.unknown()),
+  ad_experiments: z.array(
+    z.object({
+      ad_experiment_id: z.string(),
+      segment_id: z.string(),
+      segment_name: z.string().nullable().optional(),
+      content_id: z.string(),
+      content_option_id: z.string(),
+      channel: z.string(),
+      loop_count: z.number().int().min(1),
+      status: z.string()
+    })
+  )
+});
+const decisionSegmentAssignmentBuildResponseSchema = z.object({
+  promotion_run_id: z.string(),
+  matching_mode: z.string(),
+  vector_version: z.string(),
+  ann_candidate_limit: z.number().int().nonnegative(),
+  ann_candidate_count: z.number().int().nonnegative(),
+  exact_reranked_pair_count: z.number().int().nonnegative(),
+  assignment_count: z.number().int().nonnegative(),
+  batch_has_fallback: z.boolean(),
+  fallback_count: z.number().int().nonnegative(),
+  below_threshold_fallback_count: z.number().int().nonnegative(),
+  no_candidate_fallback_count: z.number().int().nonnegative(),
+  invalid_user_vector_fallback_count: z.number().int().nonnegative(),
+  ann_underfilled_user_count: z.number().int().nonnegative(),
+  skipped_existing_count: z.number().int().nonnegative(),
+  insufficient_segment_count: z.number().int().nonnegative(),
+  status: z.string()
+});
+
+const DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT = 10_000;
 
 @Injectable()
 export class DashboardDecisionClient {
@@ -113,6 +159,92 @@ export class DashboardDecisionClient {
 
     const body: unknown = await response.json();
     const parsed = decisionPromotionGenerationResponseSchema.safeParse(body);
+    if (!parsed.success) {
+      throw dashboardErrors.decisionRequestFailed(parsed.error);
+    }
+
+    return parsed.data;
+  }
+
+  async createPromotionRun(request: {
+    promotionId: string;
+    request: DashboardCreatePromotionRunRequest;
+  }): Promise<DashboardCreatePromotionRunResult> {
+    const url = new URL(
+      `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/runs`,
+      env.decision.apiBaseUrl
+    );
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        body: JSON.stringify({
+          analysis_id: request.request.analysis_id,
+          generation_id: request.request.generation_id,
+          loop_count: request.request.loop_count
+        }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
+        },
+        method: "POST"
+      });
+    } catch (error) {
+      throw dashboardErrors.decisionRequestFailed(error);
+    }
+
+    if (!response.ok) {
+      throw dashboardErrors.decisionRequestFailed({
+        status: response.status,
+        statusText: response.statusText
+      });
+    }
+
+    const body: unknown = await response.json();
+    const parsed = decisionPromotionRunResponseSchema.safeParse(body);
+    if (!parsed.success) {
+      throw dashboardErrors.decisionRequestFailed(parsed.error);
+    }
+
+    return parsed.data;
+  }
+
+  async buildPromotionRunSegmentAssignments(request: {
+    projectId: string;
+    promotionRunId: string;
+  }): Promise<DashboardBuildPromotionRunAssignmentsResult> {
+    const url = new URL(
+      `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/segment-assignments/build`,
+      env.decision.apiBaseUrl
+    );
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        body: JSON.stringify({
+          eligible_user_limit: DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT
+        }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
+        },
+        method: "POST"
+      });
+    } catch (error) {
+      throw dashboardErrors.decisionRequestFailed(error);
+    }
+
+    if (!response.ok) {
+      throw dashboardErrors.decisionRequestFailed({
+        status: response.status,
+        statusText: response.statusText
+      });
+    }
+
+    const body: unknown = await response.json();
+    const parsed = decisionSegmentAssignmentBuildResponseSchema.safeParse(body);
     if (!parsed.success) {
       throw dashboardErrors.decisionRequestFailed(parsed.error);
     }
