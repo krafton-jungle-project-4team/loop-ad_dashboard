@@ -5,6 +5,7 @@ export const dashboardTabValues = [
   "main-campaign-list",
   "funnels",
   "campaigns",
+  "campaign-flow-map",
   "campaign-promotions",
   "campaign-segments",
   "campaign-experiment-metrics",
@@ -35,6 +36,7 @@ export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
   | { tab: "main-campaign-list"; data: DashboardMain }
   | { tab: "funnels"; data: DashboardFunnelList }
+  | { tab: "campaign-flow-map"; data: DashboardMain }
   | { tab: "campaign-promotions"; data: DashboardMain }
   | { tab: "campaign-segments"; data: DashboardMain }
   | { tab: "campaign-experiment-metrics"; data: DashboardMain }

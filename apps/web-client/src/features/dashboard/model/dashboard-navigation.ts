@@ -1,4 +1,11 @@
-import { Activity, DatabaseZap, ListFilter, Megaphone, type LucideIcon } from "lucide-react";
+import {
+  Activity,
+  DatabaseZap,
+  ListFilter,
+  Megaphone,
+  Workflow,
+  type LucideIcon
+} from "lucide-react";
 import type { DashboardTab } from "./dashboard-types.js";
 
 export type DashboardNavItem = {
@@ -25,6 +32,12 @@ export const dashboardTabs = [
     pathSegment: "main-campaign-list"
   },
   { value: "funnels", label: "퍼널", icon: ListFilter, pathSegment: "funnels" },
+  {
+    value: "campaign-flow-map",
+    label: "워크플로우 맵",
+    icon: Workflow,
+    pathSegment: "campaign-flow-map"
+  },
   { value: "campaigns", label: "캠페인", icon: Megaphone, pathSegment: "campaigns" },
   {
     value: "campaign-promotions",
@@ -79,6 +92,12 @@ export const dashboardNavigationTree = [
     value: "funnels",
     pathSegment: "funnels",
     icon: ListFilter
+  },
+  {
+    label: "워크플로우 맵",
+    value: "campaign-flow-map",
+    pathSegment: "campaign-flow-map",
+    icon: Workflow
   },
   {
     label: "프로모션",
