@@ -312,7 +312,7 @@ function ProjectManagementDialog({ projectId }: { projectId: string }) {
               />
             </Field>
             <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="project-write-key">Write key</FieldLabel>
+              <FieldLabel htmlFor="project-write-key">쓰기 키</FieldLabel>
               <Input
                 autoComplete="off"
                 id="project-write-key"
@@ -452,7 +452,7 @@ function BrandBlock() {
         <span className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
           loop-ad
         </span>
-        <span className="truncate text-xs text-muted-foreground">Dashboard</span>
+        <span className="truncate text-xs text-muted-foreground">대시보드</span>
       </div>
     </div>
   );

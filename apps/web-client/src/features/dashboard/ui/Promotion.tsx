@@ -1161,9 +1161,9 @@ function PromotionSegmentDetailTab({
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-4">
           <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
-          <SummaryItem label="sample size" value={formatInteger(detail.segment.sample_size)} />
+          <SummaryItem label="표본 수" value={formatInteger(detail.segment.sample_size)} />
           <SummaryItem
-            label="sample ratio"
+            label="표본 비율"
             value={formatPercentValue(detail.segment.sample_ratio)}
           />
           <SummaryItem
@@ -1189,7 +1189,7 @@ function PromotionSegmentDetailTab({
 
       {insufficientMetrics.length > 0 || detail.segment.status === "insufficient_data" ? (
         <Alert variant="destructive">
-          <AlertTitle>insufficient_data 상태</AlertTitle>
+          <AlertTitle>표본 부족 상태</AlertTitle>
           <AlertDescription>
             표본 부족은 실패가 아니라 판단 보류 상태입니다. 실험 대상 수와 평가 결과 JSON을
             함께 확인해야 합니다.
@@ -1236,7 +1236,7 @@ function PromotionSegmentDetailTab({
           <div className="grid gap-1">
             <CardTitle className="text-base">세그먼트별 생성 광고</CardTitle>
             <CardDescription>
-              Decision generation이 저장한 content_candidates를 세그먼트 기준으로 조회합니다.
+              Decision 생성 결과로 저장된 콘텐츠 후보를 세그먼트 기준으로 조회합니다.
             </CardDescription>
           </div>
           <Button
@@ -1371,7 +1371,7 @@ function PromotionSegmentDetailTab({
 
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle className="text-base">연결된 ad_experiment</CardTitle>
+          <CardTitle className="text-base">연결된 광고 실험</CardTitle>
           <CardDescription>세그먼트 하위 실험 단위입니다.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -1407,14 +1407,14 @@ function PromotionSegmentDetailTab({
               </TableBody>
             </Table>
           ) : (
-            <EmptyState message="아직 연결된 ad_experiment가 없습니다." />
+            <EmptyState message="아직 연결된 광고 실험이 없습니다." />
           )}
         </CardContent>
       </Card>
 
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle className="text-base">지표 / insufficient_data 사유</CardTitle>
+          <CardTitle className="text-base">지표 / 표본 부족 사유</CardTitle>
           <CardDescription>평가는 세그먼트 하위 실험 지표 기준으로 확인합니다.</CardDescription>
         </CardHeader>
         <CardContent>

@@ -54,7 +54,7 @@ export const dashboardTabs = [
   },
   {
     value: "dataExplorer",
-    label: "Data Explorer",
+    label: "데이터 탐색기",
     icon: DatabaseZap,
     pathSegment: "data-explorer"
   }
@@ -98,7 +98,7 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     icon: Megaphone
   },
   {
-    label: "Data Explorer",
+    label: "데이터 탐색기",
     value: "dataExplorer",
     pathSegment: "data-explorer",
     icon: DatabaseZap

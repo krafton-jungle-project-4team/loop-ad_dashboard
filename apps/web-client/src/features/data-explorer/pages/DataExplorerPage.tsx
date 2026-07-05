@@ -205,11 +205,11 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                   isRunning={mutations.runQuery.isPending}
                   leftToolbar={
                     <Button
-                      aria-label={isSchemaPanelOpen ? "Close schema panel" : "Open schema panel"}
+                      aria-label={isSchemaPanelOpen ? "스키마 패널 닫기" : "스키마 패널 열기"}
                       className={panelToggleButtonClass}
                       onClick={() => setIsSchemaPanelOpen((current) => !current)}
                       size="icon-sm"
-                      title={isSchemaPanelOpen ? "Close schema panel" : "Open schema panel"}
+                      title={isSchemaPanelOpen ? "스키마 패널 닫기" : "스키마 패널 열기"}
                       type="button"
                       variant="ghost"
                     >
@@ -220,11 +220,11 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                   onSqlTextChange={handleSqlTextChange}
                   rightToolbar={
                     <Button
-                      aria-label={isAssistantPanelOpen ? "Close AI panel" : "Open AI panel"}
+                      aria-label={isAssistantPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
                       className={panelToggleButtonClass}
                       onClick={() => setIsAssistantPanelOpen((current) => !current)}
                       size="icon-sm"
-                      title={isAssistantPanelOpen ? "Close AI panel" : "Open AI panel"}
+                      title={isAssistantPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
                       type="button"
                       variant="ghost"
                     >
@@ -246,7 +246,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                 <section className="flex h-full min-h-0 min-w-0 flex-col bg-white">
                   {queryError ? (
                     <Alert className="m-3 shrink-0" variant="destructive">
-                      <AlertTitle>Data Explorer 요청 실패</AlertTitle>
+                      <AlertTitle>데이터 탐색기 요청 실패</AlertTitle>
                       <AlertDescription>{queryError}</AlertDescription>
                     </Alert>
                   ) : null}
@@ -257,18 +257,18 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                   >
                     <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
                       <TabsList className="h-8">
-                        <TabsTrigger value="result">Query Result</TabsTrigger>
-                        <TabsTrigger value="visualization">Visual Insights</TabsTrigger>
+                        <TabsTrigger value="result">쿼리 결과</TabsTrigger>
+                        <TabsTrigger value="visualization">시각화 인사이트</TabsTrigger>
                       </TabsList>
                       <div className="flex items-center gap-2">
                         {validation ? (
                           <Badge variant={hasInvalidValidation ? "destructive" : "outline"}>
-                            {hasInvalidValidation ? "invalid" : "valid"}
+                            {hasInvalidValidation ? "검증 실패" : "검증 통과"}
                           </Badge>
                         ) : null}
                         {queryResult ? (
                           <Badge variant={queryResult.truncated ? "destructive" : "outline"}>
-                            {queryResult.truncated ? "truncated" : `${queryResult.row_count} rows`}
+                            {queryResult.truncated ? "일부만 표시" : `${queryResult.row_count}행`}
                           </Badge>
                         ) : null}
                       </div>
@@ -310,7 +310,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                 <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
                   <Bot className="size-4 text-[#0066cc]" />
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    AI Assistant
+                    AI 어시스턴트
                   </div>
                 </div>
                 <div className="h-[calc(100%-49px)] min-h-0">
@@ -423,5 +423,5 @@ function quoteClickHouseIdentifier(identifier: string) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unexpected Data Explorer error.";
+  return error instanceof Error ? error.message : "데이터 탐색기에서 예상하지 못한 오류가 발생했습니다.";
 }

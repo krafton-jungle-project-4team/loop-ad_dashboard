@@ -89,7 +89,7 @@ export function SchemaBrowserPanel({
       <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
         <Database className="size-4 text-[#0066cc]" />
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-          Data Source
+          데이터 소스
         </div>
       </div>
 
@@ -99,7 +99,7 @@ export function SchemaBrowserPanel({
           <Input
             className="h-10 bg-white pl-8"
             onChange={(event) => onObjectSearchChange(event.target.value)}
-            placeholder="Search schema and events..."
+            placeholder="스키마와 이벤트 검색..."
             value={objectSearch}
           />
         </div>
@@ -110,7 +110,7 @@ export function SchemaBrowserPanel({
           <FolderSection
             isOpen={isSchemaFolderOpen}
             onToggle={() => setIsSchemaFolderOpen((current) => !current)}
-            title="Schema"
+            title="스키마"
           >
             <div className="grid gap-px">
               {objects.map((object) => {
@@ -128,11 +128,11 @@ export function SchemaBrowserPanel({
                       )}
                     >
                       <Button
-                        aria-label={`${isExpanded ? "Hide" : "Show"} schema for ${object.object_name}`}
+                        aria-label={`${object.object_name} 스키마 ${isExpanded ? "숨기기" : "보기"}`}
                         className={schemaIconButtonClass}
                         onClick={() => handleToggleObject(object)}
                         size="icon-xs"
-                        title={`${isExpanded ? "Hide" : "Show"} schema for ${object.object_name}`}
+                        title={`${object.object_name} 스키마 ${isExpanded ? "숨기기" : "보기"}`}
                         type="button"
                         variant="ghost"
                       >
@@ -196,7 +196,7 @@ export function SchemaBrowserPanel({
           <FolderSection
             isOpen={isEventsFolderOpen}
             onToggle={() => setIsEventsFolderOpen((current) => !current)}
-            title="Events"
+            title="이벤트"
           >
             <div className="grid gap-px">
               {filteredEvents.map((event) => (
@@ -223,7 +223,7 @@ export function SchemaBrowserPanel({
                     )}
                     onClick={() => onBuildEventQuery(event.event_name)}
                     size="icon-xs"
-                    title="Build recent event SQL"
+                    title="최근 이벤트 SQL 만들기"
                     type="button"
                     variant="ghost"
                   >
@@ -297,14 +297,14 @@ function ObjectActionMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={`Object actions for ${object.object_name}`}
+          aria-label={`${object.object_name} 객체 작업`}
           className={cn(
             schemaIconButtonClass,
             "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
           )}
           onClick={(event) => event.stopPropagation()}
           size="icon-xs"
-          title={`Object actions for ${object.object_name}`}
+          title={`${object.object_name} 객체 작업`}
           type="button"
           variant="ghost"
         >
@@ -316,7 +316,7 @@ function ObjectActionMenu({
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => onBuildObjectQuery(object)}>
           <FileCode2 />
-          Query rows
+          행 조회
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onBuildObjectDdlQuery(object)}>
           <Database />

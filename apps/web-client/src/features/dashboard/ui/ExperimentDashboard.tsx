@@ -285,7 +285,7 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
             <TableCell>
               <div className="flex flex-wrap gap-1.5">
                 <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                {row.nextLoopRequired ? <Badge variant="outline">next loop</Badge> : null}
+                {row.nextLoopRequired ? <Badge variant="outline">다음 루프</Badge> : null}
               </div>
             </TableCell>
             <TableCell>{formatDateTime(row.createdAt)}</TableCell>

@@ -1261,43 +1261,43 @@ function campaignWorkflowSteps(
 
   return [
     {
-      label: "Campaign",
+      label: "캠페인",
       status: campaign.status,
       value: campaign.campaign_name,
       variant: statusBadgeVariant(campaign.status)
     },
     {
-      label: "Promotion",
+      label: "프로모션",
       status: promotion.status,
       value: promotion.channel,
       variant: statusBadgeVariant(promotion.status)
     },
     {
-      label: "Segment",
+      label: "세그먼트",
       status: segments.length > 0 ? "ready" : "empty",
       value: formatInteger(segments.length),
       variant: segments.length > 0 ? "secondary" : "outline"
     },
     {
-      label: "Ad Experiment",
+      label: "광고 실험",
       status: experimentCount > 0 ? "created" : "empty",
       value: formatInteger(experimentCount),
       variant: experimentCount > 0 ? "secondary" : "outline"
     },
     {
-      label: "Evaluation",
+      label: "평가",
       status: evaluationStatus,
       value: formatInteger(metrics.length),
       variant: statusBadgeVariant(evaluationStatus)
     },
     {
-      label: "Next Loop",
+      label: "다음 루프",
       status: nextLoopCount > 0 ? "required" : insufficientCount > 0 ? "hold" : "none",
       value:
         nextLoopCount > 0
-          ? `${formatInteger(nextLoopCount)} candidates`
+          ? `${formatInteger(nextLoopCount)}개 후보`
           : goalNotMetCount > 0
-            ? `${formatInteger(goalNotMetCount)} goal_not_met`
+            ? `목표 미달 ${formatInteger(goalNotMetCount)}개`
             : "-",
       variant: nextLoopCount > 0 ? "destructive" : "outline"
     }
@@ -1479,7 +1479,7 @@ function CampaignNextAction({
     }) =>
       startDashboardNextLoopAnalysis(query, promotionId, {
         focus_segment_ids: focusSegmentIds,
-        operator_instruction: "Dashboard에서 목표 미달 세그먼트 next-loop 분석 요청"
+        operator_instruction: "대시보드에서 목표 미달 세그먼트 다음 루프 분석 요청"
       }),
     onSuccess: async (analysis) => {
       setRequestedAnalysisId(analysis.analysis_id);
@@ -1499,7 +1499,7 @@ function CampaignNextAction({
         <Badge variant={recommendation.variant}>{recommendation.label}</Badge>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="next-loop 후보" value={formatInteger(nextLoopMetrics.length)} />
+        <SummaryItem label="다음 루프 후보" value={formatInteger(nextLoopMetrics.length)} />
         <SummaryItem label="목표 미달" value={formatInteger(goalNotMetMetrics.length)} />
         <SummaryItem label="표본 부족" value={formatInteger(insufficientMetrics.length)} />
         <SummaryItem label="재검토 세그먼트" value={formatInteger(goalNotMetSegmentIds.length)} />
@@ -1510,13 +1510,13 @@ function CampaignNextAction({
       </Alert>
       {nextLoopMutation.isError ? (
         <Alert variant="destructive">
-          <AlertTitle>next-loop 분석 요청 실패</AlertTitle>
+          <AlertTitle>다음 루프 분석 요청 실패</AlertTitle>
           <AlertDescription>{mutationErrorMessage(nextLoopMutation.error)}</AlertDescription>
         </Alert>
       ) : null}
       {requestedAnalysisId ? (
         <Alert>
-          <AlertTitle>next-loop 분석을 요청했습니다</AlertTitle>
+          <AlertTitle>다음 루프 분석을 요청했습니다</AlertTitle>
           <AlertDescription>{requestedAnalysisId}</AlertDescription>
         </Alert>
       ) : null}
@@ -1533,7 +1533,7 @@ function CampaignNextAction({
                   실패 세그먼트 {formatInteger(target.focusSegmentIds.length)}개만 재분석합니다.
                 </div>
               </div>
-              <InsightBlock label="focus_segment_ids" value={target.focusSegmentIds.join("\n")} />
+              <InsightBlock label="대상 세그먼트 ID" value={target.focusSegmentIds.join("\n")} />
               <Button
                 disabled={nextLoopMutation.isPending}
                 onClick={() =>
@@ -1544,7 +1544,7 @@ function CampaignNextAction({
                 }
                 type="button"
               >
-                {nextLoopMutation.isPending ? "요청 중" : "next-loop 분석 요청"}
+                {nextLoopMutation.isPending ? "요청 중" : "다음 루프 분석 요청"}
               </Button>
             </div>
           ))}
@@ -1552,7 +1552,7 @@ function CampaignNextAction({
       ) : null}
       <div className="grid gap-3 md:grid-cols-3">
         <InsightBlock
-          label="next-loop 대상 세그먼트"
+          label="다음 루프 대상 세그먼트"
           value={nextLoopSegmentIds.length > 0 ? nextLoopSegmentIds.join("\n") : "-"}
         />
         <InsightBlock
@@ -1622,7 +1622,7 @@ function campaignActionRecommendation({
       description:
         "표본 부족 상태가 있습니다. 1.7 규약에 따라 실패로 확정하지 않고 표본 보강 후 다시 평가해야 합니다.",
       label: "표본 보강",
-      title: "insufficient_data 평가가 포함되어 있습니다.",
+      title: "표본 부족 평가가 포함되어 있습니다.",
       variant: "secondary" as const
     };
   }
@@ -2783,7 +2783,7 @@ function SegmentExpectedEffectPanel({
   ]);
   const nextLoopMessage = latestMetric?.next_loop_required
     ? "목표 미달 세그먼트로 다음 루프 후보입니다."
-    : "현재 지표 기준으로 자동 next-loop 대상은 아닙니다.";
+    : "현재 지표 기준으로 자동 다음 루프 대상은 아닙니다.";
 
   return (
     <section className="grid gap-3">
@@ -2886,7 +2886,7 @@ function SegmentInsufficientDataPanel({
                     </div>
                     <div className="text-xs text-muted-foreground">{metric.segment_id ?? "-"}</div>
                   </div>
-                  <Badge variant="destructive">insufficient_data</Badge>
+                  <Badge variant="destructive">표본 부족</Badge>
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <SummaryItem
@@ -2926,7 +2926,7 @@ function SegmentInsufficientDataPanel({
         </div>
       ) : (
         <Alert>
-          <AlertTitle>세그먼트 상태가 insufficient_data입니다</AlertTitle>
+          <AlertTitle>세그먼트 상태가 표본 부족입니다</AlertTitle>
           <AlertDescription>
             실험 지표가 아직 없어서 상세 사유는 표시할 수 없습니다.
           </AlertDescription>
@@ -2943,7 +2943,7 @@ function SegmentSampleSizePanel({
 }) {
   return (
     <section className="grid gap-3">
-      <h3 className="text-base font-semibold text-[#1d1d1f]">sample size 검증</h3>
+      <h3 className="text-base font-semibold text-[#1d1d1f]">표본 수 검증</h3>
       {metrics.length > 0 ? (
         <div className="grid gap-3 md:grid-cols-2">
           {metrics.map((metric) => {
@@ -3352,16 +3352,16 @@ function insufficientAssignmentSummary(
   details: ReturnType<typeof insufficientDataDetails>
 ): string {
   const lines = [
-    details.assignmentBuildId ? `assignment_build_id: ${details.assignmentBuildId}` : null,
-    details.overlapReason ? `overlap_reason: ${details.overlapReason}` : null,
+    details.assignmentBuildId ? `배정 빌드 ID: ${details.assignmentBuildId}` : null,
+    details.overlapReason ? `겹침 사유: ${details.overlapReason}` : null,
     details.assignedToOtherSegmentCount !== null
-      ? `assigned_to_other_segment_count: ${formatInteger(details.assignedToOtherSegmentCount)}`
+      ? `다른 세그먼트 배정 수: ${formatInteger(details.assignedToOtherSegmentCount)}`
       : null,
     details.overlapExcludedUserCount !== null
-      ? `overlap_excluded_user_count: ${formatInteger(details.overlapExcludedUserCount)}`
+      ? `겹침 제외 수: ${formatInteger(details.overlapExcludedUserCount)}`
       : null,
     details.thresholdFallbackCount !== null
-      ? `threshold_fallback_count: ${formatInteger(details.thresholdFallbackCount)}`
+      ? `기준 미달 보정 수: ${formatInteger(details.thresholdFallbackCount)}`
       : null
   ].filter((line): line is string => Boolean(line));
 
@@ -3589,7 +3589,7 @@ function EvaluationOutcomePanel({
       <div className="grid gap-1">
         <h3 className="text-base font-semibold text-[#1d1d1f]">종료 후 결과 / 재실험 흐름</h3>
         <p className="text-sm text-muted-foreground">
-          promotion_evaluations 기준으로 목표 미달 세그먼트만 next-loop 후보로 분리합니다.
+          프로모션 평가 기준으로 목표 미달 세그먼트만 다음 루프 후보로 분리합니다.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
@@ -3597,18 +3597,18 @@ function EvaluationOutcomePanel({
         <SummaryItem label="목표 달성" value={formatInteger(goalMetCount)} />
         <SummaryItem label="목표 미달" value={formatInteger(goalNotMetMetrics.length)} />
         <SummaryItem label="표본 부족" value={formatInteger(insufficientMetrics.length)} />
-        <SummaryItem label="next-loop 후보" value={formatInteger(nextLoopMetrics.length)} />
+        <SummaryItem label="다음 루프 후보" value={formatInteger(nextLoopMetrics.length)} />
         <SummaryItem label="실패 세그먼트" value={formatInteger(failedSegmentIds.length)} />
         <SummaryItem label="실패 실험" value={formatInteger(failedExperimentIds.length)} />
       </div>
       {nextLoopMetrics.length > 0 ? (
         <div className="grid gap-3 md:grid-cols-2">
           <InsightBlock
-            label="failed_segment_ids"
+            label="실패 세그먼트 ID"
             value={nextLoopSegmentIds.length > 0 ? nextLoopSegmentIds.join("\n") : "-"}
           />
           <InsightBlock
-            label="failed_ad_experiment_ids"
+            label="실패 광고 실험 ID"
             value={failedExperimentIds.length > 0 ? failedExperimentIds.join("\n") : "-"}
           />
         </div>
@@ -3616,7 +3616,7 @@ function EvaluationOutcomePanel({
         <Alert>
           <AlertTitle>재실험 후보 없음</AlertTitle>
           <AlertDescription>
-            goal_not_met 상태의 평가가 없거나 next_loop_required가 false입니다.
+            목표 미달 상태의 평가가 없거나 다음 루프 필요 여부가 false입니다.
           </AlertDescription>
         </Alert>
       )}
@@ -3624,8 +3624,8 @@ function EvaluationOutcomePanel({
         <Alert>
           <AlertTitle>표본 부족은 자동 재실험 대상에서 분리합니다</AlertTitle>
           <AlertDescription>
-            insufficient_data는 목표 미달이 아니라 판단 보류 상태이므로, 사용자가 명시적으로
-            다시 실험하기를 선택할 때만 next-loop 대상으로 다루는 흐름입니다.
+            표본 부족은 목표 미달이 아니라 판단 보류 상태이므로, 사용자가 명시적으로
+            다시 실험하기를 선택할 때만 다음 루프 대상으로 다루는 흐름입니다.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -3665,7 +3665,7 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
       <div className="grid gap-1">
         <h3 className="text-base font-semibold text-[#1d1d1f]">실험 지표</h3>
         <p className="text-sm text-muted-foreground">
-          광고 실험별 목표 대비 실제값, sample size, 재실행 필요 여부를 확인합니다.
+          광고 실험별 목표 대비 실제값, 표본 수, 재실행 필요 여부를 확인합니다.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
@@ -3794,7 +3794,7 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
                       <Badge variant={statusBadgeVariant(metric.status)}>
                         {metric.status}
                       </Badge>
-                      {metric.next_loop_required ? <Badge variant="outline">next loop</Badge> : null}
+                      {metric.next_loop_required ? <Badge variant="outline">다음 루프</Badge> : null}
                     </div>
                   </TableCell>
                   <TableCell>

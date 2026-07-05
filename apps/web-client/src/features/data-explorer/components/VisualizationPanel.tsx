@@ -19,7 +19,7 @@ export function VisualizationPanel({ result }: { result: DataExplorerQueryRunRes
   const yColumn = spec?.y[0]?.column;
 
   if (!result || !spec || !yColumn) {
-    return <EmptyState message="추천 chart가 없습니다." />;
+    return <EmptyState message="추천 차트가 없습니다." />;
   }
 
   return (
@@ -65,8 +65,8 @@ export function VisualizationPanel({ result }: { result: DataExplorerQueryRunRes
         </ResponsiveContainer>
       </div>
       <div className="text-xs text-muted-foreground">
-        {spec.chart_type} · x: {spec.x.column} · y: {yColumn}
-        {spec.series ? ` · series: ${spec.series.column}` : ""}
+        {spec.chart_type} · x축: {spec.x.column} · y축: {yColumn}
+        {spec.series ? ` · 시리즈: ${spec.series.column}` : ""}
       </div>
     </div>
   );
