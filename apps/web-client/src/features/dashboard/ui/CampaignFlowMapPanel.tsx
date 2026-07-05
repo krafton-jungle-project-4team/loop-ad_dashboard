@@ -79,8 +79,7 @@ type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost
 
 type DetailTabPath =
   | "campaign-metrics"
-  | "campaign-promotions"
-  | "campaign-experiment-metrics";
+  | "campaign-promotions";
 
 type DetailAction = {
   projectId: string;
@@ -1280,7 +1279,7 @@ function buildCampaignFlowGraph(
 
     nodes.push({
       data: {
-        action: createAction(projectId, campaignId, "", "", "campaign-experiment-metrics"),
+        action: createAction(projectId, campaignId, "", "", "campaign-metrics"),
         kind: "evaluation",
         metrics: sortMetricsByGoalAchievement(detail.experiment_metrics),
         promotionFlows,
@@ -1312,7 +1311,7 @@ function buildCampaignFlowGraph(
 
     nodes.push({
       data: {
-        action: createAction(projectId, campaignId, "", "", "campaign-experiment-metrics"),
+        action: createAction(projectId, campaignId, "", "", "campaign-metrics"),
         kind: "retryQueue",
         metrics: detail.experiment_metrics,
         retryPromotionFlows,

@@ -965,56 +965,6 @@ function CampaignTabContent({
     }
   });
   switch (tab) {
-    case "campaign-experiment-metrics":
-      return (
-        <>
-          <CampaignOpenTabs
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
-            selectedPromotion={selectedPromotion}
-            selectedSegment={selectedSegment}
-          />
-          {selectedSegment ? (
-            <SegmentDetailPanel
-              approveError={approveContentCandidateMutation.error}
-              approveIsError={approveContentCandidateMutation.isError}
-              approveIsPending={approveContentCandidateMutation.isPending}
-              detail={segmentDetail}
-              error={segmentError}
-              isError={segmentIsError}
-              isLoading={segmentIsLoading}
-              onApproveContentCandidate={(promotionId, segmentId, contentId) =>
-                approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-              }
-              onRejectContentCandidate={(promotionId, segmentId, contentId) =>
-                rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-              }
-              rejectError={rejectContentCandidateMutation.error}
-              rejectIsError={rejectContentCandidateMutation.isError}
-              rejectIsPending={rejectContentCandidateMutation.isPending}
-              selectedSegmentId={selectedSegmentId}
-            />
-          ) : (
-            <SegmentExperimentRequiredPanel
-              onSelectSegment={onSelectSegment}
-              segments={selectedPromotionId ? (promotionDetail?.segments ?? []) : detail.segments}
-              selectedPromotion={selectedPromotion}
-            />
-          )}
-        </>
-      );
-    case "campaign-promotion-metrics":
-      return (
-        <>
-          <CampaignOpenTabs
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
-            selectedPromotion={selectedPromotion}
-            selectedSegment={selectedSegment}
-          />
-          <PromotionMetricsPanel detail={detail} selectedPromotion={selectedPromotion} />
-        </>
-      );
     case "campaign-metrics":
       return (
         <>
@@ -1179,93 +1129,6 @@ function CampaignRealtimeTrend({ detail }: { detail: DashboardCampaignDetail }) 
         metrics={detail.realtime_metrics}
         title="캠페인 이벤트 집계"
       />
-    </section>
-  );
-}
-
-function PromotionMetricsPanel({
-  detail,
-  selectedPromotion
-}: {
-  detail: DashboardCampaignDetail;
-  selectedPromotion: DashboardCampaignPromotion | undefined;
-}) {
-  const promotions = selectedPromotion ? [selectedPromotion] : detail.promotions;
-  const metrics = selectedPromotion
-    ? detail.experiment_metrics.filter(
-        (metric) => metric.promotion_id === selectedPromotion.promotion_id
-      )
-    : detail.experiment_metrics;
-
-  return (
-    <section className="grid gap-4">
-      <PromotionMetricSummary promotions={promotions} metrics={metrics} />
-      <DetailTable
-        emptyMessage="표시할 프로모션 지표가 없습니다."
-        headers={[
-          "프로모션",
-          "채널",
-          "목표 지표",
-          "목표값",
-          "현재값",
-          "세그먼트",
-          "상태"
-        ]}
-        title="프로모션 지표"
-      >
-        {promotions.map((promotion) => (
-          <TableRow key={promotion.promotion_id}>
-            <TableCell>{promotion.promotion_id}</TableCell>
-            <TableCell>{promotion.channel}</TableCell>
-            <TableCell>{promotion.goal_metric}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatGoalValue(promotion.goal_target_value)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {promotion.latest_actual_value === null
-                ? "-"
-                : formatGoalValue(promotion.latest_actual_value)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatInteger(promotion.target_segment_count)}
-            </TableCell>
-            <TableCell>
-              <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
-            </TableCell>
-          </TableRow>
-        ))}
-      </DetailTable>
-      <EvaluationOutcomePanel metrics={metrics} />
-    </section>
-  );
-}
-
-function PromotionMetricSummary({
-  metrics,
-  promotions
-}: {
-  metrics: DashboardCampaignExperimentMetric[];
-  promotions: DashboardCampaignPromotion[];
-}) {
-  const goalNotMetCount = metrics.filter((metric) => metric.status === "goal_not_met").length;
-  const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
-  const activePromotionCount = promotions.filter((promotion) => promotion.status === "active").length;
-  const averageActualValue =
-    promotions.length > 0
-      ? promotions.reduce((sum, promotion) => sum + (promotion.latest_actual_value ?? 0), 0) /
-        promotions.length
-      : 0;
-
-  return (
-    <section className="grid gap-3">
-      <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 지표 요약</h3>
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="프로모션" value={formatInteger(promotions.length)} />
-        <SummaryItem label="활성 프로모션" value={formatInteger(activePromotionCount)} />
-        <SummaryItem label="목표 미달 실험" value={formatInteger(goalNotMetCount)} />
-        <SummaryItem label="next-loop 후보" value={formatInteger(nextLoopCount)} />
-        <SummaryItem label="평균 현재값" value={formatGoalValue(averageActualValue)} />
-      </div>
     </section>
   );
 }
@@ -2118,37 +1981,6 @@ function PromotionSegmentCards({
       ) : (
         <EmptyState message="프로모션에 연결된 세그먼트가 없습니다." />
       )}
-    </section>
-  );
-}
-
-function SegmentExperimentRequiredPanel({
-  onSelectSegment,
-  segments,
-  selectedPromotion
-}: {
-  onSelectSegment: (promotionId: string, segmentId: string) => void;
-  segments: DashboardCampaignSegment[];
-  selectedPromotion: DashboardCampaignPromotion | undefined;
-}) {
-  return (
-    <section className="grid gap-4">
-      <Alert>
-        <AlertTitle>실험은 세그먼트를 선택한 뒤 확인합니다</AlertTitle>
-        <AlertDescription>
-          광고 실험은 프로모션 전체가 아니라 세그먼트별 실행 단위입니다. 확인할 세그먼트를
-          선택하면 해당 세그먼트의 광고 실험과 평가 지표만 표시합니다.
-        </AlertDescription>
-      </Alert>
-      <div className="grid gap-3 md:grid-cols-3">
-        <SummaryItem
-          label="프로모션"
-          value={selectedPromotion?.marketing_theme ?? "전체 프로모션"}
-        />
-        <SummaryItem label="선택 가능 세그먼트" value={formatInteger(segments.length)} />
-        <SummaryItem label="실험 단위" value="segment_id" />
-      </div>
-      <SegmentTable onSelectSegment={onSelectSegment} segments={segments} />
     </section>
   );
 }
