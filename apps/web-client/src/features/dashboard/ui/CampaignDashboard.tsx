@@ -916,20 +916,20 @@ function CampaignTabContent({
       promotionId: string;
       segmentId: string;
     }) => approveDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
-    onSuccess: async (experiment) => {
+    onSuccess: async (result) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
         queryClient.invalidateQueries({
           queryKey: dashboardCampaignDetailQueryKey(query.projectId, detail.campaign.campaign_id)
         }),
         queryClient.invalidateQueries({
-          queryKey: dashboardPromotionDetailQueryKey(query.projectId, experiment.promotion_id)
+          queryKey: dashboardPromotionDetailQueryKey(query.projectId, result.promotion_id)
         }),
         queryClient.invalidateQueries({
           queryKey: dashboardSegmentDetailQueryKey(
             query.projectId,
-            experiment.promotion_id,
-            experiment.segment_id
+            result.promotion_id,
+            result.segment_id
           )
         })
       ]);
@@ -3183,7 +3183,7 @@ function ContentCandidateCards({
                     size="sm"
                     type="button"
                   >
-                    {candidate.status === "approved" ? "승인됨" : "승인하고 실험 생성"}
+                    {candidate.status === "approved" ? "승인됨" : "승인"}
                   </Button>
                 </div>
               </div>

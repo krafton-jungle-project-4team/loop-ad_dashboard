@@ -1,11 +1,14 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
 import type {
-  DashboardAdExperiment,
   DashboardArchivePromotionScopedSegmentDefinitionResult,
+  DashboardApproveContentCandidateResult,
   DashboardApproveContentCandidateRequest,
+  DashboardBuildPromotionRunAssignmentsResult,
   DashboardConfirmSegmentSuggestionsRequest,
   DashboardConfirmSegmentSuggestionsResult,
+  DashboardCreatePromotionRunRequest,
+  DashboardCreatePromotionRunResult,
   DashboardCreateFunnelRequest,
   DashboardCampaignDetail,
   DashboardCampaignSegment,
@@ -280,7 +283,7 @@ export class DashboardQueryService {
     segmentId: string,
     contentId: string,
     request: DashboardApproveContentCandidateRequest
-  ): Promise<DashboardAdExperiment> {
+  ): Promise<DashboardApproveContentCandidateResult> {
     return this.campaignReader.approveContentCandidate(
       projectId,
       promotionId,
@@ -288,6 +291,27 @@ export class DashboardQueryService {
       contentId,
       request
     );
+  }
+
+  async createPromotionRun(
+    _projectId: string,
+    promotionId: string,
+    request: DashboardCreatePromotionRunRequest
+  ): Promise<DashboardCreatePromotionRunResult> {
+    return this.decisionClient.createPromotionRun({
+      promotionId,
+      request
+    });
+  }
+
+  async buildPromotionRunAssignments(
+    projectId: string,
+    promotionRunId: string
+  ): Promise<DashboardBuildPromotionRunAssignmentsResult> {
+    return this.decisionClient.buildPromotionRunSegmentAssignments({
+      projectId,
+      promotionRunId
+    });
   }
 
   @Transactional()

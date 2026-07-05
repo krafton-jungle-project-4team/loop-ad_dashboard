@@ -1,6 +1,6 @@
 import type {
-  DashboardAdExperiment,
   DashboardArchivePromotionScopedSegmentDefinitionResult,
+  DashboardApproveContentCandidateResult,
   DashboardApproveContentCandidateRequest,
   DashboardCampaignDetail,
   DashboardCampaignExperimentMetric,
@@ -42,6 +42,7 @@ import { randomUUID } from "node:crypto";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
+import { dashboardErrors } from "../dashboard-errors.js";
 import {
   archiveDashboardProject,
   approveDashboardContentCandidate,
@@ -50,9 +51,7 @@ import {
   decideDashboardPromotionSegmentSuggestion,
   getDashboardCampaignSummary,
   getDashboardContentCandidateForApproval,
-  getDashboardNextPromotionLoopCount,
   getDashboardPromotionSegment,
-  getDashboardPromotionRunByGeneration,
   getDashboardPromotionSummary,
   insertDashboardCampaign,
   insertDashboardManualPromotionAnalysis,
@@ -62,7 +61,6 @@ import {
   insertDashboardPromotionCustomSegmentDefinition,
   insertDashboardPromotionManualSegmentDefinition,
   insertDashboardPromotionTargetSegment,
-  insertDashboardPromotionRun,
   listDashboardPromotionSegmentSuggestions,
   listDashboardPromotionScopedSegmentDefinitions,
   listDashboardProjects,
@@ -77,7 +75,6 @@ import {
   listDashboardSegmentContentCandidates,
   listDashboardSegmentExperimentMetrics,
   markDashboardSegmentQueryPreviewSaved,
-  markDashboardPromotionTargetSegmentApproved,
   rejectDashboardContentCandidate,
   rejectDashboardSiblingContentCandidates,
   stopDashboardCampaign,
@@ -86,7 +83,6 @@ import {
   updateDashboardCampaign,
   updateDashboardPromotion,
   updateDashboardPromotionTargetSegment,
-  upsertDashboardAdExperimentFromApprovedContent,
   type IGetDashboardCampaignSummaryResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
@@ -108,7 +104,6 @@ import {
   type IListDashboardSegmentExperimentMetricsResult,
   type IListDashboardPromotionExperimentMetricsResult,
   type IListDashboardPromotionSegmentsResult,
-  type IUpsertDashboardAdExperimentFromApprovedContentResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
 
@@ -535,7 +530,7 @@ export class DashboardCampaignReader {
     segmentId: string,
     contentId: string,
     _request: DashboardApproveContentCandidateRequest
-  ): Promise<DashboardAdExperiment> {
+  ): Promise<DashboardApproveContentCandidateResult> {
     const candidate = await this.db
       .query(getDashboardContentCandidateForApproval, {
         contentId,
@@ -544,6 +539,15 @@ export class DashboardCampaignReader {
         segmentId
       })
       .single();
+    const approvedCandidate = await this.getApprovedContentCandidate(
+      projectId,
+      promotionId,
+      segmentId
+    );
+
+    if (approvedCandidate && approvedCandidate.contentId !== contentId) {
+      throw dashboardErrors.contentCandidateApprovalLocked();
+    }
 
     await this.db
       .query(rejectDashboardSiblingContentCandidates, {
@@ -553,7 +557,7 @@ export class DashboardCampaignReader {
         segmentId
       })
       .multiple();
-    await this.db
+    const approved = await this.db
       .query(approveDashboardContentCandidate, {
         contentId,
         projectId,
@@ -562,33 +566,13 @@ export class DashboardCampaignReader {
       })
       .single();
 
-    const promotionRun = await this.getOrCreatePromotionRunForCandidate(candidate);
-    const experiment = await this.db
-      .query(upsertDashboardAdExperimentFromApprovedContent, {
-        adExperimentId: `ad_exp_${randomUUID()}`,
-        analysisId: candidate.analysisId,
-        campaignId: candidate.campaignId,
-        channel: candidate.channel,
-        contentId: candidate.contentId,
-        contentOptionId: candidate.contentOptionId,
-        generationId: candidate.generationId,
-        goalBasis: candidate.goalBasis,
-        goalMetric: candidate.goalMetric,
-        goalTargetValue: candidate.goalTargetValue ?? 0,
-        loopCount: promotionRun.loopCount,
-        projectId,
-        promotionId,
-        promotionRunId: promotionRun.promotionRunId,
-        segmentId,
-        segmentName: candidate.segmentName
-      })
-      .single();
-
-    await this.db
-      .query(markDashboardPromotionTargetSegmentApproved, { projectId, promotionId, segmentId })
-      .single();
-
-    return toAdExperiment(experiment);
+    return {
+      content_id: approved.contentId,
+      content_option_id: approved.contentOptionId,
+      promotion_id: promotionId,
+      segment_id: segmentId,
+      status: "approved"
+    };
   }
 
   async rejectContentCandidate(
@@ -598,6 +582,16 @@ export class DashboardCampaignReader {
     contentId: string,
     _request: DashboardRejectContentCandidateRequest
   ): Promise<DashboardRejectContentCandidateResult> {
+    const approvedCandidate = await this.getApprovedContentCandidate(
+      projectId,
+      promotionId,
+      segmentId
+    );
+
+    if (approvedCandidate?.contentId === contentId) {
+      throw dashboardErrors.contentCandidateApprovalLocked();
+    }
+
     const rejected = await this.db
       .query(rejectDashboardContentCandidate, {
         contentId,
@@ -608,6 +602,18 @@ export class DashboardCampaignReader {
       .single();
 
     return toRejectContentCandidateResult(rejected);
+  }
+
+  private async getApprovedContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<IListDashboardSegmentContentCandidatesResult | undefined> {
+    const candidates = await this.db
+      .query(listDashboardSegmentContentCandidates, { projectId, promotionId, segmentId })
+      .multiple();
+
+    return candidates.find((candidate) => candidate.status === "approved");
   }
 
   async getCampaignDetail(
@@ -705,50 +711,6 @@ export class DashboardCampaignReader {
     return toCampaignSegment(row);
   }
 
-  private async getOrCreatePromotionRunForCandidate(candidate: {
-    analysisId: string;
-    campaignId: string;
-    generationId: string;
-    goalBasis: string;
-    goalMetric: string;
-    goalTargetValue: number | null;
-    projectId: string;
-    promotionId: string;
-  }) {
-    const existingRun = await this.db
-      .query(getDashboardPromotionRunByGeneration, {
-        generationId: candidate.generationId,
-        projectId: candidate.projectId,
-        promotionId: candidate.promotionId
-      })
-      .singleOrNull();
-
-    if (existingRun) {
-      return existingRun;
-    }
-
-    const loop = await this.db
-      .query(getDashboardNextPromotionLoopCount, {
-        projectId: candidate.projectId,
-        promotionId: candidate.promotionId
-      })
-      .single();
-
-    return this.db
-      .query(insertDashboardPromotionRun, {
-        analysisId: candidate.analysisId,
-        campaignId: candidate.campaignId,
-        generationId: candidate.generationId,
-        goalBasis: candidate.goalBasis,
-        goalMetric: candidate.goalMetric,
-        goalTargetValue: candidate.goalTargetValue ?? 0,
-        loopCount: loop.loopCount ?? 1,
-        projectId: candidate.projectId,
-        promotionId: candidate.promotionId,
-        promotionRunId: `run_${randomUUID()}`
-      })
-      .single();
-  }
 }
 
 function toProject(
@@ -994,25 +956,6 @@ function toContentCandidate(
     metadata_json: jsonObject(row.metadataJson),
     status: row.status,
     updated_at: row.updatedAt.toISOString()
-  };
-}
-
-function toAdExperiment(
-  row: IUpsertDashboardAdExperimentFromApprovedContentResult
-): DashboardAdExperiment {
-  return {
-    ad_experiment_id: row.adExperimentId,
-    channel: row.channel,
-    content_id: row.contentId,
-    content_option_id: row.contentOptionId,
-    goal_basis: row.goalBasis,
-    goal_metric: row.goalMetric,
-    goal_target_value: row.goalTargetValue ?? 0,
-    loop_count: row.loopCount,
-    promotion_id: row.promotionId,
-    promotion_run_id: row.promotionRunId,
-    segment_id: row.segmentId,
-    status: row.status
   };
 }
 
