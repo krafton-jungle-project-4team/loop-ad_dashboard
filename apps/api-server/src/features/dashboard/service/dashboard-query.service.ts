@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardAdExperiment,
+  DashboardArchivePromotionScopedSegmentDefinitionResult,
   DashboardApproveContentCandidateRequest,
   DashboardConfirmSegmentSuggestionsRequest,
   DashboardConfirmSegmentSuggestionsResult,
@@ -185,6 +186,19 @@ export class DashboardQueryService {
       projectId,
       promotionId,
       request
+    );
+  }
+
+  @Transactional()
+  async archivePromotionScopedSegmentDefinition(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<DashboardArchivePromotionScopedSegmentDefinitionResult> {
+    return this.campaignReader.archivePromotionScopedSegmentDefinition(
+      projectId,
+      promotionId,
+      segmentId
     );
   }
 

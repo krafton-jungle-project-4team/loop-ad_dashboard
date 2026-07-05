@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
   DashboardAdExperimentSchema,
+  DashboardArchivePromotionScopedSegmentDefinitionResultSchema,
   DashboardApproveContentCandidateRequestSchema,
   DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
@@ -318,6 +319,22 @@ export class DashboardController {
         requiredProjectId,
         promotionId,
         request
+      )
+    );
+  }
+
+  @Delete("promotions/:promotion_id/segment-definitions/:segment_id")
+  async archivePromotionScopedSegmentDefinition(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardArchivePromotionScopedSegmentDefinitionResultSchema.parse(
+      await this.dashboardQuery.archivePromotionScopedSegmentDefinition(
+        requiredProjectId,
+        promotionId,
+        segmentId
       )
     );
   }

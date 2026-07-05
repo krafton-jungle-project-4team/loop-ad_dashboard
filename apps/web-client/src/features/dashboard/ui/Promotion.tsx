@@ -1,5 +1,6 @@
 import type {
   DashboardCampaignPromotion,
+  DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
@@ -46,12 +47,14 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, CheckCircle2, Plus, Target, Users, X } from "lucide-react";
+import { BarChart3, CheckCircle2, Plus, Target, Trash2, Users, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   confirmDashboardPromotionSegmentSuggestions,
+  archiveDashboardPromotionScopedSegmentDefinition,
   createDashboardPromotion,
   createDashboardPromotionScopedSegmentDefinition,
+  deleteDashboardPromotionSegment,
   deleteDashboardPromotion,
   decideDashboardPromotionSegmentSuggestion,
   fetchDashboardCampaignDetail,
@@ -346,6 +349,62 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       });
     }
   });
+  const deleteConfirmedSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      segmentId
+    }: {
+      promotionId: string;
+      segmentId: string;
+    }) => deleteDashboardPromotionSegment(query, promotionId, segmentId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      queryClient.setQueryData<DashboardCampaignDetail>(
+        dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                segments: current.segments.filter(
+                  (segment) =>
+                    segment.promotion_id !== result.promotion_id ||
+                    segment.segment_id !== result.segment_id
+                )
+              }
+            : current
+      );
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          result.promotion_id,
+          result.segment_id
+        )
+      });
+      if (query.selectedSegmentId === result.segment_id) {
+        await setDashboardQueryState({ selectedSegmentId: "" });
+      }
+    }
+  });
+  const archiveScopedSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      segmentId
+    }: {
+      promotionId: string;
+      segmentId: string;
+    }) => archiveDashboardPromotionScopedSegmentDefinition(query, promotionId, segmentId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionScopedSegmentDefinitionsQueryKey(
+          query.projectId,
+          result.promotion_id
+        )
+      });
+    }
+  });
 
   const selectPromotion = (promotionId: string, segmentId = "") => {
     void setDashboardQueryState({
@@ -413,10 +472,28 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 decideError={decideSuggestionMutation.error}
                 decideIsError={decideSuggestionMutation.isError}
                 decideIsPending={decideSuggestionMutation.isPending}
+                deleteConfirmedSegmentError={deleteConfirmedSegmentMutation.error}
+                deleteConfirmedSegmentIsError={deleteConfirmedSegmentMutation.isError}
+                deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}
+                archiveScopedSegmentError={archiveScopedSegmentMutation.error}
+                archiveScopedSegmentIsError={archiveScopedSegmentMutation.isError}
+                archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
+                onArchiveScopedSegment={(segmentId) => {
+                  if (!selectedOpenPromotion) {
+                    return;
+                  }
+                  archiveScopedSegmentMutation.mutate({
+                    promotionId: selectedOpenPromotion.promotion_id,
+                    segmentId
+                  });
+                }}
                 onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
                 onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
                 onDecideSuggestion={(suggestionId, status) =>
                   decideSuggestionMutation.mutate({ status, suggestionId })
+                }
+                onDeleteConfirmedSegment={(promotionId, segmentId) =>
+                  deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
                 }
                 onStartAnalysis={() => startAnalysisMutation.mutate()}
                 onSelectSegment={selectSegment}
@@ -604,15 +681,23 @@ function PromotionGuideCard({
 }
 
 function PromotionTabWorkspace({
+  archiveScopedSegmentError,
+  archiveScopedSegmentIsError,
+  archiveScopedSegmentIsPending,
   confirmError,
   confirmIsError,
   confirmIsPending,
   decideError,
   decideIsError,
   decideIsPending,
+  deleteConfirmedSegmentError,
+  deleteConfirmedSegmentIsError,
+  deleteConfirmedSegmentIsPending,
+  onArchiveScopedSegment,
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
+  onDeleteConfirmedSegment,
   onSelectSegment,
   onStartAnalysis,
   onTabChange,
@@ -640,15 +725,23 @@ function PromotionTabWorkspace({
   suggestionsIsLoading,
   tab
 }: {
+  archiveScopedSegmentError: Error | null;
+  archiveScopedSegmentIsError: boolean;
+  archiveScopedSegmentIsPending: boolean;
   confirmError: Error | null;
   confirmIsError: boolean;
   confirmIsPending: boolean;
   decideError: Error | null;
   decideIsError: boolean;
   decideIsPending: boolean;
+  deleteConfirmedSegmentError: Error | null;
+  deleteConfirmedSegmentIsError: boolean;
+  deleteConfirmedSegmentIsPending: boolean;
+  onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onStartAnalysis: () => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
@@ -718,18 +811,26 @@ function PromotionTabWorkspace({
         <TabsContent value="overview">
           <PromotionOverviewTab
             activeSegments={activeSegments}
+            deleteError={deleteConfirmedSegmentError}
+            deleteIsError={deleteConfirmedSegmentIsError}
+            deleteIsPending={deleteConfirmedSegmentIsPending}
+            onDeleteSegment={onDeleteConfirmedSegment}
             onSelectSegment={onSelectSegment}
             promotion={promotion}
-            segments={segments}
+            segments={activeSegments}
             selectedSegmentId={selectedSegmentId}
           />
         </TabsContent>
         <TabsContent value="segments">
           <div className="grid gap-4">
             <PromotionCurrentSegmentsPanel
+              deleteError={deleteConfirmedSegmentError}
+              deleteIsError={deleteConfirmedSegmentIsError}
+              deleteIsPending={deleteConfirmedSegmentIsPending}
+              onDeleteSegment={onDeleteConfirmedSegment}
               onSelectSegment={onSelectSegment}
               promotion={promotion}
-              segments={segments}
+              segments={activeSegments}
               selectedSegmentId={selectedSegmentId}
             />
             <PromotionSegmentSuggestionPanel
@@ -742,6 +843,10 @@ function PromotionTabWorkspace({
               decideError={decideError}
               decideIsError={decideIsError}
               decideIsPending={decideIsPending}
+              archiveScopedSegmentError={archiveScopedSegmentError}
+              archiveScopedSegmentIsError={archiveScopedSegmentIsError}
+              archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+              onArchiveScopedSegment={onArchiveScopedSegment}
               onConfirmSuggestions={onConfirmSuggestions}
               onCreateScopedSegment={onCreateScopedSegment}
               onDecideSuggestion={onDecideSuggestion}
@@ -777,12 +882,20 @@ function PromotionTabWorkspace({
 
 function PromotionOverviewTab({
   activeSegments,
+  deleteError,
+  deleteIsError,
+  deleteIsPending,
+  onDeleteSegment,
   onSelectSegment,
   promotion,
   segments,
   selectedSegmentId
 }: {
   activeSegments: DashboardCampaignSegment[];
+  deleteError: Error | null;
+  deleteIsError: boolean;
+  deleteIsPending: boolean;
+  onDeleteSegment: (promotionId: string, segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotion: DashboardCampaignPromotion;
   segments: DashboardCampaignSegment[];
@@ -817,6 +930,10 @@ function PromotionOverviewTab({
       </Card>
       <div className="grid gap-4">
         <PromotionCurrentSegmentsPanel
+          deleteError={deleteError}
+          deleteIsError={deleteIsError}
+          deleteIsPending={deleteIsPending}
+          onDeleteSegment={onDeleteSegment}
           onSelectSegment={onSelectSegment}
           promotion={promotion}
           segments={segments}
@@ -843,11 +960,19 @@ function PromotionOverviewTab({
 }
 
 function PromotionCurrentSegmentsPanel({
+  deleteError,
+  deleteIsError,
+  deleteIsPending,
+  onDeleteSegment,
   onSelectSegment,
   promotion,
   segments,
   selectedSegmentId
 }: {
+  deleteError: Error | null;
+  deleteIsError: boolean;
+  deleteIsPending: boolean;
+  onDeleteSegment: (promotionId: string, segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotion: DashboardCampaignPromotion;
   segments: DashboardCampaignSegment[];
@@ -860,27 +985,57 @@ function PromotionCurrentSegmentsPanel({
         <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
+        {deleteIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>확정 세그먼트를 삭제하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
+          </Alert>
+        ) : null}
         {segments.length > 0 ? (
           segments.map((segment) => {
             const isSelected = segment.segment_id === selectedSegmentId;
             return (
-              <button
+              <div
                 className={`rounded-md border p-3 text-left transition ${
                   isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
                 }`}
                 key={segment.segment_id}
                 onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
-                type="button"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectSegment(promotion.promotion_id, segment.segment_id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="font-medium">{segment.segment_name}</div>
-                  <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{segment.segment_name}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {formatInteger(segment.estimated_size)}명 · 표본{" "}
+                      {formatInteger(segment.sample_size)} · {segment.goal_metric}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                    <Button
+                      aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
+                      disabled={deleteIsPending}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteSegment(promotion.promotion_id, segment.segment_id);
+                      }}
+                      size="icon"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {formatInteger(segment.estimated_size)}명 · 표본{" "}
-                  {formatInteger(segment.sample_size)} · {segment.goal_metric}
-                </div>
-              </button>
+              </div>
             );
           })
         ) : (
@@ -1110,6 +1265,9 @@ function PromotionSegmentDetailTab({
 }
 
 function PromotionSegmentSuggestionPanel({
+  archiveScopedSegmentError,
+  archiveScopedSegmentIsError,
+  archiveScopedSegmentIsPending,
   confirmError,
   confirmIsError,
   confirmIsPending,
@@ -1119,6 +1277,7 @@ function PromotionSegmentSuggestionPanel({
   decideError,
   decideIsError,
   decideIsPending,
+  onArchiveScopedSegment,
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
@@ -1136,6 +1295,9 @@ function PromotionSegmentSuggestionPanel({
   suggestionsIsError,
   suggestionsIsLoading
 }: {
+  archiveScopedSegmentError: Error | null;
+  archiveScopedSegmentIsError: boolean;
+  archiveScopedSegmentIsPending: boolean;
   confirmError: Error | null;
   confirmIsError: boolean;
   confirmIsPending: boolean;
@@ -1145,6 +1307,7 @@ function PromotionSegmentSuggestionPanel({
   decideError: Error | null;
   decideIsError: boolean;
   decideIsPending: boolean;
+  onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
@@ -1246,6 +1409,12 @@ function PromotionSegmentSuggestionPanel({
             <AlertDescription>{mutationErrorMessage(createScopedSegmentError)}</AlertDescription>
           </Alert>
         ) : null}
+        {archiveScopedSegmentIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>직접 추가 세그먼트를 삭제하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(archiveScopedSegmentError)}</AlertDescription>
+          </Alert>
+        ) : null}
         {scopedSegmentsIsLoading ? (
           <EmptyState message="직접 추가 세그먼트를 불러오는 중입니다." />
         ) : null}
@@ -1257,14 +1426,29 @@ function PromotionSegmentSuggestionPanel({
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {scopedSegments.map((segment) => (
-                <div className="grid gap-3 rounded-md border bg-[#f7fbff] p-4" key={segment.segment_id}>
+                <div
+                  className="grid gap-3 rounded-md border bg-[#f7fbff] p-4"
+                  key={segment.segment_id}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="grid gap-1">
                       <div className="text-xs font-semibold text-[#3927d9]">{segment.source}</div>
                       <h3 className="text-base font-semibold">{segment.segment_name}</h3>
                       <p className="text-xs text-muted-foreground">{segment.segment_id}</p>
                     </div>
-                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                      <Button
+                        aria-label={`${segment.segment_name} 직접 추가 후보 삭제`}
+                        disabled={archiveScopedSegmentIsPending}
+                        onClick={() => onArchiveScopedSegment(segment.segment_id)}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid gap-2 text-sm text-muted-foreground">
                     <div>
@@ -1337,7 +1521,8 @@ function PromotionSegmentSuggestionPanel({
                       type="button"
                       variant="outline"
                     >
-                      제외
+                      <Trash2 className="mr-2 size-3.5" />
+                      삭제
                     </Button>
                   </div>
                 </div>

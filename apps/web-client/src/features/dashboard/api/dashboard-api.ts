@@ -1,6 +1,7 @@
 import {
   createApiSuccessResponseSchema,
   DashboardAdExperimentSchema,
+  DashboardArchivePromotionScopedSegmentDefinitionResultSchema,
   DashboardApproveContentCandidateRequestSchema,
   DashboardAttachSegmentRequestSchema,
   DashboardCampaignDetailSchema,
@@ -45,6 +46,7 @@ import {
 } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
+  DashboardArchivePromotionScopedSegmentDefinitionResult,
   DashboardApproveContentCandidateRequest,
   DashboardAttachSegmentRequest,
   DashboardCampaignDetail,
@@ -506,6 +508,30 @@ export async function createDashboardPromotionScopedSegmentDefinition(
   return createApiSuccessResponseSchema(DashboardPromotionScopedSegmentDefinitionSchema).parse(
     await response.json()
   ).data;
+}
+
+export async function archiveDashboardPromotionScopedSegmentDefinition(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string
+): Promise<DashboardArchivePromotionScopedSegmentDefinitionResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-definitions/${encodeURIComponent(segmentId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(
+    DashboardArchivePromotionScopedSegmentDefinitionResultSchema
+  ).parse(await response.json()).data;
 }
 
 export async function decideDashboardPromotionSegmentSuggestion(

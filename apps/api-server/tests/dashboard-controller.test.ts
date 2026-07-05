@@ -279,6 +279,39 @@ test("dashboard controller parses promotion scoped segment create body", async (
   assert.equal(response.segment_name, "상세 조회 후 미예약 고객");
 });
 
+test("dashboard controller archives promotion scoped segment definition by promotion", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    archivePromotionScopedSegmentDefinition: async (projectId, promotionId, segmentId) => {
+      writes.push({ projectId, promotionId, segmentId });
+      return {
+        promotion_id: promotionId,
+        segment_id: segmentId,
+        status: "archived"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.archivePromotionScopedSegmentDefinition(
+    "promo_email_001",
+    "seg_manual_001",
+    "hotel-client-a"
+  );
+
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001",
+      segmentId: "seg_manual_001"
+    }
+  ]);
+  assert.equal(response.status, "archived");
+});
+
 test("dashboard controller parses promotion analysis request before delegating", async () => {
   setRequiredEnv();
   const { DashboardController } =

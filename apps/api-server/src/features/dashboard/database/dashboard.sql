@@ -335,6 +335,7 @@ LEFT JOIN promotion_evaluations pe
  AND pe.segment_id = pts.segment_id
 WHERE pts.project_id = :projectId
   AND pts.campaign_id = :campaignId
+  AND pts.status <> 'stopped'
 GROUP BY
   pts.promotion_id,
   pts.segment_id,
@@ -396,6 +397,7 @@ LEFT JOIN promotion_evaluations pe
  AND pe.segment_id = pts.segment_id
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
+  AND pts.status <> 'stopped'
 GROUP BY
   pts.promotion_id,
   pts.segment_id,
@@ -581,6 +583,18 @@ WHERE project_id = :projectId
   AND source IN ('custom_chatkit', 'manual_rule')
   AND status = 'active'
 ORDER BY created_at DESC;
+
+/* 목적: 프로모션에 종속된 사용자 추가 세그먼트 후보를 보관 처리합니다. */
+/* @name ArchiveDashboardPromotionScopedSegmentDefinition */
+UPDATE segment_definitions
+SET status = 'archived',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+  AND source IN ('custom_chatkit', 'manual_rule')
+  AND status = 'active'
+RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status;
 
 /* 목적: ChatKit/SQL preview로 만든 세그먼트를 프로모션 종속 후보로 저장합니다. */
 /* @name InsertDashboardPromotionCustomSegmentDefinition */

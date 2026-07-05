@@ -648,6 +648,15 @@ export type DashboardPromotionScopedSegmentDefinitionList = z.infer<
   typeof DashboardPromotionScopedSegmentDefinitionListSchema
 >;
 
+export const DashboardArchivePromotionScopedSegmentDefinitionResultSchema = z.object({
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  status: z.literal("archived")
+});
+export type DashboardArchivePromotionScopedSegmentDefinitionResult = z.infer<
+  typeof DashboardArchivePromotionScopedSegmentDefinitionResultSchema
+>;
+
 export const DashboardCreatePromotionSegmentDefinitionRequestSchema = z.object({
   segment_name: z.string().min(1),
   source: DashboardPromotionScopedSegmentSourceSchema.default("manual_rule"),
