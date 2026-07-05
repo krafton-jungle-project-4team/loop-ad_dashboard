@@ -42,6 +42,7 @@ import { randomUUID } from "node:crypto";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
+import { dashboardErrors } from "../dashboard-errors.js";
 import {
   archiveDashboardProject,
   approveDashboardContentCandidate,
@@ -544,6 +545,15 @@ export class DashboardCampaignReader {
         segmentId
       })
       .single();
+    const approvedCandidate = await this.getApprovedContentCandidate(
+      projectId,
+      promotionId,
+      segmentId
+    );
+
+    if (approvedCandidate && approvedCandidate.contentId !== contentId) {
+      throw dashboardErrors.contentCandidateApprovalLocked();
+    }
 
     await this.db
       .query(rejectDashboardSiblingContentCandidates, {
@@ -598,6 +608,16 @@ export class DashboardCampaignReader {
     contentId: string,
     _request: DashboardRejectContentCandidateRequest
   ): Promise<DashboardRejectContentCandidateResult> {
+    const approvedCandidate = await this.getApprovedContentCandidate(
+      projectId,
+      promotionId,
+      segmentId
+    );
+
+    if (approvedCandidate?.contentId === contentId) {
+      throw dashboardErrors.contentCandidateApprovalLocked();
+    }
+
     const rejected = await this.db
       .query(rejectDashboardContentCandidate, {
         contentId,
@@ -608,6 +628,18 @@ export class DashboardCampaignReader {
       .single();
 
     return toRejectContentCandidateResult(rejected);
+  }
+
+  private async getApprovedContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string
+  ): Promise<IListDashboardSegmentContentCandidatesResult | undefined> {
+    const candidates = await this.db
+      .query(listDashboardSegmentContentCandidates, { projectId, promotionId, segmentId })
+      .multiple();
+
+    return candidates.find((candidate) => candidate.status === "approved");
   }
 
   async getCampaignDetail(

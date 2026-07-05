@@ -16,6 +16,11 @@ export const DASHBOARD_ERRORS = {
     statusCode: HttpStatus.BAD_GATEWAY,
     code: "DASHBOARD_DECISION_REQUEST_FAILED",
     message: "Decision API request failed."
+  },
+  CONTENT_CANDIDATE_APPROVAL_LOCKED: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_CONTENT_CANDIDATE_APPROVAL_LOCKED",
+    message: "A content candidate is already approved for this segment."
   }
 } as const;
 
@@ -30,6 +35,8 @@ export const dashboardErrors = {
   projectIdRequired: () => createDashboardError(DASHBOARD_ERRORS.PROJECT_ID_REQUIRED),
   decisionRequestFailed: (cause?: unknown) =>
     createDashboardError(DASHBOARD_ERRORS.DECISION_REQUEST_FAILED, { cause }),
+  contentCandidateApprovalLocked: () =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_APPROVAL_LOCKED),
   segmentPreviewNotSaveable: () =>
     createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE)
 } as const;
