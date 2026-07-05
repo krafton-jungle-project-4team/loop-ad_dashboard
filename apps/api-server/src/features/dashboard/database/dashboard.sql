@@ -454,7 +454,7 @@ SELECT
   pts.priority,
   pts.status
 FROM promotion_target_segments pts
-JOIN segment_definitions sd
+LEFT JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
 JOIN promotions p
   ON p.promotion_id = pts.promotion_id
@@ -518,7 +518,7 @@ SELECT
   pts.priority,
   pts.status
 FROM promotion_target_segments pts
-JOIN segment_definitions sd
+LEFT JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
 JOIN promotions p
   ON p.promotion_id = pts.promotion_id
@@ -582,7 +582,7 @@ SELECT
   pts.priority,
   pts.status
 FROM promotion_target_segments pts
-JOIN segment_definitions sd
+LEFT JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
 JOIN promotions p
   ON p.promotion_id = pts.promotion_id
@@ -870,9 +870,9 @@ WHERE pss.project_id = :projectId
   AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)
 ORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC;
 
-/* 목적: 추천 세그먼트 후보를 확정 대상 또는 제외 대상으로 표시합니다. */
+/* 목적: 추천 세그먼트 후보를 확정 대상으로 표시하거나 후보 row를 삭제합니다. */
 /* @name DecideDashboardPromotionSegmentSuggestion */
-WITH decided AS (
+WITH accepted AS (
   UPDATE promotion_segment_suggestions
   SET status = :status,
       decided_at = now(),
@@ -880,8 +880,23 @@ WITH decided AS (
   WHERE project_id = :projectId
     AND promotion_id = :promotionId
     AND suggestion_id = :suggestionId
+    AND :status = 'accepted'
     AND status IN ('suggested', 'accepted', 'dismissed')
-  RETURNING *
+  RETURNING *, status AS result_status
+),
+deleted AS (
+  DELETE FROM promotion_segment_suggestions
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND suggestion_id = :suggestionId
+    AND :status = 'dismissed'
+    AND status IN ('suggested', 'accepted', 'dismissed')
+  RETURNING *, 'dismissed'::varchar AS result_status
+),
+decided AS (
+  SELECT * FROM accepted
+  UNION ALL
+  SELECT * FROM deleted
 )
 SELECT
   d.suggestion_id AS "suggestionId",
@@ -891,7 +906,7 @@ SELECT
   d.segment_id AS "segmentId",
   d.suggested_rank AS "suggestedRank",
   d.suggestion_source AS "suggestionSource",
-  d.status AS "suggestionStatus",
+  d.result_status AS "suggestionStatus",
   d.score_json AS "scoreJson",
   d.reason_json AS "reasonJson",
   sd.segment_name AS "segmentName",
@@ -1044,52 +1059,67 @@ WHERE project_id = :projectId
   AND status <> 'stopped'
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 
-/* 목적: 프로모션 세그먼트와 하위 실험 실행 단위를 물리 삭제하지 않고 중지 상태로 전환합니다. */
+/* 목적: 프로모션 세그먼트와 하위 실험 실행 단위를 물리 삭제합니다. */
 /* @name StopDashboardPromotionTargetSegment */
-WITH stopped_segment AS (
-  UPDATE promotion_target_segments
-  SET status = 'stopped'
+WITH target_segment AS (
+  SELECT project_id, promotion_id, segment_id
+  FROM promotion_target_segments
   WHERE project_id = :projectId
     AND promotion_id = :promotionId
     AND segment_id = :segmentId
-  RETURNING promotion_id, segment_id, status
 ),
-archived_content_candidates AS (
-  UPDATE content_candidates
-  SET status = 'archived',
-      updated_at = now()
-  WHERE project_id = :projectId
-    AND promotion_id = :promotionId
-    AND segment_id = :segmentId
-    AND status IN ('draft', 'approved', 'active')
-  RETURNING content_id
-),
-stopped_experiments AS (
-  UPDATE ad_experiments
-  SET status = 'stopped',
-      ended_at = COALESCE(ended_at, now()),
-      updated_at = now()
-  WHERE project_id = :projectId
-    AND promotion_id = :promotionId
-    AND segment_id = :segmentId
-    AND status <> 'stopped'
-  RETURNING ad_experiment_id
-),
-cancelled_dispatch_jobs AS (
-  UPDATE ad_dispatch_jobs
-  SET status = 'cancelled',
-      completed_at = COALESCE(completed_at, now())
-  WHERE project_id = :projectId
-    AND promotion_id = :promotionId
-    AND ad_experiment_id IN (
-      SELECT ad_experiment_id
-      FROM stopped_experiments
+deleted_dispatch_jobs AS (
+  DELETE FROM ad_dispatch_jobs adj
+  USING target_segment target
+  WHERE adj.project_id = target.project_id
+    AND adj.promotion_id = target.promotion_id
+    AND adj.ad_experiment_id IN (
+      SELECT ae.ad_experiment_id
+      FROM ad_experiments ae
+      WHERE ae.project_id = target.project_id
+        AND ae.promotion_id = target.promotion_id
+        AND ae.segment_id = target.segment_id
     )
-    AND status IN ('queued', 'scheduled', 'running')
-  RETURNING ad_dispatch_job_id
+  RETURNING adj.ad_dispatch_job_id
+),
+deleted_promotion_evaluations AS (
+  DELETE FROM promotion_evaluations pe
+  USING target_segment target,
+        (SELECT count(*) FROM deleted_dispatch_jobs) dependency
+  WHERE pe.project_id = target.project_id
+    AND pe.promotion_id = target.promotion_id
+    AND pe.segment_id = target.segment_id
+  RETURNING pe.promotion_run_id
+),
+deleted_ad_experiments AS (
+  DELETE FROM ad_experiments ae
+  USING target_segment target,
+        (SELECT count(*) FROM deleted_promotion_evaluations) dependency
+  WHERE ae.project_id = target.project_id
+    AND ae.promotion_id = target.promotion_id
+    AND ae.segment_id = target.segment_id
+  RETURNING ae.ad_experiment_id
+),
+deleted_content_candidates AS (
+  DELETE FROM content_candidates cc
+  USING target_segment target,
+        (SELECT count(*) FROM deleted_ad_experiments) dependency
+  WHERE cc.project_id = target.project_id
+    AND cc.promotion_id = target.promotion_id
+    AND cc.segment_id = target.segment_id
+  RETURNING cc.content_id
+),
+deleted_target_segment AS (
+  DELETE FROM promotion_target_segments pts
+  USING target_segment target,
+        (SELECT count(*) FROM deleted_content_candidates) dependency
+  WHERE pts.project_id = target.project_id
+    AND pts.promotion_id = target.promotion_id
+    AND pts.segment_id = target.segment_id
+  RETURNING pts.promotion_id, pts.segment_id, 'stopped'::text AS status
 )
 SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
-FROM stopped_segment;
+FROM deleted_target_segment;
 
 /* 목적: 목표 미달 세그먼트만 대상으로 next-loop 분석 요청을 생성합니다. */
 /* @name InsertDashboardNextLoopAnalysis */
@@ -1347,7 +1377,7 @@ SELECT
 FROM content_candidates cc
 JOIN promotions p
   ON p.promotion_id = cc.promotion_id
-JOIN segment_definitions sd
+LEFT JOIN segment_definitions sd
   ON sd.segment_id = cc.segment_id
 JOIN promotion_target_segments pts
   ON pts.promotion_id = cc.promotion_id
