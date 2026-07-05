@@ -1,5 +1,5 @@
 import { HttpStatus } from "@nestjs/common";
-import { createDomainError } from "../../app-errors.js";
+import { createDomainError, type DomainErrorDefinition } from "../../app-errors.js";
 
 export const DASHBOARD_ERRORS = {
   PROJECT_ID_REQUIRED: {
@@ -24,10 +24,7 @@ export const DASHBOARD_ERRORS = {
   }
 } as const;
 
-export function createDashboardError(
-  error: (typeof DASHBOARD_ERRORS)[keyof typeof DASHBOARD_ERRORS],
-  options?: ErrorOptions
-) {
+export function createDashboardError(error: DomainErrorDefinition, options?: ErrorOptions) {
   return createDomainError(error, options);
 }
 
@@ -37,6 +34,7 @@ export const dashboardErrors = {
     createDashboardError(
       {
         ...DASHBOARD_ERRORS.DECISION_REQUEST_FAILED,
+        statusCode: decisionRequestFailedStatusCode(cause),
         message: decisionRequestFailedMessage(cause)
       },
       { cause }
@@ -58,4 +56,17 @@ function decisionRequestFailedMessage(cause: unknown) {
   }
 
   return DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.message;
+}
+
+function decisionRequestFailedStatusCode(cause: unknown) {
+  const status =
+    cause && typeof cause === "object" && "status" in cause
+      ? (cause as { status?: unknown }).status
+      : undefined;
+
+  if (typeof status === "number" && status >= 400 && status < 600) {
+    return status;
+  }
+
+  return DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.statusCode;
 }
