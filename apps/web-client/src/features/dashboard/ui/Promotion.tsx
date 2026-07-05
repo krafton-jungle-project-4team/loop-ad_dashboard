@@ -3,9 +3,11 @@ import type {
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardBuildPromotionRunAssignmentsResult,
+  DashboardCreateNextLoopResult,
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
   DashboardCreatePromotionRunResult,
+  DashboardEvaluatePromotionRunResult,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
   DashboardSegmentDetail,
@@ -68,6 +70,7 @@ import {
   archiveDashboardPromotionScopedSegmentDefinition,
   approveDashboardContentCandidate,
   buildDashboardPromotionRunAssignments,
+  createDashboardNextLoop,
   createDashboardPromotion,
   createDashboardPromotionRun,
   createDashboardPromotionScopedSegmentDefinition,
@@ -75,6 +78,7 @@ import {
   deleteDashboardPromotion,
   decideDashboardPromotionSegmentSuggestion,
   dispatchDashboardPromotionRun,
+  evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
   fetchDashboardSegmentDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
@@ -438,6 +442,51 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       });
     }
   });
+  const evaluatePromotionRunMutation = useMutation({
+    mutationFn: (promotionRunId: string) => evaluateDashboardPromotionRun(query, promotionRunId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? "",
+          selectedPromotionSegmentId
+        )
+      });
+    }
+  });
+  const createNextLoopMutation = useMutation({
+    mutationFn: ({
+      failedAdExperimentIds,
+      failedSegmentIds,
+      promotionRunId
+    }: {
+      failedAdExperimentIds: string[];
+      failedSegmentIds: string[];
+      promotionRunId: string;
+    }) =>
+      createDashboardNextLoop(query, promotionRunId, {
+        failed_ad_experiment_ids: failedAdExperimentIds,
+        failed_segment_ids: failedSegmentIds,
+        operator_instruction: null
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? "",
+          selectedPromotionSegmentId
+        )
+      });
+    }
+  });
   const decideSuggestionMutation = useMutation({
     mutationFn: ({
       status,
@@ -630,6 +679,14 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 buildAssignmentsIsError={buildPromotionRunAssignmentsMutation.isError}
                 buildAssignmentsIsPending={buildPromotionRunAssignmentsMutation.isPending}
                 buildAssignmentsResult={buildPromotionRunAssignmentsMutation.data ?? null}
+                evaluatePromotionRunError={evaluatePromotionRunMutation.error}
+                evaluatePromotionRunIsError={evaluatePromotionRunMutation.isError}
+                evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
+                evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
+                createNextLoopError={createNextLoopMutation.error}
+                createNextLoopIsError={createNextLoopMutation.isError}
+                createNextLoopIsPending={createNextLoopMutation.isPending}
+                createNextLoopResult={createNextLoopMutation.data ?? null}
                 archiveScopedSegmentError={archiveScopedSegmentMutation.error}
                 archiveScopedSegmentIsError={archiveScopedSegmentMutation.isError}
                 archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
@@ -658,6 +715,16 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 }
                 onBuildAssignments={(promotionRunId) =>
                   buildPromotionRunAssignmentsMutation.mutate(promotionRunId)
+                }
+                onEvaluatePromotionRun={(promotionRunId) =>
+                  evaluatePromotionRunMutation.mutate(promotionRunId)
+                }
+                onCreateNextLoop={(promotionRunId, failedSegmentIds, failedAdExperimentIds) =>
+                  createNextLoopMutation.mutate({
+                    failedAdExperimentIds,
+                    failedSegmentIds,
+                    promotionRunId
+                  })
                 }
                 onDispatchPromotionRun={(promotionRunId) =>
                   dispatchPromotionRunMutation.mutate(promotionRunId)
@@ -894,15 +961,25 @@ function PromotionTabWorkspace({
   buildAssignmentsIsError,
   buildAssignmentsIsPending,
   buildAssignmentsResult,
+  evaluatePromotionRunError,
+  evaluatePromotionRunIsError,
+  evaluatePromotionRunIsPending,
+  evaluatePromotionRunResult,
+  createNextLoopError,
+  createNextLoopIsError,
+  createNextLoopIsPending,
+  createNextLoopResult,
   onArchiveScopedSegment,
   onApproveContentCandidate,
   onBuildAssignments,
   onConfirmSuggestions,
+  onCreateNextLoop,
   onCreatePromotionRun,
   onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
   onDispatchPromotionRun,
+  onEvaluatePromotionRun,
   onRejectContentCandidate,
   onSelectSegment,
   onStartAnalysis,
@@ -966,15 +1043,29 @@ function PromotionTabWorkspace({
   buildAssignmentsIsError: boolean;
   buildAssignmentsIsPending: boolean;
   buildAssignmentsResult: DashboardBuildPromotionRunAssignmentsResult | null;
+  evaluatePromotionRunError: Error | null;
+  evaluatePromotionRunIsError: boolean;
+  evaluatePromotionRunIsPending: boolean;
+  evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
+  createNextLoopError: Error | null;
+  createNextLoopIsError: boolean;
+  createNextLoopIsPending: boolean;
+  createNextLoopResult: DashboardCreateNextLoopResult | null;
   onArchiveScopedSegment: (segmentId: string) => void;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onBuildAssignments: (promotionRunId: string) => void;
   onConfirmSuggestions: () => void;
+  onCreateNextLoop: (
+    promotionRunId: string,
+    failedSegmentIds: string[],
+    failedAdExperimentIds: string[]
+  ) => void;
   onCreatePromotionRun: (promotionId: string) => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
   onDispatchPromotionRun: (promotionRunId: string) => void;
+  onEvaluatePromotionRun: (promotionRunId: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onStartAnalysis: () => void;
@@ -1126,6 +1217,14 @@ function PromotionTabWorkspace({
             buildAssignmentsIsError={buildAssignmentsIsError}
             buildAssignmentsIsPending={buildAssignmentsIsPending}
             buildAssignmentsResult={buildAssignmentsResult}
+            evaluatePromotionRunError={evaluatePromotionRunError}
+            evaluatePromotionRunIsError={evaluatePromotionRunIsError}
+            evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
+            evaluatePromotionRunResult={evaluatePromotionRunResult}
+            createNextLoopError={createNextLoopError}
+            createNextLoopIsError={createNextLoopIsError}
+            createNextLoopIsPending={createNextLoopIsPending}
+            createNextLoopResult={createNextLoopResult}
             error={selectedSegmentDetailError}
             generation={promotionGeneration}
             generationError={promotionGenerationError}
@@ -1135,8 +1234,10 @@ function PromotionTabWorkspace({
             isLoading={selectedSegmentDetailIsLoading}
             onApproveContentCandidate={onApproveContentCandidate}
             onBuildAssignments={onBuildAssignments}
+            onCreateNextLoop={onCreateNextLoop}
             onCreatePromotionRun={onCreatePromotionRun}
             onDispatchPromotionRun={onDispatchPromotionRun}
+            onEvaluatePromotionRun={onEvaluatePromotionRun}
             onRejectContentCandidate={onRejectContentCandidate}
             onStartGeneration={onStartGeneration}
             rejectContentCandidateError={rejectContentCandidateError}
@@ -1333,6 +1434,14 @@ function PromotionSegmentDetailTab({
   buildAssignmentsIsError,
   buildAssignmentsIsPending,
   buildAssignmentsResult,
+  evaluatePromotionRunError,
+  evaluatePromotionRunIsError,
+  evaluatePromotionRunIsPending,
+  evaluatePromotionRunResult,
+  createNextLoopError,
+  createNextLoopIsError,
+  createNextLoopIsPending,
+  createNextLoopResult,
   error,
   generation,
   generationError,
@@ -1342,8 +1451,10 @@ function PromotionSegmentDetailTab({
   isLoading,
   onApproveContentCandidate,
   onBuildAssignments,
+  onCreateNextLoop,
   onCreatePromotionRun,
   onDispatchPromotionRun,
+  onEvaluatePromotionRun,
   onRejectContentCandidate,
   onStartGeneration,
   rejectContentCandidateError,
@@ -1367,6 +1478,14 @@ function PromotionSegmentDetailTab({
   buildAssignmentsIsError: boolean;
   buildAssignmentsIsPending: boolean;
   buildAssignmentsResult: DashboardBuildPromotionRunAssignmentsResult | null;
+  evaluatePromotionRunError: Error | null;
+  evaluatePromotionRunIsError: boolean;
+  evaluatePromotionRunIsPending: boolean;
+  evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
+  createNextLoopError: Error | null;
+  createNextLoopIsError: boolean;
+  createNextLoopIsPending: boolean;
+  createNextLoopResult: DashboardCreateNextLoopResult | null;
   error: Error | null;
   generation: DashboardStartPromotionGenerationResult | null;
   generationError: Error | null;
@@ -1376,8 +1495,14 @@ function PromotionSegmentDetailTab({
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onBuildAssignments: (promotionRunId: string) => void;
+  onCreateNextLoop: (
+    promotionRunId: string,
+    failedSegmentIds: string[],
+    failedAdExperimentIds: string[]
+  ) => void;
   onCreatePromotionRun: (promotionId: string) => void;
   onDispatchPromotionRun: (promotionRunId: string) => void;
+  onEvaluatePromotionRun: (promotionRunId: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
   rejectContentCandidateError: Error | null;
@@ -1408,6 +1533,24 @@ function PromotionSegmentDetailTab({
     (candidate) => candidate.status === "approved"
   );
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
+  const failedSegmentIds = uniqueStrings(
+    evaluatePromotionRunResult?.failed_segment_ids ??
+      detail.experiment_metrics
+        .filter((metric) => metric.status === "goal_not_met" && metric.segment_id)
+        .map((metric) => metric.segment_id)
+  );
+  const failedAdExperimentIds = uniqueStrings(
+    evaluatePromotionRunResult?.failed_ad_experiment_ids ??
+      detail.experiment_metrics
+        .filter((metric) => metric.status === "goal_not_met" && metric.ad_experiment_id)
+        .map((metric) => metric.ad_experiment_id)
+  );
+  const canCreateNextLoop = Boolean(
+    activePromotionRunId &&
+      (evaluatePromotionRunResult?.next_loop_required ||
+        failedSegmentIds.length > 0 ||
+        failedAdExperimentIds.length > 0)
+  );
 
   return (
     <section className="grid gap-4">
@@ -1742,6 +1885,32 @@ function PromotionSegmentDetailTab({
               <Target className="mr-2 size-4" />
               {buildAssignmentsIsPending ? "배정 생성 중" : "대상 배정 생성"}
             </Button>
+            <Button
+              disabled={!activePromotionRunId || evaluatePromotionRunIsPending}
+              onClick={() => {
+                if (activePromotionRunId) {
+                  onEvaluatePromotionRun(activePromotionRunId);
+                }
+              }}
+              type="button"
+              variant="outline"
+            >
+              <BarChart3 className="mr-2 size-4" />
+              {evaluatePromotionRunIsPending ? "평가 중" : "성과 평가"}
+            </Button>
+            <Button
+              disabled={!canCreateNextLoop || createNextLoopIsPending}
+              onClick={() => {
+                if (activePromotionRunId) {
+                  onCreateNextLoop(activePromotionRunId, failedSegmentIds, failedAdExperimentIds);
+                }
+              }}
+              type="button"
+              variant="outline"
+            >
+              <Plus className="mr-2 size-4" />
+              {createNextLoopIsPending ? "다음 루프 생성 중" : "다음 루프 생성"}
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -1774,6 +1943,38 @@ function PromotionSegmentDetailTab({
                 {buildAssignmentsResult.promotion_run_id} · 배정{" "}
                 {formatInteger(buildAssignmentsResult.assignment_count)}명 ·{" "}
                 {buildAssignmentsResult.status}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {evaluatePromotionRunIsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>성과 평가 요청에 실패했습니다</AlertTitle>
+              <AlertDescription>{mutationErrorMessage(evaluatePromotionRunError)}</AlertDescription>
+            </Alert>
+          ) : null}
+          {evaluatePromotionRunResult ? (
+            <Alert>
+              <AlertTitle>성과 평가가 완료되었습니다</AlertTitle>
+              <AlertDescription>
+                {evaluatePromotionRunResult.promotion_run_id} · {evaluatePromotionRunResult.status}
+                · 실패 세그먼트 {formatInteger(evaluatePromotionRunResult.failed_segment_ids.length)}개
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {createNextLoopIsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>다음 루프 생성에 실패했습니다</AlertTitle>
+              <AlertDescription>{mutationErrorMessage(createNextLoopError)}</AlertDescription>
+            </Alert>
+          ) : null}
+          {createNextLoopResult ? (
+            <Alert>
+              <AlertTitle>다음 루프 생성이 완료되었습니다</AlertTitle>
+              <AlertDescription>
+                {createNextLoopResult.previous_promotion_run_id} →{" "}
+                {createNextLoopResult.next_promotion_run_id ?? "생성 없음"} · 루프{" "}
+                {formatInteger(createNextLoopResult.loop_count)} · 실험{" "}
+                {formatInteger(createNextLoopResult.next_ad_experiments.length)}개
               </AlertDescription>
             </Alert>
           ) : null}
@@ -2959,6 +3160,10 @@ function parseJsonObject(value: string): Record<string, unknown> | null {
 
 function mutationErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
+}
+
+function uniqueStrings(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
 function nonnegativeNumber(value: string): number {

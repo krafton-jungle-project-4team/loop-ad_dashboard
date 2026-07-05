@@ -7,6 +7,8 @@ import type {
   DashboardBuildPromotionRunAssignmentsResult,
   DashboardConfirmSegmentSuggestionsRequest,
   DashboardConfirmSegmentSuggestionsResult,
+  DashboardCreateNextLoopRequest,
+  DashboardCreateNextLoopResult,
   DashboardCreatePromotionRunRequest,
   DashboardCreatePromotionRunResult,
   DashboardCreateFunnelRequest,
@@ -25,6 +27,7 @@ import type {
   DashboardDeletePromotionSegmentResult,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
+  DashboardEvaluatePromotionRunResult,
   DashboardFunnelList,
   DashboardFunnelMetrics,
   DashboardMain,
@@ -311,6 +314,24 @@ export class DashboardQueryService {
     return this.decisionClient.buildPromotionRunSegmentAssignments({
       projectId,
       promotionRunId
+    });
+  }
+
+  async evaluatePromotionRun(
+    _projectId: string,
+    promotionRunId: string
+  ): Promise<DashboardEvaluatePromotionRunResult> {
+    return this.decisionClient.evaluatePromotionRun({ promotionRunId });
+  }
+
+  async createNextLoop(
+    _projectId: string,
+    promotionRunId: string,
+    request: DashboardCreateNextLoopRequest
+  ): Promise<DashboardCreateNextLoopResult> {
+    return this.decisionClient.createNextLoop({
+      promotionRunId,
+      request
     });
   }
 

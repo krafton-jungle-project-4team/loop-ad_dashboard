@@ -13,6 +13,8 @@ import {
   DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreateNextLoopRequestSchema,
+  DashboardCreateNextLoopResultSchema,
   DashboardCreateProjectRequestSchema,
   DashboardCreatePromotionSegmentDefinitionRequestSchema,
   DashboardCreatePromotionRunRequestSchema,
@@ -25,6 +27,7 @@ import {
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
   DashboardEventCatalogSchema,
+  DashboardEvaluatePromotionRunResultSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelSchema,
@@ -68,6 +71,8 @@ import type {
   DashboardConfirmSegmentSuggestionsResult,
   DashboardCreateCampaignRequest,
   DashboardCreateFunnelRequest,
+  DashboardCreateNextLoopRequest,
+  DashboardCreateNextLoopResult,
   DashboardCreateProjectRequest,
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRunRequest,
@@ -80,6 +85,7 @@ import type {
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
   DashboardEventCatalog,
+  DashboardEvaluatePromotionRunResult,
   DashboardFunnel,
   DashboardFunnelMetrics,
   DashboardProject,
@@ -793,6 +799,55 @@ export async function buildDashboardPromotionRunAssignments(
   }
 
   return createApiSuccessResponseSchema(DashboardBuildPromotionRunAssignmentsResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function evaluateDashboardPromotionRun(
+  query: DashboardQuery,
+  promotionRunId: string
+): Promise<DashboardEvaluatePromotionRunResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotion-runs/${encodeURIComponent(promotionRunId)}/evaluate`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
+
+  return createApiSuccessResponseSchema(DashboardEvaluatePromotionRunResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function createDashboardNextLoop(
+  query: DashboardQuery,
+  promotionRunId: string,
+  requestBody: DashboardCreateNextLoopRequest
+): Promise<DashboardCreateNextLoopResult> {
+  const parsedBody = DashboardCreateNextLoopRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotion-runs/${encodeURIComponent(promotionRunId)}/next-loop`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
+
+  return createApiSuccessResponseSchema(DashboardCreateNextLoopResultSchema).parse(
     await response.json()
   ).data;
 }
