@@ -371,7 +371,7 @@ function CampaignFlowToolbar({
           <h1 className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
             워크플로우 맵
           </h1>
-          <p className="truncate text-xs text-muted-foreground">Campaign pipeline</p>
+          <p className="truncate text-xs text-muted-foreground">캠페인 파이프라인</p>
         </div>
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -394,7 +394,7 @@ function CampaignFlowToolbar({
         <ToolbarChip icon={Megaphone} label="프로모션" value={formatInteger(promotionCount)} />
         <ToolbarChip
           icon={RefreshCw}
-          label="next-loop 후보"
+          label="다음 루프 후보"
           tone={nextLoopCandidateCount > 0 ? "warning" : "normal"}
           value={formatInteger(nextLoopCandidateCount)}
         />
@@ -404,9 +404,9 @@ function CampaignFlowToolbar({
           value={formatOptionalRate(selectedCampaign?.latest_goal_achievement_rate)}
         />
         <div className="flex h-8 items-center gap-2 rounded-md border border-black/10 bg-zinc-50 px-2 text-xs text-muted-foreground">
-          <LegendItem label="normal" tone="normal" />
-          <LegendItem label="warning" tone="warning" />
-          <LegendItem label="insufficient_data" tone="insufficient" />
+          <LegendItem label="정상" tone="normal" />
+          <LegendItem label="주의" tone="warning" />
+          <LegendItem label="표본 부족" tone="insufficient" />
         </div>
       </div>
     </div>
@@ -457,10 +457,10 @@ function LegendItem({ label, tone }: { label: string; tone: FlowPathTone }) {
 
 function PipelineStageStrip() {
   const stages = [
-    "Campaign",
-    "Promotion runs",
-    "Collection + evaluation",
-    "Retry queue"
+    "캠페인",
+    "프로모션 실행",
+    "수집 및 평가",
+    "재시도 대기열"
   ];
 
   return (
@@ -551,7 +551,7 @@ function PromotionNode(props: NodeProps) {
       <NodeSummaryGrid items={data.summary} />
       {flow ? (
         <div className="grid gap-1 border-t border-black/10 pt-2 text-xs text-muted-foreground">
-          <MetricLine label="next" value={flow.promotion.next_action} />
+          <MetricLine label="다음 액션" value={flow.promotion.next_action} />
         </div>
       ) : null}
       <Handle
@@ -692,12 +692,12 @@ function RetryQueueList({ flows }: { flows: PromotionFlowSummary[] }) {
           </div>
           <div className="grid gap-1 sm:grid-cols-2">
             <CompactFact
-              label="segments"
+              label="세그먼트"
               tone="warning"
               value={formatInteger(flow.nextLoopSegments.length)}
             />
             <CompactFact
-              label="required"
+              label="필요 지표"
               tone="warning"
               value={formatInteger(flow.evaluation.nextLoopCount)}
             />
@@ -991,24 +991,24 @@ function PromotionFlowDetailList({
               </span>
               <StatusBadge status={flow.evaluation.status} />
               {flow.nextLoopSegments.length > 0 ? (
-                <Badge variant="destructive">next loop</Badge>
+                <Badge variant="destructive">다음 루프</Badge>
               ) : null}
             </div>
             <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-5">
               <MetricLine
-                label="achievement"
+                label="달성률"
                 value={formatOptionalGoalAchievement(flow.goalAchievementRate)}
               />
               <MetricLine
-                label="collection"
+                label="수집률"
                 value={formatCollectionCoverage(flow.evaluation.totalSampleSize, flow.promotion)}
               />
               <MetricLine
-                label="actual"
+                label="실제값"
                 value={latestMetric ? formatMetricValue(latestMetric.actual_value) : "-"}
               />
               <MetricLine
-                label="target"
+                label="목표값"
                 value={latestMetric ? formatMetricValue(latestMetric.target_value) : "-"}
               />
               <MetricLine
@@ -1017,9 +1017,9 @@ function PromotionFlowDetailList({
               />
             </div>
             <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-3">
-              <MetricLine label="message" value={flow.promotion.message_brief ?? "-"} />
-              <MetricLine label="offer" value={flow.promotion.offer_type ?? "-"} />
-              <MetricLine label="next" value={flow.promotion.next_action} />
+              <MetricLine label="메시지" value={flow.promotion.message_brief ?? "-"} />
+              <MetricLine label="오퍼" value={flow.promotion.offer_type ?? "-"} />
+              <MetricLine label="다음 액션" value={flow.promotion.next_action} />
             </div>
           </DetailAnchor>
         );
@@ -1053,19 +1053,19 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="truncate font-medium text-[#1d1d1f]">{segment.name}</span>
             <StatusBadge status={segment.status} />
-            {segment.nextLoopRequired ? <Badge variant="destructive">next loop</Badge> : null}
+            {segment.nextLoopRequired ? <Badge variant="destructive">다음 루프</Badge> : null}
           </div>
           <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-4">
             <MetricLine
-              label="achievement"
+              label="달성률"
               value={formatOptionalGoalAchievement(segment.goalAchievementRate)}
             />
             <MetricLine
-              label="actual"
+              label="실제값"
               value={formatOptionalMetricValue(segment.latestActualValue)}
             />
-            <MetricLine label="target" value={formatOptionalMetricValue(segment.targetValue)} />
-            <MetricLine label="sample" value={formatInteger(segment.sampleSize)} />
+            <MetricLine label="목표값" value={formatOptionalMetricValue(segment.targetValue)} />
+            <MetricLine label="표본" value={formatInteger(segment.sampleSize)} />
           </div>
           {segment.contentTitle ? (
             <div className="text-xs text-muted-foreground">{segment.contentTitle}</div>
@@ -1100,17 +1100,17 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="truncate font-medium text-[#1d1d1f]">{metric.metric}</span>
             <StatusBadge status={metric.status} />
-            {metric.next_loop_required ? <Badge variant="destructive">next loop</Badge> : null}
+            {metric.next_loop_required ? <Badge variant="destructive">다음 루프</Badge> : null}
           </div>
           <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-5">
             <MetricLine
-              label="achievement"
+              label="달성률"
               value={formatOptionalGoalAchievement(goalAchievementRate(metric.actual_value, metric.target_value))}
             />
-            <MetricLine label="actual" value={formatMetricValue(metric.actual_value)} />
-            <MetricLine label="target" value={formatMetricValue(metric.target_value)} />
-            <MetricLine label="sample" value={formatInteger(metric.sample_size)} />
-            <MetricLine label="created" value={formatDateTime(metric.created_at)} />
+            <MetricLine label="실제값" value={formatMetricValue(metric.actual_value)} />
+            <MetricLine label="목표값" value={formatMetricValue(metric.target_value)} />
+            <MetricLine label="표본" value={formatInteger(metric.sample_size)} />
+            <MetricLine label="생성일" value={formatDateTime(metric.created_at)} />
           </div>
           {metric.feedback ? (
             <div className="text-xs text-muted-foreground">{metric.feedback}</div>
@@ -1200,13 +1200,13 @@ function buildCampaignFlowGraph(
       subtitle: detail.campaign.objective ?? detail.campaign.target_audience,
       summary: [
         {
-          label: "loop",
+          label: "루프",
           value: `${formatInteger(detail.campaign.current_loop_count)} / ${formatInteger(detail.campaign.max_loop_count)}`
         },
-        { label: "promotions", value: formatInteger(detail.promotions.length) },
-        { label: "segments", value: formatInteger(detail.segments.length) },
+        { label: "프로모션", value: formatInteger(detail.promotions.length) },
+        { label: "세그먼트", value: formatInteger(detail.segments.length) },
         {
-          label: "latest goal",
+          label: "최근 목표",
           value: formatOptionalRate(detail.campaign.latest_goal_achievement_rate)
         }
       ],
@@ -1233,21 +1233,21 @@ function buildCampaignFlowGraph(
           subtitle: `${flow.promotion.channel} · ${flow.promotion.goal_metric}`,
           summary: [
             {
-              label: "goal",
+              label: "목표",
               value: formatOptionalGoalAchievement(flow.goalAchievementRate),
               tone: flow.tone
             },
             {
-              label: "collection",
+              label: "수집률",
               value: formatCollectionCoverage(flow.evaluation.totalSampleSize, flow.promotion),
               tone: flow.collectionTone
             },
             {
-              label: "loop",
+              label: "루프",
               value: `L${formatInteger(flow.promotion.current_loop_count)} / ${formatInteger(flow.promotion.max_loop_count)}`
             },
             {
-              label: "segments",
+              label: "세그먼트",
               value: formatInteger(flow.segments.length)
             }
           ],
@@ -1285,17 +1285,17 @@ function buildCampaignFlowGraph(
         promotionFlows,
         segments: allSegments,
         status: evaluationStatus,
-        subtitle: "Metrics are ranked by weakest goal achievement",
+        subtitle: "목표 달성률이 낮은 지표부터 정렬합니다",
         summary: [
-          { label: "metrics", value: formatInteger(totals.metricsCount) },
-          { label: "goal met", value: formatInteger(totals.goalMetCount) },
+          { label: "지표", value: formatInteger(totals.metricsCount) },
+          { label: "목표 달성", value: formatInteger(totals.goalMetCount) },
           {
-            label: "goal_not_met",
+            label: "목표 미달",
             value: formatInteger(totals.goalNotMetCount),
             tone: totals.goalNotMetCount > 0 ? "warning" : "normal"
           },
           {
-            label: "insufficient",
+            label: "표본 부족",
             value: formatInteger(totals.insufficientDataCount),
             tone: totals.insufficientDataCount > 0 ? "insufficient" : "normal"
           }
@@ -1317,25 +1317,25 @@ function buildCampaignFlowGraph(
         retryPromotionFlows,
         segments: retrySegments,
         status: retryStatus,
-        subtitle: "Only failed or insufficient runs return to the next loop",
+        subtitle: "실패했거나 표본이 부족한 실행만 다음 루프로 보냅니다",
         summary: [
           {
-            label: "candidates",
+            label: "후보",
             value: formatInteger(retryPromotionFlows.length),
             tone: retryPromotionFlows.length > 0 ? "warning" : "normal"
           },
           {
-            label: "segments",
+            label: "세그먼트",
             value: formatInteger(totals.retrySegmentCount),
             tone: totals.retrySegmentCount > 0 ? "warning" : "normal"
           },
           {
-            label: "required metrics",
+            label: "필요 지표",
             value: formatInteger(totals.nextLoopCount),
             tone: totals.nextLoopCount > 0 ? "warning" : "normal"
           },
           {
-            label: "next loop",
+            label: "다음 루프",
             value: formatNextLoopLabel(retryPromotionFlows),
             tone: retryPromotionFlows.length > 0 ? "warning" : "normal"
           }
@@ -1368,7 +1368,7 @@ function buildCampaignFlowGraph(
             `${retryQueueNodeId}->${loopTargetPromotionId}:loop`,
             retryQueueNodeId,
             loopTargetPromotionId,
-            `next loop ${formatInteger(retryPromotionFlows.length)}`
+            `다음 루프 ${formatInteger(retryPromotionFlows.length)}`
           )
         );
       }
@@ -1446,7 +1446,7 @@ function LoopBackEdge({
   targetY
 }: EdgeProps) {
   const bottomY = Math.max(sourceY, targetY) + 76;
-  const label = typeof data?.label === "string" ? data.label : "next loop";
+  const label = typeof data?.label === "string" ? data.label : "다음 루프";
   const laneX = Math.min(sourceX, targetX) - 160;
   const labelX = (sourceX + laneX) / 2;
   const path = `M ${sourceX} ${sourceY} L ${sourceX} ${bottomY} L ${laneX} ${bottomY} L ${laneX} ${targetY} L ${targetX} ${targetY}`;
@@ -1883,13 +1883,13 @@ function statusTone(status: string): "success" | "warning" | "neutral" {
 function nodeKindLabel(kind: FlowNodeKind) {
   switch (kind) {
     case "campaign":
-      return "Pipeline";
+      return "파이프라인";
     case "promotion":
-      return "Promotion";
+      return "프로모션";
     case "evaluation":
-      return "Quality";
+      return "품질";
     case "retryQueue":
-      return "Retry";
+      return "재시도";
   }
 }
 

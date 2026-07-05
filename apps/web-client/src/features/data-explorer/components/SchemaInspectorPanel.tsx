@@ -27,7 +27,7 @@ export function SchemaInspectorPanel({
   }
 
   if (!detail) {
-    return <EmptyState message="왼쪽 목록에서 object를 선택해주세요." />;
+    return <EmptyState message="왼쪽 목록에서 객체를 선택해주세요." />;
   }
 
   return (
@@ -47,7 +47,7 @@ export function SchemaInspectorPanel({
 
         <section className="overflow-hidden rounded-[18px] border border-black/10 bg-white">
           <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-3">
-            <h3 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Columns</h3>
+            <h3 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">컬럼</h3>
             <Badge variant="outline">{detail.columns.length}</Badge>
           </div>
           <div className="overflow-auto">
@@ -55,11 +55,11 @@ export function SchemaInspectorPanel({
               <TableHeader className="bg-[#fafafc]">
                 <TableRow>
                   <TableHead className="w-14">#</TableHead>
-                  <TableHead>Column</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Nullable</TableHead>
-                  <TableHead>Default</TableHead>
-                  <TableHead>Comment</TableHead>
+                  <TableHead>컬럼명</TableHead>
+                  <TableHead>타입</TableHead>
+                  <TableHead>NULL 허용</TableHead>
+                  <TableHead>기본값</TableHead>
+                  <TableHead>설명</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -72,7 +72,7 @@ export function SchemaInspectorPanel({
                       {column.column_name}
                     </TableCell>
                     <TableCell className="font-mono text-xs">{column.data_type}</TableCell>
-                    <TableCell>{column.nullable ? "yes" : "no"}</TableCell>
+                    <TableCell>{column.nullable ? "예" : "아니오"}</TableCell>
                     <TableCell className="max-w-52 truncate font-mono text-xs text-muted-foreground">
                       {column.default_value ?? "-"}
                     </TableCell>

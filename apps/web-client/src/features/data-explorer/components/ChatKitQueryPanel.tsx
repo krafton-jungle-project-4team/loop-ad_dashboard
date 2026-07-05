@@ -142,7 +142,7 @@ export function ChatKitQueryPanel({
       {showTitle ? (
         <div className="border-b border-black/10 px-4 py-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-            AI Assistant
+            AI 어시스턴트
           </div>
         </div>
       ) : null}

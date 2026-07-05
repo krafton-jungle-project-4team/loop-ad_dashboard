@@ -133,7 +133,7 @@ export async function fetchDashboardPageResource(
         data: await request("/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
     case "dataExplorer":
-      throw new Error("Data Explorer uses its own API resource flow.");
+      throw new Error("데이터 탐색기는 별도 API 리소스 흐름을 사용합니다.");
   }
 }
 
