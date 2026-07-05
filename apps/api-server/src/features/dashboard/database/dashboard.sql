@@ -1336,6 +1336,24 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY updated_at DESC, created_at DESC;
 
+/* 목적: 동일 analysis/proposition의 기존 광고 생성 결과를 조회합니다. */
+/* @name GetDashboardPromotionGenerationResult */
+SELECT
+  gr.generation_id AS "generationId",
+  gr.promotion_id AS "promotionId",
+  gr.status,
+  COUNT(cc.content_id)::int AS "contentCandidateCount"
+FROM generation_runs gr
+LEFT JOIN content_candidates cc
+  ON cc.project_id = gr.project_id
+ AND cc.generation_id = gr.generation_id
+WHERE gr.project_id = :projectId
+  AND gr.promotion_id = :promotionId
+  AND gr.analysis_id = :analysisId
+GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
+ORDER BY gr.updated_at DESC, gr.created_at DESC
+LIMIT 1;
+
 /* 목적: 특정 세그먼트에서 생성된 광고 실험 상태를 조회합니다. */
 /* @name ListDashboardSegmentAdExperiments */
 SELECT
@@ -1376,12 +1394,18 @@ SELECT
   cc.status AS "contentStatus"
 FROM content_candidates cc
 JOIN promotions p
-  ON p.promotion_id = cc.promotion_id
+  ON p.project_id = cc.project_id
+ AND p.campaign_id = cc.campaign_id
+ AND p.promotion_id = cc.promotion_id
 LEFT JOIN segment_definitions sd
-  ON sd.segment_id = cc.segment_id
+  ON sd.project_id = cc.project_id
+ AND sd.segment_id = cc.segment_id
 JOIN promotion_target_segments pts
-  ON pts.promotion_id = cc.promotion_id
+  ON pts.project_id = cc.project_id
+ AND pts.campaign_id = cc.campaign_id
+ AND pts.promotion_id = cc.promotion_id
  AND pts.segment_id = cc.segment_id
+ AND pts.analysis_id = cc.analysis_id
 WHERE cc.project_id = :projectId
   AND cc.promotion_id = :promotionId
   AND cc.segment_id = :segmentId
@@ -1424,12 +1448,17 @@ SET status = 'rejected',
     updated_at = now()
 FROM promotions p
 JOIN promotion_target_segments pts
-  ON pts.promotion_id = p.promotion_id
+  ON pts.project_id = p.project_id
+ AND pts.campaign_id = p.campaign_id
+ AND pts.promotion_id = p.promotion_id
 WHERE cc.project_id = :projectId
   AND cc.promotion_id = :promotionId
   AND cc.segment_id = :segmentId
   AND cc.content_id = :contentId
+  AND p.project_id = cc.project_id
+  AND p.campaign_id = cc.campaign_id
   AND p.promotion_id = cc.promotion_id
+  AND pts.analysis_id = cc.analysis_id
   AND pts.segment_id = cc.segment_id
   AND p.status <> 'stopped'
   AND pts.status <> 'stopped'

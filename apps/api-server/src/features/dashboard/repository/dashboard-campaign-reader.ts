@@ -34,6 +34,7 @@ import type {
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
   DashboardSegmentDetail,
+  DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
@@ -52,6 +53,7 @@ import {
   decideDashboardPromotionSegmentSuggestion,
   getDashboardCampaignSummary,
   getDashboardContentCandidateForApproval,
+  getDashboardPromotionGenerationResult,
   getDashboardPromotionSegment,
   getDashboardPromotionSummary,
   insertDashboardCampaign,
@@ -85,6 +87,7 @@ import {
   updateDashboardPromotion,
   updateDashboardPromotionTargetSegment,
   type IGetDashboardCampaignSummaryResult,
+  type IGetDashboardPromotionGenerationResultResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
   type IDecideDashboardPromotionSegmentSuggestionResult,
@@ -523,6 +526,19 @@ export class DashboardCampaignReader {
       promotion_id: row.promotionId,
       status: "requested"
     };
+  }
+
+  async getPromotionGenerationResult(
+    projectId: string,
+    promotionId: string,
+    analysisId: string
+  ): Promise<DashboardStartPromotionGenerationResult | undefined> {
+    const rows = await this.db
+      .query(getDashboardPromotionGenerationResult, { analysisId, projectId, promotionId })
+      .multiple();
+    const row = rows[0];
+
+    return row ? toStartPromotionGenerationResult(row) : undefined;
   }
 
   async approveContentCandidate(
@@ -984,6 +1000,17 @@ function toPromotionAnalysis(row: IListDashboardPromotionAnalysesResult): Dashbo
     promotion_id: row.promotionId,
     status: row.status,
     updated_at: row.updatedAt.toISOString()
+  };
+}
+
+function toStartPromotionGenerationResult(
+  row: IGetDashboardPromotionGenerationResultResult
+): DashboardStartPromotionGenerationResult {
+  return {
+    content_candidate_count: countValue(row.contentCandidateCount),
+    generation_id: row.generationId,
+    promotion_id: row.promotionId,
+    status: row.status
   };
 }
 
