@@ -50,6 +50,7 @@ import {
   DashboardSegmentQueryPreviewSchema,
   DashboardStartPromotionAnalysisRequestSchema,
   DashboardStartPromotionAnalysisResultSchema,
+  DashboardStartAdExperimentResultSchema,
   DashboardStartPromotionGenerationRequestSchema,
   DashboardStartPromotionGenerationResultSchema,
   DashboardStartNextLoopRequestSchema,
@@ -106,6 +107,7 @@ import type {
   DashboardSegmentQueryPreviewRequest,
   DashboardStartPromotionAnalysisRequest,
   DashboardStartPromotionAnalysisResult,
+  DashboardStartAdExperimentResult,
   DashboardStartPromotionGenerationRequest,
   DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
@@ -899,6 +901,31 @@ export async function dispatchDashboardPromotionRun(
   }
 
   return createApiSuccessResponseSchema(PromotionRunDispatchResponseSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function startDashboardAdExperiment(
+  query: DashboardQuery,
+  promotionId: string,
+  adExperimentId: string
+): Promise<DashboardStartAdExperimentResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/ad-experiments/${encodeURIComponent(adExperimentId)}/start`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify({}),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
+
+  return createApiSuccessResponseSchema(DashboardStartAdExperimentResultSchema).parse(
     await response.json()
   ).data;
 }

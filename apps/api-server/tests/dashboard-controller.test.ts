@@ -492,6 +492,49 @@ test("dashboard controller parses content approval body before delegating", asyn
   assert.equal(response.status, "approved");
 });
 
+test("dashboard controller starts an ad experiment before dispatch", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    startAdExperiment: async (projectId, promotionId, adExperimentId) => {
+      writes.push({ adExperimentId, projectId, promotionId });
+      return {
+        ad_experiment_id: adExperimentId,
+        promotion_run_id: "run_email_001",
+        promotion_id: promotionId,
+        segment_id: "seg_vip",
+        content_id: "content_vip_a",
+        content_option_id: "option_a",
+        channel: "email",
+        loop_count: 1,
+        goal_metric: "inflow_rate",
+        goal_target_value: 0.1,
+        goal_basis: "promotion_average",
+        status: "running"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.startAdExperiment(
+    "promo_email_001",
+    "ad_exp_vip_001",
+    "hotel-client-a"
+  );
+
+  assert.deepEqual(writes, [
+    {
+      adExperimentId: "ad_exp_vip_001",
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001"
+    }
+  ]);
+  assert.equal(response.ad_experiment_id, "ad_exp_vip_001");
+  assert.equal(response.status, "running");
+});
+
 test("dashboard controller parses content rejection body before delegating", async () => {
   setRequiredEnv();
   const { DashboardController } =

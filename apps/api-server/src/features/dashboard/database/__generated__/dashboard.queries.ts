@@ -2750,6 +2750,66 @@ const listDashboardSegmentAdExperimentsIR: any = {"usedParamSet":{"projectId":tr
 export const listDashboardSegmentAdExperiments = new PreparedQuery<IListDashboardSegmentAdExperimentsParams,IListDashboardSegmentAdExperimentsResult>(listDashboardSegmentAdExperimentsIR);
 
 
+/** 'StartDashboardAdExperiment' parameters type */
+export interface IStartDashboardAdExperimentParams {
+  adExperimentId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'StartDashboardAdExperiment' return type */
+export interface IStartDashboardAdExperimentResult {
+  adExperimentId: string;
+  channel: string;
+  contentId: string;
+  contentOptionId: string;
+  goalBasis: string;
+  goalMetric: string;
+  goalTargetValue: number | null;
+  loopCount: number;
+  promotionId: string;
+  promotionRunId: string;
+  segmentId: string;
+  status: string;
+}
+
+/** 'StartDashboardAdExperiment' query type */
+export interface IStartDashboardAdExperimentQuery {
+  params: IStartDashboardAdExperimentParams;
+  result: IStartDashboardAdExperimentResult;
+}
+
+const startDashboardAdExperimentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"adExperimentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":134,"b":144}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":166,"b":178}]},{"name":"adExperimentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":204,"b":219}]}],"statement":"UPDATE ad_experiments\nSET status = 'running',\n    started_at = COALESCE(started_at, now()),\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND ad_experiment_id = :adExperimentId\n  AND status IN ('planned', 'approved', 'running')\nRETURNING\n  ad_experiment_id AS \"adExperimentId\",\n  promotion_run_id AS \"promotionRunId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  channel,\n  loop_count AS \"loopCount\",\n  goal_metric AS \"goalMetric\",\n  CAST(goal_target_value AS float8) AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  status"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE ad_experiments
+ * SET status = 'running',
+ *     started_at = COALESCE(started_at, now()),
+ *     updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ *   AND ad_experiment_id = :adExperimentId
+ *   AND status IN ('planned', 'approved', 'running')
+ * RETURNING
+ *   ad_experiment_id AS "adExperimentId",
+ *   promotion_run_id AS "promotionRunId",
+ *   promotion_id AS "promotionId",
+ *   segment_id AS "segmentId",
+ *   content_id AS "contentId",
+ *   content_option_id AS "contentOptionId",
+ *   channel,
+ *   loop_count AS "loopCount",
+ *   goal_metric AS "goalMetric",
+ *   CAST(goal_target_value AS float8) AS "goalTargetValue",
+ *   goal_basis AS "goalBasis",
+ *   status
+ * ```
+ */
+export const startDashboardAdExperiment = new PreparedQuery<IStartDashboardAdExperimentParams,IStartDashboardAdExperimentResult>(startDashboardAdExperimentIR);
+
+
 /** 'GetDashboardContentCandidateForApproval' parameters type */
 export interface IGetDashboardContentCandidateForApprovalParams {
   contentId?: string | null | void;

@@ -354,6 +354,13 @@ export const DashboardAdExperimentSchema = z.object({
 });
 export type DashboardAdExperiment = z.infer<typeof DashboardAdExperimentSchema>;
 
+export const DashboardStartAdExperimentResultSchema = DashboardAdExperimentSchema.extend({
+  status: z.literal("running")
+});
+export type DashboardStartAdExperimentResult = z.infer<
+  typeof DashboardStartAdExperimentResultSchema
+>;
+
 export const DashboardCreatePromotionRunRequestSchema = z.object({
   analysis_id: z.string().min(1).optional(),
   generation_id: z.string().min(1).optional(),

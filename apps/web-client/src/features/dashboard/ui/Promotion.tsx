@@ -85,6 +85,7 @@ import {
   fetchDashboardPromotionScopedSegmentDefinitions,
   fetchDashboardPromotionSegmentSuggestions,
   rejectDashboardContentCandidate,
+  startDashboardAdExperiment,
   startDashboardPromotionAnalysis,
   startDashboardPromotionGeneration
 } from "../api/dashboard-api.js";
@@ -376,6 +377,28 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       promotionId: string;
       segmentId: string;
     }) => approveDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
+    onSuccess: async (candidate) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          candidate.promotion_id,
+          candidate.segment_id
+        )
+      });
+    }
+  });
+  const startAdExperimentMutation = useMutation({
+    mutationFn: ({
+      adExperimentId,
+      promotionId
+    }: {
+      adExperimentId: string;
+      promotionId: string;
+    }) => startDashboardAdExperiment(query, promotionId, adExperimentId),
     onSuccess: async (experiment) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
@@ -772,6 +795,9 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                     promotionId: selectedOpenPromotion.promotion_id
                   });
                 }}
+                onStartAdExperiment={(promotionId, adExperimentId) =>
+                  startAdExperimentMutation.mutate({ adExperimentId, promotionId })
+                }
                 onSelectSegment={selectSegment}
                 onTabChange={setWorkspaceTab}
                 promotion={selectedOpenPromotion}
@@ -786,6 +812,9 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 rejectContentCandidateError={rejectContentCandidateMutation.error}
                 rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
                 rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
+                startAdExperimentError={startAdExperimentMutation.error}
+                startAdExperimentIsError={startAdExperimentMutation.isError}
+                startAdExperimentIsPending={startAdExperimentMutation.isPending}
                 segments={selectedPromotionSegments}
                 scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
                 scopedSegmentsError={scopedSegmentDefinitions.error}
@@ -1012,6 +1041,7 @@ function PromotionTabWorkspace({
   onEvaluatePromotionRun,
   onRejectContentCandidate,
   onSelectSegment,
+  onStartAdExperiment,
   onStartAnalysis,
   onStartGeneration,
   onTabChange,
@@ -1027,6 +1057,9 @@ function PromotionTabWorkspace({
   rejectContentCandidateError,
   rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
+  startAdExperimentError,
+  startAdExperimentIsError,
+  startAdExperimentIsPending,
   scopedSegmentCreateError,
   scopedSegmentCreateIsError,
   scopedSegmentCreateIsPending,
@@ -1102,6 +1135,7 @@ function PromotionTabWorkspace({
   onEvaluatePromotionRun: (promotionRunId: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
+  onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   onStartAnalysis: () => void;
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
@@ -1117,6 +1151,9 @@ function PromotionTabWorkspace({
   rejectContentCandidateError: Error | null;
   rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
+  startAdExperimentError: Error | null;
+  startAdExperimentIsError: boolean;
+  startAdExperimentIsPending: boolean;
   scopedSegmentCreateError: Error | null;
   scopedSegmentCreateIsError: boolean;
   scopedSegmentCreateIsPending: boolean;
@@ -1273,11 +1310,15 @@ function PromotionTabWorkspace({
             onDispatchPromotionRun={onDispatchPromotionRun}
             onEvaluatePromotionRun={onEvaluatePromotionRun}
             onRejectContentCandidate={onRejectContentCandidate}
+            onStartAdExperiment={onStartAdExperiment}
             onStartGeneration={onStartGeneration}
             rejectContentCandidateError={rejectContentCandidateError}
             rejectContentCandidateIsError={rejectContentCandidateIsError}
             rejectContentCandidateIsPending={rejectContentCandidateIsPending}
             selectedSegmentId={selectedSegmentId}
+            startAdExperimentError={startAdExperimentError}
+            startAdExperimentIsError={startAdExperimentIsError}
+            startAdExperimentIsPending={startAdExperimentIsPending}
           />
         </TabsContent>
       </Tabs>
@@ -1490,11 +1531,15 @@ function PromotionSegmentDetailTab({
   onDispatchPromotionRun,
   onEvaluatePromotionRun,
   onRejectContentCandidate,
+  onStartAdExperiment,
   onStartGeneration,
   rejectContentCandidateError,
   rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
-  selectedSegmentId
+  selectedSegmentId,
+  startAdExperimentError,
+  startAdExperimentIsError,
+  startAdExperimentIsPending
 }: {
   approveContentCandidateError: Error | null;
   approveContentCandidateIsError: boolean;
@@ -1542,11 +1587,15 @@ function PromotionSegmentDetailTab({
   onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
   rejectContentCandidateError: Error | null;
   rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
   selectedSegmentId: string;
+  startAdExperimentError: Error | null;
+  startAdExperimentIsError: boolean;
+  startAdExperimentIsPending: boolean;
 }) {
   if (!selectedSegmentId) {
     return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
@@ -1901,7 +1950,7 @@ function PromotionSegmentDetailTab({
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="grid gap-1">
             <CardTitle className="text-base">연결된 광고 실험</CardTitle>
-            <CardDescription>Decision /runs로 생성된 세그먼트 하위 실험 단위입니다.</CardDescription>
+            <CardDescription>실험 시작 후 발송/노출 대상 assignment가 활성화됩니다.</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -2050,6 +2099,12 @@ function PromotionSegmentDetailTab({
               </AlertDescription>
             </Alert>
           ) : null}
+          {startAdExperimentIsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>광고 실험을 시작하지 못했습니다</AlertTitle>
+              <AlertDescription>{mutationErrorMessage(startAdExperimentError)}</AlertDescription>
+            </Alert>
+          ) : null}
           {detail.ad_experiments.length > 0 ? (
             <Table>
               <TableHeader>
@@ -2060,14 +2115,15 @@ function PromotionSegmentDetailTab({
                   <TableHead>루프</TableHead>
                   <TableHead>목표</TableHead>
                   <TableHead>상태</TableHead>
-                  <TableHead>액션</TableHead>
+                  <TableHead className="text-right">액션</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {detail.ad_experiments.map((experiment) => {
                   const canDispatch =
-                    (experiment.status === "planned" || experiment.status === "approved") &&
+                    experiment.status === "running" &&
                     (experiment.channel === "email" || experiment.channel === "sms");
+
                   return (
                     <TableRow key={experiment.ad_experiment_id}>
                       <TableCell className="font-medium">{experiment.ad_experiment_id}</TableCell>
@@ -2082,17 +2138,37 @@ function PromotionSegmentDetailTab({
                           {experiment.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Button
-                          disabled={!canDispatch || dispatchPromotionRunIsPending}
-                          onClick={() => onDispatchPromotionRun(experiment.promotion_run_id)}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <Send className="mr-2 size-4" />
-                          {experiment.channel === "onsite_banner" ? "배너 제외" : "실행"}
-                        </Button>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Button
+                            disabled={
+                              startAdExperimentIsPending ||
+                              !canStartAdExperiment(experiment.status)
+                            }
+                            onClick={() =>
+                              onStartAdExperiment(
+                                experiment.promotion_id,
+                                experiment.ad_experiment_id
+                              )
+                            }
+                            size="sm"
+                            type="button"
+                            variant={experiment.status === "running" ? "outline" : "default"}
+                          >
+                            <CheckCircle2 className="mr-2 size-4" />
+                            {experiment.status === "running" ? "실행 중" : "실험 시작"}
+                          </Button>
+                          <Button
+                            disabled={!canDispatch || dispatchPromotionRunIsPending}
+                            onClick={() => onDispatchPromotionRun(experiment.promotion_run_id)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Send className="mr-2 size-4" />
+                            {experiment.channel === "onsite_banner" ? "배너 제외" : "실행"}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -3175,6 +3251,10 @@ function statusBadgeVariant(status: string) {
     return "secondary" as const;
   }
   return "outline" as const;
+}
+
+function canStartAdExperiment(status: string) {
+  return status === "planned" || status === "approved";
 }
 
 function formatJsonObject(value: Record<string, unknown>): string {

@@ -49,6 +49,7 @@ import {
   DashboardSegmentQueryPreviewSchema,
   DashboardStartPromotionAnalysisRequestSchema,
   DashboardStartPromotionAnalysisResultSchema,
+  DashboardStartAdExperimentResultSchema,
   DashboardStartPromotionGenerationRequestSchema,
   DashboardStartPromotionGenerationResultSchema,
   DashboardStartNextLoopRequestSchema,
@@ -307,6 +308,18 @@ export class DashboardController {
         contentId,
         request
       )
+    );
+  }
+
+  @Post("promotions/:promotion_id/ad-experiments/:ad_experiment_id/start")
+  async startAdExperiment(
+    @Param("promotion_id") promotionId: string,
+    @Param("ad_experiment_id") adExperimentId: string,
+    @Query("project_id") projectId: string | undefined
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardStartAdExperimentResultSchema.parse(
+      await this.dashboardQuery.startAdExperiment(requiredProjectId, promotionId, adExperimentId)
     );
   }
 

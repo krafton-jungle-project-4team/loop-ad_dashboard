@@ -1377,6 +1377,30 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY loop_count DESC, updated_at DESC, created_at DESC;
 
+/* 목적: 관리자가 승인/계획 상태 광고 실험을 명시적으로 실행 시작 상태로 전환합니다. */
+/* @name StartDashboardAdExperiment */
+UPDATE ad_experiments
+SET status = 'running',
+    started_at = COALESCE(started_at, now()),
+    updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND ad_experiment_id = :adExperimentId
+  AND status IN ('planned', 'approved', 'running')
+RETURNING
+  ad_experiment_id AS "adExperimentId",
+  promotion_run_id AS "promotionRunId",
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  channel,
+  loop_count AS "loopCount",
+  goal_metric AS "goalMetric",
+  CAST(goal_target_value AS float8) AS "goalTargetValue",
+  goal_basis AS "goalBasis",
+  status;
+
 /* 목적: 콘텐츠 승인과 실험 생성을 위해 후보, 프로모션, 세그먼트 정보를 함께 조회합니다. */
 /* @name GetDashboardContentCandidateForApproval */
 SELECT

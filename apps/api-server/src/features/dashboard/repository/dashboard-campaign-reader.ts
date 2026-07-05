@@ -35,6 +35,7 @@ import type {
   DashboardRejectContentCandidateResult,
   DashboardSegmentDetail,
   DashboardStartPromotionGenerationResult,
+  DashboardStartAdExperimentResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
@@ -80,6 +81,7 @@ import {
   markDashboardSegmentQueryPreviewSaved,
   rejectDashboardContentCandidate,
   rejectDashboardSiblingContentCandidates,
+  startDashboardAdExperiment,
   stopDashboardCampaign,
   stopDashboardPromotion,
   stopDashboardPromotionTargetSegment,
@@ -108,6 +110,7 @@ import {
   type IListDashboardSegmentExperimentMetricsResult,
   type IListDashboardPromotionExperimentMetricsResult,
   type IListDashboardPromotionSegmentsResult,
+  type IStartDashboardAdExperimentResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
 
@@ -633,6 +636,25 @@ export class DashboardCampaignReader {
     return candidates.find((candidate) => candidate.status === "approved");
   }
 
+  async startAdExperiment(
+    projectId: string,
+    promotionId: string,
+    adExperimentId: string
+  ): Promise<DashboardStartAdExperimentResult> {
+    const row = await this.db
+      .query(startDashboardAdExperiment, {
+        adExperimentId,
+        projectId,
+        promotionId
+      })
+      .single();
+
+    return {
+      ...toAdExperiment(row),
+      status: "running"
+    };
+  }
+
   async getCampaignDetail(
     projectId: string,
     campaignId: string
@@ -975,6 +997,23 @@ function toContentCandidate(
     metadata_json: jsonObject(row.metadataJson),
     status: row.status,
     updated_at: row.updatedAt.toISOString()
+  };
+}
+
+function toAdExperiment(row: IStartDashboardAdExperimentResult): DashboardAdExperiment {
+  return {
+    ad_experiment_id: row.adExperimentId,
+    channel: row.channel,
+    content_id: row.contentId,
+    content_option_id: row.contentOptionId,
+    goal_basis: row.goalBasis,
+    goal_metric: row.goalMetric,
+    goal_target_value: row.goalTargetValue ?? 0,
+    loop_count: row.loopCount,
+    promotion_id: row.promotionId,
+    promotion_run_id: row.promotionRunId,
+    segment_id: row.segmentId,
+    status: row.status
   };
 }
 

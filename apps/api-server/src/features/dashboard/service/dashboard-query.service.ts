@@ -49,6 +49,7 @@ import type {
   DashboardSegmentQueryPreviewRequest,
   DashboardStartPromotionAnalysisRequest,
   DashboardStartPromotionAnalysisResult,
+  DashboardStartAdExperimentResult,
   DashboardStartPromotionGenerationRequest,
   DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
@@ -354,6 +355,15 @@ export class DashboardQueryService {
     request: DashboardRejectContentCandidateRequest
   ): Promise<DashboardRejectContentCandidateResult> {
     return this.campaignReader.rejectContentCandidate(projectId, promotionId, segmentId, contentId, request);
+  }
+
+  @Transactional()
+  async startAdExperiment(
+    projectId: string,
+    promotionId: string,
+    adExperimentId: string
+  ): Promise<DashboardStartAdExperimentResult> {
+    return this.campaignReader.startAdExperiment(projectId, promotionId, adExperimentId);
   }
 
   async campaignDetail(projectId: string, campaignId: string): Promise<DashboardCampaignDetail> {
