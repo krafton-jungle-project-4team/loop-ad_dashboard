@@ -179,9 +179,10 @@ type CampaignFlowGraph = {
 };
 
 const CAMPAIGN_X = 0;
+const CAMPAIGN_Y = 100;
 const PROMOTION_GROUP_X = 310;
 const EVALUATION_X = 718;
-const RETRY_QUEUE_X = 718;
+const RETRY_QUEUE_X = 722;
 const RETRY_QUEUE_Y = 382;
 const PIPELINE_Y = 0;
 
@@ -1250,7 +1251,7 @@ function buildCampaignFlowGraph(
       tone: "normal"
     },
     id: campaignNodeId,
-    position: { x: CAMPAIGN_X, y: PIPELINE_Y + 84 },
+    position: { x: CAMPAIGN_X, y: CAMPAIGN_Y },
     type: "campaign"
   });
 
@@ -1427,7 +1428,7 @@ function createFlowEdge(
     },
     target,
     targetHandle: handles.targetHandle,
-    type: "smoothstep"
+    type: "straight"
   };
 }
 
