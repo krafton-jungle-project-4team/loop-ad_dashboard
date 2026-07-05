@@ -1109,6 +1109,113 @@ const insertDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"analysisI
 export const insertDashboardPromotionTargetSegment = new PreparedQuery<IInsertDashboardPromotionTargetSegmentParams,IInsertDashboardPromotionTargetSegmentResult>(insertDashboardPromotionTargetSegmentIR);
 
 
+/** 'ListDashboardPromotionSegmentSuggestions' parameters type */
+export interface IListDashboardPromotionSegmentSuggestionsParams {
+  analysisId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'ListDashboardPromotionSegmentSuggestions' return type */
+export interface IListDashboardPromotionSegmentSuggestionsResult {
+  analysisId: string;
+  campaignId: string;
+  createdAt: Date;
+  decidedAt: Date | null;
+  profileJson: Json;
+  promotionId: string;
+  reasonJson: Json;
+  ruleJson: Json;
+  sampleRatio: number | null;
+  sampleSize: number;
+  scoreJson: Json;
+  segmentId: string;
+  segmentName: string;
+  segmentSource: string;
+  suggestedRank: number;
+  suggestionId: string;
+  suggestionSource: string;
+  suggestionStatus: string;
+  updatedAt: Date;
+}
+
+/** 'ListDashboardPromotionSegmentSuggestions' query type */
+export interface IListDashboardPromotionSegmentSuggestionsQuery {
+  params: IListDashboardPromotionSegmentSuggestionsParams;
+  result: IListDashboardPromotionSegmentSuggestionsResult;
+}
+
+const listDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":814,"b":823}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":850,"b":861}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":870,"b":880},{"a":920,"b":930}]}],"statement":"SELECT\n  pss.suggestion_id AS \"suggestionId\",\n  pss.analysis_id AS \"analysisId\",\n  pss.campaign_id AS \"campaignId\",\n  pss.promotion_id AS \"promotionId\",\n  pss.segment_id AS \"segmentId\",\n  pss.suggested_rank AS \"suggestedRank\",\n  pss.suggestion_source AS \"suggestionSource\",\n  pss.status AS \"suggestionStatus\",\n  pss.score_json AS \"scoreJson\",\n  pss.reason_json AS \"reasonJson\",\n  sd.segment_name AS \"segmentName\",\n  sd.source AS \"segmentSource\",\n  sd.rule_json AS \"ruleJson\",\n  sd.profile_json AS \"profileJson\",\n  sd.sample_size AS \"sampleSize\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  pss.created_at AS \"createdAt\",\n  pss.updated_at AS \"updatedAt\",\n  pss.decided_at AS \"decidedAt\"\nFROM promotion_segment_suggestions pss\nJOIN segment_definitions sd\n  ON sd.segment_id = pss.segment_id\nWHERE pss.project_id = :projectId\n  AND pss.promotion_id = :promotionId\n  AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)\nORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC"};
+
+export const listDashboardPromotionSegmentSuggestions = new PreparedQuery<IListDashboardPromotionSegmentSuggestionsParams,IListDashboardPromotionSegmentSuggestionsResult>(listDashboardPromotionSegmentSuggestionsIR);
+
+
+/** 'DecideDashboardPromotionSegmentSuggestion' parameters type */
+export interface IDecideDashboardPromotionSegmentSuggestionParams {
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  status?: string | null | void;
+  suggestionId?: string | null | void;
+}
+
+/** 'DecideDashboardPromotionSegmentSuggestion' return type */
+export interface IDecideDashboardPromotionSegmentSuggestionResult {
+  analysisId: string;
+  campaignId: string;
+  createdAt: Date;
+  decidedAt: Date | null;
+  profileJson: Json;
+  promotionId: string;
+  reasonJson: Json;
+  ruleJson: Json;
+  sampleRatio: number | null;
+  sampleSize: number;
+  scoreJson: Json;
+  segmentId: string;
+  segmentName: string;
+  segmentSource: string;
+  suggestedRank: number;
+  suggestionId: string;
+  suggestionSource: string;
+  suggestionStatus: string;
+  updatedAt: Date;
+}
+
+/** 'DecideDashboardPromotionSegmentSuggestion' query type */
+export interface IDecideDashboardPromotionSegmentSuggestionQuery {
+  params: IDecideDashboardPromotionSegmentSuggestionParams;
+  result: IDecideDashboardPromotionSegmentSuggestionResult;
+}
+
+const decideDashboardPromotionSegmentSuggestionIR: any = {"usedParamSet":{"status":true,"projectId":true,"promotionId":true,"suggestionId":true},"params":[{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":72,"b":78}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":153,"b":162}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":187,"b":198}]},{"name":"suggestionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":224,"b":236}]}],"statement":"WITH decided AS (\n  UPDATE promotion_segment_suggestions\n  SET status = :status,\n      decided_at = now(),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND status IN ('suggested', 'accepted', 'dismissed')\n  RETURNING *\n)\nSELECT\n  d.suggestion_id AS \"suggestionId\",\n  d.analysis_id AS \"analysisId\",\n  d.campaign_id AS \"campaignId\",\n  d.promotion_id AS \"promotionId\",\n  d.segment_id AS \"segmentId\",\n  d.suggested_rank AS \"suggestedRank\",\n  d.suggestion_source AS \"suggestionSource\",\n  d.status AS \"suggestionStatus\",\n  d.score_json AS \"scoreJson\",\n  d.reason_json AS \"reasonJson\",\n  sd.segment_name AS \"segmentName\",\n  sd.source AS \"segmentSource\",\n  sd.rule_json AS \"ruleJson\",\n  sd.profile_json AS \"profileJson\",\n  sd.sample_size AS \"sampleSize\",\n  sd.sample_ratio::float8 AS \"sampleRatio\",\n  d.created_at AS \"createdAt\",\n  d.updated_at AS \"updatedAt\",\n  d.decided_at AS \"decidedAt\"\nFROM decided d\nJOIN segment_definitions sd\n  ON sd.segment_id = d.segment_id"};
+
+export const decideDashboardPromotionSegmentSuggestion = new PreparedQuery<IDecideDashboardPromotionSegmentSuggestionParams,IDecideDashboardPromotionSegmentSuggestionResult>(decideDashboardPromotionSegmentSuggestionIR);
+
+
+/** 'ConfirmDashboardPromotionSegmentSuggestions' parameters type */
+export interface IConfirmDashboardPromotionSegmentSuggestionsParams {
+  confirmedBy?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'ConfirmDashboardPromotionSegmentSuggestions' return type */
+export interface IConfirmDashboardPromotionSegmentSuggestionsResult {
+  confirmedSegmentCount: number | null;
+  promotionId: string;
+}
+
+/** 'ConfirmDashboardPromotionSegmentSuggestions' query type */
+export interface IConfirmDashboardPromotionSegmentSuggestionsQuery {
+  params: IConfirmDashboardPromotionSegmentSuggestionsParams;
+  result: IConfirmDashboardPromotionSegmentSuggestionsResult;
+}
+
+const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"confirmedBy":true,"projectId":true,"promotionId":true},"params":[{"name":"confirmedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":849,"b":860}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1007,"b":1016},{"a":1706,"b":1715}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1045,"b":1056},{"a":1744,"b":1755},{"a":1909,"b":1920}]}],"statement":"WITH confirmed AS (\n  INSERT INTO promotion_target_segments (\n    analysis_id,\n    project_id,\n    campaign_id,\n    promotion_id,\n    segment_id,\n    segment_name,\n    rule_json,\n    profile_json,\n    content_brief_json,\n    data_evidence_json,\n    estimated_size,\n    priority,\n    status,\n    suggestion_id,\n    confirmed_by,\n    confirmed_at\n  )\n  SELECT\n    pss.analysis_id,\n    pss.project_id,\n    pss.campaign_id,\n    pss.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    '{}'::jsonb,\n    jsonb_build_object(\n      'source', sd.source,\n      'suggestion_id', pss.suggestion_id,\n      'score', pss.score_json,\n      'reason', pss.reason_json,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ),\n    sd.sample_size,\n    NULL,\n    'planned',\n    pss.suggestion_id,\n    :confirmedBy,\n    now()\n  FROM promotion_segment_suggestions pss\n  JOIN segment_definitions sd\n    ON sd.segment_id = pss.segment_id\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.status = 'accepted'\n  ON CONFLICT (analysis_id, segment_id) DO UPDATE\n  SET\n    suggestion_id = EXCLUDED.suggestion_id,\n    confirmed_by = EXCLUDED.confirmed_by,\n    confirmed_at = EXCLUDED.confirmed_at,\n    status = CASE\n      WHEN promotion_target_segments.status = 'stopped' THEN 'planned'\n      ELSE promotion_target_segments.status\n    END\n  RETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", suggestion_id AS \"suggestionId\"\n),\nupdated AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND EXISTS (\n      SELECT 1\n      FROM confirmed c\n      WHERE c.\"suggestionId\" = pss.suggestion_id\n    )\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed"};
+
+export const confirmDashboardPromotionSegmentSuggestions = new PreparedQuery<IConfirmDashboardPromotionSegmentSuggestionsParams,IConfirmDashboardPromotionSegmentSuggestionsResult>(confirmDashboardPromotionSegmentSuggestionsIR);
+
+
 /** 'UpdateDashboardPromotionTargetSegment' parameters type */
 export interface IUpdateDashboardPromotionTargetSegmentParams {
   priority?: string | null | void;

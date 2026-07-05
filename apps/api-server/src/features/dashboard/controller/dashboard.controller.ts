@@ -6,9 +6,12 @@ import {
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
+  DashboardConfirmSegmentSuggestionsRequestSchema,
+  DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
   DashboardCreatePromotionRequestSchema,
+  DashboardDecideSegmentSuggestionRequestSchema,
   DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
@@ -20,6 +23,8 @@ import {
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionSegmentSuggestionListSchema,
+  DashboardPromotionSegmentSuggestionSchema,
   DashboardPromotionSummarySchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
@@ -252,6 +257,58 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardSegmentDetailSchema.parse(
       await this.dashboardQuery.segmentDetail(requiredProjectId, promotionId, segmentId)
+    );
+  }
+
+  @Get("promotions/:promotion_id/segment-suggestions")
+  async promotionSegmentSuggestions(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId?: string,
+    @Query("analysis_id") analysisId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardPromotionSegmentSuggestionListSchema.parse(
+      await this.dashboardQuery.promotionSegmentSuggestions(
+        requiredProjectId,
+        promotionId,
+        analysisId ?? null
+      )
+    );
+  }
+
+  @Patch("promotions/:promotion_id/segment-suggestions/:suggestion_id")
+  async decidePromotionSegmentSuggestion(
+    @Param("promotion_id") promotionId: string,
+    @Param("suggestion_id") suggestionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardDecideSegmentSuggestionRequestSchema.parse(body);
+    return DashboardPromotionSegmentSuggestionSchema.parse(
+      await this.dashboardQuery.decidePromotionSegmentSuggestion(
+        requiredProjectId,
+        promotionId,
+        suggestionId,
+        request
+      )
+    );
+  }
+
+  @Post("promotions/:promotion_id/segment-suggestions/confirm")
+  async confirmPromotionSegmentSuggestions(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardConfirmSegmentSuggestionsRequestSchema.parse(body);
+    return DashboardConfirmSegmentSuggestionsResultSchema.parse(
+      await this.dashboardQuery.confirmPromotionSegmentSuggestions(
+        requiredProjectId,
+        promotionId,
+        request
+      )
     );
   }
 

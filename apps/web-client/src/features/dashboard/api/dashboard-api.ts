@@ -6,9 +6,12 @@ import {
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
+  DashboardConfirmSegmentSuggestionsRequestSchema,
+  DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
   DashboardCreatePromotionRequestSchema,
+  DashboardDecideSegmentSuggestionRequestSchema,
   DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
@@ -20,6 +23,8 @@ import {
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionSegmentSuggestionListSchema,
+  DashboardPromotionSegmentSuggestionSchema,
   DashboardPromotionSummarySchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
@@ -40,9 +45,12 @@ import type {
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
+  DashboardConfirmSegmentSuggestionsRequest,
+  DashboardConfirmSegmentSuggestionsResult,
   DashboardCreateCampaignRequest,
   DashboardCreateFunnelRequest,
   DashboardCreatePromotionRequest,
+  DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
   DashboardDeleteFunnelResult,
   DashboardDeletePromotionResult,
@@ -51,6 +59,8 @@ import type {
   DashboardFunnel,
   DashboardFunnelMetrics,
   DashboardPromotionDetail,
+  DashboardPromotionSegmentSuggestion,
+  DashboardPromotionSegmentSuggestionList,
   DashboardPromotionSummary,
   DashboardNextLoopAnalysis,
   DashboardRejectContentCandidateRequest,
@@ -389,6 +399,84 @@ export async function deleteDashboardPromotionSegment(
   }
 
   return createApiSuccessResponseSchema(DashboardDeletePromotionSegmentResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function fetchDashboardPromotionSegmentSuggestions(
+  query: DashboardQuery,
+  promotionId: string,
+  signal: AbortSignal,
+  analysisId?: string | null
+): Promise<DashboardPromotionSegmentSuggestionList> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-suggestions`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+  if (analysisId) {
+    url.searchParams.set("analysis_id", analysisId);
+  }
+
+  const response = await fetch(url, { headers: { Accept: "application/json" }, signal });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardPromotionSegmentSuggestionListSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function decideDashboardPromotionSegmentSuggestion(
+  query: DashboardQuery,
+  promotionId: string,
+  suggestionId: string,
+  requestBody: DashboardDecideSegmentSuggestionRequest
+): Promise<DashboardPromotionSegmentSuggestion> {
+  const parsedBody = DashboardDecideSegmentSuggestionRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-suggestions/${encodeURIComponent(suggestionId)}`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "PATCH"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardPromotionSegmentSuggestionSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function confirmDashboardPromotionSegmentSuggestions(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardConfirmSegmentSuggestionsRequest
+): Promise<DashboardConfirmSegmentSuggestionsResult> {
+  const parsedBody = DashboardConfirmSegmentSuggestionsRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/segment-suggestions/confirm`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardConfirmSegmentSuggestionsResultSchema).parse(
     await response.json()
   ).data;
 }

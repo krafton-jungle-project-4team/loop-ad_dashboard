@@ -3,12 +3,15 @@ import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardAdExperiment,
   DashboardApproveContentCandidateRequest,
+  DashboardConfirmSegmentSuggestionsRequest,
+  DashboardConfirmSegmentSuggestionsResult,
   DashboardCreateFunnelRequest,
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
+  DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
   DashboardCreatePromotionRequest,
   DashboardDeletePromotionResult,
@@ -20,6 +23,8 @@ import type {
   DashboardMain,
   DashboardNextLoopAnalysis,
   DashboardPromotionDetail,
+  DashboardPromotionSegmentSuggestion,
+  DashboardPromotionSegmentSuggestionList,
   DashboardPromotionSummary,
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
@@ -131,6 +136,42 @@ export class DashboardQueryService {
     segmentId: string
   ): Promise<DashboardDeletePromotionSegmentResult> {
     return this.campaignReader.stopPromotionSegment(projectId, promotionId, segmentId);
+  }
+
+  async promotionSegmentSuggestions(
+    projectId: string,
+    promotionId: string,
+    analysisId?: string | null
+  ): Promise<DashboardPromotionSegmentSuggestionList> {
+    return this.campaignReader.listPromotionSegmentSuggestions(projectId, promotionId, analysisId);
+  }
+
+  @Transactional()
+  async decidePromotionSegmentSuggestion(
+    projectId: string,
+    promotionId: string,
+    suggestionId: string,
+    request: DashboardDecideSegmentSuggestionRequest
+  ): Promise<DashboardPromotionSegmentSuggestion> {
+    return this.campaignReader.decidePromotionSegmentSuggestion(
+      projectId,
+      promotionId,
+      suggestionId,
+      request
+    );
+  }
+
+  @Transactional()
+  async confirmPromotionSegmentSuggestions(
+    projectId: string,
+    promotionId: string,
+    request: DashboardConfirmSegmentSuggestionsRequest
+  ): Promise<DashboardConfirmSegmentSuggestionsResult> {
+    return this.campaignReader.confirmPromotionSegmentSuggestions(
+      projectId,
+      promotionId,
+      request
+    );
   }
 
   @Transactional()

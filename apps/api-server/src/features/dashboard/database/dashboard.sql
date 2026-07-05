@@ -558,6 +558,154 @@ WHERE sd.project_id = :projectId
   )
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 
+/* 목적: AI가 제안한 프로모션 세그먼트 후보를 확정 전 상태로 조회합니다. */
+/* @name ListDashboardPromotionSegmentSuggestions */
+SELECT
+  pss.suggestion_id AS "suggestionId",
+  pss.analysis_id AS "analysisId",
+  pss.campaign_id AS "campaignId",
+  pss.promotion_id AS "promotionId",
+  pss.segment_id AS "segmentId",
+  pss.suggested_rank AS "suggestedRank",
+  pss.suggestion_source AS "suggestionSource",
+  pss.status AS "suggestionStatus",
+  pss.score_json AS "scoreJson",
+  pss.reason_json AS "reasonJson",
+  sd.segment_name AS "segmentName",
+  sd.source AS "segmentSource",
+  sd.rule_json AS "ruleJson",
+  sd.profile_json AS "profileJson",
+  sd.sample_size AS "sampleSize",
+  sd.sample_ratio::float8 AS "sampleRatio",
+  pss.created_at AS "createdAt",
+  pss.updated_at AS "updatedAt",
+  pss.decided_at AS "decidedAt"
+FROM promotion_segment_suggestions pss
+JOIN segment_definitions sd
+  ON sd.segment_id = pss.segment_id
+WHERE pss.project_id = :projectId
+  AND pss.promotion_id = :promotionId
+  AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)
+ORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC;
+
+/* 목적: 추천 세그먼트 후보를 확정 대상 또는 제외 대상으로 표시합니다. */
+/* @name DecideDashboardPromotionSegmentSuggestion */
+WITH decided AS (
+  UPDATE promotion_segment_suggestions
+  SET status = :status,
+      decided_at = now(),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND promotion_id = :promotionId
+    AND suggestion_id = :suggestionId
+    AND status IN ('suggested', 'accepted', 'dismissed')
+  RETURNING *
+)
+SELECT
+  d.suggestion_id AS "suggestionId",
+  d.analysis_id AS "analysisId",
+  d.campaign_id AS "campaignId",
+  d.promotion_id AS "promotionId",
+  d.segment_id AS "segmentId",
+  d.suggested_rank AS "suggestedRank",
+  d.suggestion_source AS "suggestionSource",
+  d.status AS "suggestionStatus",
+  d.score_json AS "scoreJson",
+  d.reason_json AS "reasonJson",
+  sd.segment_name AS "segmentName",
+  sd.source AS "segmentSource",
+  sd.rule_json AS "ruleJson",
+  sd.profile_json AS "profileJson",
+  sd.sample_size AS "sampleSize",
+  sd.sample_ratio::float8 AS "sampleRatio",
+  d.created_at AS "createdAt",
+  d.updated_at AS "updatedAt",
+  d.decided_at AS "decidedAt"
+FROM decided d
+JOIN segment_definitions sd
+  ON sd.segment_id = d.segment_id;
+
+/* 목적: 수락된 추천 후보를 프로모션의 최종 타겟 세그먼트로 확정합니다. */
+/* @name ConfirmDashboardPromotionSegmentSuggestions */
+WITH confirmed AS (
+  INSERT INTO promotion_target_segments (
+    analysis_id,
+    project_id,
+    campaign_id,
+    promotion_id,
+    segment_id,
+    segment_name,
+    rule_json,
+    profile_json,
+    content_brief_json,
+    data_evidence_json,
+    estimated_size,
+    priority,
+    status,
+    suggestion_id,
+    confirmed_by,
+    confirmed_at
+  )
+  SELECT
+    pss.analysis_id,
+    pss.project_id,
+    pss.campaign_id,
+    pss.promotion_id,
+    sd.segment_id,
+    sd.segment_name,
+    sd.rule_json,
+    sd.profile_json,
+    '{}'::jsonb,
+    jsonb_build_object(
+      'source', sd.source,
+      'suggestion_id', pss.suggestion_id,
+      'score', pss.score_json,
+      'reason', pss.reason_json,
+      'sample_size', sd.sample_size,
+      'sample_ratio', sd.sample_ratio
+    ),
+    sd.sample_size,
+    NULL,
+    'planned',
+    pss.suggestion_id,
+    :confirmedBy,
+    now()
+  FROM promotion_segment_suggestions pss
+  JOIN segment_definitions sd
+    ON sd.segment_id = pss.segment_id
+  WHERE pss.project_id = :projectId
+    AND pss.promotion_id = :promotionId
+    AND pss.status = 'accepted'
+  ON CONFLICT (analysis_id, segment_id) DO UPDATE
+  SET
+    suggestion_id = EXCLUDED.suggestion_id,
+    confirmed_by = EXCLUDED.confirmed_by,
+    confirmed_at = EXCLUDED.confirmed_at,
+    status = CASE
+      WHEN promotion_target_segments.status = 'stopped' THEN 'planned'
+      ELSE promotion_target_segments.status
+    END
+  RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", suggestion_id AS "suggestionId"
+),
+updated AS (
+  UPDATE promotion_segment_suggestions pss
+  SET status = 'confirmed',
+      decided_at = COALESCE(pss.decided_at, now()),
+      updated_at = now()
+  WHERE pss.project_id = :projectId
+    AND pss.promotion_id = :promotionId
+    AND EXISTS (
+      SELECT 1
+      FROM confirmed c
+      WHERE c."suggestionId" = pss.suggestion_id
+    )
+  RETURNING pss.suggestion_id
+)
+SELECT
+  (:promotionId)::varchar AS "promotionId",
+  COUNT(*)::int AS "confirmedSegmentCount"
+FROM confirmed;
+
 /* 목적: 프로모션에 연결된 세그먼트 표시 정보를 수정합니다. */
 /* @name UpdateDashboardPromotionTargetSegment */
 UPDATE promotion_target_segments

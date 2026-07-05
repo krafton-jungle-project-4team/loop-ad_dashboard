@@ -6,16 +6,21 @@ import type {
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
+  DashboardConfirmSegmentSuggestionsRequest,
+  DashboardConfirmSegmentSuggestionsResult,
   DashboardContentCandidate,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
   DashboardCreatePromotionRequest,
+  DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
   DashboardNextLoopAnalysis,
   DashboardPromotionAnalysis,
   DashboardPromotionDetail,
+  DashboardPromotionSegmentSuggestion,
+  DashboardPromotionSegmentSuggestionList,
   DashboardPromotionSummary,
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
@@ -31,6 +36,8 @@ import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
   approveDashboardContentCandidate,
+  confirmDashboardPromotionSegmentSuggestions,
+  decideDashboardPromotionSegmentSuggestion,
   getDashboardCampaignSummary,
   getDashboardContentCandidateForApproval,
   getDashboardNextPromotionLoopCount,
@@ -43,6 +50,7 @@ import {
   insertDashboardPromotion,
   insertDashboardPromotionTargetSegment,
   insertDashboardPromotionRun,
+  listDashboardPromotionSegmentSuggestions,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -66,6 +74,8 @@ import {
   type IGetDashboardCampaignSummaryResult,
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
+  type IDecideDashboardPromotionSegmentSuggestionResult,
+  type IListDashboardPromotionSegmentSuggestionsResult,
   type IRejectDashboardContentCandidateResult,
   type IListDashboardCampaignExperimentMetricsResult,
   type IListDashboardCampaignPromotionsResult,
@@ -293,6 +303,60 @@ export class DashboardCampaignReader {
       promotion_id: row.promotionId,
       segment_id: row.segmentId,
       status: "stopped"
+    };
+  }
+
+  async listPromotionSegmentSuggestions(
+    projectId: string,
+    promotionId: string,
+    analysisId?: string | null
+  ): Promise<DashboardPromotionSegmentSuggestionList> {
+    const rows = await this.db
+      .query(listDashboardPromotionSegmentSuggestions, {
+        analysisId: analysisId ?? null,
+        projectId,
+        promotionId
+      })
+      .multiple();
+
+    return { suggestions: rows.map(toPromotionSegmentSuggestion) };
+  }
+
+  async decidePromotionSegmentSuggestion(
+    projectId: string,
+    promotionId: string,
+    suggestionId: string,
+    request: DashboardDecideSegmentSuggestionRequest
+  ): Promise<DashboardPromotionSegmentSuggestion> {
+    const row = await this.db
+      .query(decideDashboardPromotionSegmentSuggestion, {
+        projectId,
+        promotionId,
+        status: request.status,
+        suggestionId
+      })
+      .single();
+
+    return toPromotionSegmentSuggestion(row);
+  }
+
+  async confirmPromotionSegmentSuggestions(
+    projectId: string,
+    promotionId: string,
+    request: DashboardConfirmSegmentSuggestionsRequest
+  ): Promise<DashboardConfirmSegmentSuggestionsResult> {
+    const row = await this.db
+      .query(confirmDashboardPromotionSegmentSuggestions, {
+        confirmedBy: request.confirmed_by ?? null,
+        projectId,
+        promotionId
+      })
+      .single();
+
+    return {
+      confirmed_segment_count: countValue(row.confirmedSegmentCount),
+      promotion_id: row.promotionId,
+      status: "confirmed"
     };
   }
 
@@ -649,6 +713,34 @@ function toCampaignSegment(
   };
 }
 
+function toPromotionSegmentSuggestion(
+  row:
+    | IDecideDashboardPromotionSegmentSuggestionResult
+    | IListDashboardPromotionSegmentSuggestionsResult
+): DashboardPromotionSegmentSuggestion {
+  return {
+    analysis_id: row.analysisId,
+    campaign_id: row.campaignId,
+    created_at: row.createdAt.toISOString(),
+    decided_at: row.decidedAt ? row.decidedAt.toISOString() : null,
+    profile_json: jsonObject(row.profileJson),
+    promotion_id: row.promotionId,
+    reason_json: jsonObject(row.reasonJson),
+    rule_json: jsonObject(row.ruleJson),
+    sample_ratio: numberValue(row.sampleRatio),
+    sample_size: countValue(row.sampleSize),
+    score_json: jsonObject(row.scoreJson),
+    segment_id: row.segmentId,
+    segment_name: row.segmentName,
+    segment_source: segmentSource(row.segmentSource),
+    suggested_rank: countValue(row.suggestedRank),
+    suggestion_id: row.suggestionId,
+    suggestion_source: suggestionSource(row.suggestionSource),
+    suggestion_status: suggestionStatus(row.suggestionStatus),
+    updated_at: row.updatedAt.toISOString()
+  };
+}
+
 function toCampaignExperimentMetric(
   row:
     | IListDashboardCampaignExperimentMetricsResult
@@ -790,6 +882,22 @@ function nullableRate(value: number | string | null): number | null {
 function numberValue(value: number | string | null): number {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+function suggestionStatus(value: string): DashboardPromotionSegmentSuggestion["suggestion_status"] {
+  return value === "accepted" || value === "dismissed" || value === "confirmed"
+    ? value
+    : "suggested";
+}
+
+function suggestionSource(value: string): DashboardPromotionSegmentSuggestion["suggestion_source"] {
+  return value === "ai_ranked_existing" ? value : "ai_generated";
+}
+
+function segmentSource(value: string): DashboardPromotionSegmentSuggestion["segment_source"] {
+  return value === "custom_chatkit" || value === "manual_rule" || value === "system_default"
+    ? value
+    : "ai_suggested";
 }
 
 function formatDate(value: Date | null): string | null {

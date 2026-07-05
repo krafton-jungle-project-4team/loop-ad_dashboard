@@ -2,7 +2,8 @@ import type {
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardCreatePromotionRequest,
-  DashboardMain
+  DashboardMain,
+  DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
@@ -37,13 +38,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, CheckCircle2, Plus, Target, Users, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  confirmDashboardPromotionSegmentSuggestions,
   createDashboardPromotion,
   deleteDashboardPromotion,
-  fetchDashboardCampaignDetail
+  decideDashboardPromotionSegmentSuggestion,
+  fetchDashboardCampaignDetail,
+  fetchDashboardPromotionSegmentSuggestions
 } from "../api/dashboard-api.js";
 import { formatInteger } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
-import { dashboardCampaignDetailQueryKey } from "../model/dashboard-query-keys.js";
+import {
+  dashboardCampaignDetailQueryKey,
+  dashboardPromotionSegmentSuggestionsQueryKey
+} from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
@@ -179,6 +186,62 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     campaignDetail.data?.segments.filter(
       (segment) => segment.promotion_id === selectedOpenPromotion?.promotion_id
     ) ?? [];
+  const segmentSuggestions = useQuery({
+    enabled: Boolean(selectedOpenPromotion?.promotion_id),
+    queryFn: ({ signal }) =>
+      fetchDashboardPromotionSegmentSuggestions(
+        query,
+        selectedOpenPromotion?.promotion_id ?? "",
+        signal
+      ),
+    queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
+      query.projectId,
+      selectedOpenPromotion?.promotion_id ?? ""
+    )
+  });
+  const decideSuggestionMutation = useMutation({
+    mutationFn: ({
+      status,
+      suggestionId
+    }: {
+      status: "accepted" | "dismissed";
+      suggestionId: string;
+    }) =>
+      decideDashboardPromotionSegmentSuggestion(
+        query,
+        selectedOpenPromotion?.promotion_id ?? "",
+        suggestionId,
+        { status }
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? ""
+        )
+      });
+    }
+  });
+  const confirmSuggestionsMutation = useMutation({
+    mutationFn: () =>
+      confirmDashboardPromotionSegmentSuggestions(
+        query,
+        selectedOpenPromotion?.promotion_id ?? "",
+        {}
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
+          query.projectId,
+          selectedOpenPromotion?.promotion_id ?? ""
+        )
+      });
+    }
+  });
 
   const selectPromotion = (promotionId: string, segmentId = "") => {
     void setDashboardQueryState({
@@ -231,8 +294,22 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
             ) : null}
             {selectedOpenPromotion ? (
               <PromotionTabWorkspace
+                confirmError={confirmSuggestionsMutation.error}
+                confirmIsError={confirmSuggestionsMutation.isError}
+                confirmIsPending={confirmSuggestionsMutation.isPending}
+                decideError={decideSuggestionMutation.error}
+                decideIsError={decideSuggestionMutation.isError}
+                decideIsPending={decideSuggestionMutation.isPending}
+                onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
+                onDecideSuggestion={(suggestionId, status) =>
+                  decideSuggestionMutation.mutate({ status, suggestionId })
+                }
                 promotion={selectedOpenPromotion}
                 segments={selectedPromotionSegments}
+                suggestions={segmentSuggestions.data?.suggestions ?? []}
+                suggestionsError={segmentSuggestions.error}
+                suggestionsIsError={segmentSuggestions.isError}
+                suggestionsIsLoading={segmentSuggestions.isLoading}
               />
             ) : null}
             <PromotionAddDialog
@@ -393,11 +470,35 @@ function PromotionGuideCard({
 }
 
 function PromotionTabWorkspace({
+  confirmError,
+  confirmIsError,
+  confirmIsPending,
+  decideError,
+  decideIsError,
+  decideIsPending,
+  onConfirmSuggestions,
+  onDecideSuggestion,
   promotion,
-  segments
+  segments,
+  suggestions,
+  suggestionsError,
+  suggestionsIsError,
+  suggestionsIsLoading
 }: {
+  confirmError: Error | null;
+  confirmIsError: boolean;
+  confirmIsPending: boolean;
+  decideError: Error | null;
+  decideIsError: boolean;
+  decideIsPending: boolean;
+  onConfirmSuggestions: () => void;
+  onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   promotion: DashboardCampaignPromotion;
   segments: DashboardCampaignSegment[];
+  suggestions: DashboardPromotionSegmentSuggestion[];
+  suggestionsError: Error | null;
+  suggestionsIsError: boolean;
+  suggestionsIsLoading: boolean;
 }) {
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
   return (
@@ -491,7 +592,158 @@ function PromotionTabWorkspace({
           </Card>
         </div>
       </div>
+      <PromotionSegmentSuggestionPanel
+        confirmError={confirmError}
+        confirmIsError={confirmIsError}
+        confirmIsPending={confirmIsPending}
+        decideError={decideError}
+        decideIsError={decideIsError}
+        decideIsPending={decideIsPending}
+        onConfirmSuggestions={onConfirmSuggestions}
+        onDecideSuggestion={onDecideSuggestion}
+        suggestions={suggestions}
+        suggestionsError={suggestionsError}
+        suggestionsIsError={suggestionsIsError}
+        suggestionsIsLoading={suggestionsIsLoading}
+      />
     </section>
+  );
+}
+
+function PromotionSegmentSuggestionPanel({
+  confirmError,
+  confirmIsError,
+  confirmIsPending,
+  decideError,
+  decideIsError,
+  decideIsPending,
+  onConfirmSuggestions,
+  onDecideSuggestion,
+  suggestions,
+  suggestionsError,
+  suggestionsIsError,
+  suggestionsIsLoading
+}: {
+  confirmError: Error | null;
+  confirmIsError: boolean;
+  confirmIsPending: boolean;
+  decideError: Error | null;
+  decideIsError: boolean;
+  decideIsPending: boolean;
+  onConfirmSuggestions: () => void;
+  onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  suggestions: DashboardPromotionSegmentSuggestion[];
+  suggestionsError: Error | null;
+  suggestionsIsError: boolean;
+  suggestionsIsLoading: boolean;
+}) {
+  const acceptedCount = suggestions.filter(
+    (suggestion) => suggestion.suggestion_status === "accepted"
+  ).length;
+
+  return (
+    <Card className="shadow-none">
+      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="grid gap-1">
+          <CardTitle>추천 세그먼트 후보</CardTitle>
+          <CardDescription>
+            AI가 제안한 후보입니다. 수락한 후보만 확정 시 최종 타겟 세그먼트로 저장됩니다.
+          </CardDescription>
+        </div>
+        <Button
+          className="bg-[#3927d9]"
+          disabled={acceptedCount === 0 || confirmIsPending}
+          onClick={onConfirmSuggestions}
+          type="button"
+        >
+          {confirmIsPending ? "확정 중" : `선택 후보 확정 (${acceptedCount})`}
+        </Button>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {suggestionsIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>추천 세그먼트를 불러오지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(suggestionsError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {decideIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>추천 후보 상태를 변경하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(decideError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {confirmIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>추천 후보를 확정하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(confirmError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {suggestionsIsLoading ? <EmptyState message="추천 세그먼트를 불러오는 중입니다." /> : null}
+        {!suggestionsIsLoading && suggestions.length === 0 ? (
+          <EmptyState message="표시할 추천 세그먼트 후보가 없습니다." />
+        ) : null}
+        {suggestions.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {suggestions.map((suggestion) => {
+              const isAccepted = suggestion.suggestion_status === "accepted";
+              const isConfirmed = suggestion.suggestion_status === "confirmed";
+              const isDismissed = suggestion.suggestion_status === "dismissed";
+              return (
+                <div
+                  className={`grid gap-3 rounded-md border p-4 ${
+                    isAccepted ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-white"
+                  }`}
+                  key={suggestion.suggestion_id}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="grid gap-1">
+                      <div className="text-xs font-semibold text-[#3927d9]">
+                        Rank {formatInteger(suggestion.suggested_rank)}
+                      </div>
+                      <h3 className="text-base font-semibold">{suggestion.segment_name}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {suggestion.segment_source} · {suggestion.suggestion_source}
+                      </p>
+                    </div>
+                    <Badge variant={statusBadgeVariant(suggestion.suggestion_status)}>
+                      {suggestion.suggestion_status}
+                    </Badge>
+                  </div>
+                  <div className="grid gap-2 text-sm text-muted-foreground">
+                    <div>
+                      표본 {formatInteger(suggestion.sample_size)}명 · 비율{" "}
+                      {formatInteger(suggestion.sample_ratio * 100)}%
+                    </div>
+                    <div className="line-clamp-2">
+                      {formatJsonObject(suggestion.reason_json) || "추천 사유가 비어 있습니다."}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      disabled={decideIsPending || isAccepted || isConfirmed}
+                      onClick={() => onDecideSuggestion(suggestion.suggestion_id, "accepted")}
+                      size="sm"
+                      type="button"
+                    >
+                      수락
+                    </Button>
+                    <Button
+                      disabled={decideIsPending || isDismissed || isConfirmed}
+                      onClick={() => onDecideSuggestion(suggestion.suggestion_id, "dismissed")}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      제외
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -964,6 +1216,29 @@ function statusBadgeVariant(status: string) {
     return "secondary" as const;
   }
   return "outline" as const;
+}
+
+function formatJsonObject(value: Record<string, unknown>): string {
+  return Object.entries(value)
+    .slice(0, 3)
+    .map(([key, item]) => `${key}: ${formatJsonValue(item)}`)
+    .join(" · ");
+}
+
+function formatJsonValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(formatJsonValue).join(", ");
+  }
+  if (value && typeof value === "object") {
+    return Object.keys(value).join(", ");
+  }
+  return "";
 }
 
 function mutationErrorMessage(error: unknown) {
