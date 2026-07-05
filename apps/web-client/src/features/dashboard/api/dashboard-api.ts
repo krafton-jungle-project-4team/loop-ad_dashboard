@@ -39,6 +39,8 @@ import {
   DashboardSegmentQueryPreviewSchema,
   DashboardStartPromotionAnalysisRequestSchema,
   DashboardStartPromotionAnalysisResultSchema,
+  DashboardStartPromotionGenerationRequestSchema,
+  DashboardStartPromotionGenerationResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdatePromotionRequestSchema,
@@ -82,6 +84,8 @@ import type {
   DashboardSegmentQueryPreviewRequest,
   DashboardStartPromotionAnalysisRequest,
   DashboardStartPromotionAnalysisResult,
+  DashboardStartPromotionGenerationRequest,
+  DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
@@ -459,6 +463,32 @@ export async function startDashboardPromotionAnalysis(
   }
 
   return createApiSuccessResponseSchema(DashboardStartPromotionAnalysisResultSchema).parse(
+    await response.json()
+  ).data;
+}
+
+export async function startDashboardPromotionGeneration(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardStartPromotionGenerationRequest
+): Promise<DashboardStartPromotionGenerationResult> {
+  const parsedBody = DashboardStartPromotionGenerationRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/promotions/${encodeURIComponent(promotionId)}/generation`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardStartPromotionGenerationResultSchema).parse(
     await response.json()
   ).data;
 }

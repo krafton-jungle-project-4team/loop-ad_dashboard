@@ -795,6 +795,7 @@ function toCampaignSegment(
     | IListDashboardPromotionSegmentsResult
 ): DashboardCampaignSegment {
   return {
+    analysis_id: row.analysisId,
     promotion_id: row.promotionId,
     segment_id: row.segmentId,
     segment_name: row.segmentName,
@@ -930,6 +931,7 @@ function toContentCandidate(
     cta: row.cta,
     message: row.message,
     image_prompt: row.imagePrompt,
+    image_url: row.imageUrl,
     landing_url: row.landingUrl,
     generation_prompt: row.generationPrompt,
     reason_summary: row.reasonSummary,

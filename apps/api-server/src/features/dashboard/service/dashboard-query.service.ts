@@ -39,6 +39,8 @@ import type {
   DashboardSegmentQueryPreviewRequest,
   DashboardStartPromotionAnalysisRequest,
   DashboardStartPromotionAnalysisResult,
+  DashboardStartPromotionGenerationRequest,
+  DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
@@ -162,6 +164,20 @@ export class DashboardQueryService {
   ): Promise<DashboardStartPromotionAnalysisResult> {
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     return this.decisionClient.startPromotionAnalysis({
+      campaignId: promotion.campaign_id,
+      projectId,
+      promotionId,
+      request
+    });
+  }
+
+  async startPromotionGeneration(
+    projectId: string,
+    promotionId: string,
+    request: DashboardStartPromotionGenerationRequest
+  ): Promise<DashboardStartPromotionGenerationResult> {
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    return this.decisionClient.startPromotionGeneration({
       campaignId: promotion.campaign_id,
       projectId,
       promotionId,
