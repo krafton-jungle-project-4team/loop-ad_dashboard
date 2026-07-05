@@ -455,8 +455,17 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
 
   const page = await service.resolveRedirectPage("redirect-1");
   const html = renderRedirectPage(page);
+  const targetUrl = new URL(page.targetUrl);
 
-  assert.equal(page.targetUrl, "https://loop-ad.example/landing");
+  assert.equal(targetUrl.origin + targetUrl.pathname, "https://loop-ad.example/landing");
+  assert.equal(targetUrl.searchParams.get("loopad_campaign_id"), "campaign-1");
+  assert.equal(targetUrl.searchParams.get("loopad_promotion_id"), "promotion-1");
+  assert.equal(targetUrl.searchParams.get("loopad_promotion_run_id"), "run-1");
+  assert.equal(targetUrl.searchParams.get("loopad_ad_experiment_id"), "exp-1");
+  assert.equal(targetUrl.searchParams.get("loopad_segment_id"), "seg-1");
+  assert.equal(targetUrl.searchParams.get("loopad_content_id"), "content-1");
+  assert.equal(targetUrl.searchParams.get("loopad_content_option_id"), "option-1");
+  assert.equal(targetUrl.searchParams.get("loopad_redirect_id"), "redirect-1");
   assert.equal(page.event.name, "campaign_redirect_click");
   assert.equal(page.event.projectId, "project-1");
   assert.equal(page.event.identity.userId, "user-1");

@@ -312,10 +312,12 @@ export const AdExecutionDomain = {
     promotionChannel: AdExecutionChannel,
     eventSdk: RedirectPageSnapshot["eventSdk"]
   ): RedirectPageSnapshot {
+    const event = AdExecutionDomain.toRedirectClickEvent(link, promotionChannel);
+
     return {
-      targetUrl: link.destinationUrl,
+      targetUrl: withLoopAdAttribution(link.destinationUrl, event.fields),
       eventSdk,
-      event: AdExecutionDomain.toRedirectClickEvent(link, promotionChannel)
+      event
     };
   }
 };
@@ -352,4 +354,25 @@ function optionalSummaryField<TKey extends string>(
   value: string | undefined
 ): Partial<Record<TKey, string>> {
   return value ? ({ [key]: value } as Record<TKey, string>) : {};
+}
+
+function withLoopAdAttribution(targetUrl: string, fields: RedirectClickFields) {
+  const url = new URL(targetUrl);
+  const params: Record<string, string> = {
+    loopad_campaign_id: fields.campaign_id,
+    loopad_promotion_id: fields.promotion_id,
+    loopad_promotion_run_id: fields.promotion_run_id,
+    loopad_ad_experiment_id: fields.ad_experiment_id,
+    loopad_segment_id: fields.segment_id,
+    loopad_content_id: fields.content_id,
+    loopad_content_option_id: fields.content_option_id,
+    loopad_promotion_channel: fields.promotion_channel,
+    loopad_redirect_id: fields.redirect_id
+  };
+
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+
+  return url.toString();
 }
