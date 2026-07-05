@@ -34,9 +34,28 @@ export function createDashboardError(
 export const dashboardErrors = {
   projectIdRequired: () => createDashboardError(DASHBOARD_ERRORS.PROJECT_ID_REQUIRED),
   decisionRequestFailed: (cause?: unknown) =>
-    createDashboardError(DASHBOARD_ERRORS.DECISION_REQUEST_FAILED, { cause }),
+    createDashboardError(
+      {
+        ...DASHBOARD_ERRORS.DECISION_REQUEST_FAILED,
+        message: decisionRequestFailedMessage(cause)
+      },
+      { cause }
+    ),
   contentCandidateApprovalLocked: () =>
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_APPROVAL_LOCKED),
   segmentPreviewNotSaveable: () =>
     createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE)
 } as const;
+
+function decisionRequestFailedMessage(cause: unknown) {
+  const detail =
+    cause && typeof cause === "object" && "detail" in cause
+      ? (cause as { detail?: unknown }).detail
+      : undefined;
+
+  if (typeof detail === "string" && detail.length > 0) {
+    return `${DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.message} ${detail}`;
+  }
+
+  return DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.message;
+}
