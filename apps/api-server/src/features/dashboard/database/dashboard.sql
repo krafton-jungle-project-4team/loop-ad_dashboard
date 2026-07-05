@@ -14,7 +14,7 @@ SELECT
   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
-  MAX(pe.actual_value)::float8 AS "latestGoalAchievementRate",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestGoalAchievementRate",
   CASE
     WHEN c.status = 'draft' THEN 'campaign_start'
     WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'
@@ -55,7 +55,7 @@ SELECT
   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
-  MAX(pe.actual_value)::float8 AS "latestGoalAchievementRate",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestGoalAchievementRate",
   CASE
     WHEN c.status = 'draft' THEN 'campaign_start'
     WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'
@@ -140,7 +140,7 @@ SELECT
   p.marketing_theme AS "marketingTheme",
   p.target_audience AS "targetAudience",
   p.goal_metric AS "goalMetric",
-  p.goal_target_value::float8 AS "goalTargetValue",
+  CAST(p.goal_target_value AS float8) AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
   p.min_sample_size AS "minSampleSize",
   p.max_loop_count AS "maxLoopCount",
@@ -152,7 +152,7 @@ SELECT
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   CASE
     WHEN p.status = 'draft' THEN 'complete_plan'
     WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
@@ -185,7 +185,7 @@ SELECT
   p.marketing_theme AS "marketingTheme",
   p.target_audience AS "targetAudience",
   p.goal_metric AS "goalMetric",
-  p.goal_target_value::float8 AS "goalTargetValue",
+  CAST(p.goal_target_value AS float8) AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
   p.min_sample_size AS "minSampleSize",
   p.max_loop_count AS "maxLoopCount",
@@ -197,7 +197,7 @@ SELECT
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
   COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   CASE
     WHEN p.status = 'draft' THEN 'complete_plan'
     WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
@@ -380,9 +380,9 @@ SELECT
   pts.estimated_size AS "estimatedSize",
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   p.goal_metric AS "goalMetric",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   MAX(ae.ad_experiment_id) AS "adExperimentId",
   CASE
     WHEN pts.status = 'planned' THEN 'create_content'
@@ -444,9 +444,9 @@ SELECT
   pts.estimated_size AS "estimatedSize",
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   p.goal_metric AS "goalMetric",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   MAX(ae.ad_experiment_id) AS "adExperimentId",
   CASE
     WHEN pts.status = 'planned' THEN 'create_content'
@@ -508,9 +508,9 @@ SELECT
   pts.estimated_size AS "estimatedSize",
   sd.sample_size AS "sampleSize",
   sd.total_eligible_user_count AS "totalEligibleUserCount",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   p.goal_metric AS "goalMetric",
-  MAX(pe.actual_value)::float8 AS "latestActualValue",
+  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   MAX(ae.ad_experiment_id) AS "adExperimentId",
   CASE
     WHEN pts.status = 'planned' THEN 'create_content'
@@ -651,7 +651,7 @@ SELECT
   profile_json AS "profileJson",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   status
 FROM segment_definitions
 WHERE project_id = :projectId
@@ -725,7 +725,7 @@ RETURNING
   profile_json AS "profileJson",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   status;
 
 /* 목적: 수동 rule 세그먼트를 프로모션 종속 후보로 저장합니다. */
@@ -777,7 +777,7 @@ RETURNING
   profile_json AS "profileJson",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   status;
 
 /* 목적: AI가 제안한 프로모션 세그먼트 후보를 확정 전 상태로 조회합니다. */
@@ -798,7 +798,7 @@ SELECT
   sd.rule_json AS "ruleJson",
   sd.profile_json AS "profileJson",
   sd.sample_size AS "sampleSize",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   pss.created_at AS "createdAt",
   pss.updated_at AS "updatedAt",
   pss.decided_at AS "decidedAt"
@@ -839,7 +839,7 @@ SELECT
   sd.rule_json AS "ruleJson",
   sd.profile_json AS "profileJson",
   sd.sample_size AS "sampleSize",
-  sd.sample_ratio::float8 AS "sampleRatio",
+  CAST(sd.sample_ratio AS float8) AS "sampleRatio",
   d.created_at AS "createdAt",
   d.updated_at AS "updatedAt",
   d.decided_at AS "decidedAt"
@@ -1085,8 +1085,8 @@ SELECT
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
   metric,
-  target_value::float8 AS "targetValue",
-  actual_value::float8 AS "actualValue",
+  CAST(target_value AS float8) AS "targetValue",
+  CAST(actual_value AS float8) AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
@@ -1111,8 +1111,8 @@ SELECT
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
   metric,
-  target_value::float8 AS "targetValue",
-  actual_value::float8 AS "actualValue",
+  CAST(target_value AS float8) AS "targetValue",
+  CAST(actual_value AS float8) AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
@@ -1137,8 +1137,8 @@ SELECT
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
   metric,
-  target_value::float8 AS "targetValue",
-  actual_value::float8 AS "actualValue",
+  CAST(target_value AS float8) AS "targetValue",
+  CAST(actual_value AS float8) AS "actualValue",
   numerator_count AS "numeratorCount",
   denominator_count AS "denominatorCount",
   sample_size AS "sampleSize",
@@ -1258,7 +1258,7 @@ SELECT
   channel,
   loop_count AS "loopCount",
   goal_metric AS "goalMetric",
-  goal_target_value::float8 AS "goalTargetValue",
+  CAST(goal_target_value AS float8) AS "goalTargetValue",
   goal_basis AS "goalBasis",
   status
 FROM ad_experiments
@@ -1281,7 +1281,7 @@ SELECT
   COALESCE(pts.segment_name, sd.segment_name) AS "segmentName",
   cc.channel,
   p.goal_metric AS "goalMetric",
-  p.goal_target_value::float8 AS "goalTargetValue",
+  CAST(p.goal_target_value AS float8) AS "goalTargetValue",
   p.goal_basis AS "goalBasis",
   cc.status AS "contentStatus"
 FROM content_candidates cc
@@ -1464,7 +1464,7 @@ RETURNING
   channel,
   loop_count AS "loopCount",
   goal_metric AS "goalMetric",
-  goal_target_value::float8 AS "goalTargetValue",
+  CAST(goal_target_value AS float8) AS "goalTargetValue",
   goal_basis AS "goalBasis",
   status;
 
@@ -1519,7 +1519,7 @@ RETURNING
   generated_sql AS "generatedSql",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   sample_size_status AS "sampleSizeStatus",
   result_columns_json AS "resultColumnsJson",
   result_preview_json AS "resultPreviewJson",
@@ -1534,7 +1534,7 @@ SELECT
   generated_sql AS "generatedSql",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   sample_size_status AS "sampleSizeStatus",
   status
 FROM segment_query_previews
@@ -1583,7 +1583,7 @@ RETURNING
   generated_sql AS "generatedSql",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
-  sample_ratio::float8 AS "sampleRatio",
+  CAST(sample_ratio AS float8) AS "sampleRatio",
   status;
 
 /* 목적: 저장 완료된 preview 상태를 갱신합니다. */
