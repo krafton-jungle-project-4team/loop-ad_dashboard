@@ -39,6 +39,7 @@ services:
     command: sh -c "npm run build -w @loopad/shared && npm run dev -w @loopad/web-client"
     environment:
       VITE_LOOPAD_API_BASE_URL: http://localhost:${PORT:?PORT is required}/api
+      VITE_LOOPAD_CHATKIT_DOMAIN_KEY: ${VITE_LOOPAD_CHATKIT_DOMAIN_KEY:?VITE_LOOPAD_CHATKIT_DOMAIN_KEY is required}
     ports:
       - "5173:5173"
     volumes:
