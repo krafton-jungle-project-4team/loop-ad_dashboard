@@ -1,5 +1,5 @@
 import { HttpStatus } from "@nestjs/common";
-import { createDomainError, type DomainErrorDefinition } from "../../app-errors.js";
+import { createDomainError } from "../../app-errors.js";
 
 export const DASHBOARD_ERRORS = {
   PROJECT_ID_REQUIRED: {
@@ -24,17 +24,20 @@ export const DASHBOARD_ERRORS = {
   }
 } as const;
 
-export function createDashboardError(error: DomainErrorDefinition, options?: ErrorOptions) {
+export function createDashboardError(
+  error: (typeof DASHBOARD_ERRORS)[keyof typeof DASHBOARD_ERRORS],
+  options?: ErrorOptions
+) {
   return createDomainError(error, options);
 }
 
 export const dashboardErrors = {
   projectIdRequired: () => createDashboardError(DASHBOARD_ERRORS.PROJECT_ID_REQUIRED),
   decisionRequestFailed: (cause?: unknown) =>
-    createDashboardError(
+    createDomainError(
       {
-        ...DASHBOARD_ERRORS.DECISION_REQUEST_FAILED,
         statusCode: decisionRequestFailedStatusCode(cause),
+        code: DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.code,
         message: decisionRequestFailedMessage(cause)
       },
       { cause }
