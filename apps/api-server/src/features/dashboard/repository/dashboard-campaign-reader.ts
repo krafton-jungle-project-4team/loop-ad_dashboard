@@ -1,4 +1,5 @@
 import type {
+  DashboardAdExperiment,
   DashboardArchivePromotionScopedSegmentDefinitionResult,
   DashboardApproveContentCandidateResult,
   DashboardApproveContentCandidateRequest,
