@@ -21,12 +21,21 @@ const decisionPromotionAnalysisResponseSchema = z.object({
   status: z.string()
 });
 
-const decisionPromotionGenerationResponseSchema = z.object({
-  generation_id: z.string(),
-  promotion_id: z.string(),
-  status: z.string(),
-  content_candidate_count: z.number().int().nonnegative().optional()
-});
+const decisionPromotionGenerationResponseSchema = z
+  .object({
+    generation_id: z.string(),
+    promotion_id: z.string(),
+    status: z.string(),
+    content_candidate_count: z.number().int().nonnegative().optional(),
+    content_candidates: z.array(z.unknown()).optional()
+  })
+  .transform((response) => ({
+    generation_id: response.generation_id,
+    promotion_id: response.promotion_id,
+    status: response.status,
+    content_candidate_count:
+      response.content_candidate_count ?? response.content_candidates?.length
+  }));
 const decisionPromotionRunResponseSchema = z.object({
   promotion_run_id: z.string(),
   project_id: z.string(),
@@ -141,10 +150,7 @@ export class DashboardDecisionClient {
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed({
-        status: response.status,
-        statusText: response.statusText
-      });
+      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
     }
 
     const body: unknown = await response.json();
@@ -190,10 +196,7 @@ export class DashboardDecisionClient {
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed({
-        status: response.status,
-        statusText: response.statusText
-      });
+      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
     }
 
     const body: unknown = await response.json();
@@ -372,5 +375,39 @@ export class DashboardDecisionClient {
     }
 
     return parsed.data;
+  }
+}
+
+async function readDecisionError(response: Response) {
+  const fallback = {
+    status: response.status,
+    statusText: response.statusText
+  };
+
+  try {
+    const body: unknown = await response.clone().json();
+    return {
+      ...fallback,
+      detail: readDecisionErrorDetail(body)
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function readDecisionErrorDetail(body: unknown): string | undefined {
+  if (!body || typeof body !== "object" || !("detail" in body)) {
+    return undefined;
+  }
+
+  const detail = (body as { detail?: unknown }).detail;
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  try {
+    return JSON.stringify(detail);
+  } catch {
+    return undefined;
   }
 }
