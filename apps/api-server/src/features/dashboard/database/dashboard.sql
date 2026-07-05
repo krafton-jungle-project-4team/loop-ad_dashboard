@@ -1336,6 +1336,24 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY updated_at DESC, created_at DESC;
 
+/* 목적: 동일 analysis/proposition의 기존 광고 생성 결과를 조회합니다. */
+/* @name GetDashboardPromotionGenerationResult */
+SELECT
+  gr.generation_id AS "generationId",
+  gr.promotion_id AS "promotionId",
+  gr.status,
+  COUNT(cc.content_id)::int AS "contentCandidateCount"
+FROM generation_runs gr
+LEFT JOIN content_candidates cc
+  ON cc.project_id = gr.project_id
+ AND cc.generation_id = gr.generation_id
+WHERE gr.project_id = :projectId
+  AND gr.promotion_id = :promotionId
+  AND gr.analysis_id = :analysisId
+GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
+ORDER BY gr.updated_at DESC, gr.created_at DESC
+LIMIT 1;
+
 /* 목적: 특정 세그먼트에서 생성된 광고 실험 상태를 조회합니다. */
 /* @name ListDashboardSegmentAdExperiments */
 SELECT

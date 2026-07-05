@@ -2568,6 +2568,52 @@ const listDashboardPromotionSegmentDeliverySummariesIR: any = {"usedParamSet":{"
 export const listDashboardPromotionSegmentDeliverySummaries = new PreparedQuery<IListDashboardPromotionSegmentDeliverySummariesParams,IListDashboardPromotionSegmentDeliverySummariesResult>(listDashboardPromotionSegmentDeliverySummariesIR);
 
 
+/** 'GetDashboardPromotionGenerationResult' parameters type */
+export interface IGetDashboardPromotionGenerationResultParams {
+  analysisId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'GetDashboardPromotionGenerationResult' return type */
+export interface IGetDashboardPromotionGenerationResultResult {
+  contentCandidateCount: number;
+  generationId: string;
+  promotionId: string;
+  status: string;
+}
+
+/** 'GetDashboardPromotionGenerationResult' query type */
+export interface IGetDashboardPromotionGenerationResultQuery {
+  params: IGetDashboardPromotionGenerationResultParams;
+  result: IGetDashboardPromotionGenerationResultResult;
+}
+
+const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":303,"b":312}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":338,"b":349}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":374,"b":384}]}],"statement":"SELECT\n  gr.generation_id AS \"generationId\",\n  gr.promotion_id AS \"promotionId\",\n  gr.status,\n  COUNT(cc.content_id)::int AS \"contentCandidateCount\"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1                                                        "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   gr.generation_id AS "generationId",
+ *   gr.promotion_id AS "promotionId",
+ *   gr.status,
+ *   COUNT(cc.content_id)::int AS "contentCandidateCount"
+ * FROM generation_runs gr
+ * LEFT JOIN content_candidates cc
+ *   ON cc.project_id = gr.project_id
+ *  AND cc.generation_id = gr.generation_id
+ * WHERE gr.project_id = :projectId
+ *   AND gr.promotion_id = :promotionId
+ *   AND gr.analysis_id = :analysisId
+ * GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
+ * ORDER BY gr.updated_at DESC, gr.created_at DESC
+ * LIMIT 1
+ * ```
+ */
+export const getDashboardPromotionGenerationResult = new PreparedQuery<IGetDashboardPromotionGenerationResultParams,IGetDashboardPromotionGenerationResultResult>(getDashboardPromotionGenerationResultIR);
+
+
 /** 'ListDashboardSegmentContentCandidates' parameters type */
 export interface IListDashboardSegmentContentCandidatesParams {
   projectId?: string | null | void;

@@ -201,6 +201,16 @@ export class DashboardQueryService {
     request: DashboardStartPromotionGenerationRequest
   ): Promise<DashboardStartPromotionGenerationResult> {
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    const existingGeneration = await this.campaignReader.getPromotionGenerationResult(
+      projectId,
+      promotionId,
+      request.analysis_id
+    );
+
+    if (existingGeneration) {
+      return existingGeneration;
+    }
+
     return this.decisionClient.startPromotionGeneration({
       campaignId: promotion.campaign_id,
       projectId,

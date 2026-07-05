@@ -1532,6 +1532,7 @@ function PromotionSegmentDetailTab({
   const approvedContentCandidate = detail.content_candidates.find(
     (candidate) => candidate.status === "approved"
   );
+  const hasGeneratedContentCandidates = detail.content_candidates.length > 0;
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
   const failedSegmentIds = uniqueStrings(
     evaluatePromotionRunResult?.failed_segment_ids ??
@@ -1647,13 +1648,19 @@ function PromotionSegmentDetailTab({
             </CardDescription>
           </div>
           <Button
-            disabled={generationIsPending || !detail.segment.analysis_id}
+            disabled={
+              generationIsPending || !detail.segment.analysis_id || hasGeneratedContentCandidates
+            }
             onClick={() => onStartGeneration(detail.segment.analysis_id)}
             type="button"
             variant="outline"
           >
             <ImageIcon className="mr-2 size-4" />
-            {generationIsPending ? "생성 요청 중" : "광고 생성 요청"}
+            {generationIsPending
+              ? "생성 요청 중"
+              : hasGeneratedContentCandidates
+                ? "생성 완료"
+                : "광고 생성 요청"}
           </Button>
         </CardHeader>
         <CardContent className="grid gap-3">
