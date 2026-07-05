@@ -237,10 +237,7 @@ export class DashboardDecisionClient {
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed({
-        status: response.status,
-        statusText: response.statusText
-      });
+      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
     }
 
     const body: unknown = await response.json();
@@ -279,10 +276,7 @@ export class DashboardDecisionClient {
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed({
-        status: response.status,
-        statusText: response.statusText
-      });
+      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
     }
 
     const body: unknown = await response.json();
@@ -318,10 +312,7 @@ export class DashboardDecisionClient {
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed({
-        status: response.status,
-        statusText: response.statusText
-      });
+      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
     }
 
     const body: unknown = await response.json();
@@ -362,10 +353,7 @@ export class DashboardDecisionClient {
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed({
-        status: response.status,
-        statusText: response.statusText
-      });
+      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
     }
 
     const body: unknown = await response.json();

@@ -746,7 +746,7 @@ export async function approveDashboardContentCandidate(
     method: "POST"
   });
   if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   return createApiSuccessResponseSchema(DashboardApproveContentCandidateResultSchema).parse(
