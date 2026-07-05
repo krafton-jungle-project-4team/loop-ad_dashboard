@@ -286,7 +286,6 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
   const startAnalysisMutation = useMutation({
     mutationFn: () =>
       startDashboardPromotionAnalysis(query, selectedOpenPromotion?.promotion_id ?? "", {
-        focus_segment_ids: null,
         operator_instruction: null
       }),
     onSuccess: async (analysis) => {
