@@ -68,7 +68,17 @@ test("dispatch uses stored assignments and records sender success", async () => 
   const writer = new FakeAdExecutionWriter();
   const transactionHost = installCountingTransactionHost();
   const emailSender = new RecordingEmailSender();
-  const service = createDispatchService(reader, writer, emailSender);
+  const recipientDirectory = new FakeRecipientDirectory(true, [
+    recipient("user-ok"),
+    recipient("user-also-ok")
+  ]);
+  const service = createDispatchService(
+    reader,
+    writer,
+    emailSender,
+    new RecordingSmsSender(),
+    recipientDirectory
+  );
 
   reader.dispatchAssignments = [
     assignment({ userId: "user-ok" }),
@@ -97,6 +107,26 @@ test("dispatch uses stored assignments and records sender success", async () => 
   ]);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
   assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
+  assert.deepEqual(loggedSteps(logs), [
+    "dispatchPromotionRun",
+    "requireDispatchContext",
+    "requireDispatchAssignments",
+    "assertDispatchAssignments",
+    "toDemoRecipientAssignments",
+    "dispatchAssignments",
+    "dispatchAdExperimentGroup",
+    "createDispatchJob",
+    "dispatchGroup",
+    "dispatchAssignment",
+    "resolveRecipientContact",
+    "createRedirectLink",
+    "sendToResolvedContact",
+    "dispatchAssignment",
+    "resolveRecipientContact",
+    "createRedirectLink",
+    "sendToResolvedContact",
+    "finishDispatchJob"
+  ]);
   assert.equal(emailSender.inputs.length, 2);
   assert.deepEqual(
     logs
@@ -126,10 +156,15 @@ test("env demo recipient directory maps user_id to configured contacts", async (
   const directory = new EnvDemoRecipientDirectory();
 
   const recipient = await directory.findRecipient("user-1");
+  const recipients = await directory.listRecipients();
 
   assert.equal(recipient?.userId, "user-1");
   assert.equal(recipient?.email, "demo-recipient-1@loop-ad.org");
   assert.equal(recipient?.phoneNumber, "+821012345001");
+  assert.deepEqual(
+    recipients.map((item) => item.userId),
+    ["user-1", "user-2"]
+  );
   assert.equal(await directory.findRecipient("missing-user"), null);
 });
 
@@ -160,11 +195,21 @@ test("dispatch resolves user_id to email before sending", async () => {
   assert.notEqual(emailSender.inputs[0]?.recipient, "user-1");
 });
 
-test("dispatch skips unmapped demo recipients as successful no-ops", async () => {
+test("dispatch sends once to each configured demo recipient", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
-  const recipientDirectory = new FakeRecipientDirectory(false);
+  const recipientDirectory = new FakeRecipientDirectory(true, [
+    recipient("user-1", { email: "demo-1@example.test" }),
+    recipient("user-2", { email: "demo-2@example.test" }),
+    recipient("user-3", { email: "demo-3@example.test" })
+  ]);
   const emailSender = new RecordingEmailSender();
+
+  reader.dispatchAssignments = [
+    assignment({ userId: "user-1" }),
+    assignment({ userId: "user-1", segmentId: "seg-2" }),
+    assignment({ userId: "raw-assignment-user" })
+  ];
 
   const { result: response, logs } = await captureDispatchLogs(() =>
     createDispatchService(
@@ -176,17 +221,22 @@ test("dispatch skips unmapped demo recipients as successful no-ops", async () =>
     ).dispatchPromotionRun("run-1")
   );
 
-  assert.equal(response.dispatched_count, 1);
+  assert.equal(response.target_count, 3);
+  assert.equal(response.dispatched_count, 3);
   assert.equal(response.failed_count, 0);
   assert.equal(response.jobs[0]?.status, "completed");
   assert.deepEqual(
-    response.jobs[0]?.attempts.map((attempt) => attempt.error_code),
-    [undefined]
+    response.jobs.flatMap((job) => job.attempts.map((attempt) => attempt.user_id)).sort(),
+    ["user-1", "user-2", "user-3"]
   );
   assert.deepEqual(dispatchAttemptErrorCodes(writer), []);
-  assert.equal(emailSender.inputs.length, 0);
-  assert.equal(writer.redirectLinks.length, 0);
-  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch recipient skipped").length, 1);
+  assert.equal(emailSender.inputs.length, 3);
+  assert.deepEqual(
+    emailSender.inputs.map((input) => input.recipient),
+    ["demo-1@example.test", "demo-2@example.test", "demo-3@example.test"]
+  );
+  assert.equal(writer.redirectLinks.length, 3);
+  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch recipient skipped").length, 0);
 });
 
 test("dispatch validates sms phone contact before sending", async () => {
@@ -316,7 +366,7 @@ test("dispatch rejects onsite banner promotion runs", async () => {
   reader.promotion = { ...reader.promotion, channel: "onsite_banner" };
 
   await assert.rejects(
-    () => createDispatchService(reader).dispatchPromotionRun("run-1"),
+    () => captureDispatchLogs(() => createDispatchService(reader).dispatchPromotionRun("run-1")),
     (error) =>
       error instanceof AppError &&
       error.statusCode === 409 &&
@@ -332,7 +382,7 @@ test("dispatch rejects unknown promotion channels before sender selection", asyn
   };
 
   await assert.rejects(
-    () => createDispatchService(reader).dispatchPromotionRun("run-1"),
+    () => captureDispatchLogs(() => createDispatchService(reader).dispatchPromotionRun("run-1")),
     (error) =>
       error instanceof AppError &&
       error.statusCode === 409 &&
@@ -535,10 +585,31 @@ function isString(value: string | undefined): value is string {
   return typeof value === "string";
 }
 
+function loggedSteps(logs: readonly Array<Record<string, unknown>>): string[] {
+  return logs
+    .filter((entry) => entry.message === "Ad dispatch step entered")
+    .map((entry) => String(entry.step));
+}
+
 class FakeRecipientDirectory {
   readonly recipients = new Map<string, DispatchRecipient>();
 
-  constructor(private readonly useDefaultRecipient = true) {}
+  constructor(
+    private readonly useDefaultRecipient = true,
+    configuredRecipients: readonly DispatchRecipient[] = []
+  ) {
+    for (const configuredRecipient of configuredRecipients) {
+      this.recipients.set(configuredRecipient.userId, configuredRecipient);
+    }
+  }
+
+  async listRecipients(): Promise<readonly DispatchRecipient[]> {
+    if (this.recipients.size > 0) {
+      return [...this.recipients.values()];
+    }
+
+    return this.useDefaultRecipient ? [recipient("user-1")] : [];
+  }
 
   async findRecipient(userId: string): Promise<DispatchRecipient | null> {
     return this.recipients.get(userId) ?? (this.useDefaultRecipient ? recipient(userId) : null);
