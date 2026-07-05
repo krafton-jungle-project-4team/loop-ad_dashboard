@@ -73,7 +73,7 @@ import { useDashboardQueryState } from "../model/dashboard-query.js";
 import { dashboardCampaignDetailQueryKey } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 
-type FlowNodeKind = "campaign" | "promotionGroup" | "evaluation" | "retryQueue";
+type FlowNodeKind = "campaign" | "promotion" | "evaluation" | "retryQueue";
 type FlowPathTone = "normal" | "warning" | "insufficient";
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost" | "link";
 
@@ -160,6 +160,7 @@ type FlowNodeData = {
   campaign?: DashboardCampaignSummary;
   kind: FlowNodeKind;
   metrics?: DashboardCampaignExperimentMetric[];
+  promotionFlow?: PromotionFlowSummary;
   promotionFlows?: PromotionFlowSummary[];
   retryPromotionFlows?: PromotionFlowSummary[];
   segments?: SegmentSummary[];
@@ -179,17 +180,18 @@ type CampaignFlowGraph = {
 };
 
 const CAMPAIGN_X = 0;
-const CAMPAIGN_Y = 100;
-const PROMOTION_GROUP_X = 310;
-const EVALUATION_X = 718;
-const RETRY_QUEUE_X = 722;
-const RETRY_QUEUE_Y = 382;
+const CAMPAIGN_Y = 262;
+const PROMOTION_X = 328;
+const EVALUATION_X = 724;
+const RETRY_QUEUE_X = 724;
+const RETRY_QUEUE_Y = 444;
 const PIPELINE_Y = 0;
+const PROMOTION_ROW_GAP = 176;
 
 const nodeTypes = {
   campaign: CampaignNode,
   evaluation: EvaluationNode,
-  promotionGroup: PromotionGroupNode,
+  promotion: PromotionNode,
   retryQueue: RetryQueueNode
 } satisfies NodeTypes;
 
@@ -533,22 +535,26 @@ function CampaignNode(props: NodeProps) {
   );
 }
 
-function PromotionGroupNode(props: NodeProps) {
+function PromotionNode(props: NodeProps) {
   const data = props.data as FlowNodeData;
-  const promotionFlows = data.promotionFlows ?? [];
+  const flow = data.promotionFlow;
 
   return (
     <FlowNodeShell
       icon={Megaphone}
-      kind="promotionGroup"
+      kind="promotion"
       status={data.status}
       subtitle={data.subtitle}
       title={data.title}
       tone={data.tone}
-      widthClassName="w-[392px] min-h-[338px]"
+      widthClassName="w-[286px] min-h-[142px]"
     >
       <NodeSummaryGrid items={data.summary} />
-      <PromotionRunList flows={promotionFlows} />
+      {flow ? (
+        <div className="grid gap-1 border-t border-black/10 pt-2 text-xs text-muted-foreground">
+          <MetricLine label="next" value={flow.promotion.next_action} />
+        </div>
+      ) : null}
       <Handle
         className="!size-2 !border-white !bg-[#64748b]"
         position={Position.Left}
@@ -629,46 +635,6 @@ function RetryQueueNode(props: NodeProps) {
         type="source"
       />
     </FlowNodeShell>
-  );
-}
-
-function PromotionRunList({ flows }: { flows: PromotionFlowSummary[] }) {
-  if (flows.length === 0) {
-    return <NodeEmptyState message="실행 중인 프로모션이 없습니다." />;
-  }
-
-  return (
-    <div className="nodrag nopan nowheel grid max-h-[190px] gap-1.5 overflow-y-auto border-t border-black/10 pt-2">
-      {flows.map((flow) => (
-        <div
-          className="grid gap-1 rounded-md border border-black/10 bg-zinc-50/70 px-2 py-1.5 text-xs"
-          key={flow.id}
-        >
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <span className="truncate font-semibold text-[#1d1d1f]">
-              {flow.promotion.marketing_theme}
-            </span>
-            <StatusBadge status={flow.promotion.status} />
-          </div>
-          <div className="grid gap-1 sm:grid-cols-3">
-            <CompactFact
-              label="goal"
-              tone={flow.tone}
-              value={formatOptionalGoalAchievement(flow.goalAchievementRate)}
-            />
-            <CompactFact
-              label="sample"
-              tone={flow.collectionTone}
-              value={formatCollectionCoverage(flow.evaluation.totalSampleSize, flow.promotion)}
-            />
-            <CompactFact
-              label="loop"
-              value={`L${formatInteger(flow.promotion.current_loop_count)} / ${formatInteger(flow.promotion.max_loop_count)}`}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -926,12 +892,12 @@ function NodeMetricsDrawer({
               ) : null}
             </section>
             <section className="grid min-w-0 content-start gap-4">
-              {data.kind === "promotionGroup" ? (
+              {data.kind === "promotion" ? (
                 <>
                   <PromotionFlowDetailList
                     emptyMessage="표시할 프로모션 실행이 없습니다."
-                    flows={data.promotionFlows ?? []}
-                    title="프로모션 실행 · 목표 달성률 낮은 순"
+                    flows={data.promotionFlow ? [data.promotionFlow] : []}
+                    title="프로모션 실행"
                   />
                   <SegmentSummaryList segments={data.segments ?? []} />
                 </>
@@ -1211,7 +1177,6 @@ function buildCampaignFlowGraph(
   const edges: Edge[] = [];
   const campaignId = detail.campaign.campaign_id;
   const campaignNodeId = `campaign:${campaignId}`;
-  const promotionRunsNodeId = `promotion-runs:${campaignId}`;
   const evaluationNodeId = `evaluation:${campaignId}`;
   const retryQueueNodeId = `retry-queue:${campaignId}`;
   const promotionFlows = sortPromotionsByGoalAchievement(
@@ -1224,7 +1189,6 @@ function buildCampaignFlowGraph(
   const totals = summarizeCampaignEvaluation(promotionFlows);
   const overallTone = overallToneForPromotionFlows(promotionFlows);
   const evaluationStatus = campaignEvaluationStatus(totals);
-  const promotionGroupStatus = retryPromotionFlows.length > 0 ? "review_needed" : "running";
   const retryStatus = retryPromotionFlows.length > 0 ? "queued" : "empty";
   const nextLoopCandidateCount = retryPromotionFlows.length;
 
@@ -1256,34 +1220,62 @@ function buildCampaignFlowGraph(
   });
 
   if (promotionFlows.length > 0) {
-    nodes.push({
-      data: {
-        action: createAction(projectId, campaignId, "", "", "campaign-promotions"),
-        kind: "promotionGroup",
-        promotionFlows,
-        segments: allSegments,
-        status: promotionGroupStatus,
-        subtitle: "Collection is folded into each promotion run",
-        summary: [
-          { label: "runs", value: formatInteger(promotionFlows.length) },
-          {
-            label: "weakest",
-            value: formatOptionalGoalAchievement(totals.weakestGoalAchievementRate),
-            tone: overallTone
-          },
-          {
-            label: "collection",
-            value: formatAggregateCollectionCoverage(promotionFlows),
-            tone: totals.insufficientDataCount > 0 ? "insufficient" : "normal"
-          },
-          { label: "segments", value: formatInteger(allSegments.length) }
-        ],
-        title: "프로모션 실행",
-        tone: overallTone
-      },
-      id: promotionRunsNodeId,
-      position: { x: PROMOTION_GROUP_X, y: PIPELINE_Y },
-      type: "promotionGroup"
+    promotionFlows.forEach((flow, index) => {
+      const promotionNodeId = `promotion:${flow.id}`;
+
+      nodes.push({
+        data: {
+          action: flow.action,
+          kind: "promotion",
+          promotionFlow: flow,
+          promotionFlows: [flow],
+          segments: flow.segments,
+          status: flow.promotion.status,
+          subtitle: `${flow.promotion.channel} · ${flow.promotion.goal_metric}`,
+          summary: [
+            {
+              label: "goal",
+              value: formatOptionalGoalAchievement(flow.goalAchievementRate),
+              tone: flow.tone
+            },
+            {
+              label: "collection",
+              value: formatCollectionCoverage(flow.evaluation.totalSampleSize, flow.promotion),
+              tone: flow.collectionTone
+            },
+            {
+              label: "loop",
+              value: `L${formatInteger(flow.promotion.current_loop_count)} / ${formatInteger(flow.promotion.max_loop_count)}`
+            },
+            {
+              label: "segments",
+              value: formatInteger(flow.segments.length)
+            }
+          ],
+          title: flow.promotion.marketing_theme,
+          tone: flow.tone
+        },
+        id: promotionNodeId,
+        position: { x: PROMOTION_X, y: PIPELINE_Y + index * PROMOTION_ROW_GAP },
+        type: "promotion"
+      });
+
+      edges.push(
+        createFlowEdge(
+          `${campaignNodeId}->${promotionNodeId}`,
+          campaignNodeId,
+          promotionNodeId,
+          "normal"
+        )
+      );
+      edges.push(
+        createFlowEdge(
+          `${promotionNodeId}->${evaluationNodeId}`,
+          promotionNodeId,
+          evaluationNodeId,
+          flow.tone
+        )
+      );
     });
 
     nodes.push({
@@ -1357,23 +1349,6 @@ function buildCampaignFlowGraph(
       position: { x: RETRY_QUEUE_X, y: RETRY_QUEUE_Y },
       type: "retryQueue"
     });
-
-    edges.push(
-      createFlowEdge(
-        `${campaignNodeId}->${promotionRunsNodeId}`,
-        campaignNodeId,
-        promotionRunsNodeId,
-        "normal"
-      )
-    );
-    edges.push(
-      createFlowEdge(
-        `${promotionRunsNodeId}->${evaluationNodeId}`,
-        promotionRunsNodeId,
-        evaluationNodeId,
-        overallTone
-      )
-    );
     edges.push(
       createFlowEdge(
         `${evaluationNodeId}->${retryQueueNodeId}`,
@@ -1384,14 +1359,20 @@ function buildCampaignFlowGraph(
       )
     );
     if (retryPromotionFlows.length > 0) {
-      edges.push(
-        createLoopBackEdge(
-          `${retryQueueNodeId}->${promotionRunsNodeId}:loop`,
-          retryQueueNodeId,
-          promotionRunsNodeId,
-          "next loop"
-        )
-      );
+      const loopTargetFlow = retryPromotionFlows[0];
+
+      if (loopTargetFlow) {
+        const loopTargetPromotionId = `promotion:${loopTargetFlow.id}`;
+
+        edges.push(
+          createLoopBackEdge(
+            `${retryQueueNodeId}->${loopTargetPromotionId}:loop`,
+            retryQueueNodeId,
+            loopTargetPromotionId,
+            `next loop ${formatInteger(retryPromotionFlows.length)}`
+          )
+        );
+      }
     }
   }
 
@@ -1915,8 +1896,8 @@ function nodeKindLabel(kind: FlowNodeKind) {
   switch (kind) {
     case "campaign":
       return "Pipeline";
-    case "promotionGroup":
-      return "Runs";
+    case "promotion":
+      return "Promotion";
     case "evaluation":
       return "Quality";
     case "retryQueue":
@@ -1928,7 +1909,7 @@ function nodeKindIcon(kind: FlowNodeKind) {
   switch (kind) {
     case "campaign":
       return Map;
-    case "promotionGroup":
+    case "promotion":
       return Megaphone;
     case "evaluation":
       return BarChart3;
@@ -1941,7 +1922,7 @@ function nodeKindIconClassName(kind: FlowNodeKind) {
   switch (kind) {
     case "campaign":
       return "border-[#0969da]/20 bg-[#f0f6ff] text-[#0969da]";
-    case "promotionGroup":
+    case "promotion":
       return "border-zinc-300 bg-white text-zinc-700";
     case "evaluation":
       return "border-teal-200 bg-teal-50 text-teal-700";
