@@ -12,13 +12,17 @@ import type {
   DashboardContentCandidate,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
+  DashboardCreateProjectRequest,
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
   DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
+  DashboardDeleteProjectResult,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
   DashboardNextLoopAnalysis,
+  DashboardProject,
+  DashboardProjectList,
   DashboardPromotionAnalysis,
   DashboardPromotionDetail,
   DashboardPromotionScopedSegmentDefinition,
@@ -39,6 +43,7 @@ import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
+  archiveDashboardProject,
   approveDashboardContentCandidate,
   archiveDashboardPromotionScopedSegmentDefinition,
   confirmDashboardPromotionSegmentSuggestions,
@@ -52,6 +57,7 @@ import {
   insertDashboardCampaign,
   insertDashboardManualPromotionAnalysis,
   insertDashboardNextLoopAnalysis,
+  insertDashboardProject,
   insertDashboardPromotion,
   insertDashboardPromotionCustomSegmentDefinition,
   insertDashboardPromotionManualSegmentDefinition,
@@ -59,6 +65,7 @@ import {
   insertDashboardPromotionRun,
   listDashboardPromotionSegmentSuggestions,
   listDashboardPromotionScopedSegmentDefinitions,
+  listDashboardProjects,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -84,10 +91,12 @@ import {
   type IGetDashboardPromotionSegmentResult,
   type IGetDashboardPromotionSummaryResult,
   type IDecideDashboardPromotionSegmentSuggestionResult,
+  type IInsertDashboardProjectResult,
   type IInsertDashboardPromotionCustomSegmentDefinitionResult,
   type IInsertDashboardPromotionManualSegmentDefinitionResult,
   type IListDashboardPromotionScopedSegmentDefinitionsResult,
   type IListDashboardPromotionSegmentSuggestionsResult,
+  type IListDashboardProjectsResult,
   type IRejectDashboardContentCandidateResult,
   type IListDashboardCampaignExperimentMetricsResult,
   type IListDashboardCampaignPromotionsResult,
@@ -109,6 +118,36 @@ export class DashboardCampaignReader {
     @InjectTransaction()
     private readonly db: Transaction<PgTypedTransactionalAdapter>
   ) {}
+
+  async listProjects(): Promise<DashboardProjectList> {
+    const rows = await this.db.query(listDashboardProjects, undefined).multiple();
+
+    return { projects: rows.map(toProject) };
+  }
+
+  async createProject(request: DashboardCreateProjectRequest): Promise<DashboardProject> {
+    const row = await this.db
+      .query(insertDashboardProject, {
+        domain: request.domain,
+        industry: request.industry,
+        projectId: request.project_id,
+        projectName: request.project_name,
+        status: request.status,
+        writeKey: request.write_key ?? `wk_${randomUUID().replace(/-/g, "")}`
+      })
+      .single();
+
+    return toProject(row);
+  }
+
+  async archiveProject(projectId: string): Promise<DashboardDeleteProjectResult> {
+    const row = await this.db.query(archiveDashboardProject, { projectId }).single();
+
+    return {
+      project_id: row.projectId,
+      status: "archived"
+    };
+  }
 
   async listCampaigns(projectId: string): Promise<DashboardCampaignSummary[]> {
     const rows = await this.db.query(listDashboardCampaignSummaries, { projectId }).multiple();
@@ -712,6 +751,21 @@ export class DashboardCampaignReader {
   }
 }
 
+function toProject(
+  row: IInsertDashboardProjectResult | IListDashboardProjectsResult
+): DashboardProject {
+  return {
+    created_at: row.createdAt.toISOString(),
+    domain: row.domain,
+    industry: row.industry,
+    project_id: row.projectId,
+    project_name: row.projectName,
+    status: projectStatus(row.status),
+    updated_at: row.updatedAt.toISOString(),
+    write_key: row.writeKey
+  };
+}
+
 function toCampaignSummary(
   row: IGetDashboardCampaignSummaryResult | IListDashboardCampaignSummariesResult
 ): DashboardCampaignSummary {
@@ -1038,6 +1092,10 @@ function promotionScopedSegmentSource(
 
 function savedSegmentStatus(value: string): DashboardPromotionScopedSegmentDefinition["status"] {
   return value === "archived" ? "archived" : "active";
+}
+
+function projectStatus(value: string): DashboardProject["status"] {
+  return value === "inactive" || value === "archived" ? value : "active";
 }
 
 function formatDate(value: Date | null): string | null {

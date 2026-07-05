@@ -8,6 +8,10 @@ export function dashboardTabQueryKey(tab: DashboardTab) {
   return ["dashboard", tab] as const;
 }
 
+export function dashboardProjectsQueryKey() {
+  return ["dashboard", "projects"] as const;
+}
+
 export function dashboardEventCatalogQueryKey(projectId: string) {
   return ["dashboard", "event-catalog", projectId] as const;
 }

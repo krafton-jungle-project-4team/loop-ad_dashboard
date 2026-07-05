@@ -11,11 +11,13 @@ import {
   DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
   DashboardCreateFunnelRequestSchema,
+  DashboardCreateProjectRequestSchema,
   DashboardCreatePromotionSegmentDefinitionRequestSchema,
   DashboardCreatePromotionRequestSchema,
   DashboardDecideSegmentSuggestionRequestSchema,
   DashboardDeleteCampaignResultSchema,
   DashboardDeleteFunnelResultSchema,
+  DashboardDeleteProjectResultSchema,
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
   DashboardEventCatalogSchema,
@@ -24,6 +26,8 @@ import {
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
+  DashboardProjectListSchema,
+  DashboardProjectSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionScopedSegmentDefinitionListSchema,
   DashboardPromotionScopedSegmentDefinitionSchema,
@@ -58,16 +62,20 @@ import type {
   DashboardConfirmSegmentSuggestionsResult,
   DashboardCreateCampaignRequest,
   DashboardCreateFunnelRequest,
+  DashboardCreateProjectRequest,
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
   DashboardDecideSegmentSuggestionRequest,
   DashboardDeleteCampaignResult,
   DashboardDeleteFunnelResult,
+  DashboardDeleteProjectResult,
   DashboardDeletePromotionResult,
   DashboardDeletePromotionSegmentResult,
   DashboardEventCatalog,
   DashboardFunnel,
   DashboardFunnelMetrics,
+  DashboardProject,
+  DashboardProjectList,
   DashboardPromotionDetail,
   DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionScopedSegmentDefinitionList,
@@ -126,6 +134,66 @@ export async function fetchDashboardPageResource(
     case "dataExplorer":
       throw new Error("Data Explorer uses its own API resource flow.");
   }
+}
+
+export async function fetchDashboardProjects(signal?: AbortSignal): Promise<DashboardProjectList> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/projects`,
+    window.location.origin
+  );
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardProjectListSchema).parse(await response.json())
+    .data;
+}
+
+export async function createDashboardProject(
+  requestBody: DashboardCreateProjectRequest
+): Promise<DashboardProject> {
+  const parsedBody = DashboardCreateProjectRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/projects`,
+    window.location.origin
+  );
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardProjectSchema).parse(await response.json()).data;
+}
+
+export async function deleteDashboardProject(
+  projectId: string
+): Promise<DashboardDeleteProjectResult> {
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/projects/${encodeURIComponent(projectId)}`,
+    window.location.origin
+  );
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardDeleteProjectResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function createDashboardFunnel(

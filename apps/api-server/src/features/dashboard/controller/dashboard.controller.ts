@@ -10,11 +10,13 @@ import {
   DashboardConfirmSegmentSuggestionsRequestSchema,
   DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateCampaignRequestSchema,
+  DashboardCreateProjectRequestSchema,
   DashboardCreateFunnelRequestSchema,
   DashboardCreatePromotionSegmentDefinitionRequestSchema,
   DashboardCreatePromotionRequestSchema,
   DashboardDecideSegmentSuggestionRequestSchema,
   DashboardDeleteCampaignResultSchema,
+  DashboardDeleteProjectResultSchema,
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
@@ -24,6 +26,8 @@ import {
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
+  DashboardProjectListSchema,
+  DashboardProjectSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionScopedSegmentDefinitionListSchema,
   DashboardPromotionScopedSegmentDefinitionSchema,
@@ -55,6 +59,24 @@ export class DashboardController {
     @Inject(DashboardQueryService)
     private readonly dashboardQuery: DashboardQueryService
   ) {}
+
+  @Get("projects")
+  async projects() {
+    return DashboardProjectListSchema.parse(await this.dashboardQuery.projects());
+  }
+
+  @Post("projects")
+  async createProject(@Body() body: unknown) {
+    const request = DashboardCreateProjectRequestSchema.parse(body);
+    return DashboardProjectSchema.parse(await this.dashboardQuery.createProject(request));
+  }
+
+  @Delete("projects/:project_id")
+  async deleteProject(@Param("project_id") projectId: string) {
+    return DashboardDeleteProjectResultSchema.parse(
+      await this.dashboardQuery.archiveProject(projectId)
+    );
+  }
 
   @Get("main")
   async main(@Query("project_id") projectId?: string) {

@@ -4,6 +4,46 @@ const RateSchema = z.number().min(0).max(1);
 const CountSchema = z.number().int().nonnegative();
 const JsonObjectSchema = z.record(z.string(), z.unknown());
 
+export const DashboardProjectStatusSchema = z.enum(["active", "inactive", "archived"]);
+export type DashboardProjectStatus = z.infer<typeof DashboardProjectStatusSchema>;
+
+export const DashboardProjectSchema = z.object({
+  project_id: z.string(),
+  project_name: z.string(),
+  domain: z.string(),
+  write_key: z.string(),
+  industry: z.string(),
+  status: DashboardProjectStatusSchema,
+  created_at: z.string(),
+  updated_at: z.string()
+});
+export type DashboardProject = z.infer<typeof DashboardProjectSchema>;
+
+export const DashboardProjectListSchema = z.object({
+  projects: z.array(DashboardProjectSchema)
+});
+export type DashboardProjectList = z.infer<typeof DashboardProjectListSchema>;
+
+export const DashboardCreateProjectRequestSchema = z.object({
+  project_id: z.string().trim().min(1),
+  project_name: z.string().trim().min(1),
+  domain: z.string().trim().min(1).default("hotel-booking.local"),
+  write_key: z.string().trim().min(1).optional(),
+  industry: z.string().trim().min(1).default("hotel_booking"),
+  status: DashboardProjectStatusSchema.default("active")
+});
+export type DashboardCreateProjectRequest = z.infer<
+  typeof DashboardCreateProjectRequestSchema
+>;
+
+export const DashboardDeleteProjectResultSchema = z.object({
+  project_id: z.string(),
+  status: z.literal("archived")
+});
+export type DashboardDeleteProjectResult = z.infer<
+  typeof DashboardDeleteProjectResultSchema
+>;
+
 export const DashboardCampaignSummarySchema = z.object({
   campaign_id: z.string(),
   campaign_name: z.string(),
