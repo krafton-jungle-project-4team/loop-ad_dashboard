@@ -5,6 +5,7 @@ import type {
   DashboardCreatePromotionRequest,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
+  DashboardSegmentDetail,
   DashboardPromotionSegmentSuggestion,
   DashboardStartPromotionAnalysisResult
 } from "@loopad/shared";
@@ -30,6 +31,12 @@ import {
   SelectValue
 } from "@loopad/ui/shadcn/select";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@loopad/ui/shadcn/tabs";
+import {
   Table,
   TableBody,
   TableCell,
@@ -48,6 +55,7 @@ import {
   deleteDashboardPromotion,
   decideDashboardPromotionSegmentSuggestion,
   fetchDashboardCampaignDetail,
+  fetchDashboardSegmentDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
   fetchDashboardPromotionSegmentSuggestions,
   startDashboardPromotionAnalysis
@@ -57,7 +65,8 @@ import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardPromotionScopedSegmentDefinitionsQueryKey,
-  dashboardPromotionSegmentSuggestionsQueryKey
+  dashboardPromotionSegmentSuggestionsQueryKey,
+  dashboardSegmentDetailQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
@@ -82,12 +91,14 @@ const promotionGoalMetricOptions = [
   "funnel_step_rate"
 ] as const;
 const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
+type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 
 export function PromotionPanel({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null);
+  const [workspaceTab, setWorkspaceTab] = useState<PromotionWorkspaceTab>("overview");
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
     data.campaigns[0];
@@ -195,9 +206,34 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     campaignDetail.data?.segments.filter(
       (segment) => segment.promotion_id === selectedOpenPromotion?.promotion_id
     ) ?? [];
+  const selectedPromotionSegmentId = selectedPromotionSegments.some(
+    (segment) => segment.segment_id === query.selectedSegmentId
+  )
+    ? query.selectedSegmentId
+    : "";
   useEffect(() => {
     setActiveAnalysisId(null);
   }, [selectedOpenPromotion?.promotion_id]);
+  useEffect(() => {
+    if (query.selectedSegmentId && !selectedPromotionSegmentId) {
+      void setDashboardQueryState({ selectedSegmentId: "" });
+    }
+  }, [query.selectedSegmentId, selectedPromotionSegmentId, setDashboardQueryState]);
+  const segmentDetail = useQuery({
+    enabled: Boolean(selectedOpenPromotion?.promotion_id && selectedPromotionSegmentId),
+    queryFn: ({ signal }) =>
+      fetchDashboardSegmentDetail(
+        query,
+        selectedOpenPromotion?.promotion_id ?? "",
+        selectedPromotionSegmentId,
+        signal
+      ),
+    queryKey: dashboardSegmentDetailQueryKey(
+      query.projectId,
+      selectedOpenPromotion?.promotion_id ?? "",
+      selectedPromotionSegmentId
+    )
+  });
   const segmentSuggestions = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
     queryFn: ({ signal }) =>
@@ -319,6 +355,15 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     });
   };
 
+  const selectSegment = (promotionId: string, segmentId: string) => {
+    setWorkspaceTab("segment-detail");
+    void setDashboardQueryState({
+      selectedCampaignId,
+      selectedPromotionId: promotionId,
+      selectedSegmentId: segmentId
+    });
+  };
+
   const closePromotion = (promotionId: string) => {
     deletePromotionMutation.mutate(promotionId);
   };
@@ -374,6 +419,8 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                   decideSuggestionMutation.mutate({ status, suggestionId })
                 }
                 onStartAnalysis={() => startAnalysisMutation.mutate()}
+                onSelectSegment={selectSegment}
+                onTabChange={setWorkspaceTab}
                 promotion={selectedOpenPromotion}
                 promotionAnalysis={startAnalysisMutation.data ?? null}
                 promotionAnalysisError={startAnalysisMutation.error}
@@ -387,10 +434,16 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 scopedSegmentCreateError={createScopedSegmentMutation.error}
                 scopedSegmentCreateIsError={createScopedSegmentMutation.isError}
                 scopedSegmentCreateIsPending={createScopedSegmentMutation.isPending}
+                selectedSegmentDetail={segmentDetail.data}
+                selectedSegmentDetailError={segmentDetail.error}
+                selectedSegmentDetailIsError={segmentDetail.isError}
+                selectedSegmentDetailIsLoading={segmentDetail.isLoading}
+                selectedSegmentId={selectedPromotionSegmentId}
                 suggestions={segmentSuggestions.data?.suggestions ?? []}
                 suggestionsError={segmentSuggestions.error}
                 suggestionsIsError={segmentSuggestions.isError}
                 suggestionsIsLoading={segmentSuggestions.isLoading}
+                tab={workspaceTab}
               />
             ) : null}
             <PromotionAddDialog
@@ -560,7 +613,9 @@ function PromotionTabWorkspace({
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
+  onSelectSegment,
   onStartAnalysis,
+  onTabChange,
   promotion,
   promotionAnalysis,
   promotionAnalysisError,
@@ -574,10 +629,16 @@ function PromotionTabWorkspace({
   scopedSegmentsIsError,
   scopedSegmentsIsLoading,
   segments,
+  selectedSegmentDetail,
+  selectedSegmentDetailError,
+  selectedSegmentDetailIsError,
+  selectedSegmentDetailIsLoading,
+  selectedSegmentId,
   suggestions,
   suggestionsError,
   suggestionsIsError,
-  suggestionsIsLoading
+  suggestionsIsLoading,
+  tab
 }: {
   confirmError: Error | null;
   confirmIsError: boolean;
@@ -588,7 +649,9 @@ function PromotionTabWorkspace({
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
   onStartAnalysis: () => void;
+  onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
   promotionAnalysis: DashboardStartPromotionAnalysisResult | null;
   promotionAnalysisError: Error | null;
@@ -602,10 +665,16 @@ function PromotionTabWorkspace({
   scopedSegmentsIsError: boolean;
   scopedSegmentsIsLoading: boolean;
   segments: DashboardCampaignSegment[];
+  selectedSegmentDetail: DashboardSegmentDetail | undefined;
+  selectedSegmentDetailError: Error | null;
+  selectedSegmentDetailIsError: boolean;
+  selectedSegmentDetailIsLoading: boolean;
+  selectedSegmentId: string;
   suggestions: DashboardPromotionSegmentSuggestion[];
   suggestionsError: Error | null;
   suggestionsIsError: boolean;
   suggestionsIsLoading: boolean;
+  tab: PromotionWorkspaceTab;
 }) {
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
   return (
@@ -636,96 +705,406 @@ function PromotionTabWorkspace({
         <PromotionMetricCard label="세그먼트" value={formatInteger(activeSegments.length)} />
         <PromotionMetricCard label="실험" value={formatInteger(promotion.ad_experiment_count)} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>프로모션 퍼널 효율</CardTitle>
-            <CardDescription>현재 프로모션 목표와 루프 상태를 기준으로 확인합니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <PromotionProgressRow
-              label="목표 달성"
-              value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)}
+      <Tabs
+        className="grid gap-4"
+        onValueChange={(value) => onTabChange(value as PromotionWorkspaceTab)}
+        value={tab}
+      >
+        <TabsList className="w-fit" variant="line">
+          <TabsTrigger value="overview">프로모션 개요</TabsTrigger>
+          <TabsTrigger value="segments">세그먼트 추천/확정</TabsTrigger>
+          <TabsTrigger value="segment-detail">세그먼트 상세</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+          <PromotionOverviewTab
+            activeSegments={activeSegments}
+            onSelectSegment={onSelectSegment}
+            promotion={promotion}
+            segments={segments}
+            selectedSegmentId={selectedSegmentId}
+          />
+        </TabsContent>
+        <TabsContent value="segments">
+          <div className="grid gap-4">
+            <PromotionCurrentSegmentsPanel
+              onSelectSegment={onSelectSegment}
+              promotion={promotion}
+              segments={segments}
+              selectedSegmentId={selectedSegmentId}
             />
-            <PromotionProgressRow
-              label="루프 진행"
-              value={
-                promotion.max_loop_count > 0
-                  ? Math.min((promotion.current_loop_count / promotion.max_loop_count) * 100, 100)
-                  : 0
-              }
+            <PromotionSegmentSuggestionPanel
+              confirmError={confirmError}
+              confirmIsError={confirmIsError}
+              confirmIsPending={confirmIsPending}
+              createScopedSegmentError={scopedSegmentCreateError}
+              createScopedSegmentIsError={scopedSegmentCreateIsError}
+              createScopedSegmentIsPending={scopedSegmentCreateIsPending}
+              decideError={decideError}
+              decideIsError={decideIsError}
+              decideIsPending={decideIsPending}
+              onConfirmSuggestions={onConfirmSuggestions}
+              onCreateScopedSegment={onCreateScopedSegment}
+              onDecideSuggestion={onDecideSuggestion}
+              onStartAnalysis={onStartAnalysis}
+              promotionAnalysis={promotionAnalysis}
+              promotionAnalysisError={promotionAnalysisError}
+              promotionAnalysisIsError={promotionAnalysisIsError}
+              promotionAnalysisIsPending={promotionAnalysisIsPending}
+              scopedSegments={scopedSegments}
+              scopedSegmentsError={scopedSegmentsError}
+              scopedSegmentsIsError={scopedSegmentsIsError}
+              scopedSegmentsIsLoading={scopedSegmentsIsLoading}
+              suggestions={suggestions}
+              suggestionsError={suggestionsError}
+              suggestionsIsError={suggestionsIsError}
+              suggestionsIsLoading={suggestionsIsLoading}
             />
-            <div className="grid gap-3 md:grid-cols-3">
-              <SummaryItem label="목표 기준" value={promotion.goal_basis} />
-              <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
-              <SummaryItem label="다음 액션" value={promotion.next_action} />
+          </div>
+        </TabsContent>
+        <TabsContent value="segment-detail">
+          <PromotionSegmentDetailTab
+            detail={selectedSegmentDetail}
+            error={selectedSegmentDetailError}
+            isError={selectedSegmentDetailIsError}
+            isLoading={selectedSegmentDetailIsLoading}
+            selectedSegmentId={selectedSegmentId}
+          />
+        </TabsContent>
+      </Tabs>
+    </section>
+  );
+}
+
+function PromotionOverviewTab({
+  activeSegments,
+  onSelectSegment,
+  promotion,
+  segments,
+  selectedSegmentId
+}: {
+  activeSegments: DashboardCampaignSegment[];
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
+  promotion: DashboardCampaignPromotion;
+  segments: DashboardCampaignSegment[];
+  selectedSegmentId: string;
+}) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle>프로모션 퍼널 효율</CardTitle>
+          <CardDescription>현재 프로모션 목표와 루프 상태를 기준으로 확인합니다.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <PromotionProgressRow
+            label="목표 달성"
+            value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)}
+          />
+          <PromotionProgressRow
+            label="루프 진행"
+            value={
+              promotion.max_loop_count > 0
+                ? Math.min((promotion.current_loop_count / promotion.max_loop_count) * 100, 100)
+                : 0
+            }
+          />
+          <div className="grid gap-3 md:grid-cols-3">
+            <SummaryItem label="목표 기준" value={promotion.goal_basis} />
+            <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
+            <SummaryItem label="다음 액션" value={promotion.next_action} />
+          </div>
+        </CardContent>
+      </Card>
+      <div className="grid gap-4">
+        <PromotionCurrentSegmentsPanel
+          onSelectSegment={onSelectSegment}
+          promotion={promotion}
+          segments={segments}
+          selectedSegmentId={selectedSegmentId}
+        />
+        <Card className="border-[#3927d9]/20 bg-[#f2f6ff] shadow-none">
+          <CardContent className="grid gap-2 p-5">
+            <div className="flex items-center gap-2 font-semibold text-[#3927d9]">
+              <CheckCircle2 className="size-4" />
+              Optimization Hint
+            </div>
+            <p className="text-sm leading-6 text-muted-foreground">
+              목표 달성률과 세그먼트 반응을 기준으로 다음 루프 분석 후보를 확인하세요.
+            </p>
+            <div className="text-xs text-muted-foreground">
+              활성 세그먼트 {formatInteger(activeSegments.length)}개 · 실험{" "}
+              {formatInteger(promotion.ad_experiment_count)}개
             </div>
           </CardContent>
         </Card>
-        <div className="grid gap-4">
-          <Card className="shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">세그먼트</CardTitle>
-              <CardDescription>선택 프로모션에 연결된 세그먼트입니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              {segments.length > 0 ? (
-                segments.map((segment) => (
-                  <div className="rounded-md border p-3" key={segment.segment_id}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-medium">{segment.segment_name}</div>
-                      <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {formatInteger(segment.estimated_size)}명 · {segment.goal_metric}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <EmptyState message="연결된 세그먼트가 없습니다." />
-              )}
-            </CardContent>
-          </Card>
-          <Card className="border-[#3927d9]/20 bg-[#f2f6ff] shadow-none">
-            <CardContent className="grid gap-2 p-5">
-              <div className="flex items-center gap-2 font-semibold text-[#3927d9]">
-                <CheckCircle2 className="size-4" />
-                Optimization Hint
-              </div>
-              <p className="text-sm leading-6 text-muted-foreground">
-                목표 달성률과 세그먼트 반응을 기준으로 다음 루프 분석 후보를 확인하세요.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
       </div>
-      <PromotionSegmentSuggestionPanel
-        confirmError={confirmError}
-        confirmIsError={confirmIsError}
-        confirmIsPending={confirmIsPending}
-        createScopedSegmentError={scopedSegmentCreateError}
-        createScopedSegmentIsError={scopedSegmentCreateIsError}
-        createScopedSegmentIsPending={scopedSegmentCreateIsPending}
-        decideError={decideError}
-        decideIsError={decideIsError}
-        decideIsPending={decideIsPending}
-        onConfirmSuggestions={onConfirmSuggestions}
-        onCreateScopedSegment={onCreateScopedSegment}
-        onDecideSuggestion={onDecideSuggestion}
-        onStartAnalysis={onStartAnalysis}
-        promotionAnalysis={promotionAnalysis}
-        promotionAnalysisError={promotionAnalysisError}
-        promotionAnalysisIsError={promotionAnalysisIsError}
-        promotionAnalysisIsPending={promotionAnalysisIsPending}
-        scopedSegments={scopedSegments}
-        scopedSegmentsError={scopedSegmentsError}
-        scopedSegmentsIsError={scopedSegmentsIsError}
-        scopedSegmentsIsLoading={scopedSegmentsIsLoading}
-        suggestions={suggestions}
-        suggestionsError={suggestionsError}
-        suggestionsIsError={suggestionsIsError}
-        suggestionsIsLoading={suggestionsIsLoading}
-      />
+    </div>
+  );
+}
+
+function PromotionCurrentSegmentsPanel({
+  onSelectSegment,
+  promotion,
+  segments,
+  selectedSegmentId
+}: {
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
+  promotion: DashboardCampaignPromotion;
+  segments: DashboardCampaignSegment[];
+  selectedSegmentId: string;
+}) {
+  return (
+    <Card className="shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base">확정 세그먼트</CardTitle>
+        <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {segments.length > 0 ? (
+          segments.map((segment) => {
+            const isSelected = segment.segment_id === selectedSegmentId;
+            return (
+              <button
+                className={`rounded-md border p-3 text-left transition ${
+                  isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
+                }`}
+                key={segment.segment_id}
+                onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
+                type="button"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-medium">{segment.segment_name}</div>
+                  <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {formatInteger(segment.estimated_size)}명 · 표본{" "}
+                  {formatInteger(segment.sample_size)} · {segment.goal_metric}
+                </div>
+              </button>
+            );
+          })
+        ) : (
+          <EmptyState message="확정된 세그먼트가 없습니다. 세그먼트 추천/확정 탭에서 후보를 확정해주세요." />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PromotionSegmentDetailTab({
+  detail,
+  error,
+  isError,
+  isLoading,
+  selectedSegmentId
+}: {
+  detail: DashboardSegmentDetail | undefined;
+  error: Error | null;
+  isError: boolean;
+  isLoading: boolean;
+  selectedSegmentId: string;
+}) {
+  if (!selectedSegmentId) {
+    return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
+  }
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>세그먼트 상세를 불러오지 못했습니다</AlertTitle>
+        <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (isLoading || !detail) {
+    return <EmptyState message="세그먼트 상세를 불러오는 중입니다." />;
+  }
+
+  const insufficientMetrics = detail.experiment_metrics.filter(
+    (metric) => metric.status === "insufficient_data"
+  );
+  const latestMetric = detail.experiment_metrics[0];
+
+  return (
+    <section className="grid gap-4">
+      <Card className="shadow-none">
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="grid gap-1">
+            <CardTitle>{detail.segment.segment_name}</CardTitle>
+            <CardDescription>
+              {detail.segment.promotion_id} · {detail.segment.segment_id}
+            </CardDescription>
+          </div>
+          <Badge variant={statusBadgeVariant(detail.segment.status)}>
+            {detail.segment.status}
+          </Badge>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-4">
+          <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
+          <SummaryItem label="sample size" value={formatInteger(detail.segment.sample_size)} />
+          <SummaryItem
+            label="sample ratio"
+            value={formatPercentValue(detail.segment.sample_ratio)}
+          />
+          <SummaryItem
+            label="연결 실험"
+            value={formatInteger(detail.ad_experiments.length)}
+          />
+          <SummaryItem label="목표 지표" value={detail.segment.goal_metric} />
+          <SummaryItem
+            label="최근 지표"
+            value={
+              latestMetric
+                ? `${latestMetric.metric} ${formatGoalValue(latestMetric.actual_value)}`
+                : "-"
+            }
+          />
+          <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
+          <SummaryItem
+            label="실시간 이벤트"
+            value={formatInteger(detail.realtime_metrics.total_event_count)}
+          />
+        </CardContent>
+      </Card>
+
+      {insufficientMetrics.length > 0 || detail.segment.status === "insufficient_data" ? (
+        <Alert variant="destructive">
+          <AlertTitle>insufficient_data 상태</AlertTitle>
+          <AlertDescription>
+            표본 부족은 실패가 아니라 판단 보류 상태입니다. 실험 대상 수와 평가 결과 JSON을
+            함께 확인해야 합니다.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base">세그먼트 조건/생성 이유</CardTitle>
+            <CardDescription>프로모션에 종속된 세그먼트 정의입니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <InsightBlock label="자연어 조건" value={detail.segment.natural_language_query ?? "-"} />
+            <InsightBlock label="조건 요약" value={formatJsonObject(detail.segment.rule_json)} />
+            <InsightBlock label="프로필 요약" value={formatJsonObject(detail.segment.profile_json)} />
+          </CardContent>
+        </Card>
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base">데이터 근거/예상 효과</CardTitle>
+            <CardDescription>추천과 확정에 사용된 근거를 숨기지 않습니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <InsightBlock
+              label="데이터 근거"
+              value={formatJsonObject(detail.segment.data_evidence_json)}
+            />
+            <InsightBlock
+              label="콘텐츠 브리프"
+              value={formatJsonObject(detail.segment.content_brief_json)}
+            />
+            <InsightBlock
+              label="예상 효과"
+              value={segmentExpectedEffect(detail.segment, latestMetric)}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle className="text-base">연결된 ad_experiment</CardTitle>
+          <CardDescription>세그먼트 하위 실험 단위입니다.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {detail.ad_experiments.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>실험</TableHead>
+                  <TableHead>콘텐츠</TableHead>
+                  <TableHead>채널</TableHead>
+                  <TableHead>루프</TableHead>
+                  <TableHead>목표</TableHead>
+                  <TableHead>상태</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.ad_experiments.map((experiment) => (
+                  <TableRow key={experiment.ad_experiment_id}>
+                    <TableCell className="font-medium">{experiment.ad_experiment_id}</TableCell>
+                    <TableCell>{experiment.content_id}</TableCell>
+                    <TableCell>{experiment.channel}</TableCell>
+                    <TableCell>{formatInteger(experiment.loop_count)}</TableCell>
+                    <TableCell>
+                      {experiment.goal_metric} · {formatGoalValue(experiment.goal_target_value)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(experiment.status)}>
+                        {experiment.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState message="아직 연결된 ad_experiment가 없습니다." />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle className="text-base">지표 / insufficient_data 사유</CardTitle>
+          <CardDescription>평가는 세그먼트 하위 실험 지표 기준으로 확인합니다.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {detail.experiment_metrics.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>지표</TableHead>
+                  <TableHead>실험</TableHead>
+                  <TableHead className="text-right">목표</TableHead>
+                  <TableHead className="text-right">실제</TableHead>
+                  <TableHead className="text-right">표본</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead>사유</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.experiment_metrics.map((metric) => (
+                  <TableRow
+                    key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
+                  >
+                    <TableCell className="font-medium">{metric.metric}</TableCell>
+                    <TableCell>{metric.ad_experiment_id ?? "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatGoalValue(metric.target_value)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatGoalValue(metric.actual_value)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(metric.sample_size)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(metric.status)}>{metric.status}</Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[360px]">
+                      {metric.status === "insufficient_data"
+                        ? insufficientReason(metric)
+                        : (metric.feedback ?? "-")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState message="아직 세그먼트 실험 지표가 없습니다." />
+          )}
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -1606,8 +1985,93 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function InsightBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1 rounded-md border bg-muted/20 p-3">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="whitespace-pre-wrap text-sm leading-6">{value || "-"}</div>
+    </div>
+  );
+}
+
 function formatGoalValue(value: number) {
   return value <= 1 ? `${formatInteger(value * 100)}%` : formatInteger(value);
+}
+
+function formatPercentValue(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+function segmentExpectedEffect(
+  segment: DashboardCampaignSegment,
+  latestMetric: DashboardSegmentDetail["experiment_metrics"][number] | undefined
+) {
+  const explicitEffect =
+    pickJsonString(segment.content_brief_json, ["expected_effect", "expectedEffect", "effect"]) ??
+    pickJsonString(segment.data_evidence_json, [
+      "expected_effect",
+      "expectedEffect",
+      "expected_lift",
+      "conversion_lift",
+      "rationale"
+    ]);
+  if (explicitEffect) {
+    return explicitEffect;
+  }
+  if (latestMetric) {
+    return `${latestMetric.metric} 기준 실제 ${formatGoalValue(
+      latestMetric.actual_value
+    )}, 목표 ${formatGoalValue(latestMetric.target_value)}입니다.`;
+  }
+  return "실험 지표가 쌓이면 예상 효과와 실제 효과를 함께 비교합니다.";
+}
+
+function insufficientReason(metric: DashboardSegmentDetail["experiment_metrics"][number]) {
+  const reason =
+    pickJsonString(metric.result_json, ["insufficient_reason", "reason", "message", "note"]) ??
+    metric.feedback;
+  const minimumRequiredSampleSize = pickJsonNumber(metric.result_json, [
+    "minimum_required_sample_size",
+    "min_sample_size"
+  ]);
+  const assignedUserCount = pickJsonNumber(metric.result_json, [
+    "assigned_user_count",
+    "final_assigned_user_count"
+  ]);
+  const sampleReason =
+    minimumRequiredSampleSize === null
+      ? null
+      : `최소 필요 ${formatInteger(minimumRequiredSampleSize)}명`;
+  const assignedReason =
+    assignedUserCount === null ? null : `최종 배정 ${formatInteger(assignedUserCount)}명`;
+
+  return [reason, assignedReason, sampleReason].filter(Boolean).join(" · ") || "-";
+}
+
+function pickJsonString(value: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const item = value[key];
+    if (typeof item === "string" && item.trim()) {
+      return item;
+    }
+  }
+  return null;
+}
+
+function pickJsonNumber(value: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const item = value[key];
+    if (typeof item === "number" && Number.isFinite(item)) {
+      return item;
+    }
+    if (typeof item === "string") {
+      const numberValue = Number(item);
+      if (Number.isFinite(numberValue)) {
+        return numberValue;
+      }
+    }
+  }
+  return null;
 }
 
 function statusBadgeVariant(status: string) {
