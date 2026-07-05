@@ -13,17 +13,24 @@ export type DispatchRecipient = z.infer<typeof dispatchRecipientSchema>;
 
 /** user_id를 발송 가능한 demo recipient 연락처로 해석하는 directory입니다. */
 export abstract class RecipientDirectory {
+  abstract listRecipients(): Promise<readonly DispatchRecipient[]>;
   abstract findRecipient(userId: string): Promise<DispatchRecipient | null>;
 }
 
 /** env로 관리되는 demo recipient Map을 가상의 demo recipient DB처럼 사용합니다. */
 @Injectable()
 export class EnvDemoRecipientDirectory extends RecipientDirectory {
+  private readonly recipients: readonly DispatchRecipient[];
   private readonly recipientsByUserId: ReadonlyMap<string, DispatchRecipient>;
 
   constructor() {
     super();
-    this.recipientsByUserId = toRecipientMap(env.demoDispatchRecipients);
+    this.recipients = env.demoDispatchRecipients.map(toDispatchRecipient);
+    this.recipientsByUserId = toRecipientMap(this.recipients);
+  }
+
+  async listRecipients(): Promise<readonly DispatchRecipient[]> {
+    return this.recipients;
   }
 
   async findRecipient(userId: string): Promise<DispatchRecipient | null> {
@@ -31,15 +38,14 @@ export class EnvDemoRecipientDirectory extends RecipientDirectory {
   }
 }
 
-function toRecipientMap(recipients: ReadonlyArray<DemoDispatchRecipientConfig>) {
-  return new Map(
-    recipients.map((recipient) => [
-      recipient.userId,
-      dispatchRecipientSchema.parse({
-        userId: recipient.userId,
-        email: recipient.email,
-        phoneNumber: recipient.phoneNumber
-      })
-    ])
-  );
+function toDispatchRecipient(recipient: DemoDispatchRecipientConfig): DispatchRecipient {
+  return dispatchRecipientSchema.parse({
+    userId: recipient.userId,
+    email: recipient.email,
+    phoneNumber: recipient.phoneNumber
+  });
+}
+
+function toRecipientMap(recipients: readonly DispatchRecipient[]) {
+  return new Map(recipients.map((recipient) => [recipient.userId, recipient]));
 }

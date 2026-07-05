@@ -66,6 +66,8 @@ export class PromotionDispatchService {
 
   /** promotion_run_id 기준으로 Email/SMS 발송을 실행합니다. */
   async dispatchPromotionRun(promotionRunId: string): Promise<PromotionRunDispatchResponse> {
+    logDispatchStep("dispatchPromotionRun", { promotionRunId });
+
     const context = await this.requireDispatchContext(promotionRunId);
     const assignments = await this.requireDispatchAssignments(context);
     const jobs = await this.dispatchAssignments(context, assignments);
@@ -74,6 +76,8 @@ export class PromotionDispatchService {
   }
 
   private async requireDispatchContext(promotionRunId: string): Promise<DispatchContext> {
+    logDispatchStep("requireDispatchContext", { promotionRunId });
+
     const promotionRun = await this.reader.findPromotionRun(promotionRunId);
 
     if (!promotionRun) {
@@ -103,19 +107,49 @@ export class PromotionDispatchService {
   private async requireDispatchAssignments(
     context: DispatchContext
   ): Promise<ActiveAdServingAssignmentEntity[]> {
+    logDispatchStep("requireDispatchAssignments", dispatchContextLogFields(context));
+
     const assignments = await this.reader.listDispatchAssignments(
       context.promotionRun.promotionRunId
     );
 
     this.assertDispatchAssignments(context, assignments);
 
-    return assignments;
+    return this.toDemoRecipientAssignments(context, assignments);
+  }
+
+  private async toDemoRecipientAssignments(
+    context: DispatchContext,
+    assignments: readonly ActiveAdServingAssignmentEntity[]
+  ): Promise<ActiveAdServingAssignmentEntity[]> {
+    logDispatchStep("toDemoRecipientAssignments", {
+      ...dispatchContextLogFields(context),
+      assignmentCount: assignments.length
+    });
+
+    const recipients = await this.recipientDirectory.listRecipients();
+
+    if (recipients.length === 0) {
+      throw adExecutionErrors.inconsistentAssignment(
+        `promotion_run_id '${context.promotionRun.promotionRunId}' has no configured demo dispatch recipients.`
+      );
+    }
+
+    return assignmentsForDemoRecipients(
+      assignments,
+      recipients.map((recipient) => recipient.userId)
+    );
   }
 
   private async dispatchAssignments(
     context: DispatchContext,
     assignments: readonly ActiveAdServingAssignmentEntity[]
   ): Promise<DispatchJobSummary[]> {
+    logDispatchStep("dispatchAssignments", {
+      ...dispatchContextLogFields(context),
+      assignmentCount: assignments.length
+    });
+
     const jobs: DispatchJobSummary[] = [];
 
     for (const group of AdExecutionDomain.groupAssignmentsByAdExperiment(assignments)) {
@@ -129,6 +163,11 @@ export class PromotionDispatchService {
     context: DispatchContext,
     assignments: readonly ActiveAdServingAssignmentEntity[]
   ): Promise<DispatchJobSummary> {
+    logDispatchStep("dispatchAdExperimentGroup", {
+      ...dispatchContextLogFields(context),
+      ...dispatchAssignmentGroupLogFields(assignments)
+    });
+
     const dispatchJobId = await this.createDispatchJob(context, assignments);
     const attempts = await this.dispatchGroup(context.channel, assignments);
     const summary = AdExecutionDomain.toDispatchJobSummary(
@@ -149,6 +188,19 @@ export class PromotionDispatchService {
     summary: DispatchJobSummary,
     attempts: readonly DispatchAttemptSnapshot[]
   ) {
+    logDispatchStep("finishDispatchJob", {
+      dispatchJobId,
+      promotionRunId: summary.promotion_run_id,
+      adExperimentId: summary.ad_experiment_id,
+      segmentId: summary.segment_id,
+      channel: summary.channel,
+      status: summary.status,
+      targetCount: summary.target_count,
+      dispatchedCount: summary.dispatched_count,
+      failedCount: summary.failed_count,
+      attemptCount: attempts.length
+    });
+
     await this.writer.finishDispatchJob({
       dispatchJobId,
       status: toStoredDispatchJobStatus(summary.status),
@@ -166,6 +218,11 @@ export class PromotionDispatchService {
     context: DispatchContext,
     assignments: readonly ActiveAdServingAssignmentEntity[]
   ) {
+    logDispatchStep("createDispatchJob", {
+      ...dispatchContextLogFields(context),
+      ...dispatchAssignmentGroupLogFields(assignments)
+    });
+
     const first = requireFirstAssignment(assignments);
 
     return this.writer.insertDispatchJob({
@@ -190,6 +247,11 @@ export class PromotionDispatchService {
     channel: DispatchChannel,
     assignments: readonly ActiveAdServingAssignmentEntity[]
   ): Promise<DispatchAttemptSnapshot[]> {
+    logDispatchStep("dispatchGroup", {
+      channel,
+      ...dispatchAssignmentGroupLogFields(assignments)
+    });
+
     const attempts: DispatchAttemptSnapshot[] = [];
 
     for (const assignment of assignments) {
@@ -207,6 +269,11 @@ export class PromotionDispatchService {
     const provider = this.providerNameFor(channel, assignment.promotionRunId);
     let redirectId: string | undefined;
 
+    logDispatchStep("dispatchAssignment", {
+      channel,
+      provider,
+      ...dispatchLogContext(assignment)
+    });
     logDispatchAttempt(channel, provider, assignment);
 
     try {
@@ -242,6 +309,11 @@ export class PromotionDispatchService {
     channel: DispatchChannel,
     assignment: ActiveAdServingAssignmentEntity
   ): Promise<string | null> {
+    logDispatchStep("resolveRecipientContact", {
+      channel,
+      ...dispatchLogContext(assignment)
+    });
+
     const recipient = await this.recipientDirectory.findRecipient(assignment.userId);
 
     if (!recipient) {
@@ -264,6 +336,13 @@ export class PromotionDispatchService {
     targetUrl: string,
     contact: string
   ): Promise<DispatchSendResult> {
+    logDispatchStep("sendToResolvedContact", {
+      channel,
+      hasContact: true,
+      hasRedirectUrl: Boolean(targetUrl),
+      ...dispatchLogContext(assignment)
+    });
+
     switch (channel) {
       case "email":
         return this.emailSender.sendEmail(toEmailSendInput(assignment, targetUrl, contact));
@@ -276,6 +355,8 @@ export class PromotionDispatchService {
 
   @Transactional()
   private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
+    logDispatchStep("createRedirectLink", dispatchLogContext(assignment));
+
     const redirectId = randomUUID();
 
     return this.writer.insertRedirectLink({
@@ -300,6 +381,11 @@ export class PromotionDispatchService {
     context: DispatchContext,
     assignments: readonly ActiveAdServingAssignmentEntity[]
   ) {
+    logDispatchStep("assertDispatchAssignments", {
+      ...dispatchContextLogFields(context),
+      assignmentCount: assignments.length
+    });
+
     if (assignments.length === 0) {
       throw adExecutionErrors.activeAssignmentNotFound(context.promotionRun.promotionRunId);
     }
@@ -421,6 +507,39 @@ function daysFromNow(days: number) {
   return date;
 }
 
+type DispatchLogFields = Record<string, boolean | number | string | null | undefined>;
+
+function logDispatchStep(step: string, fields: DispatchLogFields = {}) {
+  logWithContext("info", "Ad dispatch step entered", {
+    step,
+    ...fields
+  });
+}
+
+function dispatchContextLogFields(context: DispatchContext): DispatchLogFields {
+  return {
+    projectId: context.promotionRun.projectId,
+    campaignId: context.promotionRun.campaignId,
+    promotionId: context.promotionRun.promotionId,
+    promotionRunId: context.promotionRun.promotionRunId,
+    channel: context.channel
+  };
+}
+
+function dispatchAssignmentGroupLogFields(
+  assignments: readonly ActiveAdServingAssignmentEntity[]
+): DispatchLogFields {
+  const first = assignments[0];
+
+  return {
+    assignmentCount: assignments.length,
+    adExperimentId: first?.adExperimentId,
+    segmentId: first?.segmentId,
+    contentId: first?.contentId,
+    contentOptionId: first?.contentOptionId
+  };
+}
+
 function logDispatchAttempt(
   channel: DispatchChannel,
   provider: string,
@@ -500,6 +619,25 @@ function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentE
   }
 
   return first;
+}
+
+function assignmentsForDemoRecipients(
+  assignments: readonly ActiveAdServingAssignmentEntity[],
+  recipientUserIds: readonly string[]
+): ActiveAdServingAssignmentEntity[] {
+  const fallbackAssignment = requireFirstAssignment(assignments);
+  const assignmentsByUserId = new Map<string, ActiveAdServingAssignmentEntity>();
+
+  for (const assignment of assignments) {
+    if (!assignmentsByUserId.has(assignment.userId)) {
+      assignmentsByUserId.set(assignment.userId, assignment);
+    }
+  }
+
+  return recipientUserIds.map((userId) => ({
+    ...(assignmentsByUserId.get(userId) ?? fallbackAssignment),
+    userId
+  }));
 }
 
 function throwUnsupportedDispatchChannel(promotionRunId: string, channel: never): never {

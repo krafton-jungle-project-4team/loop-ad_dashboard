@@ -110,15 +110,18 @@ Dashboard FE
 
 `POST /api/ad/promotion-runs/:promotion_run_id/dispatch`
 
-- 목적: 저장된 active assignment를 기준으로 Email/SMS promotion을 외부 provider로 발송한다.
+- 목적: 저장된 active assignment 콘텐츠를 기준으로 Email/SMS promotion을 demo recipient에게 외부 provider로 발송한다.
 - Provider: Email/SMS dispatch는 항상 AWS provider를 사용한다.
 - AWS Email: SES v2 `SendEmail`을 사용한다. Region은 `ap-northeast-2`, From address는
   `noreply@loop-ad.org`로 코드에서 고정한다.
 - AWS SMS: AWS End User Messaging SMS Voice v2 `SendTextMessage`를 사용한다. Region은
   `ap-northeast-2`로 코드에서 고정한다.
 - Recipient 해석: sender에는 `user_id`를 넘기지 않는다. 현재 `RecipientDirectory`는 필수 env
-  `LOOPAD_DEMO_DISPATCH_RECIPIENTS` JSON 배열을 `Map<userId, recipient>`으로 올려 demo용 가상 DB처럼 사용한다.
-- Map에 없는 `user_id`는 raw contact 없이 로그만 남기고 성공 no-op으로 처리한다.
+  `LOOPAD_DEMO_DISPATCH_RECIPIENTS` JSON 배열을 demo용 가상 DB처럼 사용한다.
+- Dispatch 대상: API 요청 1회마다 `LOOPAD_DEMO_DISPATCH_RECIPIENTS`에 설정된 user_id 각각에 1회씩만 발송한다.
+  active assignment가 같은 user_id에 여러 개 있으면 첫 번째 assignment를 사용하고, env user_id에 직접 매칭되는
+  assignment가 없으면 promotion run의 첫 active assignment를 demo 발송 템플릿으로 사용한다.
+- 관측성: dispatch 함수 진입마다 `Ad dispatch step entered` 로그를 남겨 복잡한 발송 흐름을 단계별로 추적한다.
 - TODO: recipient table이 분석 DB에 확정되면 같은 Postgres repository/PgTyped 조회로 교체한다.
 - 실패 코드: 응답의 `jobs[].attempts[].error_code`와 dispatch job result attempts에
   `RECIPIENT_CONTACT_INVALID`, `PROVIDER_SEND_FAILED`, `CONTENT_INVALID`를 저장한다.
