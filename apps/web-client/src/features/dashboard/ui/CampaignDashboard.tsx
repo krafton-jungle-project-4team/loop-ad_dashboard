@@ -974,12 +974,33 @@ function CampaignTabContent({
             selectedPromotion={selectedPromotion}
             selectedSegment={selectedSegment}
           />
-          <EvaluationOutcomePanel
-            metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
-          />
-          <ExperimentMetricTable
-            metrics={promotionDetail?.experiment_metrics ?? detail.experiment_metrics}
-          />
+          {selectedSegment ? (
+            <SegmentDetailPanel
+              approveError={approveContentCandidateMutation.error}
+              approveIsError={approveContentCandidateMutation.isError}
+              approveIsPending={approveContentCandidateMutation.isPending}
+              detail={segmentDetail}
+              error={segmentError}
+              isError={segmentIsError}
+              isLoading={segmentIsLoading}
+              onApproveContentCandidate={(promotionId, segmentId, contentId) =>
+                approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+              }
+              onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+                rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+              }
+              rejectError={rejectContentCandidateMutation.error}
+              rejectIsError={rejectContentCandidateMutation.isError}
+              rejectIsPending={rejectContentCandidateMutation.isPending}
+              selectedSegmentId={selectedSegmentId}
+            />
+          ) : (
+            <SegmentExperimentRequiredPanel
+              onSelectSegment={onSelectSegment}
+              segments={selectedPromotionId ? (promotionDetail?.segments ?? []) : detail.segments}
+              selectedPromotion={selectedPromotion}
+            />
+          )}
         </>
       );
     case "campaign-promotion-metrics":
@@ -2097,6 +2118,37 @@ function PromotionSegmentCards({
       ) : (
         <EmptyState message="프로모션에 연결된 세그먼트가 없습니다." />
       )}
+    </section>
+  );
+}
+
+function SegmentExperimentRequiredPanel({
+  onSelectSegment,
+  segments,
+  selectedPromotion
+}: {
+  onSelectSegment: (promotionId: string, segmentId: string) => void;
+  segments: DashboardCampaignSegment[];
+  selectedPromotion: DashboardCampaignPromotion | undefined;
+}) {
+  return (
+    <section className="grid gap-4">
+      <Alert>
+        <AlertTitle>실험은 세그먼트를 선택한 뒤 확인합니다</AlertTitle>
+        <AlertDescription>
+          광고 실험은 프로모션 전체가 아니라 세그먼트별 실행 단위입니다. 확인할 세그먼트를
+          선택하면 해당 세그먼트의 광고 실험과 평가 지표만 표시합니다.
+        </AlertDescription>
+      </Alert>
+      <div className="grid gap-3 md:grid-cols-3">
+        <SummaryItem
+          label="프로모션"
+          value={selectedPromotion?.marketing_theme ?? "전체 프로모션"}
+        />
+        <SummaryItem label="선택 가능 세그먼트" value={formatInteger(segments.length)} />
+        <SummaryItem label="실험 단위" value="segment_id" />
+      </div>
+      <SegmentTable onSelectSegment={onSelectSegment} segments={segments} />
     </section>
   );
 }
