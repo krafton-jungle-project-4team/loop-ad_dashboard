@@ -472,6 +472,7 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   assert.equal(page.eventSdk.writeKey, "public_write_key");
   assert.match(html, /LoopAdEventSDK\.init/);
   assert.match(html, /campaign_redirect_click/);
+  assert.match(html, /properties:\s*redirect\.event\.fields/);
   assert.match(html, /window\.location\.replace/);
 });
 
