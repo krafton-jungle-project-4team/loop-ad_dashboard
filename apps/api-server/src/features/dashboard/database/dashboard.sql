@@ -1315,6 +1315,38 @@ WHERE adj.project_id = :projectId
 GROUP BY ae.segment_id
 ORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC;
 
+/* 목적: 캠페인에서 생성된 광고 후보를 조회합니다. */
+/* @name ListDashboardCampaignContentCandidates */
+SELECT
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  generation_id AS "generationId",
+  analysis_id AS "analysisId",
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  channel,
+  subject,
+  preheader,
+  title,
+  body,
+  cta,
+  message,
+  image_prompt AS "imagePrompt",
+  image_url AS "imageUrl",
+  landing_url AS "landingUrl",
+  generation_prompt AS "generationPrompt",
+  reason_summary AS "reasonSummary",
+  data_evidence_json AS "dataEvidenceJson",
+  message_strategy AS "messageStrategy",
+  metadata_json AS "metadataJson",
+  status,
+  updated_at AS "updatedAt"
+FROM content_candidates
+WHERE project_id = :projectId
+  AND campaign_id = :campaignId
+
+ORDER BY updated_at DESC, created_at DESC;
+
 /* 목적: 특정 세그먼트의 생성 콘텐츠 후보를 조회합니다. */
 /* @name ListDashboardSegmentContentCandidates */
 SELECT
@@ -1367,6 +1399,46 @@ GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created
 ORDER BY gr.updated_at DESC, gr.created_at DESC
 LIMIT 1;
 
+/* 목적: 캠페인에서 생성된 광고 실험 상태를 조회합니다. */
+/* @name ListDashboardCampaignAdExperiments */
+SELECT
+  ae.ad_experiment_id AS "adExperimentId",
+  ae.promotion_run_id AS "promotionRunId",
+  ae.promotion_id AS "promotionId",
+  ae.segment_id AS "segmentId",
+  ae.content_id AS "contentId",
+  ae.content_option_id AS "contentOptionId",
+  ae.channel,
+  ae.loop_count AS "loopCount",
+  ae.goal_metric AS "goalMetric",
+  CAST(ae.goal_target_value AS float8) AS "goalTargetValue",
+  ae.goal_basis AS "goalBasis",
+  ae.status,
+  COUNT(usa.user_id)::int AS "assignmentCount"
+FROM ad_experiments ae
+LEFT JOIN user_segment_assignments usa
+  ON usa.project_id = ae.project_id
+ AND usa.promotion_run_id = ae.promotion_run_id
+ AND usa.ad_experiment_id = ae.ad_experiment_id
+WHERE ae.project_id = :projectId
+  AND ae.campaign_id = :campaignId
+GROUP BY
+  ae.ad_experiment_id,
+  ae.promotion_run_id,
+  ae.promotion_id,
+  ae.segment_id,
+  ae.content_id,
+  ae.content_option_id,
+  ae.channel,
+  ae.loop_count,
+  ae.goal_metric,
+  ae.goal_target_value,
+  ae.goal_basis,
+  ae.status,
+  ae.updated_at,
+  ae.created_at
+ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC;
+
 /* 목적: 특정 세그먼트에서 생성된 광고 실험 상태를 조회합니다. */
 /* @name ListDashboardSegmentAdExperiments */
 SELECT
@@ -1382,11 +1454,30 @@ SELECT
   CAST(ae.goal_target_value AS float8) AS "goalTargetValue",
   ae.goal_basis AS "goalBasis",
   ae.status,
-  0::int AS "assignmentCount"
+  COUNT(usa.user_id)::int AS "assignmentCount"
 FROM ad_experiments ae
+LEFT JOIN user_segment_assignments usa
+  ON usa.project_id = ae.project_id
+ AND usa.promotion_run_id = ae.promotion_run_id
+ AND usa.ad_experiment_id = ae.ad_experiment_id
 WHERE ae.project_id = :projectId
   AND ae.promotion_id = :promotionId
   AND ae.segment_id = :segmentId
+GROUP BY
+  ae.ad_experiment_id,
+  ae.promotion_run_id,
+  ae.promotion_id,
+  ae.segment_id,
+  ae.content_id,
+  ae.content_option_id,
+  ae.channel,
+  ae.loop_count,
+  ae.goal_metric,
+  ae.goal_target_value,
+  ae.goal_basis,
+  ae.status,
+  ae.updated_at,
+  ae.created_at
 
 ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC;
 

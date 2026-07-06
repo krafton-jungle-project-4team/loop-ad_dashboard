@@ -68,6 +68,8 @@ import {
   listDashboardPromotionSegmentSuggestions,
   listDashboardPromotionScopedSegmentDefinitions,
   listDashboardProjects,
+  listDashboardCampaignAdExperiments,
+  listDashboardCampaignContentCandidates,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -100,6 +102,8 @@ import {
   type IListDashboardPromotionSegmentSuggestionsResult,
   type IListDashboardProjectsResult,
   type IRejectDashboardContentCandidateResult,
+  type IListDashboardCampaignAdExperimentsResult,
+  type IListDashboardCampaignContentCandidatesResult,
   type IListDashboardCampaignExperimentMetricsResult,
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
@@ -659,19 +663,22 @@ export class DashboardCampaignReader {
     projectId: string,
     campaignId: string
   ): Promise<Omit<DashboardCampaignDetail, "realtime_metrics">> {
-    const [campaign, promotions, segments, experimentMetrics] = await Promise.all([
-      this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single(),
-      this.db.query(listDashboardCampaignPromotions, { campaignId, projectId }).multiple(),
-      this.db.query(listDashboardCampaignSegments, { campaignId, projectId }).multiple(),
-      this.db.query(listDashboardCampaignExperimentMetrics, { campaignId, projectId }).multiple()
-    ]);
+    const [campaign, promotions, segments, adExperiments, contentCandidates, experimentMetrics] =
+      await Promise.all([
+        this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single(),
+        this.db.query(listDashboardCampaignPromotions, { campaignId, projectId }).multiple(),
+        this.db.query(listDashboardCampaignSegments, { campaignId, projectId }).multiple(),
+        this.db.query(listDashboardCampaignAdExperiments, { campaignId, projectId }).multiple(),
+        this.db.query(listDashboardCampaignContentCandidates, { campaignId, projectId }).multiple(),
+        this.db.query(listDashboardCampaignExperimentMetrics, { campaignId, projectId }).multiple()
+      ]);
 
     return {
       campaign: toCampaignSummary(campaign),
       promotions: promotions.map(toCampaignPromotion),
       segments: segments.map(toCampaignSegment),
-      ad_experiments: [],
-      content_candidates: [],
+      ad_experiments: adExperiments.map(toCampaignAdExperiment),
+      content_candidates: contentCandidates.map(toCampaignContentCandidate),
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
   }
@@ -684,9 +691,7 @@ export class DashboardCampaignReader {
       this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single(),
       this.db.query(listDashboardPromotionAnalyses, { projectId, promotionId }).multiple(),
       this.db.query(listDashboardPromotionSegments, { projectId, promotionId }).multiple(),
-      this.db
-        .query(listDashboardPromotionExperimentMetrics, { projectId, promotionId })
-        .multiple()
+      this.db.query(listDashboardPromotionExperimentMetrics, { projectId, promotionId }).multiple()
     ]);
 
     return {
@@ -727,7 +732,9 @@ export class DashboardCampaignReader {
     projectId: string,
     campaignId: string
   ): Promise<DashboardCampaignSummary> {
-    const row = await this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single();
+    const row = await this.db
+      .query(getDashboardCampaignSummary, { campaignId, projectId })
+      .single();
     return toCampaignSummary(row);
   }
 
@@ -735,7 +742,9 @@ export class DashboardCampaignReader {
     projectId: string,
     promotionId: string
   ): Promise<DashboardPromotionSummary> {
-    const row = await this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single();
+    const row = await this.db
+      .query(getDashboardPromotionSummary, { projectId, promotionId })
+      .single();
     return toPromotionSummary(row);
   }
 
@@ -749,7 +758,6 @@ export class DashboardCampaignReader {
       .single();
     return toCampaignSegment(row);
   }
-
 }
 
 function toProject(
@@ -953,12 +961,23 @@ function toCampaignExperimentMetric(
   };
 }
 
-function toSegmentAdExperiment(row: IListDashboardSegmentAdExperimentsResult): DashboardAdExperiment {
+function toCampaignAdExperiment(
+  row: IListDashboardCampaignAdExperimentsResult
+): DashboardAdExperiment {
+  return toAdExperiment(row);
+}
+
+function toSegmentAdExperiment(
+  row: IListDashboardSegmentAdExperimentsResult
+): DashboardAdExperiment {
   return toAdExperiment(row);
 }
 
 function toAdExperiment(
-  row: IListDashboardSegmentAdExperimentsResult | IStartDashboardAdExperimentResult
+  row:
+    | IListDashboardCampaignAdExperimentsResult
+    | IListDashboardSegmentAdExperimentsResult
+    | IStartDashboardAdExperimentResult
 ): DashboardAdExperiment {
   return {
     ad_experiment_id: row.adExperimentId,
@@ -977,7 +996,15 @@ function toAdExperiment(
   };
 }
 
-function toContentCandidate(row: IListDashboardSegmentContentCandidatesResult): DashboardContentCandidate {
+function toCampaignContentCandidate(
+  row: IListDashboardCampaignContentCandidatesResult
+): DashboardContentCandidate {
+  return toContentCandidate(row);
+}
+
+function toContentCandidate(
+  row: IListDashboardCampaignContentCandidatesResult | IListDashboardSegmentContentCandidatesResult
+): DashboardContentCandidate {
   return {
     content_id: row.contentId,
     content_option_id: row.contentOptionId,
@@ -1005,7 +1032,6 @@ function toContentCandidate(row: IListDashboardSegmentContentCandidatesResult): 
   };
 }
 
-
 function toRejectContentCandidateResult(
   row: IRejectDashboardContentCandidateResult
 ): DashboardRejectContentCandidateResult {
@@ -1018,7 +1044,9 @@ function toRejectContentCandidateResult(
   };
 }
 
-function toPromotionAnalysis(row: IListDashboardPromotionAnalysesResult): DashboardPromotionAnalysis {
+function toPromotionAnalysis(
+  row: IListDashboardPromotionAnalysesResult
+): DashboardPromotionAnalysis {
   return {
     analysis_id: row.analysisId,
     created_at: row.createdAt.toISOString(),

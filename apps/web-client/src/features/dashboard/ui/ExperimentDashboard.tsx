@@ -8,13 +8,7 @@ import type {
   DashboardMain
 } from "@loopad/shared";
 import { Badge } from "@loopad/ui/shadcn/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@loopad/ui/shadcn/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import {
   Select,
@@ -41,6 +35,7 @@ import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
 type BadgeVariant = ComponentProps<typeof Badge>["variant"];
+const FALLBACK_SEGMENT_ID = "seg_existing_all";
 
 type ExperimentRow = {
   actualValue: number | null;
@@ -325,9 +320,7 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
               </TableCell>
               <TableCell>{formatDateTime(row.createdAt)}</TableCell>
               <TableCell>
-                <div className="line-clamp-2 min-w-[220px] text-sm">
-                  {row.feedback ?? "-"}
-                </div>
+                <div className="line-clamp-2 min-w-[220px] text-sm">{row.feedback ?? "-"}</div>
               </TableCell>
             </TableRow>
           ))}
@@ -353,10 +346,16 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
     detail.promotions.map((promotion) => [promotion.promotion_id, promotion])
   );
   const segmentsByKey = new Map(
-    detail.segments.map((segment) => [segmentKey(segment.promotion_id, segment.segment_id), segment])
+    detail.segments.map((segment) => [
+      segmentKey(segment.promotion_id, segment.segment_id),
+      segment
+    ])
+  );
+  const visibleExperiments = detail.ad_experiments.filter(
+    (experiment) => experiment.segment_id !== FALLBACK_SEGMENT_ID
   );
   const experimentsById = new Map(
-    detail.ad_experiments.map((experiment) => [experiment.ad_experiment_id, experiment])
+    visibleExperiments.map((experiment) => [experiment.ad_experiment_id, experiment])
   );
   const contentCandidatesById = new Map(
     detail.content_candidates.map((candidate) => [candidate.content_id, candidate])
@@ -364,17 +363,14 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
   const groups = new Map<string, DashboardCampaignExperimentMetric[]>();
 
   for (const metric of detail.experiment_metrics) {
-    if (!metric.ad_experiment_id) {
+    if (!metric.ad_experiment_id || metric.segment_id === FALLBACK_SEGMENT_ID) {
       continue;
     }
 
-    groups.set(metric.ad_experiment_id, [
-      ...(groups.get(metric.ad_experiment_id) ?? []),
-      metric
-    ]);
+    groups.set(metric.ad_experiment_id, [...(groups.get(metric.ad_experiment_id) ?? []), metric]);
   }
 
-  for (const experiment of detail.ad_experiments) {
+  for (const experiment of visibleExperiments) {
     if (!groups.has(experiment.ad_experiment_id)) {
       groups.set(experiment.ad_experiment_id, []);
     }
@@ -386,17 +382,18 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
       const latestMetric = sortedMetrics[0] ?? null;
       const experiment = experimentsById.get(experimentId) ?? null;
       const contentCandidate = experiment
-        ? contentCandidatesById.get(experiment.content_id) ?? null
+        ? (contentCandidatesById.get(experiment.content_id) ?? null)
         : latestMetric?.content_id
-          ? contentCandidatesById.get(latestMetric.content_id) ?? null
+          ? (contentCandidatesById.get(latestMetric.content_id) ?? null)
           : null;
       const segment =
         findSegmentForExperiment(detail.segments, experimentId, latestMetric) ??
         (experiment
-          ? segmentsByKey.get(segmentKey(experiment.promotion_id, experiment.segment_id)) ?? null
+          ? (segmentsByKey.get(segmentKey(experiment.promotion_id, experiment.segment_id)) ?? null)
           : null) ??
         (latestMetric?.segment_id
-          ? segmentsByKey.get(segmentKey(latestMetric.promotion_id, latestMetric.segment_id)) ?? null
+          ? (segmentsByKey.get(segmentKey(latestMetric.promotion_id, latestMetric.segment_id)) ??
+            null)
           : null);
       const promotionId =
         latestMetric?.promotion_id ?? experiment?.promotion_id ?? segment?.promotion_id ?? "";
@@ -456,8 +453,7 @@ function findSegmentForExperiment(
     return (
       segments.find(
         (segment) =>
-          segment.promotion_id === metric.promotion_id &&
-          segment.segment_id === metric.segment_id
+          segment.promotion_id === metric.promotion_id && segment.segment_id === metric.segment_id
       ) ?? null
     );
   }
