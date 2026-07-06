@@ -1,4 +1,5 @@
 import type {
+  DashboardAdExperiment,
   DashboardCampaignDetail,
   DashboardCampaignExperimentMetric,
   DashboardCampaignPromotion,
@@ -72,6 +73,7 @@ const campaignPrimaryMetricOptions = [
 ] as const;
 
 const campaignStatusOptions = ["draft", "active", "paused", "completed", "stopped"] as const;
+const FALLBACK_SEGMENT_ID = "seg_existing_all";
 
 type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
 type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
@@ -969,7 +971,10 @@ function CampaignTabContent({
       return (
         <>
           <CampaignRealtimeTrend detail={detail} />
-          <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
+          <EvaluationOutcomePanel
+            adExperiments={detail.ad_experiments}
+            metrics={detail.experiment_metrics}
+          />
         </>
       );
     case "campaigns":
@@ -992,7 +997,10 @@ function CampaignTabContent({
             segments={detail.segments}
             selectedPromotionId={selectedPromotionId}
           />
-          <EvaluationOutcomePanel metrics={detail.experiment_metrics} />
+          <EvaluationOutcomePanel
+            adExperiments={detail.ad_experiments}
+            metrics={detail.experiment_metrics}
+          />
           <CampaignNextAction detail={detail} query={query} />
         </>
       );
@@ -1451,11 +1459,15 @@ function CampaignNextAction({
 }) {
   const queryClient = useQueryClient();
   const [requestedAnalysisId, setRequestedAnalysisId] = useState("");
-  const nextLoopMetrics = detail.experiment_metrics.filter((metric) => metric.next_loop_required);
-  const goalNotMetMetrics = detail.experiment_metrics.filter(
+  const evaluationMetrics = displayableEvaluationMetrics(
+    detail.experiment_metrics,
+    detail.ad_experiments
+  );
+  const nextLoopMetrics = evaluationMetrics.filter((metric) => metric.next_loop_required);
+  const goalNotMetMetrics = evaluationMetrics.filter(
     (metric) => metric.status === "goal_not_met"
   );
-  const insufficientMetrics = detail.experiment_metrics.filter(
+  const insufficientMetrics = evaluationMetrics.filter(
     (metric) => metric.status === "insufficient_data"
   );
   const nextLoopSegmentIds = uniqueValues(nextLoopMetrics.map((metric) => metric.segment_id));
@@ -3565,22 +3577,53 @@ function statusBadgeVariant(status: string) {
     : "secondary";
 }
 
+function displayableEvaluationMetrics(
+  metrics: DashboardCampaignExperimentMetric[],
+  adExperiments: DashboardAdExperiment[] = []
+) {
+  const experimentsById = new Map(
+    adExperiments.map((experiment) => [experiment.ad_experiment_id, experiment])
+  );
+
+  return metrics.filter((metric) => {
+    if (!metric.ad_experiment_id) {
+      return false;
+    }
+
+    if (metric.segment_id !== FALLBACK_SEGMENT_ID) {
+      return true;
+    }
+
+    const assignmentCount = experimentsById.get(metric.ad_experiment_id)?.assignment_count ?? 0;
+    return assignmentCount > 0 || hasEvaluationSignal(metric);
+  });
+}
+
+function hasEvaluationSignal(metric: DashboardCampaignExperimentMetric) {
+  return metric.sample_size > 0 || metric.denominator_count > 0 || metric.numerator_count > 0;
+}
+
 function EvaluationOutcomePanel({
+  adExperiments = [],
   metrics
 }: {
+  adExperiments?: DashboardAdExperiment[];
   metrics: DashboardCampaignExperimentMetric[];
 }) {
-  const goalMetCount = metrics.filter((metric) => metric.status === "goal_met").length;
-  const goalNotMetMetrics = metrics.filter((metric) => metric.status === "goal_not_met");
-  const insufficientMetrics = metrics.filter((metric) => metric.status === "insufficient_data");
-  const nextLoopMetrics = metrics.filter((metric) => metric.next_loop_required);
+  const evaluationMetrics = displayableEvaluationMetrics(metrics, adExperiments);
+  const goalMetCount = evaluationMetrics.filter((metric) => metric.status === "goal_met").length;
+  const goalNotMetMetrics = evaluationMetrics.filter((metric) => metric.status === "goal_not_met");
+  const insufficientMetrics = evaluationMetrics.filter(
+    (metric) => metric.status === "insufficient_data"
+  );
+  const nextLoopMetrics = evaluationMetrics.filter((metric) => metric.next_loop_required);
   const failedSegmentIds = uniqueValues(goalNotMetMetrics.map((metric) => metric.segment_id));
   const failedExperimentIds = uniqueValues(
     goalNotMetMetrics.map((metric) => metric.ad_experiment_id)
   );
   const nextLoopSegmentIds = uniqueValues(nextLoopMetrics.map((metric) => metric.segment_id));
 
-  if (metrics.length === 0) {
+  if (evaluationMetrics.length === 0) {
     return <EmptyState message="종료 후 결과를 표시할 실험 평가가 없습니다." />;
   }
 
@@ -3593,7 +3636,7 @@ function EvaluationOutcomePanel({
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="평가 완료" value={formatInteger(metrics.length)} />
+        <SummaryItem label="평가 완료" value={formatInteger(evaluationMetrics.length)} />
         <SummaryItem label="목표 달성" value={formatInteger(goalMetCount)} />
         <SummaryItem label="목표 미달" value={formatInteger(goalNotMetMetrics.length)} />
         <SummaryItem label="표본 부족" value={formatInteger(insufficientMetrics.length)} />
@@ -3638,11 +3681,12 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
   const [segmentFilter, setSegmentFilter] = useState("all");
   const [metricFilter, setMetricFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const promotionIds = uniqueValues(metrics.map((metric) => metric.promotion_id));
-  const segmentIds = uniqueValues(metrics.map((metric) => metric.segment_id).filter(Boolean));
-  const metricNames = uniqueValues(metrics.map((metric) => metric.metric));
-  const statusNames = uniqueValues(metrics.map((metric) => metric.status));
-  const filteredMetrics = metrics.filter(
+  const displayMetrics = displayableEvaluationMetrics(metrics);
+  const promotionIds = uniqueValues(displayMetrics.map((metric) => metric.promotion_id));
+  const segmentIds = uniqueValues(displayMetrics.map((metric) => metric.segment_id).filter(Boolean));
+  const metricNames = uniqueValues(displayMetrics.map((metric) => metric.metric));
+  const statusNames = uniqueValues(displayMetrics.map((metric) => metric.status));
+  const filteredMetrics = displayMetrics.filter(
     (metric) =>
       (promotionFilter === "all" || metric.promotion_id === promotionFilter) &&
       (segmentFilter === "all" || metric.segment_id === segmentFilter) &&
