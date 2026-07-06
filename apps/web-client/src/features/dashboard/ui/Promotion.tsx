@@ -260,6 +260,22 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       void setDashboardQueryState({ selectedSegmentId: "" });
     }
   }, [query.selectedSegmentId, selectedPromotionSegmentId, setDashboardQueryState]);
+  useEffect(() => {
+    if (
+      selectedOpenPromotion?.promotion_id &&
+      !query.selectedSegmentId &&
+      selectedPromotionSegments.length > 0
+    ) {
+      void setDashboardQueryState({
+        selectedSegmentId: latestSegmentPerSegmentId(selectedPromotionSegments)[0]?.segment_id ?? ""
+      });
+    }
+  }, [
+    query.selectedSegmentId,
+    selectedOpenPromotion?.promotion_id,
+    selectedPromotionSegments,
+    setDashboardQueryState
+  ]);
   const segmentDetail = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id && selectedPromotionSegmentId),
     queryFn: ({ signal }) =>
@@ -1425,6 +1441,8 @@ function PromotionCurrentSegmentsPanel({
   segments: DashboardCampaignSegment[];
   selectedSegmentId: string;
 }) {
+  const visibleSegments = latestSegmentPerSegmentId(segments);
+
   return (
     <Card className="shadow-none">
       <CardHeader>
@@ -1438,15 +1456,21 @@ function PromotionCurrentSegmentsPanel({
             <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
           </Alert>
         ) : null}
-        {segments.length > 0 ? (
-          segments.map((segment) => {
+        {visibleSegments.length > 0 ? (
+          visibleSegments.map((segment) => {
             const isSelected = segment.segment_id === selectedSegmentId;
+            const loopCount = segmentLoopCount(segment);
+            const hiddenLoopCount = segments.filter(
+              (candidate) =>
+                candidate.segment_id === segment.segment_id &&
+                candidate.analysis_id !== segment.analysis_id
+            ).length;
             return (
               <div
                 className={`rounded-md border p-3 text-left transition ${
                   isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
                 }`}
-                key={segment.segment_id}
+                key={`${segment.segment_id}:${segment.analysis_id}`}
                 onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -1459,10 +1483,17 @@ function PromotionCurrentSegmentsPanel({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="truncate font-medium">{segment.segment_name}</div>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="truncate font-medium">{segment.segment_name}</span>
+                      <Badge variant="secondary">Loop {formatInteger(loopCount)}</Badge>
+                      {loopCount > 1 ? <Badge variant="default">다음 루프</Badge> : null}
+                    </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {formatInteger(segment.estimated_size)}명 · 표본{" "}
                       {formatInteger(segment.sample_size)} · {segment.goal_metric}
+                      {hiddenLoopCount > 0
+                        ? ` · 이전 루프 ${formatInteger(hiddenLoopCount)}개 숨김`
+                        : ""}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -3192,6 +3223,37 @@ function InsightBlock({ label, value }: { label: string; value: string }) {
       <div className="whitespace-pre-wrap text-sm leading-6">{value || "-"}</div>
     </div>
   );
+}
+
+function latestSegmentPerSegmentId(segments: DashboardCampaignSegment[]) {
+  const latestSegments = new Map<string, DashboardCampaignSegment>();
+  for (const segment of segments) {
+    const current = latestSegments.get(segment.segment_id);
+    if (!current || compareSegmentLoopRecency(segment, current) < 0) {
+      latestSegments.set(segment.segment_id, segment);
+    }
+  }
+  return Array.from(latestSegments.values()).sort(compareSegmentLoopRecency);
+}
+
+function compareSegmentLoopRecency(
+  segmentA: DashboardCampaignSegment,
+  segmentB: DashboardCampaignSegment
+) {
+  const loopDelta = segmentLoopCount(segmentB) - segmentLoopCount(segmentA);
+  if (loopDelta !== 0) {
+    return loopDelta;
+  }
+  return segmentB.analysis_id.localeCompare(segmentA.analysis_id);
+}
+
+function segmentLoopCount(segment: DashboardCampaignSegment) {
+  const loopMatch = /(?:^|_)loop_(\d+)(?:$|_)/.exec(segment.analysis_id);
+  if (!loopMatch) {
+    return 1;
+  }
+  const loopCount = Number(loopMatch[1]);
+  return Number.isFinite(loopCount) && loopCount > 0 ? loopCount : 1;
 }
 
 function formatGoalValue(value: number) {
