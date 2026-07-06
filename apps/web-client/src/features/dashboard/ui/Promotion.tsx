@@ -1652,6 +1652,7 @@ function PromotionSegmentDetailTab({
     (candidate) => candidate.status === "approved"
   );
   const hasGeneratedContentCandidates = detail.content_candidates.length > 0;
+  const generationFailed = generation?.status.toLowerCase() === "failed";
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
   const failedSegmentIds = uniqueStrings(
     evaluatePromotionRunResult?.failed_segment_ids ??
@@ -1790,8 +1791,10 @@ function PromotionSegmentDetailTab({
             </Alert>
           ) : null}
           {generation ? (
-            <Alert>
-              <AlertTitle>광고 생성 요청이 접수되었습니다</AlertTitle>
+            <Alert variant={generationFailed ? "destructive" : "default"}>
+              <AlertTitle>
+                {generationFailed ? "광고 생성이 실패했습니다" : "광고 생성 요청이 접수되었습니다"}
+              </AlertTitle>
               <AlertDescription>
                 {generation.generation_id} · {generation.status}
                 {generation.content_candidate_count === undefined

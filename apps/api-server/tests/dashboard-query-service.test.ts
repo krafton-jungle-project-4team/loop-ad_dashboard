@@ -360,6 +360,100 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
   ]);
 });
 
+test("dashboard promotion generation retries when existing result is failed", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async (projectId, promotionId) => {
+        calls.push({ kind: "read-promotion", projectId, promotionId });
+        return {
+          ad_experiment_count: 0,
+          campaign_id: "camp_summer_2026",
+          channel: "onsite_banner",
+          current_loop_count: 0,
+          goal_basis: "promotion_average",
+          goal_metric: "booking_conversion_rate",
+          goal_target_value: 0.03,
+          landing_type: null,
+          landing_url: "https://demo-stay.example.com/summer",
+          latest_actual_value: null,
+          marketing_theme: "여름 숙박 리마인드",
+          max_loop_count: 3,
+          message_brief: null,
+          min_sample_size: 1000,
+          next_action: "create_content",
+          offer_type: null,
+          promotion_id: promotionId,
+          status: "content_ready",
+          target_audience: "existing_users",
+          target_segment_count: 2,
+          updated_at: "2026-07-04T00:00:00.000Z"
+        };
+      },
+      getPromotionGenerationResult: async (projectId, promotionId, analysisId) => {
+        calls.push({ analysisId, kind: "read-generation", projectId, promotionId });
+        return {
+          content_candidate_count: 0,
+          generation_id: "generation_failed",
+          promotion_id: promotionId,
+          status: "failed"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      startPromotionGeneration: async (request) => {
+        calls.push({ kind: "decision", request });
+        return {
+          content_candidate_count: 3,
+          generation_id: "generation_retry",
+          promotion_id: request.promotionId,
+          status: "queued"
+        };
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  const response = await service.startPromotionGeneration("hotel-client-a", "promo_banner_001", {
+    analysis_id: "analysis_promo_banner_001",
+    content_option_count: 3,
+    operator_instruction: null
+  });
+
+  assert.equal(response.generation_id, "generation_retry");
+  assert.deepEqual(calls, [
+    {
+      kind: "read-promotion",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001"
+    },
+    {
+      analysisId: "analysis_promo_banner_001",
+      kind: "read-generation",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001"
+    },
+    {
+      kind: "decision",
+      request: {
+        campaignId: "camp_summer_2026",
+        projectId: "hotel-client-a",
+        promotionId: "promo_banner_001",
+        request: {
+          analysis_id: "analysis_promo_banner_001",
+          content_option_count: 3,
+          operator_instruction: null
+        }
+      }
+    }
+  ]);
+});
+
 test("dashboard reject content candidate runs inside transaction host", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -409,6 +503,7 @@ test("dashboard reject content candidate runs inside transaction host", async ()
 
 function emptyCampaignReader(): DashboardCampaignReader {
   return {
+    getPromotionGenerationResult: async () => undefined,
     listCampaigns: async () => [],
     rejectContentCandidate: async () => {
       throw new Error("Unexpected rejectContentCandidate call.");
