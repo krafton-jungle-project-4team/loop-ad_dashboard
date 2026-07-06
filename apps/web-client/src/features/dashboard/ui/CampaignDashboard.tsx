@@ -98,6 +98,17 @@ export function CampaignDashboardPanel({
 
   return (
     <div className="grid gap-6">
+      <CampaignListPanel
+        campaigns={data.campaigns}
+        onSelect={(campaignId) => {
+          void setDashboardQueryState({
+            selectedCampaignId: campaignId,
+            selectedPromotionId: "",
+            selectedSegmentId: ""
+          });
+        }}
+        selectedCampaignId={selectedCampaignId}
+      />
       <CampaignManagementPanel
         campaign={selectedCampaign}
         createError={createCampaignMutation.error}
@@ -114,17 +125,6 @@ export function CampaignDashboardPanel({
         updateError={updateCampaignMutation.error}
         updateIsError={updateCampaignMutation.isError}
         updateIsPending={updateCampaignMutation.isPending}
-      />
-      <CampaignListPanel
-        campaigns={data.campaigns}
-        onSelect={(campaignId) => {
-          void setDashboardQueryState({
-            selectedCampaignId: campaignId,
-            selectedPromotionId: "",
-            selectedSegmentId: ""
-          });
-        }}
-        selectedCampaignId={selectedCampaignId}
       />
     </div>
   );
