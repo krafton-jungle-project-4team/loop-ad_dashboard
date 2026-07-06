@@ -220,7 +220,7 @@ export interface IListActiveAdServingAssignmentsQuery {
   result: IListActiveAdServingAssignmentsResult;
 }
 
-const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":true},"params":[{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":820,"b":835}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nWHERE aas.promotion_run_id = :promotionRunId\nORDER BY aas.ad_experiment_id ASC, aas.user_id ASC"};
+const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":true},"params":[{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":820,"b":835}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nWHERE aas.promotion_run_id = :promotionRunId\n\nORDER BY aas.ad_experiment_id ASC, aas.user_id ASC"};
 
 /**
  * Query generated from SQL:
@@ -253,6 +253,7 @@ const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":
  *   ON p.project_id = aas.project_id
  *  AND p.promotion_id = aas.promotion_id
  * WHERE aas.promotion_run_id = :promotionRunId
+ *
  * ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC
  * ```
  */
@@ -429,7 +430,7 @@ export interface IUpdateDispatchJobResultQuery {
   result: IUpdateDispatchJobResultResult;
 }
 
-const updateDispatchJobResultIR: any = {"usedParamSet":{"status":true,"sentCount":true,"failedCount":true,"resultJson":true,"dispatchJobId":true},"params":[{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":39,"b":45}]},{"name":"sentCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":63,"b":72}]},{"name":"failedCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":92,"b":103}]},{"name":"resultJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":170,"b":180}]},{"name":"dispatchJobId","required":false,"transform":{"type":"scalar"},"locs":[{"a":241,"b":254}]}],"statement":"UPDATE ad_dispatch_jobs\nSET\n  status = :status,\n  sent_count = :sentCount,\n  failed_count = :failedCount,\n  metadata_json = metadata_json || jsonb_build_object('result', :resultJson::jsonb),\n  completed_at = now()\nWHERE ad_dispatch_job_id = :dispatchJobId\nRETURNING\n  ad_dispatch_job_id AS \"dispatchJobId\"                                                                                "};
+const updateDispatchJobResultIR: any = {"usedParamSet":{"status":true,"sentCount":true,"failedCount":true,"resultJson":true,"dispatchJobId":true},"params":[{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":39,"b":45}]},{"name":"sentCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":63,"b":72}]},{"name":"failedCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":92,"b":103}]},{"name":"resultJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":170,"b":180}]},{"name":"dispatchJobId","required":false,"transform":{"type":"scalar"},"locs":[{"a":241,"b":254}]}],"statement":"UPDATE ad_dispatch_jobs\nSET\n  status = :status,\n  sent_count = :sentCount,\n  failed_count = :failedCount,\n  metadata_json = metadata_json || jsonb_build_object('result', :resultJson::jsonb),\n  completed_at = now()\nWHERE ad_dispatch_job_id = :dispatchJobId\n\nRETURNING\n  ad_dispatch_job_id AS \"dispatchJobId\"                                                                                "};
 
 /**
  * Query generated from SQL:
@@ -442,6 +443,7 @@ const updateDispatchJobResultIR: any = {"usedParamSet":{"status":true,"sentCount
  *   metadata_json = metadata_json || jsonb_build_object('result', :resultJson::jsonb),
  *   completed_at = now()
  * WHERE ad_dispatch_job_id = :dispatchJobId
+ *
  * RETURNING
  *   ad_dispatch_job_id AS "dispatchJobId"                                                                                
  * ```
@@ -549,7 +551,7 @@ export interface IFindRedirectLinkByTokenQuery {
   result: IFindRedirectLinkByTokenResult;
 }
 
-const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"params":[{"name":"redirectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":766,"b":777}]}],"statement":"SELECT\n  rl.redirect_id AS \"redirectLinkId\",\n  rl.project_id AS \"projectId\",\n  rl.campaign_id AS \"campaignId\",\n  rl.promotion_id AS \"promotionId\",\n  rl.promotion_run_id AS \"promotionRunId\",\n  rl.ad_experiment_id AS \"adExperimentId\",\n  rl.segment_id AS \"segmentId\",\n  rl.user_id AS \"userId\",\n  rl.content_id AS \"contentId\",\n  rl.content_option_id AS \"contentOptionId\",\n  rl.redirect_id AS \"redirectToken\",\n  p.landing_url AS \"destinationUrl\",\n  'active' AS status,\n  '{}'::jsonb AS \"metadataJson\",\n  rl.expires_at AS \"expiresAt\",\n  NULL::timestamptz AS \"clickedAt\",\n  rl.created_at AS \"createdAt\",\n  rl.created_at AS \"updatedAt\"\nFROM redirect_links rl\nJOIN promotions p\n  ON p.project_id = rl.project_id\n AND p.promotion_id = rl.promotion_id\nWHERE rl.redirect_id = :redirectId\nLIMIT 1"};
+const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"params":[{"name":"redirectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":764,"b":774}]}],"statement":"SELECT\n  rl.redirect_id AS \"redirectLinkId\",\n  rl.project_id AS \"projectId\",\n  rl.campaign_id AS \"campaignId\",\n  rl.promotion_id AS \"promotionId\",\n  rl.promotion_run_id AS \"promotionRunId\",\n  rl.ad_experiment_id AS \"adExperimentId\",\n  rl.segment_id AS \"segmentId\",\n  rl.user_id AS \"userId\",\n  rl.content_id AS \"contentId\",\n  rl.content_option_id AS \"contentOptionId\",\n  rl.redirect_id AS \"redirectToken\",\n  p.landing_url AS \"destinationUrl\",\n  'active' AS status,\n  '{}'::jsonb AS \"metadataJson\",\n  rl.expires_at AS \"expiresAt\",\n  NULL::timestamptz AS \"clickedAt\",\n  rl.created_at AS \"createdAt\",\n  rl.created_at AS \"updatedAt\"\nFROM redirect_links rl\nJOIN promotions p\n  ON p.project_id = rl.project_id\n AND p.promotion_id = rl.promotion_id\nWHERE rl.redirect_id = :redirectId\n\n LIMIT 1"};
 
 /**
  * Query generated from SQL:
@@ -578,7 +580,8 @@ const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"para
  *   ON p.project_id = rl.project_id
  *  AND p.promotion_id = rl.promotion_id
  * WHERE rl.redirect_id = :redirectId
- * LIMIT 1
+ *
+ *  LIMIT 1
  * ```
  */
 export const findRedirectLinkByToken = new PreparedQuery<IFindRedirectLinkByTokenParams,IFindRedirectLinkByTokenResult>(findRedirectLinkByTokenIR);

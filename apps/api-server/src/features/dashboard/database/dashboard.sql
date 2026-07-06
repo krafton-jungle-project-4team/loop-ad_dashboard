@@ -96,6 +96,7 @@ LEFT JOIN ad_experiments ae
 LEFT JOIN promotion_evaluations pe
   ON pe.campaign_id = c.campaign_id
 WHERE c.project_id = :projectId
+
 GROUP BY c.campaign_id
 ORDER BY c.updated_at DESC, c.created_at DESC;
 
@@ -138,6 +139,7 @@ LEFT JOIN promotion_evaluations pe
   ON pe.campaign_id = c.campaign_id
 WHERE c.project_id = :projectId
   AND c.campaign_id = :campaignId
+
 GROUP BY c.campaign_id;
 
 /* 목적: 대시보드에서 새 캠페인을 생성합니다. */
@@ -190,6 +192,7 @@ SET status = 'stopped',
     updated_at = now()
 WHERE project_id = :projectId
   AND campaign_id = :campaignId
+
 RETURNING campaign_id AS "campaignId", status;
 
 /* 목적: 캠페인에 연결된 프로모션 요약 목록을 조회합니다. */
@@ -277,6 +280,7 @@ LEFT JOIN promotion_evaluations pe
   ON pe.promotion_id = p.promotion_id
 WHERE p.project_id = :projectId
   AND p.promotion_id = :promotionId
+
 GROUP BY p.promotion_id;
 
 /* 목적: 캠페인 하위 프로모션을 생성합니다. */
@@ -595,6 +599,7 @@ LEFT JOIN promotion_evaluations pe
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
   AND pts.segment_id = :segmentId
+
 GROUP BY
   pts.analysis_id,
   pts.promotion_id,
@@ -1163,6 +1168,7 @@ SELECT
 FROM promotion_analyses
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
+
 ORDER BY updated_at DESC, created_at DESC;
 
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
@@ -1189,6 +1195,7 @@ SELECT
 FROM promotion_evaluations
 WHERE project_id = :projectId
   AND campaign_id = :campaignId
+
 ORDER BY created_at DESC;
 
 /* 목적: 프로모션 실험 지표 목록을 조회합니다. */
@@ -1215,6 +1222,7 @@ SELECT
 FROM promotion_evaluations
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
+
 ORDER BY created_at DESC;
 
 /* 목적: 특정 세그먼트의 실험 지표 목록을 조회합니다. */
@@ -1242,6 +1250,7 @@ FROM promotion_evaluations
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND segment_id = :segmentId
+
 ORDER BY created_at DESC;
 
 /* 목적: 캠페인 단위 Email/SMS 발송 상태를 조회합니다. */
@@ -1336,6 +1345,7 @@ FROM content_candidates
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND segment_id = :segmentId
+
 ORDER BY updated_at DESC, created_at DESC;
 
 /* 목적: 동일 analysis/proposition의 기존 광고 생성 결과를 조회합니다. */
@@ -1352,6 +1362,7 @@ LEFT JOIN content_candidates cc
 WHERE gr.project_id = :projectId
   AND gr.promotion_id = :promotionId
   AND gr.analysis_id = :analysisId
+
 GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
 ORDER BY gr.updated_at DESC, gr.created_at DESC
 LIMIT 1;
@@ -1376,6 +1387,7 @@ FROM ad_experiments ae
 WHERE ae.project_id = :projectId
   AND ae.promotion_id = :promotionId
   AND ae.segment_id = :segmentId
+
 ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC;
 
 /* 목적: 관리자가 승인/계획 상태 광고 실험을 명시적으로 실행 시작 상태로 전환합니다. */
@@ -1611,6 +1623,7 @@ UPDATE segment_query_previews
 SET status = 'saved'
 WHERE project_id = :projectId
   AND query_preview_id = :queryPreviewId
+
 RETURNING query_preview_id AS "queryPreviewId";
 
 /* 목적: 한 프로젝트의 활성 퍼널 목록을 조회합니다. */
@@ -1707,4 +1720,5 @@ WHERE funnel_id IN (
 DELETE FROM funnel_definitions
 WHERE project_id = :projectId
   AND funnel_id = :funnelId
+
 RETURNING funnel_id AS "funnelId";
