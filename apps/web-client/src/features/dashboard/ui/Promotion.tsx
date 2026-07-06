@@ -121,6 +121,7 @@ const promotionGoalMetricOptions = [
   "funnel_step_rate"
 ] as const;
 const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
+const defaultPromotionLandingUrl = "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 
 export function PromotionPanel({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
@@ -2706,7 +2707,10 @@ function PromotionAddDialog({
     }
   }, [open]);
 
-  const canSubmit = Boolean(form.marketingTheme.trim()) && !createIsPending;
+  const canSubmit =
+    Boolean(form.marketingTheme.trim()) &&
+    isValidHttpUrl(form.landingUrl) &&
+    !createIsPending;
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -2837,6 +2841,19 @@ function PromotionAddDialog({
                 />
               </Field>
             </div>
+            <Field>
+              <FieldLabel htmlFor="promotion-create-landing-url">랜딩 URL</FieldLabel>
+              <Input
+                id="promotion-create-landing-url"
+                onChange={(event) => setForm({ ...form, landingUrl: event.target.value })}
+                placeholder={defaultPromotionLandingUrl}
+                type="url"
+                value={form.landingUrl}
+              />
+              <p className="text-xs text-muted-foreground">
+                발송 링크와 리다이렉트 목적지로 사용할 실제 URL입니다.
+              </p>
+            </Field>
           </div>
         </div>
         <DialogFooter className="px-8 py-5">
@@ -2862,6 +2879,7 @@ type PromotionCreateFormState = {
   goalBasis: string;
   goalMetric: string;
   goalTargetValue: string;
+  landingUrl: string;
   marketingTheme: string;
   maxLoopCount: string;
   minSampleSize: string;
@@ -2874,6 +2892,7 @@ function createEmptyPromotionFormState(): PromotionCreateFormState {
     goalBasis: "promotion_average",
     goalMetric: "inflow_rate",
     goalTargetValue: "0.1",
+    landingUrl: defaultPromotionLandingUrl,
     marketingTheme: "",
     maxLoopCount: "3",
     minSampleSize: "1000",
@@ -2889,12 +2908,23 @@ function promotionCreateFormToRequest(
     goal_basis: form.goalBasis as DashboardCreatePromotionRequest["goal_basis"],
     goal_metric: form.goalMetric as DashboardCreatePromotionRequest["goal_metric"],
     goal_target_value: nonnegativeNumber(form.goalTargetValue),
+    landing_url: form.landingUrl.trim(),
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     status: "draft",
     target_audience: form.targetAudience.trim() || "existing_users"
   };
+}
+
+function isValidHttpUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 type PromotionSegmentCreateFormState = {

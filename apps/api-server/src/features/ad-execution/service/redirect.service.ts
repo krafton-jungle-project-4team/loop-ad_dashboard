@@ -7,6 +7,7 @@ import {
   type RedirectPageSnapshot
 } from "../domain/index.js";
 import { AdExecutionReader } from "../repository/index.js";
+import { requireValidPromotionLandingUrl } from "./landing-url.guard.js";
 
 const LOOPAD_EVENT_SDK_URL =
   "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js";
@@ -47,7 +48,10 @@ export class RedirectService {
       throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
     }
 
-    return link;
+    return {
+      ...link,
+      destinationUrl: requireValidPromotionLandingUrl(link.promotionRunId, link.destinationUrl)
+    };
   }
 
   private async requireRedirectChannel(adExperimentId: string | null): Promise<AdExecutionChannel> {

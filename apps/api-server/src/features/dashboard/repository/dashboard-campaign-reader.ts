@@ -68,8 +68,6 @@ import {
   listDashboardPromotionSegmentSuggestions,
   listDashboardPromotionScopedSegmentDefinitions,
   listDashboardProjects,
-  listDashboardCampaignAdExperiments,
-  listDashboardCampaignContentCandidates,
   listDashboardCampaignSummaries,
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
@@ -102,8 +100,6 @@ import {
   type IListDashboardPromotionSegmentSuggestionsResult,
   type IListDashboardProjectsResult,
   type IRejectDashboardContentCandidateResult,
-  type IListDashboardCampaignAdExperimentsResult,
-  type IListDashboardCampaignContentCandidatesResult,
   type IListDashboardCampaignExperimentMetricsResult,
   type IListDashboardCampaignPromotionsResult,
   type IListDashboardCampaignSummariesResult,
@@ -663,19 +659,10 @@ export class DashboardCampaignReader {
     projectId: string,
     campaignId: string
   ): Promise<Omit<DashboardCampaignDetail, "realtime_metrics">> {
-    const [
-      campaign,
-      promotions,
-      segments,
-      adExperiments,
-      contentCandidates,
-      experimentMetrics
-    ] = await Promise.all([
+    const [campaign, promotions, segments, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single(),
       this.db.query(listDashboardCampaignPromotions, { campaignId, projectId }).multiple(),
       this.db.query(listDashboardCampaignSegments, { campaignId, projectId }).multiple(),
-      this.db.query(listDashboardCampaignAdExperiments, { campaignId, projectId }).multiple(),
-      this.db.query(listDashboardCampaignContentCandidates, { campaignId, projectId }).multiple(),
       this.db.query(listDashboardCampaignExperimentMetrics, { campaignId, projectId }).multiple()
     ]);
 
@@ -683,8 +670,8 @@ export class DashboardCampaignReader {
       campaign: toCampaignSummary(campaign),
       promotions: promotions.map(toCampaignPromotion),
       segments: segments.map(toCampaignSegment),
-      ad_experiments: adExperiments.map(toCampaignAdExperiment),
-      content_candidates: contentCandidates.map(toContentCandidate),
+      ad_experiments: [],
+      content_candidates: [],
       experiment_metrics: experimentMetrics.map(toCampaignExperimentMetric)
     };
   }
@@ -966,19 +953,12 @@ function toCampaignExperimentMetric(
   };
 }
 
-function toCampaignAdExperiment(row: IListDashboardCampaignAdExperimentsResult): DashboardAdExperiment {
-  return toAdExperiment(row);
-}
-
 function toSegmentAdExperiment(row: IListDashboardSegmentAdExperimentsResult): DashboardAdExperiment {
   return toAdExperiment(row);
 }
 
 function toAdExperiment(
-  row:
-    | IListDashboardCampaignAdExperimentsResult
-    | IListDashboardSegmentAdExperimentsResult
-    | IStartDashboardAdExperimentResult
+  row: IListDashboardSegmentAdExperimentsResult | IStartDashboardAdExperimentResult
 ): DashboardAdExperiment {
   return {
     ad_experiment_id: row.adExperimentId,
@@ -997,9 +977,7 @@ function toAdExperiment(
   };
 }
 
-function toContentCandidate(
-  row: IListDashboardCampaignContentCandidatesResult | IListDashboardSegmentContentCandidatesResult
-): DashboardContentCandidate {
+function toContentCandidate(row: IListDashboardSegmentContentCandidatesResult): DashboardContentCandidate {
   return {
     content_id: row.contentId,
     content_option_id: row.contentOptionId,

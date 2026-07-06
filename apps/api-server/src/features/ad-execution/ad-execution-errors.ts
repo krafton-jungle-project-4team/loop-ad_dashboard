@@ -38,6 +38,12 @@ export const adExecutionErrors = {
       code: "INCONSISTENT_AD_EXECUTION_ASSIGNMENT",
       message
     }),
+  dispatchLandingUrlInvalid: (promotionRunId: string, landingUrl: string | null) =>
+    createDomainError({
+      statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: "DISPATCH_LANDING_URL_INVALID",
+      message: `Promotion run '${promotionRunId}' has an invalid promotion landing_url '${landingUrl ?? ""}'.`
+    }),
   redirectNotFound: (redirectId: string) =>
     createDomainError({
       statusCode: HttpStatus.NOT_FOUND,

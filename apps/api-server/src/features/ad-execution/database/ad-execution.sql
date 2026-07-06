@@ -66,62 +66,68 @@ WHERE ad_experiment_id = :adExperimentId;
 /* Purpose: Read precomputed active assignments for one promotion_run dispatch. */
 /* @name ListActiveAdServingAssignments */
 SELECT
-  promotion_run_id AS "promotionRunId",
-  user_id AS "userId",
-  segment_id AS "segmentId",
-  ad_experiment_id AS "adExperimentId",
-  content_id AS "contentId",
-  content_option_id AS "contentOptionId",
-  fallback,
-  similarity_score AS "similarityScore",
-  project_id AS "projectId",
-  campaign_id AS "campaignId",
-  promotion_id AS "promotionId",
-  channel,
-  subject,
-  preheader,
-  title,
-  body,
-  cta,
-  message,
-  image_prompt AS "imagePrompt",
-  landing_url AS "landingUrl",
-  content_status AS "contentStatus",
-  ad_experiment_status AS "adExperimentStatus"
-FROM active_ad_serving_assignments
-WHERE promotion_run_id = :promotionRunId
-ORDER BY ad_experiment_id ASC, user_id ASC;
+  aas.promotion_run_id AS "promotionRunId",
+  aas.user_id AS "userId",
+  aas.segment_id AS "segmentId",
+  aas.ad_experiment_id AS "adExperimentId",
+  aas.content_id AS "contentId",
+  aas.content_option_id AS "contentOptionId",
+  aas.fallback,
+  aas.similarity_score AS "similarityScore",
+  aas.project_id AS "projectId",
+  aas.campaign_id AS "campaignId",
+  aas.promotion_id AS "promotionId",
+  aas.channel,
+  aas.subject,
+  aas.preheader,
+  aas.title,
+  aas.body,
+  aas.cta,
+  aas.message,
+  aas.image_prompt AS "imagePrompt",
+  p.landing_url AS "landingUrl",
+  aas.content_status AS "contentStatus",
+  aas.ad_experiment_status AS "adExperimentStatus"
+FROM active_ad_serving_assignments aas
+JOIN promotions p
+  ON p.project_id = aas.project_id
+ AND p.promotion_id = aas.promotion_id
+WHERE aas.promotion_run_id = :promotionRunId
+ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC;
 
 /* Purpose: Resolve one already assigned onsite banner content for one user. */
 /* @name FindActiveBannerAssignment */
 SELECT
-  promotion_run_id AS "promotionRunId",
-  user_id AS "userId",
-  segment_id AS "segmentId",
-  ad_experiment_id AS "adExperimentId",
-  content_id AS "contentId",
-  content_option_id AS "contentOptionId",
-  fallback,
-  similarity_score AS "similarityScore",
-  project_id AS "projectId",
-  campaign_id AS "campaignId",
-  promotion_id AS "promotionId",
-  channel,
-  subject,
-  preheader,
-  title,
-  body,
-  cta,
-  message,
-  image_prompt AS "imagePrompt",
-  landing_url AS "landingUrl",
-  content_status AS "contentStatus",
-  ad_experiment_status AS "adExperimentStatus"
-FROM active_ad_serving_assignments
-WHERE project_id = :projectId
-  AND promotion_run_id = :promotionRunId
-  AND user_id = :userId
-  AND channel = 'onsite_banner'
+  aas.promotion_run_id AS "promotionRunId",
+  aas.user_id AS "userId",
+  aas.segment_id AS "segmentId",
+  aas.ad_experiment_id AS "adExperimentId",
+  aas.content_id AS "contentId",
+  aas.content_option_id AS "contentOptionId",
+  aas.fallback,
+  aas.similarity_score AS "similarityScore",
+  aas.project_id AS "projectId",
+  aas.campaign_id AS "campaignId",
+  aas.promotion_id AS "promotionId",
+  aas.channel,
+  aas.subject,
+  aas.preheader,
+  aas.title,
+  aas.body,
+  aas.cta,
+  aas.message,
+  aas.image_prompt AS "imagePrompt",
+  p.landing_url AS "landingUrl",
+  aas.content_status AS "contentStatus",
+  aas.ad_experiment_status AS "adExperimentStatus"
+FROM active_ad_serving_assignments aas
+JOIN promotions p
+  ON p.project_id = aas.project_id
+ AND p.promotion_id = aas.promotion_id
+WHERE aas.project_id = :projectId
+  AND aas.promotion_run_id = :promotionRunId
+  AND aas.user_id = :userId
+  AND aas.channel = 'onsite_banner'
 LIMIT 1;
 
 /* Purpose: Create one dispatch job for an ad_experiment group. */
@@ -210,24 +216,27 @@ RETURNING
 /* Purpose: Restore redirect link entity by public redirect token. */
 /* @name FindRedirectLinkByToken */
 SELECT
-  redirect_id AS "redirectLinkId",
-  project_id AS "projectId",
-  campaign_id AS "campaignId",
-  promotion_id AS "promotionId",
-  promotion_run_id AS "promotionRunId",
-  ad_experiment_id AS "adExperimentId",
-  segment_id AS "segmentId",
-  user_id AS "userId",
-  content_id AS "contentId",
-  content_option_id AS "contentOptionId",
-  redirect_id AS "redirectToken",
-  target_url AS "destinationUrl",
+  rl.redirect_id AS "redirectLinkId",
+  rl.project_id AS "projectId",
+  rl.campaign_id AS "campaignId",
+  rl.promotion_id AS "promotionId",
+  rl.promotion_run_id AS "promotionRunId",
+  rl.ad_experiment_id AS "adExperimentId",
+  rl.segment_id AS "segmentId",
+  rl.user_id AS "userId",
+  rl.content_id AS "contentId",
+  rl.content_option_id AS "contentOptionId",
+  rl.redirect_id AS "redirectToken",
+  p.landing_url AS "destinationUrl",
   'active' AS status,
   '{}'::jsonb AS "metadataJson",
-  expires_at AS "expiresAt",
+  rl.expires_at AS "expiresAt",
   NULL::timestamptz AS "clickedAt",
-  created_at AS "createdAt",
-  created_at AS "updatedAt"
-FROM redirect_links
-WHERE redirect_id = :redirectId
+  rl.created_at AS "createdAt",
+  rl.created_at AS "updatedAt"
+FROM redirect_links rl
+JOIN promotions p
+  ON p.project_id = rl.project_id
+ AND p.promotion_id = rl.promotion_id
+WHERE rl.redirect_id = :redirectId
 LIMIT 1;

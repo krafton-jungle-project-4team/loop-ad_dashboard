@@ -1244,76 +1244,6 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY created_at DESC;
 
-/* 목적: 캠페인 프로모션 하위 광고 실험 목록을 조회합니다. */
-/* @name ListDashboardCampaignAdExperiments */
-SELECT
-  ae.ad_experiment_id AS "adExperimentId",
-  ae.promotion_run_id AS "promotionRunId",
-  ae.promotion_id AS "promotionId",
-  ae.segment_id AS "segmentId",
-  ae.content_id AS "contentId",
-  ae.content_option_id AS "contentOptionId",
-  ae.channel,
-  ae.loop_count AS "loopCount",
-  ae.goal_metric AS "goalMetric",
-  CAST(ae.goal_target_value AS float8) AS "goalTargetValue",
-  ae.goal_basis AS "goalBasis",
-  ae.status,
-  COUNT(DISTINCT usa.user_id)::int AS "assignmentCount"
-FROM ad_experiments ae
-LEFT JOIN user_segment_assignments usa
-  ON usa.promotion_run_id = ae.promotion_run_id
- AND usa.ad_experiment_id = ae.ad_experiment_id
-WHERE ae.project_id = :projectId
-  AND ae.campaign_id = :campaignId
-GROUP BY
-  ae.ad_experiment_id,
-  ae.promotion_run_id,
-  ae.promotion_id,
-  ae.segment_id,
-  ae.content_id,
-  ae.content_option_id,
-  ae.channel,
-  ae.loop_count,
-  ae.goal_metric,
-  ae.goal_target_value,
-  ae.goal_basis,
-  ae.status,
-  ae.updated_at,
-  ae.created_at
-ORDER BY ae.updated_at DESC, ae.created_at DESC;
-
-/* 목적: 캠페인 프로모션 하위 생성 콘텐츠 후보를 조회합니다. */
-/* @name ListDashboardCampaignContentCandidates */
-SELECT
-  content_id AS "contentId",
-  content_option_id AS "contentOptionId",
-  generation_id AS "generationId",
-  analysis_id AS "analysisId",
-  promotion_id AS "promotionId",
-  segment_id AS "segmentId",
-  channel,
-  subject,
-  preheader,
-  title,
-  body,
-  cta,
-  message,
-  image_prompt AS "imagePrompt",
-  image_url AS "imageUrl",
-  landing_url AS "landingUrl",
-  generation_prompt AS "generationPrompt",
-  reason_summary AS "reasonSummary",
-  data_evidence_json AS "dataEvidenceJson",
-  message_strategy AS "messageStrategy",
-  metadata_json AS "metadataJson",
-  status,
-  updated_at AS "updatedAt"
-FROM content_candidates
-WHERE project_id = :projectId
-  AND campaign_id = :campaignId
-ORDER BY updated_at DESC, created_at DESC;
-
 /* 목적: 캠페인 단위 Email/SMS 발송 상태를 조회합니다. */
 /* @name GetDashboardCampaignDeliveryStatus */
 SELECT
@@ -1441,29 +1371,11 @@ SELECT
   CAST(ae.goal_target_value AS float8) AS "goalTargetValue",
   ae.goal_basis AS "goalBasis",
   ae.status,
-  COUNT(DISTINCT usa.user_id)::int AS "assignmentCount"
+  0::int AS "assignmentCount"
 FROM ad_experiments ae
-LEFT JOIN user_segment_assignments usa
-  ON usa.promotion_run_id = ae.promotion_run_id
- AND usa.ad_experiment_id = ae.ad_experiment_id
 WHERE ae.project_id = :projectId
   AND ae.promotion_id = :promotionId
   AND ae.segment_id = :segmentId
-GROUP BY
-  ae.ad_experiment_id,
-  ae.promotion_run_id,
-  ae.promotion_id,
-  ae.segment_id,
-  ae.content_id,
-  ae.content_option_id,
-  ae.channel,
-  ae.loop_count,
-  ae.goal_metric,
-  ae.goal_target_value,
-  ae.goal_basis,
-  ae.status,
-  ae.updated_at,
-  ae.created_at
 ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC;
 
 /* 목적: 관리자가 승인/계획 상태 광고 실험을 명시적으로 실행 시작 상태로 전환합니다. */

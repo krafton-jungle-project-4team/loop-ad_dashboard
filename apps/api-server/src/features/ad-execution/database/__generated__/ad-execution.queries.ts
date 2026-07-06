@@ -220,37 +220,40 @@ export interface IListActiveAdServingAssignmentsQuery {
   result: IListActiveAdServingAssignmentsResult;
 }
 
-const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":true},"params":[{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":634,"b":648}]}],"statement":"SELECT\n  promotion_run_id AS \"promotionRunId\",\n  user_id AS \"userId\",\n  segment_id AS \"segmentId\",\n  ad_experiment_id AS \"adExperimentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  fallback,\n  similarity_score AS \"similarityScore\",\n  project_id AS \"projectId\",\n  campaign_id AS \"campaignId\",\n  promotion_id AS \"promotionId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  landing_url AS \"landingUrl\",\n  content_status AS \"contentStatus\",\n  ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments\nWHERE promotion_run_id = :promotionRunId\nORDER BY ad_experiment_id ASC, user_id ASC                                                                               "};
+const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":true},"params":[{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":820,"b":835}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nWHERE aas.promotion_run_id = :promotionRunId\nORDER BY aas.ad_experiment_id ASC, aas.user_id ASC"};
 
 /**
  * Query generated from SQL:
  * ```
  * SELECT
- *   promotion_run_id AS "promotionRunId",
- *   user_id AS "userId",
- *   segment_id AS "segmentId",
- *   ad_experiment_id AS "adExperimentId",
- *   content_id AS "contentId",
- *   content_option_id AS "contentOptionId",
- *   fallback,
- *   similarity_score AS "similarityScore",
- *   project_id AS "projectId",
- *   campaign_id AS "campaignId",
- *   promotion_id AS "promotionId",
- *   channel,
- *   subject,
- *   preheader,
- *   title,
- *   body,
- *   cta,
- *   message,
- *   image_prompt AS "imagePrompt",
- *   landing_url AS "landingUrl",
- *   content_status AS "contentStatus",
- *   ad_experiment_status AS "adExperimentStatus"
- * FROM active_ad_serving_assignments
- * WHERE promotion_run_id = :promotionRunId
- * ORDER BY ad_experiment_id ASC, user_id ASC                                                                               
+ *   aas.promotion_run_id AS "promotionRunId",
+ *   aas.user_id AS "userId",
+ *   aas.segment_id AS "segmentId",
+ *   aas.ad_experiment_id AS "adExperimentId",
+ *   aas.content_id AS "contentId",
+ *   aas.content_option_id AS "contentOptionId",
+ *   aas.fallback,
+ *   aas.similarity_score AS "similarityScore",
+ *   aas.project_id AS "projectId",
+ *   aas.campaign_id AS "campaignId",
+ *   aas.promotion_id AS "promotionId",
+ *   aas.channel,
+ *   aas.subject,
+ *   aas.preheader,
+ *   aas.title,
+ *   aas.body,
+ *   aas.cta,
+ *   aas.message,
+ *   aas.image_prompt AS "imagePrompt",
+ *   p.landing_url AS "landingUrl",
+ *   aas.content_status AS "contentStatus",
+ *   aas.ad_experiment_status AS "adExperimentStatus"
+ * FROM active_ad_serving_assignments aas
+ * JOIN promotions p
+ *   ON p.project_id = aas.project_id
+ *  AND p.promotion_id = aas.promotion_id
+ * WHERE aas.promotion_run_id = :promotionRunId
+ * ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC
  * ```
  */
 export const listActiveAdServingAssignments = new PreparedQuery<IListActiveAdServingAssignmentsParams,IListActiveAdServingAssignmentsResult>(listActiveAdServingAssignmentsIR);
@@ -295,40 +298,43 @@ export interface IFindActiveBannerAssignmentQuery {
   result: IFindActiveBannerAssignmentResult;
 }
 
-const findActiveBannerAssignmentIR: any = {"usedParamSet":{"projectId":true,"promotionRunId":true,"userId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":628,"b":637}]},{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":664,"b":678}]},{"name":"userId","required":false,"transform":{"type":"scalar"},"locs":[{"a":696,"b":702}]}],"statement":"SELECT\n  promotion_run_id AS \"promotionRunId\",\n  user_id AS \"userId\",\n  segment_id AS \"segmentId\",\n  ad_experiment_id AS \"adExperimentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  fallback,\n  similarity_score AS \"similarityScore\",\n  project_id AS \"projectId\",\n  campaign_id AS \"campaignId\",\n  promotion_id AS \"promotionId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  landing_url AS \"landingUrl\",\n  content_status AS \"contentStatus\",\n  ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments\nWHERE project_id = :projectId\n  AND promotion_run_id = :promotionRunId\n  AND user_id = :userId\n  AND channel = 'onsite_banner'\nLIMIT 1                                                                  "};
+const findActiveBannerAssignmentIR: any = {"usedParamSet":{"projectId":true,"promotionRunId":true,"userId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":814,"b":824}]},{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":854,"b":869}]},{"name":"userId","required":false,"transform":{"type":"scalar"},"locs":[{"a":890,"b":897}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nWHERE aas.project_id = :projectId\n  AND aas.promotion_run_id = :promotionRunId\n  AND aas.user_id = :userId\n  AND aas.channel = 'onsite_banner'\nLIMIT 1"};
 
 /**
  * Query generated from SQL:
  * ```
  * SELECT
- *   promotion_run_id AS "promotionRunId",
- *   user_id AS "userId",
- *   segment_id AS "segmentId",
- *   ad_experiment_id AS "adExperimentId",
- *   content_id AS "contentId",
- *   content_option_id AS "contentOptionId",
- *   fallback,
- *   similarity_score AS "similarityScore",
- *   project_id AS "projectId",
- *   campaign_id AS "campaignId",
- *   promotion_id AS "promotionId",
- *   channel,
- *   subject,
- *   preheader,
- *   title,
- *   body,
- *   cta,
- *   message,
- *   image_prompt AS "imagePrompt",
- *   landing_url AS "landingUrl",
- *   content_status AS "contentStatus",
- *   ad_experiment_status AS "adExperimentStatus"
- * FROM active_ad_serving_assignments
- * WHERE project_id = :projectId
- *   AND promotion_run_id = :promotionRunId
- *   AND user_id = :userId
- *   AND channel = 'onsite_banner'
- * LIMIT 1                                                                  
+ *   aas.promotion_run_id AS "promotionRunId",
+ *   aas.user_id AS "userId",
+ *   aas.segment_id AS "segmentId",
+ *   aas.ad_experiment_id AS "adExperimentId",
+ *   aas.content_id AS "contentId",
+ *   aas.content_option_id AS "contentOptionId",
+ *   aas.fallback,
+ *   aas.similarity_score AS "similarityScore",
+ *   aas.project_id AS "projectId",
+ *   aas.campaign_id AS "campaignId",
+ *   aas.promotion_id AS "promotionId",
+ *   aas.channel,
+ *   aas.subject,
+ *   aas.preheader,
+ *   aas.title,
+ *   aas.body,
+ *   aas.cta,
+ *   aas.message,
+ *   aas.image_prompt AS "imagePrompt",
+ *   p.landing_url AS "landingUrl",
+ *   aas.content_status AS "contentStatus",
+ *   aas.ad_experiment_status AS "adExperimentStatus"
+ * FROM active_ad_serving_assignments aas
+ * JOIN promotions p
+ *   ON p.project_id = aas.project_id
+ *  AND p.promotion_id = aas.promotion_id
+ * WHERE aas.project_id = :projectId
+ *   AND aas.promotion_run_id = :promotionRunId
+ *   AND aas.user_id = :userId
+ *   AND aas.channel = 'onsite_banner'
+ * LIMIT 1
  * ```
  */
 export const findActiveBannerAssignment = new PreparedQuery<IFindActiveBannerAssignmentParams,IFindActiveBannerAssignmentResult>(findActiveBannerAssignmentIR);
@@ -543,35 +549,36 @@ export interface IFindRedirectLinkByTokenQuery {
   result: IFindRedirectLinkByTokenResult;
 }
 
-const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"params":[{"name":"redirectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":623,"b":633}]}],"statement":"SELECT\n  redirect_id AS \"redirectLinkId\",\n  project_id AS \"projectId\",\n  campaign_id AS \"campaignId\",\n  promotion_id AS \"promotionId\",\n  promotion_run_id AS \"promotionRunId\",\n  ad_experiment_id AS \"adExperimentId\",\n  segment_id AS \"segmentId\",\n  user_id AS \"userId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  redirect_id AS \"redirectToken\",\n  target_url AS \"destinationUrl\",\n  'active' AS status,\n  '{}'::jsonb AS \"metadataJson\",\n  expires_at AS \"expiresAt\",\n  NULL::timestamptz AS \"clickedAt\",\n  created_at AS \"createdAt\",\n  created_at AS \"updatedAt\"\nFROM redirect_links\nWHERE redirect_id = :redirectId\nLIMIT 1"};
+const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"params":[{"name":"redirectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":766,"b":777}]}],"statement":"SELECT\n  rl.redirect_id AS \"redirectLinkId\",\n  rl.project_id AS \"projectId\",\n  rl.campaign_id AS \"campaignId\",\n  rl.promotion_id AS \"promotionId\",\n  rl.promotion_run_id AS \"promotionRunId\",\n  rl.ad_experiment_id AS \"adExperimentId\",\n  rl.segment_id AS \"segmentId\",\n  rl.user_id AS \"userId\",\n  rl.content_id AS \"contentId\",\n  rl.content_option_id AS \"contentOptionId\",\n  rl.redirect_id AS \"redirectToken\",\n  p.landing_url AS \"destinationUrl\",\n  'active' AS status,\n  '{}'::jsonb AS \"metadataJson\",\n  rl.expires_at AS \"expiresAt\",\n  NULL::timestamptz AS \"clickedAt\",\n  rl.created_at AS \"createdAt\",\n  rl.created_at AS \"updatedAt\"\nFROM redirect_links rl\nJOIN promotions p\n  ON p.project_id = rl.project_id\n AND p.promotion_id = rl.promotion_id\nWHERE rl.redirect_id = :redirectId\nLIMIT 1"};
 
 /**
  * Query generated from SQL:
  * ```
  * SELECT
- *   redirect_id AS "redirectLinkId",
- *   project_id AS "projectId",
- *   campaign_id AS "campaignId",
- *   promotion_id AS "promotionId",
- *   promotion_run_id AS "promotionRunId",
- *   ad_experiment_id AS "adExperimentId",
- *   segment_id AS "segmentId",
- *   user_id AS "userId",
- *   content_id AS "contentId",
- *   content_option_id AS "contentOptionId",
- *   redirect_id AS "redirectToken",
- *   target_url AS "destinationUrl",
+ *   rl.redirect_id AS "redirectLinkId",
+ *   rl.project_id AS "projectId",
+ *   rl.campaign_id AS "campaignId",
+ *   rl.promotion_id AS "promotionId",
+ *   rl.promotion_run_id AS "promotionRunId",
+ *   rl.ad_experiment_id AS "adExperimentId",
+ *   rl.segment_id AS "segmentId",
+ *   rl.user_id AS "userId",
+ *   rl.content_id AS "contentId",
+ *   rl.content_option_id AS "contentOptionId",
+ *   rl.redirect_id AS "redirectToken",
+ *   p.landing_url AS "destinationUrl",
  *   'active' AS status,
  *   '{}'::jsonb AS "metadataJson",
- *   expires_at AS "expiresAt",
+ *   rl.expires_at AS "expiresAt",
  *   NULL::timestamptz AS "clickedAt",
- *   created_at AS "createdAt",
- *   created_at AS "updatedAt"
- * FROM redirect_links
- * WHERE redirect_id = :redirectId
+ *   rl.created_at AS "createdAt",
+ *   rl.created_at AS "updatedAt"
+ * FROM redirect_links rl
+ * JOIN promotions p
+ *   ON p.project_id = rl.project_id
+ *  AND p.promotion_id = rl.promotion_id
+ * WHERE rl.redirect_id = :redirectId
  * LIMIT 1
  * ```
  */
 export const findRedirectLinkByToken = new PreparedQuery<IFindRedirectLinkByTokenParams,IFindRedirectLinkByTokenResult>(findRedirectLinkByTokenIR);
-
-
