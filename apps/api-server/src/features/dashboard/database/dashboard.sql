@@ -1244,61 +1244,6 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
 ORDER BY created_at DESC;
 
-/* 목적: 캠페인 프로모션 하위 광고 실험 목록을 조회합니다. */
-/* @name ListDashboardCampaignAdExperiments */
-SELECT
-  ae.ad_experiment_id AS "adExperimentId",
-  ae.promotion_run_id AS "promotionRunId",
-  ae.promotion_id AS "promotionId",
-  ae.segment_id AS "segmentId",
-  ae.content_id AS "contentId",
-  ae.content_option_id AS "contentOptionId",
-  ae.channel,
-  ae.loop_count AS "loopCount",
-  ae.goal_metric AS "goalMetric",
-  CAST(ae.goal_target_value AS float8) AS "goalTargetValue",
-  ae.goal_basis AS "goalBasis",
-  ae.status,
-  0::int AS "assignmentCount"
-FROM ad_experiments ae
-WHERE ae.project_id = :projectId
-  AND ae.campaign_id = :campaignId
-ORDER BY ae.updated_at DESC, ae.created_at DESC;
-
-/* 목적: 캠페인 프로모션 하위 생성 콘텐츠 후보를 조회합니다. */
-/* @name ListDashboardCampaignContentCandidates */
-SELECT
-  cc.content_id AS "contentId",
-  cc.content_option_id AS "contentOptionId",
-  cc.generation_id AS "generationId",
-  cc.analysis_id AS "analysisId",
-  cc.promotion_id AS "promotionId",
-  cc.segment_id AS "segmentId",
-  cc.channel,
-  cc.subject,
-  cc.preheader,
-  cc.title,
-  cc.body,
-  cc.cta,
-  cc.message,
-  cc.image_prompt AS "imagePrompt",
-  cc.image_url AS "imageUrl",
-  cc.landing_url AS "landingUrl",
-  cc.generation_prompt AS "generationPrompt",
-  cc.reason_summary AS "reasonSummary",
-  cc.data_evidence_json AS "dataEvidenceJson",
-  cc.message_strategy AS "messageStrategy",
-  cc.metadata_json AS "metadataJson",
-  cc.status,
-  cc.updated_at AS "updatedAt"
-FROM content_candidates cc
-JOIN promotions p
-  ON p.project_id = cc.project_id
- AND p.promotion_id = cc.promotion_id
-WHERE cc.project_id = :projectId
-  AND p.campaign_id = :campaignId
-ORDER BY cc.updated_at DESC, cc.created_at DESC;
-
 /* 목적: 캠페인 단위 Email/SMS 발송 상태를 조회합니다. */
 /* @name GetDashboardCampaignDeliveryStatus */
 SELECT
