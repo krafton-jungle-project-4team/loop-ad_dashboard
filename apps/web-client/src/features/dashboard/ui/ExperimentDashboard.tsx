@@ -364,8 +364,14 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
   const groups = new Map<string, DashboardCampaignExperimentMetric[]>();
 
   for (const metric of detail.experiment_metrics) {
-    const key = metric.ad_experiment_id ?? fallbackExperimentId(metric);
-    groups.set(key, [...(groups.get(key) ?? []), metric]);
+    if (!metric.ad_experiment_id) {
+      continue;
+    }
+
+    groups.set(metric.ad_experiment_id, [
+      ...(groups.get(metric.ad_experiment_id) ?? []),
+      metric
+    ]);
   }
 
   for (const experiment of detail.ad_experiments) {
@@ -457,16 +463,6 @@ function findSegmentForExperiment(
   }
 
   return segments.find((segment) => segment.ad_experiment_id === experimentId) ?? null;
-}
-
-function fallbackExperimentId(metric: DashboardCampaignExperimentMetric) {
-  return [
-    "pending",
-    metric.promotion_id,
-    metric.segment_id ?? "segment",
-    metric.promotion_run_id,
-    metric.content_option_id ?? metric.content_id ?? metric.metric
-  ].join(":");
 }
 
 function segmentKey(promotionId: string, segmentId: string) {
