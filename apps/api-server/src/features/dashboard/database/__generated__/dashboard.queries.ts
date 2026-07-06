@@ -1773,7 +1773,7 @@ const getDashboardPromotionSegmentIR: any = {
     }
   ],
   statement:
-    'SELECT\n  pts.analysis_id AS "analysisId",\n  pts.promotion_id AS "promotionId",\n  pts.segment_id AS "segmentId",\n  pts.segment_name AS "segmentName",\n  sd.source,\n  sd.natural_language_query AS "naturalLanguageQuery",\n  pts.rule_json AS "ruleJson",\n  pts.profile_json AS "profileJson",\n  pts.content_brief_json AS "contentBriefJson",\n  pts.data_evidence_json AS "dataEvidenceJson",\n  pts.estimated_size AS "estimatedSize",\n  sd.sample_size AS "sampleSize",\n  sd.total_eligible_user_count AS "totalEligibleUserCount",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  p.goal_metric AS "goalMetric",\n  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",\n  MAX(ae.ad_experiment_id) AS "adExperimentId",\n  CASE\n    WHEN pts.status = \'planned\' THEN \'create_content\'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN \'approve_content\'\n    WHEN COUNT(*) FILTER (WHERE pe.status = \'insufficient_data\') > 0 THEN \'review_sample\'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN \'next_loop\'\n    ELSE \'monitor\'\n  END AS "nextAction",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nLEFT JOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nJOIN promotions p\n  ON p.promotion_id = pts.promotion_id\nLEFT JOIN ad_experiments ae\n  ON ae.promotion_id = pts.promotion_id\n AND ae.segment_id = pts.segment_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.promotion_id = pts.promotion_id\n AND pe.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.promotion_id = :promotionId\n  AND pts.segment_id = :segmentId\n\nGROUP BY\n  pts.analysis_id,\n  pts.promotion_id,\n  pts.segment_id,\n  pts.segment_name,\n  sd.source,\n  sd.natural_language_query,\n  pts.rule_json,\n  pts.profile_json,\n  pts.content_brief_json,\n  pts.data_evidence_json,\n  pts.estimated_size,\n  sd.sample_size,\n  sd.total_eligible_user_count,\n  sd.sample_ratio,\n  p.goal_metric,\n  pts.priority,\n  pts.status,\n  pts.created_at                                              '
+    'SELECT\n  pts.analysis_id AS "analysisId",\n  pts.promotion_id AS "promotionId",\n  pts.segment_id AS "segmentId",\n  pts.segment_name AS "segmentName",\n  sd.source,\n  sd.natural_language_query AS "naturalLanguageQuery",\n  pts.rule_json AS "ruleJson",\n  pts.profile_json AS "profileJson",\n  pts.content_brief_json AS "contentBriefJson",\n  pts.data_evidence_json AS "dataEvidenceJson",\n  pts.estimated_size AS "estimatedSize",\n  sd.sample_size AS "sampleSize",\n  sd.total_eligible_user_count AS "totalEligibleUserCount",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  p.goal_metric AS "goalMetric",\n  CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",\n  MAX(ae.ad_experiment_id) AS "adExperimentId",\n  CASE\n    WHEN pts.status = \'planned\' THEN \'create_content\'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN \'approve_content\'\n    WHEN COUNT(*) FILTER (WHERE pe.status = \'insufficient_data\') > 0 THEN \'review_sample\'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN \'next_loop\'\n    ELSE \'monitor\'\n  END AS "nextAction",\n  pts.priority,\n  pts.status\nFROM promotion_target_segments pts\nLEFT JOIN segment_definitions sd\n  ON sd.segment_id = pts.segment_id\nJOIN promotions p\n  ON p.promotion_id = pts.promotion_id\nLEFT JOIN ad_experiments ae\n  ON ae.promotion_id = pts.promotion_id\n AND ae.segment_id = pts.segment_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.promotion_id = pts.promotion_id\n AND pe.segment_id = pts.segment_id\nWHERE pts.project_id = :projectId\n  AND pts.promotion_id = :promotionId\n  AND pts.segment_id = :segmentId\n  AND pts.status <> \'stopped\'\n\nGROUP BY\n  pts.analysis_id,\n  pts.promotion_id,\n  pts.segment_id,\n  pts.segment_name,\n  sd.source,\n  sd.natural_language_query,\n  pts.rule_json,\n  pts.profile_json,\n  pts.content_brief_json,\n  pts.data_evidence_json,\n  pts.estimated_size,\n  sd.sample_size,\n  sd.total_eligible_user_count,\n  sd.sample_ratio,\n  p.goal_metric,\n  pts.priority,\n  pts.status,\n  pts.created_at\nORDER BY pts.created_at DESC\nLIMIT 1                                              '
 };
 
 /**
@@ -1820,6 +1820,7 @@ const getDashboardPromotionSegmentIR: any = {
  * WHERE pts.project_id = :projectId
  *   AND pts.promotion_id = :promotionId
  *   AND pts.segment_id = :segmentId
+ *   AND pts.status <> 'stopped'
  *
  * GROUP BY
  *   pts.analysis_id,
@@ -1840,6 +1841,8 @@ const getDashboardPromotionSegmentIR: any = {
  *   pts.priority,
  *   pts.status,
  *   pts.created_at
+ * ORDER BY pts.created_at DESC
+ * LIMIT 1
  * ```
  */
 export const getDashboardPromotionSegment = new PreparedQuery<

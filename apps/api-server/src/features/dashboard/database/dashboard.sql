@@ -599,6 +599,7 @@ LEFT JOIN promotion_evaluations pe
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
   AND pts.segment_id = :segmentId
+  AND pts.status <> 'stopped'
 
 GROUP BY
   pts.analysis_id,
@@ -618,7 +619,9 @@ GROUP BY
   p.goal_metric,
   pts.priority,
   pts.status,
-  pts.created_at;
+  pts.created_at
+ORDER BY pts.created_at DESC
+LIMIT 1;
 
 /* 목적: 사용자 정의 세그먼트 연결을 위한 수동 분석 row를 생성합니다. */
 /* @name InsertDashboardManualPromotionAnalysis */
