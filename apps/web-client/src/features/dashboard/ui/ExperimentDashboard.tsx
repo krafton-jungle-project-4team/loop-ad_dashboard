@@ -252,7 +252,7 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
             <TableHead>세그먼트</TableHead>
             <TableHead>콘텐츠</TableHead>
             <TableHead className="text-right">목표 / 실제</TableHead>
-            <TableHead className="text-right">배정 / 평가 표본</TableHead>
+            <TableHead className="text-right">평가 표본 / 배정</TableHead>
             <TableHead>실험 상태</TableHead>
             <TableHead>평가 상태</TableHead>
             <TableHead>업데이트</TableHead>
@@ -299,11 +299,16 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
                 </div>
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatGoalValue(row.targetValue)} / {formatGoalValue(row.actualValue)}
+                <MetricPair
+                  left={formatGoalValue(row.targetValue)}
+                  right={formatGoalValue(row.actualValue)}
+                />
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatInteger(row.experiment?.assignment_count ?? 0)} /{" "}
-                {row.latestMetric ? formatInteger(row.sampleSize) : "-"}
+                <MetricPair
+                  left={row.latestMetric ? formatInteger(row.sampleSize) : "-"}
+                  right={formatInteger(row.experiment?.assignment_count ?? 0)}
+                />
               </TableCell>
               <TableCell>
                 <Badge variant={statusBadgeVariant(row.experimentStatus)}>
@@ -326,6 +331,16 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function MetricPair({ left, right }: { left: string; right: string }) {
+  return (
+    <div className="inline-flex min-w-[92px] items-center justify-end gap-1.5 rounded-md bg-muted/50 px-2 py-1 text-sm font-medium">
+      <span>{left}</span>
+      <span className="text-muted-foreground">/</span>
+      <span>{right}</span>
     </div>
   );
 }
