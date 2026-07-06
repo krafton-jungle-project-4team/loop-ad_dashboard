@@ -90,6 +90,7 @@ SELECT
   ad_experiment_status AS "adExperimentStatus"
 FROM active_ad_serving_assignments
 WHERE promotion_run_id = :promotionRunId
+
 ORDER BY ad_experiment_id ASC, user_id ASC;
 
 /* Purpose: Resolve one already assigned onsite banner content for one user. */
@@ -171,6 +172,7 @@ SET
   metadata_json = metadata_json || jsonb_build_object('result', :resultJson::jsonb),
   completed_at = now()
 WHERE ad_dispatch_job_id = :dispatchJobId
+
 RETURNING
   ad_dispatch_job_id AS "dispatchJobId";
 
@@ -230,4 +232,5 @@ SELECT
   created_at AS "updatedAt"
 FROM redirect_links
 WHERE redirect_id = :redirectId
+
 LIMIT 1;
