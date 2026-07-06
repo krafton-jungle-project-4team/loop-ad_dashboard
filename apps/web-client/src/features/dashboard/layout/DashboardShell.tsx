@@ -43,12 +43,14 @@ import {
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { FolderKanban, Gauge, Plus, Trash2 } from "lucide-react";
+import { Gauge, Plus, Trash2 } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  forwardRef,
   useState,
   type CSSProperties,
+  type ComponentPropsWithoutRef,
   type FormEvent,
   type PointerEvent,
   type ReactNode
@@ -93,7 +95,7 @@ export function DashboardShell({
     >
       <Sidebar className="border-r border-black/10" collapsible="icon">
         <SidebarHeader className="p-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:p-2">
-          <BrandBlock />
+          <ProjectManagementDialog projectId={projectId} />
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -118,9 +120,6 @@ export function DashboardShell({
               <Separator className="h-full" orientation="vertical" />
             </div>
             <DashboardBreadcrumbs projectId={projectId} tab={activeTab} />
-          </div>
-          <div className="ml-auto flex shrink-0 items-center">
-            <ProjectManagementDialog projectId={projectId} />
           </div>
         </header>
 
@@ -252,9 +251,7 @@ function ProjectManagementDialog({ projectId }: { projectId: string }) {
       open={open}
     >
       <DialogTrigger asChild>
-        <Button aria-label="프로젝트 관리" size="icon" type="button" variant="outline">
-          <FolderKanban />
-        </Button>
+        <BrandBlock />
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -442,21 +439,33 @@ function ProjectManagementDialog({ projectId }: { projectId: string }) {
   );
 }
 
-function BrandBlock() {
-  return (
-    <div className="flex w-full items-center gap-3 rounded-lg px-1 py-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#0066cc] text-white">
-        <Gauge size={18} />
-      </div>
-      <div className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
-        <span className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
-          loop-ad
-        </span>
-        <span className="truncate text-xs text-muted-foreground">대시보드</span>
-      </div>
-    </div>
-  );
-}
+const BrandBlock = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button">>(
+  function BrandBlock({ className, ...props }, ref) {
+    return (
+      <button
+        aria-label="프로젝트 관리 열기"
+        className={cn(
+          "flex w-full items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0",
+          className
+        )}
+        ref={ref}
+        title="프로젝트 관리"
+        type="button"
+        {...props}
+      >
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#0066cc] text-white">
+          <Gauge size={18} />
+        </div>
+        <div className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
+          <span className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
+            loop-ad
+          </span>
+          <span className="truncate text-xs text-muted-foreground">대시보드</span>
+        </div>
+      </button>
+    );
+  }
+);
 
 function DashboardNavigation({
   activeTab,
