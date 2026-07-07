@@ -412,9 +412,6 @@ function CampaignManagementPanel({
         <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
           캠페인 관리
         </CardTitle>
-        <CardDescription>
-          1.7 기준 Campaign 최상위 단위를 생성하고 상태를 관리합니다.
-        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 px-5">
         {createIsError ? (
