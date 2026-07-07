@@ -2589,6 +2589,7 @@ export interface IListDashboardPromotionSegmentSuggestionsResult {
   profileJson: Json;
   promotionId: string;
   reasonJson: Json;
+  metadataJson: Json;
   ruleJson: Json;
   sampleRatio: number | null;
   sampleSize: number;
@@ -2616,26 +2617,26 @@ const listDashboardPromotionSegmentSuggestionsIR: any = {
       name: "projectId",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 822, b: 831 }]
+      locs: [{ a: 861, b: 870 }]
     },
     {
       name: "promotionId",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 858, b: 869 }]
+      locs: [{ a: 897, b: 908 }]
     },
     {
       name: "analysisId",
       required: false,
       transform: { type: "scalar" },
       locs: [
-        { a: 878, b: 888 },
-        { a: 928, b: 938 }
+        { a: 917, b: 927 },
+        { a: 967, b: 977 }
       ]
     }
   ],
   statement:
-    'SELECT\n  pss.suggestion_id AS "suggestionId",\n  pss.analysis_id AS "analysisId",\n  pss.campaign_id AS "campaignId",\n  pss.promotion_id AS "promotionId",\n  pss.segment_id AS "segmentId",\n  pss.suggested_rank AS "suggestedRank",\n  pss.suggestion_source AS "suggestionSource",\n  pss.status AS "suggestionStatus",\n  pss.score_json AS "scoreJson",\n  pss.reason_json AS "reasonJson",\n  sd.segment_name AS "segmentName",\n  sd.source AS "segmentSource",\n  sd.rule_json AS "ruleJson",\n  sd.profile_json AS "profileJson",\n  sd.sample_size AS "sampleSize",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  pss.created_at AS "createdAt",\n  pss.updated_at AS "updatedAt",\n  pss.decided_at AS "decidedAt"\nFROM promotion_segment_suggestions pss\nJOIN segment_definitions sd\n  ON sd.segment_id = pss.segment_id\nWHERE pss.project_id = :projectId\n  AND pss.promotion_id = :promotionId\n  AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)\nORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC                                             '
+    'SELECT\n  pss.suggestion_id AS "suggestionId",\n  pss.analysis_id AS "analysisId",\n  pss.campaign_id AS "campaignId",\n  pss.promotion_id AS "promotionId",\n  pss.segment_id AS "segmentId",\n  pss.suggested_rank AS "suggestedRank",\n  pss.suggestion_source AS "suggestionSource",\n  pss.status AS "suggestionStatus",\n  pss.score_json AS "scoreJson",\n  pss.reason_json AS "reasonJson",\n  pss.metadata_json AS "metadataJson",\n  sd.segment_name AS "segmentName",\n  sd.source AS "segmentSource",\n  sd.rule_json AS "ruleJson",\n  sd.profile_json AS "profileJson",\n  sd.sample_size AS "sampleSize",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  pss.created_at AS "createdAt",\n  pss.updated_at AS "updatedAt",\n  pss.decided_at AS "decidedAt"\nFROM promotion_segment_suggestions pss\nJOIN segment_definitions sd\n  ON sd.segment_id = pss.segment_id\nWHERE pss.project_id = :projectId\n  AND pss.promotion_id = :promotionId\n  AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)\nORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC                                             '
 };
 
 /**
@@ -2652,6 +2653,7 @@ const listDashboardPromotionSegmentSuggestionsIR: any = {
  *   pss.status AS "suggestionStatus",
  *   pss.score_json AS "scoreJson",
  *   pss.reason_json AS "reasonJson",
+ *   pss.metadata_json AS "metadataJson",
  *   sd.segment_name AS "segmentName",
  *   sd.source AS "segmentSource",
  *   sd.rule_json AS "ruleJson",
@@ -2692,6 +2694,7 @@ export interface IDecideDashboardPromotionSegmentSuggestionResult {
   profileJson: Json;
   promotionId: string;
   reasonJson: Json;
+  metadataJson: Json;
   ruleJson: Json;
   sampleRatio: number | null;
   sampleSize: number;
@@ -2754,7 +2757,7 @@ const decideDashboardPromotionSegmentSuggestionIR: any = {
     }
   ],
   statement:
-    'WITH accepted AS (\n  UPDATE promotion_segment_suggestions\n  SET status = :status,\n      decided_at = now(),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = \'accepted\'\n    AND status IN (\'suggested\', \'accepted\', \'dismissed\')\n  RETURNING *, status AS result_status\n),\ndeleted AS (\n  DELETE FROM promotion_segment_suggestions\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = \'dismissed\'\n    AND status IN (\'suggested\', \'accepted\', \'dismissed\')\n  RETURNING *, \'dismissed\'::varchar AS result_status\n),\ndecided AS (\n  SELECT * FROM accepted\n  UNION ALL\n  SELECT * FROM deleted\n)\nSELECT\n  d.suggestion_id AS "suggestionId",\n  d.analysis_id AS "analysisId",\n  d.campaign_id AS "campaignId",\n  d.promotion_id AS "promotionId",\n  d.segment_id AS "segmentId",\n  d.suggested_rank AS "suggestedRank",\n  d.suggestion_source AS "suggestionSource",\n  d.result_status AS "suggestionStatus",\n  d.score_json AS "scoreJson",\n  d.reason_json AS "reasonJson",\n  sd.segment_name AS "segmentName",\n  sd.source AS "segmentSource",\n  sd.rule_json AS "ruleJson",\n  sd.profile_json AS "profileJson",\n  sd.sample_size AS "sampleSize",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  d.created_at AS "createdAt",\n  d.updated_at AS "updatedAt",\n  d.decided_at AS "decidedAt"\nFROM decided d\nJOIN segment_definitions sd\n  ON sd.segment_id = d.segment_id                                                  '
+    'WITH accepted AS (\n  UPDATE promotion_segment_suggestions\n  SET status = :status,\n      decided_at = now(),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = \'accepted\'\n    AND status IN (\'suggested\', \'accepted\', \'dismissed\')\n  RETURNING *, status AS result_status\n),\ndeleted AS (\n  DELETE FROM promotion_segment_suggestions\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = \'dismissed\'\n    AND status IN (\'suggested\', \'accepted\', \'dismissed\')\n  RETURNING *, \'dismissed\'::varchar AS result_status\n),\ndecided AS (\n  SELECT * FROM accepted\n  UNION ALL\n  SELECT * FROM deleted\n)\nSELECT\n  d.suggestion_id AS "suggestionId",\n  d.analysis_id AS "analysisId",\n  d.campaign_id AS "campaignId",\n  d.promotion_id AS "promotionId",\n  d.segment_id AS "segmentId",\n  d.suggested_rank AS "suggestedRank",\n  d.suggestion_source AS "suggestionSource",\n  d.result_status AS "suggestionStatus",\n  d.score_json AS "scoreJson",\n  d.reason_json AS "reasonJson",\n  d.metadata_json AS "metadataJson",\n  sd.segment_name AS "segmentName",\n  sd.source AS "segmentSource",\n  sd.rule_json AS "ruleJson",\n  sd.profile_json AS "profileJson",\n  sd.sample_size AS "sampleSize",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  d.created_at AS "createdAt",\n  d.updated_at AS "updatedAt",\n  d.decided_at AS "decidedAt"\nFROM decided d\nJOIN segment_definitions sd\n  ON sd.segment_id = d.segment_id                                                  '
 };
 
 /**
@@ -2797,6 +2800,7 @@ const decideDashboardPromotionSegmentSuggestionIR: any = {
  *   d.result_status AS "suggestionStatus",
  *   d.score_json AS "scoreJson",
  *   d.reason_json AS "reasonJson",
+ *   d.metadata_json AS "metadataJson",
  *   sd.segment_name AS "segmentName",
  *   sd.source AS "segmentSource",
  *   sd.rule_json AS "ruleJson",
@@ -2844,9 +2848,9 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {
       required: false,
       transform: { type: "scalar" },
       locs: [
-        { a: 640, b: 649 },
-        { a: 1255, b: 1264 },
-        { a: 2834, b: 2843 }
+        { a: 697, b: 706 },
+        { a: 1312, b: 1321 },
+        { a: 2891, b: 2900 }
       ]
     },
     {
@@ -2854,27 +2858,27 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {
       required: false,
       transform: { type: "scalar" },
       locs: [
-        { a: 678, b: 689 },
-        { a: 1292, b: 1303 },
-        { a: 2872, b: 2883 },
-        { a: 3037, b: 3048 }
+        { a: 735, b: 746 },
+        { a: 1349, b: 1360 },
+        { a: 2929, b: 2940 },
+        { a: 3094, b: 3105 }
       ]
     },
     {
       name: "manualAnalysisId",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 761, b: 777 }]
+      locs: [{ a: 818, b: 834 }]
     },
     {
       name: "confirmedBy",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 2085, b: 2096 }]
+      locs: [{ a: 2142, b: 2153 }]
     }
   ],
   statement:
-    "WITH accepted_suggestions AS (\n  SELECT\n    pss.analysis_id,\n    pss.project_id,\n    pss.campaign_id,\n    pss.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    pss.suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'suggestion_id', pss.suggestion_id,\n      'score', pss.score_json,\n      'reason', pss.reason_json,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM promotion_segment_suggestions pss\n  JOIN segment_definitions sd\n    ON sd.segment_id = pss.segment_id\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.status = 'accepted'\n),\nmanual_segments AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    sd.project_id,\n    sd.campaign_id,\n    sd.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    NULL::varchar AS suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'query_preview_id', sd.query_preview_id,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM segment_definitions sd\n  WHERE sd.project_id = :projectId\n    AND sd.promotion_id = :promotionId\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n),\nconfirmed AS (\n  INSERT INTO promotion_target_segments (\n    analysis_id,\n    project_id,\n    campaign_id,\n    promotion_id,\n    segment_id,\n    segment_name,\n    rule_json,\n    profile_json,\n    content_brief_json,\n    data_evidence_json,\n    estimated_size,\n    priority,\n    status,\n    suggestion_id,\n    confirmed_by,\n    confirmed_at\n  )\n  SELECT\n    selected.analysis_id,\n    selected.project_id,\n    selected.campaign_id,\n    selected.promotion_id,\n    selected.segment_id,\n    selected.segment_name,\n    selected.rule_json,\n    selected.profile_json,\n    '{}'::jsonb,\n    selected.data_evidence_json,\n    selected.sample_size,\n    NULL,\n    'planned',\n    selected.suggestion_id,\n    :confirmedBy,\n    now()\n  FROM (\n    SELECT * FROM accepted_suggestions\n    UNION ALL\n    SELECT * FROM manual_segments\n  ) selected\n  ON CONFLICT (analysis_id, segment_id) DO UPDATE\n  SET\n    suggestion_id = EXCLUDED.suggestion_id,\n    confirmed_by = EXCLUDED.confirmed_by,\n    confirmed_at = EXCLUDED.confirmed_at,\n    status = CASE\n      WHEN promotion_target_segments.status = 'stopped' THEN 'planned'\n      ELSE promotion_target_segments.status\n    END\n  RETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", suggestion_id AS \"suggestionId\"\n),\nupdated AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND EXISTS (\n      SELECT 1\n      FROM confirmed c\n      WHERE c.\"suggestionId\" = pss.suggestion_id\n    )\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed                                      "
+    "WITH accepted_suggestions AS (\n  SELECT\n    pss.analysis_id,\n    pss.project_id,\n    pss.campaign_id,\n    pss.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    pss.suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'suggestion_id', pss.suggestion_id,\n      'score', pss.score_json,\n      'reason', pss.reason_json,\n      'display_copy', pss.metadata_json->'display_copy',\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM promotion_segment_suggestions pss\n  JOIN segment_definitions sd\n    ON sd.segment_id = pss.segment_id\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.status = 'accepted'\n),\nmanual_segments AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    sd.project_id,\n    sd.campaign_id,\n    sd.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    NULL::varchar AS suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'query_preview_id', sd.query_preview_id,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM segment_definitions sd\n  WHERE sd.project_id = :projectId\n    AND sd.promotion_id = :promotionId\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n),\nconfirmed AS (\n  INSERT INTO promotion_target_segments (\n    analysis_id,\n    project_id,\n    campaign_id,\n    promotion_id,\n    segment_id,\n    segment_name,\n    rule_json,\n    profile_json,\n    content_brief_json,\n    data_evidence_json,\n    estimated_size,\n    priority,\n    status,\n    suggestion_id,\n    confirmed_by,\n    confirmed_at\n  )\n  SELECT\n    selected.analysis_id,\n    selected.project_id,\n    selected.campaign_id,\n    selected.promotion_id,\n    selected.segment_id,\n    selected.segment_name,\n    selected.rule_json,\n    selected.profile_json,\n    '{}'::jsonb,\n    selected.data_evidence_json,\n    selected.sample_size,\n    NULL,\n    'planned',\n    selected.suggestion_id,\n    :confirmedBy,\n    now()\n  FROM (\n    SELECT * FROM accepted_suggestions\n    UNION ALL\n    SELECT * FROM manual_segments\n  ) selected\n  ON CONFLICT (analysis_id, segment_id) DO UPDATE\n  SET\n    suggestion_id = EXCLUDED.suggestion_id,\n    confirmed_by = EXCLUDED.confirmed_by,\n    confirmed_at = EXCLUDED.confirmed_at,\n    status = CASE\n      WHEN promotion_target_segments.status = 'stopped' THEN 'planned'\n      ELSE promotion_target_segments.status\n    END\n  RETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", suggestion_id AS \"suggestionId\"\n),\nupdated AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND EXISTS (\n      SELECT 1\n      FROM confirmed c\n      WHERE c.\"suggestionId\" = pss.suggestion_id\n    )\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed                                      "
 };
 
 /**
@@ -2897,6 +2901,7 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {
  *       'suggestion_id', pss.suggestion_id,
  *       'score', pss.score_json,
  *       'reason', pss.reason_json,
+ *       'display_copy', pss.metadata_json->'display_copy',
  *       'sample_size', sd.sample_size,
  *       'sample_ratio', sd.sample_ratio
  *     ) AS data_evidence_json
