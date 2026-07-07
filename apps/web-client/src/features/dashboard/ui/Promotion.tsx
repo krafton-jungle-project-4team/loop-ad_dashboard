@@ -1285,6 +1285,8 @@ function PromotionTabWorkspace({
   tab: PromotionWorkspaceTab;
 }) {
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
+  const selectedSegmentSuggestion =
+    suggestions.find((suggestion) => suggestion.segment_id === selectedSegmentId) ?? null;
   return (
     <section className="grid gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1423,6 +1425,7 @@ function PromotionTabWorkspace({
             rejectContentCandidateError={rejectContentCandidateError}
             rejectContentCandidateIsError={rejectContentCandidateIsError}
             rejectContentCandidateIsPending={rejectContentCandidateIsPending}
+            segmentSuggestion={selectedSegmentSuggestion}
             selectedSegmentId={selectedSegmentId}
             startAdExperimentError={startAdExperimentError}
             startAdExperimentIsError={startAdExperimentIsError}
@@ -1676,6 +1679,7 @@ function PromotionSegmentDetailTab({
   rejectContentCandidateError,
   rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
+  segmentSuggestion,
   selectedSegmentId,
   startAdExperimentError,
   startAdExperimentIsError,
@@ -1728,6 +1732,7 @@ function PromotionSegmentDetailTab({
   rejectContentCandidateError: Error | null;
   rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
+  segmentSuggestion: DashboardPromotionSegmentSuggestion | null;
   selectedSegmentId: string;
   startAdExperimentError: Error | null;
   startAdExperimentIsError: boolean;
@@ -1811,39 +1816,7 @@ function PromotionSegmentDetailTab({
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">세그먼트 조건/생성 이유</CardTitle>
-            <CardDescription>프로모션에 종속된 세그먼트 정의입니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <InsightBlock label="자연어 조건" value={detail.segment.natural_language_query ?? "-"} />
-            <InsightBlock label="조건 요약" value={formatJsonObject(detail.segment.rule_json)} />
-            <InsightBlock label="프로필 요약" value={formatJsonObject(detail.segment.profile_json)} />
-          </CardContent>
-        </Card>
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">데이터 근거/예상 효과</CardTitle>
-            <CardDescription>추천과 확정에 사용된 근거를 숨기지 않습니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <InsightBlock
-              label="데이터 근거"
-              value={formatJsonObject(detail.segment.data_evidence_json)}
-            />
-            <InsightBlock
-              label="콘텐츠 브리프"
-              value={formatJsonObject(detail.segment.content_brief_json)}
-            />
-            <InsightBlock
-              label="예상 효과"
-              value={segmentExpectedEffect(detail.segment, latestMetric)}
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <SegmentDetailReportCard suggestion={segmentSuggestion} />
 
       <section className="grid gap-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -2375,7 +2348,6 @@ function SegmentSuggestionReportDialog({
   suggestion: DashboardPromotionSegmentSuggestion | null;
 }) {
   const report = suggestion?.ai_report ?? null;
-  const displayCopy = suggestion?.display_copy ?? null;
 
   return (
     <Dialog onOpenChange={onOpenChange} open={Boolean(report)}>
@@ -2393,37 +2365,7 @@ function SegmentSuggestionReportDialog({
               후보를 확정하기 전에 고객군의 성격과 추천 근거를 확인합니다.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4">
-            <section className="grid gap-2 rounded-md border bg-[#f8f8ff] p-4">
-              <div className="text-sm font-medium text-foreground">{report.summary}</div>
-              <div className="text-sm text-muted-foreground">
-                {displayCopy?.audience_summary ??
-                  segmentAudienceSummary(
-                    suggestion?.sample_size ?? 0,
-                    suggestion?.sample_ratio ?? 0
-                  )}
-              </div>
-              {displayCopy?.signal_chips.length ? (
-                <div className="flex flex-wrap gap-1">
-                  {displayCopy.signal_chips.map((chip) => (
-                    <Badge className="text-[11px]" key={chip} variant="outline">
-                      {chip}
-                    </Badge>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-            <ReportSection items={report.why_recommended} title="왜 추천했나요" />
-            <ReportSection items={report.evidence} title="확인된 근거" />
-            <section className="grid gap-2 rounded-md border p-4">
-              <h4 className="text-sm font-semibold">활용 방법</h4>
-              <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
-            </section>
-            <section className="grid gap-2 rounded-md border border-[#fee2e2] bg-[#fff7f7] p-4">
-              <h4 className="text-sm font-semibold text-[#b42318]">주의할 점</h4>
-              <p className="text-sm leading-6 text-[#7a271a]">{report.caution}</p>
-            </section>
-          </div>
+          <SegmentSuggestionReportContent suggestion={suggestion} />
           <DialogFooter>
             <Button onClick={() => onOpenChange(false)} type="button">
               확인
@@ -2432,6 +2374,74 @@ function SegmentSuggestionReportDialog({
         </DialogContent>
       ) : null}
     </Dialog>
+  );
+}
+
+function SegmentDetailReportCard({
+  suggestion
+}: {
+  suggestion: DashboardPromotionSegmentSuggestion | null;
+}) {
+  const report = suggestion?.ai_report ?? null;
+
+  return (
+    <Card className="shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base">세그먼트 리포트</CardTitle>
+        <CardDescription>AI가 정리한 고객군 성격, 추천 근거, 활용 방법을 확인합니다.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {report ? (
+          <SegmentSuggestionReportContent suggestion={suggestion} />
+        ) : (
+          <EmptyState message="이 세그먼트에 연결된 AI 추천 리포트가 없습니다." />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SegmentSuggestionReportContent({
+  suggestion
+}: {
+  suggestion: DashboardPromotionSegmentSuggestion | null;
+}) {
+  const report = suggestion?.ai_report ?? null;
+  const displayCopy = suggestion?.display_copy ?? null;
+
+  if (!report) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-4">
+      <section className="grid gap-2 rounded-md border bg-[#f8f8ff] p-4">
+        <div className="text-sm font-medium text-foreground">{report.summary}</div>
+        <div className="text-sm text-muted-foreground">
+          {displayCopy?.audience_summary ??
+            segmentAudienceSummary(suggestion?.sample_size ?? 0, suggestion?.sample_ratio ?? 0)}
+        </div>
+        {displayCopy?.signal_chips.length ? (
+          <div className="flex flex-wrap gap-1">
+            {displayCopy.signal_chips.map((chip) => (
+              <Badge className="text-[11px]" key={chip} variant="outline">
+                {chip}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </section>
+      <ReportSection items={report.why_recommended} title="왜 추천했나요" />
+      <ReportSection items={report.evidence} title="확인된 근거" />
+      <section className="grid gap-2 rounded-md border p-4">
+        <h4 className="text-sm font-semibold">활용 방법</h4>
+        <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
+      </section>
+      <section className="grid gap-2 rounded-md border border-[#fee2e2] bg-[#fff7f7] p-4">
+        <h4 className="text-sm font-semibold text-[#b42318]">주의할 점</h4>
+        <p className="text-sm leading-6 text-[#7a271a]">{report.caution}</p>
+      </section>
+    </div>
   );
 }
 
@@ -3122,30 +3132,6 @@ function segmentAudienceSummary(sampleSize: number, sampleRatio: number) {
 
 function nonEmptyText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
-
-function segmentExpectedEffect(
-  segment: DashboardCampaignSegment,
-  latestMetric: DashboardSegmentDetail["experiment_metrics"][number] | undefined
-) {
-  const explicitEffect =
-    pickJsonString(segment.content_brief_json, ["expected_effect", "expectedEffect", "effect"]) ??
-    pickJsonString(segment.data_evidence_json, [
-      "expected_effect",
-      "expectedEffect",
-      "expected_lift",
-      "conversion_lift",
-      "rationale"
-    ]);
-  if (explicitEffect) {
-    return explicitEffect;
-  }
-  if (latestMetric) {
-    return `${formatMetricLabel(latestMetric.metric)} 기준 실제 ${formatGoalValue(
-      latestMetric.actual_value
-    )}, 목표 ${formatGoalValue(latestMetric.target_value)}입니다.`;
-  }
-  return "실험 지표가 쌓이면 예상 효과와 실제 효과를 함께 비교합니다.";
 }
 
 function contentCandidateTitle(candidate: DashboardSegmentDetail["content_candidates"][number]) {
