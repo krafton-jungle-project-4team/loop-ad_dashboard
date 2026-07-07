@@ -1,0 +1,4 @@
+interface:
+  display_name: "LoopAd Log Tracer"
+  short_description: "Investigate LoopAd CloudWatch logs"
+  default_prompt: "Use $loopad-log-tracer to investigate a LoopAd request ID, API failure, or bug symptom in AWS logs."
