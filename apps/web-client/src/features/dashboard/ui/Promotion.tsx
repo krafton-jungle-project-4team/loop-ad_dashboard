@@ -90,6 +90,14 @@ import {
   startDashboardPromotionGeneration
 } from "../api/dashboard-api.js";
 import { formatInteger } from "../model/dashboard-format.js";
+import {
+  formatActionLabel,
+  formatAudienceLabel,
+  formatBasisLabel,
+  formatChannelLabel,
+  formatMetricLabel,
+  formatStatusLabel
+} from "../model/dashboard-labels.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
@@ -1195,18 +1203,20 @@ function PromotionTabWorkspace({
     <section className="grid gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
-          <div className="text-sm font-medium text-[#3927d9]">Promotion View</div>
+          <div className="text-sm font-medium text-[#3927d9]">프로모션 보기</div>
           <h2 className="text-3xl font-semibold tracking-tight text-[#102033]">
             {promotion.marketing_theme}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {promotion.channel} · {promotion.target_audience} · {promotion.promotion_id}
+            {formatChannelLabel(promotion.channel)} · {formatAudienceLabel(promotion.target_audience)}
           </p>
         </div>
-        <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
+        <Badge variant={statusBadgeVariant(promotion.status)}>
+          {formatStatusLabel(promotion.status)}
+        </Badge>
       </div>
       <div className="grid gap-4 md:grid-cols-5">
-        <PromotionMetricCard label="목표 지표" value={promotion.goal_metric} />
+        <PromotionMetricCard label="목표 지표" value={formatMetricLabel(promotion.goal_metric)} />
         <PromotionMetricCard label="목표값" value={formatGoalValue(promotion.goal_target_value)} />
         <PromotionMetricCard
           label="현재값"
@@ -1385,9 +1395,9 @@ function PromotionOverviewTab({
             }
           />
           <div className="grid gap-3 md:grid-cols-3">
-            <SummaryItem label="목표 기준" value={promotion.goal_basis} />
+            <SummaryItem label="목표 기준" value={formatBasisLabel(promotion.goal_basis)} />
             <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
-            <SummaryItem label="다음 액션" value={promotion.next_action} />
+            <SummaryItem label="다음 액션" value={formatActionLabel(promotion.next_action)} />
           </div>
         </CardContent>
       </Card>
@@ -1406,7 +1416,7 @@ function PromotionOverviewTab({
           <CardContent className="grid gap-2 p-5">
             <div className="flex items-center gap-2 font-semibold text-[#3927d9]">
               <CheckCircle2 className="size-4" />
-              Optimization Hint
+              최적화 힌트
             </div>
             <p className="text-sm leading-6 text-muted-foreground">
               목표 달성률과 세그먼트 반응을 기준으로 다음 루프 분석 후보를 확인하세요.
@@ -1485,19 +1495,21 @@ function PromotionCurrentSegmentsPanel({
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <span className="truncate font-medium">{segment.segment_name}</span>
-                      <Badge variant="secondary">Loop {formatInteger(loopCount)}</Badge>
+                      <Badge variant="secondary">루프 {formatInteger(loopCount)}</Badge>
                       {loopCount > 1 ? <Badge variant="default">다음 루프</Badge> : null}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {formatInteger(segment.estimated_size)}명 · 표본{" "}
-                      {formatInteger(segment.sample_size)} · {segment.goal_metric}
+                      {formatInteger(segment.sample_size)} · {formatMetricLabel(segment.goal_metric)}
                       {hiddenLoopCount > 0
                         ? ` · 이전 루프 ${formatInteger(hiddenLoopCount)}개 숨김`
                         : ""}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                    <Badge variant={statusBadgeVariant(segment.status)}>
+                      {formatStatusLabel(segment.status)}
+                    </Badge>
                     <Button
                       aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
                       disabled={deleteIsPending}
@@ -1679,11 +1691,11 @@ function PromotionSegmentDetailTab({
           <div className="grid gap-1">
             <CardTitle>{detail.segment.segment_name}</CardTitle>
             <CardDescription>
-              {detail.segment.promotion_id} · {detail.segment.segment_id}
+              {detail.segment.natural_language_query ?? "세그먼트 조건 미등록"}
             </CardDescription>
           </div>
           <Badge variant={statusBadgeVariant(detail.segment.status)}>
-            {detail.segment.status}
+            {formatStatusLabel(detail.segment.status)}
           </Badge>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-4">
@@ -1697,12 +1709,12 @@ function PromotionSegmentDetailTab({
             label="연결 실험"
             value={formatInteger(detail.ad_experiments.length)}
           />
-          <SummaryItem label="목표 지표" value={detail.segment.goal_metric} />
+          <SummaryItem label="목표 지표" value={formatMetricLabel(detail.segment.goal_metric)} />
           <SummaryItem
             label="최근 지표"
             value={
               latestMetric
-                ? `${latestMetric.metric} ${formatGoalValue(latestMetric.actual_value)}`
+                ? `${formatMetricLabel(latestMetric.metric)} ${formatGoalValue(latestMetric.actual_value)}`
                 : "-"
             }
           />
@@ -1793,7 +1805,7 @@ function PromotionSegmentDetailTab({
             <Alert>
               <AlertTitle>광고 생성 요청이 접수되었습니다</AlertTitle>
               <AlertDescription>
-                {generation.generation_id} · {generation.status}
+                {generation.generation_id} · {formatStatusLabel(generation.status)}
                 {generation.content_candidate_count === undefined
                   ? ""
                   : ` · 후보 ${formatInteger(generation.content_candidate_count)}개`}
@@ -1909,7 +1921,7 @@ function PromotionSegmentDetailTab({
                           </div>
                         </TableCell>
                         <TableCell className="align-top">
-                          <Badge variant="outline">{candidate.channel}</Badge>
+                          <Badge variant="outline">{formatChannelLabel(candidate.channel)}</Badge>
                         </TableCell>
                         <TableCell className="max-w-[420px] break-words align-top">
                           <div className="flex flex-col gap-2">
@@ -1947,7 +1959,7 @@ function PromotionSegmentDetailTab({
                         </TableCell>
                         <TableCell className="align-top">
                           <Badge variant={statusBadgeVariant(candidate.status)}>
-                            {candidate.status}
+                            {formatStatusLabel(candidate.status)}
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-[360px] break-words align-top">
@@ -2071,7 +2083,7 @@ function PromotionSegmentDetailTab({
               <AlertTitle>실험 생성 요청이 완료되었습니다</AlertTitle>
               <AlertDescription>
                 {createPromotionRunResult.promotion_run_id} ·{" "}
-                {createPromotionRunResult.status} · 실험{" "}
+                {formatStatusLabel(createPromotionRunResult.status)} · 실험{" "}
                 {formatInteger(createPromotionRunResult.ad_experiments.length)}개
               </AlertDescription>
             </Alert>
@@ -2088,7 +2100,7 @@ function PromotionSegmentDetailTab({
               <AlertDescription>
                 {buildAssignmentsResult.promotion_run_id} · 배정{" "}
                 {formatInteger(buildAssignmentsResult.assignment_count)}명 ·{" "}
-                {buildAssignmentsResult.status}
+                {formatStatusLabel(buildAssignmentsResult.status)}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -2102,7 +2114,8 @@ function PromotionSegmentDetailTab({
             <Alert>
               <AlertTitle>성과 평가가 완료되었습니다</AlertTitle>
               <AlertDescription>
-                {evaluatePromotionRunResult.promotion_run_id} · {evaluatePromotionRunResult.status}
+                {evaluatePromotionRunResult.promotion_run_id} ·{" "}
+                {formatStatusLabel(evaluatePromotionRunResult.status)}
                 · 실패 세그먼트 {formatInteger(evaluatePromotionRunResult.failed_segment_ids.length)}개
               </AlertDescription>
             </Alert>
@@ -2172,14 +2185,15 @@ function PromotionSegmentDetailTab({
                     <TableRow key={experiment.ad_experiment_id}>
                       <TableCell className="font-medium">{experiment.ad_experiment_id}</TableCell>
                       <TableCell>{experiment.content_id}</TableCell>
-                      <TableCell>{experiment.channel}</TableCell>
+                      <TableCell>{formatChannelLabel(experiment.channel)}</TableCell>
                       <TableCell>{formatInteger(experiment.loop_count)}</TableCell>
                       <TableCell>
-                        {experiment.goal_metric} · {formatGoalValue(experiment.goal_target_value)}
+                        {formatMetricLabel(experiment.goal_metric)} ·{" "}
+                        {formatGoalValue(experiment.goal_target_value)}
                       </TableCell>
                       <TableCell>
                         <Badge variant={statusBadgeVariant(experiment.status)}>
-                          {experiment.status}
+                          {formatStatusLabel(experiment.status)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -2249,7 +2263,7 @@ function PromotionSegmentDetailTab({
                   <TableRow
                     key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
                   >
-                    <TableCell className="font-medium">{metric.metric}</TableCell>
+                    <TableCell className="font-medium">{formatMetricLabel(metric.metric)}</TableCell>
                     <TableCell>{metric.ad_experiment_id ?? "-"}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatGoalValue(metric.target_value)}
@@ -2261,7 +2275,9 @@ function PromotionSegmentDetailTab({
                       {formatInteger(metric.sample_size)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusBadgeVariant(metric.status)}>{metric.status}</Badge>
+                      <Badge variant={statusBadgeVariant(metric.status)}>
+                        {formatStatusLabel(metric.status)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="max-w-[360px]">
                       {metric.status === "insufficient_data"
@@ -2392,7 +2408,8 @@ function PromotionSegmentSuggestionPanel({
           <Alert>
             <AlertTitle>AI 추천 요청이 접수되었습니다</AlertTitle>
             <AlertDescription>
-              분석 {promotionAnalysis.analysis_id} · 상태 {promotionAnalysis.status}
+              분석 {promotionAnalysis.analysis_id} · 상태{" "}
+              {formatStatusLabel(promotionAnalysis.status)}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -2451,10 +2468,11 @@ function PromotionSegmentSuggestionPanel({
                     <div className="grid gap-1">
                       <div className="text-xs font-semibold text-[#3927d9]">{segment.source}</div>
                       <h3 className="text-base font-semibold">{segment.segment_name}</h3>
-                      <p className="text-xs text-muted-foreground">{segment.segment_id}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={statusBadgeVariant(segment.status)}>{segment.status}</Badge>
+                      <Badge variant={statusBadgeVariant(segment.status)}>
+                        {formatStatusLabel(segment.status)}
+                      </Badge>
                       <Button
                         aria-label={`${segment.segment_name} 직접 추가 후보 삭제`}
                         disabled={archiveScopedSegmentIsPending}
@@ -2510,7 +2528,7 @@ function PromotionSegmentSuggestionPanel({
                       </p>
                     </div>
                     <Badge variant={statusBadgeVariant(suggestion.suggestion_status)}>
-                      {suggestion.suggestion_status}
+                      {formatStatusLabel(suggestion.suggestion_status)}
                     </Badge>
                   </div>
                   <div className="grid gap-2 text-sm text-muted-foreground">
@@ -2782,7 +2800,7 @@ function PromotionAddDialog({
                   <SelectContent>
                     {promotionChannelOptions.map((channel) => (
                       <SelectItem key={channel} value={channel}>
-                        {channel}
+                        {formatChannelLabel(channel)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -2814,7 +2832,7 @@ function PromotionAddDialog({
                   <SelectContent>
                     {promotionGoalMetricOptions.map((metric) => (
                       <SelectItem key={metric} value={metric}>
-                        {metric}
+                        {formatMetricLabel(metric)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -2843,7 +2861,7 @@ function PromotionAddDialog({
                   <SelectContent>
                     {promotionGoalBasisOptions.map((basis) => (
                       <SelectItem key={basis} value={basis}>
-                        {basis}
+                        {formatBasisLabel(basis)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -3068,7 +3086,7 @@ export function CampaignPromotionTable({
               <SelectItem value="all">전체 상태</SelectItem>
               {promotionStatusOptions.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {status}
+                  {formatStatusLabel(status)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -3084,7 +3102,7 @@ export function CampaignPromotionTable({
               <SelectItem value="all">전체 채널</SelectItem>
               {promotionChannelOptions.map((channel) => (
                 <SelectItem key={channel} value={channel}>
-                  {channel}
+                  {formatChannelLabel(channel)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -3137,11 +3155,11 @@ export function CampaignPromotionTable({
                       <div className="flex min-w-[220px] flex-col gap-1">
                         <span className="font-medium">{promotion.marketing_theme}</span>
                         <span className="text-xs text-muted-foreground">
-                          {promotion.channel} · {promotion.promotion_id}
+                          {formatChannelLabel(promotion.channel)}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{promotion.target_audience}</TableCell>
+                    <TableCell>{formatAudienceLabel(promotion.target_audience)}</TableCell>
                     <TableCell>
                       <div className="flex min-w-[240px] flex-wrap gap-1.5">
                         {promotionSegments.slice(0, 3).map((segment) => (
@@ -3159,9 +3177,10 @@ export function CampaignPromotionTable({
                     </TableCell>
                     <TableCell>
                       <div className="grid min-w-[160px] gap-1">
-                        <span className="text-sm">{promotion.goal_metric}</span>
+                        <span className="text-sm">{formatMetricLabel(promotion.goal_metric)}</span>
                         <span className="text-xs text-muted-foreground">
-                          {formatGoalValue(promotion.goal_target_value)} · {promotion.goal_basis}
+                          {formatGoalValue(promotion.goal_target_value)} ·{" "}
+                          {formatBasisLabel(promotion.goal_basis)}
                         </span>
                       </div>
                     </TableCell>
@@ -3173,10 +3192,12 @@ export function CampaignPromotionTable({
                       {formatInteger(promotion.ad_experiment_count)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusBadgeVariant(promotion.status)}>{promotion.status}</Badge>
+                      <Badge variant={statusBadgeVariant(promotion.status)}>
+                        {formatStatusLabel(promotion.status)}
+                      </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{promotion.next_action}</Badge>
+                      <Badge variant="outline">{formatActionLabel(promotion.next_action)}</Badge>
                     </TableCell>
                     <TableCell>
                       <Button
@@ -3281,7 +3302,7 @@ function segmentExpectedEffect(
     return explicitEffect;
   }
   if (latestMetric) {
-    return `${latestMetric.metric} 기준 실제 ${formatGoalValue(
+    return `${formatMetricLabel(latestMetric.metric)} 기준 실제 ${formatGoalValue(
       latestMetric.actual_value
     )}, 목표 ${formatGoalValue(latestMetric.target_value)}입니다.`;
   }

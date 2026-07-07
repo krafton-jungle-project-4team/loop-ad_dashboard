@@ -373,9 +373,7 @@ function ProjectManagementDialog({ projectId }: { projectId: string }) {
                             </span>
                           ) : null}
                         </div>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {project.project_id} · {project.domain}
-                        </p>
+                        <p className="truncate text-xs text-muted-foreground">{project.domain}</p>
                       </div>
                       <div className="flex items-center justify-end gap-2">
                         <Button
@@ -625,7 +623,7 @@ function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: Dash
         <BreadcrumbSeparator className="hidden sm:inline-flex" />
         <BreadcrumbItem className="min-w-0">
           <BreadcrumbPage className="truncate text-sm font-semibold leading-none tracking-tight text-[#1d1d1f]">
-            {projectId} · {getDashboardTabLabel(tab)}
+            {getDashboardTabLabel(tab)}
           </BreadcrumbPage>
         </BreadcrumbItem>
       </BreadcrumbList>

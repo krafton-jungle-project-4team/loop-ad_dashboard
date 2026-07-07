@@ -28,6 +28,10 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { fetchDashboardCampaignDetail } from "../api/dashboard-api.js";
+import {
+  formatChannelLabel,
+  formatStatusLabel
+} from "../model/dashboard-labels.js";
 import { formatDateTime, formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import { dashboardCampaignDetailQueryKey } from "../model/dashboard-query-keys.js";
@@ -204,7 +208,7 @@ function ExperimentDashboardContent({
                 <SelectItem value="all">전체 프로모션</SelectItem>
                 {detail.promotions.map((promotion) => (
                   <SelectItem key={promotion.promotion_id} value={promotion.promotion_id}>
-                    {promotion.channel} · {promotion.promotion_id}
+                    {promotion.marketing_theme} · {formatChannelLabel(promotion.channel)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -220,7 +224,7 @@ function ExperimentDashboardContent({
                 <SelectItem value="all">전체 상태</SelectItem>
                 {statusOptions.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {status}
+                    {formatStatusLabel(status)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -272,7 +276,9 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
               </TableCell>
               <TableCell>
                 <div className="grid min-w-[180px] gap-1">
-                  <span>{row.promotion?.channel ?? row.experiment?.channel ?? "-"}</span>
+                  <span>
+                    {formatChannelLabel(row.promotion?.channel ?? row.experiment?.channel)}
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     {row.promotion?.promotion_id ??
                       row.experiment?.promotion_id ??
@@ -285,12 +291,6 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
                 <div className="grid min-w-[200px] gap-1">
                   <span className="font-medium">
                     {row.segment?.segment_name ?? fallbackSegmentName(row)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {row.segment?.segment_id ??
-                      row.experiment?.segment_id ??
-                      row.latestMetric?.segment_id ??
-                      "-"}
                   </span>
                 </div>
               </TableCell>
@@ -314,13 +314,13 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
               </TableCell>
               <TableCell>
                 <Badge variant={statusBadgeVariant(row.experimentStatus)}>
-                  {row.experimentStatus}
+                  {formatStatusLabel(row.experimentStatus)}
                 </Badge>
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant={statusBadgeVariant(row.evaluationStatus ?? "not_evaluated")}>
-                    {row.evaluationStatus ?? "not_evaluated"}
+                    {formatStatusLabel(row.evaluationStatus ?? "not_evaluated")}
                   </Badge>
                   {row.nextLoopRequired ? <Badge variant="outline">다음 루프</Badge> : null}
                 </div>
