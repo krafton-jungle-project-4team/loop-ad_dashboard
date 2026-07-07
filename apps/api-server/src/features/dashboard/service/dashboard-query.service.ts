@@ -208,7 +208,7 @@ export class DashboardQueryService {
       request.analysis_id
     );
 
-    if (existingGeneration) {
+    if (existingGeneration && existingGeneration.status !== "failed") {
       return existingGeneration;
     }
 
