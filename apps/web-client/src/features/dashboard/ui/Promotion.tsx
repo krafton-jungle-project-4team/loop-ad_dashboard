@@ -124,6 +124,7 @@ const promotionGoalMetricOptions = [
 ] as const;
 const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
 const defaultPromotionLandingUrl = "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
+const onsiteBannerImagePollIntervalMs = 3000;
 type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 
 export function PromotionPanel({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
@@ -293,6 +294,21 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       selectedPromotionSegmentId
     )
   });
+  const isPollingOnsiteBannerImage = Boolean(
+    selectedOpenPromotion?.channel === "onsite_banner" &&
+      hasPendingOnsiteBannerImage(segmentDetail.data)
+  );
+  useEffect(() => {
+    if (!isPollingOnsiteBannerImage) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void segmentDetail.refetch();
+    }, onsiteBannerImagePollIntervalMs);
+
+    return () => window.clearInterval(intervalId);
+  }, [isPollingOnsiteBannerImage, segmentDetail.refetch]);
   const segmentSuggestions = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
     queryFn: ({ signal }) =>
@@ -1649,6 +1665,7 @@ function PromotionSegmentDetailTab({
     (candidate) => candidate.status === "approved"
   );
   const hasGeneratedContentCandidates = detail.content_candidates.length > 0;
+  const hasPendingImage = hasPendingOnsiteBannerImage(detail);
   const generationFailed = generation?.status.toLowerCase() === "failed";
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
   const failedSegmentIds = uniqueStrings(
@@ -1795,6 +1812,14 @@ function PromotionSegmentDetailTab({
                 {generation.content_candidate_count === undefined
                   ? ""
                   : ` · 후보 ${formatInteger(generation.content_candidate_count)}개`}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {hasPendingImage ? (
+            <Alert>
+              <AlertTitle>배너 이미지를 생성하는 중입니다</AlertTitle>
+              <AlertDescription>
+                이미지 URL이 저장되면 자동으로 다시 불러와 카드에 표시합니다.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -3169,6 +3194,15 @@ function contentCandidateTitle(candidate: DashboardSegmentDetail["content_candid
 
 function contentCandidateMessage(candidate: DashboardSegmentDetail["content_candidates"][number]) {
   return candidate.body ?? candidate.message ?? candidate.generation_prompt ?? "-";
+}
+
+function hasPendingOnsiteBannerImage(detail: DashboardSegmentDetail | undefined) {
+  return Boolean(
+    detail?.content_candidates.some(
+      (candidate) =>
+        candidate.channel === "onsite_banner" && candidate.image_prompt && !candidate.image_url
+    )
+  );
 }
 
 function insufficientReason(metric: DashboardSegmentDetail["experiment_metrics"][number]) {
