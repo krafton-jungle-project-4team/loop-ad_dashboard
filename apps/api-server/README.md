@@ -34,7 +34,7 @@ src
   필수로 검증하고, 누락/실패 시 fallback plan을 만들지 않는다. OpenAI model은 앱 코드 상수로 관리한다.
 - Ad dispatch env validation: AWS region, SES/SMS 옵션, demo recipient read DB 연결 정보를 서버 시작 시 검증한다.
 - 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer/view query 계층만 ClickHouse/Postgres를 조회한다.
-- Logging: 로깅 API, context, event, level, placement 규칙은 `docs/reference_logging.md`를 따른다.
+- Logging: 언어/프레임워크 공통 로깅 표준은 `docs/reference_logging.md`를 따른다.
 
 ## 개발 규칙
 
