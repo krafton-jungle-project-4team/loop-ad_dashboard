@@ -81,10 +81,10 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     icon: ListFilter
   },
   {
-    label: "워크플로우 맵",
-    value: "campaign-flow-map",
-    pathSegment: "campaign-flow-map",
-    icon: Workflow
+    label: "캠페인 지표",
+    value: "campaign-metrics",
+    pathSegment: "campaign-metrics",
+    icon: Megaphone
   },
   {
     label: "프로모션",
@@ -99,12 +99,6 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     icon: FlaskConical
   },
   {
-    label: "캠페인 지표",
-    value: "campaign-metrics",
-    pathSegment: "campaign-metrics",
-    icon: Megaphone
-  },
-  {
     label: "SDK 연동",
     value: "sdk",
     pathSegment: "sdk",
@@ -115,7 +109,13 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     value: "dataExplorer",
     pathSegment: "data-explorer",
     icon: DatabaseZap
-  }
+  },
+    {
+    label: "워크플로우 맵",
+    value: "campaign-flow-map",
+    pathSegment: "campaign-flow-map",
+    icon: Workflow
+  },
 ];
 
 export function getDashboardTabByPath(path: string): DashboardTab | null {
