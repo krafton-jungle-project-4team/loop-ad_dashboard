@@ -51,6 +51,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
   CheckCircle2,
+  FileText,
   ImageIcon,
   Plus,
   Target,
@@ -2053,6 +2054,8 @@ function PromotionSegmentSuggestionPanel({
   suggestionsIsLoading: boolean;
 }) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [reportSuggestion, setReportSuggestion] =
+    useState<DashboardPromotionSegmentSuggestion | null>(null);
   const acceptedCount = suggestions.filter(
     (suggestion) => suggestion.suggestion_status === "accepted"
   ).length;
@@ -2248,6 +2251,17 @@ function PromotionSegmentSuggestionPanel({
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {suggestion.ai_report ? (
+                      <Button
+                        onClick={() => setReportSuggestion(suggestion)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <FileText className="mr-2 size-3.5" />
+                        리포트
+                      </Button>
+                    ) : null}
                     <Button
                       disabled={decideIsPending || isAccepted || isConfirmed}
                       onClick={() => onDecideSuggestion(suggestion.suggestion_id, "accepted")}
@@ -2272,6 +2286,14 @@ function PromotionSegmentSuggestionPanel({
             })}
           </div>
         ) : null}
+        <SegmentSuggestionReportDialog
+          onOpenChange={(open) => {
+            if (!open) {
+              setReportSuggestion(null);
+            }
+          }}
+          suggestion={reportSuggestion}
+        />
         <PromotionSegmentCreateDialog
           createIsPending={createScopedSegmentIsPending}
           onCreate={onCreateScopedSegment}
@@ -2280,6 +2302,90 @@ function PromotionSegmentSuggestionPanel({
         />
       </CardContent>
     </Card>
+  );
+}
+
+function SegmentSuggestionReportDialog({
+  onOpenChange,
+  suggestion
+}: {
+  onOpenChange: (open: boolean) => void;
+  suggestion: DashboardPromotionSegmentSuggestion | null;
+}) {
+  const report = suggestion?.ai_report ?? null;
+  const displayCopy = suggestion?.display_copy ?? null;
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={Boolean(report)}>
+      {report ? (
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">
+                Rank {formatInteger(suggestion?.suggested_rank ?? 0)}
+              </Badge>
+              <Badge variant="outline">AI 추천 리포트</Badge>
+            </div>
+            <DialogTitle>{report.title}</DialogTitle>
+            <DialogDescription>
+              후보를 확정하기 전에 고객군의 성격과 추천 근거를 확인합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <section className="grid gap-2 rounded-md border bg-[#f8f8ff] p-4">
+              <div className="text-sm font-medium text-foreground">{report.summary}</div>
+              <div className="text-sm text-muted-foreground">
+                {displayCopy?.audience_summary ??
+                  segmentAudienceSummary(
+                    suggestion?.sample_size ?? 0,
+                    suggestion?.sample_ratio ?? 0
+                  )}
+              </div>
+              {displayCopy?.signal_chips.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {displayCopy.signal_chips.map((chip) => (
+                    <Badge className="text-[11px]" key={chip} variant="outline">
+                      {chip}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+            <ReportSection items={report.why_recommended} title="왜 추천했나요" />
+            <ReportSection items={report.evidence} title="확인된 근거" />
+            <section className="grid gap-2 rounded-md border p-4">
+              <h4 className="text-sm font-semibold">활용 방법</h4>
+              <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
+            </section>
+            <section className="grid gap-2 rounded-md border border-[#fee2e2] bg-[#fff7f7] p-4">
+              <h4 className="text-sm font-semibold text-[#b42318]">주의할 점</h4>
+              <p className="text-sm leading-6 text-[#7a271a]">{report.caution}</p>
+            </section>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => onOpenChange(false)} type="button">
+              확인
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      ) : null}
+    </Dialog>
+  );
+}
+
+function ReportSection({ items, title }: { items: string[]; title: string }) {
+  return (
+    <section className="grid gap-2 rounded-md border p-4">
+      <h4 className="text-sm font-semibold">{title}</h4>
+      <ul className="grid gap-2 text-sm leading-6 text-muted-foreground">
+        {items.map((item, index) => (
+          <li className="flex gap-2" key={`${title}-${index}-${item}`}>
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#3927d9]" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
