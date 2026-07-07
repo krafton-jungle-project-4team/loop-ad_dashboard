@@ -2786,7 +2786,7 @@ function PromotionAddDialog({
               <Input
                 id="promotion-create-theme"
                 onChange={(event) => setForm({ ...form, marketingTheme: event.target.value })}
-                placeholder="Main Sale Event 2024"
+                placeholder="여름 블랙 프라이데이"
                 value={form.marketingTheme}
               />
             </Field>

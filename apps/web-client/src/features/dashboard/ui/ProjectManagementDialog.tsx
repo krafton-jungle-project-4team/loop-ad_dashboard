@@ -136,7 +136,6 @@ export function ProjectManagementDialog({
                 onChange={(event) =>
                   handleProjectInputChange("project_name", event.target.value)
                 }
-                placeholder="프로젝트 이름을 입력하세요"
                 required
                 value={form.project_name}
               />
@@ -146,8 +145,7 @@ export function ProjectManagementDialog({
               <Input
                 autoComplete="off"
                 id="project-domain"
-                onChange={(event) => handleProjectInputChange("domain", event.target.value)}
-                placeholder="도메인을 입력하세요"
+                onChange={(event) => handleProjectInputChange("domain", event.target.value)}                
                 required
                 value={form.domain}
               />
