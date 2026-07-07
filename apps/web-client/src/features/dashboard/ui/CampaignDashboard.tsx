@@ -1564,7 +1564,7 @@ function SegmentTable({
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>{segment.ad_experiment_id ?? "-"}</TableCell>
+                <TableCell>{segment.ad_experiment_id ? "연결됨" : "-"}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatInteger(segment.estimated_size)}
                 </TableCell>
@@ -1770,7 +1770,7 @@ function SegmentOverview({
               : formatGoalValue(detail.segment.latest_actual_value)
           }
         />
-        <SummaryItem label="연결 실험" value={detail.segment.ad_experiment_id ?? "-"} />
+        <SummaryItem label="연결 실험" value={adExperimentCount > 0 ? "연결됨" : "-"} />
         <SummaryItem label="다음 액션" value={formatActionLabel(detail.segment.next_action)} />
         <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
         <SummaryItem
@@ -2235,13 +2235,15 @@ function SegmentAdExperimentStatusPanel({
       <h3 className="text-base font-semibold text-[#1d1d1f]">광고 실험 상태</h3>
       {detail.ad_experiments.length > 0 ? (
         <div className="grid gap-3 md:grid-cols-2">
-          {detail.ad_experiments.map((experiment) => (
+          {detail.ad_experiments.map((experiment, index) => (
             <div className="grid gap-3 rounded-md border bg-background p-3" key={experiment.ad_experiment_id}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="grid gap-1">
-                  <div className="text-sm font-medium">{experiment.ad_experiment_id}</div>
+                  <div className="text-sm font-medium">
+                    {adExperimentDisplayName(experiment.loop_count, index)}
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    {experiment.promotion_run_id} / {experiment.content_option_id}
+                    {formatChannelLabel(experiment.channel)}
                   </div>
                 </div>
                 <Badge variant={statusBadgeVariant(experiment.status)}>
@@ -2249,7 +2251,7 @@ function SegmentAdExperimentStatusPanel({
                 </Badge>
               </div>
               <div className="grid gap-3 md:grid-cols-3">
-                <SummaryItem label="콘텐츠" value={experiment.content_id} />
+                <SummaryItem label="콘텐츠" value={experiment.content_option_id} />
                 <SummaryItem label="채널" value={formatChannelLabel(experiment.channel)} />
                 <SummaryItem label="루프" value={formatInteger(experiment.loop_count)} />
                 <SummaryItem
@@ -2293,9 +2295,7 @@ function SegmentInsufficientDataPanel({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="grid gap-1">
-                    <div className="text-sm font-medium">
-                      {metric.ad_experiment_id ?? formatMetricLabel(metric.metric)}
-                    </div>
+                    <div className="text-sm font-medium">{formatMetricLabel(metric.metric)} 평가</div>
                   </div>
                   <Badge variant="destructive">표본 부족</Badge>
                 </div>
@@ -2371,9 +2371,7 @@ function SegmentSampleSizePanel({
                 <div className="flex items-start justify-between gap-3">
                   <div className="grid gap-1">
                     <div className="text-sm font-medium">{formatMetricLabel(metric.metric)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {metric.ad_experiment_id ?? "-"}
-                    </div>
+                    <div className="text-xs text-muted-foreground">{formatBasisLabel(metric.basis)}</div>
                   </div>
                   <Badge variant={statusBadgeVariant(metric.status)}>
                     {formatStatusLabel(metric.status)}
@@ -2971,6 +2969,10 @@ function uniqueValues(values: Array<string | null>): string[] {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
+function adExperimentDisplayName(loopCount: number | null | undefined, index = 0) {
+  return loopCount ? `루프 ${formatInteger(loopCount)} 실험` : `광고 실험 ${formatInteger(index + 1)}`;
+}
+
 function statusBadgeVariant(status: string) {
   return status === "insufficient_data" ||
     status === "failed" ||
@@ -3050,8 +3052,8 @@ function EvaluationOutcomePanel({
         <div className="grid gap-3 md:grid-cols-2">
           <InsightBlock label="실패 세그먼트" value={formatInteger(failedSegmentIds.length)} />
           <InsightBlock
-            label="실패 광고 실험 ID"
-            value={failedExperimentIds.length > 0 ? failedExperimentIds.join("\n") : "-"}
+            label="실패 실험"
+            value={failedExperimentIds.length > 0 ? formatInteger(failedExperimentIds.length) : "-"}
           />
         </div>
       ) : (
@@ -3190,7 +3192,7 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>실험</TableHead>
+                <TableHead>평가</TableHead>
                 <TableHead>지표</TableHead>
                 <TableHead className="text-right">목표 / 실제</TableHead>
                 <TableHead className="text-right">표본</TableHead>
@@ -3207,7 +3209,7 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
                 >
                   <TableCell>
                     <div className="grid min-w-[180px] gap-1">
-                      <span className="font-medium">{metric.ad_experiment_id ?? "-"}</span>
+                      <span className="font-medium">{formatMetricLabel(metric.metric)} 평가</span>
                     </div>
                   </TableCell>
                   <TableCell>

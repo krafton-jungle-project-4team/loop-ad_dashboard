@@ -928,15 +928,21 @@ function SelectedSegmentExperimentCards({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detail.ad_experiments.map((experiment) => {
+                {detail.ad_experiments.map((experiment, index) => {
                   const canDispatch =
                     experiment.status === "running" &&
                     (experiment.channel === "email" || experiment.channel === "sms");
+                  const contentCandidate =
+                    detail.content_candidates.find(
+                      (candidate) => candidate.content_id === experiment.content_id
+                    ) ?? null;
 
                   return (
                     <TableRow key={experiment.ad_experiment_id}>
-                      <TableCell className="font-medium">{experiment.ad_experiment_id}</TableCell>
-                      <TableCell>{experiment.content_id}</TableCell>
+                      <TableCell className="font-medium">
+                        {experimentDisplayName(experiment.loop_count, index)}
+                      </TableCell>
+                      <TableCell>{contentCandidateTitle(contentCandidate)}</TableCell>
                       <TableCell>{formatChannelLabel(experiment.channel)}</TableCell>
                       <TableCell>{formatInteger(experiment.loop_count)}</TableCell>
                       <TableCell>
@@ -1002,7 +1008,7 @@ function SelectedSegmentExperimentCards({
               <TableHeader>
                 <TableRow>
                   <TableHead>지표</TableHead>
-                  <TableHead>실험</TableHead>
+                  <TableHead>평가</TableHead>
                   <TableHead className="text-right">목표</TableHead>
                   <TableHead className="text-right">실제</TableHead>
                   <TableHead className="text-right">표본</TableHead>
@@ -1016,7 +1022,7 @@ function SelectedSegmentExperimentCards({
                     key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
                   >
                     <TableCell className="font-medium">{formatMetricLabel(metric.metric)}</TableCell>
-                    <TableCell>{metric.ad_experiment_id ?? "-"}</TableCell>
+                    <TableCell>{metricExperimentLabel(metric, detail.ad_experiments)}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatGoalValue(metric.target_value)}
                     </TableCell>
@@ -1072,9 +1078,9 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
             <TableRow key={row.experimentId}>
               <TableCell>
                 <div className="grid min-w-[180px] gap-1">
-                  <span className="font-medium">{row.experimentId}</span>
+                  <span className="font-medium">{experimentRowLabel(row)}</span>
                   <span className="text-xs text-muted-foreground">
-                    {row.experiment?.promotion_run_id ?? row.latestMetric?.promotion_run_id ?? "-"}
+                    {experimentRowSubLabel(row)}
                   </span>
                 </div>
               </TableCell>
@@ -1084,10 +1090,7 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
                     {formatChannelLabel(row.promotion?.channel ?? row.experiment?.channel)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {row.promotion?.promotion_id ??
-                      row.experiment?.promotion_id ??
-                      row.latestMetric?.promotion_id ??
-                      "-"}
+                    {row.promotion?.marketing_theme ?? "프로모션"}
                   </span>
                 </div>
               </TableCell>
@@ -1101,7 +1104,9 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
               <TableCell>
                 <div className="grid min-w-[220px] gap-1">
                   <span className="font-medium">{contentCandidateTitle(row.contentCandidate)}</span>
-                  <span className="text-xs text-muted-foreground">{row.contentId ?? "-"}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {row.contentCandidate?.cta ?? "광고 콘텐츠"}
+                  </span>
                 </div>
               </TableCell>
               <TableCell className="text-right tabular-nums">
@@ -1160,6 +1165,34 @@ function ExperimentSummaryCard({ label, value }: { label: string; value: string 
       </CardHeader>
     </Card>
   );
+}
+
+function experimentDisplayName(loopCount: number | null | undefined, index = 0) {
+  return loopCount ? `루프 ${formatInteger(loopCount)} 실험` : `광고 실험 ${formatInteger(index + 1)}`;
+}
+
+function metricExperimentLabel(
+  metric: DashboardCampaignExperimentMetric,
+  experiments: DashboardAdExperiment[]
+) {
+  const experiment = experiments.find(
+    (candidate) => candidate.ad_experiment_id === metric.ad_experiment_id
+  );
+  return experiment
+    ? experimentDisplayName(experiment.loop_count)
+    : `${formatMetricLabel(metric.metric)} 평가`;
+}
+
+function experimentRowLabel(row: ExperimentRow) {
+  if (row.experiment) {
+    return experimentDisplayName(row.experiment.loop_count);
+  }
+  return row.latestMetric ? `${formatMetricLabel(row.latestMetric.metric)} 평가` : "광고 실험";
+}
+
+function experimentRowSubLabel(row: ExperimentRow) {
+  const metric = row.latestMetric?.metric ?? row.experiment?.goal_metric;
+  return metric ? formatMetricLabel(metric) : "평가 대기";
 }
 
 function selectExperimentSegment(
