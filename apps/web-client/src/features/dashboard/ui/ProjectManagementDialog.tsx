@@ -29,7 +29,7 @@ type ProjectFormState = {
 };
 
 const emptyProjectForm: ProjectFormState = {
-  domain: "hotel-booking.local",
+  domain: "",
   project_name: ""
 };
 
@@ -136,7 +136,7 @@ export function ProjectManagementDialog({
                 onChange={(event) =>
                   handleProjectInputChange("project_name", event.target.value)
                 }
-                placeholder="데모 호텔"
+                placeholder="프로젝트 이름을 입력하세요"
                 required
                 value={form.project_name}
               />
@@ -147,6 +147,7 @@ export function ProjectManagementDialog({
                 autoComplete="off"
                 id="project-domain"
                 onChange={(event) => handleProjectInputChange("domain", event.target.value)}
+                placeholder="도메인을 입력하세요"
                 required
                 value={form.domain}
               />
