@@ -893,6 +893,7 @@ function toPromotionSegmentSuggestion(
     profile_json: jsonObject(row.profileJson),
     promotion_id: requiredText(row.promotionId, "promotionId"),
     reason_json: jsonObject(row.reasonJson),
+    display_copy: suggestionDisplayCopy(row.metadataJson),
     rule_json: jsonObject(row.ruleJson),
     sample_ratio: numberValue(row.sampleRatio),
     sample_size: countValue(row.sampleSize),
@@ -1081,6 +1082,40 @@ function jsonStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function suggestionDisplayCopy(
+  value: unknown
+): DashboardPromotionSegmentSuggestion["display_copy"] {
+  const displayCopy = jsonObject(value).display_copy;
+  if (!displayCopy || typeof displayCopy !== "object" || Array.isArray(displayCopy)) {
+    return null;
+  }
+
+  const raw = displayCopy as Record<string, unknown>;
+  const title = nonEmptyString(raw.title);
+  const audienceSummary = nonEmptyString(raw.audience_summary);
+  const reason = nonEmptyString(raw.reason);
+  const actionHint = nonEmptyString(raw.action_hint);
+  if (!title || !audienceSummary || !reason || !actionHint) {
+    return null;
+  }
+
+  const signalChips = Array.isArray(raw.signal_chips)
+    ? raw.signal_chips.map(nonEmptyString).filter((chip): chip is string => chip !== null)
+    : [];
+
+  return {
+    title,
+    audience_summary: audienceSummary,
+    signal_chips: signalChips,
+    reason,
+    action_hint: actionHint
+  };
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
 function countValue(value: number | string | null): number {

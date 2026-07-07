@@ -856,6 +856,7 @@ SELECT
   pss.status AS "suggestionStatus",
   pss.score_json AS "scoreJson",
   pss.reason_json AS "reasonJson",
+  pss.metadata_json AS "metadataJson",
   sd.segment_name AS "segmentName",
   sd.source AS "segmentSource",
   sd.rule_json AS "ruleJson",
@@ -912,6 +913,7 @@ SELECT
   d.result_status AS "suggestionStatus",
   d.score_json AS "scoreJson",
   d.reason_json AS "reasonJson",
+  d.metadata_json AS "metadataJson",
   sd.segment_name AS "segmentName",
   sd.source AS "segmentSource",
   sd.rule_json AS "ruleJson",
@@ -944,6 +946,7 @@ WITH accepted_suggestions AS (
       'suggestion_id', pss.suggestion_id,
       'score', pss.score_json,
       'reason', pss.reason_json,
+      'display_copy', pss.metadata_json->'display_copy',
       'sample_size', sd.sample_size,
       'sample_ratio', sd.sample_ratio
     ) AS data_evidence_json

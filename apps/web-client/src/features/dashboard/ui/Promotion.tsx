@@ -1470,6 +1470,7 @@ function PromotionCurrentSegmentsPanel({
           visibleSegments.map((segment) => {
             const isSelected = segment.segment_id === selectedSegmentId;
             const loopCount = segmentLoopCount(segment);
+            const displayCopy = campaignSegmentDisplayCopy(segment);
             const hiddenLoopCount = segments.filter(
               (candidate) =>
                 candidate.segment_id === segment.segment_id &&
@@ -1494,17 +1495,35 @@ function PromotionCurrentSegmentsPanel({
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="truncate font-medium">{segment.segment_name}</span>
+                      <span className="truncate font-medium">
+                        {displayCopy?.title ?? segment.segment_name}
+                      </span>
                       <Badge variant="secondary">루프 {formatInteger(loopCount)}</Badge>
                       {loopCount > 1 ? <Badge variant="default">다음 루프</Badge> : null}
                     </div>
+                    {displayCopy?.signal_chips.length ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {displayCopy.signal_chips.map((chip) => (
+                          <Badge className="text-[11px]" key={chip} variant="outline">
+                            {chip}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {formatInteger(segment.estimated_size)}명 · 표본{" "}
-                      {formatInteger(segment.sample_size)} · {formatMetricLabel(segment.goal_metric)}
+                      {displayCopy?.audience_summary ??
+                        `${formatInteger(segment.estimated_size)}명 · 표본 ${formatInteger(
+                          segment.sample_size
+                        )} · ${formatMetricLabel(segment.goal_metric)}`}
                       {hiddenLoopCount > 0
                         ? ` · 이전 루프 ${formatInteger(hiddenLoopCount)}개 숨김`
                         : ""}
                     </div>
+                    {displayCopy?.reason ? (
+                      <div className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                        {displayCopy.reason}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Badge variant={statusBadgeVariant(segment.status)}>
@@ -2513,6 +2532,11 @@ function PromotionSegmentSuggestionPanel({
               const isAccepted = suggestion.suggestion_status === "accepted";
               const isConfirmed = suggestion.suggestion_status === "confirmed";
               const isDismissed = suggestion.suggestion_status === "dismissed";
+              const displayCopy = suggestion.display_copy;
+              const fallbackSummary = segmentAudienceSummary(
+                suggestion.sample_size,
+                suggestion.sample_ratio
+              );
               return (
                 <div
                   className={`grid gap-3 rounded-md border p-4 ${
@@ -2525,9 +2549,13 @@ function PromotionSegmentSuggestionPanel({
                       <div className="text-xs font-semibold text-[#3927d9]">
                         Rank {formatInteger(suggestion.suggested_rank)}
                       </div>
-                      <h3 className="text-base font-semibold">{suggestion.segment_name}</h3>
+                      <h3 className="text-base font-semibold">
+                        {displayCopy?.title ?? suggestion.segment_name}
+                      </h3>
                       <p className="text-xs text-muted-foreground">
-                        {suggestion.segment_source} · {suggestion.suggestion_source}
+                        {displayCopy
+                          ? "AI 추천 세그먼트"
+                          : `${suggestion.segment_source} · ${suggestion.suggestion_source}`}
                       </p>
                     </div>
                     <Badge variant={statusBadgeVariant(suggestion.suggestion_status)}>
@@ -2535,13 +2563,26 @@ function PromotionSegmentSuggestionPanel({
                     </Badge>
                   </div>
                   <div className="grid gap-2 text-sm text-muted-foreground">
-                    <div>
-                      표본 {formatInteger(suggestion.sample_size)}명 · 비율{" "}
-                      {formatInteger(suggestion.sample_ratio * 100)}%
-                    </div>
+                    <div>{displayCopy?.audience_summary ?? fallbackSummary}</div>
+                    {displayCopy?.signal_chips.length ? (
+                      <div className="flex flex-wrap gap-1">
+                        {displayCopy.signal_chips.map((chip) => (
+                          <Badge className="text-[11px]" key={chip} variant="outline">
+                            {chip}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
                     <div className="line-clamp-2">
-                      {formatJsonObject(suggestion.reason_json) || "추천 사유가 비어 있습니다."}
+                      {displayCopy?.reason ||
+                        formatJsonObject(suggestion.reason_json) ||
+                        "추천 사유가 비어 있습니다."}
                     </div>
+                    {displayCopy?.action_hint ? (
+                      <div className="rounded-md bg-[#f7f8ff] px-3 py-2 text-xs leading-5 text-foreground">
+                        {displayCopy.action_hint}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -3286,6 +3327,47 @@ function formatGoalValue(value: number) {
 
 function formatPercentValue(value: number) {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+type SegmentDisplayCopy = NonNullable<DashboardPromotionSegmentSuggestion["display_copy"]>;
+
+function campaignSegmentDisplayCopy(segment: DashboardCampaignSegment): SegmentDisplayCopy | null {
+  return normalizeSegmentDisplayCopy(segment.data_evidence_json.display_copy);
+}
+
+function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const raw = value as Record<string, unknown>;
+  const title = nonEmptyText(raw.title);
+  const audienceSummary = nonEmptyText(raw.audience_summary);
+  const reason = nonEmptyText(raw.reason);
+  const actionHint = nonEmptyText(raw.action_hint);
+  if (!title || !audienceSummary || !reason || !actionHint) {
+    return null;
+  }
+
+  const signalChips = Array.isArray(raw.signal_chips)
+    ? raw.signal_chips.map(nonEmptyText).filter((chip): chip is string => chip !== null)
+    : [];
+
+  return {
+    title,
+    audience_summary: audienceSummary,
+    signal_chips: signalChips,
+    reason,
+    action_hint: actionHint
+  };
+}
+
+function segmentAudienceSummary(sampleSize: number, sampleRatio: number) {
+  return `표본 ${formatInteger(sampleSize)}명 · 비율 ${formatInteger(sampleRatio * 100)}%`;
+}
+
+function nonEmptyText(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
 function segmentExpectedEffect(
