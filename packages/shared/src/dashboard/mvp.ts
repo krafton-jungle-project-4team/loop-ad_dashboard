@@ -796,7 +796,6 @@ export type DashboardConfirmSegmentSuggestionsResult = z.infer<
 >;
 
 export const DashboardStartPromotionAnalysisRequestSchema = z.object({
-  focus_segment_ids: z.array(z.string().min(1)).nullable().optional(),
   operator_instruction: z.string().nullable().optional()
 });
 export type DashboardStartPromotionAnalysisRequest = z.infer<

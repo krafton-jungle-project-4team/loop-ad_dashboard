@@ -140,7 +140,6 @@ export class DashboardDecisionClient {
           project_id: request.projectId,
           campaign_id: request.campaignId,
           promotion_id: request.promotionId,
-          focus_segment_ids: request.request.focus_segment_ids ?? null,
           operator_instruction: request.request.operator_instruction ?? null
         }),
         headers: {

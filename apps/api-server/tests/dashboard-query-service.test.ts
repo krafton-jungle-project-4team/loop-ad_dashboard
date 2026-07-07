@@ -254,7 +254,6 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
   );
 
   const response = await service.startPromotionAnalysis("hotel-client-a", "promo_email_001", {
-    focus_segment_ids: null,
     operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
   });
 
@@ -272,7 +271,6 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
         projectId: "hotel-client-a",
         promotionId: "promo_email_001",
         request: {
-          focus_segment_ids: null,
           operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
         }
       }
