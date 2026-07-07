@@ -28,8 +28,11 @@ import type {
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
   DashboardEvaluatePromotionRunResult,
+  DashboardFunnel,
   DashboardFunnelList,
   DashboardFunnelMetrics,
+  DashboardFunnelPreview,
+  DashboardFunnelPreviewRequest,
   DashboardMain,
   DashboardNextLoopAnalysis,
   DashboardProject,
@@ -54,6 +57,7 @@ import type {
   DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
+  DashboardUpdateFunnelRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
@@ -708,6 +712,17 @@ export class DashboardQueryService {
   }
 
   @LogContextScope()
+  async funnel(projectId: string, funnelId: string): Promise<DashboardFunnel> {
+    const startedAt = Date.now();
+    log.assignContext({ funnelId, projectId });
+    log.info("started", { projectId, funnelId });
+    const response = await this.funnelReader.getFunnel(projectId, funnelId);
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  @LogContextScope()
   async eventCatalog(projectId: string): Promise<DashboardEventCatalog> {
     const startedAt = Date.now();
     log.assignContext({ projectId });
@@ -730,16 +745,46 @@ export class DashboardQueryService {
   }
 
   @LogContextScope()
+  async previewFunnelMetrics(
+    projectId: string,
+    request: DashboardFunnelPreviewRequest
+  ): Promise<DashboardFunnelPreview> {
+    const startedAt = Date.now();
+    log.assignContext({ projectId });
+    log.info("started", { projectId, request });
+    const response = await this.funnelReader.previewFunnelMetrics(projectId, request);
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  @LogContextScope()
   @Transactional()
   async createFunnel(
     projectId: string,
     request: DashboardCreateFunnelRequest
-  ): Promise<DashboardFunnelList["funnels"][number]> {
+  ): Promise<DashboardFunnel> {
     const startedAt = Date.now();
     log.assignContext({ projectId });
     log.info("started", { projectId, request });
     const response = await this.funnelReader.createFunnel(projectId, request);
     log.assignContext({ funnelId: response.funnel_id });
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  @LogContextScope()
+  @Transactional()
+  async updateFunnel(
+    projectId: string,
+    funnelId: string,
+    request: DashboardUpdateFunnelRequest
+  ): Promise<DashboardFunnel> {
+    const startedAt = Date.now();
+    log.assignContext({ funnelId, projectId });
+    log.info("started", { projectId, funnelId, request });
+    const response = await this.funnelReader.updateFunnel(projectId, funnelId, request);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;

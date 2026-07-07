@@ -1845,16 +1845,26 @@ RETURNING query_preview_id AS "queryPreviewId";
 /* 목적: 한 프로젝트의 활성 퍼널 목록을 조회합니다. */
 /* @name ListActiveFunnels */
 SELECT
-  funnel_id AS "funnelId",
-  funnel_name AS "funnelName",
-  domain_type AS "domainType",
-  status,
-  created_at AS "createdAt",
-  updated_at AS "updatedAt"
-FROM funnel_definitions
-WHERE project_id = :projectId
-  AND status = 'active'
-ORDER BY updated_at DESC, created_at DESC;
+  fd.funnel_id AS "funnelId",
+  fd.funnel_name AS "funnelName",
+  fd.domain_type AS "domainType",
+  fd.status,
+  COUNT(fs.funnel_id)::int AS "stepCount",
+  fd.created_at AS "createdAt",
+  fd.updated_at AS "updatedAt"
+FROM funnel_definitions fd
+LEFT JOIN funnel_steps fs
+  ON fs.funnel_id = fd.funnel_id
+WHERE fd.project_id = :projectId
+  AND fd.status = 'active'
+GROUP BY
+  fd.funnel_id,
+  fd.funnel_name,
+  fd.domain_type,
+  fd.status,
+  fd.created_at,
+  fd.updated_at
+ORDER BY fd.updated_at DESC, fd.created_at DESC;
 
 /* 목적: 한 프로젝트의 활성 퍼널 하나를 조회합니다. */
 /* @name GetActiveFunnelById */
@@ -1903,6 +1913,23 @@ ORDER BY fs.step_order ASC;
 /* @name InsertFunnelDefinition */
 INSERT INTO funnel_definitions (funnel_id, project_id, funnel_name)
 VALUES (:funnelId, :projectId, :funnelName)
+RETURNING
+  funnel_id AS "funnelId",
+  funnel_name AS "funnelName",
+  domain_type AS "domainType",
+  status,
+  created_at AS "createdAt",
+  updated_at AS "updatedAt";
+
+/* 목적: 한 프로젝트 안에서 특정 퍼널 기본 정보를 수정합니다. */
+/* @name UpdateFunnelDefinition */
+UPDATE funnel_definitions
+SET
+  funnel_name = :funnelName,
+  updated_at = now()
+WHERE project_id = :projectId
+  AND funnel_id = :funnelId
+  AND status = 'active'
 RETURNING
   funnel_id AS "funnelId",
   funnel_name AS "funnelName",

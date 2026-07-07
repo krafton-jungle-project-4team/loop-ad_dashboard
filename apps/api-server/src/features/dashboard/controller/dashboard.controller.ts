@@ -29,6 +29,8 @@ import {
   DashboardEvaluatePromotionRunResultSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
+  DashboardFunnelPreviewRequestSchema,
+  DashboardFunnelPreviewSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
@@ -54,6 +56,7 @@ import {
   DashboardStartPromotionGenerationResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
+  DashboardUpdateFunnelRequestSchema,
   DashboardUpdatePromotionRequestSchema,
   DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
@@ -92,10 +95,7 @@ export class DashboardController {
   }
 
   @Post("campaigns")
-  async createCampaign(
-    @Query("project_id") projectId: string | undefined,
-    @Body() body: unknown
-  ) {
+  async createCampaign(@Query("project_id") projectId: string | undefined, @Body() body: unknown) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardCreateCampaignRequestSchema.parse(body);
     return DashboardCampaignSummarySchema.parse(
@@ -485,6 +485,14 @@ export class DashboardController {
     return DashboardFunnelListSchema.parse(await this.dashboardQuery.funnels(requiredProjectId));
   }
 
+  @Get("funnels/:funnel_id")
+  async funnel(@Param("funnel_id") funnelId: string, @Query("project_id") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardFunnelSchema.parse(
+      await this.dashboardQuery.funnel(requiredProjectId, funnelId)
+    );
+  }
+
   @Get("funnels/:funnel_id/metrics")
   async funnelMetrics(
     @Param("funnel_id") funnelId: string,
@@ -504,12 +512,37 @@ export class DashboardController {
     );
   }
 
+  @Post("funnels/preview")
+  async previewFunnelMetrics(
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardFunnelPreviewRequestSchema.parse(body);
+    return DashboardFunnelPreviewSchema.parse(
+      await this.dashboardQuery.previewFunnelMetrics(requiredProjectId, request)
+    );
+  }
+
   @Post("funnels")
   async createFunnel(@Query("project_id") projectId: string | undefined, @Body() body: unknown) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardCreateFunnelRequestSchema.parse(body);
     return DashboardFunnelSchema.parse(
       await this.dashboardQuery.createFunnel(requiredProjectId, request)
+    );
+  }
+
+  @Patch("funnels/:funnel_id")
+  async updateFunnel(
+    @Param("funnel_id") funnelId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardUpdateFunnelRequestSchema.parse(body);
+    return DashboardFunnelSchema.parse(
+      await this.dashboardQuery.updateFunnel(requiredProjectId, funnelId, request)
     );
   }
 

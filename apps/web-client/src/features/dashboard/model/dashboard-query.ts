@@ -42,7 +42,7 @@ export const dashboardConversionEventOptions = [
   { label: "프로모션 클릭", value: "promotion_click" }
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardConversionEvent }>;
 
-export const defaultDashboardProjectId = "demo-shop";
+export const defaultDashboardProjectId = "demo_project";
 
 export type DashboardSearchQuery = Omit<DashboardQuery, "projectId">;
 
