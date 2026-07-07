@@ -3,9 +3,11 @@ import {
   BookOpenText,
   DatabaseZap,
   FlaskConical,
+  FolderKanban,
   ListFilter,
   Megaphone,
   Workflow,
+  Ad, 
   type LucideIcon
 } from "lucide-react";
 import type { DashboardTab } from "./dashboard-types.js";
@@ -34,7 +36,7 @@ export const dashboardTabs = [
     icon: Workflow,
     pathSegment: "campaign-flow-map"
   },
-  { value: "campaigns", label: "캠페인", icon: Megaphone, pathSegment: "campaigns" },
+  { value: "campaigns", label: "캠페인", icon: Ad, pathSegment: "campaigns" },
   {
     value: "campaign-promotions",
     label: "프로모션",
@@ -84,7 +86,7 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     label: "캠페인",
     value: "campaigns",
     pathSegment: "campaigns",
-    icon: Megaphone
+    icon: Ad
   },
   {
     label: "프로모션",
