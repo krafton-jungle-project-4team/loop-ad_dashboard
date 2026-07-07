@@ -234,7 +234,6 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
           offer_type: null,
           promotion_id: promotionId,
           status: "analysis_ready",
-          target_audience: "existing_users",
           target_segment_count: 0,
           updated_at: "2026-07-04T00:00:00.000Z"
         };
@@ -310,7 +309,6 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
           offer_type: null,
           promotion_id: promotionId,
           status: "content_ready",
-          target_audience: "existing_users",
           target_segment_count: 2,
           updated_at: "2026-07-04T00:00:00.000Z"
         };
@@ -389,7 +387,6 @@ test("dashboard promotion generation retries when existing result is failed", as
           offer_type: null,
           promotion_id: promotionId,
           status: "content_ready",
-          target_audience: "existing_users",
           target_segment_count: 2,
           updated_at: "2026-07-04T00:00:00.000Z"
         };

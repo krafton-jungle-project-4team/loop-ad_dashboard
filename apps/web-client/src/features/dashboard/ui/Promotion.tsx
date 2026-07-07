@@ -92,7 +92,6 @@ import {
 import { formatInteger } from "../model/dashboard-format.js";
 import {
   formatActionLabel,
-  formatAudienceLabel,
   formatBasisLabel,
   formatChannelLabel,
   formatMetricLabel,
@@ -1208,7 +1207,7 @@ function PromotionTabWorkspace({
             {promotion.marketing_theme}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {formatChannelLabel(promotion.channel)} · {formatAudienceLabel(promotion.target_audience)}
+            {formatChannelLabel(promotion.channel)}
           </p>
         </div>
         <Badge variant={statusBadgeVariant(promotion.status)}>
@@ -2850,18 +2849,6 @@ function PromotionAddDialog({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field>
-                <FieldLabel htmlFor="promotion-create-audience">대상 범위</FieldLabel>
-                <Input
-                  id="promotion-create-audience"
-                  onChange={(event) => setForm({ ...form, targetAudience: event.target.value })}
-                  placeholder="existing_users"
-                  value={form.targetAudience}
-                />
-                <p className="text-xs text-muted-foreground">
-                  세그먼트는 프로모션 생성 후 프로모션 상세의 세그먼트 목록에서 생성/연결합니다.
-                </p>
-              </Field>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <Field>
@@ -2976,7 +2963,6 @@ type PromotionCreateFormState = {
   marketingTheme: string;
   maxLoopCount: string;
   minSampleSize: string;
-  targetAudience: string;
 };
 
 function createEmptyPromotionFormState(): PromotionCreateFormState {
@@ -2988,8 +2974,7 @@ function createEmptyPromotionFormState(): PromotionCreateFormState {
     landingUrl: defaultPromotionLandingUrl,
     marketingTheme: "",
     maxLoopCount: "3",
-    minSampleSize: "1000",
-    targetAudience: "existing_users"
+    minSampleSize: "1000"
   };
 }
 
@@ -3005,8 +2990,7 @@ function promotionCreateFormToRequest(
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
-    status: "draft",
-    target_audience: form.targetAudience.trim() || "existing_users"
+    status: "draft"
   };
 }
 
@@ -3072,34 +3056,6 @@ export function CampaignPromotionTable({
   segments: DashboardCampaignSegment[];
   selectedPromotionId: string;
 }) {
-  const [promotionSearch, setPromotionSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [channelFilter, setChannelFilter] = useState("all");
-  const activeCount = promotions.filter((promotion) => promotion.status === "active").length;
-  const normalizedSearch = promotionSearch.trim().toLowerCase();
-  const filteredPromotions = promotions.filter((promotion) => {
-    const matchesSearch =
-      !normalizedSearch ||
-      [
-        promotion.promotion_id,
-        promotion.marketing_theme,
-        promotion.channel,
-        promotion.target_audience,
-        promotion.goal_metric,
-        promotion.goal_basis,
-        promotion.next_action,
-        promotion.message_brief ?? ""
-      ].some((value) => value.toLowerCase().includes(normalizedSearch));
-    const matchesStatus = statusFilter === "all" || promotion.status === statusFilter;
-    const matchesChannel = channelFilter === "all" || promotion.channel === channelFilter;
-
-    return matchesSearch && matchesStatus && matchesChannel;
-  });
-  const totalExperimentCount = promotions.reduce(
-    (sum, promotion) => sum + promotion.ad_experiment_count,
-    0
-  );
-
   return (
     <section className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3110,63 +3066,11 @@ export function CampaignPromotionTable({
           </p>
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
-        <Field>
-          <FieldLabel htmlFor="dashboard-promotion-search">프로모션 검색</FieldLabel>
-          <Input
-            id="dashboard-promotion-search"
-            onChange={(event) => setPromotionSearch(event.target.value)}
-            placeholder="이름, ID, 채널, 목표, 메시지 방향"
-            value={promotionSearch}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>상태 필터</FieldLabel>
-          <Select onValueChange={setStatusFilter} value={statusFilter}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체 상태</SelectItem>
-              {promotionStatusOptions.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {formatStatusLabel(status)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel>채널 필터</FieldLabel>
-          <Select onValueChange={setChannelFilter} value={channelFilter}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체 채널</SelectItem>
-              {promotionChannelOptions.map((channel) => (
-                <SelectItem key={channel} value={channel}>
-                  {formatChannelLabel(channel)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="전체 프로모션" value={formatInteger(promotions.length)} />
-        <SummaryItem label="필터 결과" value={formatInteger(filteredPromotions.length)} />
-        <SummaryItem label="활성 프로모션" value={formatInteger(activeCount)} />
-        <SummaryItem label="연결 세그먼트" value={formatInteger(segments.length)} />
-        <SummaryItem label="광고 실험" value={formatInteger(totalExperimentCount)} />
-      </div>
       {promotions.length > 0 ? (
-        filteredPromotions.length > 0 ? (
-          <Table>
-            <TableHeader>
+        <Table>
+          <TableHeader>
               <TableRow>
                 <TableHead>프로모션</TableHead>
-                <TableHead>대상</TableHead>
                 <TableHead>대상 세그먼트</TableHead>
                 <TableHead>목표</TableHead>
                 <TableHead className="text-right">루프</TableHead>
@@ -3177,7 +3081,7 @@ export function CampaignPromotionTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPromotions.map((promotion) => {
+              {promotions.map((promotion) => {
                 const promotionSegments = segments.filter(
                   (segment) => segment.promotion_id === promotion.promotion_id
                 );
@@ -3203,7 +3107,6 @@ export function CampaignPromotionTable({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{formatAudienceLabel(promotion.target_audience)}</TableCell>
                     <TableCell>
                       <div className="flex min-w-[240px] flex-wrap gap-1.5">
                         {promotionSegments.slice(0, 3).map((segment) => (
@@ -3262,9 +3165,6 @@ export function CampaignPromotionTable({
               })}
             </TableBody>
           </Table>
-        ) : (
-          <EmptyState message="검색/필터 조건에 맞는 프로모션이 없습니다." />
-        )
       ) : (
         <EmptyState message="등록된 프로모션이 없습니다." />
       )}
