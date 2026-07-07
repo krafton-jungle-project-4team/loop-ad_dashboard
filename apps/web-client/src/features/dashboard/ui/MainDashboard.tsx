@@ -9,6 +9,11 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
+import {
+  formatActionLabel,
+  formatAudienceLabel,
+  formatStatusLabel
+} from "../model/dashboard-labels.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { EmptyState } from "./EmptyState.js";
 
@@ -65,9 +70,9 @@ function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant="secondary">{campaign.status}</Badge>
+        <Badge variant="secondary">{formatStatusLabel(campaign.status)}</Badge>
       </TableCell>
-      <TableCell>{campaign.target_audience}</TableCell>
+      <TableCell>{formatAudienceLabel(campaign.target_audience)}</TableCell>
       <TableCell>{formatPeriod(campaign)}</TableCell>
       <TableCell className="text-right tabular-nums">
         {formatInteger(campaign.current_loop_count)} / {formatInteger(campaign.max_loop_count)}
@@ -87,7 +92,7 @@ function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
           : formatPercent(campaign.latest_goal_achievement_rate)}
       </TableCell>
       <TableCell>
-        <Badge variant="outline">{campaign.next_action}</Badge>
+        <Badge variant="outline">{formatActionLabel(campaign.next_action)}</Badge>
       </TableCell>
     </TableRow>
   );

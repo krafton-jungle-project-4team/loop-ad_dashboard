@@ -34,6 +34,7 @@ import {
   dashboardFunnelMetricsQueryKey,
   dashboardTabQueryKey
 } from "../model/dashboard-query-keys.js";
+import { formatStatusLabel } from "../model/dashboard-labels.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
@@ -237,7 +238,7 @@ export function FunnelDashboardPanel({
                     </TableCell>
                     <TableCell>{funnel.steps.map(stepLabel).join(" -> ")}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{funnel.status}</Badge>
+                      <Badge variant="secondary">{formatStatusLabel(funnel.status)}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">

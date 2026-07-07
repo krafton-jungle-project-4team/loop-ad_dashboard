@@ -68,6 +68,13 @@ import {
   type ReactNode
 } from "react";
 import { fetchDashboardCampaignDetail } from "../api/dashboard-api.js";
+import {
+  formatActionLabel,
+  formatAudienceLabel,
+  formatChannelLabel,
+  formatMetricLabel,
+  formatStatusLabel
+} from "../model/dashboard-labels.js";
 import { formatDateTime, formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import { dashboardCampaignDetailQueryKey } from "../model/dashboard-query-keys.js";
@@ -506,7 +513,7 @@ function PipelineStatusPill({ status }: { status: string }) {
           tone === "neutral" && "bg-zinc-400"
         )}
       />
-      <span className="truncate">{status}</span>
+      <span className="truncate">{formatStatusLabel(status)}</span>
     </span>
   );
 }
@@ -551,7 +558,7 @@ function PromotionNode(props: NodeProps) {
       <NodeSummaryGrid items={data.summary} />
       {flow ? (
         <div className="grid gap-1 border-t border-black/10 pt-2 text-xs text-muted-foreground">
-          <MetricLine label="다음 액션" value={flow.promotion.next_action} />
+          <MetricLine label="다음 액션" value={formatActionLabel(flow.promotion.next_action)} />
         </div>
       ) : null}
       <Handle
@@ -661,7 +668,7 @@ function WeakestPromotionList({ flows }: { flows: PromotionFlowSummary[] }) {
             </span>
           </div>
           <div className="flex min-w-0 items-center justify-between gap-2 text-muted-foreground">
-            <span className="truncate">{flow.promotion.goal_metric}</span>
+            <span className="truncate">{formatMetricLabel(flow.promotion.goal_metric)}</span>
             <StatusBadge status={flow.evaluation.status} />
           </div>
         </div>
@@ -946,9 +953,9 @@ function CampaignNodeDetail({ campaign }: { campaign: DashboardCampaignSummary |
 
   return (
     <div className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-3 text-sm">
-      <MetricLine label="대상" value={campaign.target_audience} />
-      <MetricLine label="주요 지표" value={campaign.primary_metric ?? "-"} />
-      <MetricLine label="다음 액션" value={campaign.next_action} />
+      <MetricLine label="대상" value={formatAudienceLabel(campaign.target_audience)} />
+      <MetricLine label="주요 지표" value={formatMetricLabel(campaign.primary_metric)} />
+      <MetricLine label="다음 액션" value={formatActionLabel(campaign.next_action)} />
       <MetricLine label="업데이트" value={formatDateTime(campaign.updated_at)} />
     </div>
   );
@@ -1019,7 +1026,7 @@ function PromotionFlowDetailList({
             <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-3">
               <MetricLine label="메시지" value={flow.promotion.message_brief ?? "-"} />
               <MetricLine label="오퍼" value={flow.promotion.offer_type ?? "-"} />
-              <MetricLine label="다음 액션" value={flow.promotion.next_action} />
+              <MetricLine label="다음 액션" value={formatActionLabel(flow.promotion.next_action)} />
             </div>
           </DetailAnchor>
         );
@@ -1098,7 +1105,9 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
           key={`${metric.promotion_id}:${metric.promotion_run_id}:${metric.segment_id ?? "all"}:${metric.metric}:${metric.created_at}`}
         >
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="truncate font-medium text-[#1d1d1f]">{metric.metric}</span>
+            <span className="truncate font-medium text-[#1d1d1f]">
+              {formatMetricLabel(metric.metric)}
+            </span>
             <StatusBadge status={metric.status} />
             {metric.next_loop_required ? <Badge variant="destructive">다음 루프</Badge> : null}
           </div>
@@ -1230,7 +1239,7 @@ function buildCampaignFlowGraph(
           promotionFlows: [flow],
           segments: flow.segments,
           status: flow.promotion.status,
-          subtitle: `${flow.promotion.channel} · ${flow.promotion.goal_metric}`,
+          subtitle: `${formatChannelLabel(flow.promotion.channel)} · ${formatMetricLabel(flow.promotion.goal_metric)}`,
           summary: [
             {
               label: "목표",
@@ -1839,7 +1848,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <Badge className="max-w-[130px] truncate" variant={statusBadgeVariant(status)}>
       {Icon ? <Icon size={11} /> : null}
-      <span className="truncate">{status}</span>
+      <span className="truncate">{formatStatusLabel(status)}</span>
     </Badge>
   );
 }
