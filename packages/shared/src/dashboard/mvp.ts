@@ -740,6 +740,20 @@ export type DashboardPromotionSegmentSuggestionDisplayCopy = z.infer<
   typeof DashboardPromotionSegmentSuggestionDisplayCopySchema
 >;
 
+export const DashboardPromotionSegmentSuggestionReportSchema = z.object({
+  version: z.string().optional(),
+  source: z.string().optional(),
+  title: z.string(),
+  summary: z.string(),
+  why_recommended: z.array(z.string()),
+  evidence: z.array(z.string()),
+  action_hint: z.string(),
+  caution: z.string()
+});
+export type DashboardPromotionSegmentSuggestionReport = z.infer<
+  typeof DashboardPromotionSegmentSuggestionReportSchema
+>;
+
 export const DashboardPromotionSegmentSuggestionSchema = z.object({
   suggestion_id: z.string(),
   analysis_id: z.string(),
@@ -752,6 +766,7 @@ export const DashboardPromotionSegmentSuggestionSchema = z.object({
   score_json: JsonObjectSchema,
   reason_json: JsonObjectSchema,
   display_copy: DashboardPromotionSegmentSuggestionDisplayCopySchema.nullable(),
+  ai_report: DashboardPromotionSegmentSuggestionReportSchema.nullable(),
   segment_name: z.string(),
   segment_source: z.enum(["ai_suggested", "custom_chatkit", "manual_rule", "system_default"]),
   rule_json: JsonObjectSchema,

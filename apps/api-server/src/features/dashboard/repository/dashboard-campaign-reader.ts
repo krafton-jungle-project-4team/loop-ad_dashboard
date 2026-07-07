@@ -887,6 +887,7 @@ function toPromotionSegmentSuggestion(
     promotion_id: requiredText(row.promotionId, "promotionId"),
     reason_json: jsonObject(row.reasonJson),
     display_copy: suggestionDisplayCopy(row.metadataJson),
+    ai_report: suggestionAiReport(row.metadataJson),
     rule_json: jsonObject(row.ruleJson),
     sample_ratio: numberValue(row.sampleRatio),
     sample_size: countValue(row.sampleSize),
@@ -1075,6 +1076,44 @@ function jsonStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function suggestionAiReport(
+  value: unknown
+): DashboardPromotionSegmentSuggestion["ai_report"] {
+  const report = jsonObject(value).ai_report;
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    return null;
+  }
+
+  const raw = report as Record<string, unknown>;
+  const title = nonEmptyString(raw.title);
+  const summary = nonEmptyString(raw.summary);
+  const actionHint = nonEmptyString(raw.action_hint);
+  const caution = nonEmptyString(raw.caution);
+  const whyRecommended = jsonStringArray(raw.why_recommended);
+  const evidence = jsonStringArray(raw.evidence);
+  if (
+    !title ||
+    !summary ||
+    !actionHint ||
+    !caution ||
+    whyRecommended.length === 0 ||
+    evidence.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    version: nonEmptyString(raw.version) ?? undefined,
+    source: nonEmptyString(raw.source) ?? undefined,
+    title,
+    summary,
+    why_recommended: whyRecommended,
+    evidence,
+    action_hint: actionHint,
+    caution
+  };
 }
 
 function suggestionDisplayCopy(
