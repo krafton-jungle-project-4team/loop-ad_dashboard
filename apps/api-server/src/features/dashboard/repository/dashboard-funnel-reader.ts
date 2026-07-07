@@ -53,7 +53,7 @@ type EventCatalogRow = {
 };
 
 type FunnelStepMetricRow = {
-  event_name: string;
+  step_order: number | string;
   event_count: number | string;
 };
 
@@ -179,7 +179,7 @@ export class DashboardFunnelReader {
         step_order: step.stepOrder,
         step_name: step.stepName,
         event_name: DashboardFunnelEventNameSchema.parse(step.eventName),
-        event_count: eventCounts.get(step.eventName) ?? 0
+        event_count: eventCounts.get(step.stepOrder) ?? 0
       }))
     };
   }
@@ -718,28 +718,67 @@ export class DashboardFunnelReader {
   private async countFunnelStepEvents(
     projectId: string,
     steps: IListActiveFunnelStepsByFunnelIdResult[]
-  ): Promise<Map<string, number>> {
-    const eventNames = [...new Set(steps.map((step) => step.eventName))];
-    if (eventNames.length === 0) {
+  ): Promise<Map<number, number>> {
+    if (steps.length === 0) {
       return new Map();
     }
 
+    const queryParams: Record<string, string> = { projectId };
+    const stepQueries = steps.map((step, index) => {
+      const stepNumber = index + 1;
+      const previousStepName = `step_${stepNumber - 1}_users`;
+      const currentStepName = `step_${stepNumber}_users`;
+      const eventParamName = `stepEvent${stepNumber}`;
+      queryParams[eventParamName] = step.eventName;
+
+      if (stepNumber === 1) {
+        return `
+        ${currentStepName} AS (
+          SELECT
+            user_id,
+            min(event_time) AS reached_at
+          FROM funnel_step_events
+          WHERE project_id = {projectId:String}
+            AND event_name = {${eventParamName}:String}
+          GROUP BY user_id
+        )`;
+      }
+
+      return `
+        ${currentStepName} AS (
+          SELECT
+            fse.user_id,
+            min(fse.event_time) AS reached_at
+          FROM funnel_step_events fse
+          INNER JOIN ${previousStepName} previous
+            ON previous.user_id = fse.user_id
+          WHERE fse.project_id = {projectId:String}
+            AND fse.event_name = {${eventParamName}:String}
+            AND fse.event_time >= previous.reached_at
+          GROUP BY fse.user_id
+        )`;
+    });
+    const resultQueries = steps.map(
+      (step, index) => `
+        SELECT
+          ${step.stepOrder} AS step_order,
+          count() AS event_count
+        FROM step_${index + 1}_users`
+    );
+
     const result = await this.clickhouse.query({
       query: `
-        SELECT
-          event_name,
-          count() AS event_count
-        FROM funnel_step_events
-        WHERE project_id = {projectId:String}
-          AND event_name IN {eventNames:Array(String)}
-        GROUP BY event_name
+        WITH
+        ${stepQueries.join(",\n")}
+        ${resultQueries.join("\n        UNION ALL\n")}
+        ORDER BY step_order ASC
       `,
       format: "JSONEachRow",
-      query_params: { eventNames, projectId }
+      query_params: queryParams
     });
     const rows = await result.json<FunnelStepMetricRow>();
 
-    return new Map(rows.map((row) => [row.event_name, countValue(row.event_count)]));
+    return new Map(rows.map((row) => [countValue(row.step_order), countValue(row.event_count)]));
   }
 }
 
