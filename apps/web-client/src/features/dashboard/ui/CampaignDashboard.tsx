@@ -42,7 +42,6 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { Tabs, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus } from "lucide-react";
@@ -55,7 +54,6 @@ import {
   fetchDashboardPromotionDetail,
   fetchDashboardSegmentDetail,
   rejectDashboardContentCandidate,
-  startDashboardNextLoopAnalysis,
   updateDashboardCampaign
 } from "../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
@@ -330,18 +328,6 @@ export function CampaignDashboardPanel({
         </>
       ) : null}
 
-      <CampaignSelectionContext
-        campaign={selectedCampaign}
-        onClearPromotion={() => {
-          void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
-        }}
-        onClearSegment={() => {
-          void setDashboardQueryState({ selectedSegmentId: "" });
-        }}
-        promotion={selectedPromotion}
-        segment={selectedSegment}
-      />
-
       <CampaignDetailPanel
         campaign={selectedCampaign}
         detail={campaignDetail.data}
@@ -377,53 +363,6 @@ export function CampaignDashboardPanel({
         tab={tab}
       />
     </div>
-  );
-}
-
-function CampaignSelectionContext({
-  campaign,
-  onClearPromotion,
-  onClearSegment,
-  promotion,
-  segment
-}: {
-  campaign: DashboardCampaignSummary | undefined;
-  onClearPromotion: () => void;
-  onClearSegment: () => void;
-  promotion: DashboardCampaignPromotion | undefined;
-  segment: DashboardCampaignSegment | undefined;
-}) {
-  if (!campaign) {
-    return null;
-  }
-
-  return (
-    <Card className="w-full min-w-0 rounded-[18px] bg-white py-4 shadow-none ring-1 ring-black/10">
-      <CardContent className="flex flex-wrap items-center gap-2 px-5">
-        <Badge variant="secondary">캠페인</Badge>
-        <span className="text-sm font-medium">{campaign.campaign_name}</span>
-        {promotion ? (
-          <>
-            <span className="text-sm text-muted-foreground">/</span>
-            <Badge variant="secondary">프로모션</Badge>
-            <span className="text-sm font-medium">{promotion.marketing_theme}</span>
-            <Button onClick={onClearPromotion} size="xs" type="button" variant="ghost">
-              선택 해제
-            </Button>
-          </>
-        ) : null}
-        {segment ? (
-          <>
-            <span className="text-sm text-muted-foreground">/</span>
-            <Badge variant="secondary">세그먼트</Badge>
-            <span className="text-sm font-medium">{segment.segment_name}</span>
-            <Button onClick={onClearSegment} size="xs" type="button" variant="ghost">
-              선택 해제
-            </Button>
-          </>
-        ) : null}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -896,7 +835,7 @@ function CampaignDetailPanel({
           캠페인 상세
         </CardTitle>
         <CardDescription>
-          캠페인 안에서 마케팅 기획, 실시간 추이, 워크플로우, 프로모션 목록을 관리합니다.
+          캠페인 안에서 실시간 추이와 프로모션 목록을 관리합니다.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 px-5">
@@ -1054,15 +993,7 @@ function CampaignTabContent({
       return (
         <>
           <CampaignSummary detail={detail} />
-          <CampaignOpenTabs
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
-            selectedPromotion={selectedPromotion}
-            selectedSegment={selectedSegment}
-          />
-          <MarketingPlan detail={detail} />
           <CampaignRealtimeTrend detail={detail} />
-          <CampaignWorkflow detail={detail} />
           <CampaignPromotionTable
             onSelectPromotion={onSelectPromotion}
             promotions={detail.promotions}
@@ -1073,48 +1004,9 @@ function CampaignTabContent({
             adExperiments={detail.ad_experiments}
             metrics={detail.experiment_metrics}
           />
-          <CampaignNextAction detail={detail} query={query} />
         </>
       );
   }
-}
-
-function CampaignOpenTabs({
-  onClearPromotion,
-  onClearSegment,
-  selectedPromotion,
-  selectedSegment
-}: {
-  onClearPromotion: () => void;
-  onClearSegment: () => void;
-  selectedPromotion: DashboardCampaignPromotion | undefined;
-  selectedSegment: DashboardCampaignSegment | undefined;
-}) {
-  const value = selectedSegment ? "segment" : selectedPromotion ? "promotion" : "all";
-
-  return (
-    <Tabs
-      onValueChange={(nextValue) => {
-        if (nextValue === "all") {
-          onClearPromotion();
-        }
-        if (nextValue === "promotion") {
-          onClearSegment();
-        }
-      }}
-      value={value}
-    >
-      <TabsList variant="line">
-        <TabsTrigger value="all">전체 목록</TabsTrigger>
-        {selectedPromotion ? (
-          <TabsTrigger value="promotion">{selectedPromotion.marketing_theme}</TabsTrigger>
-        ) : null}
-        {selectedSegment ? (
-          <TabsTrigger value="segment">{selectedSegment.segment_name}</TabsTrigger>
-        ) : null}
-      </TabsList>
-    </Tabs>
-  );
 }
 
 function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
@@ -1144,45 +1036,15 @@ function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
       </div>
       <div className="grid gap-3 md:grid-cols-4">
         <SummaryItem label="기간" value={formatPeriod(campaign)} />
-        <SummaryItem
-          label="루프"
-          value={`${formatInteger(campaign.current_loop_count)} / ${formatInteger(campaign.max_loop_count)}`}
-        />
         <SummaryItem label="프로모션" value={formatInteger(campaign.promotion_count)} />
         <SummaryItem label="세그먼트" value={formatInteger(campaign.segment_count)} />
         <SummaryItem label="광고 실험" value={formatInteger(campaign.ad_experiment_count)} />
         <SummaryItem label="주요 지표" value={formatMetricLabel(campaign.primary_metric)} />
-        <SummaryItem label="다음 액션" value={formatActionLabel(campaign.next_action)} />
         <SummaryItem
           label="실시간 이벤트"
           value={formatInteger(detail.realtime_metrics.total_event_count)}
         />
         <SummaryItem label="업데이트" value={campaign.updated_at} />
-      </div>
-    </section>
-  );
-}
-
-function MarketingPlan({ detail }: { detail: DashboardCampaignDetail }) {
-  return (
-    <section className="grid gap-3">
-      <h3 className="text-base font-semibold text-[#1d1d1f]">마케팅 기획</h3>
-      <div className="grid gap-3 md:grid-cols-3">
-        {detail.promotions.map((promotion) => (
-          <Card className="shadow-none" key={promotion.promotion_id}>
-            <CardHeader>
-              <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
-              <CardDescription>
-                {formatChannelLabel(promotion.channel)} · {formatMetricLabel(promotion.goal_metric)}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2 text-sm">
-              <div>목표값: {formatGoalValue(promotion.goal_target_value)}</div>
-              <div>목표 기준: {formatBasisLabel(promotion.goal_basis)}</div>
-              <div>세그먼트: {formatInteger(promotion.target_segment_count)}</div>
-            </CardContent>
-          </Card>
-        ))}
       </div>
     </section>
   );
@@ -1204,319 +1066,7 @@ function CampaignRealtimeTrend({ detail }: { detail: DashboardCampaignDetail }) 
         />
       </div>
       <Progress value={Math.min(achievementRate * 100, 100)} />
-      <RealtimeEventTable
-        emptyMessage="캠페인 실시간 이벤트가 아직 수집되지 않았습니다."
-        metrics={detail.realtime_metrics}
-        title="캠페인 이벤트 집계"
-      />
     </section>
-  );
-}
-
-function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
-  const totalSegments = detail.segments.length;
-  const totalExperiments = detail.promotions.reduce(
-    (sum, promotion) => sum + promotion.ad_experiment_count,
-    0
-  );
-  const evaluatedPromotionCount = detail.promotions.filter((promotion) =>
-    detail.experiment_metrics.some((metric) => metric.promotion_id === promotion.promotion_id)
-  ).length;
-
-  return (
-    <section className="grid gap-3">
-      <div className="grid gap-1">
-        <h3 className="text-base font-semibold text-[#1d1d1f]">워크플로우 View</h3>
-        <p className="text-sm text-muted-foreground">
-          캠페인 → 프로모션 → 세그먼트 → 광고 실험 → 평가 → 다음 루프 흐름을
-          DB 상태로 확인합니다.
-        </p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="프로모션" value={formatInteger(detail.promotions.length)} />
-        <SummaryItem label="세그먼트" value={formatInteger(totalSegments)} />
-        <SummaryItem label="광고 실험" value={formatInteger(totalExperiments)} />
-        <SummaryItem label="평가된 프로모션" value={formatInteger(evaluatedPromotionCount)} />
-      </div>
-      <Card className="shadow-none">
-        <CardHeader className="gap-1">
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle className="text-base">{detail.campaign.campaign_name}</CardTitle>
-            <Badge variant={statusBadgeVariant(detail.campaign.status)}>
-              {formatStatusLabel(detail.campaign.status)}
-            </Badge>
-          </div>
-          <CardDescription>
-            캠페인 노드 · {formatMetricLabel(detail.campaign.primary_metric)}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm">
-          <div className="grid gap-3 md:grid-cols-4">
-            <SummaryItem label="목표" value={detail.campaign.objective ?? "-"} />
-            <SummaryItem label="기간" value={formatPeriod(detail.campaign)} />
-            <SummaryItem
-              label="최근 목표 달성률"
-              value={
-                detail.campaign.latest_goal_achievement_rate === null
-                  ? "-"
-                  : formatPercent(detail.campaign.latest_goal_achievement_rate)
-              }
-            />
-            <SummaryItem
-              label="계층"
-              value={`${formatInteger(detail.promotions.length)}개 프로모션 / ${formatInteger(totalSegments)}개 세그먼트`}
-            />
-          </div>
-        </CardContent>
-      </Card>
-      <div className="grid gap-3">
-        {detail.promotions.map((promotion) => {
-          const segments = detail.segments.filter(
-            (segment) => segment.promotion_id === promotion.promotion_id
-          );
-          const metrics = detail.experiment_metrics.filter(
-            (metric) => metric.promotion_id === promotion.promotion_id
-          );
-          const workflowSteps = campaignWorkflowSteps(detail.campaign, promotion, segments, metrics);
-          return (
-            <Card className="shadow-none" key={promotion.promotion_id}>
-              <CardHeader className="gap-1">
-                <div className="flex items-center justify-between gap-3">
-                  <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
-                  <Badge variant={statusBadgeVariant(promotion.status)}>
-                    {formatStatusLabel(promotion.status)}
-                  </Badge>
-                </div>
-                <CardDescription>
-                  프로모션 노드 · {formatChannelLabel(promotion.channel)} ·{" "}
-                  {formatMetricLabel(promotion.goal_metric)}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3 text-sm">
-                <div className="grid gap-2 md:grid-cols-6">
-                  {workflowSteps.map((step) => (
-                    <div
-                      className="grid gap-2 rounded-md border bg-muted/20 p-3"
-                      key={`${promotion.promotion_id}-${step.label}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-muted-foreground">{step.label}</span>
-                        <Badge variant={step.variant}>{formatStatusLabel(step.status)}</Badge>
-                      </div>
-                      <div className="text-sm font-medium">{step.value}</div>
-                    </div>
-                  ))}
-                </div>
-                <WorkflowSegmentTable metrics={metrics} segments={segments} />
-                <WorkflowRiskNotice metrics={metrics} segments={segments} />
-                <Progress value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)} />
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function campaignWorkflowSteps(
-  campaign: DashboardCampaignSummary,
-  promotion: DashboardCampaignPromotion,
-  segments: DashboardCampaignSegment[],
-  metrics: DashboardCampaignExperimentMetric[]
-) {
-  const insufficientCount = metrics.filter((metric) => metric.status === "insufficient_data").length;
-  const goalNotMetCount = metrics.filter((metric) => metric.status === "goal_not_met").length;
-  const nextLoopCount = metrics.filter((metric) => metric.next_loop_required).length;
-  const experimentIds = uniqueValues(metrics.map((metric) => metric.ad_experiment_id));
-  const experimentCount = Math.max(promotion.ad_experiment_count, experimentIds.length);
-  const evaluationStatus =
-    metrics.length === 0
-      ? "waiting"
-      : insufficientCount > 0
-        ? "insufficient_data"
-        : goalNotMetCount > 0
-          ? "goal_not_met"
-          : metrics.some((metric) => metric.status === "goal_met")
-            ? "goal_met"
-            : "evaluated";
-
-  return [
-    {
-      label: "캠페인",
-      status: campaign.status,
-      value: campaign.campaign_name,
-      variant: statusBadgeVariant(campaign.status)
-    },
-    {
-      label: "프로모션",
-      status: promotion.status,
-      value: promotion.channel,
-      variant: statusBadgeVariant(promotion.status)
-    },
-    {
-      label: "세그먼트",
-      status: segments.length > 0 ? "ready" : "empty",
-      value: formatInteger(segments.length),
-      variant: segments.length > 0 ? "secondary" : "outline"
-    },
-    {
-      label: "광고 실험",
-      status: experimentCount > 0 ? "created" : "empty",
-      value: formatInteger(experimentCount),
-      variant: experimentCount > 0 ? "secondary" : "outline"
-    },
-    {
-      label: "평가",
-      status: evaluationStatus,
-      value: formatInteger(metrics.length),
-      variant: statusBadgeVariant(evaluationStatus)
-    },
-    {
-      label: "다음 루프",
-      status: nextLoopCount > 0 ? "required" : insufficientCount > 0 ? "hold" : "none",
-      value:
-        nextLoopCount > 0
-          ? `${formatInteger(nextLoopCount)}개 후보`
-          : goalNotMetCount > 0
-            ? `목표 미달 ${formatInteger(goalNotMetCount)}개`
-            : "-",
-      variant: nextLoopCount > 0 ? "destructive" : "outline"
-    }
-  ] as const;
-}
-
-function WorkflowSegmentTable({
-  metrics,
-  segments
-}: {
-  metrics: DashboardCampaignExperimentMetric[];
-  segments: DashboardCampaignSegment[];
-}) {
-  if (segments.length === 0) {
-    return <EmptyState message="이 프로모션에 연결된 세그먼트가 없습니다." />;
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>세그먼트</TableHead>
-          <TableHead>광고 실험</TableHead>
-          <TableHead>평가</TableHead>
-          <TableHead className="text-right">표본</TableHead>
-          <TableHead>다음 루프</TableHead>
-          <TableHead>근거 / 사유</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {segments.map((segment) => {
-          const segmentMetrics = metrics.filter((metric) => metric.segment_id === segment.segment_id);
-          const latestMetric = segmentMetrics[0] ?? null;
-          const experimentIds = uniqueValues(segmentMetrics.map((metric) => metric.ad_experiment_id));
-          const insufficientMetric = segmentMetrics.find(
-            (metric) => metric.status === "insufficient_data"
-          );
-          const insufficientDetails = insufficientMetric
-            ? insufficientDataDetails(insufficientMetric)
-            : null;
-          const nextLoopCount = segmentMetrics.filter((metric) => metric.next_loop_required).length;
-          const evaluationStatus = latestMetric?.status ?? segment.status;
-          const basis =
-            insufficientDetails?.reason ??
-            latestMetric?.feedback ??
-            segment.natural_language_query ??
-            "-";
-
-          return (
-            <TableRow key={segment.segment_id}>
-              <TableCell>
-                <div className="grid min-w-[180px] gap-1">
-                  <span className="font-medium">{segment.segment_name}</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant={statusBadgeVariant(segment.status)}>
-                      {formatStatusLabel(segment.status)}
-                    </Badge>
-                    {segment.priority ? <Badge variant="outline">{segment.priority}</Badge> : null}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="grid min-w-[160px] gap-1">
-                  <span>{experimentIds.length > 0 ? experimentIds.join(", ") : "-"}</span>
-                  <span className="text-xs text-muted-foreground">
-                    평가 {formatInteger(segmentMetrics.length)}개
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge variant={statusBadgeVariant(evaluationStatus)}>
-                    {formatStatusLabel(evaluationStatus)}
-                  </Badge>
-                  {latestMetric ? (
-                    <Badge variant="outline">{formatMetricLabel(latestMetric.metric)}</Badge>
-                  ) : null}
-                </div>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                <div className="grid gap-1">
-                  <span>{formatInteger(segment.sample_size)}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatPercent(segment.sample_ratio)}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell>
-                {nextLoopCount > 0 ? (
-                  <Badge variant="destructive">{formatInteger(nextLoopCount)}개 필요</Badge>
-                ) : insufficientMetric ? (
-                  <Badge variant="outline">보류</Badge>
-                ) : (
-                  <Badge variant="outline">없음</Badge>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="grid min-w-[240px] gap-1">
-                  <span className="line-clamp-2">{basis}</span>
-                  {insufficientDetails ? (
-                    <span className="text-xs text-muted-foreground">
-                      배정 {formatNullableInteger(insufficientDetails.assignedUserCount)} / 최소{" "}
-                      {formatNullableInteger(insufficientDetails.minimumRequiredSampleSize)}
-                    </span>
-                  ) : null}
-                </div>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  );
-}
-
-function WorkflowRiskNotice({
-  metrics,
-  segments
-}: {
-  metrics: DashboardCampaignExperimentMetric[];
-  segments: DashboardCampaignSegment[];
-}) {
-  const insufficientMetrics = metrics.filter((metric) => metric.status === "insufficient_data");
-  const insufficientSegments = segments.filter((segment) => segment.status === "insufficient_data");
-  const hasRisk = insufficientMetrics.length > 0 || insufficientSegments.length > 0;
-
-  if (!hasRisk) {
-    return null;
-  }
-
-  return (
-    <Alert>
-      <AlertTitle>표본 부족 확인 필요</AlertTitle>
-      <AlertDescription>
-        insufficient_data 상태가 있는 세그먼트는 숨기지 않고 표본 부족 이유를 확인해야 합니다.
-      </AlertDescription>
-    </Alert>
   );
 }
 
@@ -1527,207 +1077,6 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
       <div className="mt-1 truncate text-sm font-medium">{value}</div>
     </div>
   );
-}
-
-function CampaignNextAction({
-  detail,
-  query
-}: {
-  detail: DashboardCampaignDetail;
-  query: DashboardQuery;
-}) {
-  const queryClient = useQueryClient();
-  const [requestedAnalysisId, setRequestedAnalysisId] = useState("");
-  const evaluationMetrics = displayableEvaluationMetrics(
-    detail.experiment_metrics,
-    detail.ad_experiments
-  );
-  const nextLoopMetrics = evaluationMetrics.filter((metric) => metric.next_loop_required);
-  const goalNotMetMetrics = evaluationMetrics.filter(
-    (metric) => metric.status === "goal_not_met"
-  );
-  const insufficientMetrics = evaluationMetrics.filter(
-    (metric) => metric.status === "insufficient_data"
-  );
-  const nextLoopSegmentIds = uniqueValues(nextLoopMetrics.map((metric) => metric.segment_id));
-  const goalNotMetSegmentIds = uniqueValues(goalNotMetMetrics.map((metric) => metric.segment_id));
-  const insufficientSegmentIds = uniqueValues(
-    insufficientMetrics.map((metric) => metric.segment_id)
-  );
-  const recommendation = campaignActionRecommendation({
-    goalNotMetSegmentCount: goalNotMetSegmentIds.length,
-    insufficientCount: insufficientMetrics.length,
-    nextLoopCount: nextLoopMetrics.length
-  });
-  const nextLoopTargets = nextLoopPromotionTargets(nextLoopMetrics);
-  const nextLoopMutation = useMutation({
-    mutationFn: ({
-      focusSegmentIds,
-      promotionId
-    }: {
-      focusSegmentIds: string[];
-      promotionId: string;
-    }) =>
-      startDashboardNextLoopAnalysis(query, promotionId, {
-        focus_segment_ids: focusSegmentIds,
-        operator_instruction: "대시보드에서 목표 미달 세그먼트 다음 루프 분석 요청"
-      }),
-    onSuccess: async (analysis) => {
-      setRequestedAnalysisId(analysis.analysis_id);
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-    }
-  });
-
-  return (
-    <section className="grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">다음 액션</h3>
-          <p className="text-sm text-muted-foreground">
-            실험 지표 상태를 기준으로 재실험, 표본 보강, 유지 여부를 판단합니다.
-          </p>
-        </div>
-        <Badge variant={recommendation.variant}>{recommendation.label}</Badge>
-      </div>
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="다음 루프 후보" value={formatInteger(nextLoopMetrics.length)} />
-        <SummaryItem label="목표 미달" value={formatInteger(goalNotMetMetrics.length)} />
-        <SummaryItem label="표본 부족" value={formatInteger(insufficientMetrics.length)} />
-        <SummaryItem label="재검토 세그먼트" value={formatInteger(goalNotMetSegmentIds.length)} />
-      </div>
-      <Alert variant={recommendation.alertVariant}>
-        <AlertTitle>{recommendation.title}</AlertTitle>
-        <AlertDescription>{recommendation.description}</AlertDescription>
-      </Alert>
-      {nextLoopMutation.isError ? (
-        <Alert variant="destructive">
-          <AlertTitle>다음 루프 분석 요청 실패</AlertTitle>
-          <AlertDescription>{mutationErrorMessage(nextLoopMutation.error)}</AlertDescription>
-        </Alert>
-      ) : null}
-      {requestedAnalysisId ? (
-        <Alert>
-          <AlertTitle>다음 루프 분석을 요청했습니다</AlertTitle>
-          <AlertDescription>{requestedAnalysisId}</AlertDescription>
-        </Alert>
-      ) : null}
-      {nextLoopTargets.length > 0 ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {nextLoopTargets.map((target) => (
-            <div
-              className="grid gap-3 rounded-md border bg-muted/20 p-3"
-              key={target.promotionId}
-            >
-              <div className="grid gap-1">
-                <div className="text-sm font-medium">{target.promotionId}</div>
-                <div className="text-xs text-muted-foreground">
-                  실패 세그먼트 {formatInteger(target.focusSegmentIds.length)}개만 재분석합니다.
-                </div>
-              </div>
-              <InsightBlock
-                label="대상 세그먼트"
-                value={formatInteger(target.focusSegmentIds.length)}
-              />
-              <Button
-                disabled={nextLoopMutation.isPending}
-                onClick={() =>
-                  nextLoopMutation.mutate({
-                    focusSegmentIds: target.focusSegmentIds,
-                    promotionId: target.promotionId
-                  })
-                }
-                type="button"
-              >
-                {nextLoopMutation.isPending ? "요청 중" : "다음 루프 분석 요청"}
-              </Button>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <div className="grid gap-3 md:grid-cols-3">
-        <InsightBlock
-          label="다음 루프 대상 세그먼트"
-          value={nextLoopSegmentIds.length > 0 ? nextLoopSegmentIds.join("\n") : "-"}
-        />
-        <InsightBlock
-          label="목표 미달 세그먼트"
-          value={goalNotMetSegmentIds.length > 0 ? goalNotMetSegmentIds.join("\n") : "-"}
-        />
-        <InsightBlock
-          label="표본 부족 세그먼트"
-          value={insufficientSegmentIds.length > 0 ? insufficientSegmentIds.join("\n") : "-"}
-        />
-      </div>
-    </section>
-  );
-}
-
-function nextLoopPromotionTargets(metrics: DashboardCampaignExperimentMetric[]) {
-  const promotionToSegments = new Map<string, Set<string>>();
-  for (const metric of metrics) {
-    if (!metric.segment_id) {
-      continue;
-    }
-    const segments = promotionToSegments.get(metric.promotion_id) ?? new Set<string>();
-    segments.add(metric.segment_id);
-    promotionToSegments.set(metric.promotion_id, segments);
-  }
-
-  return [...promotionToSegments.entries()].map(([promotionId, segments]) => ({
-    focusSegmentIds: [...segments],
-    promotionId
-  }));
-}
-
-function campaignActionRecommendation({
-  goalNotMetSegmentCount,
-  insufficientCount,
-  nextLoopCount
-}: {
-  goalNotMetSegmentCount: number;
-  insufficientCount: number;
-  nextLoopCount: number;
-}) {
-  if (nextLoopCount > 0) {
-    return {
-      alertVariant: "destructive" as const,
-      description:
-        "next_loop_required 실험이 있습니다. 해당 세그먼트의 소재, 채널, 조건을 조정한 뒤 재실험 대상으로 분리하세요.",
-      label: "재실험 필요",
-      title: "다음 루프를 생성해야 합니다.",
-      variant: "destructive" as const
-    };
-  }
-
-  if (goalNotMetSegmentCount > 0) {
-    return {
-      alertVariant: "default" as const,
-      description:
-        "목표 미달 세그먼트가 있습니다. 프로모션별 실험 지표에서 목표값과 실제값 차이를 확인하세요.",
-      label: "목표 미달",
-      title: "세그먼트 조건 또는 메시지 조정이 필요합니다.",
-      variant: "secondary" as const
-    };
-  }
-
-  if (insufficientCount > 0) {
-    return {
-      alertVariant: "default" as const,
-      description:
-        "표본 부족 상태가 있습니다. 1.7 규약에 따라 실패로 확정하지 않고 표본 보강 후 다시 평가해야 합니다.",
-      label: "표본 보강",
-      title: "표본 부족 평가가 포함되어 있습니다.",
-      variant: "secondary" as const
-    };
-  }
-
-  return {
-    alertVariant: "default" as const,
-    description: "현재 응답 기준으로 즉시 재실험이 필요한 항목은 없습니다.",
-    label: "정상",
-    title: "캠페인 평가가 안정적입니다.",
-    variant: "outline" as const
-  };
 }
 
 function PromotionDetail({
@@ -2085,7 +1434,7 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-xl font-semibold tracking-tight text-foreground">
-              {promotion.marketing_theme}
+              프로모션 상세
             </h3>
             <Badge variant={statusBadgeVariant(promotion.status)}>
               {formatStatusLabel(promotion.status)}
@@ -2443,12 +1792,7 @@ function RealtimeEventTable({
   metrics: DashboardRealtimeMetrics;
   title: string;
 }) {
-  const [eventNameFilter, setEventNameFilter] = useState("all");
-  const filteredEvents =
-    eventNameFilter === "all"
-      ? metrics.events
-      : metrics.events.filter((event) => event.event_name === eventNameFilter);
-  const filteredTotalEventCount = filteredEvents.reduce(
+  const totalEventCount = metrics.events.reduce(
     (sum, event) => sum + event.event_count,
     0
   );
@@ -2465,29 +1809,11 @@ function RealtimeEventTable({
     <>
       {metrics.events.length > 0 ? (
         <section className="grid gap-3">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="grid gap-1">
-              <h3 className="text-base font-semibold text-[#1d1d1f]">{title}</h3>
-              <p className="text-sm text-muted-foreground">
-                수집 이벤트를 event_name 기준으로 필터링합니다.
-              </p>
-            </div>
-            <Field className="max-w-[260px]">
-              <FieldLabel>이벤트 종류</FieldLabel>
-              <Select onValueChange={setEventNameFilter} value={eventNameFilter}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="이벤트 종류" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 이벤트</SelectItem>
-                  {metrics.events.map((event) => (
-                    <SelectItem key={event.event_name} value={event.event_name}>
-                      {eventDisplayName(event.event_name)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+          <div className="grid gap-1">
+            <h3 className="text-base font-semibold text-[#1d1d1f]">{title}</h3>
+            <p className="text-sm text-muted-foreground">
+              수집된 이벤트 수와 유니크 유저를 전체 기준으로 집계합니다.
+            </p>
           </div>
           <div className="grid gap-3 md:grid-cols-4">
             <SummaryItem label="이벤트 합계" value={formatInteger(metrics.total_event_count)} />
@@ -2546,7 +1872,7 @@ function RealtimeEventTable({
               }
             }}
           >
-            <BarChart data={chartEvents(filteredEvents)}>
+            <BarChart data={chartEvents(metrics.events)}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} tickMargin={10} axisLine={false} />
               <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
@@ -2569,7 +1895,7 @@ function RealtimeEventTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEvents.map((event) => (
+              {metrics.events.map((event) => (
                 <TableRow key={event.event_name}>
                   <TableCell>
                     <div className="grid gap-1">
@@ -2584,8 +1910,8 @@ function RealtimeEventTable({
                     {formatInteger(event.unique_user_count)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {filteredTotalEventCount > 0
-                      ? formatPercentValue(event.event_count / filteredTotalEventCount)
+                    {totalEventCount > 0
+                      ? formatPercentValue(event.event_count / totalEventCount)
                       : "-"}
                   </TableCell>
                 </TableRow>

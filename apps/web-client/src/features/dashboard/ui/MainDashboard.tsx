@@ -54,7 +54,6 @@ export function MainDashboardPanel({ data, query }: { data: DashboardMain; query
                 <TableHead>캠페인</TableHead>
                 <TableHead>상태</TableHead>
                 <TableHead>기간</TableHead>
-                <TableHead className="text-right">루프</TableHead>
                 <TableHead className="text-right">프로모션</TableHead>
                 <TableHead className="text-right">세그먼트</TableHead>
                 <TableHead className="text-right">실험</TableHead>
@@ -124,9 +123,6 @@ function CampaignListRow({
         <Badge variant="secondary">{formatStatusLabel(campaign.status)}</Badge>
       </TableCell>
       <TableCell>{formatPeriod(campaign)}</TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatInteger(campaign.current_loop_count)} / {formatInteger(campaign.max_loop_count)}
-      </TableCell>
       <TableCell className="text-right tabular-nums">
         {formatInteger(campaign.promotion_count)}
       </TableCell>
