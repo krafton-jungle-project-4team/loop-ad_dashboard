@@ -3,7 +3,7 @@ import {
   DashboardFunnelEventNameSchema,
   type DashboardFunnelList
 } from "@loopad/shared";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "@loopad/ui/charts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
@@ -292,7 +292,7 @@ export function FunnelDashboardPanel({
                 }
               }}
             >
-              <BarChart data={funnelMetrics.data?.steps ?? []}>
+              <LineChart data={funnelMetrics.data?.steps ?? []}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                   dataKey="step_name"
@@ -302,8 +302,15 @@ export function FunnelDashboardPanel({
                 />
                 <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="event_count" fill="var(--color-event_count)" radius={4} />
-              </BarChart>
+                <Line
+                  activeDot={{ r: 6 }}
+                  dataKey="event_count"
+                  dot={{ r: 4 }}
+                  stroke="var(--color-event_count)"
+                  strokeWidth={2}
+                  type="linear"
+                />
+              </LineChart>
             </ChartContainer>
           ) : (
             <EmptyState message="수치를 확인할 퍼널을 선택해주세요." />
