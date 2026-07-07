@@ -10,7 +10,6 @@ import { Separator } from "@loopad/ui/shadcn/separator";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -84,9 +83,6 @@ export function DashboardShell({
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-        <SidebarFooter className="p-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:p-2">
-          <CampaignShortcut activeTab={activeTab} projectId={projectId} />
-        </SidebarFooter>
         <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
         <SidebarRail />
       </Sidebar>
@@ -200,39 +196,6 @@ function DashboardNavigation({
         );
       })}
     </SidebarMenu>
-  );
-}
-
-function CampaignShortcut({
-  activeTab,
-  projectId
-}: {
-  activeTab: DashboardTab;
-  projectId: string;
-}) {
-  const isActive = activeTab === "campaigns";
-
-  return (
-    <Link
-      aria-label="캠페인"
-      className={cn(
-        "flex h-12 w-full items-center gap-3 rounded-2xl border border-black/10 bg-white px-3 text-sm font-semibold text-[#1d1d1f] shadow-sm transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-full group-data-[collapsible=icon]:px-0",
-        isActive && "border-[#0066cc] bg-[#0066cc] text-white hover:bg-[#0066cc]"
-      )}
-      params={{ projectId, tabPath: "campaigns" }}
-      search={(current) => current}
-      to="/dashboard/$projectId/$tabPath"
-    >
-      <span
-        className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-full bg-[#0066cc] text-sm font-bold text-white",
-          isActive && "bg-white text-[#0066cc]"
-        )}
-      >
-        C
-      </span>
-      <span className="truncate group-data-[collapsible=icon]:hidden">캠페인</span>
-    </Link>
   );
 }
 

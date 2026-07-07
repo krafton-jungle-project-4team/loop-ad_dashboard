@@ -81,9 +81,9 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     icon: ListFilter
   },
   {
-    label: "캠페인 지표",
-    value: "campaign-metrics",
-    pathSegment: "campaign-metrics",
+    label: "캠페인",
+    value: "campaigns",
+    pathSegment: "campaigns",
     icon: Megaphone
   },
   {
@@ -110,12 +110,12 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     pathSegment: "data-explorer",
     icon: DatabaseZap
   },
-    {
+  {
     label: "워크플로우 맵",
     value: "campaign-flow-map",
     pathSegment: "campaign-flow-map",
     icon: Workflow
-  },
+  }
 ];
 
 export function getDashboardTabByPath(path: string): DashboardTab | null {
