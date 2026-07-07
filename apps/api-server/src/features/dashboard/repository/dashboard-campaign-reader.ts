@@ -132,14 +132,15 @@ export class DashboardCampaignReader {
   }
 
   async createProject(request: DashboardCreateProjectRequest): Promise<DashboardProject> {
+    const projectId = `project_${randomUUID()}`;
     const row = await this.db
       .query(insertDashboardProject, {
         domain: request.domain,
         industry: request.industry,
-        projectId: request.project_id,
+        projectId,
         projectName: request.project_name,
         status: request.status,
-        writeKey: request.write_key ?? `wk_${randomUUID().replace(/-/g, "")}`
+        writeKey: `wk_${randomUUID().replace(/-/g, "")}`
       })
       .single();
 

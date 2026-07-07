@@ -25,10 +25,8 @@ export const DashboardProjectListSchema = z.object({
 export type DashboardProjectList = z.infer<typeof DashboardProjectListSchema>;
 
 export const DashboardCreateProjectRequestSchema = z.object({
-  project_id: z.string().trim().min(1),
   project_name: z.string().trim().min(1),
   domain: z.string().trim().min(1).default("hotel-booking.local"),
-  write_key: z.string().trim().min(1).optional(),
   industry: z.string().trim().min(1).default("hotel_booking"),
   status: DashboardProjectStatusSchema.default("active")
 });

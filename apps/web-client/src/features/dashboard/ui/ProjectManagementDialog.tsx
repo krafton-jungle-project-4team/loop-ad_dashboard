@@ -26,17 +26,13 @@ import { dashboardProjectsQueryKey } from "../model/dashboard-query-keys.js";
 type ProjectFormState = {
   domain: string;
   industry: string;
-  project_id: string;
   project_name: string;
-  write_key: string;
 };
 
 const emptyProjectForm: ProjectFormState = {
   domain: "hotel-booking.local",
   industry: "hotel_booking",
-  project_id: "",
-  project_name: "",
-  write_key: ""
+  project_name: ""
 };
 
 export function ProjectManagementDialog({
@@ -90,17 +86,12 @@ export function ProjectManagementDialog({
 
   function handleCreateProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const writeKey = form.write_key.trim();
     const requestBody: DashboardCreateProjectRequest = {
       domain: form.domain.trim(),
       industry: form.industry.trim(),
-      project_id: form.project_id.trim(),
       project_name: form.project_name.trim(),
       status: "active"
     };
-    if (writeKey) {
-      requestBody.write_key = writeKey;
-    }
 
     createProjectMutation.mutate(requestBody);
   }
@@ -141,17 +132,6 @@ export function ProjectManagementDialog({
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="project-id">프로젝트 ID</FieldLabel>
-              <Input
-                autoComplete="off"
-                id="project-id"
-                onChange={(event) => handleProjectInputChange("project_id", event.target.value)}
-                placeholder="project_demo_hotel"
-                required
-                value={form.project_id}
-              />
-            </Field>
-            <Field>
               <FieldLabel htmlFor="project-name">프로젝트 이름</FieldLabel>
               <Input
                 autoComplete="off"
@@ -182,16 +162,6 @@ export function ProjectManagementDialog({
                 onChange={(event) => handleProjectInputChange("industry", event.target.value)}
                 required
                 value={form.industry}
-              />
-            </Field>
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="project-write-key">쓰기 키</FieldLabel>
-              <Input
-                autoComplete="off"
-                id="project-write-key"
-                onChange={(event) => handleProjectInputChange("write_key", event.target.value)}
-                placeholder="비워두면 자동 생성"
-                value={form.write_key}
               />
             </Field>
           </div>
