@@ -123,7 +123,7 @@ export class DashboardController {
   ) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardDeleteCampaignResultSchema.parse(
-      await this.dashboardQuery.stopCampaign(requiredProjectId, campaignId)
+      await this.dashboardQuery.deleteCampaign(requiredProjectId, campaignId)
     );
   }
 

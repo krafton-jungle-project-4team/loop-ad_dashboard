@@ -52,6 +52,7 @@ import {
   archiveDashboardPromotionScopedSegmentDefinition,
   confirmDashboardPromotionSegmentSuggestions,
   decideDashboardPromotionSegmentSuggestion,
+  deleteDashboardCampaign,
   getDashboardCampaignSummary,
   getDashboardContentCandidateForApproval,
   getDashboardPromotionGenerationResult,
@@ -84,7 +85,6 @@ import {
   rejectDashboardContentCandidate,
   rejectDashboardSiblingContentCandidates,
   startDashboardAdExperiment,
-  stopDashboardCampaign,
   stopDashboardPromotion,
   stopDashboardPromotionTargetSegment,
   updateDashboardCampaign,
@@ -207,15 +207,15 @@ export class DashboardCampaignReader {
     return this.getCampaignSummary(projectId, campaignId);
   }
 
-  async stopCampaign(
+  async deleteCampaign(
     projectId: string,
     campaignId: string
   ): Promise<DashboardDeleteCampaignResult> {
-    const row = await this.db.query(stopDashboardCampaign, { campaignId, projectId }).single();
+    const row = await this.db.query(deleteDashboardCampaign, { campaignId, projectId }).single();
 
     return {
       campaign_id: row.campaignId,
-      status: "stopped"
+      status: "deleted"
     };
   }
 

@@ -384,7 +384,7 @@ export interface IUpdateDashboardCampaignQuery {
   result: IUpdateDashboardCampaignResult;
 }
 
-const updateDashboardCampaignIR: any = {"usedParamSet":{"campaignName":true,"objectiveIsSet":true,"objective":true,"startDateIsSet":true,"startDate":true,"endDateIsSet":true,"endDate":true,"primaryMetricIsSet":true,"primaryMetric":true,"status":true,"projectId":true,"campaignId":true},"params":[{"name":"campaignName","required":false,"transform":{"type":"scalar"},"locs":[{"a":39,"b":51}]},{"name":"objectiveIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":85,"b":99}]},{"name":"objective","required":false,"transform":{"type":"scalar"},"locs":[{"a":106,"b":115}]},{"name":"startDateIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":162,"b":176}]},{"name":"startDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":183,"b":192}]},{"name":"endDateIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":238,"b":250}]},{"name":"endDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":257,"b":264}]},{"name":"primaryMetricIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":314,"b":332}]},{"name":"primaryMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":339,"b":352}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":399,"b":405}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":457,"b":466}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":488,"b":498}]}],"statement":"UPDATE campaigns\nSET\n  name = COALESCE(:campaignName, name),\n  objective = CASE WHEN :objectiveIsSet THEN :objective ELSE objective END,\n  start_date = CASE WHEN :startDateIsSet THEN :startDate ELSE start_date END,\n  end_date = CASE WHEN :endDateIsSet THEN :endDate ELSE end_date END,\n  primary_metric = CASE WHEN :primaryMetricIsSet THEN :primaryMetric ELSE primary_metric END,\n  status = COALESCE(:status, status),\n  updated_at = now()\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\n  AND status <> 'stopped'\nRETURNING campaign_id AS \"campaignId\"                                               "};
+const updateDashboardCampaignIR: any = {"usedParamSet":{"campaignName":true,"objectiveIsSet":true,"objective":true,"startDateIsSet":true,"startDate":true,"endDateIsSet":true,"endDate":true,"primaryMetricIsSet":true,"primaryMetric":true,"status":true,"projectId":true,"campaignId":true},"params":[{"name":"campaignName","required":false,"transform":{"type":"scalar"},"locs":[{"a":39,"b":51}]},{"name":"objectiveIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":85,"b":99}]},{"name":"objective","required":false,"transform":{"type":"scalar"},"locs":[{"a":106,"b":115}]},{"name":"startDateIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":162,"b":176}]},{"name":"startDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":183,"b":192}]},{"name":"endDateIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":238,"b":250}]},{"name":"endDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":257,"b":264}]},{"name":"primaryMetricIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":314,"b":332}]},{"name":"primaryMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":339,"b":352}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":399,"b":405}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":457,"b":466}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":488,"b":498}]}],"statement":"UPDATE campaigns\nSET\n  name = COALESCE(:campaignName, name),\n  objective = CASE WHEN :objectiveIsSet THEN :objective ELSE objective END,\n  start_date = CASE WHEN :startDateIsSet THEN :startDate ELSE start_date END,\n  end_date = CASE WHEN :endDateIsSet THEN :endDate ELSE end_date END,\n  primary_metric = CASE WHEN :primaryMetricIsSet THEN :primaryMetric ELSE primary_metric END,\n  status = COALESCE(:status, status),\n  updated_at = now()\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\n  AND status <> 'stopped'\nRETURNING campaign_id AS \"campaignId\"                                       "};
 
 /**
  * Query generated from SQL:
@@ -401,45 +401,179 @@ const updateDashboardCampaignIR: any = {"usedParamSet":{"campaignName":true,"obj
  * WHERE project_id = :projectId
  *   AND campaign_id = :campaignId
  *   AND status <> 'stopped'
- * RETURNING campaign_id AS "campaignId"                                               
+ * RETURNING campaign_id AS "campaignId"                                       
  * ```
  */
 export const updateDashboardCampaign = new PreparedQuery<IUpdateDashboardCampaignParams,IUpdateDashboardCampaignResult>(updateDashboardCampaignIR);
 
 
-/** 'StopDashboardCampaign' parameters type */
-export interface IStopDashboardCampaignParams {
+/** 'DeleteDashboardCampaign' parameters type */
+export interface IDeleteDashboardCampaignParams {
   campaignId?: string | null | void;
   projectId?: string | null | void;
 }
 
-/** 'StopDashboardCampaign' return type */
-export interface IStopDashboardCampaignResult {
+/** 'DeleteDashboardCampaign' return type */
+export interface IDeleteDashboardCampaignResult {
   campaignId: string;
-  status: string;
+  status: string | null;
 }
 
-/** 'StopDashboardCampaign' query type */
-export interface IStopDashboardCampaignQuery {
-  params: IStopDashboardCampaignParams;
-  result: IStopDashboardCampaignResult;
+/** 'DeleteDashboardCampaign' query type */
+export interface IDeleteDashboardCampaignQuery {
+  params: IDeleteDashboardCampaignParams;
+  result: IDeleteDashboardCampaignResult;
 }
 
-const stopDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":83,"b":92}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":114,"b":124}]}],"statement":"UPDATE campaigns\nSET status = 'stopped',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\n\nRETURNING campaign_id AS \"campaignId\", status                                     "};
+const deleteDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":97,"b":106}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":130,"b":140}]}],"statement":"WITH target_campaign AS (\n  SELECT project_id, campaign_id\n  FROM campaigns\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n),\ndeleted_redirect_links AS (\n  DELETE FROM redirect_links rl\n  USING target_campaign target\n  WHERE rl.project_id = target.project_id\n    AND rl.campaign_id = target.campaign_id\n  RETURNING rl.redirect_id\n),\ndeleted_ad_dispatch_jobs AS (\n  DELETE FROM ad_dispatch_jobs adj\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_redirect_links) dependency\n  WHERE adj.project_id = target.project_id\n    AND adj.campaign_id = target.campaign_id\n  RETURNING adj.ad_dispatch_job_id\n),\ndeleted_user_segment_assignments AS (\n  DELETE FROM user_segment_assignments usa\n  USING promotion_runs pr,\n        target_campaign target,\n        (SELECT count(*) FROM deleted_ad_dispatch_jobs) dependency\n  WHERE pr.project_id = target.project_id\n    AND pr.campaign_id = target.campaign_id\n    AND usa.project_id = pr.project_id\n    AND usa.promotion_run_id = pr.promotion_run_id\n  RETURNING usa.user_id\n),\ndeleted_segment_vectors AS (\n  DELETE FROM segment_vectors sv\n  USING promotions p,\n        target_campaign target,\n        (SELECT count(*) FROM deleted_user_segment_assignments) dependency\n  WHERE p.project_id = target.project_id\n    AND p.campaign_id = target.campaign_id\n    AND sv.project_id = p.project_id\n    AND sv.promotion_id = p.promotion_id\n  RETURNING sv.segment_id\n),\ndeleted_promotion_evaluations AS (\n  DELETE FROM promotion_evaluations pe\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_segment_vectors) dependency\n  WHERE pe.project_id = target.project_id\n    AND pe.campaign_id = target.campaign_id\n  RETURNING pe.promotion_run_id\n),\ndeleted_ad_experiments AS (\n  DELETE FROM ad_experiments ae\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_promotion_evaluations) dependency\n  WHERE ae.project_id = target.project_id\n    AND ae.campaign_id = target.campaign_id\n  RETURNING ae.ad_experiment_id\n),\ndeleted_content_candidates AS (\n  DELETE FROM content_candidates cc\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_ad_experiments) dependency\n  WHERE cc.project_id = target.project_id\n    AND cc.campaign_id = target.campaign_id\n  RETURNING cc.content_id\n),\ndeleted_promotion_target_segments AS (\n  DELETE FROM promotion_target_segments pts\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_content_candidates) dependency\n  WHERE pts.project_id = target.project_id\n    AND pts.campaign_id = target.campaign_id\n  RETURNING pts.segment_id\n),\ndeleted_promotion_segment_suggestions AS (\n  DELETE FROM promotion_segment_suggestions pss\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_promotion_target_segments) dependency\n  WHERE pss.project_id = target.project_id\n    AND pss.campaign_id = target.campaign_id\n  RETURNING pss.suggestion_id\n),\ndeleted_funnel_definitions AS (\n  DELETE FROM funnel_definitions fd\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_promotion_segment_suggestions) dependency\n  WHERE fd.project_id = target.project_id\n    AND fd.campaign_id = target.campaign_id\n  RETURNING fd.funnel_id\n),\ndeleted_promotion_runs AS (\n  DELETE FROM promotion_runs pr\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_funnel_definitions) dependency\n  WHERE pr.project_id = target.project_id\n    AND pr.campaign_id = target.campaign_id\n  RETURNING pr.promotion_run_id\n),\ndeleted_generation_runs AS (\n  DELETE FROM generation_runs gr\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_promotion_runs) dependency\n  WHERE gr.project_id = target.project_id\n    AND gr.campaign_id = target.campaign_id\n  RETURNING gr.generation_id\n),\ndeleted_promotion_analyses AS (\n  DELETE FROM promotion_analyses pa\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_generation_runs) dependency\n  WHERE pa.project_id = target.project_id\n    AND pa.campaign_id = target.campaign_id\n  RETURNING pa.analysis_id\n),\ndeleted_segment_definitions AS (\n  DELETE FROM segment_definitions sd\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_promotion_analyses) dependency\n  WHERE sd.project_id = target.project_id\n    AND sd.campaign_id = target.campaign_id\n  RETURNING sd.segment_id\n),\ndeleted_promotions AS (\n  DELETE FROM promotions p\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_segment_definitions) dependency\n  WHERE p.project_id = target.project_id\n    AND p.campaign_id = target.campaign_id\n  RETURNING p.promotion_id\n),\ndeleted_campaign AS (\n  DELETE FROM campaigns c\n  USING target_campaign target,\n        (SELECT count(*) FROM deleted_promotions) dependency\n  WHERE c.project_id = target.project_id\n    AND c.campaign_id = target.campaign_id\n  RETURNING c.campaign_id, 'deleted'::text AS status\n)\nSELECT campaign_id AS \"campaignId\", status\nFROM deleted_campaign                                     "};
 
 /**
  * Query generated from SQL:
  * ```
- * UPDATE campaigns
- * SET status = 'stopped',
- *     updated_at = now()
- * WHERE project_id = :projectId
- *   AND campaign_id = :campaignId
- * 
- * RETURNING campaign_id AS "campaignId", status                                     
+ * WITH target_campaign AS (
+ *   SELECT project_id, campaign_id
+ *   FROM campaigns
+ *   WHERE project_id = :projectId
+ *     AND campaign_id = :campaignId
+ * ),
+ * deleted_redirect_links AS (
+ *   DELETE FROM redirect_links rl
+ *   USING target_campaign target
+ *   WHERE rl.project_id = target.project_id
+ *     AND rl.campaign_id = target.campaign_id
+ *   RETURNING rl.redirect_id
+ * ),
+ * deleted_ad_dispatch_jobs AS (
+ *   DELETE FROM ad_dispatch_jobs adj
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_redirect_links) dependency
+ *   WHERE adj.project_id = target.project_id
+ *     AND adj.campaign_id = target.campaign_id
+ *   RETURNING adj.ad_dispatch_job_id
+ * ),
+ * deleted_user_segment_assignments AS (
+ *   DELETE FROM user_segment_assignments usa
+ *   USING promotion_runs pr,
+ *         target_campaign target,
+ *         (SELECT count(*) FROM deleted_ad_dispatch_jobs) dependency
+ *   WHERE pr.project_id = target.project_id
+ *     AND pr.campaign_id = target.campaign_id
+ *     AND usa.project_id = pr.project_id
+ *     AND usa.promotion_run_id = pr.promotion_run_id
+ *   RETURNING usa.user_id
+ * ),
+ * deleted_segment_vectors AS (
+ *   DELETE FROM segment_vectors sv
+ *   USING promotions p,
+ *         target_campaign target,
+ *         (SELECT count(*) FROM deleted_user_segment_assignments) dependency
+ *   WHERE p.project_id = target.project_id
+ *     AND p.campaign_id = target.campaign_id
+ *     AND sv.project_id = p.project_id
+ *     AND sv.promotion_id = p.promotion_id
+ *   RETURNING sv.segment_id
+ * ),
+ * deleted_promotion_evaluations AS (
+ *   DELETE FROM promotion_evaluations pe
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_segment_vectors) dependency
+ *   WHERE pe.project_id = target.project_id
+ *     AND pe.campaign_id = target.campaign_id
+ *   RETURNING pe.promotion_run_id
+ * ),
+ * deleted_ad_experiments AS (
+ *   DELETE FROM ad_experiments ae
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_promotion_evaluations) dependency
+ *   WHERE ae.project_id = target.project_id
+ *     AND ae.campaign_id = target.campaign_id
+ *   RETURNING ae.ad_experiment_id
+ * ),
+ * deleted_content_candidates AS (
+ *   DELETE FROM content_candidates cc
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_ad_experiments) dependency
+ *   WHERE cc.project_id = target.project_id
+ *     AND cc.campaign_id = target.campaign_id
+ *   RETURNING cc.content_id
+ * ),
+ * deleted_promotion_target_segments AS (
+ *   DELETE FROM promotion_target_segments pts
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_content_candidates) dependency
+ *   WHERE pts.project_id = target.project_id
+ *     AND pts.campaign_id = target.campaign_id
+ *   RETURNING pts.segment_id
+ * ),
+ * deleted_promotion_segment_suggestions AS (
+ *   DELETE FROM promotion_segment_suggestions pss
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_promotion_target_segments) dependency
+ *   WHERE pss.project_id = target.project_id
+ *     AND pss.campaign_id = target.campaign_id
+ *   RETURNING pss.suggestion_id
+ * ),
+ * deleted_funnel_definitions AS (
+ *   DELETE FROM funnel_definitions fd
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_promotion_segment_suggestions) dependency
+ *   WHERE fd.project_id = target.project_id
+ *     AND fd.campaign_id = target.campaign_id
+ *   RETURNING fd.funnel_id
+ * ),
+ * deleted_promotion_runs AS (
+ *   DELETE FROM promotion_runs pr
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_funnel_definitions) dependency
+ *   WHERE pr.project_id = target.project_id
+ *     AND pr.campaign_id = target.campaign_id
+ *   RETURNING pr.promotion_run_id
+ * ),
+ * deleted_generation_runs AS (
+ *   DELETE FROM generation_runs gr
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_promotion_runs) dependency
+ *   WHERE gr.project_id = target.project_id
+ *     AND gr.campaign_id = target.campaign_id
+ *   RETURNING gr.generation_id
+ * ),
+ * deleted_promotion_analyses AS (
+ *   DELETE FROM promotion_analyses pa
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_generation_runs) dependency
+ *   WHERE pa.project_id = target.project_id
+ *     AND pa.campaign_id = target.campaign_id
+ *   RETURNING pa.analysis_id
+ * ),
+ * deleted_segment_definitions AS (
+ *   DELETE FROM segment_definitions sd
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_promotion_analyses) dependency
+ *   WHERE sd.project_id = target.project_id
+ *     AND sd.campaign_id = target.campaign_id
+ *   RETURNING sd.segment_id
+ * ),
+ * deleted_promotions AS (
+ *   DELETE FROM promotions p
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_segment_definitions) dependency
+ *   WHERE p.project_id = target.project_id
+ *     AND p.campaign_id = target.campaign_id
+ *   RETURNING p.promotion_id
+ * ),
+ * deleted_campaign AS (
+ *   DELETE FROM campaigns c
+ *   USING target_campaign target,
+ *         (SELECT count(*) FROM deleted_promotions) dependency
+ *   WHERE c.project_id = target.project_id
+ *     AND c.campaign_id = target.campaign_id
+ *   RETURNING c.campaign_id, 'deleted'::text AS status
+ * )
+ * SELECT campaign_id AS "campaignId", status
+ * FROM deleted_campaign                                     
  * ```
  */
-export const stopDashboardCampaign = new PreparedQuery<IStopDashboardCampaignParams,IStopDashboardCampaignResult>(stopDashboardCampaignIR);
+export const deleteDashboardCampaign = new PreparedQuery<IDeleteDashboardCampaignParams,IDeleteDashboardCampaignResult>(deleteDashboardCampaignIR);
 
 
 /** 'ListDashboardCampaignPromotions' parameters type */

@@ -26,6 +26,14 @@ import {
   SelectTrigger,
   SelectValue
 } from "@loopad/ui/shadcn/select";
+import { ScrollArea } from "@loopad/ui/shadcn/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from "@loopad/ui/shadcn/sheet";
 import {
   Table,
   TableBody,
@@ -37,6 +45,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   approveDashboardContentCandidate,
@@ -85,6 +94,10 @@ const FALLBACK_SEGMENT_ID = "seg_existing_all";
 
 type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
 type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
+type CampaignFormSheetState =
+  | { mode: "create" }
+  | { campaignId: string; mode: "edit" }
+  | null;
 
 export function CampaignDashboardPanel({
   data,
@@ -99,10 +112,15 @@ export function CampaignDashboardPanel({
   const [, setDashboardQueryState] = useDashboardQueryState();
   const selectedPromotionId = query.selectedPromotionId;
   const selectedSegmentId = query.selectedSegmentId;
+  const [campaignFormSheet, setCampaignFormSheet] = useState<CampaignFormSheetState>(null);
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
     data.campaigns[0];
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
+  const editingCampaign =
+    campaignFormSheet?.mode === "edit"
+      ? data.campaigns.find((campaign) => campaign.campaign_id === campaignFormSheet.campaignId)
+      : undefined;
   const campaignDetail = useQuery({
     enabled: Boolean(selectedCampaignId),
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
@@ -141,6 +159,7 @@ export function CampaignDashboardPanel({
         selectedPromotionId: "",
         selectedSegmentId: ""
       });
+      setCampaignFormSheet(null);
     }
   });
   const updateCampaignMutation = useMutation({
@@ -158,9 +177,10 @@ export function CampaignDashboardPanel({
         selectedPromotionId: "",
         selectedSegmentId: ""
       });
+      setCampaignFormSheet(null);
     }
   });
-  const stopCampaignMutation = useMutation({
+  const deleteCampaignMutation = useMutation({
     mutationFn: (campaignId: string) => deleteDashboardCampaign(query, campaignId),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -171,6 +191,7 @@ export function CampaignDashboardPanel({
           selectedSegmentId: ""
         });
       }
+      setCampaignFormSheet(null);
     }
   });
 
@@ -214,31 +235,26 @@ export function CampaignDashboardPanel({
     <div className="grid gap-6">
       {tab === "campaigns" ? (
         <>
-          <CampaignManagementPanel
-            campaign={selectedCampaign}
-            createError={createCampaignMutation.error}
-            createIsError={createCampaignMutation.isError}
-            createIsPending={createCampaignMutation.isPending}
-            onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
-            onStop={(campaignId) => stopCampaignMutation.mutate(campaignId)}
-            onUpdate={(campaignId, requestBody) =>
-              updateCampaignMutation.mutate({ campaignId, requestBody })
-            }
-            stopError={stopCampaignMutation.error}
-            stopIsError={stopCampaignMutation.isError}
-            stopIsPending={stopCampaignMutation.isPending}
-            updateError={updateCampaignMutation.error}
-            updateIsError={updateCampaignMutation.isError}
-            updateIsPending={updateCampaignMutation.isPending}
-          />
           <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
-            <CardHeader className="gap-1.5 px-5">
-              <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-                캠페인 목록
-              </CardTitle>
-              <CardDescription>
-                캠페인 → 프로모션 → 세그먼트 → 광고 실험 실행 구조를 기준으로 조회합니다.
-              </CardDescription>
+            <CardHeader className="flex flex-col gap-3 px-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="grid gap-1.5">
+                <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+                  캠페인 목록
+                </CardTitle>
+                <CardDescription>
+                  캠페인을 선택하거나 필요한 캠페인만 생성·수정합니다.
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => {
+                  createCampaignMutation.reset();
+                  setCampaignFormSheet({ mode: "create" });
+                }}
+                type="button"
+              >
+                <Plus data-icon="inline-start" />
+                캠페인 생성
+              </Button>
             </CardHeader>
             <CardContent className="px-5">
               {data.campaigns.length > 0 ? (
@@ -252,6 +268,7 @@ export function CampaignDashboardPanel({
                       <TableHead className="text-right">세그먼트</TableHead>
                       <TableHead className="text-right">실험</TableHead>
                       <TableHead className="text-right">최근 목표 달성률</TableHead>
+                      <TableHead className="text-right">액션</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -267,6 +284,16 @@ export function CampaignDashboardPanel({
                             selectedSegmentId: ""
                           });
                         }}
+                        onEdit={(campaignId) => {
+                          updateCampaignMutation.reset();
+                          deleteCampaignMutation.reset();
+                          void setDashboardQueryState({
+                            selectedCampaignId: campaignId,
+                            selectedPromotionId: "",
+                            selectedSegmentId: ""
+                          });
+                          setCampaignFormSheet({ campaignId, mode: "edit" });
+                        }}
                       />
                     ))}
                   </TableBody>
@@ -276,6 +303,30 @@ export function CampaignDashboardPanel({
               )}
             </CardContent>
           </Card>
+          <CampaignFormSheet
+            campaign={editingCampaign}
+            createError={createCampaignMutation.error}
+            createIsError={createCampaignMutation.isError}
+            createIsPending={createCampaignMutation.isPending}
+            mode={campaignFormSheet?.mode ?? "create"}
+            onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setCampaignFormSheet(null);
+              }
+            }}
+            onDelete={(campaignId) => deleteCampaignMutation.mutate(campaignId)}
+            onUpdate={(campaignId, requestBody) =>
+              updateCampaignMutation.mutate({ campaignId, requestBody })
+            }
+            open={Boolean(campaignFormSheet)}
+            deleteError={deleteCampaignMutation.error}
+            deleteIsError={deleteCampaignMutation.isError}
+            deleteIsPending={deleteCampaignMutation.isPending}
+            updateError={updateCampaignMutation.error}
+            updateIsError={updateCampaignMutation.isError}
+            updateIsPending={updateCampaignMutation.isPending}
+          />
         </>
       ) : null}
 
@@ -376,17 +427,20 @@ function CampaignSelectionContext({
   );
 }
 
-function CampaignManagementPanel({
+function CampaignFormSheet({
   campaign,
   createError,
   createIsError,
   createIsPending,
+  mode,
   onCreate,
-  onStop,
+  onOpenChange,
+  onDelete,
   onUpdate,
-  stopError,
-  stopIsError,
-  stopIsPending,
+  open,
+  deleteError,
+  deleteIsError,
+  deleteIsPending,
   updateError,
   updateIsError,
   updateIsPending
@@ -395,53 +449,66 @@ function CampaignManagementPanel({
   createError: Error | null;
   createIsError: boolean;
   createIsPending: boolean;
+  mode: "create" | "edit";
   onCreate: (requestBody: CreateCampaignInput) => void;
-  onStop: (campaignId: string) => void;
+  onOpenChange: (isOpen: boolean) => void;
+  onDelete: (campaignId: string) => void;
   onUpdate: (campaignId: string, requestBody: UpdateCampaignInput) => void;
-  stopError: Error | null;
-  stopIsError: boolean;
-  stopIsPending: boolean;
+  open: boolean;
+  deleteError: Error | null;
+  deleteIsError: boolean;
+  deleteIsPending: boolean;
   updateError: Error | null;
   updateIsError: boolean;
   updateIsPending: boolean;
 }) {
+  const isCreateMode = mode === "create";
+
   return (
-    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
-      <CardHeader className="gap-1.5 px-5">
-        <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-          캠페인 관리
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4 px-5">
-        {createIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>캠페인을 생성하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {updateIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>캠페인을 수정하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {stopIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>캠페인을 중지하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(stopError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        <div className="grid gap-4 lg:grid-cols-2">
-          <CampaignCreateForm isPending={createIsPending} onSubmit={onCreate} />
-          <CampaignEditForm
-            campaign={campaign}
-            isPending={updateIsPending || stopIsPending}
-            onStop={onStop}
-            onSubmit={onUpdate}
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <Sheet onOpenChange={onOpenChange} open={open}>
+      <SheetContent className="w-[min(100vw,640px)] gap-0 sm:max-w-xl">
+        <SheetHeader className="border-b">
+          <SheetTitle>{isCreateMode ? "캠페인 생성" : "캠페인 수정"}</SheetTitle>
+          <SheetDescription>
+            {isCreateMode
+              ? "프로모션과 세그먼트를 묶을 캠페인 정보를 입력합니다."
+              : "선택한 캠페인의 이름, 목표, 기간, 상태를 수정합니다."}
+          </SheetDescription>
+        </SheetHeader>
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="grid gap-4 p-4">
+            {isCreateMode && createIsError ? (
+              <Alert variant="destructive">
+                <AlertTitle>캠페인을 생성하지 못했습니다</AlertTitle>
+                <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
+              </Alert>
+            ) : null}
+            {!isCreateMode && updateIsError ? (
+              <Alert variant="destructive">
+                <AlertTitle>캠페인을 수정하지 못했습니다</AlertTitle>
+                <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
+              </Alert>
+            ) : null}
+            {!isCreateMode && deleteIsError ? (
+              <Alert variant="destructive">
+                <AlertTitle>캠페인을 삭제하지 못했습니다</AlertTitle>
+                <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
+              </Alert>
+            ) : null}
+            {isCreateMode ? (
+              <CampaignCreateForm isPending={createIsPending} onSubmit={onCreate} />
+            ) : (
+              <CampaignEditForm
+                campaign={campaign}
+                isPending={updateIsPending || deleteIsPending}
+                onDelete={onDelete}
+                onSubmit={onUpdate}
+              />
+            )}
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -507,12 +574,12 @@ function CampaignCreateForm({
 function CampaignEditForm({
   campaign,
   isPending,
-  onStop,
+  onDelete,
   onSubmit
 }: {
   campaign: DashboardCampaignSummary | undefined;
   isPending: boolean;
-  onStop: (campaignId: string) => void;
+  onDelete: (campaignId: string) => void;
   onSubmit: (campaignId: string, requestBody: UpdateCampaignInput) => void;
 }) {
   const [campaignName, setCampaignName] = useState(campaign?.campaign_name ?? "");
@@ -546,7 +613,7 @@ function CampaignEditForm({
       <div className="grid gap-1">
         <h3 className="text-base font-semibold text-foreground">선택 캠페인 수정</h3>
         <p className="text-sm text-muted-foreground">
-          FK가 연결된 캠페인은 삭제 대신 stopped 상태로 전환합니다.
+          삭제하면 이 캠페인의 프로모션, 세그먼트, 광고 후보, 실험 기록도 함께 삭제됩니다.
         </p>
       </div>
       <CampaignFormFields
@@ -565,12 +632,12 @@ function CampaignEditForm({
       />
       <div className="flex flex-wrap justify-end gap-2">
         <Button
-          disabled={isPending || campaign.status === "stopped"}
-          onClick={() => onStop(campaign.campaign_id)}
+          disabled={isPending}
+          onClick={() => onDelete(campaign.campaign_id)}
           type="button"
           variant="outline"
         >
-          {isPending ? "처리 중" : "캠페인 중지"}
+          {isPending ? "삭제 중" : "캠페인 삭제"}
         </Button>
         <Button
           disabled={!canSubmit}
@@ -700,10 +767,12 @@ function CampaignFormFields({
 function CampaignRow({
   campaign,
   isSelected,
+  onEdit,
   onSelect
 }: {
   campaign: DashboardCampaignSummary;
   isSelected: boolean;
+  onEdit: (campaignId: string) => void;
   onSelect: (campaignId: string) => void;
 }) {
   return (
@@ -712,6 +781,9 @@ function CampaignRow({
       className="cursor-pointer"
       onClick={() => onSelect(campaign.campaign_id)}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) {
+          return;
+        }
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onSelect(campaign.campaign_id);
@@ -749,6 +821,20 @@ function CampaignRow({
         {campaign.latest_goal_achievement_rate === null
           ? "-"
           : formatPercent(campaign.latest_goal_achievement_rate)}
+      </TableCell>
+      <TableCell className="text-right">
+        <Button
+          onClick={(event) => {
+            event.stopPropagation();
+            onEdit(campaign.campaign_id);
+          }}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <Pencil data-icon="inline-start" />
+          수정
+        </Button>
       </TableCell>
     </TableRow>
   );

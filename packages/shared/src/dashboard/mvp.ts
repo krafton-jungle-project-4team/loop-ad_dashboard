@@ -110,7 +110,7 @@ export type DashboardUpdateCampaignRequest = z.infer<
 
 export const DashboardDeleteCampaignResultSchema = z.object({
   campaign_id: z.string(),
-  status: z.literal("stopped")
+  status: z.literal("deleted")
 });
 export type DashboardDeleteCampaignResult = z.infer<
   typeof DashboardDeleteCampaignResultSchema

@@ -157,14 +157,15 @@ export class DashboardQueryService {
 
   @LogContextScope()
   @Transactional()
-  async stopCampaign(
+  async deleteCampaign(
     projectId: string,
     campaignId: string
   ): Promise<DashboardDeleteCampaignResult> {
     const startedAt = Date.now();
     log.assignContext({ campaignId, projectId });
     log.info("started", { projectId, campaignId });
-    const response = await this.campaignReader.stopCampaign(projectId, campaignId);
+
+    const response = await this.campaignReader.deleteCampaign(projectId, campaignId);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
