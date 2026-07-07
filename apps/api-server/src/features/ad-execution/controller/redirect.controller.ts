@@ -2,7 +2,7 @@ import { Controller, Get, Inject, Param, Res } from "@nestjs/common";
 import { z } from "zod";
 import { renderRedirectPage } from "../adapters/redirect-page-renderer.js";
 import { RedirectService } from "../service/index.js";
-import { LogContextScope, log } from "../../../infra/logger/index.js";
+import { LogContextScope, dms, log } from "../../../infra/logger/index.js";
 
 type HtmlResponse = {
   type: (contentType: string) => HtmlResponse;
@@ -32,6 +32,6 @@ export class RedirectController {
     const page = await this.redirectService.resolveRedirectPage(parsedParams.redirectId);
 
     response.type("html").send(renderRedirectPage(page));
-    log.info("completed", { durationMs: Date.now() - startedAt, page });
+    log.info("completed", { durationMs: dms(startedAt), page });
   }
 }

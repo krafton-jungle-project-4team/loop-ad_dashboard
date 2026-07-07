@@ -6,7 +6,7 @@ import {
 } from "@loopad/shared";
 import { z } from "zod";
 import { DataExplorerService } from "./data-explorer.service.js";
-import { LogContextScope, log } from "../../../infra/logger/index.js";
+import { LogContextScope, dms, log } from "../../../infra/logger/index.js";
 
 type ChatKitResult =
   | {
@@ -246,7 +246,7 @@ export class DataExplorerChatKitService {
     log.info("chatkit_request_parsed", { request: request.data });
 
     if (isStreamingRequest(request.data)) {
-      log.info("completed", { kind: "stream", durationMs: Date.now() - startedAt });
+      log.info("completed", { kind: "stream", durationMs: dms(startedAt) });
       return {
         events: this.stream(request.data),
         kind: "stream"
@@ -259,7 +259,7 @@ export class DataExplorerChatKitService {
         kind: "json"
       } as const;
 
-      log.info("completed", { response, durationMs: Date.now() - startedAt });
+      log.info("completed", { response, durationMs: dms(startedAt) });
       return response;
     } catch (error) {
       log.warn("chatkit_json_request_failed", { err: error, request: request.data });
@@ -310,18 +310,18 @@ export class DataExplorerChatKitService {
     try {
       if (request.type === "threads.create") {
         yield* this.createThreadAndRespond(request);
-        log.info("chatkit_stream_completed", { durationMs: Date.now() - startedAt });
+        log.info("chatkit_stream_completed", { durationMs: dms(startedAt) });
         return;
       }
 
       if (request.type === "threads.add_user_message") {
         yield* this.addUserMessageAndRespond(request);
-        log.info("chatkit_stream_completed", { durationMs: Date.now() - startedAt });
+        log.info("chatkit_stream_completed", { durationMs: dms(startedAt) });
         return;
       }
 
       yield* this.retryAfterItemAndRespond(request);
-      log.info("chatkit_stream_completed", { durationMs: Date.now() - startedAt });
+      log.info("chatkit_stream_completed", { durationMs: dms(startedAt) });
     } catch (error) {
       log.warn("chatkit_stream_failed", { err: error, request });
       yield {
@@ -432,7 +432,7 @@ export class DataExplorerChatKitService {
       };
     }
 
-    log.info("chatkit_response_completed", { durationMs: Date.now() - startedAt });
+    log.info("chatkit_response_completed", { durationMs: dms(startedAt) });
   }
 
   private findThread(threadId: string) {

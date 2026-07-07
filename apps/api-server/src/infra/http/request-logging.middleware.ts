@@ -1,4 +1,4 @@
-import { log } from "../logger/index.js";
+import { dms, log } from "../logger/index.js";
 import {
   ensureRequestId,
   setRequestIdHeader,
@@ -36,7 +36,7 @@ export function requestLoggingMiddleware(
     const statusCode = response.statusCode;
     const level = statusCode >= 500 ? "error" : "info";
     const outcome = statusCode < 400 ? "success" : "error";
-    const durationMs = Date.now() - startedAt;
+    const durationMs = dms(startedAt);
 
     log[level]("http_request_completed", { statusCode, outcome, durationMs });
   });

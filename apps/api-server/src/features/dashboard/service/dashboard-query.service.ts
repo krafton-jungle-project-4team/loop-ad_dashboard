@@ -63,7 +63,7 @@ import {
   DashboardSegmentQueryRepository
 } from "../repository/index.js";
 import { DashboardDecisionClient } from "../provider/index.js";
-import { LogContextScope, log } from "../../../infra/logger/index.js";
+import { LogContextScope, dms, log } from "../../../infra/logger/index.js";
 
 @Injectable()
 export class DashboardQueryService {
@@ -85,7 +85,7 @@ export class DashboardQueryService {
     log.info("started", { projectId });
     const response = { campaigns: await this.campaignReader.listCampaigns(projectId) };
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -95,7 +95,7 @@ export class DashboardQueryService {
     log.info("started");
     const response = await this.campaignReader.listProjects();
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -107,7 +107,7 @@ export class DashboardQueryService {
     const response = await this.campaignReader.createProject(request);
     log.assignContext({ projectId: response.project_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -119,7 +119,7 @@ export class DashboardQueryService {
     log.info("started", { projectId });
     const response = await this.campaignReader.archiveProject(projectId);
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -135,7 +135,7 @@ export class DashboardQueryService {
     const response = await this.campaignReader.createCampaign(projectId, request);
     log.assignContext({ campaignId: response.campaign_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -151,7 +151,7 @@ export class DashboardQueryService {
     log.info("started", { projectId, campaignId, request });
     const response = await this.campaignReader.updateCampaign(projectId, campaignId, request);
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -166,7 +166,7 @@ export class DashboardQueryService {
     log.info("started", { projectId, campaignId });
     const response = await this.campaignReader.stopCampaign(projectId, campaignId);
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -183,7 +183,7 @@ export class DashboardQueryService {
     const response = await this.campaignReader.createPromotion(projectId, campaignId, request);
     log.assignContext({ promotionId: response.promotion_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -199,7 +199,7 @@ export class DashboardQueryService {
     log.info("started", { projectId, promotionId, request });
     const response = await this.campaignReader.updatePromotion(projectId, promotionId, request);
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -214,7 +214,7 @@ export class DashboardQueryService {
     log.info("started", { projectId, promotionId });
     const response = await this.campaignReader.stopPromotion(projectId, promotionId);
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -235,7 +235,7 @@ export class DashboardQueryService {
     );
     log.assignContext({ segmentId: response.segment_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -257,7 +257,7 @@ export class DashboardQueryService {
       request
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -277,7 +277,7 @@ export class DashboardQueryService {
       segmentId
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -296,7 +296,7 @@ export class DashboardQueryService {
       analysisId
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -319,7 +319,7 @@ export class DashboardQueryService {
       request
     });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -343,7 +343,7 @@ export class DashboardQueryService {
 
     if (existingGeneration && existingGeneration.status !== "failed") {
       log.info("promotion_generation_reused", { existingGeneration });
-      log.info("completed", { response: existingGeneration, durationMs: Date.now() - startedAt });
+      log.info("completed", { response: existingGeneration, durationMs: dms(startedAt) });
       return existingGeneration;
     }
 
@@ -358,7 +358,7 @@ export class DashboardQueryService {
       request
     });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -375,7 +375,7 @@ export class DashboardQueryService {
       promotionId
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -396,7 +396,7 @@ export class DashboardQueryService {
     );
     log.assignContext({ segmentId: response.segment_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -416,7 +416,7 @@ export class DashboardQueryService {
       segmentId
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -438,7 +438,7 @@ export class DashboardQueryService {
       request
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -458,7 +458,7 @@ export class DashboardQueryService {
       request
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -478,7 +478,7 @@ export class DashboardQueryService {
       request
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -502,7 +502,7 @@ export class DashboardQueryService {
       request
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -529,7 +529,7 @@ export class DashboardQueryService {
       promotionRunId: response.promotion_run_id
     });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -546,7 +546,7 @@ export class DashboardQueryService {
       promotionRunId
     });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -561,7 +561,7 @@ export class DashboardQueryService {
     const response = await this.decisionClient.evaluatePromotionRun({ promotionRunId });
     log.assignContext({ promotionId: response.promotion_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -580,7 +580,7 @@ export class DashboardQueryService {
     });
     log.assignContext({ nextPromotionRunId: response.next_promotion_run_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -604,7 +604,7 @@ export class DashboardQueryService {
       request
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -624,7 +624,7 @@ export class DashboardQueryService {
       adExperimentId
     );
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -643,7 +643,7 @@ export class DashboardQueryService {
       realtime_metrics: realtimeMetrics
     };
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -664,7 +664,7 @@ export class DashboardQueryService {
       segment_realtime_summaries: segmentRealtimeSummaries
     };
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -687,7 +687,7 @@ export class DashboardQueryService {
       realtime_metrics: realtimeMetrics
     };
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -698,7 +698,7 @@ export class DashboardQueryService {
     log.info("started", { projectId });
     const response = { funnels: await this.funnelReader.listFunnels(projectId) };
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -709,7 +709,7 @@ export class DashboardQueryService {
     log.info("started", { projectId });
     const response = { events: await this.funnelReader.listEventCatalog(projectId) };
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -720,7 +720,7 @@ export class DashboardQueryService {
     log.info("started", { projectId, funnelId });
     const response = await this.funnelReader.getFunnelMetrics(projectId, funnelId);
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -736,7 +736,7 @@ export class DashboardQueryService {
     const response = await this.funnelReader.createFunnel(projectId, request);
     log.assignContext({ funnelId: response.funnel_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -748,7 +748,7 @@ export class DashboardQueryService {
     log.info("started", { projectId, funnelId });
     const response = await this.funnelReader.deleteFunnel(projectId, funnelId);
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -764,7 +764,7 @@ export class DashboardQueryService {
     const response = await this.segmentQueryRepository.createQueryPreview(projectId, request);
     log.assignContext({ queryPreviewId: response.query_preview_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 
@@ -780,7 +780,7 @@ export class DashboardQueryService {
     const response = await this.segmentQueryRepository.saveSegment(projectId, request);
     log.assignContext({ segmentId: response.segment_id });
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
     return response;
   }
 }

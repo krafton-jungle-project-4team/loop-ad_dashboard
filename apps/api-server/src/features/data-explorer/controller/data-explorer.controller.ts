@@ -6,7 +6,7 @@ import {
 } from "@loopad/shared";
 import { DataExplorerChatKitService } from "../service/data-explorer-chatkit.service.js";
 import { DataExplorerService } from "../service/data-explorer.service.js";
-import { LogContextScope, log } from "../../../infra/logger/index.js";
+import { LogContextScope, dms, log } from "../../../infra/logger/index.js";
 
 type ChatKitHttpResponse = {
   end: () => void;
@@ -59,7 +59,7 @@ export class DataExplorerController {
     if (result.kind === "json") {
       log.info("chatkit_json_response_sent", { result });
       response.status(result.statusCode ?? 200).json(result.body);
-      log.info("completed", { kind: "json", durationMs: Date.now() - startedAt });
+      log.info("completed", { kind: "json", durationMs: dms(startedAt) });
       return;
     }
 
@@ -74,6 +74,6 @@ export class DataExplorerController {
     }
 
     response.end();
-    log.info("completed", { kind: "stream", durationMs: Date.now() - startedAt });
+    log.info("completed", { kind: "stream", durationMs: dms(startedAt) });
   }
 }

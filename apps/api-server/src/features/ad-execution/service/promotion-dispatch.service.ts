@@ -4,7 +4,7 @@ import { Transactional } from "@nestjs-cls/transactional";
 import type { DispatchJobSummary, PromotionRunDispatchResponse } from "@loopad/shared";
 import { z, ZodError } from "zod";
 import { env } from "../../../infra/env/env.js";
-import { LogContextScope, log } from "../../../infra/logger/index.js";
+import { LogContextScope, dms, log } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
 import {
   EmailSender,
@@ -84,7 +84,7 @@ export class PromotionDispatchService {
     const jobs = await this.dispatchAssignments(context, assignments);
     const response = AdExecutionDomain.toDispatchResponse(promotionRunId, context.channel, jobs);
 
-    log.info("completed", { response, durationMs: Date.now() - startedAt });
+    log.info("completed", { response, durationMs: dms(startedAt) });
 
     return response;
   }
