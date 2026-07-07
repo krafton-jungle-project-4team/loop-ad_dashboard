@@ -58,6 +58,7 @@ import { EmptyState } from "./EmptyState.js";
 
 type BadgeVariant = ComponentProps<typeof Badge>["variant"];
 const FALLBACK_SEGMENT_ID = "seg_existing_all";
+const experimentPageSizeOptions = [10, 25, 50] as const;
 
 type ExperimentRow = {
   actualValue: number | null;
@@ -405,6 +406,8 @@ function ExperimentDashboardContent({
 }) {
   const [promotionFilter, setPromotionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof experimentPageSizeOptions)[number]>(10);
   const rows = useMemo(() => (detail ? buildExperimentRows(detail) : []), [detail]);
   const statusOptions = uniqueValues(rows.map((row) => row.experimentStatus));
   const filteredRows = rows.filter(
@@ -412,6 +415,9 @@ function ExperimentDashboardContent({
       (promotionFilter === "all" || row.promotion?.promotion_id === promotionFilter) &&
       (statusFilter === "all" || row.experimentStatus === statusFilter)
   );
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
   const nextLoopCount = rows.filter((row) => row.nextLoopRequired).length;
   const insufficientCount = rows.filter(
     (row) => row.evaluationStatus === "insufficient_data"
@@ -420,6 +426,12 @@ function ExperimentDashboardContent({
     (sum, row) => sum + (row.experiment?.assignment_count ?? 0),
     0
   );
+
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
 
   if (!detail) {
     return (
@@ -490,7 +502,13 @@ function ExperimentDashboardContent({
           </div>
           <Field className="w-full md:w-56">
             <FieldLabel>프로모션</FieldLabel>
-            <Select onValueChange={setPromotionFilter} value={promotionFilter}>
+            <Select
+              onValueChange={(value) => {
+                setPromotionFilter(value);
+                setPage(1);
+              }}
+              value={promotionFilter}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -506,7 +524,13 @@ function ExperimentDashboardContent({
           </Field>
           <Field className="w-full md:w-44">
             <FieldLabel>실험 상태</FieldLabel>
-            <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <Select
+              onValueChange={(value) => {
+                setStatusFilter(value);
+                setPage(1);
+              }}
+              value={statusFilter}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -527,7 +551,20 @@ function ExperimentDashboardContent({
           ) : filteredRows.length === 0 ? (
             <EmptyState message="필터 조건에 맞는 실험이 없습니다." />
           ) : (
-            <ExperimentTable rows={filteredRows} />
+            <div className="grid gap-4">
+              <ExperimentTable rows={pageRows} />
+              <ExperimentPagination
+                onPageChange={setPage}
+                onPageSizeChange={(value) => {
+                  setPageSize(value);
+                  setPage(1);
+                }}
+                page={safePage}
+                pageCount={pageCount}
+                pageSize={pageSize}
+                totalCount={filteredRows.length}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1052,6 +1089,74 @@ function SelectedSegmentExperimentCards({
         </CardContent>
       </Card>
     </>
+  );
+}
+
+function ExperimentPagination({
+  onPageChange,
+  onPageSizeChange,
+  page,
+  pageCount,
+  pageSize,
+  totalCount
+}: {
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: (typeof experimentPageSizeOptions)[number]) => void;
+  page: number;
+  pageCount: number;
+  pageSize: (typeof experimentPageSizeOptions)[number];
+  totalCount: number;
+}) {
+  const startIndex = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endIndex = Math.min(page * pageSize, totalCount);
+
+  return (
+    <div className="flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
+      <div className="text-sm text-muted-foreground">
+        {formatInteger(totalCount)}개 중 {formatInteger(startIndex)}-{formatInteger(endIndex)}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Field className="w-28">
+          <FieldLabel className="sr-only">페이지당 표시 개수</FieldLabel>
+          <Select
+            onValueChange={(value) =>
+              onPageSizeChange(Number(value) as (typeof experimentPageSizeOptions)[number])
+            }
+            value={String(pageSize)}
+          >
+            <SelectTrigger className="h-9 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {experimentPageSizeOptions.map((option) => (
+                <SelectItem key={option} value={String(option)}>
+                  {formatInteger(option)}개
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <div className="min-w-20 text-center text-sm font-medium">
+          {formatInteger(page)} / {formatInteger(pageCount)}
+        </div>
+        <Button
+          disabled={page <= 1}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          type="button"
+          variant="outline"
+        >
+          이전
+        </Button>
+        <Button
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(Math.min(pageCount, page + 1))}
+          type="button"
+          variant="outline"
+        >
+          다음
+        </Button>
+      </div>
+    </div>
   );
 }
 

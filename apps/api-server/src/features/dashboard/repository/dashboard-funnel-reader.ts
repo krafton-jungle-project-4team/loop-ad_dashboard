@@ -417,6 +417,30 @@ export class DashboardFunnelReader {
     projectId,
     segmentId
   }: RealtimeMetricScope): Promise<DashboardRealtimeEvent[]> {
+    if (!filterColumn && !segmentId) {
+      const result = await this.clickhouse.query({
+        query: `
+          SELECT
+            event_name,
+            count() AS event_count,
+            uniqExact(user_id) AS unique_user_count
+          FROM funnel_step_events
+          WHERE project_id = {projectId:String}
+          GROUP BY event_name
+          ORDER BY event_count DESC, event_name ASC
+        `,
+        format: "JSONEachRow",
+        query_params: { projectId }
+      });
+      const rows = await result.json<SegmentRealtimeMetricRow>();
+
+      return rows.map((row) => ({
+        event_name: row.event_name,
+        event_count: countValue(row.event_count),
+        unique_user_count: countValue(row.unique_user_count)
+      }));
+    }
+
     const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
     const bookingScopeFilter = filterColumn
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
@@ -455,7 +479,7 @@ export class DashboardFunnelReader {
     const rows = await result.json<SegmentRealtimeMetricRow>();
 
     return rows.map((row) => ({
-      event_name: DashboardFunnelEventNameSchema.parse(row.event_name),
+      event_name: row.event_name,
       event_count: countValue(row.event_count),
       unique_user_count: countValue(row.unique_user_count)
     }));
@@ -518,6 +542,26 @@ export class DashboardFunnelReader {
     projectId,
     segmentId
   }: RealtimeMetricScope): Promise<Omit<RealtimeWindowMetrics, "peak_time">> {
+    if (!filterColumn && !segmentId) {
+      const result = await this.clickhouse.query({
+        query: `
+          SELECT
+            countIf(event_time >= now() - INTERVAL 5 MINUTE) AS recent_5m_event_count,
+            countIf(event_time >= now() - INTERVAL 1 HOUR) AS recent_1h_event_count
+          FROM funnel_step_events
+          WHERE project_id = {projectId:String}
+        `,
+        format: "JSONEachRow",
+        query_params: { projectId }
+      });
+      const [row] = await result.json<RealtimeWindowCountRow>();
+
+      return {
+        recent_5m_event_count: countValue(row?.recent_5m_event_count ?? 0),
+        recent_1h_event_count: countValue(row?.recent_1h_event_count ?? 0)
+      };
+    }
+
     const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
     const bookingScopeFilter = filterColumn
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
@@ -564,6 +608,29 @@ export class DashboardFunnelReader {
     projectId,
     segmentId
   }: RealtimeMetricScope): Promise<string | null> {
+    if (!filterColumn && !segmentId) {
+      const result = await this.clickhouse.query({
+        query: `
+          SELECT toString(time_bucket) AS peak_time
+          FROM (
+            SELECT
+              toStartOfHour(event_time) AS time_bucket,
+              count() AS event_count
+            FROM funnel_step_events
+            WHERE project_id = {projectId:String}
+            GROUP BY time_bucket
+            ORDER BY event_count DESC, time_bucket DESC
+            LIMIT 1
+          )
+        `,
+        format: "JSONEachRow",
+        query_params: { projectId }
+      });
+      const [row] = await result.json<RealtimePeakTimeRow>();
+
+      return row?.peak_time ?? null;
+    }
+
     const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
     const bookingScopeFilter = filterColumn
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
@@ -616,16 +683,20 @@ export class DashboardFunnelReader {
         this.countRealtimeBreakdown(scope, {
           bookingKeyExpression: "nullIf(JSONExtractString(properties_json, 'promotion_channel'), '')",
           labelPrefix: "channel",
+          projectKeyExpression:
+            "ifNull(nullIf(JSONExtractString(properties_json, 'promotion_channel'), ''), nullIf(JSONExtractString(properties_json, 'channel'), ''))",
           touchKeyExpression: "nullIf(toString(channel), '')"
         }),
         this.countRealtimeBreakdown(scope, {
           bookingKeyExpression: "nullIf(JSONExtractString(properties_json, 'landing_type'), '')",
           labelPrefix: "landing_type",
+          projectKeyExpression: "nullIf(JSONExtractString(properties_json, 'landing_type'), '')",
           touchKeyExpression: "nullIf(JSONExtractString(properties_json, 'landing_type'), '')"
         }),
         this.countRealtimeBreakdown(scope, {
           bookingKeyExpression: "nullIf(ifNull(toString(hotel_cluster), ''), '')",
           labelPrefix: "hotel_cluster",
+          projectKeyExpression: "nullIf(JSONExtractString(properties_json, 'hotel_cluster'), '')",
           touchKeyExpression: "nullIf(JSONExtractString(properties_json, 'hotel_cluster'), '')"
         })
       ]);
@@ -644,6 +715,33 @@ export class DashboardFunnelReader {
     projectId,
     segmentId
   }: RealtimeMetricScope): Promise<DashboardRealtimeTimeBucket[]> {
+    if (!filterColumn && !segmentId) {
+      const result = await this.clickhouse.query({
+        query: `
+          SELECT
+            toString(time_bucket) AS time_bucket,
+            count() AS event_count,
+            uniqExact(user_id) AS unique_user_count
+          FROM (
+            SELECT toStartOfHour(event_time) AS time_bucket, user_id
+            FROM funnel_step_events
+            WHERE project_id = {projectId:String}
+          )
+          GROUP BY time_bucket
+          ORDER BY time_bucket ASC
+        `,
+        format: "JSONEachRow",
+        query_params: { projectId }
+      });
+      const rows = await result.json<RealtimeTimeBucketRow>();
+
+      return rows.map((row) => ({
+        time_bucket: row.time_bucket,
+        event_count: countValue(row.event_count),
+        unique_user_count: countValue(row.unique_user_count)
+      }));
+    }
+
     const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
     const bookingScopeFilter = filterColumn
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
@@ -698,13 +796,47 @@ export class DashboardFunnelReader {
     {
       bookingKeyExpression,
       labelPrefix,
+      projectKeyExpression,
       touchKeyExpression
     }: {
       bookingKeyExpression: string;
       labelPrefix: string;
+      projectKeyExpression: string;
       touchKeyExpression: string;
     }
   ): Promise<DashboardRealtimeBreakdownItem[]> {
+    if (!filterColumn && !segmentId) {
+      const result = await this.clickhouse.query({
+        query: `
+          SELECT
+            breakdown_key,
+            count() AS event_count,
+            uniqExact(user_id) AS unique_user_count
+          FROM (
+            SELECT ${projectKeyExpression} AS breakdown_key, user_id
+            FROM funnel_step_events
+            WHERE project_id = {projectId:String}
+          )
+          WHERE breakdown_key IS NOT NULL
+          GROUP BY breakdown_key
+          ORDER BY event_count DESC, breakdown_key ASC
+          LIMIT 20
+        `,
+        format: "JSONEachRow",
+        query_params: { projectId }
+      });
+      const rows = await result.json<RealtimeBreakdownRow>();
+
+      return rows
+        .filter((row) => row.breakdown_key)
+        .map((row) => ({
+          key: row.breakdown_key ?? "",
+          label: `${labelPrefix}:${row.breakdown_key ?? ""}`,
+          event_count: countValue(row.event_count),
+          unique_user_count: countValue(row.unique_user_count)
+        }));
+    }
+
     const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
     const bookingScopeFilter = filterColumn
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`

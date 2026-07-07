@@ -500,7 +500,7 @@ export const DashboardFunnelEventNameSchema = z.enum([
 export type DashboardFunnelEventName = z.infer<typeof DashboardFunnelEventNameSchema>;
 
 export const DashboardRealtimeEventSchema = z.object({
-  event_name: DashboardFunnelEventNameSchema,
+  event_name: z.string(),
   event_count: CountSchema,
   unique_user_count: CountSchema
 });
