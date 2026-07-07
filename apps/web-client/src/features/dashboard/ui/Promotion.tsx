@@ -1320,59 +1320,51 @@ function PromotionTabWorkspace({
           </div>
         </TabsContent>
         <TabsContent value="segment-detail">
-          <div className="grid gap-4">
-            <PromotionSegmentDetailSelector
-              onSelectSegment={onSelectSegment}
-              promotion={promotion}
-              segments={activeSegments}
-              selectedSegmentId={selectedSegmentId}
-            />
-            <PromotionSegmentDetailTab
-              approveContentCandidateError={approveContentCandidateError}
-              approveContentCandidateIsError={approveContentCandidateIsError}
-              approveContentCandidateIsPending={approveContentCandidateIsPending}
-              detail={selectedSegmentDetail}
-              dispatchPromotionRunError={dispatchPromotionRunError}
-              dispatchPromotionRunIsError={dispatchPromotionRunIsError}
-              dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
-              createPromotionRunError={createPromotionRunError}
-              createPromotionRunIsError={createPromotionRunIsError}
-              createPromotionRunIsPending={createPromotionRunIsPending}
-              buildAssignmentsError={buildAssignmentsError}
-              buildAssignmentsIsError={buildAssignmentsIsError}
-              buildAssignmentsIsPending={buildAssignmentsIsPending}
-              evaluatePromotionRunError={evaluatePromotionRunError}
-              evaluatePromotionRunIsError={evaluatePromotionRunIsError}
-              evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
-              evaluatePromotionRunResult={evaluatePromotionRunResult}
-              createNextLoopError={createNextLoopError}
-              createNextLoopIsError={createNextLoopIsError}
-              createNextLoopIsPending={createNextLoopIsPending}
-              error={selectedSegmentDetailError}
-              generation={promotionGeneration}
-              generationError={promotionGenerationError}
-              generationIsError={promotionGenerationIsError}
-              generationIsPending={promotionGenerationIsPending}
-              isError={selectedSegmentDetailIsError}
-              isLoading={selectedSegmentDetailIsLoading}
-              onApproveContentCandidate={onApproveContentCandidate}
-              onBuildAssignments={onBuildAssignments}
-              onCreateNextLoop={onCreateNextLoop}
-              onCreatePromotionRun={onCreatePromotionRun}
-              onDispatchPromotionRun={onDispatchPromotionRun}
-              onEvaluatePromotionRun={onEvaluatePromotionRun}
-              onRejectContentCandidate={onRejectContentCandidate}
-              onStartAdExperiment={onStartAdExperiment}
-              onStartGeneration={onStartGeneration}
-              rejectContentCandidateError={rejectContentCandidateError}
-              rejectContentCandidateIsError={rejectContentCandidateIsError}
-              rejectContentCandidateIsPending={rejectContentCandidateIsPending}
-              selectedSegmentId={selectedSegmentId}
-              startAdExperimentError={startAdExperimentError}
-              startAdExperimentIsError={startAdExperimentIsError}
-              startAdExperimentIsPending={startAdExperimentIsPending}
-            />
-          </div>
+          <PromotionSegmentDetailTab
+            approveContentCandidateError={approveContentCandidateError}
+            approveContentCandidateIsError={approveContentCandidateIsError}
+            approveContentCandidateIsPending={approveContentCandidateIsPending}
+            detail={selectedSegmentDetail}
+            dispatchPromotionRunError={dispatchPromotionRunError}
+            dispatchPromotionRunIsError={dispatchPromotionRunIsError}
+            dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
+            createPromotionRunError={createPromotionRunError}
+            createPromotionRunIsError={createPromotionRunIsError}
+            createPromotionRunIsPending={createPromotionRunIsPending}
+            buildAssignmentsError={buildAssignmentsError}
+            buildAssignmentsIsError={buildAssignmentsIsError}
+            buildAssignmentsIsPending={buildAssignmentsIsPending}
+            evaluatePromotionRunError={evaluatePromotionRunError}
+            evaluatePromotionRunIsError={evaluatePromotionRunIsError}
+            evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
+            evaluatePromotionRunResult={evaluatePromotionRunResult}
+            createNextLoopError={createNextLoopError}
+            createNextLoopIsError={createNextLoopIsError}
+            createNextLoopIsPending={createNextLoopIsPending}
+            error={selectedSegmentDetailError}
+            generation={promotionGeneration}
+            generationError={promotionGenerationError}
+            generationIsError={promotionGenerationIsError}
+            generationIsPending={promotionGenerationIsPending}
+            isError={selectedSegmentDetailIsError}
+            isLoading={selectedSegmentDetailIsLoading}
+            onApproveContentCandidate={onApproveContentCandidate}
+            onBuildAssignments={onBuildAssignments}
+            onCreateNextLoop={onCreateNextLoop}
+            onCreatePromotionRun={onCreatePromotionRun}
+            onDispatchPromotionRun={onDispatchPromotionRun}
+            onEvaluatePromotionRun={onEvaluatePromotionRun}
+            onRejectContentCandidate={onRejectContentCandidate}
+            onStartAdExperiment={onStartAdExperiment}
+            onStartGeneration={onStartGeneration}
+            rejectContentCandidateError={rejectContentCandidateError}
+            rejectContentCandidateIsError={rejectContentCandidateIsError}
+            rejectContentCandidateIsPending={rejectContentCandidateIsPending}
+            selectedSegmentId={selectedSegmentId}
+            startAdExperimentError={startAdExperimentError}
+            startAdExperimentIsError={startAdExperimentIsError}
+            startAdExperimentIsPending={startAdExperimentIsPending}
+          />
         </TabsContent>
       </Tabs>
     </section>
@@ -1577,56 +1569,6 @@ function PromotionCurrentSegmentsPanel({
           <EmptyState message="확정된 세그먼트가 없습니다. 세그먼트 추천/확정 탭에서 후보를 확정해주세요." />
         )}
       </CardContent>
-    </Card>
-  );
-}
-
-function PromotionSegmentDetailSelector({
-  onSelectSegment,
-  promotion,
-  segments,
-  selectedSegmentId
-}: {
-  onSelectSegment: (promotionId: string, segmentId: string) => void;
-  promotion: DashboardCampaignPromotion;
-  segments: DashboardCampaignSegment[];
-  selectedSegmentId: string;
-}) {
-  const visibleSegments = latestSegmentPerSegmentId(segments);
-  const selectedSegment = visibleSegments.find(
-    (segment) => segment.segment_id === selectedSegmentId
-  );
-
-  if (visibleSegments.length === 0) {
-    return null;
-  }
-
-  return (
-    <Card className="shadow-none">
-      <CardHeader className="gap-3 md:grid md:grid-cols-[1fr_360px] md:items-end">
-        <div className="grid gap-1">
-          <CardTitle className="text-base">선택 세그먼트</CardTitle>
-          <CardDescription>상세를 확인할 세그먼트를 변경합니다.</CardDescription>
-        </div>
-        <Field>
-          <FieldLabel>세그먼트</FieldLabel>
-          <Select
-            onValueChange={(segmentId) => onSelectSegment(promotion.promotion_id, segmentId)}
-            value={selectedSegment?.segment_id ?? ""}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="세그먼트 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {visibleSegments.map((segment) => (
-                <SelectItem key={segment.segment_id} value={segment.segment_id}>
-                  {campaignSegmentDisplayCopy(segment)?.title ?? segment.segment_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </CardHeader>
     </Card>
   );
 }
