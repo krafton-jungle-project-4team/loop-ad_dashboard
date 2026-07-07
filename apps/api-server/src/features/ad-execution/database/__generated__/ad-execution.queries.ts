@@ -220,7 +220,7 @@ export interface IListActiveAdServingAssignmentsQuery {
   result: IListActiveAdServingAssignmentsResult;
 }
 
-const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":true},"params":[{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":820,"b":835}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nWHERE aas.promotion_run_id = :promotionRunId\n\nORDER BY aas.ad_experiment_id ASC, aas.user_id ASC"};
+const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":true},"params":[{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":820,"b":834}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nWHERE aas.promotion_run_id = :promotionRunId\n\nORDER BY aas.ad_experiment_id ASC, aas.user_id ASC                                                                               "};
 
 /**
  * Query generated from SQL:
@@ -253,8 +253,8 @@ const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":
  *   ON p.project_id = aas.project_id
  *  AND p.promotion_id = aas.promotion_id
  * WHERE aas.promotion_run_id = :promotionRunId
- *
- * ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC
+ * 
+ * ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC                                                                               
  * ```
  */
 export const listActiveAdServingAssignments = new PreparedQuery<IListActiveAdServingAssignmentsParams,IListActiveAdServingAssignmentsResult>(listActiveAdServingAssignmentsIR);
@@ -299,7 +299,7 @@ export interface IFindActiveBannerAssignmentQuery {
   result: IFindActiveBannerAssignmentResult;
 }
 
-const findActiveBannerAssignmentIR: any = {"usedParamSet":{"projectId":true,"promotionRunId":true,"userId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":814,"b":824}]},{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":854,"b":869}]},{"name":"userId","required":false,"transform":{"type":"scalar"},"locs":[{"a":890,"b":897}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nWHERE aas.project_id = :projectId\n  AND aas.promotion_run_id = :promotionRunId\n  AND aas.user_id = :userId\n  AND aas.channel = 'onsite_banner'\nLIMIT 1"};
+const findActiveBannerAssignmentIR: any = {"usedParamSet":{"projectId":true,"promotionRunId":true,"userId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":814,"b":823}]},{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":854,"b":868}]},{"name":"userId","required":false,"transform":{"type":"scalar"},"locs":[{"a":890,"b":896}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nWHERE aas.project_id = :projectId\n  AND aas.promotion_run_id = :promotionRunId\n  AND aas.user_id = :userId\n  AND aas.channel = 'onsite_banner'\nLIMIT 1                                                                  "};
 
 /**
  * Query generated from SQL:
@@ -335,7 +335,7 @@ const findActiveBannerAssignmentIR: any = {"usedParamSet":{"projectId":true,"pro
  *   AND aas.promotion_run_id = :promotionRunId
  *   AND aas.user_id = :userId
  *   AND aas.channel = 'onsite_banner'
- * LIMIT 1
+ * LIMIT 1                                                                  
  * ```
  */
 export const findActiveBannerAssignment = new PreparedQuery<IFindActiveBannerAssignmentParams,IFindActiveBannerAssignmentResult>(findActiveBannerAssignmentIR);
@@ -443,7 +443,7 @@ const updateDispatchJobResultIR: any = {"usedParamSet":{"status":true,"sentCount
  *   metadata_json = metadata_json || jsonb_build_object('result', :resultJson::jsonb),
  *   completed_at = now()
  * WHERE ad_dispatch_job_id = :dispatchJobId
- *
+ * 
  * RETURNING
  *   ad_dispatch_job_id AS "dispatchJobId"                                                                                
  * ```
@@ -531,7 +531,7 @@ export interface IFindRedirectLinkByTokenResult {
   contentId: string;
   contentOptionId: string;
   createdAt: Date;
-  destinationUrl: string;
+  destinationUrl: string | null;
   expiresAt: Date | null;
   metadataJson: Json | null;
   projectId: string;
@@ -580,8 +580,10 @@ const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"para
  *   ON p.project_id = rl.project_id
  *  AND p.promotion_id = rl.promotion_id
  * WHERE rl.redirect_id = :redirectId
- *
+ * 
  *  LIMIT 1
  * ```
  */
 export const findRedirectLinkByToken = new PreparedQuery<IFindRedirectLinkByTokenParams,IFindRedirectLinkByTokenResult>(findRedirectLinkByTokenIR);
+
+

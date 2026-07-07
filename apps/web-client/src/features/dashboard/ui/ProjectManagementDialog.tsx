@@ -25,13 +25,11 @@ import { dashboardProjectsQueryKey } from "../model/dashboard-query-keys.js";
 
 type ProjectFormState = {
   domain: string;
-  industry: string;
   project_name: string;
 };
 
 const emptyProjectForm: ProjectFormState = {
   domain: "hotel-booking.local",
-  industry: "hotel_booking",
   project_name: ""
 };
 
@@ -88,7 +86,6 @@ export function ProjectManagementDialog({
     event.preventDefault();
     const requestBody: DashboardCreateProjectRequest = {
       domain: form.domain.trim(),
-      industry: form.industry.trim(),
       project_name: form.project_name.trim(),
       status: "active"
     };
@@ -152,16 +149,6 @@ export function ProjectManagementDialog({
                 onChange={(event) => handleProjectInputChange("domain", event.target.value)}
                 required
                 value={form.domain}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="project-industry">산업군</FieldLabel>
-              <Input
-                autoComplete="off"
-                id="project-industry"
-                onChange={(event) => handleProjectInputChange("industry", event.target.value)}
-                required
-                value={form.industry}
               />
             </Field>
           </div>

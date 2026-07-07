@@ -136,7 +136,6 @@ export class DashboardCampaignReader {
     const row = await this.db
       .query(insertDashboardProject, {
         domain: request.domain,
-        industry: request.industry,
         projectId,
         projectName: request.project_name,
         status: request.status,
@@ -767,7 +766,6 @@ function toProject(
   return {
     created_at: row.createdAt.toISOString(),
     domain: row.domain,
-    industry: row.industry,
     project_id: row.projectId,
     project_name: row.projectName,
     status: projectStatus(row.status),
@@ -888,25 +886,25 @@ function toPromotionSegmentSuggestion(
     | IListDashboardPromotionSegmentSuggestionsResult
 ): DashboardPromotionSegmentSuggestion {
   return {
-    analysis_id: row.analysisId,
-    campaign_id: row.campaignId,
-    created_at: row.createdAt.toISOString(),
+    analysis_id: requiredText(row.analysisId, "analysisId"),
+    campaign_id: requiredText(row.campaignId, "campaignId"),
+    created_at: requiredDate(row.createdAt, "createdAt").toISOString(),
     decided_at: row.decidedAt ? row.decidedAt.toISOString() : null,
     profile_json: jsonObject(row.profileJson),
-    promotion_id: row.promotionId,
+    promotion_id: requiredText(row.promotionId, "promotionId"),
     reason_json: jsonObject(row.reasonJson),
     rule_json: jsonObject(row.ruleJson),
     sample_ratio: numberValue(row.sampleRatio),
     sample_size: countValue(row.sampleSize),
     score_json: jsonObject(row.scoreJson),
-    segment_id: row.segmentId,
+    segment_id: requiredText(row.segmentId, "segmentId"),
     segment_name: row.segmentName,
     segment_source: segmentSource(row.segmentSource),
     suggested_rank: countValue(row.suggestedRank),
-    suggestion_id: row.suggestionId,
-    suggestion_source: suggestionSource(row.suggestionSource),
-    suggestion_status: suggestionStatus(row.suggestionStatus),
-    updated_at: row.updatedAt.toISOString()
+    suggestion_id: requiredText(row.suggestionId, "suggestionId"),
+    suggestion_source: suggestionSource(requiredText(row.suggestionSource, "suggestionSource")),
+    suggestion_status: suggestionStatus(requiredText(row.suggestionStatus, "suggestionStatus")),
+    updated_at: requiredDate(row.updatedAt, "updatedAt").toISOString()
   };
 }
 
@@ -1096,6 +1094,20 @@ function nullableRate(value: number | string | null): number | null {
 function numberValue(value: number | string | null): number {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+function requiredText(value: string | null, fieldName: string): string {
+  if (value === null || value.trim().length === 0) {
+    throw new Error(`Dashboard query returned empty required field '${fieldName}'.`);
+  }
+  return value;
+}
+
+function requiredDate(value: Date | null, fieldName: string): Date {
+  if (!value) {
+    throw new Error(`Dashboard query returned empty required field '${fieldName}'.`);
+  }
+  return value;
 }
 
 function suggestionStatus(value: string): DashboardPromotionSegmentSuggestion["suggestion_status"] {
