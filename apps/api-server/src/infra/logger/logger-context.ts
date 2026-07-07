@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { LoggerService } from "@nestjs/common";
 import pino from "pino";
 import { env } from "../env/env.js";
 
@@ -45,6 +46,29 @@ export const log = Object.freeze({
   info: createLogMethod("info"),
   warn: createLogMethod("warn")
 });
+
+export function createNestLogger(): LoggerService {
+  return {
+    debug: (message: unknown, ...optionalParams: unknown[]) => {
+      writeNestLog("debug", "nest_debug", message, optionalParams);
+    },
+    error: (message: unknown, ...optionalParams: unknown[]) => {
+      writeNestLog("error", "nest_error", message, optionalParams);
+    },
+    fatal: (message: unknown, ...optionalParams: unknown[]) => {
+      writeNestLog("error", "nest_fatal", message, optionalParams);
+    },
+    log: (message: unknown, ...optionalParams: unknown[]) => {
+      writeNestLog("info", "nest_log", message, optionalParams);
+    },
+    verbose: (message: unknown, ...optionalParams: unknown[]) => {
+      writeNestLog("debug", "nest_verbose", message, optionalParams);
+    },
+    warn: (message: unknown, ...optionalParams: unknown[]) => {
+      writeNestLog("warn", "nest_warn", message, optionalParams);
+    }
+  };
+}
 
 export function durationMs(startedAt: number) {
   return Date.now() - startedAt;
@@ -136,6 +160,65 @@ function createLogMethod(level: LogLevel): LogMethod {
 
 function removeUndefinedFields(fields: LogRecord): LogRecord {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+}
+
+function writeNestLog(level: LogLevel, event: string, message: unknown, optionalParams: unknown[]) {
+  const { nestContext, trace, nestParams } = parseNestOptionalParams(level, optionalParams);
+
+  log[level](event, {
+    message: formatNestMessage(message),
+    nestContext,
+    trace,
+    nestParams,
+    err: message instanceof Error ? message : undefined
+  });
+}
+
+function parseNestOptionalParams(level: LogLevel, optionalParams: unknown[]) {
+  if (optionalParams.length === 0) {
+    return {};
+  }
+
+  const remaining = [...optionalParams];
+  const nestContext = removeTrailingString(remaining);
+  const trace = level === "error" ? removeTrailingString(remaining) : undefined;
+
+  return {
+    nestContext,
+    trace,
+    nestParams: remaining.length > 0 ? remaining.map(formatNestMessage) : undefined
+  };
+}
+
+function removeTrailingString(values: unknown[]): string | undefined {
+  const last = values.at(-1);
+
+  if (!isNonEmptyString(last)) {
+    return undefined;
+  }
+
+  values.pop();
+  return last;
+}
+
+function formatNestMessage(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value instanceof Error) {
+    return value.message;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function isLogLevel(value: unknown): value is LogLevel {

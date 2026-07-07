@@ -8,12 +8,14 @@ import { ApiResponseInterceptor } from "./infra/http/api-response.interceptor.js
 import { createCorsOriginResolver } from "./infra/http/cors-origin.js";
 import { RequestContextInterceptor } from "./infra/http/request-context.interceptor.js";
 import { requestLoggingMiddleware } from "./infra/http/request-logging.middleware.js";
-import { log } from "./infra/logger/index.js";
+import { createNestLogger, log } from "./infra/logger/index.js";
 
 await bootstrap();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: createNestLogger()
+  });
   app.use(requestLoggingMiddleware);
   app.enableCors({ origin: createCorsOriginResolver() });
   app.setGlobalPrefix("api", {
