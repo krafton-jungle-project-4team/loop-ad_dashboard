@@ -63,7 +63,6 @@ function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
       <TableCell>
         <div className="flex min-w-[220px] flex-col gap-1">
           <span className="font-medium text-foreground">{campaign.campaign_name}</span>
-          <span className="truncate text-xs text-muted-foreground">{campaign.campaign_id}</span>
           {campaign.objective ? (
             <span className="line-clamp-2 text-sm text-muted-foreground">{campaign.objective}</span>
           ) : null}

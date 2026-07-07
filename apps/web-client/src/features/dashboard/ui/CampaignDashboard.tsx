@@ -749,7 +749,6 @@ function CampaignRow({
             {campaign.campaign_name}
             {isSelected ? <Badge variant="outline">선택됨</Badge> : null}
           </span>
-          <span className="truncate text-xs text-muted-foreground">{campaign.campaign_id}</span>
           {campaign.objective ? (
             <span className="line-clamp-2 text-sm text-muted-foreground">{campaign.objective}</span>
           ) : null}
@@ -1071,7 +1070,6 @@ function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
             </Badge>
           </div>
           <div className="text-sm text-muted-foreground">{campaign.objective ?? "목표 미등록"}</div>
-          <div className="text-xs text-muted-foreground">{campaign.campaign_id}</div>
         </div>
         <SummaryItem
           label="최근 목표 달성률"
@@ -1188,8 +1186,7 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
             </Badge>
           </div>
           <CardDescription>
-            캠페인 노드 · {detail.campaign.campaign_id} ·{" "}
-            {formatMetricLabel(detail.campaign.primary_metric)}
+            캠페인 노드 · {formatMetricLabel(detail.campaign.primary_metric)}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
