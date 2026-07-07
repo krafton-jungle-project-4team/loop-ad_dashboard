@@ -10,8 +10,6 @@ type LogMethod = (event: string, record?: LogRecord) => void;
 const loggerContext = new AsyncLocalStorage<LogRecord>();
 const LOG_LEVEL: LogLevel = "debug";
 
-// AWS runtime-provided environment variables only:
-// Lambda: https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html#configuration-envvars-runtime
 // ECS: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-environment-variables.html
 const pinoLogger = pino(
   {
@@ -21,11 +19,7 @@ const pinoLogger = pino(
       version: process.env.npm_package_version,
       region: process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION,
       nodeVersion: process.version,
-      runtime: process.env.AWS_EXECUTION_ENV ?? "node",
-      lambdaFunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME,
-      lambdaFunctionVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION,
-      lambdaLogGroupName: process.env.AWS_LAMBDA_LOG_GROUP_NAME,
-      lambdaLogStreamName: process.env.AWS_LAMBDA_LOG_STREAM_NAME
+      runtime: process.env.AWS_EXECUTION_ENV ?? "node"
     },
     formatters: {
       level(label) {
