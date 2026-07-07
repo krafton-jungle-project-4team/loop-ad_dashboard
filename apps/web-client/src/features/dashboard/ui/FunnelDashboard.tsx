@@ -272,7 +272,7 @@ export function FunnelDashboardPanel({
             퍼널 단계별 수치
           </CardTitle>
           <CardDescription>
-            선택한 퍼널의 단계별 수집 이벤트 수를 표시합니다.
+            선택한 퍼널의 단계별 도달 사용자 수를 표시합니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-5">
@@ -288,7 +288,7 @@ export function FunnelDashboardPanel({
               config={{
                 event_count: {
                   color: "var(--chart-1)",
-                  label: "이벤트 수"
+                  label: "도달 수"
                 }
               }}
             >
