@@ -11,18 +11,42 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { formatActionLabel, formatStatusLabel } from "../model/dashboard-labels.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
+import { useDashboardQueryState } from "../model/dashboard-query.js";
+import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
-export function MainDashboardPanel({ data }: { data: DashboardMain }) {
+export function MainDashboardPanel({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
+  const summary = createMainSummary(data.campaigns);
+  const [, setDashboardQueryState] = useDashboardQueryState();
+
+  function selectCampaign(campaignId: string) {
+    void setDashboardQueryState({
+      selectedCampaignId: campaignId,
+      selectedPromotionId: "",
+      selectedSegmentId: ""
+    });
+  }
+
   return (
     <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
       <CardHeader className="gap-1.5 px-5">
         <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
           메인 대시보드
         </CardTitle>
-        <CardDescription>프로젝트의 캠페인 목록을 확인합니다.</CardDescription>
+        <CardDescription>프로젝트의 운영 현황과 캠페인 목록을 확인합니다.</CardDescription>
       </CardHeader>
-      <CardContent className="px-5">
+      <CardContent className="grid gap-5 px-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <MainSummaryCard label="전체 캠페인" value={formatInteger(summary.totalCampaigns)} />
+          <MainSummaryCard label="실행 중 캠페인" value={formatInteger(summary.runningCampaigns)} />
+          <MainSummaryCard label="전체 프로모션" value={formatInteger(summary.totalPromotions)} />
+          <MainSummaryCard label="확정 세그먼트" value={formatInteger(summary.totalSegments)} />
+          <MainSummaryCard
+            label="평균 목표 달성률"
+            value={summary.averageGoalRate === null ? "-" : formatPercent(summary.averageGoalRate)}
+          />
+        </div>
+
         {data.campaigns.length > 0 ? (
           <Table>
             <TableHeader>
@@ -40,7 +64,12 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
             </TableHeader>
             <TableBody>
               {data.campaigns.map((campaign) => (
-                <CampaignListRow campaign={campaign} key={campaign.campaign_id} />
+                <CampaignListRow
+                  campaign={campaign}
+                  isSelected={campaign.campaign_id === query.selectedCampaignId}
+                  key={campaign.campaign_id}
+                  onSelect={selectCampaign}
+                />
               ))}
             </TableBody>
           </Table>
@@ -52,9 +81,37 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
   );
 }
 
-function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
+function MainSummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <TableRow>
+    <div className="grid gap-2 rounded-lg border border-black/10 bg-[#f5f5f7] p-4">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-2xl font-semibold tracking-tight text-[#1d1d1f]">{value}</span>
+    </div>
+  );
+}
+
+function CampaignListRow({
+  campaign,
+  isSelected,
+  onSelect
+}: {
+  campaign: DashboardCampaignSummary;
+  isSelected: boolean;
+  onSelect: (campaignId: string) => void;
+}) {
+  return (
+    <TableRow
+      aria-selected={isSelected}
+      className="cursor-pointer aria-selected:bg-[#0066cc]/5"
+      onClick={() => onSelect(campaign.campaign_id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(campaign.campaign_id);
+        }
+      }}
+      tabIndex={0}
+    >
       <TableCell>
         <div className="flex min-w-[220px] flex-col gap-1">
           <span className="font-medium text-foreground">{campaign.campaign_name}</span>
@@ -89,6 +146,22 @@ function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
       </TableCell>
     </TableRow>
   );
+}
+
+function createMainSummary(campaigns: DashboardCampaignSummary[]) {
+  const goalRates = campaigns
+    .map((campaign) => campaign.latest_goal_achievement_rate)
+    .filter((rate): rate is number => rate !== null);
+
+  return {
+    averageGoalRate: goalRates.length
+      ? goalRates.reduce((sum, rate) => sum + rate, 0) / goalRates.length
+      : null,
+    runningCampaigns: campaigns.filter((campaign) => campaign.status === "active").length,
+    totalCampaigns: campaigns.length,
+    totalPromotions: campaigns.reduce((sum, campaign) => sum + campaign.promotion_count, 0),
+    totalSegments: campaigns.reduce((sum, campaign) => sum + campaign.segment_count, 0)
+  };
 }
 
 function formatPeriod(campaign: DashboardCampaignSummary) {
