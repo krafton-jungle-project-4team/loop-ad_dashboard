@@ -95,6 +95,7 @@ import {
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
+  dashboardPromotionAnalysisProgressQueryKey,
   dashboardPromotionDetailQueryKey,
   dashboardPromotionScopedSegmentDefinitionsQueryKey,
   dashboardPromotionSegmentSuggestionsQueryKey,
@@ -155,12 +156,25 @@ const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const
 const defaultPromotionLandingUrl = "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 const onsiteBannerImagePollIntervalMs = 3000;
 type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
+type PromotionAnalysisProgress = {
+  analysisId: string | null;
+  errorMessage: string | null;
+  startedAt: number | null;
+  status: "idle" | "pending" | "success" | "error";
+};
+
+const defaultPromotionAnalysisProgress: PromotionAnalysisProgress = {
+  analysisId: null,
+  errorMessage: null,
+  startedAt: null,
+  status: "idle"
+};
+const promotionAnalysisProgressCacheTimeMs = 1000 * 60 * 30;
 
 export function PromotionPanel({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null);
   const [workspaceTab, setWorkspaceTab] = useState<PromotionWorkspaceTab>("overview");
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
@@ -284,9 +298,20 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     )
   });
   const latestAnalysisId = promotionDetail.data?.analyses[0]?.analysis_id ?? null;
-  useEffect(() => {
-    setActiveAnalysisId(selectedOpenPromotion?.promotion_id ? latestAnalysisId : null);
-  }, [latestAnalysisId, selectedOpenPromotion?.promotion_id]);
+  const selectedOpenPromotionId = selectedOpenPromotion?.promotion_id ?? "";
+  const analysisProgressKey = dashboardPromotionAnalysisProgressQueryKey(
+    query.projectId,
+    selectedOpenPromotionId
+  );
+  const analysisProgress = useQuery({
+    enabled: Boolean(selectedOpenPromotionId),
+    gcTime: promotionAnalysisProgressCacheTimeMs,
+    initialData: defaultPromotionAnalysisProgress,
+    queryFn: () => defaultPromotionAnalysisProgress,
+    queryKey: analysisProgressKey,
+    staleTime: Infinity
+  });
+  const activeAnalysisId = analysisProgress.data.analysisId ?? latestAnalysisId;
   useEffect(() => {
     if (query.selectedSegmentId && !selectedPromotionSegmentId) {
       void setDashboardQueryState({ selectedSegmentId: "" });
@@ -383,27 +408,55 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     }
   });
   const startAnalysisMutation = useMutation({
-    mutationFn: () =>
-      startDashboardPromotionAnalysis(query, selectedOpenPromotion?.promotion_id ?? "", {
+    mutationFn: (promotionId: string) =>
+      startDashboardPromotionAnalysis(query, promotionId, {
         operator_instruction: null
-      }),
-    onSuccess: async (analysis) => {
-      setActiveAnalysisId(analysis.analysis_id);
-      await queryClient.invalidateQueries({
-        queryKey: dashboardPromotionDetailQueryKey(
-          query.projectId,
-          selectedOpenPromotion?.promotion_id ?? ""
-        )
-      });
-      await queryClient.invalidateQueries({
-        queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
-          query.projectId,
-          selectedOpenPromotion?.promotion_id ?? "",
-          analysis.analysis_id
-        )
-      });
-    }
+      })
   });
+  const startPromotionAnalysis = () => {
+    if (!selectedOpenPromotionId) {
+      return;
+    }
+
+    const promotionId = selectedOpenPromotionId;
+    const progressKey = dashboardPromotionAnalysisProgressQueryKey(query.projectId, promotionId);
+    const startedAt = Date.now();
+    queryClient.setQueryData<PromotionAnalysisProgress>(progressKey, {
+      analysisId: null,
+      errorMessage: null,
+      startedAt,
+      status: "pending"
+    });
+
+    void startAnalysisMutation
+      .mutateAsync(promotionId)
+      .then(async (analysis) => {
+        queryClient.setQueryData<PromotionAnalysisProgress>(progressKey, {
+          analysisId: analysis.analysis_id,
+          errorMessage: null,
+          startedAt,
+          status: "success"
+        });
+        await queryClient.invalidateQueries({
+          queryKey: dashboardPromotionDetailQueryKey(query.projectId, promotionId)
+        });
+        await queryClient.invalidateQueries({
+          queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
+            query.projectId,
+            promotionId,
+            analysis.analysis_id
+          )
+        });
+      })
+      .catch((error: unknown) => {
+        queryClient.setQueryData<PromotionAnalysisProgress>(progressKey, {
+          analysisId: null,
+          errorMessage: mutationErrorMessage(error),
+          startedAt,
+          status: "error"
+        });
+      });
+  };
   const startGenerationMutation = useMutation({
     mutationFn: ({
       analysisId,
@@ -732,6 +785,15 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
   const closePromotion = (promotionId: string) => {
     deletePromotionMutation.mutate(promotionId);
   };
+  const promotionAnalysisError =
+    startAnalysisMutation.error ??
+    (analysisProgress.data.status === "error"
+      ? new Error(analysisProgress.data.errorMessage ?? "AI 추천 요청에 실패했습니다")
+      : null);
+  const promotionAnalysisIsError =
+    startAnalysisMutation.isError || analysisProgress.data.status === "error";
+  const promotionAnalysisIsPending =
+    startAnalysisMutation.isPending || analysisProgress.data.status === "pending";
 
   return (
     <section className="overflow-hidden rounded-[18px] bg-white shadow-none ring-1 ring-black/10">
@@ -845,7 +907,7 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 onRejectContentCandidate={(promotionId, segmentId, contentId) =>
                   rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
                 }
-                onStartAnalysis={() => startAnalysisMutation.mutate()}
+                onStartAnalysis={startPromotionAnalysis}
                 onStartGeneration={(analysisId) => {
                   if (!selectedOpenPromotion) {
                     return;
@@ -861,9 +923,9 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 onSelectSegment={selectSegment}
                 onTabChange={setWorkspaceTab}
                 promotion={selectedOpenPromotion}
-                promotionAnalysisError={startAnalysisMutation.error}
-                promotionAnalysisIsError={startAnalysisMutation.isError}
-                promotionAnalysisIsPending={startAnalysisMutation.isPending}
+                promotionAnalysisError={promotionAnalysisError}
+                promotionAnalysisIsError={promotionAnalysisIsError}
+                promotionAnalysisIsPending={promotionAnalysisIsPending}
                 promotionGeneration={startGenerationMutation.data ?? null}
                 promotionGenerationError={startGenerationMutation.error}
                 promotionGenerationIsError={startGenerationMutation.isError}
