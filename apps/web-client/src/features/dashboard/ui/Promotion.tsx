@@ -2,19 +2,14 @@ import type {
   DashboardCampaignPromotion,
   DashboardCampaignDetail,
   DashboardCampaignSegment,
-  DashboardBuildPromotionRunAssignmentsResult,
-  DashboardCreateNextLoopResult,
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
-  DashboardCreatePromotionRunResult,
   DashboardEvaluatePromotionRunResult,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
   DashboardSegmentDetail,
   DashboardPromotionSegmentSuggestion,
-  DashboardStartPromotionAnalysisResult,
-  DashboardStartPromotionGenerationResult,
-  PromotionRunDispatchResponse
+  DashboardStartPromotionGenerationResult
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
@@ -747,15 +742,12 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 dispatchPromotionRunError={dispatchPromotionRunMutation.error}
                 dispatchPromotionRunIsError={dispatchPromotionRunMutation.isError}
                 dispatchPromotionRunIsPending={dispatchPromotionRunMutation.isPending}
-                dispatchPromotionRunResult={dispatchPromotionRunMutation.data ?? null}
                 createPromotionRunError={createPromotionRunMutation.error}
                 createPromotionRunIsError={createPromotionRunMutation.isError}
                 createPromotionRunIsPending={createPromotionRunMutation.isPending}
-                createPromotionRunResult={createPromotionRunMutation.data ?? null}
                 buildAssignmentsError={buildPromotionRunAssignmentsMutation.error}
                 buildAssignmentsIsError={buildPromotionRunAssignmentsMutation.isError}
                 buildAssignmentsIsPending={buildPromotionRunAssignmentsMutation.isPending}
-                buildAssignmentsResult={buildPromotionRunAssignmentsMutation.data ?? null}
                 evaluatePromotionRunError={evaluatePromotionRunMutation.error}
                 evaluatePromotionRunIsError={evaluatePromotionRunMutation.isError}
                 evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
@@ -763,7 +755,6 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 createNextLoopError={createNextLoopMutation.error}
                 createNextLoopIsError={createNextLoopMutation.isError}
                 createNextLoopIsPending={createNextLoopMutation.isPending}
-                createNextLoopResult={createNextLoopMutation.data ?? null}
                 archiveScopedSegmentError={archiveScopedSegmentMutation.error}
                 archiveScopedSegmentIsError={archiveScopedSegmentMutation.isError}
                 archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
@@ -825,7 +816,6 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 onSelectSegment={selectSegment}
                 onTabChange={setWorkspaceTab}
                 promotion={selectedOpenPromotion}
-                promotionAnalysis={startAnalysisMutation.data ?? null}
                 promotionAnalysisError={startAnalysisMutation.error}
                 promotionAnalysisIsError={startAnalysisMutation.isError}
                 promotionAnalysisIsPending={startAnalysisMutation.isPending}
@@ -1035,15 +1025,12 @@ function PromotionTabWorkspace({
   dispatchPromotionRunError,
   dispatchPromotionRunIsError,
   dispatchPromotionRunIsPending,
-  dispatchPromotionRunResult,
   createPromotionRunError,
   createPromotionRunIsError,
   createPromotionRunIsPending,
-  createPromotionRunResult,
   buildAssignmentsError,
   buildAssignmentsIsError,
   buildAssignmentsIsPending,
-  buildAssignmentsResult,
   evaluatePromotionRunError,
   evaluatePromotionRunIsError,
   evaluatePromotionRunIsPending,
@@ -1051,7 +1038,6 @@ function PromotionTabWorkspace({
   createNextLoopError,
   createNextLoopIsError,
   createNextLoopIsPending,
-  createNextLoopResult,
   onArchiveScopedSegment,
   onApproveContentCandidate,
   onBuildAssignments,
@@ -1070,7 +1056,6 @@ function PromotionTabWorkspace({
   onStartGeneration,
   onTabChange,
   promotion,
-  promotionAnalysis,
   promotionAnalysisError,
   promotionAnalysisIsError,
   promotionAnalysisIsPending,
@@ -1121,15 +1106,12 @@ function PromotionTabWorkspace({
   dispatchPromotionRunError: Error | null;
   dispatchPromotionRunIsError: boolean;
   dispatchPromotionRunIsPending: boolean;
-  dispatchPromotionRunResult: PromotionRunDispatchResponse | null;
   createPromotionRunError: Error | null;
   createPromotionRunIsError: boolean;
   createPromotionRunIsPending: boolean;
-  createPromotionRunResult: DashboardCreatePromotionRunResult | null;
   buildAssignmentsError: Error | null;
   buildAssignmentsIsError: boolean;
   buildAssignmentsIsPending: boolean;
-  buildAssignmentsResult: DashboardBuildPromotionRunAssignmentsResult | null;
   evaluatePromotionRunError: Error | null;
   evaluatePromotionRunIsError: boolean;
   evaluatePromotionRunIsPending: boolean;
@@ -1137,7 +1119,6 @@ function PromotionTabWorkspace({
   createNextLoopError: Error | null;
   createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
-  createNextLoopResult: DashboardCreateNextLoopResult | null;
   onArchiveScopedSegment: (segmentId: string) => void;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onBuildAssignments: (promotionRunId: string) => void;
@@ -1164,7 +1145,6 @@ function PromotionTabWorkspace({
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
-  promotionAnalysis: DashboardStartPromotionAnalysisResult | null;
   promotionAnalysisError: Error | null;
   promotionAnalysisIsError: boolean;
   promotionAnalysisIsPending: boolean;
@@ -1281,7 +1261,6 @@ function PromotionTabWorkspace({
               onCreateScopedSegment={onCreateScopedSegment}
               onDecideSuggestion={onDecideSuggestion}
               onStartAnalysis={onStartAnalysis}
-              promotionAnalysis={promotionAnalysis}
               promotionAnalysisError={promotionAnalysisError}
               promotionAnalysisIsError={promotionAnalysisIsError}
               promotionAnalysisIsPending={promotionAnalysisIsPending}
@@ -1305,15 +1284,12 @@ function PromotionTabWorkspace({
             dispatchPromotionRunError={dispatchPromotionRunError}
             dispatchPromotionRunIsError={dispatchPromotionRunIsError}
             dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
-            dispatchPromotionRunResult={dispatchPromotionRunResult}
             createPromotionRunError={createPromotionRunError}
             createPromotionRunIsError={createPromotionRunIsError}
             createPromotionRunIsPending={createPromotionRunIsPending}
-            createPromotionRunResult={createPromotionRunResult}
             buildAssignmentsError={buildAssignmentsError}
             buildAssignmentsIsError={buildAssignmentsIsError}
             buildAssignmentsIsPending={buildAssignmentsIsPending}
-            buildAssignmentsResult={buildAssignmentsResult}
             evaluatePromotionRunError={evaluatePromotionRunError}
             evaluatePromotionRunIsError={evaluatePromotionRunIsError}
             evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
@@ -1321,7 +1297,6 @@ function PromotionTabWorkspace({
             createNextLoopError={createNextLoopError}
             createNextLoopIsError={createNextLoopIsError}
             createNextLoopIsPending={createNextLoopIsPending}
-            createNextLoopResult={createNextLoopResult}
             error={selectedSegmentDetailError}
             generation={promotionGeneration}
             generationError={promotionGenerationError}
@@ -1562,15 +1537,12 @@ function PromotionSegmentDetailTab({
   dispatchPromotionRunError,
   dispatchPromotionRunIsError,
   dispatchPromotionRunIsPending,
-  dispatchPromotionRunResult,
   createPromotionRunError,
   createPromotionRunIsError,
   createPromotionRunIsPending,
-  createPromotionRunResult,
   buildAssignmentsError,
   buildAssignmentsIsError,
   buildAssignmentsIsPending,
-  buildAssignmentsResult,
   evaluatePromotionRunError,
   evaluatePromotionRunIsError,
   evaluatePromotionRunIsPending,
@@ -1578,7 +1550,6 @@ function PromotionSegmentDetailTab({
   createNextLoopError,
   createNextLoopIsError,
   createNextLoopIsPending,
-  createNextLoopResult,
   error,
   generation,
   generationError,
@@ -1610,15 +1581,12 @@ function PromotionSegmentDetailTab({
   dispatchPromotionRunError: Error | null;
   dispatchPromotionRunIsError: boolean;
   dispatchPromotionRunIsPending: boolean;
-  dispatchPromotionRunResult: PromotionRunDispatchResponse | null;
   createPromotionRunError: Error | null;
   createPromotionRunIsError: boolean;
   createPromotionRunIsPending: boolean;
-  createPromotionRunResult: DashboardCreatePromotionRunResult | null;
   buildAssignmentsError: Error | null;
   buildAssignmentsIsError: boolean;
   buildAssignmentsIsPending: boolean;
-  buildAssignmentsResult: DashboardBuildPromotionRunAssignmentsResult | null;
   evaluatePromotionRunError: Error | null;
   evaluatePromotionRunIsError: boolean;
   evaluatePromotionRunIsPending: boolean;
@@ -1626,7 +1594,6 @@ function PromotionSegmentDetailTab({
   createNextLoopError: Error | null;
   createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
-  createNextLoopResult: DashboardCreateNextLoopResult | null;
   error: Error | null;
   generation: DashboardStartPromotionGenerationResult | null;
   generationError: Error | null;
@@ -1820,11 +1787,9 @@ function PromotionSegmentDetailTab({
               <AlertDescription>{mutationErrorMessage(generationError)}</AlertDescription>
             </Alert>
           ) : null}
-          {generation ? (
+          {generation && generationFailed ? (
             <Alert variant={generationFailed ? "destructive" : "default"}>
-              <AlertTitle>
-                {generationFailed ? "광고 생성이 실패했습니다" : "광고 생성 요청이 접수되었습니다"}
-              </AlertTitle>
+              <AlertTitle>광고 생성이 실패했습니다</AlertTitle>
               <AlertDescription>
                 {generation.generation_id} · {formatStatusLabel(generation.status)}
                 {generation.content_candidate_count === undefined
@@ -2066,30 +2031,10 @@ function PromotionSegmentDetailTab({
               <AlertDescription>{mutationErrorMessage(createPromotionRunError)}</AlertDescription>
             </Alert>
           ) : null}
-          {createPromotionRunResult ? (
-            <Alert>
-              <AlertTitle>실험 생성 요청이 완료되었습니다</AlertTitle>
-              <AlertDescription>
-                {createPromotionRunResult.promotion_run_id} ·{" "}
-                {formatStatusLabel(createPromotionRunResult.status)} · 실험{" "}
-                {formatInteger(createPromotionRunResult.ad_experiments.length)}개
-              </AlertDescription>
-            </Alert>
-          ) : null}
           {buildAssignmentsIsError ? (
             <Alert variant="destructive">
               <AlertTitle>대상 배정 생성에 실패했습니다</AlertTitle>
               <AlertDescription>{mutationErrorMessage(buildAssignmentsError)}</AlertDescription>
-            </Alert>
-          ) : null}
-          {buildAssignmentsResult ? (
-            <Alert>
-              <AlertTitle>대상 배정 생성이 완료되었습니다</AlertTitle>
-              <AlertDescription>
-                {buildAssignmentsResult.promotion_run_id} · 배정{" "}
-                {formatInteger(buildAssignmentsResult.assignment_count)}명 ·{" "}
-                {formatStatusLabel(buildAssignmentsResult.status)}
-              </AlertDescription>
             </Alert>
           ) : null}
           {evaluatePromotionRunIsError ? (
@@ -2098,31 +2043,10 @@ function PromotionSegmentDetailTab({
               <AlertDescription>{mutationErrorMessage(evaluatePromotionRunError)}</AlertDescription>
             </Alert>
           ) : null}
-          {evaluatePromotionRunResult ? (
-            <Alert>
-              <AlertTitle>성과 평가가 완료되었습니다</AlertTitle>
-              <AlertDescription>
-                {evaluatePromotionRunResult.promotion_run_id} ·{" "}
-                {formatStatusLabel(evaluatePromotionRunResult.status)}
-                · 실패 세그먼트 {formatInteger(evaluatePromotionRunResult.failed_segment_ids.length)}개
-              </AlertDescription>
-            </Alert>
-          ) : null}
           {createNextLoopIsError ? (
             <Alert variant="destructive">
               <AlertTitle>다음 루프 생성에 실패했습니다</AlertTitle>
               <AlertDescription>{mutationErrorMessage(createNextLoopError)}</AlertDescription>
-            </Alert>
-          ) : null}
-          {createNextLoopResult ? (
-            <Alert>
-              <AlertTitle>다음 루프 생성이 완료되었습니다</AlertTitle>
-              <AlertDescription>
-                {createNextLoopResult.previous_promotion_run_id} →{" "}
-                {createNextLoopResult.next_promotion_run_id ?? "생성 없음"} · 루프{" "}
-                {formatInteger(createNextLoopResult.loop_count)} · 실험{" "}
-                {formatInteger(createNextLoopResult.next_ad_experiments.length)}개
-              </AlertDescription>
             </Alert>
           ) : null}
           {dispatchPromotionRunIsError ? (
@@ -2130,17 +2054,6 @@ function PromotionSegmentDetailTab({
               <AlertTitle>광고 실행 요청에 실패했습니다</AlertTitle>
               <AlertDescription>
                 {mutationErrorMessage(dispatchPromotionRunError)}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {dispatchPromotionRunResult ? (
-            <Alert>
-              <AlertTitle>광고 실행 요청이 완료되었습니다</AlertTitle>
-              <AlertDescription>
-                {dispatchPromotionRunResult.promotion_run_id} · 발송{" "}
-                {formatInteger(dispatchPromotionRunResult.dispatched_count)} /{" "}
-                {formatInteger(dispatchPromotionRunResult.target_count)} · 실패{" "}
-                {formatInteger(dispatchPromotionRunResult.failed_count)}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -2303,7 +2216,6 @@ function PromotionSegmentSuggestionPanel({
   onCreateScopedSegment,
   onDecideSuggestion,
   onStartAnalysis,
-  promotionAnalysis,
   promotionAnalysisError,
   promotionAnalysisIsError,
   promotionAnalysisIsPending,
@@ -2333,7 +2245,6 @@ function PromotionSegmentSuggestionPanel({
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onStartAnalysis: () => void;
-  promotionAnalysis: DashboardStartPromotionAnalysisResult | null;
   promotionAnalysisError: Error | null;
   promotionAnalysisIsError: boolean;
   promotionAnalysisIsPending: boolean;
@@ -2390,15 +2301,6 @@ function PromotionSegmentSuggestionPanel({
           <Alert variant="destructive">
             <AlertTitle>AI 추천 요청에 실패했습니다</AlertTitle>
             <AlertDescription>{mutationErrorMessage(promotionAnalysisError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {promotionAnalysis ? (
-          <Alert>
-            <AlertTitle>AI 추천 요청이 접수되었습니다</AlertTitle>
-            <AlertDescription>
-              분석 {promotionAnalysis.analysis_id} · 상태{" "}
-              {formatStatusLabel(promotionAnalysis.status)}
-            </AlertDescription>
           </Alert>
         ) : null}
         {suggestionsIsError ? (
