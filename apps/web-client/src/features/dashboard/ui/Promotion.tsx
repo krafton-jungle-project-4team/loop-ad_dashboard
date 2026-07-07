@@ -118,10 +118,39 @@ export const promotionStatusOptions = [
 ] as const;
 
 const promotionGoalMetricOptions = [
-  "inflow_rate",
-  "booking_conversion_rate",
-  "funnel_step_rate"
-] as const;
+  {
+    label: formatMetricLabel("inflow_rate"),
+    requestMetric: "inflow_rate",
+    value: "inflow_rate"
+  },
+  {
+    label: formatMetricLabel("booking_conversion_rate"),
+    requestMetric: "booking_conversion_rate",
+    value: "booking_conversion_rate"
+  },
+  {
+    label: formatMetricLabel("funnel_step_rate"),
+    requestMetric: "funnel_step_rate",
+    value: "funnel_step_rate"
+  },
+  { label: "광고 클릭률", requestMetric: "inflow_rate", value: "ad_click_rate" },
+  {
+    label: "랜딩페이지 전환율",
+    requestMetric: "booking_conversion_rate",
+    value: "landing_page_conversion_rate"
+  },
+  { label: "일일 활성 사용자수", requestMetric: "inflow_rate", value: "daily_active_users" },
+  {
+    label: "결제 직전 이탈율",
+    requestMetric: "funnel_step_rate",
+    value: "checkout_abandonment_rate"
+  },
+  { label: "구매전환율", requestMetric: "booking_conversion_rate", value: "purchase_conversion_rate" }
+] satisfies Array<{
+  label: string;
+  requestMetric: DashboardCreatePromotionRequest["goal_metric"];
+  value: string;
+}>;
 const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
 const defaultPromotionLandingUrl = "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 const onsiteBannerImagePollIntervalMs = 3000;
@@ -2766,8 +2795,8 @@ function PromotionAddDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {promotionGoalMetricOptions.map((metric) => (
-                      <SelectItem key={metric} value={metric}>
-                        {formatMetricLabel(metric)}
+                      <SelectItem key={metric.value} value={metric.value}>
+                        {metric.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -2890,7 +2919,7 @@ function promotionCreateFormToRequest(
   return {
     channel: form.channel as DashboardCreatePromotionRequest["channel"],
     goal_basis: form.goalBasis as DashboardCreatePromotionRequest["goal_basis"],
-    goal_metric: form.goalMetric as DashboardCreatePromotionRequest["goal_metric"],
+    goal_metric: promotionGoalMetricToRequestMetric(form.goalMetric),
     goal_target_value: nonnegativeNumber(form.goalTargetValue),
     landing_url: form.landingUrl.trim(),
     marketing_theme: form.marketingTheme.trim(),
@@ -2899,6 +2928,15 @@ function promotionCreateFormToRequest(
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     status: "draft"
   };
+}
+
+function promotionGoalMetricToRequestMetric(
+  metric: string
+): DashboardCreatePromotionRequest["goal_metric"] {
+  return (
+    promotionGoalMetricOptions.find((option) => option.value === metric)?.requestMetric ??
+    "inflow_rate"
+  );
 }
 
 function isValidHttpUrl(value: string) {

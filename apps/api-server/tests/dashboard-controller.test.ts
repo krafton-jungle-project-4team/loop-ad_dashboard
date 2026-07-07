@@ -589,7 +589,7 @@ function emptyDashboardQuery(): DashboardQueryService {
     },
     eventCatalog: async () => ({ events: [] }),
     funnels: async () => ({ funnels: [] }),
-    main: async () => ({ campaigns: [] }),
+    main: async () => ({ campaigns: [], realtime_metrics: emptyRealtimeMetrics({}) }),
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
     },

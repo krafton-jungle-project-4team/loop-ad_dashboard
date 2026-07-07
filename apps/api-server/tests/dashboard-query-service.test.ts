@@ -11,6 +11,7 @@ test("dashboard main returns campaign summaries from the campaign reader", async
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const reads: string[] = [];
+  const realtimeReads: string[] = [];
   const service = new DashboardQueryService(
     {
       listCampaigns: async (projectId: string) => {
@@ -33,7 +34,13 @@ test("dashboard main returns campaign summaries from the campaign reader", async
         ];
       }
     } as unknown as DashboardCampaignReader,
-    emptyFunnelReader(),
+    {
+      ...emptyFunnelReader(),
+      getProjectRealtimeMetrics: async (projectId: string) => {
+        realtimeReads.push(projectId);
+        return emptyRealtimeMetrics();
+      }
+    } as unknown as DashboardFunnelReader,
     emptySegmentQueryRepository(),
     emptyDecisionClient()
   );
@@ -41,9 +48,11 @@ test("dashboard main returns campaign summaries from the campaign reader", async
   const main = await service.main("hotel-client-a");
 
   assert.deepEqual(reads, ["hotel-client-a"]);
+  assert.deepEqual(realtimeReads, ["hotel-client-a"]);
   assert.equal(main.campaigns.length, 1);
   assert.equal(main.campaigns[0]?.campaign_id, "camp_summer_2026");
   assert.equal(main.campaigns[0]?.segment_count, 4);
+  assert.equal(main.realtime_metrics.total_event_count, 0);
 });
 
 test("dashboard event catalog returns collected funnel event options", async () => {
@@ -511,9 +520,42 @@ function emptyFunnelReader(): DashboardFunnelReader {
     createFunnel: async () => {
       throw new Error("Unexpected createFunnel call.");
     },
+    getProjectRealtimeMetrics: async () => emptyRealtimeMetrics(),
     listEventCatalog: async () => [],
     listFunnels: async () => []
   } as unknown as DashboardFunnelReader;
+}
+
+function emptyRealtimeMetrics() {
+  return {
+    total_event_count: 0,
+    recent_5m_event_count: 0,
+    recent_1h_event_count: 0,
+    peak_time: null,
+    events: [],
+    time_buckets: [],
+    channel_breakdown: [],
+    landing_type_breakdown: [],
+    hotel_cluster_breakdown: [],
+    delivery_status: {
+      scheduled_count: 0,
+      sent_count: 0,
+      delivered_count: 0,
+      opened_count: 0,
+      clicked_count: 0,
+      bounced_count: 0,
+      failed_count: 0
+    },
+    banner_response: {
+      promotion_impression_count: 0,
+      promotion_click_count: 0,
+      promotion_click_rate: 0,
+      banner_position: null,
+      hotel_search_count: 0,
+      hotel_detail_view_count: 0,
+      booking_complete_count: 0
+    }
+  };
 }
 
 function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {

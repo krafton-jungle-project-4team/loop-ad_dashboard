@@ -13,6 +13,7 @@ import type {
   DashboardPromotionRealtimeMetrics,
   DashboardRealtimeBreakdownItem,
   DashboardRealtimeEvent,
+  DashboardRealtimeMetrics,
   DashboardRealtimeTimeBucket,
   DashboardSegmentRealtimeSummary,
   DashboardSegmentRealtimeMetrics
@@ -97,8 +98,8 @@ type SegmentRealtimeSummaryRow = {
 };
 
 type RealtimeMetricScope = {
-  filterColumn: "campaign_id" | "promotion_id";
-  filterValue: string;
+  filterColumn?: "campaign_id" | "promotion_id";
+  filterValue?: string;
   projectId: string;
   segmentId?: string;
 };
@@ -181,6 +182,24 @@ export class DashboardFunnelReader {
         event_name: DashboardFunnelEventNameSchema.parse(step.eventName),
         event_count: eventCounts.get(step.stepOrder) ?? 0
       }))
+    };
+  }
+
+  async getProjectRealtimeMetrics(projectId: string): Promise<DashboardRealtimeMetrics> {
+    const scope = { projectId } as const;
+    const [events, breakdowns, windowMetrics] = await Promise.all([
+      this.countRealtimeEvents(scope),
+      this.countRealtimeBreakdowns(scope),
+      this.countRealtimeWindowMetrics(scope)
+    ]);
+
+    return {
+      total_event_count: totalEventCount(events),
+      ...windowMetrics,
+      events,
+      ...breakdowns,
+      delivery_status: emptyDeliveryStatus(events),
+      banner_response: toBannerResponse(events)
     };
   }
 
@@ -398,6 +417,10 @@ export class DashboardFunnelReader {
     projectId,
     segmentId
   }: RealtimeMetricScope): Promise<DashboardRealtimeEvent[]> {
+    const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
+    const bookingScopeFilter = filterColumn
+      ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
+      : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
     const segmentBookingFilter = segmentId
       ? "AND ifNull(segment_id, '') = {segmentId:String}"
@@ -412,7 +435,7 @@ export class DashboardFunnelReader {
           SELECT event_name, user_id
           FROM promotion_touch_events
           WHERE project_id = {projectId:String}
-            AND ${filterColumn} = {filterValue:String}
+            ${touchScopeFilter}
             ${segmentTouchFilter}
 
           UNION ALL
@@ -420,14 +443,14 @@ export class DashboardFunnelReader {
           SELECT event_name, user_id
           FROM booking_outcome_events
           WHERE project_id = {projectId:String}
-            AND ifNull(${filterColumn}, '') = {filterValue:String}
+            ${bookingScopeFilter}
             ${segmentBookingFilter}
         )
         GROUP BY event_name
         ORDER BY event_count DESC, event_name ASC
       `,
       format: "JSONEachRow",
-      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+      query_params: { filterValue: filterValue ?? "", projectId, segmentId: segmentId ?? "" }
     });
     const rows = await result.json<SegmentRealtimeMetricRow>();
 
@@ -495,6 +518,10 @@ export class DashboardFunnelReader {
     projectId,
     segmentId
   }: RealtimeMetricScope): Promise<Omit<RealtimeWindowMetrics, "peak_time">> {
+    const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
+    const bookingScopeFilter = filterColumn
+      ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
+      : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
     const segmentBookingFilter = segmentId
       ? "AND ifNull(segment_id, '') = {segmentId:String}"
@@ -508,7 +535,7 @@ export class DashboardFunnelReader {
           SELECT event_time
           FROM promotion_touch_events
           WHERE project_id = {projectId:String}
-            AND ${filterColumn} = {filterValue:String}
+            ${touchScopeFilter}
             ${segmentTouchFilter}
 
           UNION ALL
@@ -516,12 +543,12 @@ export class DashboardFunnelReader {
           SELECT event_time
           FROM booking_outcome_events
           WHERE project_id = {projectId:String}
-            AND ifNull(${filterColumn}, '') = {filterValue:String}
+            ${bookingScopeFilter}
             ${segmentBookingFilter}
         )
       `,
       format: "JSONEachRow",
-      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+      query_params: { filterValue: filterValue ?? "", projectId, segmentId: segmentId ?? "" }
     });
     const [row] = await result.json<RealtimeWindowCountRow>();
 
@@ -537,6 +564,10 @@ export class DashboardFunnelReader {
     projectId,
     segmentId
   }: RealtimeMetricScope): Promise<string | null> {
+    const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
+    const bookingScopeFilter = filterColumn
+      ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
+      : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
     const segmentBookingFilter = segmentId
       ? "AND ifNull(segment_id, '') = {segmentId:String}"
@@ -552,7 +583,7 @@ export class DashboardFunnelReader {
             SELECT event_time
             FROM promotion_touch_events
             WHERE project_id = {projectId:String}
-              AND ${filterColumn} = {filterValue:String}
+              ${touchScopeFilter}
               ${segmentTouchFilter}
 
             UNION ALL
@@ -560,7 +591,7 @@ export class DashboardFunnelReader {
             SELECT event_time
             FROM booking_outcome_events
             WHERE project_id = {projectId:String}
-              AND ifNull(${filterColumn}, '') = {filterValue:String}
+              ${bookingScopeFilter}
               ${segmentBookingFilter}
           )
           GROUP BY time_bucket
@@ -569,7 +600,7 @@ export class DashboardFunnelReader {
         )
       `,
       format: "JSONEachRow",
-      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+      query_params: { filterValue: filterValue ?? "", projectId, segmentId: segmentId ?? "" }
     });
     const [row] = await result.json<RealtimePeakTimeRow>();
 
@@ -613,6 +644,10 @@ export class DashboardFunnelReader {
     projectId,
     segmentId
   }: RealtimeMetricScope): Promise<DashboardRealtimeTimeBucket[]> {
+    const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
+    const bookingScopeFilter = filterColumn
+      ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
+      : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
     const segmentBookingFilter = segmentId
       ? "AND ifNull(segment_id, '') = {segmentId:String}"
@@ -627,7 +662,7 @@ export class DashboardFunnelReader {
           SELECT toStartOfHour(event_time) AS time_bucket, user_id
           FROM promotion_touch_events
           WHERE project_id = {projectId:String}
-            AND ${filterColumn} = {filterValue:String}
+            ${touchScopeFilter}
             ${segmentTouchFilter}
 
           UNION ALL
@@ -635,14 +670,14 @@ export class DashboardFunnelReader {
           SELECT toStartOfHour(event_time) AS time_bucket, user_id
           FROM booking_outcome_events
           WHERE project_id = {projectId:String}
-            AND ifNull(${filterColumn}, '') = {filterValue:String}
+            ${bookingScopeFilter}
             ${segmentBookingFilter}
         )
         GROUP BY time_bucket
         ORDER BY time_bucket ASC
       `,
       format: "JSONEachRow",
-      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+      query_params: { filterValue: filterValue ?? "", projectId, segmentId: segmentId ?? "" }
     });
     const rows = await result.json<RealtimeTimeBucketRow>();
 
@@ -670,6 +705,10 @@ export class DashboardFunnelReader {
       touchKeyExpression: string;
     }
   ): Promise<DashboardRealtimeBreakdownItem[]> {
+    const touchScopeFilter = filterColumn ? `AND ${filterColumn} = {filterValue:String}` : "";
+    const bookingScopeFilter = filterColumn
+      ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
+      : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
     const segmentBookingFilter = segmentId
       ? "AND ifNull(segment_id, '') = {segmentId:String}"
@@ -684,7 +723,7 @@ export class DashboardFunnelReader {
           SELECT ${touchKeyExpression} AS breakdown_key, user_id
           FROM promotion_touch_events
           WHERE project_id = {projectId:String}
-            AND ${filterColumn} = {filterValue:String}
+            ${touchScopeFilter}
             ${segmentTouchFilter}
 
           UNION ALL
@@ -692,7 +731,7 @@ export class DashboardFunnelReader {
           SELECT ${bookingKeyExpression} AS breakdown_key, user_id
           FROM booking_outcome_events
           WHERE project_id = {projectId:String}
-            AND ifNull(${filterColumn}, '') = {filterValue:String}
+            ${bookingScopeFilter}
             ${segmentBookingFilter}
         )
         WHERE breakdown_key IS NOT NULL
@@ -701,7 +740,7 @@ export class DashboardFunnelReader {
         LIMIT 20
       `,
       format: "JSONEachRow",
-      query_params: { filterValue, projectId, segmentId: segmentId ?? "" }
+      query_params: { filterValue: filterValue ?? "", projectId, segmentId: segmentId ?? "" }
     });
     const rows = await result.json<RealtimeBreakdownRow>();
 
@@ -824,6 +863,18 @@ function toDeliveryStatus(
     clicked_count: eventCount(events, "campaign_redirect_click"),
     bounced_count: countValue(row.bouncedCount),
     failed_count: countValue(row.failedCount)
+  };
+}
+
+function emptyDeliveryStatus(events: DashboardRealtimeEvent[]): DashboardDeliveryStatus {
+  return {
+    scheduled_count: 0,
+    sent_count: 0,
+    delivered_count: 0,
+    opened_count: 0,
+    clicked_count: eventCount(events, "campaign_redirect_click"),
+    bounced_count: 0,
+    failed_count: 0
   };
 }
 

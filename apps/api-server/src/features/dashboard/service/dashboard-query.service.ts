@@ -83,7 +83,11 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId });
     log.info("started", { projectId });
-    const response = { campaigns: await this.campaignReader.listCampaigns(projectId) };
+    const [campaigns, realtimeMetrics] = await Promise.all([
+      this.campaignReader.listCampaigns(projectId),
+      this.funnelReader.getProjectRealtimeMetrics(projectId)
+    ]);
+    const response = { campaigns, realtime_metrics: realtimeMetrics };
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;

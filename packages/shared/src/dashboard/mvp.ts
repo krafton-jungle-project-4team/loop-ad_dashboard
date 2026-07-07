@@ -59,11 +59,6 @@ export const DashboardCampaignSummarySchema = z.object({
 });
 export type DashboardCampaignSummary = z.infer<typeof DashboardCampaignSummarySchema>;
 
-export const DashboardMainSchema = z.object({
-  campaigns: z.array(DashboardCampaignSummarySchema)
-});
-export type DashboardMain = z.infer<typeof DashboardMainSchema>;
-
 export const DashboardCampaignPrimaryMetricSchema = z.enum([
   "inflow_rate",
   "booking_conversion_rate",
@@ -564,6 +559,12 @@ export const DashboardRealtimeMetricsSchema = z.object({
   banner_response: DashboardBannerResponseSchema
 });
 export type DashboardRealtimeMetrics = z.infer<typeof DashboardRealtimeMetricsSchema>;
+
+export const DashboardMainSchema = z.object({
+  campaigns: z.array(DashboardCampaignSummarySchema),
+  realtime_metrics: DashboardRealtimeMetricsSchema
+});
+export type DashboardMain = z.infer<typeof DashboardMainSchema>;
 
 export const DashboardCampaignRealtimeMetricsSchema = DashboardRealtimeMetricsSchema.extend({
   campaign_id: z.string()
