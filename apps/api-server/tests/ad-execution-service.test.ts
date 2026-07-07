@@ -706,7 +706,6 @@ class FakeAdExecutionReader {
     campaignId: "campaign-1",
     marketingTheme: "summer_sale",
     channel: "email",
-    targetAudience: "existing_users",
     goalMetric: "promotion_click_rate",
     goalTargetValue: "0.100000",
     goalBasis: "promotion_average",

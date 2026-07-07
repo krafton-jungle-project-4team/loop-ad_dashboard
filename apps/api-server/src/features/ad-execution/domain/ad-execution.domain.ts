@@ -37,7 +37,6 @@ export const promotionEntitySchema = z.object({
   ...promotionIdsSchema,
   marketingTheme: requiredStringSchema,
   channel: adExecutionChannelSchema,
-  targetAudience: requiredStringSchema,
   goalMetric: requiredStringSchema,
   goalTargetValue: requiredStringSchema,
   goalBasis: requiredStringSchema,

@@ -58,7 +58,6 @@ import {
 } from "../model/dashboard-query-keys.js";
 import {
   formatActionLabel,
-  formatAudienceLabel,
   formatBasisLabel,
   formatChannelLabel,
   formatLandingTypeLabel,
@@ -455,7 +454,6 @@ function CampaignCreateForm({
 }) {
   const [campaignName, setCampaignName] = useState("");
   const [objective, setObjective] = useState("");
-  const [targetAudience, setTargetAudience] = useState("existing_users");
   const [primaryMetric, setPrimaryMetric] = useState<string>("none");
   const [status, setStatus] = useState<CreateCampaignInput["status"]>("draft");
   const [startDate, setStartDate] = useState("");
@@ -480,11 +478,9 @@ function CampaignCreateForm({
         onPrimaryMetricChange={setPrimaryMetric}
         onStartDateChange={setStartDate}
         onStatusChange={(nextStatus) => setStatus(nextStatus as CreateCampaignInput["status"])}
-        onTargetAudienceChange={setTargetAudience}
         primaryMetric={primaryMetric}
         startDate={startDate}
         status={status}
-        targetAudience={targetAudience}
       />
       <div className="flex justify-end">
         <Button
@@ -496,8 +492,7 @@ function CampaignCreateForm({
               objective: nullableText(objective),
               primary_metric: nullableMetric(primaryMetric),
               start_date: nullableDate(startDate),
-              status,
-              target_audience: targetAudience.trim() || "existing_users"
+              status
             })
           }
           type="button"
@@ -522,7 +517,6 @@ function CampaignEditForm({
 }) {
   const [campaignName, setCampaignName] = useState(campaign?.campaign_name ?? "");
   const [objective, setObjective] = useState(campaign?.objective ?? "");
-  const [targetAudience, setTargetAudience] = useState("existing_users");
   const [primaryMetric, setPrimaryMetric] = useState<string>(campaign?.primary_metric ?? "none");
   const [status, setStatus] = useState<string>(campaign?.status ?? "draft");
   const [startDate, setStartDate] = useState(campaign?.start_date ?? "");
@@ -565,11 +559,9 @@ function CampaignEditForm({
         onPrimaryMetricChange={setPrimaryMetric}
         onStartDateChange={setStartDate}
         onStatusChange={setStatus}
-        onTargetAudienceChange={setTargetAudience}
         primaryMetric={primaryMetric}
         startDate={startDate}
         status={status}
-        targetAudience={targetAudience}
       />
       <div className="flex flex-wrap justify-end gap-2">
         <Button
@@ -589,8 +581,7 @@ function CampaignEditForm({
               objective: nullableText(objective),
               primary_metric: nullableMetric(primaryMetric),
               start_date: nullableDate(startDate),
-              status: status as UpdateCampaignInput["status"],
-              target_audience: targetAudience.trim() || "existing_users"
+              status: status as UpdateCampaignInput["status"]
             })
           }
           type="button"
@@ -612,11 +603,9 @@ function CampaignFormFields({
   onPrimaryMetricChange,
   onStartDateChange,
   onStatusChange,
-  onTargetAudienceChange,
   primaryMetric,
   startDate,
-  status,
-  targetAudience
+  status
 }: {
   campaignName: string;
   endDate: string;
@@ -627,11 +616,9 @@ function CampaignFormFields({
   onPrimaryMetricChange: (value: string) => void;
   onStartDateChange: (value: string) => void;
   onStatusChange: (value: string) => void;
-  onTargetAudienceChange: (value: string) => void;
   primaryMetric: string;
   startDate: string;
   status: string;
-  targetAudience: string;
 }) {
   return (
     <FieldGroup>
@@ -654,14 +641,6 @@ function CampaignFormFields({
         />
       </Field>
       <div className="grid gap-3 md:grid-cols-2">
-        <Field>
-          <FieldLabel htmlFor="dashboard-campaign-target-audience">대상</FieldLabel>
-          <Input
-            id="dashboard-campaign-target-audience"
-            onChange={(event) => onTargetAudienceChange(event.target.value)}
-            value={targetAudience}
-          />
-        </Field>
         <Field>
           <FieldLabel>주요 지표</FieldLabel>
           <Select onValueChange={onPrimaryMetricChange} value={primaryMetric}>
@@ -1078,7 +1057,6 @@ function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
         />
       </div>
       <div className="grid gap-3 md:grid-cols-4">
-        <SummaryItem label="대상" value={formatAudienceLabel(campaign.target_audience)} />
         <SummaryItem label="기간" value={formatPeriod(campaign)} />
         <SummaryItem
           label="루프"
@@ -2027,9 +2005,7 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
               {formatStatusLabel(promotion.status)}
             </Badge>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {formatChannelLabel(promotion.channel)} · {formatAudienceLabel(promotion.target_audience)}
-          </div>
+          <div className="text-sm text-muted-foreground">{formatChannelLabel(promotion.channel)}</div>
         </div>
         {promotion.landing_url ? (
           <Button asChild size="sm" variant="outline">

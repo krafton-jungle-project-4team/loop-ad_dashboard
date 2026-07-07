@@ -9,11 +9,7 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import {
-  formatActionLabel,
-  formatAudienceLabel,
-  formatStatusLabel
-} from "../model/dashboard-labels.js";
+import { formatActionLabel, formatStatusLabel } from "../model/dashboard-labels.js";
 import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { EmptyState } from "./EmptyState.js";
 
@@ -33,7 +29,6 @@ export function MainDashboardPanel({ data }: { data: DashboardMain }) {
               <TableRow>
                 <TableHead>캠페인</TableHead>
                 <TableHead>상태</TableHead>
-                <TableHead>대상</TableHead>
                 <TableHead>기간</TableHead>
                 <TableHead className="text-right">루프</TableHead>
                 <TableHead className="text-right">프로모션</TableHead>
@@ -71,7 +66,6 @@ function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
       <TableCell>
         <Badge variant="secondary">{formatStatusLabel(campaign.status)}</Badge>
       </TableCell>
-      <TableCell>{formatAudienceLabel(campaign.target_audience)}</TableCell>
       <TableCell>{formatPeriod(campaign)}</TableCell>
       <TableCell className="text-right tabular-nums">
         {formatInteger(campaign.current_loop_count)} / {formatInteger(campaign.max_loop_count)}

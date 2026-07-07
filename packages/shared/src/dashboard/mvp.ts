@@ -44,7 +44,6 @@ export const DashboardCampaignSummarySchema = z.object({
   campaign_id: z.string(),
   campaign_name: z.string(),
   objective: z.string().nullable(),
-  target_audience: z.string(),
   primary_metric: z.string().nullable(),
   status: z.string(),
   start_date: z.string().nullable(),
@@ -88,7 +87,6 @@ export type DashboardCampaignStatus = z.infer<typeof DashboardCampaignStatusSche
 export const DashboardCreateCampaignRequestSchema = z.object({
   campaign_name: z.string().min(1),
   objective: z.string().nullable().optional(),
-  target_audience: z.string().min(1).default("existing_users"),
   primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
   start_date: z.string().date().nullable().optional(),
   end_date: z.string().date().nullable().optional(),
@@ -101,7 +99,6 @@ export type DashboardCreateCampaignRequest = z.infer<
 export const DashboardUpdateCampaignRequestSchema = z.object({
   campaign_name: z.string().min(1).optional(),
   objective: z.string().nullable().optional(),
-  target_audience: z.string().min(1).optional(),
   primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
   start_date: z.string().date().nullable().optional(),
   end_date: z.string().date().nullable().optional(),
@@ -123,7 +120,6 @@ export const DashboardCampaignPromotionSchema = z.object({
   promotion_id: z.string(),
   channel: z.string(),
   marketing_theme: z.string(),
-  target_audience: z.string(),
   goal_metric: z.string(),
   goal_target_value: z.number().nonnegative(),
   goal_basis: z.string(),
@@ -182,7 +178,6 @@ const DashboardPromotionLandingUrlSchema = z.string().trim().url();
 export const DashboardCreatePromotionRequestSchema = z.object({
   channel: DashboardPromotionChannelSchema,
   marketing_theme: z.string().min(1),
-  target_audience: z.string().min(1).default("existing_users"),
   goal_metric: DashboardPromotionGoalMetricSchema,
   goal_target_value: z.number().nonnegative(),
   goal_basis: DashboardPromotionGoalBasisSchema,
@@ -201,7 +196,6 @@ export type DashboardCreatePromotionRequest = z.infer<
 export const DashboardUpdatePromotionRequestSchema = z.object({
   channel: DashboardPromotionChannelSchema.optional(),
   marketing_theme: z.string().min(1).optional(),
-  target_audience: z.string().min(1).optional(),
   goal_metric: DashboardPromotionGoalMetricSchema.optional(),
   goal_target_value: z.number().nonnegative().optional(),
   goal_basis: DashboardPromotionGoalBasisSchema.optional(),

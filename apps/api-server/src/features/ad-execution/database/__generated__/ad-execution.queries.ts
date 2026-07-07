@@ -77,7 +77,6 @@ export interface IFindPromotionResult {
   projectId: string;
   promotionId: string;
   status: string;
-  targetAudience: string;
   updatedAt: Date;
 }
 
@@ -87,7 +86,7 @@ export interface IFindPromotionQuery {
   result: IFindPromotionResult;
 }
 
-const findPromotionIR: any = {"usedParamSet":{"promotionId":true},"params":[{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":430,"b":441}]}],"statement":"SELECT\n  promotion_id AS \"promotionId\",\n  project_id AS \"projectId\",\n  campaign_id AS \"campaignId\",\n  marketing_theme AS \"marketingTheme\",\n  channel,\n  target_audience AS \"targetAudience\",\n  goal_metric AS \"goalMetric\",\n  goal_target_value AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  status,\n  metadata_json AS \"metadataJson\",\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM promotions\nWHERE promotion_id = :promotionId                                                            "};
+const findPromotionIR: any = {"usedParamSet":{"promotionId":true},"params":[{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":391,"b":402}]}],"statement":"SELECT\n  promotion_id AS \"promotionId\",\n  project_id AS \"projectId\",\n  campaign_id AS \"campaignId\",\n  marketing_theme AS \"marketingTheme\",\n  channel,\n  goal_metric AS \"goalMetric\",\n  goal_target_value AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  status,\n  metadata_json AS \"metadataJson\",\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM promotions\nWHERE promotion_id = :promotionId                                                            "};
 
 /**
  * Query generated from SQL:
@@ -98,7 +97,6 @@ const findPromotionIR: any = {"usedParamSet":{"promotionId":true},"params":[{"na
  *   campaign_id AS "campaignId",
  *   marketing_theme AS "marketingTheme",
  *   channel,
- *   target_audience AS "targetAudience",
  *   goal_metric AS "goalMetric",
  *   goal_target_value AS "goalTargetValue",
  *   goal_basis AS "goalBasis",

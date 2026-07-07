@@ -92,7 +92,6 @@ import {
 import { formatInteger } from "../model/dashboard-format.js";
 import {
   formatActionLabel,
-  formatAudienceLabel,
   formatBasisLabel,
   formatChannelLabel,
   formatMetricLabel,
@@ -1208,7 +1207,7 @@ function PromotionTabWorkspace({
             {promotion.marketing_theme}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {formatChannelLabel(promotion.channel)} · {formatAudienceLabel(promotion.target_audience)}
+            {formatChannelLabel(promotion.channel)}
           </p>
         </div>
         <Badge variant={statusBadgeVariant(promotion.status)}>
@@ -2850,18 +2849,6 @@ function PromotionAddDialog({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field>
-                <FieldLabel htmlFor="promotion-create-audience">대상 범위</FieldLabel>
-                <Input
-                  id="promotion-create-audience"
-                  onChange={(event) => setForm({ ...form, targetAudience: event.target.value })}
-                  placeholder="existing_users"
-                  value={form.targetAudience}
-                />
-                <p className="text-xs text-muted-foreground">
-                  세그먼트는 프로모션 생성 후 프로모션 상세의 세그먼트 목록에서 생성/연결합니다.
-                </p>
-              </Field>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <Field>
@@ -2976,7 +2963,6 @@ type PromotionCreateFormState = {
   marketingTheme: string;
   maxLoopCount: string;
   minSampleSize: string;
-  targetAudience: string;
 };
 
 function createEmptyPromotionFormState(): PromotionCreateFormState {
@@ -2988,8 +2974,7 @@ function createEmptyPromotionFormState(): PromotionCreateFormState {
     landingUrl: defaultPromotionLandingUrl,
     marketingTheme: "",
     maxLoopCount: "3",
-    minSampleSize: "1000",
-    targetAudience: "existing_users"
+    minSampleSize: "1000"
   };
 }
 
@@ -3005,8 +2990,7 @@ function promotionCreateFormToRequest(
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
-    status: "draft",
-    target_audience: form.targetAudience.trim() || "existing_users"
+    status: "draft"
   };
 }
 
@@ -3084,7 +3068,6 @@ export function CampaignPromotionTable({
         promotion.promotion_id,
         promotion.marketing_theme,
         promotion.channel,
-        promotion.target_audience,
         promotion.goal_metric,
         promotion.goal_basis,
         promotion.next_action,
@@ -3164,10 +3147,9 @@ export function CampaignPromotionTable({
         filteredPromotions.length > 0 ? (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>프로모션</TableHead>
-                <TableHead>대상</TableHead>
-                <TableHead>대상 세그먼트</TableHead>
+                <TableRow>
+                  <TableHead>프로모션</TableHead>
+                  <TableHead>대상 세그먼트</TableHead>
                 <TableHead>목표</TableHead>
                 <TableHead className="text-right">루프</TableHead>
                 <TableHead className="text-right">실험</TableHead>
@@ -3203,7 +3185,6 @@ export function CampaignPromotionTable({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{formatAudienceLabel(promotion.target_audience)}</TableCell>
                     <TableCell>
                       <div className="flex min-w-[240px] flex-wrap gap-1.5">
                         {promotionSegments.slice(0, 3).map((segment) => (

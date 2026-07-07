@@ -339,7 +339,6 @@ test("dashboard controller parses promotion analysis request before delegating",
       projectId: "hotel-client-a",
       promotionId: "promo_email_001",
       request: {
-        focus_segment_ids: null,
         operator_instruction: "전환 가능성이 높은 세그먼트 추천"
       }
     }
@@ -402,7 +401,6 @@ test("dashboard controller parses promotion detail analyses response", async () 
           promotion_id: promotionId,
           channel: "email",
           marketing_theme: "email_inflow",
-          target_audience: "existing_users",
           goal_metric: "inflow_rate",
           goal_target_value: 0.1,
           goal_basis: "promotion_average",

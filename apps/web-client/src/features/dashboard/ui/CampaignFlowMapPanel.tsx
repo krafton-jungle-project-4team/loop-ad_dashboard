@@ -70,7 +70,6 @@ import {
 import { fetchDashboardCampaignDetail } from "../api/dashboard-api.js";
 import {
   formatActionLabel,
-  formatAudienceLabel,
   formatChannelLabel,
   formatMetricLabel,
   formatStatusLabel
@@ -953,7 +952,6 @@ function CampaignNodeDetail({ campaign }: { campaign: DashboardCampaignSummary |
 
   return (
     <div className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-3 text-sm">
-      <MetricLine label="대상" value={formatAudienceLabel(campaign.target_audience)} />
       <MetricLine label="주요 지표" value={formatMetricLabel(campaign.primary_metric)} />
       <MetricLine label="다음 액션" value={formatActionLabel(campaign.next_action)} />
       <MetricLine label="업데이트" value={formatDateTime(campaign.updated_at)} />
@@ -1206,7 +1204,7 @@ function buildCampaignFlowGraph(
       campaign: detail.campaign,
       kind: "campaign",
       status: detail.campaign.status,
-      subtitle: detail.campaign.objective ?? detail.campaign.target_audience,
+      subtitle: detail.campaign.objective ?? formatMetricLabel(detail.campaign.primary_metric),
       summary: [
         {
           label: "루프",

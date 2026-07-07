@@ -175,8 +175,7 @@ export class DashboardCampaignReader {
         primaryMetric: request.primary_metric ?? null,
         projectId,
         startDate: request.start_date ?? null,
-        status: request.status,
-        targetAudience: request.target_audience
+        status: request.status
       })
       .single();
 
@@ -201,8 +200,7 @@ export class DashboardCampaignReader {
         projectId,
         startDate: request.start_date ?? null,
         startDateIsSet: Object.hasOwn(request, "start_date"),
-        status: request.status,
-        targetAudience: request.target_audience
+        status: request.status
       })
       .single();
 
@@ -243,8 +241,7 @@ export class DashboardCampaignReader {
         offerType: request.offer_type ?? null,
         projectId,
         promotionId,
-        status: request.status,
-        targetAudience: request.target_audience
+        status: request.status
       })
       .single();
 
@@ -275,8 +272,7 @@ export class DashboardCampaignReader {
         offerTypeIsSet: Object.hasOwn(request, "offer_type"),
         projectId,
         promotionId,
-        status: request.status,
-        targetAudience: request.target_audience
+        status: request.status
       })
       .single();
 
@@ -781,7 +777,6 @@ function toCampaignSummary(
     campaign_id: row.campaignId,
     campaign_name: row.campaignName,
     objective: row.objective,
-    target_audience: row.targetAudience,
     primary_metric: row.primaryMetric,
     status: row.status,
     start_date: formatDate(row.startDate),
@@ -804,7 +799,6 @@ function toCampaignPromotion(
     promotion_id: row.promotionId,
     channel: row.channel,
     marketing_theme: row.marketingTheme,
-    target_audience: row.targetAudience,
     goal_metric: row.goalMetric,
     goal_target_value: numberValue(row.goalTargetValue),
     goal_basis: row.goalBasis,
@@ -830,7 +824,6 @@ function toPromotionSummary(row: IGetDashboardPromotionSummaryResult): Dashboard
     campaign_id: row.campaignId,
     channel: row.channel,
     marketing_theme: row.marketingTheme,
-    target_audience: row.targetAudience,
     goal_metric: row.goalMetric,
     goal_target_value: numberValue(row.goalTargetValue),
     goal_basis: row.goalBasis,

@@ -25,7 +25,6 @@ SELECT
   campaign_id AS "campaignId",
   marketing_theme AS "marketingTheme",
   channel,
-  target_audience AS "targetAudience",
   goal_metric AS "goalMetric",
   goal_target_value AS "goalTargetValue",
   goal_basis AS "goalBasis",

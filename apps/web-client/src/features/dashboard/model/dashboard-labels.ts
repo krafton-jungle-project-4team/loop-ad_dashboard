@@ -62,13 +62,6 @@ const BASIS_LABELS: Record<string, string> = {
   promotion_average: "프로모션 평균"
 };
 
-const AUDIENCE_LABELS: Record<string, string> = {
-  all: "전체 사용자",
-  existing_users: "기존 사용자",
-  new_users: "신규 사용자",
-  returning_users: "재방문 사용자"
-};
-
 const ACTION_LABELS: Record<string, string> = {
   analysis: "분석 필요",
   campaign_start: "캠페인 시작",
@@ -105,10 +98,6 @@ export function formatMetricLabel(value: string | null | undefined): string {
 
 export function formatBasisLabel(value: string | null | undefined): string {
   return formatKnownLabel(value, BASIS_LABELS);
-}
-
-export function formatAudienceLabel(value: string | null | undefined): string {
-  return formatKnownLabel(value, AUDIENCE_LABELS);
 }
 
 export function formatActionLabel(value: string | null | undefined): string {
