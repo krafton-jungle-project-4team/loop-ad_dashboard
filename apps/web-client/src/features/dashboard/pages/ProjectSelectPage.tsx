@@ -66,29 +66,16 @@ export function ProjectSelectPage() {
             <ProjectManagementDialog
               trigger={
                 <button
-                  className="group grid min-h-44 gap-3 rounded-lg border border-dashed border-black/20 bg-white/70 p-4 text-center transition hover:border-[#0066cc]/50 hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40"
+                  className="group flex min-h-44 items-center justify-center rounded-lg border border-dashed border-black/20 bg-white/70 p-4 text-center transition hover:border-[#0066cc]/50 hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40"
                   type="button"
                 >
-                  <span className="mx-auto flex size-20 items-center justify-center rounded-lg bg-black/5 text-muted-foreground transition group-hover:bg-[#0066cc]/10 group-hover:text-[#0066cc]">
+                  <span className="flex size-20 items-center justify-center rounded-lg bg-black/5 text-muted-foreground transition group-hover:bg-[#0066cc]/10 group-hover:text-[#0066cc]">
                     <Plus size={34} />
-                  </span>
-                  <span className="text-sm font-semibold text-muted-foreground group-hover:text-[#1d1d1f]">
-                    프로젝트 추가
                   </span>
                 </button>
               }
             />
           </div>
-
-          {projects.length > 0 ? (
-            <ProjectManagementDialog
-              trigger={
-                <Button className="rounded-full" type="button" variant="outline">
-                  프로젝트 관리
-                </Button>
-              }
-            />
-          ) : null}
         </section>
       </div>
     </main>
