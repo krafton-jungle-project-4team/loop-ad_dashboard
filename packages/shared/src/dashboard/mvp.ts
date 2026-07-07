@@ -12,7 +12,6 @@ export const DashboardProjectSchema = z.object({
   project_name: z.string(),
   domain: z.string(),
   write_key: z.string(),
-  industry: z.string(),
   status: DashboardProjectStatusSchema,
   created_at: z.string(),
   updated_at: z.string()
@@ -25,11 +24,8 @@ export const DashboardProjectListSchema = z.object({
 export type DashboardProjectList = z.infer<typeof DashboardProjectListSchema>;
 
 export const DashboardCreateProjectRequestSchema = z.object({
-  project_id: z.string().trim().min(1),
   project_name: z.string().trim().min(1),
   domain: z.string().trim().min(1).default("hotel-booking.local"),
-  write_key: z.string().trim().min(1).optional(),
-  industry: z.string().trim().min(1).default("hotel_booking"),
   status: DashboardProjectStatusSchema.default("active")
 });
 export type DashboardCreateProjectRequest = z.infer<

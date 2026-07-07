@@ -14,7 +14,6 @@ export type IListDashboardProjectsParams = void;
 export interface IListDashboardProjectsResult {
   createdAt: Date;
   domain: string;
-  industry: string;
   projectId: string;
   projectName: string;
   status: string;
@@ -32,17 +31,17 @@ const listDashboardProjectsIR: any = {
   usedParamSet: {},
   params: [],
   statement:
-    'SELECT\n  project_id AS "projectId",\n  project_name AS "projectName",\n  domain,\n  write_key AS "writeKey",\n  industry,\n  status,\n  created_at AS "createdAt",\n  updated_at AS "updatedAt"\nFROM projects\nWHERE status <> \'archived\'\nORDER BY updated_at DESC, created_at DESC'
+    'SELECT\n  project_id AS "projectId",\n  project_name AS "projectName",\n  domain,\n  write_key AS "writeKey",\n  status,\n  created_at AS "createdAt",\n  updated_at AS "updatedAt"\nFROM projects\nWHERE status <> \'archived\'\nORDER BY updated_at DESC, created_at DESC                               '
 };
 
-/** Query generated from SQL:
+/**
+ * Query generated from SQL:
  * ```
  * SELECT
  *   project_id AS "projectId",
  *   project_name AS "projectName",
  *   domain,
  *   write_key AS "writeKey",
- *   industry,
  *   status,
  *   created_at AS "createdAt",
  *   updated_at AS "updatedAt"
@@ -59,7 +58,6 @@ export const listDashboardProjects = new PreparedQuery<
 /** 'InsertDashboardProject' parameters type */
 export interface IInsertDashboardProjectParams {
   domain?: string | null | void;
-  industry?: string | null | void;
   projectId?: string | null | void;
   projectName?: string | null | void;
   status?: string | null | void;
@@ -70,7 +68,6 @@ export interface IInsertDashboardProjectParams {
 export interface IInsertDashboardProjectResult {
   createdAt: Date;
   domain: string;
-  industry: string;
   projectId: string;
   projectName: string;
   status: string;
@@ -85,54 +82,41 @@ export interface IInsertDashboardProjectQuery {
 }
 
 const insertDashboardProjectIR: any = {
-  usedParamSet: {
-    projectId: true,
-    projectName: true,
-    domain: true,
-    writeKey: true,
-    industry: true,
-    status: true
-  },
+  usedParamSet: { projectId: true, projectName: true, domain: true, writeKey: true, status: true },
   params: [
     {
       name: "projectId",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 110, b: 119 }]
+      locs: [{ a: 98, b: 107 }]
     },
     {
       name: "projectName",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 124, b: 135 }]
+      locs: [{ a: 112, b: 123 }]
     },
-    { name: "domain", required: false, transform: { type: "scalar" }, locs: [{ a: 140, b: 146 }] },
+    { name: "domain", required: false, transform: { type: "scalar" }, locs: [{ a: 128, b: 134 }] },
     {
       name: "writeKey",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 151, b: 159 }]
+      locs: [{ a: 139, b: 147 }]
     },
-    {
-      name: "industry",
-      required: false,
-      transform: { type: "scalar" },
-      locs: [{ a: 164, b: 172 }]
-    },
-    { name: "status", required: false, transform: { type: "scalar" }, locs: [{ a: 177, b: 183 }] }
+    { name: "status", required: false, transform: { type: "scalar" }, locs: [{ a: 152, b: 158 }] }
   ],
   statement:
-    'INSERT INTO projects (\n  project_id,\n  project_name,\n  domain,\n  write_key,\n  industry,\n  status\n)\nVALUES (\n  :projectId,\n  :projectName,\n  :domain,\n  :writeKey,\n  :industry,\n  :status\n)\nON CONFLICT (project_id) DO UPDATE\nSET\n  project_name = EXCLUDED.project_name,\n  domain = EXCLUDED.domain,\n  write_key = EXCLUDED.write_key,\n  industry = EXCLUDED.industry,\n  status = \'active\',\n  updated_at = now()\nRETURNING\n  project_id AS "projectId",\n  project_name AS "projectName",\n  domain,\n  write_key AS "writeKey",\n  industry,\n  status,\n  created_at AS "createdAt",\n  updated_at AS "updatedAt"'
+    'INSERT INTO projects (\n  project_id,\n  project_name,\n  domain,\n  write_key,\n  status\n)\nVALUES (\n  :projectId,\n  :projectName,\n  :domain,\n  :writeKey,\n  :status\n)\nON CONFLICT (project_id) DO UPDATE\nSET\n  project_name = EXCLUDED.project_name,\n  domain = EXCLUDED.domain,\n  write_key = EXCLUDED.write_key,\n  status = \'active\',\n  updated_at = now()\nRETURNING\n  project_id AS "projectId",\n  project_name AS "projectName",\n  domain,\n  write_key AS "writeKey",\n  status,\n  created_at AS "createdAt",\n  updated_at AS "updatedAt"                                                '
 };
 
-/** Query generated from SQL:
+/**
+ * Query generated from SQL:
  * ```
  * INSERT INTO projects (
  *   project_id,
  *   project_name,
  *   domain,
  *   write_key,
- *   industry,
  *   status
  * )
  * VALUES (
@@ -140,7 +124,6 @@ const insertDashboardProjectIR: any = {
  *   :projectName,
  *   :domain,
  *   :writeKey,
- *   :industry,
  *   :status
  * )
  * ON CONFLICT (project_id) DO UPDATE
@@ -148,7 +131,6 @@ const insertDashboardProjectIR: any = {
  *   project_name = EXCLUDED.project_name,
  *   domain = EXCLUDED.domain,
  *   write_key = EXCLUDED.write_key,
- *   industry = EXCLUDED.industry,
  *   status = 'active',
  *   updated_at = now()
  * RETURNING
@@ -156,7 +138,6 @@ const insertDashboardProjectIR: any = {
  *   project_name AS "projectName",
  *   domain,
  *   write_key AS "writeKey",
- *   industry,
  *   status,
  *   created_at AS "createdAt",
  *   updated_at AS "updatedAt"
@@ -190,10 +171,11 @@ const archiveDashboardProjectIR: any = {
     { name: "projectId", required: false, transform: { type: "scalar" }, locs: [{ a: 83, b: 92 }] }
   ],
   statement:
-    "UPDATE projects\nSET status = 'archived',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND status <> 'archived'\nRETURNING project_id AS \"projectId\", status"
+    "UPDATE projects\nSET status = 'archived',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND status <> 'archived'\nRETURNING project_id AS \"projectId\", status                                        "
 };
 
-/** Query generated from SQL:
+/**
+ * Query generated from SQL:
  * ```
  * UPDATE projects
  * SET status = 'archived',
@@ -1546,7 +1528,7 @@ const listDashboardCampaignSegmentsIR: any = {
  *   pts.priority,
  *   pts.status
  * FROM promotion_target_segments pts
- * JOIN segment_definitions sd
+ * LEFT JOIN segment_definitions sd
  *   ON sd.segment_id = pts.segment_id
  * JOIN promotions p
  *   ON p.promotion_id = pts.promotion_id
@@ -1673,7 +1655,7 @@ const listDashboardPromotionSegmentsIR: any = {
  *   pts.priority,
  *   pts.status
  * FROM promotion_target_segments pts
- * JOIN segment_definitions sd
+ * LEFT JOIN segment_definitions sd
  *   ON sd.segment_id = pts.segment_id
  * JOIN promotions p
  *   ON p.promotion_id = pts.promotion_id
@@ -1807,7 +1789,7 @@ const getDashboardPromotionSegmentIR: any = {
  *   pts.priority,
  *   pts.status
  * FROM promotion_target_segments pts
- * JOIN segment_definitions sd
+ * LEFT JOIN segment_definitions sd
  *   ON sd.segment_id = pts.segment_id
  * JOIN promotions p
  *   ON p.promotion_id = pts.promotion_id
@@ -2586,10 +2568,10 @@ export interface IListDashboardPromotionSegmentSuggestionsResult {
   campaignId: string;
   createdAt: Date;
   decidedAt: Date | null;
+  metadataJson: Json;
   profileJson: Json;
   promotionId: string;
   reasonJson: Json;
-  metadataJson: Json;
   ruleJson: Json;
   sampleRatio: number | null;
   sampleSize: number;
@@ -2636,7 +2618,7 @@ const listDashboardPromotionSegmentSuggestionsIR: any = {
     }
   ],
   statement:
-    'SELECT\n  pss.suggestion_id AS "suggestionId",\n  pss.analysis_id AS "analysisId",\n  pss.campaign_id AS "campaignId",\n  pss.promotion_id AS "promotionId",\n  pss.segment_id AS "segmentId",\n  pss.suggested_rank AS "suggestedRank",\n  pss.suggestion_source AS "suggestionSource",\n  pss.status AS "suggestionStatus",\n  pss.score_json AS "scoreJson",\n  pss.reason_json AS "reasonJson",\n  pss.metadata_json AS "metadataJson",\n  sd.segment_name AS "segmentName",\n  sd.source AS "segmentSource",\n  sd.rule_json AS "ruleJson",\n  sd.profile_json AS "profileJson",\n  sd.sample_size AS "sampleSize",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  pss.created_at AS "createdAt",\n  pss.updated_at AS "updatedAt",\n  pss.decided_at AS "decidedAt"\nFROM promotion_segment_suggestions pss\nJOIN segment_definitions sd\n  ON sd.segment_id = pss.segment_id\nWHERE pss.project_id = :projectId\n  AND pss.promotion_id = :promotionId\n  AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)\nORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC                                             '
+    'SELECT\n  pss.suggestion_id AS "suggestionId",\n  pss.analysis_id AS "analysisId",\n  pss.campaign_id AS "campaignId",\n  pss.promotion_id AS "promotionId",\n  pss.segment_id AS "segmentId",\n  pss.suggested_rank AS "suggestedRank",\n  pss.suggestion_source AS "suggestionSource",\n  pss.status AS "suggestionStatus",\n  pss.score_json AS "scoreJson",\n  pss.reason_json AS "reasonJson",\n  pss.metadata_json AS "metadataJson",\n  sd.segment_name AS "segmentName",\n  sd.source AS "segmentSource",\n  sd.rule_json AS "ruleJson",\n  sd.profile_json AS "profileJson",\n  sd.sample_size AS "sampleSize",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  pss.created_at AS "createdAt",\n  pss.updated_at AS "updatedAt",\n  pss.decided_at AS "decidedAt"\nFROM promotion_segment_suggestions pss\nJOIN segment_definitions sd\n  ON sd.segment_id = pss.segment_id\nWHERE pss.project_id = :projectId\n  AND pss.promotion_id = :promotionId\n  AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)\nORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC                                                  '
 };
 
 /**
@@ -2687,26 +2669,26 @@ export interface IDecideDashboardPromotionSegmentSuggestionParams {
 
 /** 'DecideDashboardPromotionSegmentSuggestion' return type */
 export interface IDecideDashboardPromotionSegmentSuggestionResult {
-  analysisId: string;
-  campaignId: string;
-  createdAt: Date;
+  analysisId: string | null;
+  campaignId: string | null;
+  createdAt: Date | null;
   decidedAt: Date | null;
+  metadataJson: Json | null;
   profileJson: Json;
-  promotionId: string;
-  reasonJson: Json;
-  metadataJson: Json;
+  promotionId: string | null;
+  reasonJson: Json | null;
   ruleJson: Json;
   sampleRatio: number | null;
   sampleSize: number;
-  scoreJson: Json;
-  segmentId: string;
+  scoreJson: Json | null;
+  segmentId: string | null;
   segmentName: string;
   segmentSource: string;
-  suggestedRank: number;
-  suggestionId: string;
-  suggestionSource: string;
-  suggestionStatus: string;
-  updatedAt: Date;
+  suggestedRank: number | null;
+  suggestionId: string | null;
+  suggestionSource: string | null;
+  suggestionStatus: string | null;
+  updatedAt: Date | null;
 }
 
 /** 'DecideDashboardPromotionSegmentSuggestion' query type */
@@ -2757,7 +2739,7 @@ const decideDashboardPromotionSegmentSuggestionIR: any = {
     }
   ],
   statement:
-    'WITH accepted AS (\n  UPDATE promotion_segment_suggestions\n  SET status = :status,\n      decided_at = now(),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = \'accepted\'\n    AND status IN (\'suggested\', \'accepted\', \'dismissed\')\n  RETURNING *, status AS result_status\n),\ndeleted AS (\n  DELETE FROM promotion_segment_suggestions\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = \'dismissed\'\n    AND status IN (\'suggested\', \'accepted\', \'dismissed\')\n  RETURNING *, \'dismissed\'::varchar AS result_status\n),\ndecided AS (\n  SELECT * FROM accepted\n  UNION ALL\n  SELECT * FROM deleted\n)\nSELECT\n  d.suggestion_id AS "suggestionId",\n  d.analysis_id AS "analysisId",\n  d.campaign_id AS "campaignId",\n  d.promotion_id AS "promotionId",\n  d.segment_id AS "segmentId",\n  d.suggested_rank AS "suggestedRank",\n  d.suggestion_source AS "suggestionSource",\n  d.result_status AS "suggestionStatus",\n  d.score_json AS "scoreJson",\n  d.reason_json AS "reasonJson",\n  d.metadata_json AS "metadataJson",\n  sd.segment_name AS "segmentName",\n  sd.source AS "segmentSource",\n  sd.rule_json AS "ruleJson",\n  sd.profile_json AS "profileJson",\n  sd.sample_size AS "sampleSize",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  d.created_at AS "createdAt",\n  d.updated_at AS "updatedAt",\n  d.decided_at AS "decidedAt"\nFROM decided d\nJOIN segment_definitions sd\n  ON sd.segment_id = d.segment_id                                                  '
+    'WITH accepted AS (\n  UPDATE promotion_segment_suggestions\n  SET status = :status,\n      decided_at = now(),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = \'accepted\'\n    AND status IN (\'suggested\', \'accepted\', \'dismissed\')\n  RETURNING *, status AS result_status\n),\ndeleted AS (\n  DELETE FROM promotion_segment_suggestions\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = \'dismissed\'\n    AND status IN (\'suggested\', \'accepted\', \'dismissed\')\n  RETURNING *, \'dismissed\'::varchar AS result_status\n),\ndecided AS (\n  SELECT * FROM accepted\n  UNION ALL\n  SELECT * FROM deleted\n)\nSELECT\n  d.suggestion_id AS "suggestionId",\n  d.analysis_id AS "analysisId",\n  d.campaign_id AS "campaignId",\n  d.promotion_id AS "promotionId",\n  d.segment_id AS "segmentId",\n  d.suggested_rank AS "suggestedRank",\n  d.suggestion_source AS "suggestionSource",\n  d.result_status AS "suggestionStatus",\n  d.score_json AS "scoreJson",\n  d.reason_json AS "reasonJson",\n  d.metadata_json AS "metadataJson",\n  sd.segment_name AS "segmentName",\n  sd.source AS "segmentSource",\n  sd.rule_json AS "ruleJson",\n  sd.profile_json AS "profileJson",\n  sd.sample_size AS "sampleSize",\n  CAST(sd.sample_ratio AS float8) AS "sampleRatio",\n  d.created_at AS "createdAt",\n  d.updated_at AS "updatedAt",\n  d.decided_at AS "decidedAt"\nFROM decided d\nJOIN segment_definitions sd\n  ON sd.segment_id = d.segment_id                                                        '
 };
 
 /**
@@ -3086,7 +3068,7 @@ const updateDashboardPromotionTargetSegmentIR: any = {
     }
   ],
   statement:
-    'UPDATE promotion_target_segments\nSET\n  segment_name = COALESCE(:segmentName, segment_name),\n  priority = CASE WHEN :priorityIsSet THEN :priority ELSE priority END,\n  status = COALESCE(:status, status)\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND status <> \'stopped\'\nRETURNING promotion_id AS "promotionId", segment_id AS "segmentId"                                                          '
+    'UPDATE promotion_target_segments\nSET\n  segment_name = COALESCE(:segmentName, segment_name),\n  priority = CASE WHEN :priorityIsSet THEN :priority ELSE priority END,\n  status = COALESCE(:status, status)\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND status <> \'stopped\'\nRETURNING promotion_id AS "promotionId", segment_id AS "segmentId"                                           '
 };
 
 /**
@@ -3120,7 +3102,7 @@ export interface IStopDashboardPromotionTargetSegmentParams {
 export interface IStopDashboardPromotionTargetSegmentResult {
   promotionId: string;
   segmentId: string;
-  status: string;
+  status: string | null;
 }
 
 /** 'StopDashboardPromotionTargetSegment' query type */
@@ -3913,7 +3895,7 @@ const listDashboardPromotionSegmentDeliverySummariesIR: any = {
     }
   ],
   statement:
-    'SELECT\n  ae.segment_id AS "segmentId",\n  COALESCE(SUM(adj.target_count), 0)::int AS "scheduledCount",\n  COALESCE(SUM(adj.sent_count), 0)::int AS "sentCount",\n  COALESCE(SUM(adj.sent_count), 0)::int AS "deliveredCount",\n  COALESCE(SUM(adj.failed_count), 0)::int AS "failedCount"\nFROM ad_dispatch_jobs adj\nJOIN ad_experiments ae\n  ON ae.ad_experiment_id = adj.ad_experiment_id\nWHERE adj.project_id = :projectId\n  AND adj.promotion_id = :promotionId\n  AND adj.channel IN (\'email\', \'sms\')\nGROUP BY ae.segment_id\nORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC                                    '
+    'SELECT\n  ae.segment_id AS "segmentId",\n  COALESCE(SUM(adj.target_count), 0)::int AS "scheduledCount",\n  COALESCE(SUM(adj.sent_count), 0)::int AS "sentCount",\n  COALESCE(SUM(adj.sent_count), 0)::int AS "deliveredCount",\n  COALESCE(SUM(adj.failed_count), 0)::int AS "failedCount"\nFROM ad_dispatch_jobs adj\nJOIN ad_experiments ae\n  ON ae.ad_experiment_id = adj.ad_experiment_id\nWHERE adj.project_id = :projectId\n  AND adj.promotion_id = :promotionId\n  AND adj.channel IN (\'email\', \'sms\')\nGROUP BY ae.segment_id\nORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC                                 '
 };
 
 /**
@@ -3996,7 +3978,7 @@ const listDashboardCampaignContentCandidatesIR: any = {
     }
   ],
   statement:
-    'SELECT\n  content_id AS "contentId",\n  content_option_id AS "contentOptionId",\n  generation_id AS "generationId",\n  analysis_id AS "analysisId",\n  promotion_id AS "promotionId",\n  segment_id AS "segmentId",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS "imagePrompt",\n  image_url AS "imageUrl",\n  landing_url AS "landingUrl",\n  generation_prompt AS "generationPrompt",\n  reason_summary AS "reasonSummary",\n  data_evidence_json AS "dataEvidenceJson",\n  message_strategy AS "messageStrategy",\n  metadata_json AS "metadataJson",\n  status,\n  updated_at AS "updatedAt"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\n\nORDER BY updated_at DESC, created_at DESC'
+    'SELECT\n  content_id AS "contentId",\n  content_option_id AS "contentOptionId",\n  generation_id AS "generationId",\n  analysis_id AS "analysisId",\n  promotion_id AS "promotionId",\n  segment_id AS "segmentId",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS "imagePrompt",\n  image_url AS "imageUrl",\n  landing_url AS "landingUrl",\n  generation_prompt AS "generationPrompt",\n  reason_summary AS "reasonSummary",\n  data_evidence_json AS "dataEvidenceJson",\n  message_strategy AS "messageStrategy",\n  metadata_json AS "metadataJson",\n  status,\n  updated_at AS "updatedAt"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\n\nORDER BY updated_at DESC, created_at DESC                                    '
 };
 
 /**
@@ -4037,79 +4019,6 @@ export const listDashboardCampaignContentCandidates = new PreparedQuery<
   IListDashboardCampaignContentCandidatesParams,
   IListDashboardCampaignContentCandidatesResult
 >(listDashboardCampaignContentCandidatesIR);
-
-/** 'GetDashboardPromotionGenerationResult' parameters type */
-export interface IGetDashboardPromotionGenerationResultParams {
-  analysisId?: string | null | void;
-  projectId?: string | null | void;
-  promotionId?: string | null | void;
-}
-
-/** 'GetDashboardPromotionGenerationResult' return type */
-export interface IGetDashboardPromotionGenerationResultResult {
-  contentCandidateCount: number;
-  generationId: string;
-  promotionId: string;
-  status: string;
-}
-
-/** 'GetDashboardPromotionGenerationResult' query type */
-export interface IGetDashboardPromotionGenerationResultQuery {
-  params: IGetDashboardPromotionGenerationResultParams;
-  result: IGetDashboardPromotionGenerationResultResult;
-}
-
-const getDashboardPromotionGenerationResultIR: any = {
-  usedParamSet: { projectId: true, promotionId: true, analysisId: true },
-  params: [
-    {
-      name: "projectId",
-      required: false,
-      transform: { type: "scalar" },
-      locs: [{ a: 303, b: 312 }]
-    },
-    {
-      name: "promotionId",
-      required: false,
-      transform: { type: "scalar" },
-      locs: [{ a: 338, b: 349 }]
-    },
-    {
-      name: "analysisId",
-      required: false,
-      transform: { type: "scalar" },
-      locs: [{ a: 374, b: 384 }]
-    }
-  ],
-  statement:
-    'SELECT\n  gr.generation_id AS "generationId",\n  gr.promotion_id AS "promotionId",\n  gr.status,\n  COUNT(cc.content_id)::int AS "contentCandidateCount"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\n\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1                                                        '
-};
-
-/**
- * Query generated from SQL:
- * ```
- * SELECT
- *   gr.generation_id AS "generationId",
- *   gr.promotion_id AS "promotionId",
- *   gr.status,
- *   COUNT(cc.content_id)::int AS "contentCandidateCount"
- * FROM generation_runs gr
- * LEFT JOIN content_candidates cc
- *   ON cc.project_id = gr.project_id
- *  AND cc.generation_id = gr.generation_id
- * WHERE gr.project_id = :projectId
- *   AND gr.promotion_id = :promotionId
- *   AND gr.analysis_id = :analysisId
- *
- * GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
- * ORDER BY gr.updated_at DESC, gr.created_at DESC
- * LIMIT 1
- * ```
- */
-export const getDashboardPromotionGenerationResult = new PreparedQuery<
-  IGetDashboardPromotionGenerationResultParams,
-  IGetDashboardPromotionGenerationResultResult
->(getDashboardPromotionGenerationResultIR);
 
 /** 'ListDashboardSegmentContentCandidates' parameters type */
 export interface IListDashboardSegmentContentCandidatesParams {
@@ -4174,7 +4083,7 @@ const listDashboardSegmentContentCandidatesIR: any = {
     }
   ],
   statement:
-    'SELECT\n  content_id AS "contentId",\n  content_option_id AS "contentOptionId",\n  generation_id AS "generationId",\n  analysis_id AS "analysisId",\n  promotion_id AS "promotionId",\n  segment_id AS "segmentId",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS "imagePrompt",\n  image_url AS "imageUrl",\n  landing_url AS "landingUrl",\n  generation_prompt AS "generationPrompt",\n  reason_summary AS "reasonSummary",\n  data_evidence_json AS "dataEvidenceJson",\n  message_strategy AS "messageStrategy",\n  metadata_json AS "metadataJson",\n  status,\n  updated_at AS "updatedAt"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n\nORDER BY updated_at DESC, created_at DESC                                        '
+    'SELECT\n  content_id AS "contentId",\n  content_option_id AS "contentOptionId",\n  generation_id AS "generationId",\n  analysis_id AS "analysisId",\n  promotion_id AS "promotionId",\n  segment_id AS "segmentId",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS "imagePrompt",\n  image_url AS "imageUrl",\n  landing_url AS "landingUrl",\n  generation_prompt AS "generationPrompt",\n  reason_summary AS "reasonSummary",\n  data_evidence_json AS "dataEvidenceJson",\n  message_strategy AS "messageStrategy",\n  metadata_json AS "metadataJson",\n  status,\n  updated_at AS "updatedAt"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n\nORDER BY updated_at DESC, created_at DESC                                                      '
 };
 
 /**
@@ -4217,6 +4126,79 @@ export const listDashboardSegmentContentCandidates = new PreparedQuery<
   IListDashboardSegmentContentCandidatesResult
 >(listDashboardSegmentContentCandidatesIR);
 
+/** 'GetDashboardPromotionGenerationResult' parameters type */
+export interface IGetDashboardPromotionGenerationResultParams {
+  analysisId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+}
+
+/** 'GetDashboardPromotionGenerationResult' return type */
+export interface IGetDashboardPromotionGenerationResultResult {
+  contentCandidateCount: number | null;
+  generationId: string;
+  promotionId: string;
+  status: string;
+}
+
+/** 'GetDashboardPromotionGenerationResult' query type */
+export interface IGetDashboardPromotionGenerationResultQuery {
+  params: IGetDashboardPromotionGenerationResultParams;
+  result: IGetDashboardPromotionGenerationResultResult;
+}
+
+const getDashboardPromotionGenerationResultIR: any = {
+  usedParamSet: { projectId: true, promotionId: true, analysisId: true },
+  params: [
+    {
+      name: "projectId",
+      required: false,
+      transform: { type: "scalar" },
+      locs: [{ a: 303, b: 312 }]
+    },
+    {
+      name: "promotionId",
+      required: false,
+      transform: { type: "scalar" },
+      locs: [{ a: 338, b: 349 }]
+    },
+    {
+      name: "analysisId",
+      required: false,
+      transform: { type: "scalar" },
+      locs: [{ a: 374, b: 384 }]
+    }
+  ],
+  statement:
+    'SELECT\n  gr.generation_id AS "generationId",\n  gr.promotion_id AS "promotionId",\n  gr.status,\n  COUNT(cc.content_id)::int AS "contentCandidateCount"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\n\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1                                    '
+};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   gr.generation_id AS "generationId",
+ *   gr.promotion_id AS "promotionId",
+ *   gr.status,
+ *   COUNT(cc.content_id)::int AS "contentCandidateCount"
+ * FROM generation_runs gr
+ * LEFT JOIN content_candidates cc
+ *   ON cc.project_id = gr.project_id
+ *  AND cc.generation_id = gr.generation_id
+ * WHERE gr.project_id = :projectId
+ *   AND gr.promotion_id = :promotionId
+ *   AND gr.analysis_id = :analysisId
+ *
+ * GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
+ * ORDER BY gr.updated_at DESC, gr.created_at DESC
+ * LIMIT 1
+ * ```
+ */
+export const getDashboardPromotionGenerationResult = new PreparedQuery<
+  IGetDashboardPromotionGenerationResultParams,
+  IGetDashboardPromotionGenerationResultResult
+>(getDashboardPromotionGenerationResultIR);
+
 /** 'ListDashboardCampaignAdExperiments' parameters type */
 export interface IListDashboardCampaignAdExperimentsParams {
   campaignId?: string | null | void;
@@ -4226,7 +4208,7 @@ export interface IListDashboardCampaignAdExperimentsParams {
 /** 'ListDashboardCampaignAdExperiments' return type */
 export interface IListDashboardCampaignAdExperimentsResult {
   adExperimentId: string;
-  assignmentCount: number;
+  assignmentCount: number | null;
   channel: string;
   contentId: string;
   contentOptionId: string;
@@ -4263,7 +4245,7 @@ const listDashboardCampaignAdExperimentsIR: any = {
     }
   ],
   statement:
-    'SELECT\n  ae.ad_experiment_id AS "adExperimentId",\n  ae.promotion_run_id AS "promotionRunId",\n  ae.promotion_id AS "promotionId",\n  ae.segment_id AS "segmentId",\n  ae.content_id AS "contentId",\n  ae.content_option_id AS "contentOptionId",\n  ae.channel,\n  ae.loop_count AS "loopCount",\n  ae.goal_metric AS "goalMetric",\n  CAST(ae.goal_target_value AS float8) AS "goalTargetValue",\n  ae.goal_basis AS "goalBasis",\n  ae.status,\n  COUNT(usa.user_id)::int AS "assignmentCount"\nFROM ad_experiments ae\nLEFT JOIN user_segment_assignments usa\n  ON usa.project_id = ae.project_id\n AND usa.promotion_run_id = ae.promotion_run_id\n AND usa.ad_experiment_id = ae.ad_experiment_id\nWHERE ae.project_id = :projectId\n  AND ae.campaign_id = :campaignId\nGROUP BY\n  ae.ad_experiment_id,\n  ae.promotion_run_id,\n  ae.promotion_id,\n  ae.segment_id,\n  ae.content_id,\n  ae.content_option_id,\n  ae.channel,\n  ae.loop_count,\n  ae.goal_metric,\n  ae.goal_target_value,\n  ae.goal_basis,\n  ae.status,\n  ae.updated_at,\n  ae.created_at\nORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC'
+    'SELECT\n  ae.ad_experiment_id AS "adExperimentId",\n  ae.promotion_run_id AS "promotionRunId",\n  ae.promotion_id AS "promotionId",\n  ae.segment_id AS "segmentId",\n  ae.content_id AS "contentId",\n  ae.content_option_id AS "contentOptionId",\n  ae.channel,\n  ae.loop_count AS "loopCount",\n  ae.goal_metric AS "goalMetric",\n  CAST(ae.goal_target_value AS float8) AS "goalTargetValue",\n  ae.goal_basis AS "goalBasis",\n  ae.status,\n  COUNT(usa.user_id)::int AS "assignmentCount"\nFROM ad_experiments ae\nLEFT JOIN user_segment_assignments usa\n  ON usa.project_id = ae.project_id\n AND usa.promotion_run_id = ae.promotion_run_id\n AND usa.ad_experiment_id = ae.ad_experiment_id\nWHERE ae.project_id = :projectId\n  AND ae.campaign_id = :campaignId\nGROUP BY\n  ae.ad_experiment_id,\n  ae.promotion_run_id,\n  ae.promotion_id,\n  ae.segment_id,\n  ae.content_id,\n  ae.content_option_id,\n  ae.channel,\n  ae.loop_count,\n  ae.goal_metric,\n  ae.goal_target_value,\n  ae.goal_basis,\n  ae.status,\n  ae.updated_at,\n  ae.created_at\nORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC                                        '
 };
 
 /**
@@ -4323,7 +4305,7 @@ export interface IListDashboardSegmentAdExperimentsParams {
 /** 'ListDashboardSegmentAdExperiments' return type */
 export interface IListDashboardSegmentAdExperimentsResult {
   adExperimentId: string;
-  assignmentCount: number;
+  assignmentCount: number | null;
   channel: string;
   contentId: string;
   contentOptionId: string;
@@ -4366,31 +4348,51 @@ const listDashboardSegmentAdExperimentsIR: any = {
     }
   ],
   statement:
-    'SELECT\n  ae.ad_experiment_id AS "adExperimentId",\n  ae.promotion_run_id AS "promotionRunId",\n  ae.promotion_id AS "promotionId",\n  ae.segment_id AS "segmentId",\n  ae.content_id AS "contentId",\n  ae.content_option_id AS "contentOptionId",\n  ae.channel,\n  ae.loop_count AS "loopCount",\n  ae.goal_metric AS "goalMetric",\n  CAST(ae.goal_target_value AS float8) AS "goalTargetValue",\n  ae.goal_basis AS "goalBasis",\n  ae.status,\n  COUNT(usa.user_id)::int AS "assignmentCount"\nFROM ad_experiments ae\nLEFT JOIN user_segment_assignments usa\n  ON usa.project_id = ae.project_id\n AND usa.promotion_run_id = ae.promotion_run_id\n AND usa.ad_experiment_id = ae.ad_experiment_id\nWHERE ae.project_id = :projectId\n  AND ae.promotion_id = :promotionId\n  AND ae.segment_id = :segmentId\nGROUP BY\n  ae.ad_experiment_id,\n  ae.promotion_run_id,\n  ae.promotion_id,\n  ae.segment_id,\n  ae.content_id,\n  ae.content_option_id,\n  ae.channel,\n  ae.loop_count,\n  ae.goal_metric,\n  ae.goal_target_value,\n  ae.goal_basis,\n  ae.status,\n  ae.updated_at,\n  ae.created_at\nORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC'
+    'SELECT\n  ae.ad_experiment_id AS "adExperimentId",\n  ae.promotion_run_id AS "promotionRunId",\n  ae.promotion_id AS "promotionId",\n  ae.segment_id AS "segmentId",\n  ae.content_id AS "contentId",\n  ae.content_option_id AS "contentOptionId",\n  ae.channel,\n  ae.loop_count AS "loopCount",\n  ae.goal_metric AS "goalMetric",\n  CAST(ae.goal_target_value AS float8) AS "goalTargetValue",\n  ae.goal_basis AS "goalBasis",\n  ae.status,\n  COUNT(usa.user_id)::int AS "assignmentCount"\nFROM ad_experiments ae\nLEFT JOIN user_segment_assignments usa\n  ON usa.project_id = ae.project_id\n AND usa.promotion_run_id = ae.promotion_run_id\n AND usa.ad_experiment_id = ae.ad_experiment_id\nWHERE ae.project_id = :projectId\n  AND ae.promotion_id = :promotionId\n  AND ae.segment_id = :segmentId\nGROUP BY\n  ae.ad_experiment_id,\n  ae.promotion_run_id,\n  ae.promotion_id,\n  ae.segment_id,\n  ae.content_id,\n  ae.content_option_id,\n  ae.channel,\n  ae.loop_count,\n  ae.goal_metric,\n  ae.goal_target_value,\n  ae.goal_basis,\n  ae.status,\n  ae.updated_at,\n  ae.created_at\n\nORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC                                                     '
 };
 
 /**
  * Query generated from SQL:
  * ```
  * SELECT
- *   ad_experiment_id AS "adExperimentId",
- *   promotion_run_id AS "promotionRunId",
- *   promotion_id AS "promotionId",
- *   segment_id AS "segmentId",
- *   content_id AS "contentId",
- *   content_option_id AS "contentOptionId",
- *   channel,
- *   loop_count AS "loopCount",
- *   goal_metric AS "goalMetric",
- *   CAST(goal_target_value AS float8) AS "goalTargetValue",
- *   goal_basis AS "goalBasis",
- *   status
- * FROM ad_experiments
- * WHERE project_id = :projectId
- *   AND promotion_id = :promotionId
- *   AND segment_id = :segmentId
+ *   ae.ad_experiment_id AS "adExperimentId",
+ *   ae.promotion_run_id AS "promotionRunId",
+ *   ae.promotion_id AS "promotionId",
+ *   ae.segment_id AS "segmentId",
+ *   ae.content_id AS "contentId",
+ *   ae.content_option_id AS "contentOptionId",
+ *   ae.channel,
+ *   ae.loop_count AS "loopCount",
+ *   ae.goal_metric AS "goalMetric",
+ *   CAST(ae.goal_target_value AS float8) AS "goalTargetValue",
+ *   ae.goal_basis AS "goalBasis",
+ *   ae.status,
+ *   COUNT(usa.user_id)::int AS "assignmentCount"
+ * FROM ad_experiments ae
+ * LEFT JOIN user_segment_assignments usa
+ *   ON usa.project_id = ae.project_id
+ *  AND usa.promotion_run_id = ae.promotion_run_id
+ *  AND usa.ad_experiment_id = ae.ad_experiment_id
+ * WHERE ae.project_id = :projectId
+ *   AND ae.promotion_id = :promotionId
+ *   AND ae.segment_id = :segmentId
+ * GROUP BY
+ *   ae.ad_experiment_id,
+ *   ae.promotion_run_id,
+ *   ae.promotion_id,
+ *   ae.segment_id,
+ *   ae.content_id,
+ *   ae.content_option_id,
+ *   ae.channel,
+ *   ae.loop_count,
+ *   ae.goal_metric,
+ *   ae.goal_target_value,
+ *   ae.goal_basis,
+ *   ae.status,
+ *   ae.updated_at,
+ *   ae.created_at
  *
- * ORDER BY loop_count DESC, updated_at DESC, created_at DESC
+ * ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC
  * ```
  */
 export const listDashboardSegmentAdExperiments = new PreparedQuery<
@@ -4434,23 +4436,23 @@ const startDashboardAdExperimentIR: any = {
       name: "projectId",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 134, b: 144 }]
+      locs: [{ a: 134, b: 143 }]
     },
     {
       name: "promotionId",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 166, b: 178 }]
+      locs: [{ a: 166, b: 177 }]
     },
     {
       name: "adExperimentId",
       required: false,
       transform: { type: "scalar" },
-      locs: [{ a: 204, b: 219 }]
+      locs: [{ a: 204, b: 218 }]
     }
   ],
   statement:
-    'UPDATE ad_experiments\nSET status = \'running\',\n    started_at = COALESCE(started_at, now()),\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND ad_experiment_id = :adExperimentId\n  AND status IN (\'planned\', \'approved\', \'running\')\nRETURNING\n  ad_experiment_id AS "adExperimentId",\n  promotion_run_id AS "promotionRunId",\n  promotion_id AS "promotionId",\n  segment_id AS "segmentId",\n  content_id AS "contentId",\n  content_option_id AS "contentOptionId",\n  channel,\n  loop_count AS "loopCount",\n  goal_metric AS "goalMetric",\n  CAST(goal_target_value AS float8) AS "goalTargetValue",\n  goal_basis AS "goalBasis",\n  status'
+    'UPDATE ad_experiments\nSET status = \'running\',\n    started_at = COALESCE(started_at, now()),\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND ad_experiment_id = :adExperimentId\n  AND status IN (\'planned\', \'approved\', \'running\')\nRETURNING\n  ad_experiment_id AS "adExperimentId",\n  promotion_run_id AS "promotionRunId",\n  promotion_id AS "promotionId",\n  segment_id AS "segmentId",\n  content_id AS "contentId",\n  content_option_id AS "contentOptionId",\n  channel,\n  loop_count AS "loopCount",\n  goal_metric AS "goalMetric",\n  CAST(goal_target_value AS float8) AS "goalTargetValue",\n  goal_basis AS "goalBasis",\n  status                                                        '
 };
 
 /**
@@ -4568,12 +4570,18 @@ const getDashboardContentCandidateForApprovalIR: any = {
  *   cc.status AS "contentStatus"
  * FROM content_candidates cc
  * JOIN promotions p
- *   ON p.promotion_id = cc.promotion_id
- * JOIN segment_definitions sd
- *   ON sd.segment_id = cc.segment_id
+ *   ON p.project_id = cc.project_id
+ *  AND p.campaign_id = cc.campaign_id
+ *  AND p.promotion_id = cc.promotion_id
+ * LEFT JOIN segment_definitions sd
+ *   ON sd.project_id = cc.project_id
+ *  AND sd.segment_id = cc.segment_id
  * JOIN promotion_target_segments pts
- *   ON pts.promotion_id = cc.promotion_id
+ *   ON pts.project_id = cc.project_id
+ *  AND pts.campaign_id = cc.campaign_id
+ *  AND pts.promotion_id = cc.promotion_id
  *  AND pts.segment_id = cc.segment_id
+ *  AND pts.analysis_id = cc.analysis_id
  * WHERE cc.project_id = :projectId
  *   AND cc.promotion_id = :promotionId
  *   AND cc.segment_id = :segmentId
@@ -4785,7 +4793,7 @@ const rejectDashboardContentCandidateIR: any = {
     }
   ],
   statement:
-    "UPDATE content_candidates cc\nSET status = 'rejected',\n    updated_at = now()\nFROM promotions p\nJOIN promotion_target_segments pts\n  ON pts.project_id = p.project_id\n AND pts.campaign_id = p.campaign_id\n AND pts.promotion_id = p.promotion_id\nWHERE cc.project_id = :projectId\n  AND cc.promotion_id = :promotionId\n  AND cc.segment_id = :segmentId\n  AND cc.content_id = :contentId\n  AND p.project_id = cc.project_id\n  AND p.campaign_id = cc.campaign_id\n  AND p.promotion_id = cc.promotion_id\n  AND pts.analysis_id = cc.analysis_id\n  AND pts.segment_id = cc.segment_id\n  AND p.status <> 'stopped'\n  AND pts.status <> 'stopped'\n  AND cc.status IN ('draft', 'approved', 'active')\nRETURNING\n  cc.content_id AS \"contentId\",\n  cc.promotion_id AS \"promotionId\",\n  cc.segment_id AS \"segmentId\",\n  cc.status,\n  cc.updated_at AS \"rejectedAt\"                                           "
+    "UPDATE content_candidates cc\nSET status = 'rejected',\n    updated_at = now()\nFROM promotions p\nJOIN promotion_target_segments pts\n  ON pts.project_id = p.project_id\n AND pts.campaign_id = p.campaign_id\n AND pts.promotion_id = p.promotion_id\nWHERE cc.project_id = :projectId\n  AND cc.promotion_id = :promotionId\n  AND cc.segment_id = :segmentId\n  AND cc.content_id = :contentId\n  AND p.project_id = cc.project_id\n  AND p.campaign_id = cc.campaign_id\n  AND p.promotion_id = cc.promotion_id\n  AND pts.analysis_id = cc.analysis_id\n  AND pts.segment_id = cc.segment_id\n  AND p.status <> 'stopped'\n  AND pts.status <> 'stopped'\n  AND cc.status IN ('draft', 'approved', 'active')\nRETURNING\n  cc.content_id AS \"contentId\",\n  cc.promotion_id AS \"promotionId\",\n  cc.segment_id AS \"segmentId\",\n  cc.status,\n  cc.updated_at AS \"rejectedAt\"                                        "
 };
 
 /**
@@ -4796,12 +4804,17 @@ const rejectDashboardContentCandidateIR: any = {
  *     updated_at = now()
  * FROM promotions p
  * JOIN promotion_target_segments pts
- *   ON pts.promotion_id = p.promotion_id
+ *   ON pts.project_id = p.project_id
+ *  AND pts.campaign_id = p.campaign_id
+ *  AND pts.promotion_id = p.promotion_id
  * WHERE cc.project_id = :projectId
  *   AND cc.promotion_id = :promotionId
  *   AND cc.segment_id = :segmentId
  *   AND cc.content_id = :contentId
+ *   AND p.project_id = cc.project_id
+ *   AND p.campaign_id = cc.campaign_id
  *   AND p.promotion_id = cc.promotion_id
+ *   AND pts.analysis_id = cc.analysis_id
  *   AND pts.segment_id = cc.segment_id
  *   AND p.status <> 'stopped'
  *   AND pts.status <> 'stopped'

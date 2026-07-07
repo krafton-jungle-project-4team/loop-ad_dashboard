@@ -5,7 +5,6 @@ SELECT
   project_name AS "projectName",
   domain,
   write_key AS "writeKey",
-  industry,
   status,
   created_at AS "createdAt",
   updated_at AS "updatedAt"
@@ -20,7 +19,6 @@ INSERT INTO projects (
   project_name,
   domain,
   write_key,
-  industry,
   status
 )
 VALUES (
@@ -28,7 +26,6 @@ VALUES (
   :projectName,
   :domain,
   :writeKey,
-  :industry,
   :status
 )
 ON CONFLICT (project_id) DO UPDATE
@@ -36,7 +33,6 @@ SET
   project_name = EXCLUDED.project_name,
   domain = EXCLUDED.domain,
   write_key = EXCLUDED.write_key,
-  industry = EXCLUDED.industry,
   status = 'active',
   updated_at = now()
 RETURNING
@@ -44,7 +40,6 @@ RETURNING
   project_name AS "projectName",
   domain,
   write_key AS "writeKey",
-  industry,
   status,
   created_at AS "createdAt",
   updated_at AS "updatedAt";
