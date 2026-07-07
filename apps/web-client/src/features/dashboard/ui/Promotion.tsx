@@ -1789,13 +1789,13 @@ function PromotionSegmentDetailTab({
         </Card>
       </div>
 
-      <Card className="shadow-none">
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <section className="grid gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="grid gap-1">
-            <CardTitle className="text-base">세그먼트별 생성 광고</CardTitle>
-            <CardDescription>
+            <h3 className="text-base font-semibold">세그먼트별 생성 광고</h3>
+            <p className="text-sm text-muted-foreground">
               Decision 생성 결과로 저장된 콘텐츠 후보를 세그먼트 기준으로 조회합니다.
-            </CardDescription>
+            </p>
           </div>
           <Button
             disabled={
@@ -1812,8 +1812,8 @@ function PromotionSegmentDetailTab({
                 ? "생성 완료"
                 : "광고 생성 요청"}
           </Button>
-        </CardHeader>
-        <CardContent className="grid gap-3">
+        </div>
+        <div className="grid gap-3">
           {generationIsError ? (
             <Alert variant="destructive">
               <AlertTitle>광고 생성 요청에 실패했습니다</AlertTitle>
@@ -1850,178 +1850,145 @@ function PromotionSegmentDetailTab({
             </Alert>
           ) : null}
           {detail.content_candidates.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table className="min-w-[1180px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[132px]">액션</TableHead>
-                    <TableHead>광고 후보</TableHead>
-                    <TableHead>채널</TableHead>
-                    <TableHead>메시지</TableHead>
-                    <TableHead>CTA / 랜딩</TableHead>
-                    <TableHead>상태</TableHead>
-                    <TableHead className="w-[320px]">근거</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {detail.content_candidates.map((candidate) => {
-                    const hasDifferentApprovedCandidate = Boolean(
-                      approvedContentCandidate &&
-                        approvedContentCandidate.content_id !== candidate.content_id
-                    );
-                    const selectionLabel =
-                      candidate.status === "approved"
-                        ? "선택됨"
-                        : hasDifferentApprovedCandidate
-                          ? "선택 불가"
-                          : "선택";
+            <div className="grid gap-3 lg:grid-cols-2">
+              {detail.content_candidates.map((candidate) => {
+                const hasDifferentApprovedCandidate = Boolean(
+                  approvedContentCandidate &&
+                    approvedContentCandidate.content_id !== candidate.content_id
+                );
+                const selectionLabel =
+                  candidate.status === "approved"
+                    ? "선택됨"
+                    : hasDifferentApprovedCandidate
+                      ? "선택 불가"
+                      : "선택";
 
-                    return (
-                      <TableRow key={candidate.content_id}>
-                        <TableCell className="w-[132px] align-top">
-                          <div className="flex flex-col items-stretch gap-2">
-                            <Button
-                              className="justify-start"
-                              disabled={
-                                approveContentCandidateIsPending ||
-                                hasDifferentApprovedCandidate ||
-                                candidate.status === "approved" ||
-                                candidate.status === "rejected"
-                              }
-                              onClick={() =>
-                                onApproveContentCandidate(
-                                  detail.segment.promotion_id,
-                                  detail.segment.segment_id,
-                                  candidate.content_id
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant={candidate.status === "approved" ? "secondary" : "default"}
+                return (
+                  <Card className="shadow-none" key={candidate.content_id}>
+                    <CardHeader className="grid gap-3">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="grid min-w-0 gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">{formatChannelLabel(candidate.channel)}</Badge>
+                            <Badge variant={statusBadgeVariant(candidate.status)}>
+                              {formatStatusLabel(candidate.status)}
+                            </Badge>
+                          </div>
+                          <CardTitle className="break-words text-base">
+                            {contentCandidateTitle(candidate)}
+                          </CardTitle>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <Button
+                            disabled={
+                              approveContentCandidateIsPending ||
+                              hasDifferentApprovedCandidate ||
+                              candidate.status === "approved" ||
+                              candidate.status === "rejected"
+                            }
+                            onClick={() =>
+                              onApproveContentCandidate(
+                                detail.segment.promotion_id,
+                                detail.segment.segment_id,
+                                candidate.content_id
+                              )
+                            }
+                            size="sm"
+                            type="button"
+                            variant={candidate.status === "approved" ? "secondary" : "default"}
+                          >
+                            <CheckCircle2 className="mr-2 size-4" />
+                            {selectionLabel}
+                          </Button>
+                          <Button
+                            disabled={
+                              rejectContentCandidateIsPending ||
+                              Boolean(approvedContentCandidate) ||
+                              candidate.status === "approved" ||
+                              candidate.status === "rejected"
+                            }
+                            onClick={() =>
+                              onRejectContentCandidate(
+                                detail.segment.promotion_id,
+                                detail.segment.segment_id,
+                                candidate.content_id
+                              )
+                            }
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <X className="mr-2 size-4" />
+                            {candidate.status === "rejected" ? "거절됨" : "거절"}
+                          </Button>
+                        </div>
+                      </div>
+                      <CardDescription className="break-all">
+                        {candidate.content_option_id}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                      {candidate.image_url ? (
+                        <img
+                          alt={`${contentCandidateTitle(candidate)} 이미지`}
+                          className="aspect-video w-full rounded-md border object-cover"
+                          src={candidate.image_url}
+                        />
+                      ) : null}
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <InsightBlock
+                          label="메시지"
+                          value={[
+                            candidate.subject,
+                            candidate.preheader,
+                            contentCandidateMessage(candidate)
+                          ]
+                            .filter(Boolean)
+                            .join("\n")}
+                        />
+                        <InsightBlock
+                          label="CTA / 랜딩"
+                          value={[
+                            candidate.cta ?? "-",
+                            candidate.landing_url ?? "랜딩 URL 없음"
+                          ].join("\n")}
+                        />
+                      </div>
+                      <div className="rounded-md border bg-muted/20 p-3">
+                        <div className="mb-2 text-xs font-medium text-muted-foreground">근거</div>
+                        <div className="grid gap-2 text-sm leading-6 text-muted-foreground">
+                          <p className="break-words">{candidate.reason_summary ?? "-"}</p>
+                          {candidate.message_strategy ? (
+                            <p className="break-words">전략: {candidate.message_strategy}</p>
+                          ) : null}
+                          {candidate.image_prompt ? (
+                            <p className="break-words">이미지: {candidate.image_prompt}</p>
+                          ) : null}
+                          {candidate.image_url ? (
+                            <a
+                              className="break-all underline underline-offset-4"
+                              href={candidate.image_url}
+                              rel="noreferrer"
+                              target="_blank"
                             >
-                              <CheckCircle2 className="mr-2 size-4" />
-                              {selectionLabel}
-                            </Button>
-                            <Button
-                              className="justify-start"
-                              disabled={
-                                rejectContentCandidateIsPending ||
-                                Boolean(approvedContentCandidate) ||
-                                candidate.status === "approved" ||
-                                candidate.status === "rejected"
-                              }
-                              onClick={() =>
-                                onRejectContentCandidate(
-                                  detail.segment.promotion_id,
-                                  detail.segment.segment_id,
-                                  candidate.content_id
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <X className="mr-2 size-4" />
-                              {candidate.status === "rejected" ? "거절됨" : "거절"}
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className="min-w-[220px] align-top">
-                          <div className="flex flex-col gap-2">
-                            {candidate.image_url ? (
-                              <img
-                                alt={`${contentCandidateTitle(candidate)} 이미지`}
-                                className="aspect-video w-full rounded-md border object-cover"
-                                src={candidate.image_url}
-                              />
-                            ) : null}
-                            <span className="font-medium">{contentCandidateTitle(candidate)}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {candidate.content_option_id}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Badge variant="outline">{formatChannelLabel(candidate.channel)}</Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[420px] break-words align-top">
-                          <div className="flex flex-col gap-2">
-                            {candidate.subject ? (
-                              <span className="break-words text-sm font-medium">
-                                {candidate.subject}
-                              </span>
-                            ) : null}
-                            {candidate.preheader ? (
-                              <span className="break-words text-xs text-muted-foreground">
-                                {candidate.preheader}
-                              </span>
-                            ) : null}
-                            <span className="break-words text-sm text-muted-foreground">
-                              {contentCandidateMessage(candidate)}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[260px] align-top">
-                          <div className="flex flex-col gap-1">
-                            <span>{candidate.cta ?? "-"}</span>
-                            {candidate.landing_url ? (
-                              <a
-                                className="break-all text-xs text-muted-foreground underline underline-offset-4"
-                                href={candidate.landing_url}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                {candidate.landing_url}
-                              </a>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">랜딩 URL 없음</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Badge variant={statusBadgeVariant(candidate.status)}>
-                            {formatStatusLabel(candidate.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="w-[320px] max-w-[320px] align-top">
-                          <div className="flex min-w-0 max-w-[320px] flex-col gap-2 whitespace-normal text-sm leading-6 text-muted-foreground">
-                            <span className="break-words">{candidate.reason_summary ?? "-"}</span>
-                            {candidate.message_strategy ? (
-                              <span className="break-words">
-                                전략: {candidate.message_strategy}
-                              </span>
-                            ) : null}
-                            {candidate.image_prompt ? (
-                              <span className="break-words">
-                                이미지: {candidate.image_prompt}
-                              </span>
-                            ) : null}
-                            {candidate.image_url ? (
-                              <a
-                                className="break-all underline underline-offset-4"
-                                href={candidate.image_url}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                이미지 URL
-                              </a>
-                            ) : null}
-                            <span className="break-all">
-                              {formatJsonObject(candidate.data_evidence_json)}
-                            </span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                              이미지 URL
+                            </a>
+                          ) : null}
+                          <p className="break-all">
+                            {formatJsonObject(candidate.data_evidence_json)}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <EmptyState message="아직 생성된 광고 후보가 없습니다." />
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       <Card className="shadow-none">
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
