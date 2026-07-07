@@ -91,6 +91,78 @@ test("dashboard event catalog returns collected funnel event options", async () 
   ]);
 });
 
+test("dashboard funnels returns funnel summaries without loading steps", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const reads: string[] = [];
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    {
+      ...emptyFunnelReader(),
+      listFunnels: async (projectId: string) => {
+        reads.push(projectId);
+        return [
+          {
+            funnel_id: "funnel_hotel_booking",
+            funnel_name: "숙소 예약 퍼널",
+            domain_type: "hotel",
+            status: "active",
+            step_count: 3,
+            created_at: "2026-07-03T00:00:00.000Z",
+            updated_at: "2026-07-03T00:00:00.000Z"
+          }
+        ];
+      }
+    } as unknown as DashboardFunnelReader,
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const funnels = await service.funnels("hotel-client-a");
+
+  assert.deepEqual(reads, ["hotel-client-a"]);
+  assert.equal(funnels.funnels[0]?.step_count, 3);
+});
+
+test("dashboard funnel detail delegates to the funnel reader", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const reads: unknown[] = [];
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    {
+      ...emptyFunnelReader(),
+      getFunnel: async (projectId: string, funnelId: string) => {
+        reads.push({ funnelId, projectId });
+        return {
+          funnel_id: funnelId,
+          funnel_name: "숙소 예약 퍼널",
+          domain_type: "hotel",
+          status: "active",
+          steps: [
+            {
+              step_order: 1,
+              step_name: "숙소 상세 조회",
+              event_name: "hotel_detail_view"
+            }
+          ],
+          created_at: "2026-07-03T00:00:00.000Z",
+          updated_at: "2026-07-03T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardFunnelReader,
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const funnel = await service.funnel("hotel-client-a", "funnel_hotel_booking");
+
+  assert.deepEqual(reads, [{ funnelId: "funnel_hotel_booking", projectId: "hotel-client-a" }]);
+  assert.equal(funnel.steps[0]?.event_name, "hotel_detail_view");
+});
+
 test("dashboard create funnel delegates selected events to the funnel reader", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -134,6 +206,98 @@ test("dashboard create funnel delegates selected events to the funnel reader", a
   assert.equal(writes.length, 1);
   assert.equal(funnel.steps[0]?.event_name, "hotel_detail_view");
   assert.equal(funnel.steps[2]?.step_name, "예약 완료");
+});
+
+test("dashboard update funnel delegates changed events to the funnel reader", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    {
+      ...emptyFunnelReader(),
+      updateFunnel: async (projectId, funnelId, request) => {
+        writes.push({ funnelId, projectId, request });
+        return {
+          funnel_id: funnelId,
+          funnel_name: request.funnel_name,
+          domain_type: "hotel",
+          status: "active",
+          steps: request.steps.map((step, index) => ({
+            step_order: index + 1,
+            step_name: step.step_name,
+            event_name: step.event_name
+          })),
+          created_at: "2026-07-03T00:00:00.000Z",
+          updated_at: "2026-07-04T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardFunnelReader,
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const funnel = await service.updateFunnel("hotel-client-a", "funnel_hotel_booking", {
+    funnel_name: "숙소 예약 수정 퍼널",
+    steps: [
+      { step_name: "검색 결과", event_name: "hotel_search" },
+      { step_name: "예약 완료", event_name: "booking_complete" }
+    ]
+  });
+
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0], {
+    funnelId: "funnel_hotel_booking",
+    projectId: "hotel-client-a",
+    request: {
+      funnel_name: "숙소 예약 수정 퍼널",
+      steps: [
+        { step_name: "검색 결과", event_name: "hotel_search" },
+        { step_name: "예약 완료", event_name: "booking_complete" }
+      ]
+    }
+  });
+  assert.equal(funnel.funnel_name, "숙소 예약 수정 퍼널");
+  assert.equal(funnel.steps[0]?.event_name, "hotel_search");
+});
+
+test("dashboard funnel preview delegates selected events to the funnel reader", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const reads: unknown[] = [];
+  const service = new DashboardQueryService(
+    emptyCampaignReader(),
+    {
+      ...emptyFunnelReader(),
+      previewFunnelMetrics: async (projectId, request) => {
+        reads.push({ projectId, request });
+        return {
+          steps: request.steps.map((step, index) => ({
+            step_order: index + 1,
+            step_name: step.step_name,
+            event_name: step.event_name,
+            event_count: index === 0 ? 42 : 18
+          }))
+        };
+      }
+    } as unknown as DashboardFunnelReader,
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const preview = await service.previewFunnelMetrics("hotel-client-a", {
+    steps: [
+      { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
+      { step_name: "예약 완료", event_name: "booking_complete" }
+    ]
+  });
+
+  assert.equal(reads.length, 1);
+  assert.equal(preview.steps[0]?.event_count, 42);
+  assert.equal(preview.steps[1]?.step_order, 2);
 });
 
 test("dashboard segment query preview delegates to the segment query repository", async () => {
@@ -520,9 +684,21 @@ function emptyFunnelReader(): DashboardFunnelReader {
     createFunnel: async () => {
       throw new Error("Unexpected createFunnel call.");
     },
+    getFunnel: async () => {
+      throw new Error("Unexpected getFunnel call.");
+    },
+    getFunnelMetrics: async () => {
+      throw new Error("Unexpected getFunnelMetrics call.");
+    },
     getProjectRealtimeMetrics: async () => emptyRealtimeMetrics(),
     listEventCatalog: async () => [],
-    listFunnels: async () => []
+    listFunnels: async () => [],
+    previewFunnelMetrics: async () => {
+      throw new Error("Unexpected previewFunnelMetrics call.");
+    },
+    updateFunnel: async () => {
+      throw new Error("Unexpected updateFunnel call.");
+    }
   } as unknown as DashboardFunnelReader;
 }
 

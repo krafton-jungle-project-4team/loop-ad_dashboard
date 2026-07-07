@@ -63,3 +63,11 @@ export function dashboardSegmentDetailQueryKey(
 export function dashboardFunnelMetricsQueryKey(projectId: string, funnelId: string) {
   return ["dashboard", "funnel-metrics", projectId, funnelId] as const;
 }
+
+export function dashboardFunnelDetailQueryKey(projectId: string, funnelId: string) {
+  return ["dashboard", "funnel-detail", projectId, funnelId] as const;
+}
+
+export function dashboardFunnelPreviewQueryKey(projectId: string, eventNames: string[]) {
+  return ["dashboard", "funnel-preview", projectId, eventNames] as const;
+}

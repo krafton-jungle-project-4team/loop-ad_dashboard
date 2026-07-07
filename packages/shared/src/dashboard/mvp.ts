@@ -28,17 +28,13 @@ export const DashboardCreateProjectRequestSchema = z.object({
   domain: z.string().trim().min(1).default("hotel-booking.local"),
   status: DashboardProjectStatusSchema.default("active")
 });
-export type DashboardCreateProjectRequest = z.infer<
-  typeof DashboardCreateProjectRequestSchema
->;
+export type DashboardCreateProjectRequest = z.infer<typeof DashboardCreateProjectRequestSchema>;
 
 export const DashboardDeleteProjectResultSchema = z.object({
   project_id: z.string(),
   status: z.literal("archived")
 });
-export type DashboardDeleteProjectResult = z.infer<
-  typeof DashboardDeleteProjectResultSchema
->;
+export type DashboardDeleteProjectResult = z.infer<typeof DashboardDeleteProjectResultSchema>;
 
 export const DashboardCampaignSummarySchema = z.object({
   campaign_id: z.string(),
@@ -66,9 +62,7 @@ export const DashboardCampaignPrimaryMetricSchema = z.enum([
   "promotion_click_rate",
   "goal_achievement_rate"
 ]);
-export type DashboardCampaignPrimaryMetric = z.infer<
-  typeof DashboardCampaignPrimaryMetricSchema
->;
+export type DashboardCampaignPrimaryMetric = z.infer<typeof DashboardCampaignPrimaryMetricSchema>;
 
 export const DashboardCampaignStatusSchema = z.enum([
   "draft",
@@ -87,9 +81,7 @@ export const DashboardCreateCampaignRequestSchema = z.object({
   end_date: z.string().date().nullable().optional(),
   status: DashboardCampaignStatusSchema.default("draft")
 });
-export type DashboardCreateCampaignRequest = z.infer<
-  typeof DashboardCreateCampaignRequestSchema
->;
+export type DashboardCreateCampaignRequest = z.infer<typeof DashboardCreateCampaignRequestSchema>;
 
 export const DashboardUpdateCampaignRequestSchema = z.object({
   campaign_name: z.string().min(1).optional(),
@@ -99,17 +91,13 @@ export const DashboardUpdateCampaignRequestSchema = z.object({
   end_date: z.string().date().nullable().optional(),
   status: DashboardCampaignStatusSchema.optional()
 });
-export type DashboardUpdateCampaignRequest = z.infer<
-  typeof DashboardUpdateCampaignRequestSchema
->;
+export type DashboardUpdateCampaignRequest = z.infer<typeof DashboardUpdateCampaignRequestSchema>;
 
 export const DashboardDeleteCampaignResultSchema = z.object({
   campaign_id: z.string(),
   status: z.literal("deleted")
 });
-export type DashboardDeleteCampaignResult = z.infer<
-  typeof DashboardDeleteCampaignResultSchema
->;
+export type DashboardDeleteCampaignResult = z.infer<typeof DashboardDeleteCampaignResultSchema>;
 
 export const DashboardCampaignPromotionSchema = z.object({
   promotion_id: z.string(),
@@ -184,9 +172,7 @@ export const DashboardCreatePromotionRequestSchema = z.object({
   landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
   status: DashboardPromotionStatusSchema.default("draft")
 });
-export type DashboardCreatePromotionRequest = z.infer<
-  typeof DashboardCreatePromotionRequestSchema
->;
+export type DashboardCreatePromotionRequest = z.infer<typeof DashboardCreatePromotionRequestSchema>;
 
 export const DashboardUpdatePromotionRequestSchema = z.object({
   channel: DashboardPromotionChannelSchema.optional(),
@@ -202,17 +188,13 @@ export const DashboardUpdatePromotionRequestSchema = z.object({
   landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
   status: DashboardPromotionStatusSchema.optional()
 });
-export type DashboardUpdatePromotionRequest = z.infer<
-  typeof DashboardUpdatePromotionRequestSchema
->;
+export type DashboardUpdatePromotionRequest = z.infer<typeof DashboardUpdatePromotionRequestSchema>;
 
 export const DashboardDeletePromotionResultSchema = z.object({
   promotion_id: z.string(),
   status: z.literal("stopped")
 });
-export type DashboardDeletePromotionResult = z.infer<
-  typeof DashboardDeletePromotionResultSchema
->;
+export type DashboardDeletePromotionResult = z.infer<typeof DashboardDeletePromotionResultSchema>;
 
 export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.extend({
   campaign_id: z.string()
@@ -443,9 +425,7 @@ export const DashboardCreateNextLoopRequestSchema = z.object({
   failed_ad_experiment_ids: z.array(z.string()).default([]),
   operator_instruction: z.string().nullable().optional()
 });
-export type DashboardCreateNextLoopRequest = z.infer<
-  typeof DashboardCreateNextLoopRequestSchema
->;
+export type DashboardCreateNextLoopRequest = z.infer<typeof DashboardCreateNextLoopRequestSchema>;
 
 export const DashboardCreateNextLoopResultSchema = z.object({
   previous_promotion_run_id: z.string(),
@@ -456,9 +436,7 @@ export const DashboardCreateNextLoopResultSchema = z.object({
   next_generation_id: z.string().nullable(),
   next_ad_experiments: z.array(DashboardPromotionRunAdExperimentSchema)
 });
-export type DashboardCreateNextLoopResult = z.infer<
-  typeof DashboardCreateNextLoopResultSchema
->;
+export type DashboardCreateNextLoopResult = z.infer<typeof DashboardCreateNextLoopResultSchema>;
 
 export const DashboardCampaignExperimentMetricSchema = z.object({
   promotion_id: z.string(),
@@ -519,9 +497,7 @@ export const DashboardRealtimeBreakdownItemSchema = z.object({
   event_count: CountSchema,
   unique_user_count: CountSchema
 });
-export type DashboardRealtimeBreakdownItem = z.infer<
-  typeof DashboardRealtimeBreakdownItemSchema
->;
+export type DashboardRealtimeBreakdownItem = z.infer<typeof DashboardRealtimeBreakdownItemSchema>;
 
 export const DashboardDeliveryStatusSchema = z.object({
   scheduled_count: CountSchema,
@@ -584,9 +560,7 @@ export const DashboardSegmentRealtimeMetricsSchema = DashboardRealtimeMetricsSch
   promotion_id: z.string(),
   segment_id: z.string()
 });
-export type DashboardSegmentRealtimeMetrics = z.infer<
-  typeof DashboardSegmentRealtimeMetricsSchema
->;
+export type DashboardSegmentRealtimeMetrics = z.infer<typeof DashboardSegmentRealtimeMetricsSchema>;
 
 export const DashboardSegmentRealtimeSummarySchema = z.object({
   promotion_id: z.string(),
@@ -601,9 +575,7 @@ export const DashboardSegmentRealtimeSummarySchema = z.object({
   booking_start_count: CountSchema,
   booking_complete_count: CountSchema
 });
-export type DashboardSegmentRealtimeSummary = z.infer<
-  typeof DashboardSegmentRealtimeSummarySchema
->;
+export type DashboardSegmentRealtimeSummary = z.infer<typeof DashboardSegmentRealtimeSummarySchema>;
 
 export const DashboardCampaignDetailSchema = z.object({
   campaign: DashboardCampaignSummarySchema,
@@ -899,9 +871,7 @@ export const DashboardPromotionSegmentStatusSchema = z.enum([
   "insufficient_data",
   "stopped"
 ]);
-export type DashboardPromotionSegmentStatus = z.infer<
-  typeof DashboardPromotionSegmentStatusSchema
->;
+export type DashboardPromotionSegmentStatus = z.infer<typeof DashboardPromotionSegmentStatusSchema>;
 
 export const DashboardAttachSegmentRequestSchema = z.object({
   segment_id: z.string().min(1),
@@ -909,9 +879,7 @@ export const DashboardAttachSegmentRequestSchema = z.object({
   priority: DashboardSegmentPrioritySchema.nullable().optional(),
   status: DashboardPromotionSegmentStatusSchema.default("planned")
 });
-export type DashboardAttachSegmentRequest = z.infer<
-  typeof DashboardAttachSegmentRequestSchema
->;
+export type DashboardAttachSegmentRequest = z.infer<typeof DashboardAttachSegmentRequestSchema>;
 
 export const DashboardUpdatePromotionSegmentRequestSchema = z.object({
   segment_name: z.string().min(1).optional(),
@@ -935,9 +903,7 @@ export const DashboardStartNextLoopRequestSchema = z.object({
   focus_segment_ids: z.array(z.string().min(1)).min(1),
   operator_instruction: z.string().nullable().optional()
 });
-export type DashboardStartNextLoopRequest = z.infer<
-  typeof DashboardStartNextLoopRequestSchema
->;
+export type DashboardStartNextLoopRequest = z.infer<typeof DashboardStartNextLoopRequestSchema>;
 
 export const DashboardNextLoopAnalysisSchema = z.object({
   analysis_id: z.string(),
@@ -954,6 +920,17 @@ export const DashboardFunnelStepSchema = z.object({
 });
 export type DashboardFunnelStep = z.infer<typeof DashboardFunnelStepSchema>;
 
+export const DashboardFunnelSummarySchema = z.object({
+  funnel_id: z.string(),
+  funnel_name: z.string(),
+  domain_type: z.string(),
+  status: z.string(),
+  step_count: CountSchema,
+  created_at: z.string(),
+  updated_at: z.string()
+});
+export type DashboardFunnelSummary = z.infer<typeof DashboardFunnelSummarySchema>;
+
 export const DashboardFunnelSchema = z.object({
   funnel_id: z.string(),
   funnel_name: z.string(),
@@ -966,7 +943,7 @@ export const DashboardFunnelSchema = z.object({
 export type DashboardFunnel = z.infer<typeof DashboardFunnelSchema>;
 
 export const DashboardFunnelListSchema = z.object({
-  funnels: z.array(DashboardFunnelSchema)
+  funnels: z.array(DashboardFunnelSummarySchema)
 });
 export type DashboardFunnelList = z.infer<typeof DashboardFunnelListSchema>;
 
@@ -982,6 +959,23 @@ export const DashboardFunnelMetricsSchema = z.object({
 });
 export type DashboardFunnelMetrics = z.infer<typeof DashboardFunnelMetricsSchema>;
 
+export const DashboardFunnelPreviewRequestSchema = z.object({
+  steps: z
+    .array(
+      z.object({
+        step_name: z.string().min(1),
+        event_name: DashboardFunnelEventNameSchema
+      })
+    )
+    .min(1)
+});
+export type DashboardFunnelPreviewRequest = z.infer<typeof DashboardFunnelPreviewRequestSchema>;
+
+export const DashboardFunnelPreviewSchema = z.object({
+  steps: z.array(DashboardFunnelMetricStepSchema)
+});
+export type DashboardFunnelPreview = z.infer<typeof DashboardFunnelPreviewSchema>;
+
 export const DashboardCreateFunnelRequestSchema = z.object({
   funnel_name: z.string().min(1),
   steps: z
@@ -994,6 +988,9 @@ export const DashboardCreateFunnelRequestSchema = z.object({
     .min(2)
 });
 export type DashboardCreateFunnelRequest = z.infer<typeof DashboardCreateFunnelRequestSchema>;
+
+export const DashboardUpdateFunnelRequestSchema = DashboardCreateFunnelRequestSchema;
+export type DashboardUpdateFunnelRequest = z.infer<typeof DashboardUpdateFunnelRequestSchema>;
 
 export const DashboardDeleteFunnelResultSchema = z.object({
   funnel_id: z.string(),

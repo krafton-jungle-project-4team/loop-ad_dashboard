@@ -72,6 +72,58 @@ test("dashboard funnel metrics counts users through ordered funnel steps", async
   assert.match(clickhouseRequest?.query ?? "", /fse\.event_time >= previous\.reached_at/);
 });
 
+test("dashboard funnel reader preview maps sequential step counts", async () => {
+  setRequiredEnv();
+  const { DashboardFunnelReader } =
+    await import("../src/features/dashboard/repository/dashboard-funnel-reader.js");
+  const queries: Array<{ query: string; query_params: Record<string, unknown> }> = [];
+  const fakeClickhouse = {
+    query: async (request: { query: string; query_params: Record<string, unknown> }) => {
+      queries.push(request);
+      return {
+        json: async () => [
+          { step_order: 1, event_count: "12" },
+          { step_order: 2, event_count: "5" }
+        ]
+      };
+    }
+  };
+  const reader = new DashboardFunnelReader(
+    {} as ConstructorParameters<typeof DashboardFunnelReader>[0],
+    fakeClickhouse as unknown as ConstructorParameters<typeof DashboardFunnelReader>[1]
+  );
+
+  const preview = await reader.previewFunnelMetrics("hotel-client-a", {
+    steps: [
+      { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
+      { step_name: "예약 완료", event_name: "booking_complete" }
+    ]
+  });
+
+  assert.match(queries[0]?.query ?? "", /WITH/);
+  assert.match(queries[0]?.query ?? "", /step_1_users/);
+  assert.match(queries[0]?.query ?? "", /INNER JOIN step_1_users previous/);
+  assert.deepEqual(queries[0]?.query_params, {
+    projectId: "hotel-client-a",
+    stepEvent1: "hotel_detail_view",
+    stepEvent2: "booking_complete"
+  });
+  assert.deepEqual(preview.steps, [
+    {
+      step_order: 1,
+      step_name: "숙소 상세 조회",
+      event_name: "hotel_detail_view",
+      event_count: 12
+    },
+    {
+      step_order: 2,
+      step_name: "예약 완료",
+      event_name: "booking_complete",
+      event_count: 5
+    }
+  ]);
+});
+
 function setRequiredEnv() {
   process.env.LOOPAD_ENV ??= "local";
   process.env.LOOPAD_SERVICE_ID ??= "dashboard-api";

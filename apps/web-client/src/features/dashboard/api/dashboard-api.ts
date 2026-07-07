@@ -30,6 +30,8 @@ import {
   DashboardEvaluatePromotionRunResultSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
+  DashboardFunnelPreviewRequestSchema,
+  DashboardFunnelPreviewSchema,
   DashboardFunnelSchema,
   DashboardMainSchema,
   DashboardNextLoopAnalysisSchema,
@@ -55,6 +57,7 @@ import {
   DashboardStartPromotionGenerationResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUpdateCampaignRequestSchema,
+  DashboardUpdateFunnelRequestSchema,
   DashboardUpdatePromotionRequestSchema,
   DashboardUpdatePromotionSegmentRequestSchema,
   PromotionRunDispatchResponseSchema
@@ -89,6 +92,8 @@ import type {
   DashboardEvaluatePromotionRunResult,
   DashboardFunnel,
   DashboardFunnelMetrics,
+  DashboardFunnelPreview,
+  DashboardFunnelPreviewRequest,
   DashboardProject,
   DashboardProjectList,
   DashboardPromotionDetail,
@@ -112,6 +117,7 @@ import type {
   DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
   DashboardUpdateCampaignRequest,
+  DashboardUpdateFunnelRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest,
   PromotionRunDispatchResponse
@@ -221,8 +227,29 @@ export async function createDashboardFunnel(
   requestBody: DashboardCreateFunnelRequest
 ): Promise<DashboardFunnel> {
   const parsedBody = DashboardCreateFunnelRequestSchema.parse(requestBody);
+  const url = new URL(`${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels`, window.location.origin);
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardFunnelSchema).parse(await response.json()).data;
+}
+
+export async function updateDashboardFunnel(
+  query: DashboardQuery,
+  funnelId: string,
+  requestBody: DashboardUpdateFunnelRequest
+): Promise<DashboardFunnel> {
+  const parsedBody = DashboardUpdateFunnelRequestSchema.parse(requestBody);
   const url = new URL(
-    `${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels`,
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels/${encodeURIComponent(funnelId)}`,
     window.location.origin
   );
   url.searchParams.set("project_id", query.projectId);
@@ -230,7 +257,7 @@ export async function createDashboardFunnel(
   const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
-    method: "POST"
+    method: "PATCH"
   });
   if (!response.ok) {
     throw new Error(`API 요청 실패: ${response.status}`);
@@ -272,9 +299,8 @@ export async function createDashboardCampaign(
     throw new Error(`API 요청 실패: ${response.status}`);
   }
 
-  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(
-    await response.json()
-  ).data;
+  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(await response.json())
+    .data;
 }
 
 export async function updateDashboardCampaign(
@@ -298,9 +324,8 @@ export async function updateDashboardCampaign(
     throw new Error(`API 요청 실패: ${response.status}`);
   }
 
-  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(
-    await response.json()
-  ).data;
+  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(await response.json())
+    .data;
 }
 
 export async function deleteDashboardCampaign(
@@ -983,7 +1008,10 @@ export async function saveDashboardSegment(
   requestBody: DashboardSaveSegmentRequest
 ): Promise<DashboardSavedSegment> {
   const parsedBody = DashboardSaveSegmentRequestSchema.parse(requestBody);
-  const url = new URL(`${dashboardConfig.apiBaseUrl}/dashboard/v1/segments`, window.location.origin);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/segments`,
+    window.location.origin
+  );
   url.searchParams.set("project_id", query.projectId);
 
   const response = await fetch(url, {
@@ -1017,6 +1045,45 @@ export async function fetchDashboardFunnelMetrics(
     query,
     signal
   );
+}
+
+export async function fetchDashboardFunnel(
+  query: DashboardQuery,
+  funnelId: string,
+  signal: AbortSignal
+): Promise<DashboardFunnel> {
+  return request(
+    `/dashboard/v1/funnels/${encodeURIComponent(funnelId)}`,
+    DashboardFunnelSchema,
+    query,
+    signal
+  );
+}
+
+export async function previewDashboardFunnelMetrics(
+  query: DashboardQuery,
+  requestBody: DashboardFunnelPreviewRequest,
+  signal: AbortSignal
+): Promise<DashboardFunnelPreview> {
+  const parsedBody = DashboardFunnelPreviewRequestSchema.parse(requestBody);
+  const url = new URL(
+    `${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels/preview`,
+    window.location.origin
+  );
+  url.searchParams.set("project_id", query.projectId);
+
+  const response = await fetch(url, {
+    body: JSON.stringify(parsedBody),
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    method: "POST",
+    signal
+  });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  return createApiSuccessResponseSchema(DashboardFunnelPreviewSchema).parse(await response.json())
+    .data;
 }
 
 async function request<T>(

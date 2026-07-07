@@ -1,14 +1,25 @@
 import {
   type DashboardCreateFunnelRequest,
+  type DashboardFunnel,
   DashboardFunnelEventNameSchema,
-  type DashboardFunnelList
+  type DashboardFunnelList,
+  type DashboardFunnelMetricStep,
+  type DashboardFunnelPreviewRequest
 } from "@loopad/shared";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts";
+import { Area, AreaChart, CartesianGrid, LabelList, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@loopad/ui/shadcn/dialog";
 import { Field, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
@@ -21,17 +32,28 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, GripHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  useId,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent
+} from "react";
 import {
   createDashboardFunnel,
   deleteDashboardFunnel,
   fetchDashboardEventCatalog,
-  fetchDashboardFunnelMetrics
+  fetchDashboardFunnel,
+  fetchDashboardFunnelMetrics,
+  previewDashboardFunnelMetrics,
+  updateDashboardFunnel
 } from "../api/dashboard-api.js";
 import {
   dashboardEventCatalogQueryKey,
+  dashboardFunnelDetailQueryKey,
   dashboardFunnelMetricsQueryKey,
+  dashboardFunnelPreviewQueryKey,
   dashboardTabQueryKey
 } from "../model/dashboard-query-keys.js";
 import { formatStatusLabel } from "../model/dashboard-labels.js";
@@ -43,10 +65,17 @@ type FunnelDraftStep = {
   event_name: string;
 };
 
+type DraftDialogMode = "create" | "edit";
+
 const DEFAULT_STEPS: FunnelDraftStep[] = [
   { step_name: "", event_name: "" },
   { step_name: "", event_name: "" }
 ];
+const DETAIL_PANEL_HEADER_HEIGHT = 58;
+const DETAIL_PANEL_COLLAPSED_HEIGHT = DETAIL_PANEL_HEADER_HEIGHT;
+const DETAIL_PANEL_DEFAULT_HEIGHT_RATIO = 0.5;
+const DETAIL_PANEL_MIN_HEIGHT = 260;
+const DETAIL_PANEL_RESIZE_STEP = 40;
 
 export function FunnelDashboardPanel({
   data,
@@ -56,26 +85,62 @@ export function FunnelDashboardPanel({
   query: DashboardQuery;
 }) {
   const queryClient = useQueryClient();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [draftDialogMode, setDraftDialogMode] = useState<DraftDialogMode>("create");
+  const [editingFunnelId, setEditingFunnelId] = useState("");
+  const [isDraftLoading, setIsDraftLoading] = useState(false);
+  const [draftLoadError, setDraftLoadError] = useState<string | null>(null);
   const [funnelName, setFunnelName] = useState("");
   const [steps, setSteps] = useState(() => createDefaultSteps());
   const [selectedFunnelId, setSelectedFunnelId] = useState("");
+  const [detailPanelHeight, setDetailPanelHeight] = useState(() => getDetailPanelDefaultHeight());
+  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
     queryKey: dashboardEventCatalogQueryKey(query.projectId)
   });
+  const eventOptions = eventCatalog.data?.events ?? [];
   const selectedFunnel = data.funnels.find((funnel) => funnel.funnel_id === selectedFunnelId);
+  const previewRequest = useMemo(() => createFunnelPreviewRequest(steps), [steps]);
+  const previewEventNames = previewRequest?.steps.map((step) => step.event_name) ?? [];
+  const funnelPreview = useQuery({
+    enabled: Boolean(previewRequest),
+    queryFn: ({ signal }) => previewDashboardFunnelMetrics(query, previewRequest!, signal),
+    queryKey: dashboardFunnelPreviewQueryKey(query.projectId, previewEventNames)
+  });
   const funnelMetrics = useQuery({
     enabled: Boolean(selectedFunnelId),
     queryFn: ({ signal }) => fetchDashboardFunnelMetrics(query, selectedFunnelId, signal),
     queryKey: dashboardFunnelMetricsQueryKey(query.projectId, selectedFunnelId)
   });
-  const eventOptions = eventCatalog.data?.events ?? [];
   const createMutation = useMutation({
     mutationFn: () => createDashboardFunnel(query, createFunnelRequest(funnelName, steps)),
     onSuccess: async () => {
-      setFunnelName("");
-      setSteps(createDefaultSteps());
+      resetDraft();
+      setIsCreateDialogOpen(false);
       await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
+    }
+  });
+  const updateMutation = useMutation({
+    mutationFn: () => {
+      if (!editingFunnelId) {
+        throw new Error("수정할 퍼널이 없습니다.");
+      }
+      return updateDashboardFunnel(query, editingFunnelId, createFunnelRequest(funnelName, steps));
+    },
+    onSuccess: async (result) => {
+      resetDraft();
+      setEditingFunnelId("");
+      setDraftDialogMode("create");
+      setIsCreateDialogOpen(false);
+      setSelectedFunnelId(result.funnel_id);
+      await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardFunnelDetailQueryKey(query.projectId, result.funnel_id)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardFunnelMetricsQueryKey(query.projectId, result.funnel_id)
+      });
     }
   });
   const deleteMutation = useMutation({
@@ -85,238 +150,351 @@ export function FunnelDashboardPanel({
       await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
     }
   });
+  const isEditMode = draftDialogMode === "edit";
+  const isDraftSaving = createMutation.isPending || updateMutation.isPending;
+  const draftMutationError = createMutation.error ?? updateMutation.error;
   const isEventCatalogEmpty = eventCatalog.isSuccess && eventOptions.length === 0;
   const canSave =
+    !isDraftLoading &&
+    (!isEditMode || Boolean(editingFunnelId)) &&
     Boolean(funnelName.trim()) &&
     steps.length >= 2 &&
     steps.every((step) => step.step_name.trim() && step.event_name.trim());
+  const previewSteps =
+    funnelPreview.data?.steps ??
+    previewRequest?.steps.map((step, index) => ({
+      step_order: index + 1,
+      step_name: step.step_name,
+      event_name: step.event_name,
+      event_count: 0
+    })) ??
+    [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-h-full grid-rows-[auto_1fr] gap-6">
       <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
-        <CardHeader className="gap-1.5 px-5">
-          <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+        <CardHeader className="flex flex-col gap-3 px-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid gap-1.5">
+            <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+              퍼널 목록
+            </CardTitle>
+            <CardDescription>저장된 퍼널을 선택해 단계별 지표를 확인합니다.</CardDescription>
+          </div>
+          <Button onClick={openCreateDialog} type="button">
+            <Plus data-icon="inline-start" />
             퍼널 생성
-          </CardTitle>
-          <CardDescription>
-            수집된 이벤트 목록에서 단계를 선택해 퍼널을 저장합니다.
-          </CardDescription>
+          </Button>
         </CardHeader>
-        <CardContent className="grid gap-5 px-5">
-          {eventCatalog.isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>이벤트 목록을 불러오지 못했습니다</AlertTitle>
-              <AlertDescription>
-                수집 이벤트 카탈로그 API 응답을 확인해주세요.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {isEventCatalogEmpty ? (
-            <Alert>
-              <AlertTitle>선택 가능한 이벤트가 없습니다</AlertTitle>
-              <AlertDescription>
-                ClickHouse에 수집된 퍼널 이벤트가 있어야 단계를 선택할 수 있습니다.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {createMutation.isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>퍼널을 저장하지 못했습니다</AlertTitle>
-              <AlertDescription>{mutationErrorMessage(createMutation.error)}</AlertDescription>
-            </Alert>
-          ) : null}
+        <CardContent className="px-5">
           {deleteMutation.isError ? (
-            <Alert variant="destructive">
+            <Alert className="mb-4" variant="destructive">
               <AlertTitle>퍼널을 삭제하지 못했습니다</AlertTitle>
               <AlertDescription>{mutationErrorMessage(deleteMutation.error)}</AlertDescription>
             </Alert>
           ) : null}
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="funnel-name">퍼널 이름</FieldLabel>
-              <Input
-                disabled={createMutation.isPending}
-                id="funnel-name"
-                onChange={(event) => setFunnelName(event.target.value)}
-                value={funnelName}
-              />
-            </Field>
-          </FieldGroup>
-          <div className="grid gap-3">
-            {steps.map((step, index) => (
-              <div className="grid gap-2 md:grid-cols-[1fr_auto]" key={index}>
-                <NativeSelect
-                  aria-label={`${index + 1}번째 퍼널 이벤트`}
-                  className="w-full"
-                  disabled={
-                    eventCatalog.isLoading || !eventOptions.length || createMutation.isPending
-                  }
-                  onChange={(event) => selectEvent(index, event.target.value)}
-                  value={step.event_name}
-                >
-                  <NativeSelectOption value="">
-                    {eventPlaceholder(eventCatalog.isLoading, isEventCatalogEmpty)}
-                  </NativeSelectOption>
-                  {eventOptions.map((eventItem) => (
-                    <NativeSelectOption key={eventItem.event_name} value={eventItem.event_name}>
-                      {eventItem.display_name} ({eventItem.event_name})
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                <Button
-                  disabled={steps.length <= 2 || createMutation.isPending}
-                  onClick={() => removeStep(index)}
-                  size="icon"
-                  type="button"
-                  variant="outline"
-                >
-                  <Trash2 data-icon="inline-start" />
-                </Button>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={!eventOptions.length || createMutation.isPending}
-              onClick={addStep}
-              type="button"
-              variant="outline"
-            >
-              <Plus data-icon="inline-start" />
-              단계 추가
-            </Button>
-            <Button
-              disabled={!canSave || createMutation.isPending}
-              onClick={() => createMutation.mutate()}
-              type="button"
-            >
-              저장
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
-        <CardHeader className="gap-1.5 px-5">
-          <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-            퍼널 목록
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-5">
           {data.funnels.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>퍼널</TableHead>
-                  <TableHead>단계</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead>작업</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.funnels.map((funnel) => (
-                  <TableRow
-                    aria-selected={selectedFunnelId === funnel.funnel_id}
-                    className="cursor-pointer"
-                    key={funnel.funnel_id}
-                    onClick={() => selectFunnel(funnel.funnel_id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        selectFunnel(funnel.funnel_id);
-                      }
-                    }}
-                    tabIndex={0}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>{funnel.funnel_name}</span>
-                        {selectedFunnelId === funnel.funnel_id ? (
-                          <Badge variant="outline">선택됨</Badge>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>{funnel.steps.map(stepLabel).join(" -> ")}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{formatStatusLabel(funnel.status)}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          disabled={deleteMutation.isPending}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            deleteMutation.mutate(funnel.funnel_id);
-                          }}
-                          size="icon"
-                          type="button"
-                          variant="outline"
-                        >
-                          <Trash2 data-icon="inline-start" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-hidden rounded-lg border border-black/10">
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>이름</TableHead>
+                    <TableHead>상태</TableHead>
+                    <TableHead className="text-right">단계</TableHead>
+                    <TableHead>수정일</TableHead>
+                    <TableHead className="w-[132px] text-right">작업</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {data.funnels.map((funnel) => (
+                    <TableRow
+                      aria-selected={selectedFunnelId === funnel.funnel_id}
+                      className="cursor-pointer"
+                      data-state={selectedFunnelId === funnel.funnel_id ? "selected" : undefined}
+                      key={funnel.funnel_id}
+                      onClick={() => openDetails(funnel.funnel_id)}
+                      onKeyDown={(event) => {
+                        if (event.currentTarget !== event.target) {
+                          return;
+                        }
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openDetails(funnel.funnel_id);
+                        }
+                      }}
+                      tabIndex={0}
+                    >
+                      <TableCell>
+                        <div className="max-w-[360px] truncate text-left font-medium text-foreground">
+                          {funnel.funnel_name}
+                        </div>
+                        <div className="mt-1 max-w-[360px] truncate text-xs text-muted-foreground">
+                          {funnel.funnel_id}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{formatStatusLabel(funnel.status)}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {funnelStepCount(funnel).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {formatDateTime(funnel.updated_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            disabled={isDraftLoading || updateMutation.isPending}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void openEditDialog(funnel.funnel_id);
+                            }}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Pencil data-icon="inline-start" />
+                            수정
+                          </Button>
+                          <Button
+                            disabled={deleteMutation.isPending}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              deleteMutation.mutate(funnel.funnel_id);
+                            }}
+                            size="icon"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Trash2 data-icon="inline-start" />
+                            <span className="sr-only">퍼널 삭제</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <EmptyState message="등록된 퍼널이 없습니다." />
           )}
         </CardContent>
       </Card>
 
-      <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
-        <CardHeader className="gap-1.5 px-5">
-          <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-            퍼널 단계별 수치
-          </CardTitle>
-          <CardDescription>
-            선택한 퍼널의 단계별 도달 사용자 수를 표시합니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-5">
-          {funnelMetrics.isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>퍼널 수치를 불러오지 못했습니다</AlertTitle>
-              <AlertDescription>{mutationErrorMessage(funnelMetrics.error)}</AlertDescription>
-            </Alert>
-          ) : null}
-          {selectedFunnel ? (
-            <ChartContainer
-              className="min-h-[280px] w-full"
-              config={{
-                event_count: {
-                  color: "var(--chart-1)",
-                  label: "도달 수"
-                }
-              }}
+      <section
+        className="sticky bottom-0 z-10 grid self-end overflow-hidden rounded-t-2xl border border-black/10 bg-white shadow-[0_-18px_40px_rgba(15,23,42,0.14)]"
+        data-testid="funnel-detail-panel"
+        style={{
+          gridTemplateRows: `${DETAIL_PANEL_HEADER_HEIGHT}px minmax(0, 1fr)`,
+          height: isDetailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_HEIGHT : detailPanelHeight
+        }}
+      >
+        <div className="relative flex min-h-0 items-center justify-between gap-4 border-b px-6 lg:px-8">
+          <div
+            aria-label="상세 패널 높이 조절"
+            aria-orientation="horizontal"
+            aria-valuemax={getDetailPanelMaxHeight()}
+            aria-valuemin={DETAIL_PANEL_COLLAPSED_HEIGHT}
+            aria-valuenow={
+              isDetailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_HEIGHT : detailPanelHeight
+            }
+            className="absolute left-1/2 top-1 flex h-6 w-16 -translate-x-1/2 cursor-row-resize items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40"
+            onKeyDown={handleDetailPanelResizeKeyDown}
+            onPointerDown={startDetailPanelResize}
+            role="separator"
+            tabIndex={0}
+          >
+            <GripHorizontal size={18} />
+          </div>
+          <h2 className="min-w-0 truncate pt-1 text-lg font-semibold tracking-tight text-[#1d1d1f]">
+            {selectedFunnel?.funnel_name ?? "퍼널 선택"}
+          </h2>
+          <Button
+            aria-label={isDetailPanelCollapsed ? "상세 패널 펼치기" : "상세 패널 접기"}
+            onClick={() => setIsDetailPanelCollapsed((current) => !current)}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <ChevronDown
+              className={
+                isDetailPanelCollapsed ? "rotate-180 transition-transform" : "transition-transform"
+              }
+              data-icon="inline-start"
+            />
+          </Button>
+        </div>
+        {isDetailPanelCollapsed ? null : (
+          <div className="grid min-h-0 gap-6 overflow-hidden px-6 py-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] lg:px-8">
+            {!selectedFunnel ? (
+              <div className="lg:col-span-2">
+                <EmptyState message="퍼널을 선택하면 단계별 지표가 표시됩니다." />
+              </div>
+            ) : (
+              <>
+                {funnelMetrics.isError ? (
+                  <Alert className="lg:col-span-2" variant="destructive">
+                    <AlertTitle>퍼널 수치를 불러오지 못했습니다</AlertTitle>
+                    <AlertDescription>{mutationErrorMessage(funnelMetrics.error)}</AlertDescription>
+                  </Alert>
+                ) : null}
+                {funnelMetrics.data ? (
+                  <>
+                    <FunnelMetricChart steps={funnelMetrics.data.steps} />
+                    <FunnelMetricTable steps={funnelMetrics.data.steps} />
+                  </>
+                ) : (
+                  <div className="lg:col-span-2">
+                    <EmptyState message="퍼널 지표를 불러오는 중입니다." />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </section>
+
+      <Dialog onOpenChange={handleCreateDialogOpenChange} open={isCreateDialogOpen}>
+        <DialogContent className="w-[min(96vw,1180px)] max-w-none overflow-visible p-0">
+          <DialogHeader className="border-b px-8 py-6">
+            <DialogTitle className="text-2xl font-semibold">
+              {isEditMode ? "퍼널 수정" : "새 퍼널 생성"}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditMode
+                ? "저장된 퍼널 이름과 단계 순서를 변경합니다."
+                : "수집된 이벤트를 순서대로 선택하면 단계별 전환 수가 미리 계산됩니다."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 px-8 py-6 lg:grid-cols-[minmax(320px,0.85fr)_minmax(480px,1.15fr)]">
+            {isDraftLoading ? (
+              <Alert className="lg:col-span-2">
+                <AlertTitle>퍼널 정보를 불러오는 중입니다</AlertTitle>
+                <AlertDescription>저장된 단계 구성을 가져오고 있습니다.</AlertDescription>
+              </Alert>
+            ) : null}
+            {draftLoadError ? (
+              <Alert className="lg:col-span-2" variant="destructive">
+                <AlertTitle>퍼널 정보를 불러오지 못했습니다</AlertTitle>
+                <AlertDescription>{draftLoadError}</AlertDescription>
+              </Alert>
+            ) : null}
+            {eventCatalog.isError ? (
+              <Alert className="lg:col-span-2" variant="destructive">
+                <AlertTitle>이벤트 목록을 불러오지 못했습니다</AlertTitle>
+                <AlertDescription>수집 이벤트 카탈로그 API 응답을 확인해주세요.</AlertDescription>
+              </Alert>
+            ) : null}
+            {isEventCatalogEmpty ? (
+              <Alert className="lg:col-span-2">
+                <AlertTitle>선택 가능한 이벤트가 없습니다</AlertTitle>
+                <AlertDescription>
+                  ClickHouse에 수집된 퍼널 이벤트가 있어야 단계를 선택할 수 있습니다.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {draftMutationError ? (
+              <Alert className="lg:col-span-2" variant="destructive">
+                <AlertTitle>퍼널을 저장하지 못했습니다</AlertTitle>
+                <AlertDescription>{mutationErrorMessage(draftMutationError)}</AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="grid content-start gap-5">
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="funnel-name">퍼널 이름</FieldLabel>
+                  <Input
+                    disabled={isDraftLoading || isDraftSaving}
+                    id="funnel-name"
+                    onChange={(event) => setFunnelName(event.target.value)}
+                    value={funnelName}
+                  />
+                </Field>
+              </FieldGroup>
+              <div className="grid gap-3">
+                {steps.map((step, index) => (
+                  <div className="grid gap-2 md:grid-cols-[1fr_auto]" key={index}>
+                    <NativeSelect
+                      aria-label={`${index + 1}번째 퍼널 이벤트`}
+                      className="w-full"
+                      disabled={
+                        eventCatalog.isLoading ||
+                        !eventOptions.length ||
+                        isDraftLoading ||
+                        isDraftSaving
+                      }
+                      onChange={(event) => selectEvent(index, event.target.value)}
+                      value={step.event_name}
+                    >
+                      <NativeSelectOption value="">
+                        {eventPlaceholder(eventCatalog.isLoading, isEventCatalogEmpty)}
+                      </NativeSelectOption>
+                      {eventOptions.map((eventItem) => (
+                        <NativeSelectOption key={eventItem.event_name} value={eventItem.event_name}>
+                          {eventItem.display_name} ({eventItem.event_name})
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                    <Button
+                      disabled={steps.length <= 2 || isDraftLoading || isDraftSaving}
+                      onClick={() => removeStep(index)}
+                      size="icon"
+                      type="button"
+                      variant="outline"
+                    >
+                      <Trash2 data-icon="inline-start" />
+                      <span className="sr-only">단계 삭제</span>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={!eventOptions.length || isDraftLoading || isDraftSaving}
+                  onClick={addStep}
+                  type="button"
+                  variant="outline"
+                >
+                  <Plus data-icon="inline-start" />
+                  단계 추가
+                </Button>
+              </div>
+            </div>
+            <section className="grid content-start gap-3 border-t pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+              <div className="grid gap-1">
+                <h3 className="text-base font-semibold text-foreground">단계별 전환 미리보기</h3>
+                <p className="text-sm text-muted-foreground">
+                  사용자별 이벤트 발생 순서를 기준으로 각 단계까지 도달한 수를 표시합니다.
+                </p>
+              </div>
+              {funnelPreview.isError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>미리보기를 불러오지 못했습니다</AlertTitle>
+                  <AlertDescription>{mutationErrorMessage(funnelPreview.error)}</AlertDescription>
+                </Alert>
+              ) : null}
+              {previewSteps.length > 0 ? (
+                <FunnelMetricChart steps={previewSteps} />
+              ) : (
+                <EmptyState message="이벤트를 선택하면 미리보기가 표시됩니다." />
+              )}
+            </section>
+          </div>
+          <DialogFooter className="px-8 py-5">
+            <Button
+              disabled={isDraftSaving}
+              onClick={() => handleCreateDialogOpenChange(false)}
+              type="button"
+              variant="ghost"
             >
-              <LineChart data={funnelMetrics.data?.steps ?? []}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="step_name"
-                  tickLine={false}
-                  tickMargin={10}
-                  axisLine={false}
-                />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line
-                  activeDot={{ r: 6 }}
-                  dataKey="event_count"
-                  dot={{ r: 4 }}
-                  stroke="var(--color-event_count)"
-                  strokeWidth={2}
-                  type="linear"
-                />
-              </LineChart>
-            </ChartContainer>
-          ) : (
-            <EmptyState message="수치를 확인할 퍼널을 선택해주세요." />
-          )}
-        </CardContent>
-      </Card>
+              취소
+            </Button>
+            <Button disabled={!canSave || isDraftSaving} onClick={saveFunnel} type="button">
+              {isDraftSaving ? "저장 중" : isEditMode ? "변경 저장" : "저장"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
@@ -324,12 +502,144 @@ export function FunnelDashboardPanel({
     setSteps((current) => [...current, { step_name: "", event_name: "" }]);
   }
 
+  function handleCreateDialogOpenChange(isOpen: boolean) {
+    setIsCreateDialogOpen(isOpen);
+    if (!isOpen) {
+      createMutation.reset();
+      updateMutation.reset();
+      setDraftDialogMode("create");
+      setDraftLoadError(null);
+      setEditingFunnelId("");
+      setIsDraftLoading(false);
+      resetDraft();
+    }
+  }
+
+  function openCreateDialog() {
+    createMutation.reset();
+    updateMutation.reset();
+    setDraftDialogMode("create");
+    setDraftLoadError(null);
+    setEditingFunnelId("");
+    setIsDraftLoading(false);
+    resetDraft();
+    setIsCreateDialogOpen(true);
+  }
+
+  function openDetails(funnelId: string) {
+    setSelectedFunnelId(funnelId);
+  }
+
+  function handleDetailPanelResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      resizeDetailPanelBy(DETAIL_PANEL_RESIZE_STEP);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      resizeDetailPanelBy(-DETAIL_PANEL_RESIZE_STEP);
+      return;
+    }
+    if (event.key === "PageUp") {
+      event.preventDefault();
+      resizeDetailPanelBy(DETAIL_PANEL_RESIZE_STEP * 3);
+      return;
+    }
+    if (event.key === "PageDown") {
+      event.preventDefault();
+      resizeDetailPanelBy(-DETAIL_PANEL_RESIZE_STEP * 3);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      setIsDetailPanelCollapsed(false);
+      setDetailPanelHeight(DETAIL_PANEL_MIN_HEIGHT);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      setIsDetailPanelCollapsed(false);
+      setDetailPanelHeight(getDetailPanelMaxHeight());
+    }
+  }
+
+  function resizeDetailPanelBy(delta: number) {
+    setIsDetailPanelCollapsed(false);
+    setDetailPanelHeight((current) => clampDetailPanelHeight(current + delta));
+  }
+
+  function startDetailPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDetailPanelCollapsed(false);
+
+    const startY = event.clientY;
+    const startHeight = isDetailPanelCollapsed
+      ? Math.max(detailPanelHeight, getDetailPanelDefaultHeight())
+      : detailPanelHeight;
+    const previousUserSelect = document.body.style.userSelect;
+    const previousCursor = document.body.style.cursor;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "row-resize";
+
+    function handlePointerMove(pointerEvent: PointerEvent) {
+      const nextHeight = startHeight + startY - pointerEvent.clientY;
+      setDetailPanelHeight(clampDetailPanelHeight(nextHeight));
+    }
+
+    function cleanup() {
+      document.body.style.userSelect = previousUserSelect;
+      document.body.style.cursor = previousCursor;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", cleanup);
+      window.removeEventListener("pointercancel", cleanup);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", cleanup);
+    window.addEventListener("pointercancel", cleanup);
+  }
+
+  async function openEditDialog(funnelId: string) {
+    createMutation.reset();
+    updateMutation.reset();
+    setDraftDialogMode("edit");
+    setDraftLoadError(null);
+    setEditingFunnelId(funnelId);
+    setIsDraftLoading(true);
+    resetDraft();
+    setIsCreateDialogOpen(true);
+
+    try {
+      const funnel = await queryClient.fetchQuery({
+        queryFn: ({ signal }) => fetchDashboardFunnel(query, funnelId, signal),
+        queryKey: dashboardFunnelDetailQueryKey(query.projectId, funnelId)
+      });
+      setFunnelName(funnel.funnel_name);
+      setSteps(createDraftStepsFromFunnel(funnel));
+    } catch (error) {
+      setDraftLoadError(mutationErrorMessage(error));
+    } finally {
+      setIsDraftLoading(false);
+    }
+  }
+
   function removeStep(index: number) {
     setSteps((current) => current.filter((_, currentIndex) => currentIndex !== index));
   }
 
-  function selectFunnel(funnelId: string) {
-    setSelectedFunnelId(funnelId);
+  function resetDraft() {
+    setFunnelName("");
+    setSteps(createDefaultSteps());
+  }
+
+  function saveFunnel() {
+    if (isEditMode) {
+      updateMutation.mutate();
+      return;
+    }
+
+    createMutation.mutate();
   }
 
   function selectEvent(index: number, eventName: string) {
@@ -347,8 +657,115 @@ export function FunnelDashboardPanel({
   }
 }
 
+function FunnelMetricChart({ steps }: { steps: DashboardFunnelMetricStep[] }) {
+  const gradientId = `${useId().replace(/:/g, "")}-funnel-event-count`;
+
+  return (
+    <ChartContainer
+      className="h-[260px] w-full"
+      config={{
+        event_count: {
+          color: "var(--chart-1)",
+          label: "도달 수"
+        }
+      }}
+    >
+      <AreaChart data={steps} margin={{ bottom: 16, left: 10, right: 28, top: 40 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="5%" stopColor="var(--color-event_count)" stopOpacity={0.32} />
+            <stop offset="95%" stopColor="var(--color-event_count)" stopOpacity={0.04} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid vertical={false} />
+        <XAxis dataKey="step_name" tickLine={false} tickMargin={14} axisLine={false} />
+        <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={12} width={56} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Area
+          dataKey="event_count"
+          fill={`url(#${gradientId})`}
+          stroke="var(--color-event_count)"
+          strokeWidth={2}
+          type="monotone"
+        >
+          <LabelList
+            className="fill-foreground text-xs font-medium"
+            dataKey="event_count"
+            formatter={formatMetricLabel}
+            offset={12}
+            position="top"
+          />
+        </Area>
+      </AreaChart>
+    </ChartContainer>
+  );
+}
+
+function FunnelMetricTable({ steps }: { steps: DashboardFunnelMetricStep[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>단계</TableHead>
+          <TableHead>이벤트</TableHead>
+          <TableHead className="text-right">도달 수</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {steps.map((step) => (
+          <TableRow key={`${step.step_order}-${step.event_name}`}>
+            <TableCell>{step.step_name}</TableCell>
+            <TableCell>{step.event_name}</TableCell>
+            <TableCell className="text-right">{step.event_count.toLocaleString()}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
 function createDefaultSteps(): FunnelDraftStep[] {
   return DEFAULT_STEPS.map((step) => ({ ...step }));
+}
+
+function createDraftStepsFromFunnel(funnel: DashboardFunnel): FunnelDraftStep[] {
+  const draftSteps: FunnelDraftStep[] = funnel.steps.map((step) => ({
+    event_name: step.event_name,
+    step_name: step.step_name
+  }));
+
+  while (draftSteps.length < 2) {
+    draftSteps.push({ event_name: "", step_name: "" });
+  }
+
+  return draftSteps;
+}
+
+function funnelStepCount(funnel: DashboardFunnelList["funnels"][number]): number {
+  if (typeof funnel.step_count === "number") {
+    return funnel.step_count;
+  }
+
+  const legacyFunnel = funnel as DashboardFunnelList["funnels"][number] & {
+    steps?: unknown[];
+  };
+  return legacyFunnel.steps?.length ?? 0;
+}
+
+function createFunnelPreviewRequest(
+  steps: FunnelDraftStep[]
+): DashboardFunnelPreviewRequest | null {
+  const selectedSteps = steps.filter((step) => step.step_name.trim() && step.event_name.trim());
+  if (selectedSteps.length === 0) {
+    return null;
+  }
+
+  return {
+    steps: selectedSteps.map((step) => ({
+      step_name: step.step_name,
+      event_name: DashboardFunnelEventNameSchema.parse(step.event_name)
+    }))
+  };
 }
 
 function createFunnelRequest(
@@ -374,10 +791,45 @@ function eventPlaceholder(isLoading: boolean, isEmpty: boolean): string {
   return "이벤트 선택";
 }
 
-function stepLabel(step: DashboardFunnelList["funnels"][number]["steps"][number]): string {
-  return `${step.step_name} (${step.event_name})`;
+function clampDetailPanelHeight(value: number): number {
+  return Math.min(Math.max(value, DETAIL_PANEL_MIN_HEIGHT), getDetailPanelMaxHeight());
+}
+
+function getDetailPanelMaxHeight(): number {
+  if (typeof window === "undefined") {
+    return DETAIL_PANEL_MIN_HEIGHT;
+  }
+
+  return Math.max(DETAIL_PANEL_MIN_HEIGHT, Math.round(window.innerHeight * 0.78));
+}
+
+function getDetailPanelDefaultHeight(): number {
+  if (typeof window === "undefined") {
+    return DETAIL_PANEL_MIN_HEIGHT;
+  }
+
+  return clampDetailPanelHeight(Math.round(window.innerHeight * DETAIL_PANEL_DEFAULT_HEIGHT_RATIO));
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(date);
 }
 
 function mutationErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "API 요청 실패";
+}
+
+function formatMetricLabel(value: unknown): string {
+  return typeof value === "number" ? value.toLocaleString() : String(value ?? "");
 }

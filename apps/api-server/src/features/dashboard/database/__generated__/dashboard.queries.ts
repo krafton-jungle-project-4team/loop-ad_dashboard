@@ -3607,6 +3607,7 @@ export interface IListActiveFunnelsResult {
   domainType: string;
   funnelId: string;
   funnelName: string;
+  stepCount: number;
   status: string;
   updatedAt: Date;
 }
@@ -3617,22 +3618,32 @@ export interface IListActiveFunnelsQuery {
   result: IListActiveFunnelsResult;
 }
 
-const listActiveFunnelsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":206,"b":215}]}],"statement":"SELECT\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM funnel_definitions\nWHERE project_id = :projectId\n  AND status = 'active'\nORDER BY updated_at DESC, created_at DESC                                  "};
+const listActiveFunnelsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":332,"b":341}]}],"statement":"SELECT\n  fd.funnel_id AS \"funnelId\",\n  fd.funnel_name AS \"funnelName\",\n  fd.domain_type AS \"domainType\",\n  fd.status,\n  COUNT(fs.funnel_id)::int AS \"stepCount\",\n  fd.created_at AS \"createdAt\",\n  fd.updated_at AS \"updatedAt\"\nFROM funnel_definitions fd\nLEFT JOIN funnel_steps fs\n  ON fs.funnel_id = fd.funnel_id\nWHERE fd.project_id = :projectId\n  AND fd.status = 'active'\nGROUP BY\n  fd.funnel_id,\n  fd.funnel_name,\n  fd.domain_type,\n  fd.status,\n  fd.created_at,\n  fd.updated_at\nORDER BY fd.updated_at DESC, fd.created_at DESC"};
 
 /**
  * Query generated from SQL:
  * ```
  * SELECT
- *   funnel_id AS "funnelId",
- *   funnel_name AS "funnelName",
- *   domain_type AS "domainType",
- *   status,
- *   created_at AS "createdAt",
- *   updated_at AS "updatedAt"
- * FROM funnel_definitions
- * WHERE project_id = :projectId
- *   AND status = 'active'
- * ORDER BY updated_at DESC, created_at DESC                                  
+ *   fd.funnel_id AS "funnelId",
+ *   fd.funnel_name AS "funnelName",
+ *   fd.domain_type AS "domainType",
+ *   fd.status,
+ *   COUNT(fs.funnel_id)::int AS "stepCount",
+ *   fd.created_at AS "createdAt",
+ *   fd.updated_at AS "updatedAt"
+ * FROM funnel_definitions fd
+ * LEFT JOIN funnel_steps fs
+ *   ON fs.funnel_id = fd.funnel_id
+ * WHERE fd.project_id = :projectId
+ *   AND fd.status = 'active'
+ * GROUP BY
+ *   fd.funnel_id,
+ *   fd.funnel_name,
+ *   fd.domain_type,
+ *   fd.status,
+ *   fd.created_at,
+ *   fd.updated_at
+ * ORDER BY fd.updated_at DESC, fd.created_at DESC
  * ```
  */
 export const listActiveFunnels = new PreparedQuery<IListActiveFunnelsParams,IListActiveFunnelsResult>(listActiveFunnelsIR);
@@ -3805,6 +3816,53 @@ const insertFunnelDefinitionIR: any = {"usedParamSet":{"funnelId":true,"projectI
 export const insertFunnelDefinition = new PreparedQuery<IInsertFunnelDefinitionParams,IInsertFunnelDefinitionResult>(insertFunnelDefinitionIR);
 
 
+/** 'UpdateFunnelDefinition' parameters type */
+export interface IUpdateFunnelDefinitionParams {
+  funnelId?: string | null | void;
+  funnelName?: string | null | void;
+  projectId?: string | null | void;
+}
+
+/** 'UpdateFunnelDefinition' return type */
+export interface IUpdateFunnelDefinitionResult {
+  createdAt: Date;
+  domainType: string;
+  funnelId: string;
+  funnelName: string;
+  status: string;
+  updatedAt: Date;
+}
+
+/** 'UpdateFunnelDefinition' query type */
+export interface IUpdateFunnelDefinitionQuery {
+  params: IUpdateFunnelDefinitionParams;
+  result: IUpdateFunnelDefinitionResult;
+}
+
+const updateFunnelDefinitionIR: any = {"usedParamSet":{"funnelName":true,"projectId":true,"funnelId":true},"params":[{"name":"funnelName","required":false,"transform":{"type":"scalar"},"locs":[{"a":46,"b":56}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":99,"b":108}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":128,"b":136}]}],"statement":"UPDATE funnel_definitions\nSET\n  funnel_name = :funnelName,\n  updated_at = now()\nWHERE project_id = :projectId\n  AND funnel_id = :funnelId\n  AND status = 'active'\nRETURNING\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\""};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE funnel_definitions
+ * SET
+ *   funnel_name = :funnelName,
+ *   updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND funnel_id = :funnelId
+ *   AND status = 'active'
+ * RETURNING
+ *   funnel_id AS "funnelId",
+ *   funnel_name AS "funnelName",
+ *   domain_type AS "domainType",
+ *   status,
+ *   created_at AS "createdAt",
+ *   updated_at AS "updatedAt"
+ * ```
+ */
+export const updateFunnelDefinition = new PreparedQuery<IUpdateFunnelDefinitionParams,IUpdateFunnelDefinitionResult>(updateFunnelDefinitionIR);
+
+
 /** 'InsertFunnelStep' parameters type */
 export interface IInsertFunnelStepParams {
   eventName?: string | null | void;
@@ -3906,5 +3964,3 @@ const deleteFunnelDefinitionIR: any = {"usedParamSet":{"projectId":true,"funnelI
  * ```
  */
 export const deleteFunnelDefinition = new PreparedQuery<IDeleteFunnelDefinitionParams,IDeleteFunnelDefinitionResult>(deleteFunnelDefinitionIR);
-
-

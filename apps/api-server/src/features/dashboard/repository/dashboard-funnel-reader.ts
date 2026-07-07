@@ -8,8 +8,12 @@ import type {
   DashboardDeliveryStatus,
   DashboardEventCatalogItem,
   DashboardFunnel,
+  DashboardFunnelMetricStep,
   DashboardFunnelMetrics,
-  DashboardFunnelStep,
+  DashboardFunnelPreview,
+  DashboardFunnelPreviewRequest,
+  DashboardFunnelSummary,
+  DashboardUpdateFunnelRequest,
   DashboardPromotionRealtimeMetrics,
   DashboardRealtimeBreakdownItem,
   DashboardRealtimeEvent,
@@ -33,8 +37,8 @@ import {
   insertFunnelDefinition,
   insertFunnelStep,
   listActiveFunnels,
-  listActiveFunnelSteps,
   listActiveFunnelStepsByFunnelId,
+  updateFunnelDefinition,
   listDashboardPromotionSegmentDeliverySummaries,
   type IGetActiveFunnelByIdResult,
   type IGetDashboardCampaignDeliveryStatusResult,
@@ -43,9 +47,8 @@ import {
   type IInsertFunnelDefinitionResult,
   type IInsertFunnelStepResult,
   type IListActiveFunnelsResult,
-  type IListActiveFunnelStepsByFunnelIdResult,
   type IListActiveFunnelStepsResult,
-  type IListDashboardPromotionSegmentDeliverySummariesResult
+  type IUpdateFunnelDefinitionResult
 } from "../database/__generated__/dashboard.queries.js";
 
 type EventCatalogRow = {
@@ -56,6 +59,12 @@ type EventCatalogRow = {
 type FunnelStepMetricRow = {
   step_order: number | string;
   event_count: number | string;
+};
+
+type FunnelMetricInputStep = {
+  eventName: string;
+  stepName: string;
+  stepOrder: number;
 };
 
 type SegmentRealtimeMetricRow = {
@@ -157,13 +166,19 @@ export class DashboardFunnelReader {
     });
   }
 
-  async listFunnels(projectId: string): Promise<DashboardFunnel[]> {
-    const [funnels, steps] = await Promise.all([
-      this.db.query(listActiveFunnels, { projectId }).multiple(),
-      this.db.query(listActiveFunnelSteps, { projectId }).multiple()
+  async listFunnels(projectId: string): Promise<DashboardFunnelSummary[]> {
+    const funnels = await this.db.query(listActiveFunnels, { projectId }).multiple();
+
+    return funnels.map(toFunnelSummary);
+  }
+
+  async getFunnel(projectId: string, funnelId: string): Promise<DashboardFunnel> {
+    const [funnel, steps] = await Promise.all([
+      this.db.query(getActiveFunnelById, { funnelId, projectId }).single(),
+      this.db.query(listActiveFunnelStepsByFunnelId, { funnelId, projectId }).multiple()
     ]);
 
-    return funnels.map((funnel) => toFunnel(funnel, steps));
+    return toFunnel(funnel, steps);
   }
 
   async getFunnelMetrics(projectId: string, funnelId: string): Promise<DashboardFunnelMetrics> {
@@ -171,17 +186,35 @@ export class DashboardFunnelReader {
       this.db.query(getActiveFunnelById, { funnelId, projectId }).single(),
       this.db.query(listActiveFunnelStepsByFunnelId, { funnelId, projectId }).multiple()
     ]);
-    const eventCounts = await this.countFunnelStepEvents(projectId, steps);
+    const metricSteps = await this.buildFunnelMetricSteps(
+      projectId,
+      steps.map((step) => ({
+        eventName: step.eventName,
+        stepName: step.stepName,
+        stepOrder: step.stepOrder
+      }))
+    );
 
     return {
       funnel_id: funnel.funnelId,
       funnel_name: funnel.funnelName,
-      steps: steps.map((step) => ({
-        step_order: step.stepOrder,
-        step_name: step.stepName,
-        event_name: DashboardFunnelEventNameSchema.parse(step.eventName),
-        event_count: eventCounts.get(step.stepOrder) ?? 0
-      }))
+      steps: metricSteps
+    };
+  }
+
+  async previewFunnelMetrics(
+    projectId: string,
+    request: DashboardFunnelPreviewRequest
+  ): Promise<DashboardFunnelPreview> {
+    return {
+      steps: await this.buildFunnelMetricSteps(
+        projectId,
+        request.steps.map((step, index) => ({
+          eventName: step.event_name,
+          stepName: step.step_name,
+          stepOrder: index + 1
+        }))
+      )
     };
   }
 
@@ -396,14 +429,40 @@ export class DashboardFunnelReader {
     return toFunnel(funnel, steps);
   }
 
-  async deleteFunnel(
+  async updateFunnel(
     projectId: string,
-    funnelId: string
-  ): Promise<DashboardDeleteFunnelResult> {
-    await this.db.query(deleteFunnelSteps, { funnelId, projectId }).multiple();
-    const deleted = await this.db
-      .query(deleteFunnelDefinition, { funnelId, projectId })
+    funnelId: string,
+    request: DashboardUpdateFunnelRequest
+  ): Promise<DashboardFunnel> {
+    const funnel = await this.db
+      .query(updateFunnelDefinition, {
+        funnelId,
+        projectId,
+        funnelName: request.funnel_name
+      })
       .single();
+    await this.db.query(deleteFunnelSteps, { funnelId, projectId }).multiple();
+
+    const steps: IInsertFunnelStepResult[] = [];
+    for (const [index, step] of request.steps.entries()) {
+      steps.push(
+        await this.db
+          .query(insertFunnelStep, {
+            funnelId,
+            stepOrder: index + 1,
+            stepName: step.step_name,
+            eventName: step.event_name
+          })
+          .single()
+      );
+    }
+
+    return toFunnel(funnel, steps);
+  }
+
+  async deleteFunnel(projectId: string, funnelId: string): Promise<DashboardDeleteFunnelResult> {
+    await this.db.query(deleteFunnelSteps, { funnelId, projectId }).multiple();
+    const deleted = await this.db.query(deleteFunnelDefinition, { funnelId, projectId }).single();
 
     return {
       funnel_id: deleted.funnelId,
@@ -446,9 +505,7 @@ export class DashboardFunnelReader {
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
       : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
-    const segmentBookingFilter = segmentId
-      ? "AND ifNull(segment_id, '') = {segmentId:String}"
-      : "";
+    const segmentBookingFilter = segmentId ? "AND ifNull(segment_id, '') = {segmentId:String}" : "";
     const result = await this.clickhouse.query({
       query: `
         SELECT
@@ -567,9 +624,7 @@ export class DashboardFunnelReader {
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
       : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
-    const segmentBookingFilter = segmentId
-      ? "AND ifNull(segment_id, '') = {segmentId:String}"
-      : "";
+    const segmentBookingFilter = segmentId ? "AND ifNull(segment_id, '') = {segmentId:String}" : "";
     const result = await this.clickhouse.query({
       query: `
         SELECT
@@ -636,9 +691,7 @@ export class DashboardFunnelReader {
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
       : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
-    const segmentBookingFilter = segmentId
-      ? "AND ifNull(segment_id, '') = {segmentId:String}"
-      : "";
+    const segmentBookingFilter = segmentId ? "AND ifNull(segment_id, '') = {segmentId:String}" : "";
     const result = await this.clickhouse.query({
       query: `
         SELECT toString(time_bucket) AS peak_time
@@ -674,14 +727,13 @@ export class DashboardFunnelReader {
     return row?.peak_time ?? null;
   }
 
-  private async countRealtimeBreakdowns(
-    scope: RealtimeMetricScope
-  ): Promise<RealtimeBreakdowns> {
+  private async countRealtimeBreakdowns(scope: RealtimeMetricScope): Promise<RealtimeBreakdowns> {
     const [timeBuckets, channelBreakdown, landingTypeBreakdown, hotelClusterBreakdown] =
       await Promise.all([
         this.countRealtimeTimeBuckets(scope),
         this.countRealtimeBreakdown(scope, {
-          bookingKeyExpression: "nullIf(JSONExtractString(properties_json, 'promotion_channel'), '')",
+          bookingKeyExpression:
+            "nullIf(JSONExtractString(properties_json, 'promotion_channel'), '')",
           labelPrefix: "channel",
           projectKeyExpression:
             "ifNull(nullIf(JSONExtractString(properties_json, 'promotion_channel'), ''), nullIf(JSONExtractString(properties_json, 'channel'), ''))",
@@ -747,9 +799,7 @@ export class DashboardFunnelReader {
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
       : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
-    const segmentBookingFilter = segmentId
-      ? "AND ifNull(segment_id, '') = {segmentId:String}"
-      : "";
+    const segmentBookingFilter = segmentId ? "AND ifNull(segment_id, '') = {segmentId:String}" : "";
     const result = await this.clickhouse.query({
       query: `
         SELECT
@@ -787,12 +837,7 @@ export class DashboardFunnelReader {
   }
 
   private async countRealtimeBreakdown(
-    {
-      filterColumn,
-      filterValue,
-      projectId,
-      segmentId
-    }: RealtimeMetricScope,
+    { filterColumn, filterValue, projectId, segmentId }: RealtimeMetricScope,
     {
       bookingKeyExpression,
       labelPrefix,
@@ -842,9 +887,7 @@ export class DashboardFunnelReader {
       ? `AND ifNull(${filterColumn}, '') = {filterValue:String}`
       : "";
     const segmentTouchFilter = segmentId ? "AND segment_id = {segmentId:String}" : "";
-    const segmentBookingFilter = segmentId
-      ? "AND ifNull(segment_id, '') = {segmentId:String}"
-      : "";
+    const segmentBookingFilter = segmentId ? "AND ifNull(segment_id, '') = {segmentId:String}" : "";
     const result = await this.clickhouse.query({
       query: `
         SELECT
@@ -886,9 +929,23 @@ export class DashboardFunnelReader {
       }));
   }
 
-  private async countFunnelStepEvents(
+  private async buildFunnelMetricSteps(
     projectId: string,
-    steps: IListActiveFunnelStepsByFunnelIdResult[]
+    steps: FunnelMetricInputStep[]
+  ): Promise<DashboardFunnelMetricStep[]> {
+    const eventCounts = await this.countSequentialFunnelStepEvents(projectId, steps);
+
+    return steps.map((step) => ({
+      step_order: step.stepOrder,
+      step_name: step.stepName,
+      event_name: DashboardFunnelEventNameSchema.parse(step.eventName),
+      event_count: eventCounts.get(step.stepOrder) ?? 0
+    }));
+  }
+
+  private async countSequentialFunnelStepEvents(
+    projectId: string,
+    steps: FunnelMetricInputStep[]
   ): Promise<Map<number, number>> {
     if (steps.length === 0) {
       return new Map();
@@ -954,7 +1011,11 @@ export class DashboardFunnelReader {
 }
 
 function toFunnel(
-  funnel: IGetActiveFunnelByIdResult | IInsertFunnelDefinitionResult | IListActiveFunnelsResult,
+  funnel:
+    | IGetActiveFunnelByIdResult
+    | IInsertFunnelDefinitionResult
+    | IListActiveFunnelsResult
+    | IUpdateFunnelDefinitionResult,
   steps: Array<IInsertFunnelStepResult | IListActiveFunnelStepsResult>
 ): DashboardFunnel {
   return {
@@ -969,6 +1030,18 @@ function toFunnel(
         step_name: step.stepName,
         event_name: DashboardFunnelEventNameSchema.parse(step.eventName)
       })),
+    created_at: funnel.createdAt.toISOString(),
+    updated_at: funnel.updatedAt.toISOString()
+  };
+}
+
+function toFunnelSummary(funnel: IListActiveFunnelsResult): DashboardFunnelSummary {
+  return {
+    funnel_id: funnel.funnelId,
+    funnel_name: funnel.funnelName,
+    domain_type: funnel.domainType,
+    status: funnel.status,
+    step_count: countValue(funnel.stepCount),
     created_at: funnel.createdAt.toISOString(),
     updated_at: funnel.updatedAt.toISOString()
   };

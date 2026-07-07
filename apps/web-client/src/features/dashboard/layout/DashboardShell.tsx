@@ -62,6 +62,8 @@ export function DashboardShell({
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
+  const isFunnelTab = activeTab === "funnels";
+  const isFullHeightTab = isCanvasTab || isFunnelTab;
 
   return (
     <SidebarProvider
@@ -87,7 +89,7 @@ export function DashboardShell({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className={isCanvasTab ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
+      <SidebarInset className={isFullHeightTab ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
           <div className="flex h-full min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1" />
@@ -102,14 +104,16 @@ export function DashboardShell({
           className={
             isCanvasTab
               ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-[#f5f5f7]"
-              : "min-w-0 flex-1 overflow-auto bg-[#f5f5f7]"
+              : "min-h-0 min-w-0 flex-1 overflow-auto bg-[#f5f5f7]"
           }
         >
           <div
             className={
               isCanvasTab
                 ? "h-full min-h-0 w-full"
-                : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
+                : isFunnelTab
+                  ? "grid h-full min-h-0 w-full px-4 pt-6 md:px-8 lg:pt-8"
+                  : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
             }
           >
             {children}
@@ -220,8 +224,7 @@ function DashboardNavigationSubItems({
               asChild
               className={cn(
                 "relative transition-colors",
-                isExactActive &&
-                  "bg-sidebar-accent font-semibold text-sidebar-accent-foreground",
+                isExactActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground",
                 !isExactActive && isBranchActive && "bg-sidebar-accent/60 text-sidebar-foreground"
               )}
               isActive={isExactActive}
@@ -255,7 +258,10 @@ function DashboardNavigationSubItems({
 }
 
 function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: DashboardTab): boolean {
-  return item.value === activeTab || Boolean(item.children?.some((child) => isNavigationItemActive(child, activeTab)));
+  return (
+    item.value === activeTab ||
+    Boolean(item.children?.some((child) => isNavigationItemActive(child, activeTab)))
+  );
 }
 
 function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: DashboardTab }) {
