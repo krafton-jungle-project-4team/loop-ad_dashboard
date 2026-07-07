@@ -6,8 +6,6 @@ import type { DashboardCampaignReader } from "../src/features/dashboard/reposito
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
 import type { DashboardSegmentQueryRepository } from "../src/features/dashboard/repository/dashboard-segment-query-repository.js";
 
-process.env.LOOPAD_LOG_LEVEL = "error";
-
 test("dashboard main returns campaign summaries from the campaign reader", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =

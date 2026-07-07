@@ -8,6 +8,7 @@ type LogRecord = Record<string, unknown>;
 type LogMethod = (event: string, record?: LogRecord) => void;
 
 const loggerContext = new AsyncLocalStorage<LogRecord>();
+const LOG_LEVEL: LogLevel = "debug";
 
 // AWS runtime-provided environment variables only:
 // Lambda: https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html#configuration-envvars-runtime
@@ -31,7 +32,7 @@ const pinoLogger = pino(
         return { level: label };
       }
     },
-    level: readLogLevel(process.env.LOOPAD_LOG_LEVEL),
+    level: LOG_LEVEL,
     messageKey: "message",
     serializers: {
       err: pino.stdSerializers.err
@@ -141,10 +142,6 @@ function createLogMethod(level: LogLevel): LogMethod {
 
 function removeUndefinedFields(fields: LogRecord): LogRecord {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
-}
-
-function readLogLevel(value: string | undefined): LogLevel {
-  return isLogLevel(value) ? value : "info";
 }
 
 function isLogLevel(value: unknown): value is LogLevel {
