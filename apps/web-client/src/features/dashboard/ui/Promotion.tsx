@@ -2724,6 +2724,16 @@ function PromotionAddDialog({
                 value={form.marketingTheme}
               />
             </Field>
+            <Field>
+              <FieldLabel htmlFor="promotion-create-message-brief">프로모션 설명</FieldLabel>
+              <Textarea
+                id="promotion-create-message-brief"
+                onChange={(event) => setForm({ ...form, messageBrief: event.target.value })}
+                placeholder="여름 휴가를 준비하는 20-30대 사용자를 대상으로 제주/오키나와 숙소 예약을 유도하는 여행 프로모션입니다. 인기 여행지, 조기 예약 할인, 후기 기반 추천을 강조합니다."
+                rows={4}
+                value={form.messageBrief}
+              />
+            </Field>
             <div className="grid gap-4 md:grid-cols-2">
               <Field>
                 <FieldLabel>채널</FieldLabel>
@@ -2856,6 +2866,7 @@ type PromotionCreateFormState = {
   landingUrl: string;
   marketingTheme: string;
   maxLoopCount: string;
+  messageBrief: string;
   minSampleSize: string;
 };
 
@@ -2868,6 +2879,7 @@ function createEmptyPromotionFormState(): PromotionCreateFormState {
     landingUrl: defaultPromotionLandingUrl,
     marketingTheme: "",
     maxLoopCount: "3",
+    messageBrief: "",
     minSampleSize: "1000"
   };
 }
@@ -2883,6 +2895,7 @@ function promotionCreateFormToRequest(
     landing_url: form.landingUrl.trim(),
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
+    message_brief: form.messageBrief.trim() || null,
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     status: "draft"
   };
