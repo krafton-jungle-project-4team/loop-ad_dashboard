@@ -13,6 +13,7 @@ import type {
   DashboardStartPromotionGenerationResult
 } from "@loopad/shared";
 import { env } from "../../../infra/env/env.js";
+import { durationMs, log } from "../../../infra/logger/index.js";
 import { dashboardErrors } from "../dashboard-errors.js";
 
 const decisionPromotionAnalysisResponseSchema = z.object({
@@ -33,8 +34,7 @@ const decisionPromotionGenerationResponseSchema = z
     generation_id: response.generation_id,
     promotion_id: response.promotion_id,
     status: response.status,
-    content_candidate_count:
-      response.content_candidate_count ?? response.content_candidates?.length
+    content_candidate_count: response.content_candidate_count ?? response.content_candidates?.length
   }));
 const decisionPromotionRunResponseSchema = z.object({
   promotion_run_id: z.string(),
@@ -128,6 +128,10 @@ export class DashboardDecisionClient {
       `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/analysis`,
       env.decision.apiBaseUrl
     );
+    const startedAt = Date.now();
+    const provider = "decision-api";
+    const endpoint = url.pathname;
+    log.info("provider_request_prepared", { endpoint, provider, request });
 
     let response: Response;
     try {
@@ -136,6 +140,7 @@ export class DashboardDecisionClient {
           project_id: request.projectId,
           campaign_id: request.campaignId,
           promotion_id: request.promotionId,
+          focus_segment_ids: request.request.focus_segment_ids ?? null,
           operator_instruction: request.request.operator_instruction ?? null
         }),
         headers: {
@@ -146,19 +151,48 @@ export class DashboardDecisionClient {
         method: "POST"
       });
     } catch (error) {
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        err: error,
+        provider,
+        request
+      });
       throw dashboardErrors.decisionRequestFailed(error);
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
+      const error = await readDecisionError(response);
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        error,
+        provider,
+        statusCode: response.status
+      });
+      throw dashboardErrors.decisionRequestFailed(error);
     }
 
     const body: unknown = await response.json();
     const parsed = decisionPromotionAnalysisResponseSchema.safeParse(body);
     if (!parsed.success) {
+      log.warn("provider_response_invalid", {
+        body,
+        endpoint,
+        err: parsed.error,
+        provider,
+        statusCode: response.status
+      });
       throw dashboardErrors.decisionRequestFailed(parsed.error);
     }
 
+    log.info("provider_request_completed", {
+      durationMs: durationMs(startedAt),
+      endpoint,
+      provider,
+      result: parsed.data,
+      statusCode: response.status
+    });
     return parsed.data;
   }
 
@@ -172,6 +206,10 @@ export class DashboardDecisionClient {
       `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/generation`,
       env.decision.apiBaseUrl
     );
+    const startedAt = Date.now();
+    const provider = "decision-api";
+    const endpoint = url.pathname;
+    log.info("provider_request_prepared", { endpoint, provider, request });
 
     let response: Response;
     try {
@@ -192,19 +230,48 @@ export class DashboardDecisionClient {
         method: "POST"
       });
     } catch (error) {
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        err: error,
+        provider,
+        request
+      });
       throw dashboardErrors.decisionRequestFailed(error);
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
+      const error = await readDecisionError(response);
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        error,
+        provider,
+        statusCode: response.status
+      });
+      throw dashboardErrors.decisionRequestFailed(error);
     }
 
     const body: unknown = await response.json();
     const parsed = decisionPromotionGenerationResponseSchema.safeParse(body);
     if (!parsed.success) {
+      log.warn("provider_response_invalid", {
+        body,
+        endpoint,
+        err: parsed.error,
+        provider,
+        statusCode: response.status
+      });
       throw dashboardErrors.decisionRequestFailed(parsed.error);
     }
 
+    log.info("provider_request_completed", {
+      durationMs: durationMs(startedAt),
+      endpoint,
+      provider,
+      result: parsed.data,
+      statusCode: response.status
+    });
     return parsed.data;
   }
 
@@ -216,6 +283,10 @@ export class DashboardDecisionClient {
       `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/runs`,
       env.decision.apiBaseUrl
     );
+    const startedAt = Date.now();
+    const provider = "decision-api";
+    const endpoint = url.pathname;
+    log.info("provider_request_prepared", { endpoint, provider, request });
 
     let response: Response;
     try {
@@ -233,19 +304,48 @@ export class DashboardDecisionClient {
         method: "POST"
       });
     } catch (error) {
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        err: error,
+        provider,
+        request
+      });
       throw dashboardErrors.decisionRequestFailed(error);
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
+      const error = await readDecisionError(response);
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        error,
+        provider,
+        statusCode: response.status
+      });
+      throw dashboardErrors.decisionRequestFailed(error);
     }
 
     const body: unknown = await response.json();
     const parsed = decisionPromotionRunResponseSchema.safeParse(body);
     if (!parsed.success) {
+      log.warn("provider_response_invalid", {
+        body,
+        endpoint,
+        err: parsed.error,
+        provider,
+        statusCode: response.status
+      });
       throw dashboardErrors.decisionRequestFailed(parsed.error);
     }
 
+    log.info("provider_request_completed", {
+      durationMs: durationMs(startedAt),
+      endpoint,
+      provider,
+      result: parsed.data,
+      statusCode: response.status
+    });
     return parsed.data;
   }
 
@@ -257,6 +357,10 @@ export class DashboardDecisionClient {
       `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/segment-assignments/build`,
       env.decision.apiBaseUrl
     );
+    const startedAt = Date.now();
+    const provider = "decision-api";
+    const endpoint = url.pathname;
+    log.info("provider_request_prepared", { endpoint, provider, request });
 
     let response: Response;
     try {
@@ -272,19 +376,48 @@ export class DashboardDecisionClient {
         method: "POST"
       });
     } catch (error) {
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        err: error,
+        provider,
+        request
+      });
       throw dashboardErrors.decisionRequestFailed(error);
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
+      const error = await readDecisionError(response);
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        error,
+        provider,
+        statusCode: response.status
+      });
+      throw dashboardErrors.decisionRequestFailed(error);
     }
 
     const body: unknown = await response.json();
     const parsed = decisionSegmentAssignmentBuildResponseSchema.safeParse(body);
     if (!parsed.success) {
+      log.warn("provider_response_invalid", {
+        body,
+        endpoint,
+        err: parsed.error,
+        provider,
+        statusCode: response.status
+      });
       throw dashboardErrors.decisionRequestFailed(parsed.error);
     }
 
+    log.info("provider_request_completed", {
+      durationMs: durationMs(startedAt),
+      endpoint,
+      provider,
+      result: parsed.data,
+      statusCode: response.status
+    });
     return parsed.data;
   }
 
@@ -295,6 +428,10 @@ export class DashboardDecisionClient {
       `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/evaluate`,
       env.decision.apiBaseUrl
     );
+    const startedAt = Date.now();
+    const provider = "decision-api";
+    const endpoint = url.pathname;
+    log.info("provider_request_prepared", { endpoint, provider, request });
 
     let response: Response;
     try {
@@ -308,19 +445,48 @@ export class DashboardDecisionClient {
         method: "POST"
       });
     } catch (error) {
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        err: error,
+        provider,
+        request
+      });
       throw dashboardErrors.decisionRequestFailed(error);
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
+      const error = await readDecisionError(response);
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        error,
+        provider,
+        statusCode: response.status
+      });
+      throw dashboardErrors.decisionRequestFailed(error);
     }
 
     const body: unknown = await response.json();
     const parsed = decisionPromotionRunEvaluateResponseSchema.safeParse(body);
     if (!parsed.success) {
+      log.warn("provider_response_invalid", {
+        body,
+        endpoint,
+        err: parsed.error,
+        provider,
+        statusCode: response.status
+      });
       throw dashboardErrors.decisionRequestFailed(parsed.error);
     }
 
+    log.info("provider_request_completed", {
+      durationMs: durationMs(startedAt),
+      endpoint,
+      provider,
+      result: parsed.data,
+      statusCode: response.status
+    });
     return parsed.data;
   }
 
@@ -332,6 +498,10 @@ export class DashboardDecisionClient {
       `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/next-loop`,
       env.decision.apiBaseUrl
     );
+    const startedAt = Date.now();
+    const provider = "decision-api";
+    const endpoint = url.pathname;
+    log.info("provider_request_prepared", { endpoint, provider, request });
 
     let response: Response;
     try {
@@ -349,19 +519,48 @@ export class DashboardDecisionClient {
         method: "POST"
       });
     } catch (error) {
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        err: error,
+        provider,
+        request
+      });
       throw dashboardErrors.decisionRequestFailed(error);
     }
 
     if (!response.ok) {
-      throw dashboardErrors.decisionRequestFailed(await readDecisionError(response));
+      const error = await readDecisionError(response);
+      log.warn("provider_request_failed", {
+        durationMs: durationMs(startedAt),
+        endpoint,
+        error,
+        provider,
+        statusCode: response.status
+      });
+      throw dashboardErrors.decisionRequestFailed(error);
     }
 
     const body: unknown = await response.json();
     const parsed = decisionNextLoopResponseSchema.safeParse(body);
     if (!parsed.success) {
+      log.warn("provider_response_invalid", {
+        body,
+        endpoint,
+        err: parsed.error,
+        provider,
+        statusCode: response.status
+      });
       throw dashboardErrors.decisionRequestFailed(parsed.error);
     }
 
+    log.info("provider_request_completed", {
+      durationMs: durationMs(startedAt),
+      endpoint,
+      provider,
+      result: parsed.data,
+      statusCode: response.status
+    });
     return parsed.data;
   }
 }

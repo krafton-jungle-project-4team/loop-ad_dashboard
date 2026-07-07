@@ -6,6 +6,7 @@ import {
 } from "@loopad/shared";
 import { z } from "zod";
 import { DataExplorerService } from "./data-explorer.service.js";
+import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 
 type ChatKitResult =
   | {
@@ -220,9 +221,13 @@ export class DataExplorerChatKitService {
     private readonly dataExplorer: DataExplorerService
   ) {}
 
+  @LogContextScope()
   async process(body: unknown): Promise<ChatKitResult> {
+    const startedAt = Date.now();
+    log.info("started", { body });
     const request = ChatKitRequestSchema.safeParse(body);
     if (!request.success) {
+      log.warn("chatkit_request_invalid", { error: request.error, body });
       return {
         body: {
           message: "Invalid ChatKit request."
@@ -232,7 +237,16 @@ export class DataExplorerChatKitService {
       };
     }
 
+    const threadId = readChatKitThreadId(request.data);
+    log.assignContext({
+      projectId: request.data.metadata.project_id,
+      requestType: request.data.type,
+      threadId
+    });
+    log.info("chatkit_request_parsed", { request: request.data });
+
     if (isStreamingRequest(request.data)) {
+      log.info("completed", { kind: "stream", durationMs: durationMs(startedAt) });
       return {
         events: this.stream(request.data),
         kind: "stream"
@@ -240,11 +254,15 @@ export class DataExplorerChatKitService {
     }
 
     try {
-      return {
+      const response = {
         body: this.handleJsonRequest(request.data),
         kind: "json"
-      };
+      } as const;
+
+      log.info("completed", { response, durationMs: durationMs(startedAt) });
+      return response;
     } catch (error) {
+      log.warn("chatkit_json_request_failed", { err: error, request: request.data });
       return {
         body: {
           message: error instanceof Error ? error.message : "ChatKit 요청 처리에 실패했습니다."
@@ -281,19 +299,31 @@ export class DataExplorerChatKitService {
   private async *stream(
     request: ChatKitStreamingRequest
   ): AsyncGenerator<ChatKitStreamEvent, void, unknown> {
+    const startedAt = Date.now();
+    log.assignContext({
+      projectId: request.metadata.project_id,
+      requestType: request.type,
+      threadId: readChatKitThreadId(request)
+    });
+    log.info("chatkit_stream_started", { request });
+
     try {
       if (request.type === "threads.create") {
         yield* this.createThreadAndRespond(request);
+        log.info("chatkit_stream_completed", { durationMs: durationMs(startedAt) });
         return;
       }
 
       if (request.type === "threads.add_user_message") {
         yield* this.addUserMessageAndRespond(request);
+        log.info("chatkit_stream_completed", { durationMs: durationMs(startedAt) });
         return;
       }
 
       yield* this.retryAfterItemAndRespond(request);
+      log.info("chatkit_stream_completed", { durationMs: durationMs(startedAt) });
     } catch (error) {
+      log.warn("chatkit_stream_failed", { err: error, request });
       yield {
         allow_retry: true,
         code: "custom",
@@ -309,6 +339,8 @@ export class DataExplorerChatKitService {
     const projectId = getProjectId(request);
     const thread = createThread(projectId);
     this.threads.set(thread.id, thread);
+    log.assignContext({ projectId, threadId: thread.id });
+    log.info("chatkit_thread_created", { thread });
 
     yield {
       thread: toThreadResponse(thread),
@@ -323,6 +355,7 @@ export class DataExplorerChatKitService {
     request: Extract<ChatKitStreamingRequest, { type: "threads.add_user_message" }>
   ): AsyncGenerator<ChatKitStreamEvent, void, unknown> {
     const thread = this.findThread(request.params.thread_id);
+    log.assignContext({ projectId: thread.metadata.project_id, threadId: thread.id });
     const userMessage = createUserMessage(thread.id, request.params.input);
     yield* this.addItemAndRespond(thread, userMessage, request);
   }
@@ -331,10 +364,12 @@ export class DataExplorerChatKitService {
     request: Extract<ChatKitStreamingRequest, { type: "threads.retry_after_item" }>
   ): AsyncGenerator<ChatKitStreamEvent, void, unknown> {
     const thread = this.findThread(request.params.thread_id);
+    log.assignContext({ projectId: thread.metadata.project_id, threadId: thread.id });
     const itemIndex = thread.items.findIndex((item) => item.id === request.params.item_id);
     const item = thread.items[itemIndex];
 
     if (!item || item.type !== "user_message") {
+      log.warn("chatkit_retry_item_not_found", { request, thread });
       throw new Error("다시 실행할 사용자 메시지를 찾을 수 없습니다.");
     }
 
@@ -348,6 +383,8 @@ export class DataExplorerChatKitService {
     request: ChatKitStreamingRequest
   ): AsyncGenerator<ChatKitStreamEvent, void, unknown> {
     thread.items.push(userMessage);
+    log.assignContext({ messageId: userMessage.id });
+    log.info("chatkit_user_message_added", { thread, userMessage });
 
     yield {
       item: userMessage,
@@ -362,6 +399,9 @@ export class DataExplorerChatKitService {
     userMessage: ChatKitUserMessageItem,
     request: ChatKitStreamingRequest
   ): AsyncGenerator<ChatKitStreamEvent, void, unknown> {
+    const startedAt = Date.now();
+    log.info("chatkit_response_started", { request, thread, userMessage });
+
     yield {
       stream_options: {
         allow_cancel: false
@@ -376,6 +416,7 @@ export class DataExplorerChatKitService {
     });
     const assistantMessage = createAssistantMessage(thread.id, response.assistant_message);
     thread.items.push(assistantMessage);
+    log.info("chatkit_assistant_message_created", { assistantMessage, response });
 
     yield {
       item: assistantMessage,
@@ -383,17 +424,21 @@ export class DataExplorerChatKitService {
     };
 
     if (response.query_plan) {
+      log.info("chatkit_client_effect_prepared", { response });
       yield {
         data: toQueryRunEffect(response),
         name: response.query_result ? "data_explorer_query_run" : "data_explorer_query_plan",
         type: "client_effect"
       };
     }
+
+    log.info("chatkit_response_completed", { durationMs: durationMs(startedAt) });
   }
 
   private findThread(threadId: string) {
     const thread = this.threads.get(threadId);
     if (!thread) {
+      log.warn("chatkit_thread_not_found", { threadId });
       throw new Error("ChatKit thread를 찾을 수 없습니다.");
     }
 
@@ -407,6 +452,14 @@ function isStreamingRequest(request: ChatKitRequest): request is ChatKitStreamin
     request.type === "threads.add_user_message" ||
     request.type === "threads.retry_after_item"
   );
+}
+
+function readChatKitThreadId(request: ChatKitRequest): string | undefined {
+  if ("thread_id" in request.params) {
+    return request.params.thread_id;
+  }
+
+  return undefined;
 }
 
 function getProjectId(request: Extract<ChatKitRequest, { type: "threads.create" }>) {

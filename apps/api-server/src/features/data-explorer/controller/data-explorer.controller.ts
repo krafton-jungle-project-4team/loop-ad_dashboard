@@ -6,6 +6,7 @@ import {
 } from "@loopad/shared";
 import { DataExplorerChatKitService } from "../service/data-explorer-chatkit.service.js";
 import { DataExplorerService } from "../service/data-explorer.service.js";
+import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 
 type ChatKitHttpResponse = {
   end: () => void;
@@ -49,14 +50,20 @@ export class DataExplorerController {
 
   /** OpenAI ChatKit SDK 요청을 처리하고, 필요하면 SSE로 답변을 스트리밍한다. */
   @Post("chatkit")
+  @LogContextScope()
   async runChatKit(@Body() body: unknown, @Res() response: ChatKitHttpResponse) {
+    const startedAt = Date.now();
+    log.info("started", { body });
     const result = await this.chatKit.process(body);
 
     if (result.kind === "json") {
+      log.info("chatkit_json_response_sent", { result });
       response.status(result.statusCode ?? 200).json(result.body);
+      log.info("completed", { kind: "json", durationMs: durationMs(startedAt) });
       return;
     }
 
+    log.info("chatkit_stream_response_started");
     response.status(200);
     response.setHeader("Content-Type", "text/event-stream");
     response.setHeader("Cache-Control", "no-cache");
@@ -67,5 +74,6 @@ export class DataExplorerController {
     }
 
     response.end();
+    log.info("completed", { kind: "stream", durationMs: durationMs(startedAt) });
   }
 }

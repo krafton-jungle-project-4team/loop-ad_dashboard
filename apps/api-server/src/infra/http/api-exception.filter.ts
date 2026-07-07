@@ -8,7 +8,7 @@ import {
 import type { ApiError } from "@loopad/shared";
 import { ZodError } from "zod";
 import { AppError } from "../../app-errors.js";
-import { assignLoggerContext, logWithContext } from "../logger/index.js";
+import { log } from "../logger/index.js";
 import {
   createApiFailure,
   ensureRequestId,
@@ -17,11 +17,7 @@ import {
   type ResponseWithRequestIdHeader
 } from "./api-response.js";
 
-type HttpRequest = RequestWithRequestId & {
-  method?: string;
-  originalUrl?: string;
-  url?: string;
-};
+type HttpRequest = RequestWithRequestId;
 
 type JsonResponse = ResponseWithRequestIdHeader & {
   status(code: number): {
@@ -39,8 +35,13 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const statusCode = getStatusCode(error);
     const body = getErrorBody(error, statusCode);
 
-    assignLoggerContext({ statusCode, errorCode: body.code });
-    logErrorResponse(request, requestId, statusCode, body, error);
+    log.assignContext({
+      statusCode,
+      errorCode: body.code,
+      errorName: getErrorName(error),
+      errorMessage: getLogMessage(body.message, error),
+      err: statusCode >= HttpStatus.INTERNAL_SERVER_ERROR ? getSerializableError(error) : null
+    });
 
     setRequestIdHeader(response, requestId);
     response.status(statusCode).json(createApiFailure(requestId, body));
@@ -95,31 +96,6 @@ function getErrorBody(error: unknown, statusCode: number): ApiError {
   };
 }
 
-function logErrorResponse(
-  request: HttpRequest,
-  requestId: string,
-  statusCode: number,
-  body: ApiError,
-  error: unknown
-) {
-  const fields: Record<string, number | string | undefined> = {
-    requestId,
-    statusCode,
-    code: body.code,
-    method: request.method,
-    path: request.originalUrl ?? request.url,
-    errorMessage: getLogMessage(body.message, error)
-  };
-
-  if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
-    fields.stack = getErrorStack(error);
-    logWithContext("error", "Returning error response", fields);
-    return;
-  }
-
-  logWithContext("warn", "Returning error response", fields);
-}
-
 function getHttpErrorCode(error: HttpException) {
   const response = error.getResponse();
 
@@ -160,8 +136,12 @@ function getLogMessage(message: string, error: unknown) {
   return message;
 }
 
-function getErrorStack(error: unknown) {
-  return error instanceof Error ? error.stack : undefined;
+function getErrorName(error: unknown) {
+  return error instanceof Error ? error.name : "UnknownError";
+}
+
+function getSerializableError(error: unknown) {
+  return error instanceof Error ? error : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

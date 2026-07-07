@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { LogContextScope, log } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
 import {
   AdExecutionDomain,
@@ -26,48 +27,76 @@ export class RedirectService {
   ) {}
 
   /** redirect_id로 클릭 이벤트 payload와 이동 대상 URL을 구성합니다. */
+  @LogContextScope()
   async resolveRedirectPage(redirectId: string): Promise<RedirectPageSnapshot> {
-    const link = await this.requireRedirectLink(redirectId);
-    const promotionChannel = await this.requireRedirectChannel(link.adExperimentId);
+    log.assignContext({ redirectId });
+    log.info("started", { redirectId });
 
-    return AdExecutionDomain.toRedirectPage(link, promotionChannel, LOOPAD_EVENT_SDK);
+    const link = await this.requireRedirectLink(redirectId);
+    log.assignContext({
+      adExperimentId: link.adExperimentId,
+      campaignId: link.campaignId,
+      contentId: link.contentId,
+      contentOptionId: link.contentOptionId,
+      projectId: link.projectId,
+      promotionId: link.promotionId,
+      promotionRunId: link.promotionRunId,
+      segmentId: link.segmentId,
+      userId: link.userId
+    });
+    const promotionChannel = await this.requireRedirectChannel(link.adExperimentId);
+    log.assignContext({ channel: promotionChannel });
+    const page = AdExecutionDomain.toRedirectPage(link, promotionChannel, LOOPAD_EVENT_SDK);
+
+    log.info("completed", { link, promotionChannel, page });
+
+    return page;
   }
 
   private async requireRedirectLink(redirectId: string): Promise<RedirectLinkEntity> {
     const link = await this.reader.findRedirectLink(redirectId);
 
     if (!link) {
+      log.warn("redirect_not_found", { redirectId });
       throw adExecutionErrors.redirectNotFound(redirectId);
     }
 
     if (link.expiresAt && link.expiresAt <= new Date()) {
+      log.warn("redirect_expired", { redirectId, link });
       throw adExecutionErrors.redirectExpired(redirectId);
     }
 
     if (!isHttpUrl(link.destinationUrl)) {
+      log.warn("redirect_invalid_target_url", { redirectId, link });
       throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
     }
 
-    return {
+    const resolvedLink = {
       ...link,
       destinationUrl: requireValidPromotionLandingUrl(link.promotionRunId, link.destinationUrl)
     };
+
+    log.info("redirect_link_loaded", { redirectId, link: resolvedLink });
+
+    return resolvedLink;
   }
 
   private async requireRedirectChannel(adExperimentId: string | null): Promise<AdExecutionChannel> {
     if (!adExperimentId) {
-      throw adExecutionErrors.inconsistentAssignment(
-        "redirect link is missing ad_experiment_id."
-      );
+      log.warn("redirect_missing_ad_experiment_id", { adExperimentId });
+      throw adExecutionErrors.inconsistentAssignment("redirect link is missing ad_experiment_id.");
     }
 
     const adExperiment = await this.reader.findAdExperiment(adExperimentId);
 
     if (!adExperiment) {
+      log.warn("redirect_ad_experiment_not_found", { adExperimentId });
       throw adExecutionErrors.inconsistentAssignment(
         `redirect link references missing ad_experiment_id '${adExperimentId}'.`
       );
     }
+
+    log.info("redirect_channel_loaded", { adExperiment });
 
     return adExperiment.channel;
   }
