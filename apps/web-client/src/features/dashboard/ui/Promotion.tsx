@@ -1842,7 +1842,7 @@ function PromotionSegmentDetailTab({
                     <TableHead>메시지</TableHead>
                     <TableHead>CTA / 랜딩</TableHead>
                     <TableHead>상태</TableHead>
-                    <TableHead>근거</TableHead>
+                    <TableHead className="w-[320px]">근거</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1965,8 +1965,8 @@ function PromotionSegmentDetailTab({
                             {formatStatusLabel(candidate.status)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-[360px] break-words align-top">
-                          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                        <TableCell className="w-[320px] max-w-[320px] align-top">
+                          <div className="flex min-w-0 max-w-[320px] flex-col gap-2 whitespace-normal text-sm leading-6 text-muted-foreground">
                             <span className="break-words">{candidate.reason_summary ?? "-"}</span>
                             {candidate.message_strategy ? (
                               <span className="break-words">
@@ -1988,7 +1988,7 @@ function PromotionSegmentDetailTab({
                                 이미지 URL
                               </a>
                             ) : null}
-                            <span className="break-words">
+                            <span className="break-all">
                               {formatJsonObject(candidate.data_evidence_json)}
                             </span>
                           </div>
