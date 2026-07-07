@@ -1359,22 +1359,7 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
       segment
     ])
   );
-  const rawMetricsByExperiment = new Map<string, DashboardCampaignExperimentMetric[]>();
-
-  for (const metric of detail.experiment_metrics) {
-    if (!metric.ad_experiment_id) {
-      continue;
-    }
-
-    rawMetricsByExperiment.set(metric.ad_experiment_id, [
-      ...(rawMetricsByExperiment.get(metric.ad_experiment_id) ?? []),
-      metric
-    ]);
-  }
-
-  const visibleExperiments = detail.ad_experiments.filter((experiment) =>
-    shouldDisplayExperiment(experiment, rawMetricsByExperiment.get(experiment.ad_experiment_id) ?? [])
-  );
+  const visibleExperiments = detail.ad_experiments.filter(shouldDisplayExperiment);
   const experimentsById = new Map(
     visibleExperiments.map((experiment) => [experiment.ad_experiment_id, experiment])
   );
@@ -1388,12 +1373,16 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
       continue;
     }
 
-    if (!experimentsById.has(metric.ad_experiment_id)) {
-      if (metric.segment_id === FALLBACK_SEGMENT_ID && !hasEvaluationSignal(metric)) {
-        continue;
-      }
+    if (metric.segment_id === FALLBACK_SEGMENT_ID) {
+      continue;
+    }
 
-      if (detail.ad_experiments.some((experiment) => experiment.ad_experiment_id === metric.ad_experiment_id)) {
+    if (!experimentsById.has(metric.ad_experiment_id)) {
+      if (
+        detail.ad_experiments.some(
+          (experiment) => experiment.ad_experiment_id === metric.ad_experiment_id
+        )
+      ) {
         continue;
       }
     }
@@ -1492,19 +1481,8 @@ function findSegmentForExperiment(
   return segments.find((segment) => segment.ad_experiment_id === experimentId) ?? null;
 }
 
-function shouldDisplayExperiment(
-  experiment: DashboardAdExperiment,
-  metrics: DashboardCampaignExperimentMetric[]
-) {
-  if (experiment.segment_id !== FALLBACK_SEGMENT_ID) {
-    return true;
-  }
-
-  return experiment.assignment_count > 0 || metrics.some(hasEvaluationSignal);
-}
-
-function hasEvaluationSignal(metric: DashboardCampaignExperimentMetric) {
-  return metric.sample_size > 0 || metric.denominator_count > 0 || metric.numerator_count > 0;
+function shouldDisplayExperiment(experiment: DashboardAdExperiment) {
+  return experiment.segment_id !== FALLBACK_SEGMENT_ID;
 }
 
 function fallbackSegmentName(row: ExperimentRow) {
