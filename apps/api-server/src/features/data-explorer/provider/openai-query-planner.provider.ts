@@ -7,6 +7,7 @@ import {
 } from "@loopad/shared";
 import { z } from "zod";
 import { env } from "../../../infra/env/env.js";
+import { log } from "../../../infra/logger/index.js";
 import { dataExplorerErrors } from "../errors.js";
 
 type DataExplorerAgentAction = "query_plan" | "query_run" | "result_analysis";
@@ -94,6 +95,14 @@ export class OpenAiDataExplorerQueryPlannerProvider {
     message: string;
     projectId: string;
   }): Promise<DataExplorerAgentResult> {
+    const startedAt = Date.now();
+    log.assignContext({
+      model: OPENAI_QUERY_PLAN_MODEL,
+      objectId: input.detail.object.object_name,
+      projectId: input.projectId,
+      provider: "openai"
+    });
+    log.info("ai_chat_agent_started", { input });
     const responseInput: unknown[] = [
       {
         role: "user",
@@ -109,6 +118,7 @@ export class OpenAiDataExplorerQueryPlannerProvider {
 
     try {
       for (let step = 0; step < MAX_AGENT_TOOL_STEPS; step += 1) {
+        log.info("ai_chat_agent_step_started", { inputCount: responseInput.length, step });
         const payload = await requestOpenAiResponse({
           input: responseInput,
           toolChoice: step === 0 ? "required" : "auto"
@@ -120,18 +130,30 @@ export class OpenAiDataExplorerQueryPlannerProvider {
           .map((item) => item.data);
 
         responseInput.push(...response.output);
+        log.info("ai_chat_agent_step_completed", {
+          functionCallCount: functionCalls.length,
+          outputCount: response.output.length,
+          step
+        });
 
         if (!functionCalls.length) {
-          return toAgentResult(state, readOpenAiTextContent(payload));
+          const result = toAgentResult(state, readOpenAiTextContent(payload));
+          log.info("ai_chat_agent_completed", {
+            durationMs: Date.now() - startedAt,
+            result
+          });
+          return result;
         }
 
         for (const call of functionCalls) {
+          log.info("ai_chat_tool_call_started", { call });
           const toolOutput = await runAgentTool({
             call,
             currentResult: input.currentResult,
             manualActions: input.manualActions,
             state
           });
+          log.info("ai_chat_tool_call_completed", { call, toolOutput });
 
           responseInput.push({
             type: "function_call_output",
@@ -141,38 +163,91 @@ export class OpenAiDataExplorerQueryPlannerProvider {
         }
       }
 
-      return toAgentResult(state, state.assistantMessage ?? "");
+      const result = toAgentResult(state, state.assistantMessage ?? "");
+      log.info("ai_chat_agent_completed", { durationMs: Date.now() - startedAt, result });
+      return result;
     } catch (error) {
+      log.warn("ai_chat_agent_failed", {
+        durationMs: Date.now() - startedAt,
+        err: error,
+        state
+      });
       throw dataExplorerErrors.aiChatFailed({ cause: toError(error) });
     }
   }
 }
 
 async function requestOpenAiResponse(input: { input: unknown[]; toolChoice: "auto" | "required" }) {
-  const response = await fetch(OPENAI_RESPONSES_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.openai.apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: OPENAI_QUERY_PLAN_MODEL,
-      instructions: buildChatAgentInstructions(),
-      input: input.input,
-      tools: OPENAI_CHAT_AGENT_TOOLS,
-      tool_choice: input.toolChoice,
-      parallel_tool_calls: false
-    }),
-    signal: AbortSignal.timeout(OPENAI_REQUEST_TIMEOUT_MS)
+  const startedAt = Date.now();
+  const provider = "openai";
+  const endpoint = OPENAI_RESPONSES_URL;
+  log.info("provider_request_prepared", {
+    endpoint,
+    inputCount: input.input.length,
+    model: OPENAI_QUERY_PLAN_MODEL,
+    provider,
+    toolChoice: input.toolChoice
   });
 
+  let response: Response;
+  try {
+    response = await fetch(OPENAI_RESPONSES_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.openai.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: OPENAI_QUERY_PLAN_MODEL,
+        instructions: buildChatAgentInstructions(),
+        input: input.input,
+        tools: OPENAI_CHAT_AGENT_TOOLS,
+        tool_choice: input.toolChoice,
+        parallel_tool_calls: false
+      }),
+      signal: AbortSignal.timeout(OPENAI_REQUEST_TIMEOUT_MS)
+    });
+  } catch (error) {
+    log.warn("provider_request_failed", {
+      durationMs: Date.now() - startedAt,
+      endpoint,
+      err: error,
+      provider
+    });
+    throw error;
+  }
+
   if (!response.ok) {
+    log.warn("provider_request_failed", {
+      durationMs: Date.now() - startedAt,
+      endpoint,
+      provider,
+      statusCode: response.status
+    });
     throw new Error(`OpenAI Responses request failed with ${response.status}.`);
   }
 
-  return response.json().catch((error: unknown) => {
-    throw toError(error);
-  });
+  return response
+    .json()
+    .then((body: unknown) => {
+      log.info("provider_request_completed", {
+        durationMs: Date.now() - startedAt,
+        endpoint,
+        provider,
+        statusCode: response.status
+      });
+      return body;
+    })
+    .catch((error: unknown) => {
+      log.warn("provider_response_invalid", {
+        durationMs: Date.now() - startedAt,
+        endpoint,
+        err: error,
+        provider,
+        statusCode: response.status
+      });
+      throw toError(error);
+    });
 }
 
 async function runAgentTool(input: {
@@ -184,6 +259,7 @@ async function runAgentTool(input: {
   switch (input.call.name) {
     case "write_query": {
       const args = parseToolArguments(WriteQueryToolArgsSchema, input.call.arguments);
+      log.info("ai_chat_tool_arguments_parsed", { args, tool: input.call.name });
       const queryPlan = await input.manualActions.writeQuery({ sqlText: args.sql_text });
       input.state.action = "query_plan";
       input.state.queryPlan = queryPlan;
@@ -196,6 +272,7 @@ async function runAgentTool(input: {
     }
     case "run_query": {
       const args = parseToolArguments(RunQueryToolArgsSchema, input.call.arguments);
+      log.info("ai_chat_tool_arguments_parsed", { args, tool: input.call.name });
       const { queryPlan, queryResult } = await input.manualActions.runQuery({
         sqlText: args.sql_text
       });
@@ -211,10 +288,12 @@ async function runAgentTool(input: {
     }
     case "analyze_result": {
       if (!input.currentResult) {
+        log.warn("ai_chat_current_result_missing", { call: input.call });
         throw new Error("분석할 현재 쿼리 결과가 없습니다.");
       }
 
       const args = parseToolArguments(AnalyzeResultToolArgsSchema, input.call.arguments);
+      log.info("ai_chat_tool_arguments_parsed", { args, tool: input.call.name });
       input.state.action = "result_analysis";
       input.state.assistantMessage = null;
       input.state.queryPlan = null;
@@ -227,6 +306,7 @@ async function runAgentTool(input: {
       };
     }
     default:
+      log.warn("ai_chat_tool_unsupported", { call: input.call });
       throw new Error(`지원하지 않는 Data Explorer tool입니다: ${input.call.name}`);
   }
 }
@@ -235,12 +315,14 @@ function parseToolArguments<T extends z.ZodType>(schema: T, rawArguments: string
   try {
     return schema.parse(JSON.parse(rawArguments || "{}"));
   } catch (error) {
+    log.warn("ai_chat_tool_arguments_invalid", { err: error, rawArguments });
     throw dataExplorerErrors.aiChatFailed({ cause: toError(error) });
   }
 }
 
 function toAgentResult(state: AgentState, finalText: string): DataExplorerAgentResult {
   if (!state.action) {
+    log.warn("ai_chat_tool_not_selected", { state });
     throw new Error("AI가 Data Explorer 도구를 선택하지 않았습니다.");
   }
 

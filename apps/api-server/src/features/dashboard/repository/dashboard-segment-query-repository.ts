@@ -21,6 +21,7 @@ import {
   type IInsertDashboardSegmentQueryPreviewResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
+import { log } from "../../../infra/logger/index.js";
 
 const PREVIEW_ROW_LIMIT = 500;
 const PREVIEW_TIMEOUT_SECONDS = 10;
@@ -51,8 +52,10 @@ export class DashboardSegmentQueryRepository {
     projectId: string,
     request: DashboardSegmentQueryPreviewRequest
   ): Promise<DashboardSegmentQueryPreview> {
+    const startedAt = Date.now();
     const timeRange = normalizeTimeRange(request.base_time_range);
     const query = planSegmentQuery(projectId, request.natural_language_query, timeRange);
+    log.info("segment_query_planned", { projectId, query, request, timeRange });
     const [preview, sampleSize, totalEligibleUserCount] = await Promise.all([
       this.executePreviewQuery(query.previewSql),
       this.executeCountQuery(query.countSql),
@@ -61,6 +64,12 @@ export class DashboardSegmentQueryRepository {
     const sampleRatio =
       totalEligibleUserCount > 0 ? roundRatio(sampleSize / totalEligibleUserCount) : 0;
     const sampleSizeStatus = getSampleSizeStatus(sampleSize, sampleRatio);
+    log.info("segment_query_preview_counts_loaded", {
+      sampleRatio,
+      sampleSize,
+      sampleSizeStatus,
+      totalEligibleUserCount
+    });
     const row = await this.db
       .query(insertDashboardSegmentQueryPreview, {
         baseTimeFrom: timeRange.from,
@@ -79,13 +88,20 @@ export class DashboardSegmentQueryRepository {
       })
       .single();
 
-    return toSegmentQueryPreview(row);
+    const response = toSegmentQueryPreview(row);
+    log.assignContext({ queryPreviewId: response.query_preview_id });
+    log.info("segment_query_preview_created", {
+      durationMs: Date.now() - startedAt,
+      response
+    });
+    return response;
   }
 
   async saveSegment(
     projectId: string,
     request: DashboardSaveSegmentRequest
   ): Promise<DashboardSavedSegment> {
+    const startedAt = Date.now();
     const preview = await this.db
       .query(getDashboardSegmentQueryPreviewForSave, {
         projectId,
@@ -94,6 +110,7 @@ export class DashboardSegmentQueryRepository {
       .single();
 
     if (preview.sampleSizeStatus !== "valid" || preview.status !== "previewed") {
+      log.warn("segment_preview_not_saveable", { preview, request });
       throw dashboardErrors.segmentPreviewNotSaveable();
     }
 
@@ -117,10 +134,17 @@ export class DashboardSegmentQueryRepository {
       })
       .single();
 
-    return toSavedSegment(segment);
+    const response = toSavedSegment(segment);
+    log.assignContext({ segmentId: response.segment_id });
+    log.info("segment_saved", { durationMs: Date.now() - startedAt, response });
+    return response;
   }
 
-  private async executePreviewQuery(sql: string): Promise<{ columns: string[]; rows: PreviewRow[] }> {
+  private async executePreviewQuery(
+    sql: string
+  ): Promise<{ columns: string[]; rows: PreviewRow[] }> {
+    const startedAt = Date.now();
+    log.info("clickhouse_preview_query_started", { sql });
     const result = await this.clickhouse.query({
       query: sql,
       format: "JSON",
@@ -132,14 +156,18 @@ export class DashboardSegmentQueryRepository {
       }
     });
     const body = await result.json<ClickHouseJsonResponse>();
-
-    return {
+    const response = {
       columns: (body.meta ?? []).map((column) => column.name),
       rows: (body.data ?? []).slice(0, PREVIEW_ROW_LIMIT)
     };
+
+    log.info("clickhouse_preview_query_completed", { durationMs: Date.now() - startedAt });
+    return response;
   }
 
   private async executeCountQuery(sql: string): Promise<number> {
+    const startedAt = Date.now();
+    log.info("clickhouse_count_query_started", { sql });
     const result = await this.clickhouse.query({
       query: sql,
       format: "JSONEachRow",
@@ -150,10 +178,13 @@ export class DashboardSegmentQueryRepository {
     });
     const rows = await result.json<CountRow>();
 
-    return countValue(rows[0]?.sample_size ?? 0);
+    const count = countValue(rows[0]?.sample_size ?? 0);
+    log.info("clickhouse_count_query_completed", { count, durationMs: Date.now() - startedAt });
+    return count;
   }
 
   private async countEligibleUsers(projectId: string, timeRange: SegmentPreviewTimeRange) {
+    const startedAt = Date.now();
     const result = await this.clickhouse.query({
       query: `
         SELECT countDistinct(user_id) AS sample_size
@@ -170,7 +201,9 @@ export class DashboardSegmentQueryRepository {
     });
     const rows = await result.json<CountRow>();
 
-    return countValue(rows[0]?.sample_size ?? 0);
+    const count = countValue(rows[0]?.sample_size ?? 0);
+    log.info("eligible_users_counted", { count, durationMs: Date.now() - startedAt, timeRange });
+    return count;
   }
 }
 
@@ -241,13 +274,20 @@ function inferSegmentCondition(naturalLanguageQuery: string) {
     matchEvent(text, ["예약 시작", "booking_start"], "booking_start"),
     matchEvent(text, ["예약 완료", "booking_complete"], "booking_complete")
   ].filter((eventName): eventName is string => Boolean(eventName));
-  const selectedEventNames = [...new Set(eventNames.length > 0 ? eventNames : ["hotel_detail_view"])];
-  const positiveEventName = selectedEventNames.find((eventName) => eventName !== "booking_complete")
-    ?? selectedEventNames[0];
+  const selectedEventNames = [
+    ...new Set(eventNames.length > 0 ? eventNames : ["hotel_detail_view"])
+  ];
+  const positiveEventName =
+    selectedEventNames.find((eventName) => eventName !== "booking_complete") ??
+    selectedEventNames[0];
   const minimumCount = inferMinimumCount(text);
   const having = [`${positiveEventName}_count >= ${minimumCount}`];
 
-  if (text.includes("미예약") || text.includes("예약하지") || text.includes("booking_complete가 없는")) {
+  if (
+    text.includes("미예약") ||
+    text.includes("예약하지") ||
+    text.includes("booking_complete가 없는")
+  ) {
     if (!selectedEventNames.includes("booking_complete")) {
       selectedEventNames.push("booking_complete");
     }
@@ -317,9 +357,7 @@ function toSegmentQueryPreview(
   };
 }
 
-function toSavedSegment(
-  row: IInsertDashboardCustomSegmentDefinitionResult
-): DashboardSavedSegment {
+function toSavedSegment(row: IInsertDashboardCustomSegmentDefinitionResult): DashboardSavedSegment {
   return {
     segment_id: row.segmentId,
     project_id: row.projectId,
@@ -337,12 +375,16 @@ function toSavedSegment(
 
 function previewRows(value: unknown): PreviewRow[] {
   return Array.isArray(value)
-    ? value.filter((row): row is PreviewRow => row !== null && typeof row === "object" && !Array.isArray(row))
+    ? value.filter(
+        (row): row is PreviewRow => row !== null && typeof row === "object" && !Array.isArray(row)
+      )
     : [];
 }
 
 function stringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function roundRatio(value: number): number {

@@ -34,6 +34,7 @@ src
   필수로 검증하고, 누락/실패 시 fallback plan을 만들지 않는다. OpenAI model은 앱 코드 상수로 관리한다.
 - Ad dispatch env validation: AWS region, SES/SMS 옵션, demo recipient read DB 연결 정보를 서버 시작 시 검증한다.
 - 외부 DB 조회 구조: 프론트는 DB에 직접 접근하지 않고 API 서버의 reader/writer/view query 계층만 ClickHouse/Postgres를 조회한다.
+- Logging: 로깅 API, context, event, level, placement 규칙은 `docs/reference_logging.md`를 따른다.
 
 ## 개발 규칙
 
@@ -121,11 +122,11 @@ Dashboard FE
 - Dispatch 대상: API 요청 1회마다 `LOOPAD_DEMO_DISPATCH_RECIPIENTS`에 설정된 user_id 각각에 1회씩만 발송한다.
   active assignment가 같은 user_id에 여러 개 있으면 첫 번째 assignment를 사용하고, env user_id에 직접 매칭되는
   assignment가 없으면 promotion run의 첫 active assignment를 demo 발송 템플릿으로 사용한다.
-- 관측성: dispatch 함수 진입마다 `Ad dispatch step entered` 로그를 남겨 복잡한 발송 흐름을 단계별로 추적한다.
+- 관측성: dispatch 흐름은 `LogContextScope`, `log.assignContext`, `log.info/warn/error` 기반 structured log로 추적한다.
 - TODO: recipient table이 분석 DB에 확정되면 같은 Postgres repository/PgTyped 조회로 교체한다.
 - 실패 코드: 응답의 `jobs[].attempts[].error_code`와 dispatch job result attempts에
   `RECIPIENT_CONTACT_INVALID`, `PROVIDER_SEND_FAILED`, `CONTENT_INVALID`를 저장한다.
-- 개인정보 로그: 로그에는 project/campaign/promotion/user id와 provider 상태만 남기고 raw email/phone은 기록하지 않는다.
+- 개인정보 로그: 현재 demo/test dispatch 로그는 원인 분석을 우선해 raw 객체를 남긴다. real user production redaction은 별도 정책으로 결정한다.
 
 ## Dashboard 페이지별 데이터 흐름
 

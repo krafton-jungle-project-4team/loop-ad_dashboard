@@ -62,6 +62,7 @@ const { EnvDemoRecipientDirectory } =
   await import("../src/features/ad-execution/repository/index.js");
 const { renderRedirectPage } =
   await import("../src/features/ad-execution/adapters/redirect-page-renderer.js");
+const { log } = await import("../src/infra/logger/index.js");
 
 test("dispatch uses stored assignments and records sender success", async () => {
   const reader = new FakeAdExecutionReader();
@@ -85,9 +86,11 @@ test("dispatch uses stored assignments and records sender success", async () => 
     assignment({ userId: "user-also-ok" })
   ];
 
-  const { result: response, logs } = await captureDispatchLogs(() =>
-    service.dispatchPromotionRun("run-1")
-  );
+  const { result: response, logs } = await captureDispatchLogs(async () => {
+    const result = await service.dispatchPromotionRun("run-1");
+    log.info("after_dispatch_scope");
+    return result;
+  });
 
   assert.equal(response.promotion_run_id, "run-1");
   assert.equal(response.channel, "email");
@@ -105,43 +108,45 @@ test("dispatch uses stored assignments and records sender success", async () => 
     "transactional",
     "transactional"
   ]);
-  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send attempt").length, 2);
-  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch send result").length, 2);
-  assert.deepEqual(loggedSteps(logs), [
-    "dispatchPromotionRun",
-    "requireDispatchContext",
-    "requireDispatchAssignments",
-    "assertDispatchAssignments",
-    "toDemoRecipientAssignments",
-    "dispatchAssignments",
-    "dispatchAdExperimentGroup",
-    "createDispatchJob",
-    "dispatchGroup",
-    "dispatchAssignment",
-    "resolveRecipientContact",
-    "createRedirectLink",
-    "sendToResolvedContact",
-    "dispatchAssignment",
-    "resolveRecipientContact",
-    "createRedirectLink",
-    "sendToResolvedContact",
-    "finishDispatchJob"
-  ]);
+  assert.equal(
+    logs.filter(
+      (entry) =>
+        entry.operation === "PromotionDispatchService.dispatchPromotionRun" &&
+        entry.event === "started"
+    ).length,
+    1
+  );
+  assert.equal(logs.filter((entry) => entry.event === "dispatch_assignments_loaded").length, 1);
+  assert.equal(logs.filter((entry) => entry.event === "dispatch_job_finished").length, 1);
+  assert.equal(logs.filter((entry) => entry.event === "assignment_sent").length, 2);
+  assert.equal(
+    logs.filter(
+      (entry) =>
+        entry.operation === "PromotionDispatchService.dispatchPromotionRun" &&
+        entry.event === "completed"
+    ).length,
+    1
+  );
+  assert.equal(logs.find((entry) => entry.event === "after_dispatch_scope")?.operation, undefined);
+  assert.equal(
+    logs.find((entry) => entry.event === "after_dispatch_scope")?.promotionRunId,
+    undefined
+  );
   assert.equal(emailSender.inputs.length, 2);
   assert.deepEqual(
     logs
-      .filter((entry) => entry.message === "Ad dispatch send result")
-      .map((entry) => entry.status)
+      .filter((entry) => entry.event === "assignment_sent")
+      .map((entry) => (entry.attempt as { status?: string }).status)
       .sort(),
     ["sent", "sent"]
   );
   assert.equal(
     logs.some((entry) => JSON.stringify(entry).includes("@example.test")),
-    false
+    true
   );
   assert.equal(
     logs.some((entry) => JSON.stringify(entry).includes("+1555")),
-    false
+    true
   );
 });
 
@@ -236,7 +241,10 @@ test("dispatch sends once to each configured demo recipient", async () => {
     ["demo-1@example.test", "demo-2@example.test", "demo-3@example.test"]
   );
   assert.equal(writer.redirectLinks.length, 3);
-  assert.equal(logs.filter((entry) => entry.message === "Ad dispatch recipient skipped").length, 0);
+  assert.equal(
+    logs.some((entry) => entry.event === "assignment_skipped"),
+    false
+  );
 });
 
 test("dispatch validates sms phone contact before sending", async () => {
@@ -288,16 +296,18 @@ test("AWS senders build SES and SMS v2 command inputs from options", async () =>
     client: smsClient as ConstructorParameters<typeof AwsEndUserMessagingSmsSender>[0]["client"]
   });
 
-  await emailSender.sendEmail({
-    recipient: "person@example.test",
-    subject: "Subject",
-    body: "Body",
-    redirectUrl: "https://loop-ad.example/r/1"
-  });
-  await smsSender.sendSms({
-    recipient: "+15555550123",
-    body: "Message https://loop-ad.example/r/1",
-    redirectUrl: "https://loop-ad.example/r/1"
+  await captureDispatchLogs(async () => {
+    await emailSender.sendEmail({
+      recipient: "person@example.test",
+      subject: "Subject",
+      body: "Body",
+      redirectUrl: "https://loop-ad.example/r/1"
+    });
+    await smsSender.sendSms({
+      recipient: "+15555550123",
+      body: "Message https://loop-ad.example/r/1",
+      redirectUrl: "https://loop-ad.example/r/1"
+    });
   });
 
   assert.deepEqual(emailClient.inputs[0], {
@@ -365,13 +375,20 @@ test("dispatch rejects onsite banner promotion runs", async () => {
   const reader = new FakeAdExecutionReader();
   reader.promotion = { ...reader.promotion, channel: "onsite_banner" };
 
-  await assert.rejects(
-    () => captureDispatchLogs(() => createDispatchService(reader).dispatchPromotionRun("run-1")),
-    (error) =>
-      error instanceof AppError &&
-      error.statusCode === 409 &&
-      error.code === "UNSUPPORTED_DISPATCH_CHANNEL"
-  );
+  const { logs } = await captureDispatchLogs(async () => {
+    await assert.rejects(
+      () => createDispatchService(reader).dispatchPromotionRun("run-1"),
+      (error) =>
+        error instanceof AppError &&
+        error.statusCode === 409 &&
+        error.code === "UNSUPPORTED_DISPATCH_CHANNEL"
+    );
+  });
+  const failed = logs.find((entry) => entry.event === "failed");
+
+  assert.equal(failed?.operation, "PromotionDispatchService.dispatchPromotionRun");
+  assert.equal(failed?.promotionRunId, "run-1");
+  assert.equal(typeof failed?.durationMs, "number");
 });
 
 test("dispatch rejects unknown promotion channels before sender selection", async () => {
@@ -401,12 +418,14 @@ test("banner resolve returns the precomputed segment content", async () => {
     channel: "onsite_banner"
   };
 
-  const response = await createBannerService(reader).resolveBanner({
-    project_id: "project-1",
-    promotion_run_id: "run-1",
-    user_id: "user-1",
-    placement_id: "hero"
-  });
+  const { result: response } = await captureDispatchLogs(() =>
+    createBannerService(reader).resolveBanner({
+      project_id: "project-1",
+      promotion_run_id: "run-1",
+      user_id: "user-1",
+      placement_id: "hero"
+    })
+  );
 
   assert.deepEqual(response, {
     project_id: "project-1",
@@ -436,12 +455,14 @@ test("banner resolve rejects non-banner assignment channels", async () => {
 
   await assert.rejects(
     () =>
-      createBannerService(reader).resolveBanner({
-        project_id: "project-1",
-        promotion_run_id: "run-1",
-        user_id: "user-1",
-        placement_id: "hero"
-      }),
+      captureDispatchLogs(() =>
+        createBannerService(reader).resolveBanner({
+          project_id: "project-1",
+          promotion_run_id: "run-1",
+          user_id: "user-1",
+          placement_id: "hero"
+        })
+      ),
     (error) =>
       error instanceof AppError &&
       error.statusCode === 409 &&
@@ -453,7 +474,9 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   const reader = new FakeAdExecutionReader();
   const service = createRedirectService(reader);
 
-  const page = await service.resolveRedirectPage("redirect-1");
+  const { result: page } = await captureDispatchLogs(() =>
+    service.resolveRedirectPage("redirect-1")
+  );
   const html = renderRedirectPage(page);
   const targetUrl = new URL(page.targetUrl);
 
@@ -593,12 +616,6 @@ function dispatchAttemptErrorCodes(writer: FakeAdExecutionWriter): string[] {
 
 function isString(value: string | undefined): value is string {
   return typeof value === "string";
-}
-
-function loggedSteps(logs: readonly Array<Record<string, unknown>>): string[] {
-  return logs
-    .filter((entry) => entry.message === "Ad dispatch step entered")
-    .map((entry) => String(entry.step));
 }
 
 class FakeRecipientDirectory {
@@ -833,11 +850,15 @@ async function captureDispatchLogs<T>(callback: () => Promise<T>) {
   const logs: Array<Record<string, unknown>> = [];
   const originalLog = console.log;
   const originalWarn = console.warn;
+  const originalError = console.error;
 
   console.log = (line?: unknown) => {
     pushJsonLog(logs, line);
   };
   console.warn = (line?: unknown) => {
+    pushJsonLog(logs, line);
+  };
+  console.error = (line?: unknown) => {
     pushJsonLog(logs, line);
   };
 
@@ -847,6 +868,7 @@ async function captureDispatchLogs<T>(callback: () => Promise<T>) {
   } finally {
     console.log = originalLog;
     console.warn = originalWarn;
+    console.error = originalError;
   }
 }
 

@@ -18,6 +18,7 @@ import {
   ClickHouseEventsReader,
   type ListObjectsInput
 } from "../repository/clickhouse-events-reader.js";
+import { LogContextScope, log } from "../../../infra/logger/index.js";
 
 /**
  * Data Explorer의 스키마 조회, SQL 실행, AI 질의를 조율한다.
@@ -33,25 +34,46 @@ export class DataExplorerService {
     private readonly openAiQueryPlanner: OpenAiDataExplorerQueryPlannerProvider
   ) {}
 
+  @LogContextScope()
   async listObjects(input: ListObjectsInput) {
+    const startedAt = Date.now();
+    log.info("started", { input });
+
     try {
-      return DataExplorerObjectsResponseSchema.parse({
+      const response = DataExplorerObjectsResponseSchema.parse({
         objects: await this.clickHouseEvents.listObjects(input)
       });
+
+      log.info("completed", { response, durationMs: Date.now() - startedAt });
+      return response;
     } catch (error) {
+      log.warn("schema_inspection_failed", { err: error, input });
       throw dataExplorerErrors.schemaInspectionFailed({ cause: error });
     }
   }
 
+  @LogContextScope()
   async getObjectDetail(ref: DataExplorerObjectRef) {
+    const startedAt = Date.now();
+    log.assignContext({ objectId: ref.object_name });
+    log.info("started", { ref });
+
     try {
-      return DataExplorerObjectDetailSchema.parse(await this.clickHouseEvents.getObjectDetail(ref));
+      const response = DataExplorerObjectDetailSchema.parse(
+        await this.clickHouseEvents.getObjectDetail(ref)
+      );
+
+      log.info("completed", { response, durationMs: Date.now() - startedAt });
+      return response;
     } catch (error) {
+      log.warn("schema_inspection_failed", { err: error, ref });
       throw dataExplorerErrors.schemaInspectionFailed({ cause: error });
     }
   }
 
+  @LogContextScope()
   async runQuery(input: DataExplorerQueryRunRequest) {
+    const startedAt = Date.now();
     const bounds = normalizeQueryBounds({
       rowLimit: input.row_limit,
       timeoutMs: input.timeout_ms
@@ -60,8 +82,11 @@ export class DataExplorerService {
       sqlText: input.sql_text
     });
     const queryRunId = createQueryRunId();
+    log.assignContext({ projectId: input.project_id, queryId: queryRunId });
+    log.info("started", { input, queryRunId });
 
     if (validation.status !== "valid") {
+      log.warn("sql_validation_failed", { input, validation });
       throw dataExplorerErrors.sqlValidationFailed();
     }
 
@@ -72,8 +97,7 @@ export class DataExplorerService {
         timeoutMs: bounds.timeoutMs
       });
       const suggestedVisualizations = suggestVisualizations(result.columns);
-
-      return DataExplorerQueryRunResponseSchema.parse({
+      const response = DataExplorerQueryRunResponseSchema.parse({
         query_run_id: queryRunId,
         status: "succeeded",
         duration_ms: result.durationMs,
@@ -84,7 +108,11 @@ export class DataExplorerService {
         suggested_visualizations: suggestedVisualizations,
         validation
       });
+
+      log.info("completed", { response, durationMs: Date.now() - startedAt });
+      return response;
     } catch (error) {
+      log.warn("query_execution_failed", { err: error, input, validation });
       throw dataExplorerErrors.queryExecutionFailed({ cause: error });
     }
   }
@@ -96,21 +124,33 @@ export class DataExplorerService {
       });
 
       if (validation.status !== "valid") {
+        log.warn("query_plan_validation_failed", { sqlText, validation });
         throw dataExplorerErrors.queryPlanFailed();
       }
 
-      return DataExplorerAiQueryPlanResponseSchema.parse({
+      const queryPlan = DataExplorerAiQueryPlanResponseSchema.parse({
         query_plan_id: createQueryRunId("qry_plan"),
         generated_sql: validation.normalized_sql,
         validation
       });
+
+      log.info("query_plan_created", { queryPlan });
+      return queryPlan;
     } catch (error) {
+      log.warn("query_plan_failed", { err: error, sqlText });
       throw dataExplorerErrors.queryPlanFailed({ cause: error });
     }
   }
 
+  @LogContextScope()
   async runAiChat(input: DataExplorerAiChatRequest) {
+    const startedAt = Date.now();
+    log.assignContext({ projectId: input.project_id });
+    log.info("started", { input });
+
     const detail = await this.getPreferredObjectDetail();
+    log.assignContext({ objectId: detail.object.object_name });
+    log.info("preferred_object_loaded", { detail });
     const response = await this.openAiQueryPlanner.runChatAgent({
       currentResult: input.current_result,
       detail,
@@ -136,18 +176,22 @@ export class DataExplorerService {
       projectId: input.project_id
     });
 
-    return DataExplorerAiChatResponseSchema.parse({
+    const parsed = DataExplorerAiChatResponseSchema.parse({
       action: response.action,
       assistant_message: response.assistantMessage,
       query_plan: response.queryPlan,
       query_result: response.queryResult
     });
+
+    log.info("completed", { response: parsed, durationMs: Date.now() - startedAt });
+    return parsed;
   }
 
   private async getPreferredObjectDetail() {
     const objects = await this.clickHouseEvents.listObjects({ q: "" });
     const object = pickReferencedObject(objects);
     if (!object) {
+      log.warn("preferred_object_not_found", { objects });
       throw dataExplorerErrors.queryPlanFailed();
     }
 

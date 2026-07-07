@@ -4,6 +4,7 @@ import {
   type SendTextMessageCommandOutput
 } from "@aws-sdk/client-pinpoint-sms-voice-v2";
 import { SendEmailCommand, SESv2Client, type SendEmailCommandOutput } from "@aws-sdk/client-sesv2";
+import { log } from "../../../infra/logger/index.js";
 
 export interface EmailSendInput {
   recipient: string;
@@ -71,34 +72,54 @@ export class AwsSesEmailSender extends EmailSender {
 
   /** SES SendEmail API로 Email을 발송합니다. */
   async sendEmail(input: EmailSendInput): Promise<DispatchSendResult> {
-    const output = await this.client.send(
-      new SendEmailCommand({
-        FromEmailAddress: this.fromAddress,
-        Destination: {
-          ToAddresses: [input.recipient]
-        },
-        Content: {
-          Simple: {
-            Subject: {
-              Data: input.subject,
-              Charset: "UTF-8"
-            },
-            Body: {
-              Text: {
-                Data: input.body,
+    const startedAt = Date.now();
+    const provider = this.providerName;
+    log.info("provider_request_prepared", { input, provider });
+
+    try {
+      const output = await this.client.send(
+        new SendEmailCommand({
+          FromEmailAddress: this.fromAddress,
+          Destination: {
+            ToAddresses: [input.recipient]
+          },
+          Content: {
+            Simple: {
+              Subject: {
+                Data: input.subject,
                 Charset: "UTF-8"
+              },
+              Body: {
+                Text: {
+                  Data: input.body,
+                  Charset: "UTF-8"
+                }
               }
             }
-          }
-        },
-        ...optionalCommandField("ConfigurationSetName", this.configurationSetName)
-      })
-    );
+          },
+          ...optionalCommandField("ConfigurationSetName", this.configurationSetName)
+        })
+      );
+      const result = {
+        provider,
+        providerMessageId: requiredProviderMessageId(output.MessageId, provider)
+      };
 
-    return {
-      provider: this.providerName,
-      providerMessageId: requiredProviderMessageId(output.MessageId, this.providerName)
-    };
+      log.info("provider_request_completed", {
+        durationMs: Date.now() - startedAt,
+        provider,
+        result
+      });
+      return result;
+    } catch (error) {
+      log.warn("provider_request_failed", {
+        durationMs: Date.now() - startedAt,
+        err: error,
+        input,
+        provider
+      });
+      throw error;
+    }
   }
 }
 
@@ -119,20 +140,40 @@ export class AwsEndUserMessagingSmsSender extends SmsSender {
 
   /** SendTextMessage API로 SMS를 발송합니다. */
   async sendSms(input: SmsSendInput): Promise<DispatchSendResult> {
-    const output = await this.client.send(
-      new SendTextMessageCommand({
-        DestinationPhoneNumber: input.recipient,
-        MessageBody: input.body,
-        MessageType: "PROMOTIONAL",
-        ...optionalCommandField("ConfigurationSetName", this.configurationSetName),
-        ...optionalCommandField("OriginationIdentity", this.originationIdentity)
-      })
-    );
+    const startedAt = Date.now();
+    const provider = this.providerName;
+    log.info("provider_request_prepared", { input, provider });
 
-    return {
-      provider: this.providerName,
-      providerMessageId: requiredProviderMessageId(output.MessageId, this.providerName)
-    };
+    try {
+      const output = await this.client.send(
+        new SendTextMessageCommand({
+          DestinationPhoneNumber: input.recipient,
+          MessageBody: input.body,
+          MessageType: "PROMOTIONAL",
+          ...optionalCommandField("ConfigurationSetName", this.configurationSetName),
+          ...optionalCommandField("OriginationIdentity", this.originationIdentity)
+        })
+      );
+      const result = {
+        provider,
+        providerMessageId: requiredProviderMessageId(output.MessageId, provider)
+      };
+
+      log.info("provider_request_completed", {
+        durationMs: Date.now() - startedAt,
+        provider,
+        result
+      });
+      return result;
+    } catch (error) {
+      log.warn("provider_request_failed", {
+        durationMs: Date.now() - startedAt,
+        err: error,
+        input,
+        provider
+      });
+      throw error;
+    }
   }
 }
 

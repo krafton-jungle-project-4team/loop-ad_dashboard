@@ -1,4 +1,4 @@
-import { assignLoggerContext, logWithContext, runWithLoggerContext } from "../logger/index.js";
+import { log } from "../logger/index.js";
 import {
   ensureRequestId,
   setRequestIdHeader,
@@ -31,18 +31,15 @@ export function requestLoggingMiddleware(
 
   setRequestIdHeader(response, requestId);
 
-  runWithLoggerContext({ requestId, method, path }, () => {
-    assignLoggerContext({ requestId, method, path });
-    response.on("finish", () => {
-      const statusCode = response.statusCode;
-      const level = statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info";
+  log.assignContext({ requestId, method, path });
+  response.on("finish", () => {
+    const statusCode = response.statusCode;
+    const level = statusCode >= 500 ? "error" : "info";
+    const outcome = statusCode < 400 ? "success" : "error";
+    const durationMs = Date.now() - startedAt;
 
-      logWithContext(level, "HTTP request completed", {
-        statusCode,
-        durationMs: Date.now() - startedAt
-      });
-    });
-
-    next();
+    log[level]("http_request_completed", { statusCode, outcome, durationMs });
   });
+
+  next();
 }
