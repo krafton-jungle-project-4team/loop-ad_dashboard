@@ -208,7 +208,7 @@ function ExperimentDashboardContent({
                 <SelectItem value="all">전체 프로모션</SelectItem>
                 {detail.promotions.map((promotion) => (
                   <SelectItem key={promotion.promotion_id} value={promotion.promotion_id}>
-                    {formatChannelLabel(promotion.channel)} · {promotion.promotion_id}
+                    {promotion.marketing_theme} · {formatChannelLabel(promotion.channel)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -291,12 +291,6 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
                 <div className="grid min-w-[200px] gap-1">
                   <span className="font-medium">
                     {row.segment?.segment_name ?? fallbackSegmentName(row)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {row.segment?.segment_id ??
-                      row.experiment?.segment_id ??
-                      row.latestMetric?.segment_id ??
-                      "-"}
                   </span>
                 </div>
               </TableCell>

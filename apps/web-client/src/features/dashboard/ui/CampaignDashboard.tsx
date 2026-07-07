@@ -1227,8 +1227,8 @@ function CampaignWorkflow({ detail }: { detail: DashboardCampaignDetail }) {
                   </Badge>
                 </div>
                 <CardDescription>
-                  프로모션 노드 · {promotion.promotion_id} ·{" "}
-                  {formatChannelLabel(promotion.channel)} · {formatMetricLabel(promotion.goal_metric)}
+                  프로모션 노드 · {formatChannelLabel(promotion.channel)} ·{" "}
+                  {formatMetricLabel(promotion.goal_metric)}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm">
@@ -1372,7 +1372,6 @@ function WorkflowSegmentTable({
               <TableCell>
                 <div className="grid min-w-[180px] gap-1">
                   <span className="font-medium">{segment.segment_name}</span>
-                  <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
                   <div className="flex flex-wrap gap-1.5">
                     <Badge variant={statusBadgeVariant(segment.status)}>
                       {formatStatusLabel(segment.status)}
@@ -1564,7 +1563,10 @@ function CampaignNextAction({
                   실패 세그먼트 {formatInteger(target.focusSegmentIds.length)}개만 재분석합니다.
                 </div>
               </div>
-              <InsightBlock label="대상 세그먼트 ID" value={target.focusSegmentIds.join("\n")} />
+              <InsightBlock
+                label="대상 세그먼트"
+                value={formatInteger(target.focusSegmentIds.length)}
+              />
               <Button
                 disabled={nextLoopMutation.isPending}
                 onClick={() =>
@@ -1779,14 +1781,14 @@ function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailRe
       <div className="grid gap-1">
         <h3 className="text-base font-semibold text-[#1d1d1f]">프로모션 분석 히스토리</h3>
         <p className="text-sm text-muted-foreground">
-          Decision 분석 요청, focus segment, 운영자 지시, 결과 JSON을 최신순으로 확인합니다.
+          Decision 분석 요청, 대상 세그먼트, 운영자 지시, 결과 JSON을 최신순으로 확인합니다.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
         <SummaryItem label="분석 요청" value={formatInteger(detail.analyses.length)} />
         <SummaryItem label="완료" value={formatInteger(completedCount)} />
         <SummaryItem label="실패" value={formatInteger(failedCount)} />
-        <SummaryItem label="focus segment" value={formatInteger(focusSegmentCount)} />
+        <SummaryItem label="대상 세그먼트" value={formatInteger(focusSegmentCount)} />
       </div>
       {latestAnalysis ? (
         <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
@@ -1807,12 +1809,8 @@ function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailRe
               value={latestAnalysis.operator_instruction ?? "-"}
             />
             <InsightBlock
-              label="focus segment"
-              value={
-                latestAnalysis.focus_segment_ids.length > 0
-                  ? latestAnalysis.focus_segment_ids.join("\n")
-                  : "-"
-              }
+              label="대상 세그먼트"
+              value={formatInteger(latestAnalysis.focus_segment_ids.length)}
             />
             <InsightBlock
               label="프로필 요약"
@@ -1834,7 +1832,7 @@ function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailRe
           <TableHeader>
             <TableRow>
               <TableHead>분석 ID</TableHead>
-              <TableHead>focus segment</TableHead>
+              <TableHead>대상 세그먼트</TableHead>
               <TableHead>운영자 지시</TableHead>
               <TableHead>상태</TableHead>
               <TableHead>업데이트</TableHead>
@@ -1848,9 +1846,7 @@ function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailRe
                 </TableCell>
                 <TableCell>
                   <div className="line-clamp-2 min-w-[180px]">
-                    {analysis.focus_segment_ids.length > 0
-                      ? analysis.focus_segment_ids.join(", ")
-                      : "-"}
+                    {formatInteger(analysis.focus_segment_ids.length)}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -1907,7 +1903,6 @@ function PromotionSegmentRealtimeSummary({
             <TableCell>
               <div className="flex min-w-[180px] flex-col gap-1">
                 <span className="font-medium">{segment.segment_name}</span>
-                <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
               </div>
             </TableCell>
             <TableCell className="text-right tabular-nums">
@@ -1986,7 +1981,6 @@ function PromotionSegmentCards({
                 <div className="flex items-start justify-between gap-3">
                   <div className="grid gap-1">
                     <span className="font-medium">{segment.segment_name}</span>
-                    <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
                   </div>
                   <Badge variant={isSelected ? "default" : statusBadgeVariant(segment.status)}>
                     {isSelected ? "열림" : formatStatusLabel(segment.status)}
@@ -2039,7 +2033,6 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
           <div className="text-sm text-muted-foreground">
             {formatChannelLabel(promotion.channel)} · {formatAudienceLabel(promotion.target_audience)}
           </div>
-          <div className="text-xs text-muted-foreground">{promotion.promotion_id}</div>
         </div>
         {promotion.landing_url ? (
           <Button asChild size="sm" variant="outline">
@@ -2146,7 +2139,6 @@ function SegmentTable({
                 <TableCell>
                   <div className="flex min-w-[180px] flex-col gap-1">
                     <span className="font-medium">{segment.segment_name}</span>
-                    <span className="text-xs text-muted-foreground">{segment.segment_id}</span>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -2154,7 +2146,6 @@ function SegmentTable({
                     {segment.natural_language_query ?? segment.source ?? "-"}
                   </div>
                 </TableCell>
-                <TableCell>{segment.promotion_id}</TableCell>
                 <TableCell>
                   <div className="grid min-w-[140px] gap-1">
                     <span>{formatMetricLabel(segment.goal_metric)}</span>
@@ -2334,9 +2325,6 @@ function SegmentOverview({
           </div>
           <div className="text-sm text-muted-foreground">
             {detail.segment.natural_language_query ?? "세그먼트 조건 미등록"}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {detail.segment.promotion_id} · {detail.segment.segment_id}
           </div>
         </div>
         <SummaryItem
@@ -2876,8 +2864,6 @@ function SegmentAdExperimentStatusPanel({
                 </Badge>
               </div>
               <div className="grid gap-3 md:grid-cols-3">
-                <SummaryItem label="프로모션" value={experiment.promotion_id} />
-                <SummaryItem label="세그먼트" value={experiment.segment_id} />
                 <SummaryItem label="콘텐츠" value={experiment.content_id} />
                 <SummaryItem label="채널" value={formatChannelLabel(experiment.channel)} />
                 <SummaryItem label="루프" value={formatInteger(experiment.loop_count)} />
@@ -2925,7 +2911,6 @@ function SegmentInsufficientDataPanel({
                     <div className="text-sm font-medium">
                       {metric.ad_experiment_id ?? formatMetricLabel(metric.metric)}
                     </div>
-                    <div className="text-xs text-muted-foreground">{metric.segment_id ?? "-"}</div>
                   </div>
                   <Badge variant="destructive">표본 부족</Badge>
                 </div>
@@ -3654,7 +3639,6 @@ function EvaluationOutcomePanel({
   const failedExperimentIds = uniqueValues(
     goalNotMetMetrics.map((metric) => metric.ad_experiment_id)
   );
-  const nextLoopSegmentIds = uniqueValues(nextLoopMetrics.map((metric) => metric.segment_id));
 
   if (evaluationMetrics.length === 0) {
     return <EmptyState message="종료 후 결과를 표시할 실험 평가가 없습니다." />;
@@ -3679,10 +3663,7 @@ function EvaluationOutcomePanel({
       </div>
       {nextLoopMetrics.length > 0 ? (
         <div className="grid gap-3 md:grid-cols-2">
-          <InsightBlock
-            label="실패 세그먼트 ID"
-            value={nextLoopSegmentIds.length > 0 ? nextLoopSegmentIds.join("\n") : "-"}
-          />
+          <InsightBlock label="실패 세그먼트" value={formatInteger(failedSegmentIds.length)} />
           <InsightBlock
             label="실패 광고 실험 ID"
             value={failedExperimentIds.length > 0 ? failedExperimentIds.join("\n") : "-"}
@@ -3772,7 +3753,7 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
               <SelectItem value="all">전체 세그먼트</SelectItem>
               {segmentIds.map((segmentId) => (
                 <SelectItem key={segmentId} value={segmentId}>
-                  {segmentId}
+                  {segmentNameById(metrics, segmentId)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -3842,9 +3823,6 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
                   <TableCell>
                     <div className="grid min-w-[180px] gap-1">
                       <span className="font-medium">{metric.ad_experiment_id ?? "-"}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {metric.promotion_id} · {metric.segment_id ?? "-"}
-                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -3934,6 +3912,16 @@ function formatGoalValue(value: number) {
 
 function formatPercentValue(value: number) {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+function segmentNameById(metrics: DashboardCampaignExperimentMetric[], segmentId: string) {
+  const segmentIds = uniqueValues(
+    displayableEvaluationMetrics(metrics)
+      .map((metric) => metric.segment_id)
+      .filter(Boolean)
+  );
+  const index = segmentIds.indexOf(segmentId);
+  return `세그먼트 ${index >= 0 ? index + 1 : ""}`.trim();
 }
 
 function eventDisplayName(eventName: string): string {

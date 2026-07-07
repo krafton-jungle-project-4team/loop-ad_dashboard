@@ -1208,8 +1208,7 @@ function PromotionTabWorkspace({
             {promotion.marketing_theme}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {formatChannelLabel(promotion.channel)} · {formatAudienceLabel(promotion.target_audience)} ·{" "}
-            {promotion.promotion_id}
+            {formatChannelLabel(promotion.channel)} · {formatAudienceLabel(promotion.target_audience)}
           </p>
         </div>
         <Badge variant={statusBadgeVariant(promotion.status)}>
@@ -1692,7 +1691,7 @@ function PromotionSegmentDetailTab({
           <div className="grid gap-1">
             <CardTitle>{detail.segment.segment_name}</CardTitle>
             <CardDescription>
-              {detail.segment.promotion_id} · {detail.segment.segment_id}
+              {detail.segment.natural_language_query ?? "세그먼트 조건 미등록"}
             </CardDescription>
           </div>
           <Badge variant={statusBadgeVariant(detail.segment.status)}>
@@ -2469,7 +2468,6 @@ function PromotionSegmentSuggestionPanel({
                     <div className="grid gap-1">
                       <div className="text-xs font-semibold text-[#3927d9]">{segment.source}</div>
                       <h3 className="text-base font-semibold">{segment.segment_name}</h3>
-                      <p className="text-xs text-muted-foreground">{segment.segment_id}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={statusBadgeVariant(segment.status)}>
@@ -3157,7 +3155,7 @@ export function CampaignPromotionTable({
                       <div className="flex min-w-[220px] flex-col gap-1">
                         <span className="font-medium">{promotion.marketing_theme}</span>
                         <span className="text-xs text-muted-foreground">
-                          {formatChannelLabel(promotion.channel)} · {promotion.promotion_id}
+                          {formatChannelLabel(promotion.channel)}
                         </span>
                       </div>
                     </TableCell>
