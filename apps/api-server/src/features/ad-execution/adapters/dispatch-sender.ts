@@ -4,7 +4,7 @@ import {
   type SendTextMessageCommandOutput
 } from "@aws-sdk/client-pinpoint-sms-voice-v2";
 import { SendEmailCommand, SESv2Client, type SendEmailCommandOutput } from "@aws-sdk/client-sesv2";
-import { dms, log } from "../../../infra/logger/index.js";
+import { durationMs, log } from "../../../infra/logger/index.js";
 
 export interface EmailSendInput {
   recipient: string;
@@ -106,14 +106,14 @@ export class AwsSesEmailSender extends EmailSender {
       };
 
       log.info("provider_request_completed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         provider,
         result
       });
       return result;
     } catch (error) {
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         err: error,
         input,
         provider
@@ -160,14 +160,14 @@ export class AwsEndUserMessagingSmsSender extends SmsSender {
       };
 
       log.info("provider_request_completed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         provider,
         result
       });
       return result;
     } catch (error) {
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         err: error,
         input,
         provider

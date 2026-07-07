@@ -13,7 +13,7 @@ import type {
   DashboardStartPromotionGenerationResult
 } from "@loopad/shared";
 import { env } from "../../../infra/env/env.js";
-import { dms, log } from "../../../infra/logger/index.js";
+import { durationMs, log } from "../../../infra/logger/index.js";
 import { dashboardErrors } from "../dashboard-errors.js";
 
 const decisionPromotionAnalysisResponseSchema = z.object({
@@ -152,7 +152,7 @@ export class DashboardDecisionClient {
       });
     } catch (error) {
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         err: error,
         provider,
@@ -164,7 +164,7 @@ export class DashboardDecisionClient {
     if (!response.ok) {
       const error = await readDecisionError(response);
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         error,
         provider,
@@ -187,7 +187,7 @@ export class DashboardDecisionClient {
     }
 
     log.info("provider_request_completed", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       endpoint,
       provider,
       result: parsed.data,
@@ -231,7 +231,7 @@ export class DashboardDecisionClient {
       });
     } catch (error) {
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         err: error,
         provider,
@@ -243,7 +243,7 @@ export class DashboardDecisionClient {
     if (!response.ok) {
       const error = await readDecisionError(response);
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         error,
         provider,
@@ -266,7 +266,7 @@ export class DashboardDecisionClient {
     }
 
     log.info("provider_request_completed", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       endpoint,
       provider,
       result: parsed.data,
@@ -305,7 +305,7 @@ export class DashboardDecisionClient {
       });
     } catch (error) {
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         err: error,
         provider,
@@ -317,7 +317,7 @@ export class DashboardDecisionClient {
     if (!response.ok) {
       const error = await readDecisionError(response);
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         error,
         provider,
@@ -340,7 +340,7 @@ export class DashboardDecisionClient {
     }
 
     log.info("provider_request_completed", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       endpoint,
       provider,
       result: parsed.data,
@@ -377,7 +377,7 @@ export class DashboardDecisionClient {
       });
     } catch (error) {
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         err: error,
         provider,
@@ -389,7 +389,7 @@ export class DashboardDecisionClient {
     if (!response.ok) {
       const error = await readDecisionError(response);
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         error,
         provider,
@@ -412,7 +412,7 @@ export class DashboardDecisionClient {
     }
 
     log.info("provider_request_completed", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       endpoint,
       provider,
       result: parsed.data,
@@ -446,7 +446,7 @@ export class DashboardDecisionClient {
       });
     } catch (error) {
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         err: error,
         provider,
@@ -458,7 +458,7 @@ export class DashboardDecisionClient {
     if (!response.ok) {
       const error = await readDecisionError(response);
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         error,
         provider,
@@ -481,7 +481,7 @@ export class DashboardDecisionClient {
     }
 
     log.info("provider_request_completed", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       endpoint,
       provider,
       result: parsed.data,
@@ -520,7 +520,7 @@ export class DashboardDecisionClient {
       });
     } catch (error) {
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         err: error,
         provider,
@@ -532,7 +532,7 @@ export class DashboardDecisionClient {
     if (!response.ok) {
       const error = await readDecisionError(response);
       log.warn("provider_request_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         error,
         provider,
@@ -555,7 +555,7 @@ export class DashboardDecisionClient {
     }
 
     log.info("provider_request_completed", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       endpoint,
       provider,
       result: parsed.data,

@@ -51,7 +51,7 @@ export const log = Object.freeze({
   warn: createLogMethod("warn")
 });
 
-export function dms(startedAt: number) {
+export function durationMs(startedAt: number) {
   return Date.now() - startedAt;
 }
 
@@ -77,14 +77,14 @@ export function LogContextScope(): MethodDecorator {
 
           if (isPromiseLike(result)) {
             return result.catch((error: unknown) => {
-              log.error("failed", { err: error, durationMs: dms(startedAt) });
+              log.error("failed", { err: error, durationMs: durationMs(startedAt) });
               throw error;
             });
           }
 
           return result;
         } catch (error) {
-          log.error("failed", { err: error, durationMs: dms(startedAt) });
+          log.error("failed", { err: error, durationMs: durationMs(startedAt) });
           throw error;
         }
       });

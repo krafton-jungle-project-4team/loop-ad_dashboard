@@ -7,7 +7,7 @@ import {
 } from "@loopad/shared";
 import { z } from "zod";
 import { env } from "../../../infra/env/env.js";
-import { dms, log } from "../../../infra/logger/index.js";
+import { durationMs, log } from "../../../infra/logger/index.js";
 import { dataExplorerErrors } from "../errors.js";
 
 type DataExplorerAgentAction = "query_plan" | "query_run" | "result_analysis";
@@ -139,7 +139,7 @@ export class OpenAiDataExplorerQueryPlannerProvider {
         if (!functionCalls.length) {
           const result = toAgentResult(state, readOpenAiTextContent(payload));
           log.info("ai_chat_agent_completed", {
-            durationMs: dms(startedAt),
+            durationMs: durationMs(startedAt),
             result
           });
           return result;
@@ -164,11 +164,11 @@ export class OpenAiDataExplorerQueryPlannerProvider {
       }
 
       const result = toAgentResult(state, state.assistantMessage ?? "");
-      log.info("ai_chat_agent_completed", { durationMs: dms(startedAt), result });
+      log.info("ai_chat_agent_completed", { durationMs: durationMs(startedAt), result });
       return result;
     } catch (error) {
       log.warn("ai_chat_agent_failed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         err: error,
         state
       });
@@ -209,7 +209,7 @@ async function requestOpenAiResponse(input: { input: unknown[]; toolChoice: "aut
     });
   } catch (error) {
     log.warn("provider_request_failed", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       endpoint,
       err: error,
       provider
@@ -219,7 +219,7 @@ async function requestOpenAiResponse(input: { input: unknown[]; toolChoice: "aut
 
   if (!response.ok) {
     log.warn("provider_request_failed", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       endpoint,
       provider,
       statusCode: response.status
@@ -231,7 +231,7 @@ async function requestOpenAiResponse(input: { input: unknown[]; toolChoice: "aut
     .json()
     .then((body: unknown) => {
       log.info("provider_request_completed", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         provider,
         statusCode: response.status
@@ -240,7 +240,7 @@ async function requestOpenAiResponse(input: { input: unknown[]; toolChoice: "aut
     })
     .catch((error: unknown) => {
       log.warn("provider_response_invalid", {
-        durationMs: dms(startedAt),
+        durationMs: durationMs(startedAt),
         endpoint,
         err: error,
         provider,

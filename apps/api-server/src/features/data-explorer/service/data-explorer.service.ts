@@ -18,7 +18,7 @@ import {
   ClickHouseEventsReader,
   type ListObjectsInput
 } from "../repository/clickhouse-events-reader.js";
-import { LogContextScope, dms, log } from "../../../infra/logger/index.js";
+import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 
 /**
  * Data Explorer의 스키마 조회, SQL 실행, AI 질의를 조율한다.
@@ -44,7 +44,7 @@ export class DataExplorerService {
         objects: await this.clickHouseEvents.listObjects(input)
       });
 
-      log.info("completed", { response, durationMs: dms(startedAt) });
+      log.info("completed", { response, durationMs: durationMs(startedAt) });
       return response;
     } catch (error) {
       log.warn("schema_inspection_failed", { err: error, input });
@@ -63,7 +63,7 @@ export class DataExplorerService {
         await this.clickHouseEvents.getObjectDetail(ref)
       );
 
-      log.info("completed", { response, durationMs: dms(startedAt) });
+      log.info("completed", { response, durationMs: durationMs(startedAt) });
       return response;
     } catch (error) {
       log.warn("schema_inspection_failed", { err: error, ref });
@@ -109,7 +109,7 @@ export class DataExplorerService {
         validation
       });
 
-      log.info("completed", { response, durationMs: dms(startedAt) });
+      log.info("completed", { response, durationMs: durationMs(startedAt) });
       return response;
     } catch (error) {
       log.warn("query_execution_failed", { err: error, input, validation });
@@ -183,7 +183,7 @@ export class DataExplorerService {
       query_result: response.queryResult
     });
 
-    log.info("completed", { response: parsed, durationMs: dms(startedAt) });
+    log.info("completed", { response: parsed, durationMs: durationMs(startedAt) });
     return parsed;
   }
 

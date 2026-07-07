@@ -34,14 +34,14 @@
 | `info/warn/error` | `event`와 선택 payload를 받아 JSON 로그를 남긴다.         |
 | `debug`           | 동적으로 켜고 끌 수 있는 상세 진단 로그를 남긴다.         |
 | `ContextScope`    | 공용 유스케이스 단위의 context 생명주기를 관리한다.       |
-| `dms`             | 시작 시각부터 현재까지의 elapsed milliseconds를 계산한다. |
+| `durationMs`      | 시작 시각부터 현재까지의 elapsed milliseconds를 계산한다. |
 
 권장 호출 형태:
 
 ```ts
 log.assignContext({ projectId, promotionId });
 log.info("started", { request });
-log.info("completed", { response, durationMs: dms(startedAt) });
+log.info("completed", { response, durationMs: durationMs(startedAt) });
 log.warn("promotion_not_found", { promotionId });
 log.error("provider_request_failed", { err, request });
 ```
@@ -51,7 +51,7 @@ Python 구현이라면 이름은 PEP 8에 맞춰도 된다.
 ```py
 log.assign_context({"projectId": project_id, "promotionId": promotion_id})
 log.info("started", {"request": request})
-log.info("completed", {"response": response, "durationMs": dms(started_at)})
+log.info("completed", {"response": response, "durationMs": durationMs(started_at)})
 log.warn("promotion_not_found", {"promotionId": promotion_id})
 log.error("provider_request_failed", {"err": error, "request": request})
 ```
@@ -319,7 +319,7 @@ async runUseCase(projectId: string, request: Request) {
   log.info("resource_loaded", { resource });
 
   const response = await this.doWork(resource, request);
-  log.info("completed", { response, durationMs: dms(startedAt) });
+  log.info("completed", { response, durationMs: durationMs(startedAt) });
   return response;
 }
 ```
@@ -545,7 +545,7 @@ async def create_promotion_run(project_id: str, promotion_id: str, request: dict
 
     response = await decision_client.create_promotion_run(promotion_id, request)
     log.assign_context({"promotionRunId": response["promotion_run_id"]})
-    log.info("completed", {"response": response, "durationMs": dms(started_at)})
+    log.info("completed", {"response": response, "durationMs": durationMs(started_at)})
     return response
 ```
 
@@ -570,7 +570,7 @@ async createPromotionRun(projectId: string, promotionId: string, request: Reques
 
   const response = await this.decisionClient.createPromotionRun({ promotionId, request });
   log.assignContext({ promotionRunId: response.promotion_run_id });
-  log.info("completed", { response, durationMs: dms(startedAt) });
+  log.info("completed", { response, durationMs: durationMs(startedAt) });
   return response;
 }
 ```

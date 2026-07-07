@@ -21,7 +21,7 @@ import {
   type IInsertDashboardSegmentQueryPreviewResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
-import { dms, log } from "../../../infra/logger/index.js";
+import { durationMs, log } from "../../../infra/logger/index.js";
 
 const PREVIEW_ROW_LIMIT = 500;
 const PREVIEW_TIMEOUT_SECONDS = 10;
@@ -91,7 +91,7 @@ export class DashboardSegmentQueryRepository {
     const response = toSegmentQueryPreview(row);
     log.assignContext({ queryPreviewId: response.query_preview_id });
     log.info("segment_query_preview_created", {
-      durationMs: dms(startedAt),
+      durationMs: durationMs(startedAt),
       response
     });
     return response;
@@ -136,7 +136,7 @@ export class DashboardSegmentQueryRepository {
 
     const response = toSavedSegment(segment);
     log.assignContext({ segmentId: response.segment_id });
-    log.info("segment_saved", { durationMs: dms(startedAt), response });
+    log.info("segment_saved", { durationMs: durationMs(startedAt), response });
     return response;
   }
 
@@ -161,7 +161,7 @@ export class DashboardSegmentQueryRepository {
       rows: (body.data ?? []).slice(0, PREVIEW_ROW_LIMIT)
     };
 
-    log.info("clickhouse_preview_query_completed", { durationMs: dms(startedAt) });
+    log.info("clickhouse_preview_query_completed", { durationMs: durationMs(startedAt) });
     return response;
   }
 
@@ -179,7 +179,7 @@ export class DashboardSegmentQueryRepository {
     const rows = await result.json<CountRow>();
 
     const count = countValue(rows[0]?.sample_size ?? 0);
-    log.info("clickhouse_count_query_completed", { count, durationMs: dms(startedAt) });
+    log.info("clickhouse_count_query_completed", { count, durationMs: durationMs(startedAt) });
     return count;
   }
 
@@ -202,7 +202,7 @@ export class DashboardSegmentQueryRepository {
     const rows = await result.json<CountRow>();
 
     const count = countValue(rows[0]?.sample_size ?? 0);
-    log.info("eligible_users_counted", { count, durationMs: dms(startedAt), timeRange });
+    log.info("eligible_users_counted", { count, durationMs: durationMs(startedAt), timeRange });
     return count;
   }
 }
