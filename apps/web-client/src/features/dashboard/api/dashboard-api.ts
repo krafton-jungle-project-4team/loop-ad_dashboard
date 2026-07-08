@@ -125,7 +125,6 @@ import type {
   PromotionRunDispatchResponse
 } from "@loopad/shared";
 import { z } from "zod";
-import { apiFetch } from "../../../shared/api/http-client.js";
 import { dashboardConfig } from "../model/dashboard-config.js";
 import type {
   DashboardPageResource,
@@ -171,12 +170,16 @@ export async function fetchDashboardProjects(signal?: AbortSignal): Promise<Dash
     window.location.origin
   );
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     signal
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardProjectListSchema);
+  return createApiSuccessResponseSchema(DashboardProjectListSchema).parse(await response.json())
+    .data;
 }
 
 export async function createDashboardProject(
@@ -188,13 +191,16 @@ export async function createDashboardProject(
     window.location.origin
   );
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardProjectSchema);
+  return createApiSuccessResponseSchema(DashboardProjectSchema).parse(await response.json()).data;
 }
 
 export async function deleteDashboardProject(
@@ -205,12 +211,17 @@ export async function deleteDashboardProject(
     window.location.origin
   );
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "DELETE"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardDeleteProjectResultSchema);
+  return createApiSuccessResponseSchema(DashboardDeleteProjectResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function createDashboardFunnel(
@@ -221,13 +232,16 @@ export async function createDashboardFunnel(
   const url = new URL(`${dashboardConfig.apiBaseUrl}/dashboard/v1/funnels`, window.location.origin);
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardFunnelSchema);
+  return createApiSuccessResponseSchema(DashboardFunnelSchema).parse(await response.json()).data;
 }
 
 export async function updateDashboardFunnel(
@@ -242,13 +256,16 @@ export async function updateDashboardFunnel(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "PATCH"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardFunnelSchema);
+  return createApiSuccessResponseSchema(DashboardFunnelSchema).parse(await response.json()).data;
 }
 
 export async function fetchDashboardCampaignDetail(
@@ -275,13 +292,17 @@ export async function createDashboardCampaign(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardCampaignSummarySchema);
+  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(await response.json())
+    .data;
 }
 
 export async function updateDashboardCampaign(
@@ -296,13 +317,17 @@ export async function updateDashboardCampaign(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "PATCH"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardCampaignSummarySchema);
+  return createApiSuccessResponseSchema(DashboardCampaignSummarySchema).parse(await response.json())
+    .data;
 }
 
 export async function deleteDashboardCampaign(
@@ -315,12 +340,17 @@ export async function deleteDashboardCampaign(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "DELETE"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardDeleteCampaignResultSchema);
+  return createApiSuccessResponseSchema(DashboardDeleteCampaignResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function fetchDashboardPromotionDetail(
@@ -348,13 +378,18 @@ export async function createDashboardPromotion(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardPromotionSummarySchema);
+  return createApiSuccessResponseSchema(DashboardPromotionSummarySchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function updateDashboardPromotion(
@@ -369,13 +404,18 @@ export async function updateDashboardPromotion(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "PATCH"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardPromotionSummarySchema);
+  return createApiSuccessResponseSchema(DashboardPromotionSummarySchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function deleteDashboardPromotion(
@@ -388,12 +428,17 @@ export async function deleteDashboardPromotion(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "DELETE"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardDeletePromotionResultSchema);
+  return createApiSuccessResponseSchema(DashboardDeletePromotionResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function fetchDashboardSegmentDetail(
@@ -422,13 +467,17 @@ export async function attachDashboardSegmentToPromotion(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardCampaignSegmentSchema);
+  return createApiSuccessResponseSchema(DashboardCampaignSegmentSchema).parse(await response.json())
+    .data;
 }
 
 export async function updateDashboardPromotionSegment(
@@ -444,13 +493,17 @@ export async function updateDashboardPromotionSegment(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "PATCH"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardCampaignSegmentSchema);
+  return createApiSuccessResponseSchema(DashboardCampaignSegmentSchema).parse(await response.json())
+    .data;
 }
 
 export async function deleteDashboardPromotionSegment(
@@ -464,12 +517,17 @@ export async function deleteDashboardPromotionSegment(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "DELETE"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardDeletePromotionSegmentResultSchema);
+  return createApiSuccessResponseSchema(DashboardDeletePromotionSegmentResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function fetchDashboardPromotionSegmentSuggestions(
@@ -487,9 +545,14 @@ export async function fetchDashboardPromotionSegmentSuggestions(
     url.searchParams.set("analysis_id", analysisId);
   }
 
-  const response = await apiFetch(url, { headers: { Accept: "application/json" }, signal });
+  const response = await fetch(url, { headers: { Accept: "application/json" }, signal });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardPromotionSegmentSuggestionListSchema);
+  return createApiSuccessResponseSchema(DashboardPromotionSegmentSuggestionListSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function startDashboardPromotionAnalysis(
@@ -504,13 +567,18 @@ export async function startDashboardPromotionAnalysis(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, DashboardStartPromotionAnalysisResultSchema);
+  return createApiSuccessResponseSchema(DashboardStartPromotionAnalysisResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function startDashboardPromotionGeneration(
@@ -525,13 +593,18 @@ export async function startDashboardPromotionGeneration(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, DashboardStartPromotionGenerationResultSchema);
+  return createApiSuccessResponseSchema(DashboardStartPromotionGenerationResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function fetchDashboardPromotionScopedSegmentDefinitions(
@@ -545,9 +618,14 @@ export async function fetchDashboardPromotionScopedSegmentDefinitions(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, { headers: { Accept: "application/json" }, signal });
+  const response = await fetch(url, { headers: { Accept: "application/json" }, signal });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardPromotionScopedSegmentDefinitionListSchema);
+  return createApiSuccessResponseSchema(DashboardPromotionScopedSegmentDefinitionListSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function createDashboardPromotionScopedSegmentDefinition(
@@ -562,13 +640,18 @@ export async function createDashboardPromotionScopedSegmentDefinition(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardPromotionScopedSegmentDefinitionSchema);
+  return createApiSuccessResponseSchema(DashboardPromotionScopedSegmentDefinitionSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function archiveDashboardPromotionScopedSegmentDefinition(
@@ -582,15 +665,17 @@ export async function archiveDashboardPromotionScopedSegmentDefinition(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "DELETE"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(
-    response,
+  return createApiSuccessResponseSchema(
     DashboardArchivePromotionScopedSegmentDefinitionResultSchema
-  );
+  ).parse(await response.json()).data;
 }
 
 export async function decideDashboardPromotionSegmentSuggestion(
@@ -606,13 +691,18 @@ export async function decideDashboardPromotionSegmentSuggestion(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "PATCH"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardPromotionSegmentSuggestionSchema);
+  return createApiSuccessResponseSchema(DashboardPromotionSegmentSuggestionSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function confirmDashboardPromotionSegmentSuggestions(
@@ -627,13 +717,18 @@ export async function confirmDashboardPromotionSegmentSuggestions(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardConfirmSegmentSuggestionsResultSchema);
+  return createApiSuccessResponseSchema(DashboardConfirmSegmentSuggestionsResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function startDashboardNextLoopAnalysis(
@@ -648,13 +743,18 @@ export async function startDashboardNextLoopAnalysis(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardNextLoopAnalysisSchema);
+  return createApiSuccessResponseSchema(DashboardNextLoopAnalysisSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function approveDashboardContentCandidate(
@@ -671,13 +771,18 @@ export async function approveDashboardContentCandidate(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, DashboardApproveContentCandidateResultSchema);
+  return createApiSuccessResponseSchema(DashboardApproveContentCandidateResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function createDashboardPromotionRun(
@@ -692,13 +797,18 @@ export async function createDashboardPromotionRun(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, DashboardCreatePromotionRunResultSchema);
+  return createApiSuccessResponseSchema(DashboardCreatePromotionRunResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function buildDashboardPromotionRunAssignments(
@@ -711,12 +821,17 @@ export async function buildDashboardPromotionRunAssignments(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, DashboardBuildPromotionRunAssignmentsResultSchema);
+  return createApiSuccessResponseSchema(DashboardBuildPromotionRunAssignmentsResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function evaluateDashboardPromotionRun(
@@ -729,12 +844,17 @@ export async function evaluateDashboardPromotionRun(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, DashboardEvaluatePromotionRunResultSchema);
+  return createApiSuccessResponseSchema(DashboardEvaluatePromotionRunResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function createDashboardNextLoop(
@@ -749,13 +869,18 @@ export async function createDashboardNextLoop(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, DashboardCreateNextLoopResultSchema);
+  return createApiSuccessResponseSchema(DashboardCreateNextLoopResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function rejectDashboardContentCandidate(
@@ -772,13 +897,18 @@ export async function rejectDashboardContentCandidate(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardRejectContentCandidateResultSchema);
+  return createApiSuccessResponseSchema(DashboardRejectContentCandidateResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function dispatchDashboardPromotionRun(
@@ -789,12 +919,17 @@ export async function dispatchDashboardPromotionRun(
     window.location.origin
   );
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, PromotionRunDispatchResponseSchema);
+  return createApiSuccessResponseSchema(PromotionRunDispatchResponseSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function startDashboardAdExperiment(
@@ -808,13 +943,18 @@ export async function startDashboardAdExperiment(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify({}),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
 
-  return parseDashboardResponse(response, DashboardStartAdExperimentResultSchema);
+  return createApiSuccessResponseSchema(DashboardStartAdExperimentResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function deleteDashboardFunnel(
@@ -827,12 +967,17 @@ export async function deleteDashboardFunnel(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     method: "DELETE"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardDeleteFunnelResultSchema);
+  return createApiSuccessResponseSchema(DashboardDeleteFunnelResultSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function createDashboardSegmentQueryPreview(
@@ -846,13 +991,18 @@ export async function createDashboardSegmentQueryPreview(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardSegmentQueryPreviewSchema);
+  return createApiSuccessResponseSchema(DashboardSegmentQueryPreviewSchema).parse(
+    await response.json()
+  ).data;
 }
 
 export async function saveDashboardSegment(
@@ -866,13 +1016,17 @@ export async function saveDashboardSegment(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST"
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardSavedSegmentSchema);
+  return createApiSuccessResponseSchema(DashboardSavedSegmentSchema).parse(await response.json())
+    .data;
 }
 
 export async function fetchDashboardEventCatalog(
@@ -929,14 +1083,18 @@ export async function previewDashboardFunnelMetrics(
   );
   url.searchParams.set("project_id", query.projectId);
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     body: JSON.stringify(parsedBody),
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     method: "POST",
     signal
   });
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
 
-  return parseDashboardResponse(response, DashboardFunnelPreviewSchema);
+  return createApiSuccessResponseSchema(DashboardFunnelPreviewSchema).parse(await response.json())
+    .data;
 }
 
 async function request<T>(
@@ -967,17 +1125,12 @@ async function request<T>(
     }
   }
 
-  const response = await apiFetch(url, {
+  const response = await fetch(url, {
     headers: { Accept: "application/json" },
     signal
   });
-
-  return parseDashboardResponse(response, schema);
-}
-
-async function parseDashboardResponse<T>(response: Response, schema: z.ZodType<T>) {
   if (!response.ok) {
-    throw new Error(await readApiErrorMessage(response));
+    throw new Error(`API 요청 실패: ${response.status}`);
   }
 
   return createApiSuccessResponseSchema(schema).parse(await response.json()).data;
