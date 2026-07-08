@@ -29,6 +29,7 @@ import {
   DashboardEvaluatePromotionRunResultSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsSchema,
+  DashboardFunnelMetricsScopeSchema,
   DashboardFunnelPreviewRequestSchema,
   DashboardFunnelPreviewSchema,
   DashboardFunnelSchema,
@@ -60,6 +61,7 @@ import {
   DashboardUpdatePromotionRequestSchema,
   DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
+import type { DashboardFunnelMetricsScope } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardQueryService } from "../service/index.js";
 
@@ -496,11 +498,16 @@ export class DashboardController {
   @Get("funnels/:funnel_id/metrics")
   async funnelMetrics(
     @Param("funnel_id") funnelId: string,
-    @Query("project_id") projectId?: string
+    @Query("project_id") projectId?: string,
+    @Query("scope_type") scopeType?: string,
+    @Query("campaign_id") campaignId?: string,
+    @Query("promotion_id") promotionId?: string,
+    @Query("segment_id") segmentId?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
+    const scope = parseFunnelMetricsScope({ campaignId, promotionId, scopeType, segmentId });
     return DashboardFunnelMetricsSchema.parse(
-      await this.dashboardQuery.funnelMetrics(requiredProjectId, funnelId)
+      await this.dashboardQuery.funnelMetrics(requiredProjectId, funnelId, scope)
     );
   }
 
@@ -584,4 +591,41 @@ function requireProjectId(projectId: string | undefined): string {
     throw dashboardErrors.projectIdRequired();
   }
   return projectId;
+}
+
+function parseFunnelMetricsScope({
+  campaignId,
+  promotionId,
+  scopeType,
+  segmentId
+}: {
+  campaignId?: string;
+  promotionId?: string;
+  scopeType?: string;
+  segmentId?: string;
+}): DashboardFunnelMetricsScope | undefined {
+  if (!scopeType) {
+    return undefined;
+  }
+
+  switch (scopeType) {
+    case "campaign":
+      return DashboardFunnelMetricsScopeSchema.parse({
+        scope_type: scopeType,
+        campaign_id: campaignId
+      });
+    case "promotion":
+      return DashboardFunnelMetricsScopeSchema.parse({
+        scope_type: scopeType,
+        promotion_id: promotionId
+      });
+    case "segment":
+      return DashboardFunnelMetricsScopeSchema.parse({
+        scope_type: scopeType,
+        promotion_id: promotionId || undefined,
+        segment_id: segmentId
+      });
+    default:
+      return DashboardFunnelMetricsScopeSchema.parse({ scope_type: scopeType });
+  }
 }

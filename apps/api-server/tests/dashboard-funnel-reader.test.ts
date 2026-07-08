@@ -72,6 +72,76 @@ test("dashboard funnel metrics counts users through ordered funnel steps", async
   assert.match(clickhouseRequest?.query ?? "", /fse\.event_time >= previous\.reached_at/);
 });
 
+test("dashboard funnel metrics scopes the first step to a session cohort", async () => {
+  setRequiredEnv();
+  const { DashboardFunnelReader } =
+    await import("../src/features/dashboard/repository/dashboard-funnel-reader.js");
+  let clickhouseRequest:
+    | {
+        query: string;
+        query_params?: Record<string, string>;
+      }
+    | undefined;
+  const db = {
+    query: () => ({
+      multiple: async () => [
+        {
+          eventName: "promotion_impression",
+          funnelId: "funnel_booking",
+          stepName: "노출",
+          stepOrder: 1
+        },
+        {
+          eventName: "booking_complete",
+          funnelId: "funnel_booking",
+          stepName: "예약 완료",
+          stepOrder: 2
+        }
+      ],
+      single: async () => ({
+        funnelId: "funnel_booking",
+        funnelName: "예약 퍼널"
+      })
+    })
+  } as unknown as Transaction<PgTypedTransactionalAdapter>;
+  const clickhouse = {
+    query: async (request: { query: string; query_params?: Record<string, string> }) => {
+      clickhouseRequest = request;
+      return {
+        json: async () => [
+          { event_count: "10", step_order: "1" },
+          { event_count: "4", step_order: "2" }
+        ]
+      };
+    }
+  } as unknown as ClickHouseClient;
+  const reader = new DashboardFunnelReader(db, clickhouse);
+
+  const metrics = await reader.getFunnelMetrics("hotel-client-a", "funnel_booking", {
+    promotion_id: "promo_email_001",
+    scope_type: "promotion"
+  });
+
+  assert.deepEqual(
+    metrics.steps.map((step) => step.event_count),
+    [10, 4]
+  );
+  assert.deepEqual(clickhouseRequest?.query_params, {
+    projectId: "hotel-client-a",
+    promotionId: "promo_email_001",
+    stepEvent1: "promotion_impression",
+    stepEvent2: "booking_complete"
+  });
+  assert.match(clickhouseRequest?.query ?? "", /step_1_sessions/);
+  assert.match(clickhouseRequest?.query ?? "", /nullIf\(session_id, ''\) IS NOT NULL/);
+  assert.match(
+    clickhouseRequest?.query ?? "",
+    /nullIf\(promotion_id, ''\) = \{promotionId:String\}/
+  );
+  assert.match(clickhouseRequest?.query ?? "", /ON previous\.session_id = fse\.session_id/);
+  assert.match(clickhouseRequest?.query ?? "", /FROM step_2_sessions/);
+});
+
 test("dashboard funnel reader preview maps sequential step counts", async () => {
   setRequiredEnv();
   const { DashboardFunnelReader } =

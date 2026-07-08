@@ -207,6 +207,53 @@ test("dashboard controller parses funnel detail response", async () => {
   assert.equal(response.steps[0]?.event_name, "hotel_detail_view");
 });
 
+test("dashboard controller delegates scoped funnel metrics", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const reads: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    funnelMetrics: async (projectId, funnelId, scope) => {
+      reads.push({ funnelId, projectId, scope });
+      return {
+        funnel_id: funnelId,
+        funnel_name: "숙소 예약 퍼널",
+        steps: [
+          {
+            step_order: 1,
+            step_name: "노출",
+            event_name: "promotion_impression",
+            event_count: 10
+          }
+        ]
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.funnelMetrics(
+    "funnel_hotel_booking",
+    "hotel-client-a",
+    "segment",
+    undefined,
+    "promo_email_001",
+    "seg_repeat_hotel_no_booking"
+  );
+
+  assert.deepEqual(reads, [
+    {
+      funnelId: "funnel_hotel_booking",
+      projectId: "hotel-client-a",
+      scope: {
+        promotion_id: "promo_email_001",
+        scope_type: "segment",
+        segment_id: "seg_repeat_hotel_no_booking"
+      }
+    }
+  ]);
+  assert.equal(response.steps[0]?.event_count, 10);
+});
+
 test("dashboard controller parses funnel preview body before delegating", async () => {
   setRequiredEnv();
   const { DashboardController } =

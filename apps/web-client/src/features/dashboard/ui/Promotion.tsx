@@ -5,6 +5,7 @@ import type {
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
   DashboardEvaluatePromotionRunResult,
+  DashboardFunnelList,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
   DashboardSegmentDetail,
@@ -32,12 +33,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@loopad/ui/shadcn/select";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from "@loopad/ui/shadcn/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import {
   Table,
   TableBody,
@@ -75,6 +71,7 @@ import {
   dispatchDashboardPromotionRun,
   evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
+  fetchDashboardFunnelList,
   fetchDashboardPromotionDetail,
   fetchDashboardSegmentDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
@@ -95,6 +92,7 @@ import {
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
+  dashboardFunnelListQueryKey,
   dashboardPromotionAnalysisProgressQueryKey,
   dashboardPromotionDetailQueryKey,
   dashboardPromotionScopedSegmentDefinitionsQueryKey,
@@ -103,6 +101,7 @@ import {
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
+import { ScopedFunnelAnalysisPanel } from "./ScopedFunnelAnalysisPanel.js";
 
 export const promotionChannelOptions = ["email", "sms", "onsite_banner"] as const;
 export const promotionStatusOptions = [
@@ -146,7 +145,11 @@ const promotionGoalMetricOptions = [
     requestMetric: "funnel_step_rate",
     value: "checkout_abandonment_rate"
   },
-  { label: "구매전환율", requestMetric: "booking_conversion_rate", value: "purchase_conversion_rate" }
+  {
+    label: "구매전환율",
+    requestMetric: "booking_conversion_rate",
+    value: "purchase_conversion_rate"
+  }
 ] satisfies Array<{
   label: string;
   requestMetric: DashboardCreatePromotionRequest["goal_metric"];
@@ -185,6 +188,10 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     enabled: Boolean(selectedCampaignId),
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+  });
+  const funnelList = useQuery({
+    queryFn: ({ signal }) => fetchDashboardFunnelList(query, signal),
+    queryKey: dashboardFunnelListQueryKey(query.projectId)
   });
   const createPromotionMutation = useMutation({
     mutationFn: (form: PromotionCreateFormState) =>
@@ -254,7 +261,11 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
   }, [campaignDetail.data, selectedPromotionId, setDashboardQueryState]);
 
   useEffect(() => {
-    if (!campaignDetail.data || selectedPromotionId || campaignDetail.data.promotions.length === 0) {
+    if (
+      !campaignDetail.data ||
+      selectedPromotionId ||
+      campaignDetail.data.promotions.length === 0
+    ) {
       return;
     }
 
@@ -268,12 +279,7 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       selectedPromotionId: firstPromotion.promotion_id,
       selectedSegmentId: ""
     });
-  }, [
-    campaignDetail.data,
-    selectedCampaignId,
-    selectedPromotionId,
-    setDashboardQueryState
-  ]);
+  }, [campaignDetail.data, selectedCampaignId, selectedPromotionId, setDashboardQueryState]);
 
   const openPromotions = uniquePromotionsById(campaignDetail.data?.promotions ?? []);
   const selectedOpenPromotion =
@@ -350,7 +356,7 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
   });
   const isPollingOnsiteBannerImage = Boolean(
     selectedOpenPromotion?.channel === "onsite_banner" &&
-      hasPendingOnsiteBannerImage(segmentDetail.data)
+    hasPendingOnsiteBannerImage(segmentDetail.data)
   );
   useEffect(() => {
     if (!isPollingOnsiteBannerImage) {
@@ -458,13 +464,7 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
       });
   };
   const startGenerationMutation = useMutation({
-    mutationFn: ({
-      analysisId,
-      promotionId
-    }: {
-      analysisId: string;
-      promotionId: string;
-    }) =>
+    mutationFn: ({ analysisId, promotionId }: { analysisId: string; promotionId: string }) =>
       startDashboardPromotionGeneration(query, promotionId, {
         analysis_id: analysisId,
         content_option_count: 3,
@@ -709,13 +709,8 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     }
   });
   const deleteConfirmedSegmentMutation = useMutation({
-    mutationFn: ({
-      promotionId,
-      segmentId
-    }: {
-      promotionId: string;
-      segmentId: string;
-    }) => deleteDashboardPromotionSegment(query, promotionId, segmentId),
+    mutationFn: ({ promotionId, segmentId }: { promotionId: string; segmentId: string }) =>
+      deleteDashboardPromotionSegment(query, promotionId, segmentId),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
@@ -748,13 +743,8 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
     }
   });
   const archiveScopedSegmentMutation = useMutation({
-    mutationFn: ({
-      promotionId,
-      segmentId
-    }: {
-      promotionId: string;
-      segmentId: string;
-    }) => archiveDashboardPromotionScopedSegmentDefinition(query, promotionId, segmentId),
+    mutationFn: ({ promotionId, segmentId }: { promotionId: string; segmentId: string }) =>
+      archiveDashboardPromotionScopedSegmentDefinition(query, promotionId, segmentId),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({
         queryKey: dashboardPromotionScopedSegmentDefinitionsQueryKey(
@@ -821,16 +811,16 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
             </AlertDescription>
           </Alert>
         ) : null}
-        {!selectedCampaign ? <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." /> : null}
+        {!selectedCampaign ? (
+          <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." />
+        ) : null}
         {selectedCampaign && campaignDetail.isLoading ? (
           <EmptyState message="프로모션 데이터를 불러오는 중입니다." />
         ) : null}
         {campaignDetail.data ? (
           <>
             {openPromotions.length === 0 ? (
-              <PromotionEmptyState
-                onAdd={() => setIsAddDialogOpen(true)}
-              />
+              <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
             ) : null}
             {selectedOpenPromotion ? (
               <PromotionTabWorkspace
@@ -930,6 +920,11 @@ export function PromotionPanel({ data, query }: { data: DashboardMain; query: Da
                 promotionGenerationError={startGenerationMutation.error}
                 promotionGenerationIsError={startGenerationMutation.isError}
                 promotionGenerationIsPending={startGenerationMutation.isPending}
+                funnelList={funnelList.data}
+                funnelListError={funnelList.error}
+                funnelListIsError={funnelList.isError}
+                funnelListIsLoading={funnelList.isLoading}
+                query={query}
                 rejectContentCandidateError={rejectContentCandidateMutation.error}
                 rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
                 rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
@@ -1040,11 +1035,7 @@ function uniquePromotionsById(
   return [...promotionMap.values()];
 }
 
-function PromotionEmptyState({
-  onAdd
-}: {
-  onAdd: () => void;
-}) {
+function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <section className="grid min-h-[620px] content-between gap-8">
       <div className="grid place-items-center gap-6 pt-14 text-center">
@@ -1062,8 +1053,8 @@ function PromotionEmptyState({
             현재 프로모션이 없습니다.
           </h2>
           <p className="text-sm leading-7 text-muted-foreground">
-            새 프로모션을 생성하면 현재 캠페인의 프로모션 탭으로 열립니다. 진행 중인 캠페인의
-            상세 지표와 워크플로우를 한눈에 관리할 수 있습니다.
+            새 프로모션을 생성하면 현재 캠페인의 프로모션 탭으로 열립니다. 진행 중인 캠페인의 상세
+            지표와 워크플로우를 한눈에 관리할 수 있습니다.
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
@@ -1142,6 +1133,10 @@ function PromotionTabWorkspace({
   evaluatePromotionRunIsError,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
+  funnelList,
+  funnelListError,
+  funnelListIsError,
+  funnelListIsLoading,
   createNextLoopError,
   createNextLoopIsError,
   createNextLoopIsPending,
@@ -1170,6 +1165,7 @@ function PromotionTabWorkspace({
   promotionGenerationError,
   promotionGenerationIsError,
   promotionGenerationIsPending,
+  query,
   rejectContentCandidateError,
   rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
@@ -1223,6 +1219,10 @@ function PromotionTabWorkspace({
   evaluatePromotionRunIsError: boolean;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
+  funnelList: DashboardFunnelList | undefined;
+  funnelListError: Error | null;
+  funnelListIsError: boolean;
+  funnelListIsLoading: boolean;
   createNextLoopError: Error | null;
   createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
@@ -1235,11 +1235,7 @@ function PromotionTabWorkspace({
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onCreatePromotionRun: (
-    promotionId: string,
-    analysisId: string,
-    generationId: string
-  ) => void;
+  onCreatePromotionRun: (promotionId: string, analysisId: string, generationId: string) => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
@@ -1259,6 +1255,7 @@ function PromotionTabWorkspace({
   promotionGenerationError: Error | null;
   promotionGenerationIsError: boolean;
   promotionGenerationIsPending: boolean;
+  query: DashboardQuery;
   rejectContentCandidateError: Error | null;
   rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -1295,9 +1292,7 @@ function PromotionTabWorkspace({
           <h2 className="text-3xl font-semibold tracking-tight text-[#102033]">
             {promotion.marketing_theme}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            {formatChannelLabel(promotion.channel)}
-          </p>
+          <p className="text-sm text-muted-foreground">{formatChannelLabel(promotion.channel)}</p>
         </div>
         <Badge variant={statusBadgeVariant(promotion.status)}>
           {formatStatusLabel(promotion.status)}
@@ -1317,6 +1312,15 @@ function PromotionTabWorkspace({
         <PromotionMetricCard label="세그먼트" value={formatInteger(activeSegments.length)} />
         <PromotionMetricCard label="실험" value={formatInteger(promotion.ad_experiment_count)} />
       </div>
+      <ScopedFunnelAnalysisPanel
+        error={funnelListError}
+        funnels={funnelList?.funnels ?? []}
+        isError={funnelListIsError}
+        isLoading={funnelListIsLoading}
+        query={query}
+        scope={{ promotion_id: promotion.promotion_id, scope_type: "promotion" }}
+        title="프로모션 퍼널 분석"
+      />
       <Tabs
         className="grid gap-4"
         onValueChange={(value) => onTabChange(value as PromotionWorkspaceTab)}
@@ -1411,6 +1415,10 @@ function PromotionTabWorkspace({
             generationError={promotionGenerationError}
             generationIsError={promotionGenerationIsError}
             generationIsPending={promotionGenerationIsPending}
+            funnelList={funnelList}
+            funnelListError={funnelListError}
+            funnelListIsError={funnelListIsError}
+            funnelListIsLoading={funnelListIsLoading}
             isError={selectedSegmentDetailIsError}
             isLoading={selectedSegmentDetailIsLoading}
             onApproveContentCandidate={onApproveContentCandidate}
@@ -1422,6 +1430,7 @@ function PromotionTabWorkspace({
             onRejectContentCandidate={onRejectContentCandidate}
             onStartAdExperiment={onStartAdExperiment}
             onStartGeneration={onStartGeneration}
+            query={query}
             rejectContentCandidateError={rejectContentCandidateError}
             rejectContentCandidateIsError={rejectContentCandidateIsError}
             rejectContentCandidateIsPending={rejectContentCandidateIsPending}
@@ -1665,6 +1674,10 @@ function PromotionSegmentDetailTab({
   generationError,
   generationIsError,
   generationIsPending,
+  funnelList,
+  funnelListError,
+  funnelListIsError,
+  funnelListIsLoading,
   isError,
   isLoading,
   onApproveContentCandidate,
@@ -1676,6 +1689,7 @@ function PromotionSegmentDetailTab({
   onRejectContentCandidate,
   onStartAdExperiment,
   onStartGeneration,
+  query,
   rejectContentCandidateError,
   rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
@@ -1710,6 +1724,10 @@ function PromotionSegmentDetailTab({
   generationError: Error | null;
   generationIsError: boolean;
   generationIsPending: boolean;
+  funnelList: DashboardFunnelList | undefined;
+  funnelListError: Error | null;
+  funnelListIsError: boolean;
+  funnelListIsLoading: boolean;
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
@@ -1719,16 +1737,13 @@ function PromotionSegmentDetailTab({
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onCreatePromotionRun: (
-    promotionId: string,
-    analysisId: string,
-    generationId: string
-  ) => void;
+  onCreatePromotionRun: (promotionId: string, analysisId: string, generationId: string) => void;
   onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
+  query: DashboardQuery;
   rejectContentCandidateError: Error | null;
   rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -1781,14 +1796,8 @@ function PromotionSegmentDetailTab({
         <CardContent className="grid gap-3 md:grid-cols-4">
           <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
           <SummaryItem label="표본 수" value={formatInteger(detail.segment.sample_size)} />
-          <SummaryItem
-            label="표본 비율"
-            value={formatPercentValue(detail.segment.sample_ratio)}
-          />
-          <SummaryItem
-            label="연결 실험"
-            value={formatInteger(detail.ad_experiments.length)}
-          />
+          <SummaryItem label="표본 비율" value={formatPercentValue(detail.segment.sample_ratio)} />
+          <SummaryItem label="연결 실험" value={formatInteger(detail.ad_experiments.length)} />
           <SummaryItem label="목표 지표" value={formatMetricLabel(detail.segment.goal_metric)} />
           <SummaryItem
             label="최근 지표"
@@ -1798,7 +1807,10 @@ function PromotionSegmentDetailTab({
                 : "-"
             }
           />
-          <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
+          <SummaryItem
+            label="콘텐츠 후보"
+            value={formatInteger(detail.content_candidates.length)}
+          />
           <SummaryItem
             label="실시간 이벤트"
             value={formatInteger(detail.realtime_metrics.total_event_count)}
@@ -1810,11 +1822,25 @@ function PromotionSegmentDetailTab({
         <Alert variant="destructive">
           <AlertTitle>표본 부족 상태</AlertTitle>
           <AlertDescription>
-            표본 부족은 실패가 아니라 판단 보류 상태입니다. 실험 대상 수와 평가 결과 JSON을
-            함께 확인해야 합니다.
+            표본 부족은 실패가 아니라 판단 보류 상태입니다. 실험 대상 수와 평가 결과 JSON을 함께
+            확인해야 합니다.
           </AlertDescription>
         </Alert>
       ) : null}
+
+      <ScopedFunnelAnalysisPanel
+        error={funnelListError}
+        funnels={funnelList?.funnels ?? []}
+        isError={funnelListIsError}
+        isLoading={funnelListIsLoading}
+        query={query}
+        scope={{
+          promotion_id: detail.segment.promotion_id,
+          scope_type: "segment",
+          segment_id: detail.segment.segment_id
+        }}
+        title="세그먼트 퍼널 분석"
+      />
 
       <SegmentDetailReportCard suggestion={segmentSuggestion} />
 
@@ -1889,7 +1915,7 @@ function PromotionSegmentDetailTab({
               {detail.content_candidates.map((candidate) => {
                 const hasDifferentApprovedCandidate = Boolean(
                   approvedContentCandidate &&
-                    approvedContentCandidate.content_id !== candidate.content_id
+                  approvedContentCandidate.content_id !== candidate.content_id
                 );
                 const selectionLabel =
                   candidate.status === "approved"
@@ -2024,7 +2050,6 @@ function PromotionSegmentDetailTab({
           )}
         </div>
       </section>
-
     </section>
   );
 }
@@ -2102,7 +2127,8 @@ function PromotionSegmentSuggestionPanel({
         <div className="grid gap-1">
           <CardTitle>추천 세그먼트 후보</CardTitle>
           <CardDescription>
-            AI가 제안한 후보와 직접 추가한 후보를 확인합니다. 확정 시 최종 타겟 세그먼트로 저장됩니다.
+            AI가 제안한 후보와 직접 추가한 후보를 확인합니다. 확정 시 최종 타겟 세그먼트로
+            저장됩니다.
           </CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -2388,7 +2414,9 @@ function SegmentDetailReportCard({
     <Card className="shadow-none">
       <CardHeader>
         <CardTitle className="text-base">세그먼트 리포트</CardTitle>
-        <CardDescription>AI가 정리한 고객군 성격, 추천 근거, 활용 방법을 확인합니다.</CardDescription>
+        <CardDescription>
+          AI가 정리한 고객군 성격, 추천 근거, 활용 방법을 확인합니다.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {report ? (
@@ -2492,8 +2520,8 @@ function PromotionSegmentCreateDialog({
         <DialogHeader>
           <DialogTitle>프로모션 세그먼트 후보 추가</DialogTitle>
           <DialogDescription>
-            현재 프로모션에 종속되는 세그먼트 후보를 저장합니다. 최종 타겟 반영은 후보 확정
-            버튼에서 처리합니다.
+            현재 프로모션에 종속되는 세그먼트 후보를 저장합니다. 최종 타겟 반영은 후보 확정 버튼에서
+            처리합니다.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
@@ -2516,9 +2544,7 @@ function PromotionSegmentCreateDialog({
             <FieldLabel htmlFor="promotion-segment-natural-query">생성 이유/조건 설명</FieldLabel>
             <Textarea
               id="promotion-segment-natural-query"
-              onChange={(event) =>
-                setForm({ ...form, naturalLanguageQuery: event.target.value })
-              }
+              onChange={(event) => setForm({ ...form, naturalLanguageQuery: event.target.value })}
               placeholder="최근 30일 내 상세 조회는 했지만 예약 전환이 없는 고객"
               value={form.naturalLanguageQuery}
             />
@@ -2642,9 +2668,7 @@ function PromotionAddDialog({
   }, [open]);
 
   const canSubmit =
-    Boolean(form.marketingTheme.trim()) &&
-    isValidHttpUrl(form.landingUrl) &&
-    !createIsPending;
+    Boolean(form.marketingTheme.trim()) && isValidHttpUrl(form.landingUrl) && !createIsPending;
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -2933,102 +2957,102 @@ export function CampaignPromotionTable({
       {promotions.length > 0 ? (
         <Table>
           <TableHeader>
-              <TableRow>
-                <TableHead>프로모션</TableHead>
-                <TableHead>대상 세그먼트</TableHead>
-                <TableHead>목표</TableHead>
-                <TableHead className="text-right">루프</TableHead>
-                <TableHead className="text-right">실험</TableHead>
-                <TableHead>상태</TableHead>
-                <TableHead>다음 액션</TableHead>
-                <TableHead>상세</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {promotions.map((promotion) => {
-                const promotionSegments = segments.filter(
-                  (segment) => segment.promotion_id === promotion.promotion_id
-                );
-                return (
-                  <TableRow
-                    aria-selected={selectedPromotionId === promotion.promotion_id}
-                    className="cursor-pointer"
-                    key={promotion.promotion_id}
-                    onClick={() => onSelectPromotion(promotion.promotion_id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
+            <TableRow>
+              <TableHead>프로모션</TableHead>
+              <TableHead>대상 세그먼트</TableHead>
+              <TableHead>목표</TableHead>
+              <TableHead className="text-right">루프</TableHead>
+              <TableHead className="text-right">실험</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>다음 액션</TableHead>
+              <TableHead>상세</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {promotions.map((promotion) => {
+              const promotionSegments = segments.filter(
+                (segment) => segment.promotion_id === promotion.promotion_id
+              );
+              return (
+                <TableRow
+                  aria-selected={selectedPromotionId === promotion.promotion_id}
+                  className="cursor-pointer"
+                  key={promotion.promotion_id}
+                  onClick={() => onSelectPromotion(promotion.promotion_id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelectPromotion(promotion.promotion_id);
+                    }
+                  }}
+                  tabIndex={0}
+                >
+                  <TableCell>
+                    <div className="flex min-w-[220px] flex-col gap-1">
+                      <span className="font-medium">{promotion.marketing_theme}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatChannelLabel(promotion.channel)}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex min-w-[240px] flex-wrap gap-1.5">
+                      {promotionSegments.slice(0, 3).map((segment) => (
+                        <Badge key={segment.segment_id} variant="outline">
+                          {segment.segment_name}
+                        </Badge>
+                      ))}
+                      {promotionSegments.length > 3 ? (
+                        <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
+                      ) : null}
+                      {promotionSegments.length === 0 ? (
+                        <span className="text-sm text-muted-foreground">세그먼트 없음</span>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="grid min-w-[160px] gap-1">
+                      <span className="text-sm">{formatMetricLabel(promotion.goal_metric)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatGoalValue(promotion.goal_target_value)} ·{" "}
+                        {formatBasisLabel(promotion.goal_basis)}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(promotion.current_loop_count)} /{" "}
+                    {formatInteger(promotion.max_loop_count)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatInteger(promotion.ad_experiment_count)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusBadgeVariant(promotion.status)}>
+                      {formatStatusLabel(promotion.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{formatActionLabel(promotion.next_action)}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      onClick={(event) => {
+                        event.stopPropagation();
                         onSelectPromotion(promotion.promotion_id);
+                      }}
+                      size="sm"
+                      variant={
+                        selectedPromotionId === promotion.promotion_id ? "default" : "outline"
                       }
-                    }}
-                    tabIndex={0}
-                  >
-                    <TableCell>
-                      <div className="flex min-w-[220px] flex-col gap-1">
-                        <span className="font-medium">{promotion.marketing_theme}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatChannelLabel(promotion.channel)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex min-w-[240px] flex-wrap gap-1.5">
-                        {promotionSegments.slice(0, 3).map((segment) => (
-                          <Badge key={segment.segment_id} variant="outline">
-                            {segment.segment_name}
-                          </Badge>
-                        ))}
-                        {promotionSegments.length > 3 ? (
-                          <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
-                        ) : null}
-                        {promotionSegments.length === 0 ? (
-                          <span className="text-sm text-muted-foreground">세그먼트 없음</span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="grid min-w-[160px] gap-1">
-                        <span className="text-sm">{formatMetricLabel(promotion.goal_metric)}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatGoalValue(promotion.goal_target_value)} ·{" "}
-                          {formatBasisLabel(promotion.goal_basis)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatInteger(promotion.current_loop_count)} /{" "}
-                      {formatInteger(promotion.max_loop_count)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatInteger(promotion.ad_experiment_count)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusBadgeVariant(promotion.status)}>
-                        {formatStatusLabel(promotion.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{formatActionLabel(promotion.next_action)}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onSelectPromotion(promotion.promotion_id);
-                        }}
-                        size="sm"
-                        variant={
-                          selectedPromotionId === promotion.promotion_id ? "default" : "outline"
-                        }
-                      >
-                        {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    >
+                      {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       ) : (
         <EmptyState message="등록된 프로모션이 없습니다." />
       )}

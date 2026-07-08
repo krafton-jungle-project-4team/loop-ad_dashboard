@@ -2,9 +2,9 @@ import type {
   DashboardAdExperiment,
   DashboardCampaignDetail,
   DashboardCampaignExperimentMetric,
-  DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
+  DashboardFunnelList,
   DashboardMain,
   DashboardPromotionDetail as DashboardPromotionDetailResource,
   DashboardRealtimeMetrics,
@@ -51,6 +51,7 @@ import {
   createDashboardCampaign,
   deleteDashboardCampaign,
   fetchDashboardCampaignDetail,
+  fetchDashboardFunnelList,
   fetchDashboardPromotionDetail,
   fetchDashboardSegmentDetail,
   rejectDashboardContentCandidate,
@@ -60,6 +61,7 @@ import { formatInteger, formatPercent } from "../model/dashboard-format.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
+  dashboardFunnelListQueryKey,
   dashboardPromotionDetailQueryKey,
   dashboardSegmentDetailQueryKey
 } from "../model/dashboard-query-keys.js";
@@ -72,12 +74,9 @@ import {
   formatStatusLabel
 } from "../model/dashboard-labels.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
-import {
-  CampaignPromotionTable,
-  promotionChannelOptions,
-  promotionStatusOptions
-} from "./Promotion.js";
+import { CampaignPromotionTable } from "./Promotion.js";
 import { EmptyState } from "./EmptyState.js";
+import { ScopedFunnelAnalysisPanel } from "./ScopedFunnelAnalysisPanel.js";
 
 const campaignPrimaryMetricOptions = [
   "inflow_rate",
@@ -92,10 +91,7 @@ const FALLBACK_SEGMENT_ID = "seg_existing_all";
 
 type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
 type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
-type CampaignFormSheetState =
-  | { mode: "create" }
-  | { campaignId: string; mode: "edit" }
-  | null;
+type CampaignFormSheetState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
 
 export function CampaignDashboardPanel({
   data,
@@ -124,6 +120,10 @@ export function CampaignDashboardPanel({
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
   });
+  const funnelList = useQuery({
+    queryFn: ({ signal }) => fetchDashboardFunnelList(query, signal),
+    queryKey: dashboardFunnelListQueryKey(query.projectId)
+  });
   const promotionDetail = useQuery({
     enabled: Boolean(selectedPromotionId),
     queryFn: ({ signal }) => fetchDashboardPromotionDetail(query, selectedPromotionId, signal),
@@ -139,14 +139,6 @@ export function CampaignDashboardPanel({
       selectedSegmentId
     )
   });
-  const selectedPromotion = campaignDetail.data?.promotions.find(
-    (promotion) => promotion.promotion_id === selectedPromotionId
-  );
-  const selectedSegment = (promotionDetail.data?.segments ?? campaignDetail.data?.segments ?? []).find(
-    (segment) =>
-      segment.segment_id === selectedSegmentId &&
-      (!selectedPromotionId || segment.promotion_id === selectedPromotionId)
-  );
   const createCampaignMutation = useMutation({
     mutationFn: (requestBody: Parameters<typeof createDashboardCampaign>[1]) =>
       createDashboardCampaign(query, requestBody),
@@ -334,14 +326,12 @@ export function CampaignDashboardPanel({
         error={campaignDetail.error}
         isError={campaignDetail.isError}
         isLoading={campaignDetail.isLoading}
+        funnelList={funnelList.data}
+        funnelListError={funnelList.error}
+        funnelListIsError={funnelList.isError}
+        funnelListIsLoading={funnelList.isLoading}
         onSelectPromotion={(promotionId) => {
           void setDashboardQueryState({ selectedPromotionId: promotionId, selectedSegmentId: "" });
-        }}
-        onClearPromotion={() => {
-          void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
-        }}
-        onClearSegment={() => {
-          void setDashboardQueryState({ selectedSegmentId: "" });
         }}
         onSelectSegment={(promotionId, segmentId) => {
           void setDashboardQueryState({
@@ -783,10 +773,12 @@ function CampaignDetailPanel({
   campaign,
   detail,
   error,
+  funnelList,
+  funnelListError,
+  funnelListIsError,
+  funnelListIsLoading,
   isError,
   isLoading,
-  onClearPromotion,
-  onClearSegment,
   onSelectPromotion,
   onSelectSegment,
   promotionDetail,
@@ -805,10 +797,12 @@ function CampaignDetailPanel({
   campaign: DashboardCampaignSummary | undefined;
   detail: DashboardCampaignDetail | undefined;
   error: Error | null;
+  funnelList: DashboardFunnelList | undefined;
+  funnelListError: Error | null;
+  funnelListIsError: boolean;
+  funnelListIsLoading: boolean;
   isError: boolean;
   isLoading: boolean;
-  onClearPromotion: () => void;
-  onClearSegment: () => void;
   onSelectPromotion: (promotionId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotionDetail: DashboardPromotionDetailResource | undefined;
@@ -824,19 +818,13 @@ function CampaignDetailPanel({
   selectedSegmentId: string;
   tab: DashboardTab;
 }) {
-  const selectedPromotion = detail?.promotions.find(
-    (promotion) => promotion.promotion_id === selectedPromotionId
-  );
-
   return (
     <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
       <CardHeader className="gap-1.5 px-5">
         <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
           캠페인 상세
         </CardTitle>
-        <CardDescription>
-          캠페인 안에서 실시간 추이와 프로모션 목록을 관리합니다.
-        </CardDescription>
+        <CardDescription>캠페인 안에서 실시간 추이와 프로모션 목록을 관리합니다.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 px-5">
         {isError ? (
@@ -850,8 +838,10 @@ function CampaignDetailPanel({
         {detail ? (
           <CampaignTabContent
             detail={detail}
-            onClearPromotion={onClearPromotion}
-            onClearSegment={onClearSegment}
+            funnelList={funnelList}
+            funnelListError={funnelListError}
+            funnelListIsError={funnelListIsError}
+            funnelListIsLoading={funnelListIsLoading}
             onSelectPromotion={onSelectPromotion}
             onSelectSegment={onSelectSegment}
             promotionDetail={promotionDetail}
@@ -863,7 +853,6 @@ function CampaignDetailPanel({
             segmentError={segmentError}
             segmentIsError={segmentIsError}
             segmentIsLoading={segmentIsLoading}
-            selectedPromotion={selectedPromotion}
             selectedPromotionId={selectedPromotionId}
             selectedSegmentId={selectedSegmentId}
             tab={tab}
@@ -876,8 +865,10 @@ function CampaignDetailPanel({
 
 function CampaignTabContent({
   detail,
-  onClearPromotion,
-  onClearSegment,
+  funnelList,
+  funnelListError,
+  funnelListIsError,
+  funnelListIsLoading,
   onSelectPromotion,
   onSelectSegment,
   promotionDetail,
@@ -889,14 +880,15 @@ function CampaignTabContent({
   segmentError,
   segmentIsError,
   segmentIsLoading,
-  selectedPromotion,
   selectedPromotionId,
   selectedSegmentId,
   tab
 }: {
   detail: DashboardCampaignDetail;
-  onClearPromotion: () => void;
-  onClearSegment: () => void;
+  funnelList: DashboardFunnelList | undefined;
+  funnelListError: Error | null;
+  funnelListIsError: boolean;
+  funnelListIsLoading: boolean;
   onSelectPromotion: (promotionId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotionDetail: DashboardPromotionDetailResource | undefined;
@@ -908,16 +900,10 @@ function CampaignTabContent({
   segmentError: Error | null;
   segmentIsError: boolean;
   segmentIsLoading: boolean;
-  selectedPromotion: DashboardCampaignPromotion | undefined;
   selectedPromotionId: string;
   selectedSegmentId: string;
   tab: DashboardTab;
 }) {
-  const selectedSegment = (promotionDetail?.segments ?? detail.segments).find(
-    (segment) =>
-      segment.segment_id === selectedSegmentId &&
-      (!selectedPromotionId || segment.promotion_id === selectedPromotionId)
-  );
   const queryClient = useQueryClient();
   const approveContentCandidateMutation = useMutation({
     mutationFn: ({
@@ -982,9 +968,48 @@ function CampaignTabContent({
       return (
         <>
           <CampaignRealtimeTrend detail={detail} />
+          <ScopedFunnelAnalysisPanel
+            error={funnelListError}
+            funnels={funnelList?.funnels ?? []}
+            isError={funnelListIsError}
+            isLoading={funnelListIsLoading}
+            query={query}
+            scope={{ campaign_id: detail.campaign.campaign_id, scope_type: "campaign" }}
+            title="캠페인 퍼널 분석"
+          />
           <EvaluationOutcomePanel
             adExperiments={detail.ad_experiments}
             metrics={detail.experiment_metrics}
+          />
+          <PromotionDetail
+            approveContentCandidateError={approveContentCandidateMutation.error}
+            approveContentCandidateIsError={approveContentCandidateMutation.isError}
+            approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
+            detail={promotionDetail}
+            error={promotionError}
+            funnelList={funnelList}
+            funnelListError={funnelListError}
+            funnelListIsError={funnelListIsError}
+            funnelListIsLoading={funnelListIsLoading}
+            isError={promotionIsError}
+            isLoading={promotionIsLoading}
+            query={query}
+            onApproveContentCandidate={(promotionId, segmentId, contentId) =>
+              approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
+            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
+            onSelectSegment={onSelectSegment}
+            rejectContentCandidateError={rejectContentCandidateMutation.error}
+            rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
+            rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
+            selectedPromotionId={selectedPromotionId}
+            selectedSegmentId={selectedSegmentId}
+            segmentDetail={segmentDetail}
+            segmentError={segmentError}
+            segmentIsError={segmentIsError}
+            segmentIsLoading={segmentIsLoading}
           />
         </>
       );
@@ -994,6 +1019,15 @@ function CampaignTabContent({
         <>
           <CampaignSummary detail={detail} />
           <CampaignRealtimeTrend detail={detail} />
+          <ScopedFunnelAnalysisPanel
+            error={funnelListError}
+            funnels={funnelList?.funnels ?? []}
+            isError={funnelListIsError}
+            isLoading={funnelListIsLoading}
+            query={query}
+            scope={{ campaign_id: detail.campaign.campaign_id, scope_type: "campaign" }}
+            title="캠페인 퍼널 분석"
+          />
           <CampaignPromotionTable
             onSelectPromotion={onSelectPromotion}
             promotions={detail.promotions}
@@ -1003,6 +1037,36 @@ function CampaignTabContent({
           <EvaluationOutcomePanel
             adExperiments={detail.ad_experiments}
             metrics={detail.experiment_metrics}
+          />
+          <PromotionDetail
+            approveContentCandidateError={approveContentCandidateMutation.error}
+            approveContentCandidateIsError={approveContentCandidateMutation.isError}
+            approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
+            detail={promotionDetail}
+            error={promotionError}
+            funnelList={funnelList}
+            funnelListError={funnelListError}
+            funnelListIsError={funnelListIsError}
+            funnelListIsLoading={funnelListIsLoading}
+            isError={promotionIsError}
+            isLoading={promotionIsLoading}
+            query={query}
+            onApproveContentCandidate={(promotionId, segmentId, contentId) =>
+              approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
+            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+            }
+            onSelectSegment={onSelectSegment}
+            rejectContentCandidateError={rejectContentCandidateMutation.error}
+            rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
+            rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
+            selectedPromotionId={selectedPromotionId}
+            selectedSegmentId={selectedSegmentId}
+            segmentDetail={segmentDetail}
+            segmentError={segmentError}
+            segmentIsError={segmentIsError}
+            segmentIsLoading={segmentIsLoading}
           />
         </>
       );
@@ -1085,11 +1149,16 @@ function PromotionDetail({
   approveContentCandidateIsPending,
   detail,
   error,
+  funnelList,
+  funnelListError,
+  funnelListIsError,
+  funnelListIsLoading,
   isError,
   isLoading,
   onApproveContentCandidate,
   onRejectContentCandidate,
   onSelectSegment,
+  query,
   rejectContentCandidateError,
   rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
@@ -1105,11 +1174,16 @@ function PromotionDetail({
   approveContentCandidateIsPending: boolean;
   detail: DashboardPromotionDetailResource | undefined;
   error: Error | null;
+  funnelList: DashboardFunnelList | undefined;
+  funnelListError: Error | null;
+  funnelListIsError: boolean;
+  funnelListIsLoading: boolean;
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
+  query: DashboardQuery;
   rejectContentCandidateError: Error | null;
   rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -1146,6 +1220,15 @@ function PromotionDetail({
         metrics={detail.realtime_metrics}
         title="프로모션 이벤트 집계"
       />
+      <ScopedFunnelAnalysisPanel
+        error={funnelListError}
+        funnels={funnelList?.funnels ?? []}
+        isError={funnelListIsError}
+        isLoading={funnelListIsLoading}
+        query={query}
+        scope={{ promotion_id: promotion.promotion_id, scope_type: "promotion" }}
+        title="프로모션 퍼널 분석"
+      />
       <PromotionSegmentRealtimeSummary detail={detail} />
       <PromotionSegmentCards
         onSelectSegment={onSelectSegment}
@@ -1163,10 +1246,15 @@ function PromotionDetail({
         approveIsPending={approveContentCandidateIsPending}
         detail={segmentDetail}
         error={segmentError}
+        funnelList={funnelList}
+        funnelListError={funnelListError}
+        funnelListIsError={funnelListIsError}
+        funnelListIsLoading={funnelListIsLoading}
         isError={segmentIsError}
         isLoading={segmentIsLoading}
         onApproveContentCandidate={onApproveContentCandidate}
         onRejectContentCandidate={onRejectContentCandidate}
+        query={query}
         rejectError={rejectContentCandidateError}
         rejectIsError={rejectContentCandidateIsError}
         rejectIsPending={rejectContentCandidateIsPending}
@@ -1180,7 +1268,9 @@ function PromotionDetail({
 
 function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailResource }) {
   const latestAnalysis = detail.analyses[0];
-  const completedCount = detail.analyses.filter((analysis) => analysis.status === "completed").length;
+  const completedCount = detail.analyses.filter(
+    (analysis) => analysis.status === "completed"
+  ).length;
   const failedCount = detail.analyses.filter((analysis) => analysis.status === "failed").length;
   const focusSegmentCount = uniqueValues(
     detail.analyses.flatMap((analysis) => analysis.focus_segment_ids)
@@ -1214,10 +1304,7 @@ function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailRe
             </Badge>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <InsightBlock
-              label="운영자 지시"
-              value={latestAnalysis.operator_instruction ?? "-"}
-            />
+            <InsightBlock label="운영자 지시" value={latestAnalysis.operator_instruction ?? "-"} />
             <InsightBlock
               label="대상 세그먼트"
               value={formatInteger(latestAnalysis.focus_segment_ids.length)}
@@ -1279,11 +1366,7 @@ function PromotionAnalysisPanel({ detail }: { detail: DashboardPromotionDetailRe
   );
 }
 
-function PromotionSegmentRealtimeSummary({
-  detail
-}: {
-  detail: DashboardPromotionDetailResource;
-}) {
+function PromotionSegmentRealtimeSummary({ detail }: { detail: DashboardPromotionDetailResource }) {
   const summariesBySegment = new Map(
     detail.segment_realtime_summaries.map((summary) => [summary.segment_id, summary])
   );
@@ -1433,14 +1516,14 @@ function PromotionOverview({ detail }: { detail: DashboardPromotionDetailResourc
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-xl font-semibold tracking-tight text-foreground">
-              프로모션 상세
-            </h3>
+            <h3 className="text-xl font-semibold tracking-tight text-foreground">프로모션 상세</h3>
             <Badge variant={statusBadgeVariant(promotion.status)}>
               {formatStatusLabel(promotion.status)}
             </Badge>
           </div>
-          <div className="text-sm text-muted-foreground">{formatChannelLabel(promotion.channel)}</div>
+          <div className="text-sm text-muted-foreground">
+            {formatChannelLabel(promotion.channel)}
+          </div>
         </div>
         {promotion.landing_url ? (
           <Button asChild size="sm" variant="outline">
@@ -1613,10 +1696,15 @@ function SegmentDetailPanel({
   approveIsPending,
   detail,
   error,
+  funnelList,
+  funnelListError,
+  funnelListIsError,
+  funnelListIsLoading,
   isError,
   isLoading,
   onApproveContentCandidate,
   onRejectContentCandidate,
+  query,
   rejectError,
   rejectIsError,
   rejectIsPending,
@@ -1627,10 +1715,15 @@ function SegmentDetailPanel({
   approveIsPending: boolean;
   detail: DashboardSegmentDetailResource | undefined;
   error: Error | null;
+  funnelList: DashboardFunnelList | undefined;
+  funnelListError: Error | null;
+  funnelListIsError: boolean;
+  funnelListIsLoading: boolean;
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  query: DashboardQuery;
   rejectError: Error | null;
   rejectIsError: boolean;
   rejectIsPending: boolean;
@@ -1673,8 +1766,8 @@ function SegmentDetailPanel({
         <Alert variant="destructive">
           <AlertTitle>표본 부족 상태</AlertTitle>
           <AlertDescription>
-            선택한 세그먼트의 실험 평가가 insufficient_data 상태입니다. 표본 부족은 실패가
-            아니라 판단 보류 상태로 표시합니다.
+            선택한 세그먼트의 실험 평가가 insufficient_data 상태입니다. 표본 부족은 실패가 아니라
+            판단 보류 상태로 표시합니다.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -1685,6 +1778,19 @@ function SegmentDetailPanel({
         emptyMessage="실시간 이벤트가 아직 수집되지 않았습니다."
         metrics={detail.realtime_metrics}
         title="실시간 추이"
+      />
+      <ScopedFunnelAnalysisPanel
+        error={funnelListError}
+        funnels={funnelList?.funnels ?? []}
+        isError={funnelListIsError}
+        isLoading={funnelListIsLoading}
+        query={query}
+        scope={{
+          promotion_id: detail.segment.promotion_id,
+          scope_type: "segment",
+          segment_id: detail.segment.segment_id
+        }}
+        title="세그먼트 퍼널 분석"
       />
       <SegmentInsufficientDataPanel metrics={insufficientMetrics} segment={detail.segment} />
       <SegmentSampleSizePanel metrics={detail.experiment_metrics} />
@@ -1792,18 +1898,12 @@ function RealtimeEventTable({
   metrics: DashboardRealtimeMetrics;
   title: string;
 }) {
-  const totalEventCount = metrics.events.reduce(
-    (sum, event) => sum + event.event_count,
-    0
-  );
+  const totalEventCount = metrics.events.reduce((sum, event) => sum + event.event_count, 0);
   const peakEvent = metrics.events.reduce<DashboardRealtimeMetrics["events"][number] | null>(
     (current, event) => (!current || event.event_count > current.event_count ? event : current),
     null
   );
-  const uniqueUserTotal = metrics.events.reduce(
-    (sum, event) => sum + event.unique_user_count,
-    0
-  );
+  const uniqueUserTotal = metrics.events.reduce((sum, event) => sum + event.unique_user_count, 0);
 
   return (
     <>
@@ -1878,11 +1978,7 @@ function RealtimeEventTable({
               <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="event_count" fill="var(--color-event_count)" radius={4} />
-              <Bar
-                dataKey="unique_user_count"
-                fill="var(--color-unique_user_count)"
-                radius={4}
-              />
+              <Bar dataKey="unique_user_count" fill="var(--color-unique_user_count)" radius={4} />
             </BarChart>
           </ChartContainer>
           <Table>
@@ -2070,11 +2166,7 @@ function RealtimeFunnelSummary({ metrics }: { metrics: DashboardRealtimeMetrics 
   );
 }
 
-function RealtimeDeliveryAndBannerSummary({
-  metrics
-}: {
-  metrics: DashboardRealtimeMetrics;
-}) {
+function RealtimeDeliveryAndBannerSummary({ metrics }: { metrics: DashboardRealtimeMetrics }) {
   const delivery = metrics.delivery_status;
   const banner = metrics.banner_response;
 
@@ -2111,24 +2203,12 @@ function RealtimeDeliveryAndBannerSummary({
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
-          <SummaryItem
-            label="노출"
-            value={formatInteger(banner.promotion_impression_count)}
-          />
+          <SummaryItem label="노출" value={formatInteger(banner.promotion_impression_count)} />
           <SummaryItem label="클릭" value={formatInteger(banner.promotion_click_count)} />
           <SummaryItem label="CTR" value={formatPercentValue(banner.promotion_click_rate)} />
-          <SummaryItem
-            label="숙소 검색"
-            value={formatInteger(banner.hotel_search_count)}
-          />
-          <SummaryItem
-            label="숙소 상세"
-            value={formatInteger(banner.hotel_detail_view_count)}
-          />
-          <SummaryItem
-            label="예약 완료"
-            value={formatInteger(banner.booking_complete_count)}
-          />
+          <SummaryItem label="숙소 검색" value={formatInteger(banner.hotel_search_count)} />
+          <SummaryItem label="숙소 상세" value={formatInteger(banner.hotel_detail_view_count)} />
+          <SummaryItem label="예약 완료" value={formatInteger(banner.booking_complete_count)} />
         </div>
         <div className="text-xs text-muted-foreground">
           banner_position: {banner.banner_position ?? "-"}
@@ -2147,15 +2227,11 @@ function chartEvents(events: DashboardRealtimeMetrics["events"]) {
 }
 
 function realtimeEventCount(metrics: DashboardRealtimeMetrics, eventName: string) {
-  return (
-    metrics.events.find((event) => event.event_name === eventName)?.event_count ?? 0
-  );
+  return metrics.events.find((event) => event.event_name === eventName)?.event_count ?? 0;
 }
 
 function realtimeUniqueUserCount(metrics: DashboardRealtimeMetrics, eventName: string) {
-  return (
-    metrics.events.find((event) => event.event_name === eventName)?.unique_user_count ?? 0
-  );
+  return metrics.events.find((event) => event.event_name === eventName)?.unique_user_count ?? 0;
 }
 
 function SegmentDefinitionPanel({ segment }: { segment: DashboardCampaignSegment }) {
@@ -2211,10 +2287,7 @@ function SegmentExpectedEffectPanel({
               : "-"
           }
         />
-        <SummaryItem
-          label="콘텐츠 후보"
-          value={formatInteger(detail.content_candidates.length)}
-        />
+        <SummaryItem label="콘텐츠 후보" value={formatInteger(detail.content_candidates.length)} />
         <SummaryItem label="다음 루프" value={nextLoopMessage} />
       </div>
       <div className="grid gap-3 md:grid-cols-2">
@@ -2225,18 +2298,17 @@ function SegmentExpectedEffectPanel({
   );
 }
 
-function SegmentAdExperimentStatusPanel({
-  detail
-}: {
-  detail: DashboardSegmentDetailResource;
-}) {
+function SegmentAdExperimentStatusPanel({ detail }: { detail: DashboardSegmentDetailResource }) {
   return (
     <section className="grid gap-3">
       <h3 className="text-base font-semibold text-[#1d1d1f]">광고 실험 상태</h3>
       {detail.ad_experiments.length > 0 ? (
         <div className="grid gap-3 md:grid-cols-2">
           {detail.ad_experiments.map((experiment, index) => (
-            <div className="grid gap-3 rounded-md border bg-background p-3" key={experiment.ad_experiment_id}>
+            <div
+              className="grid gap-3 rounded-md border bg-background p-3"
+              key={experiment.ad_experiment_id}
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="grid gap-1">
                   <div className="text-sm font-medium">
@@ -2295,7 +2367,9 @@ function SegmentInsufficientDataPanel({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="grid gap-1">
-                    <div className="text-sm font-medium">{formatMetricLabel(metric.metric)} 평가</div>
+                    <div className="text-sm font-medium">
+                      {formatMetricLabel(metric.metric)} 평가
+                    </div>
                   </div>
                   <Badge variant="destructive">표본 부족</Badge>
                 </div>
@@ -2312,10 +2386,7 @@ function SegmentInsufficientDataPanel({
                     label="최소 필요"
                     value={formatNullableInteger(details.minimumRequiredSampleSize)}
                   />
-                  <SummaryItem
-                    label="사전 추정"
-                    value={formatInteger(segment.estimated_size)}
-                  />
+                  <SummaryItem label="사전 추정" value={formatInteger(segment.estimated_size)} />
                   <SummaryItem
                     label="겹침 제외"
                     value={formatNullableInteger(details.overlapExcludedUserCount)}
@@ -2347,11 +2418,7 @@ function SegmentInsufficientDataPanel({
   );
 }
 
-function SegmentSampleSizePanel({
-  metrics
-}: {
-  metrics: DashboardCampaignExperimentMetric[];
-}) {
+function SegmentSampleSizePanel({ metrics }: { metrics: DashboardCampaignExperimentMetric[] }) {
   return (
     <section className="grid gap-3">
       <h3 className="text-base font-semibold text-[#1d1d1f]">표본 수 검증</h3>
@@ -2371,7 +2438,9 @@ function SegmentSampleSizePanel({
                 <div className="flex items-start justify-between gap-3">
                   <div className="grid gap-1">
                     <div className="text-sm font-medium">{formatMetricLabel(metric.metric)}</div>
-                    <div className="text-xs text-muted-foreground">{formatBasisLabel(metric.basis)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatBasisLabel(metric.basis)}
+                    </div>
                   </div>
                   <Badge variant={statusBadgeVariant(metric.status)}>
                     {formatStatusLabel(metric.status)}
@@ -2398,7 +2467,8 @@ function SegmentSampleSizePanel({
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">목표 / 실제</span>
                     <span className="font-medium tabular-nums">
-                      {formatGoalValue(metric.target_value)} / {formatGoalValue(metric.actual_value)}
+                      {formatGoalValue(metric.target_value)} /{" "}
+                      {formatGoalValue(metric.actual_value)}
                     </span>
                   </div>
                 </div>
@@ -2517,18 +2587,25 @@ function ContentCandidateCards({
         <SummaryItem label="필터 결과" value={formatInteger(filteredCandidates.length)} />
         <SummaryItem
           label="승인 후보"
-          value={formatInteger(candidates.filter((candidate) => candidate.status === "approved").length)}
+          value={formatInteger(
+            candidates.filter((candidate) => candidate.status === "approved").length
+          )}
         />
         <SummaryItem
           label="검수 대기"
-          value={formatInteger(candidates.filter((candidate) => candidate.status === "draft").length)}
+          value={formatInteger(
+            candidates.filter((candidate) => candidate.status === "draft").length
+          )}
         />
       </div>
       {candidates.length > 0 ? (
         filteredCandidates.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
             {filteredCandidates.map((candidate) => (
-              <div className="grid gap-3 rounded-md border bg-muted/20 p-3" key={candidate.content_id}>
+              <div
+                className="grid gap-3 rounded-md border bg-muted/20 p-3"
+                key={candidate.content_id}
+              >
                 <ContentCandidateVisual candidate={candidate} />
                 <div className="flex items-start justify-between gap-3">
                   <div className="grid gap-1">
@@ -2547,14 +2624,22 @@ function ContentCandidateCards({
                 <InsightBlock label="이메일 제목" value={candidate.subject ?? "-"} />
                 <InsightBlock label="프리헤더" value={candidate.preheader ?? "-"} />
                 <InsightBlock label="생성 이유" value={candidate.reason_summary ?? "-"} />
-                <InsightBlock label="데이터 근거" value={formatJsonObject(candidate.data_evidence_json)} />
+                <InsightBlock
+                  label="데이터 근거"
+                  value={formatJsonObject(candidate.data_evidence_json)}
+                />
                 <InsightBlock label="메시지 방향" value={candidate.message_strategy ?? "-"} />
                 <InsightBlock label="생성 프롬프트" value={candidate.generation_prompt ?? "-"} />
-                <InsightBlock label="메타데이터" value={formatJsonObject(candidate.metadata_json)} />
+                <InsightBlock
+                  label="메타데이터"
+                  value={formatJsonObject(candidate.metadata_json)}
+                />
                 <div className="grid gap-1 text-sm">
                   <div className="text-xs text-muted-foreground">CTA / 랜딩 URL</div>
                   <div className="font-medium">{candidate.cta ?? "-"}</div>
-                  <div className="break-all text-muted-foreground">{candidate.landing_url ?? "-"}</div>
+                  <div className="break-all text-muted-foreground">
+                    {candidate.landing_url ?? "-"}
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button
@@ -2565,11 +2650,7 @@ function ContentCandidateCards({
                       candidate.status === "rejected"
                     }
                     onClick={() =>
-                      onReject(
-                        candidate.promotion_id,
-                        candidate.segment_id,
-                        candidate.content_id
-                      )
+                      onReject(candidate.promotion_id, candidate.segment_id, candidate.content_id)
                     }
                     size="sm"
                     type="button"
@@ -2585,11 +2666,7 @@ function ContentCandidateCards({
                       candidate.status === "rejected"
                     }
                     onClick={() =>
-                      onApprove(
-                        candidate.promotion_id,
-                        candidate.segment_id,
-                        candidate.content_id
-                      )
+                      onApprove(candidate.promotion_id, candidate.segment_id, candidate.content_id)
                     }
                     size="sm"
                     type="button"
@@ -2636,7 +2713,9 @@ function ContentCandidateVisual({
   );
 }
 
-function candidateImageUrl(candidate: DashboardSegmentDetailResource["content_candidates"][number]) {
+function candidateImageUrl(
+  candidate: DashboardSegmentDetailResource["content_candidates"][number]
+) {
   return pickJsonString(candidate.metadata_json, [
     "image_url",
     "imageUrl",
@@ -2652,9 +2731,7 @@ function formatJsonObject(value: Record<string, unknown>): string {
   if (entries.length === 0) {
     return "-";
   }
-  return entries
-    .map(([key, entryValue]) => `${key}: ${formatJsonValue(entryValue)}`)
-    .join("\n");
+  return entries.map(([key, entryValue]) => `${key}: ${formatJsonValue(entryValue)}`).join("\n");
 }
 
 function formatJsonValue(value: unknown): string {
@@ -2800,16 +2877,6 @@ function nullableText(value: string): string | null {
   return trimmed ? trimmed : null;
 }
 
-function nonnegativeNumber(value: string): number {
-  const number = Number(value);
-  return Number.isFinite(number) ? Math.max(0, number) : 0;
-}
-
-function positiveInteger(value: string): number {
-  const number = Number(value);
-  return Number.isFinite(number) ? Math.max(1, Math.trunc(number)) : 1;
-}
-
 function InsightBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 text-sm">
@@ -2886,7 +2953,15 @@ function ContentCandidateTable({
           <Table>
             <TableHeader>
               <TableRow>
-                {["콘텐츠", "채널", "메시지", "이메일 제목", "생성 이유", "메시지 방향", "상태"].map((header) => (
+                {[
+                  "콘텐츠",
+                  "채널",
+                  "메시지",
+                  "이메일 제목",
+                  "생성 이유",
+                  "메시지 방향",
+                  "상태"
+                ].map((header) => (
                   <TableHead key={header}>{header}</TableHead>
                 ))}
               </TableRow>
@@ -2912,10 +2987,14 @@ function ContentCandidateTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="line-clamp-2 min-w-[220px]">{candidate.reason_summary ?? "-"}</div>
+                    <div className="line-clamp-2 min-w-[220px]">
+                      {candidate.reason_summary ?? "-"}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <div className="line-clamp-2 min-w-[220px]">{candidate.message_strategy ?? "-"}</div>
+                    <div className="line-clamp-2 min-w-[220px]">
+                      {candidate.message_strategy ?? "-"}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusBadgeVariant(candidate.status)}>
@@ -2970,7 +3049,9 @@ function uniqueValues(values: Array<string | null>): string[] {
 }
 
 function adExperimentDisplayName(loopCount: number | null | undefined, index = 0) {
-  return loopCount ? `루프 ${formatInteger(loopCount)} 실험` : `광고 실험 ${formatInteger(index + 1)}`;
+  return loopCount
+    ? `루프 ${formatInteger(loopCount)} 실험`
+    : `광고 실험 ${formatInteger(index + 1)}`;
 }
 
 function statusBadgeVariant(status: string) {
@@ -3068,8 +3149,8 @@ function EvaluationOutcomePanel({
         <Alert>
           <AlertTitle>표본 부족은 자동 재실험 대상에서 분리합니다</AlertTitle>
           <AlertDescription>
-            표본 부족은 목표 미달이 아니라 판단 보류 상태이므로, 사용자가 명시적으로
-            다시 실험하기를 선택할 때만 다음 루프 대상으로 다루는 흐름입니다.
+            표본 부족은 목표 미달이 아니라 판단 보류 상태이므로, 사용자가 명시적으로 다시 실험하기를
+            선택할 때만 다음 루프 대상으로 다루는 흐름입니다.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -3084,7 +3165,9 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
   const [statusFilter, setStatusFilter] = useState("all");
   const displayMetrics = displayableEvaluationMetrics(metrics);
   const promotionIds = uniqueValues(displayMetrics.map((metric) => metric.promotion_id));
-  const segmentIds = uniqueValues(displayMetrics.map((metric) => metric.segment_id).filter(Boolean));
+  const segmentIds = uniqueValues(
+    displayMetrics.map((metric) => metric.segment_id).filter(Boolean)
+  );
   const metricNames = uniqueValues(displayMetrics.map((metric) => metric.metric));
   const statusNames = uniqueValues(displayMetrics.map((metric) => metric.status));
   const filteredMetrics = displayMetrics.filter(
@@ -3236,7 +3319,9 @@ function ExperimentMetricTable({ metrics }: { metrics: DashboardCampaignExperime
                       <Badge variant={statusBadgeVariant(metric.status)}>
                         {formatStatusLabel(metric.status)}
                       </Badge>
-                      {metric.next_loop_required ? <Badge variant="outline">다음 루프</Badge> : null}
+                      {metric.next_loop_required ? (
+                        <Badge variant="outline">다음 루프</Badge>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell>
