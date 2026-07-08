@@ -10,7 +10,6 @@ import { Separator } from "@loopad/ui/shadcn/separator";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -26,18 +25,10 @@ import {
   SidebarRail,
   SidebarTrigger
 } from "@loopad/ui/shadcn/sidebar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@loopad/ui/shadcn/dropdown-menu";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Gauge, LogOut, User } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Gauge } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -52,7 +43,6 @@ import {
   getDashboardTabLabel,
   type DashboardNavTreeItem
 } from "../model/dashboard-navigation.js";
-import { useDashboardAuthSession, useDashboardLogout } from "../model/use-dashboard-auth.js";
 import { dashboardProjectsQueryKey } from "../model/dashboard-query-keys.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
 
@@ -95,9 +85,6 @@ export function DashboardShell({
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-        <SidebarFooter>
-          <DashboardUserMenu />
-        </SidebarFooter>
         <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
         <SidebarRail />
       </Sidebar>
@@ -153,7 +140,7 @@ function ProjectSidebarBrand({ projectId }: { projectId: string }) {
       aria-label="프로젝트 선택으로 돌아가기"
       className="flex w-full items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0"
       title="프로젝트 선택"
-      to="/dashboard"
+      to="/"
     >
       <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#0066cc] text-white">
         <Gauge size={18} />
@@ -165,50 +152,6 @@ function ProjectSidebarBrand({ projectId }: { projectId: string }) {
         <span className="truncate text-xs text-muted-foreground">{projectDescription}</span>
       </div>
     </Link>
-  );
-}
-
-function DashboardUserMenu() {
-  const navigate = useNavigate();
-  const sessionQuery = useDashboardAuthSession();
-  const logout = useDashboardLogout();
-  const user = sessionQuery.data?.user;
-
-  async function handleLogout() {
-    await logout.mutateAsync();
-    await navigate({ to: "/" });
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-          type="button"
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black/10 text-sidebar-foreground">
-            <User size={16} />
-          </span>
-          <span className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="truncate text-sm font-medium">{user?.name ?? "LoopAd Admin"}</span>
-            <span className="truncate text-xs text-muted-foreground">{user?.id ?? "loopadmin"}</span>
-          </span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel>
-          <span className="block text-sm">{user?.name ?? "LoopAd Admin"}</span>
-          <span className="block text-xs font-normal text-muted-foreground">
-            {user?.role ?? "admin"}
-          </span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={logout.isPending} onClick={handleLogout}>
-          <LogOut />
-          로그아웃
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

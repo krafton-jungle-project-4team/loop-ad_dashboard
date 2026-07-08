@@ -15,7 +15,7 @@ await bootstrap();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(requestLoggingMiddleware);
-  app.enableCors({ credentials: true, origin: createCorsOriginResolver() });
+  app.enableCors({ origin: createCorsOriginResolver() });
   app.setGlobalPrefix("api", {
     exclude: [
       { path: "health", method: RequestMethod.GET },

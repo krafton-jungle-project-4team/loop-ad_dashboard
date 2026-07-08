@@ -8,20 +8,16 @@ import {
 } from "./repository/index.js";
 import { DashboardDecisionClient } from "./provider/index.js";
 import { DashboardQueryService } from "./service/index.js";
-import { DashboardAuthController } from "./auth/dashboard-auth.controller.js";
-import { DashboardAuthService } from "./auth/dashboard-auth.service.js";
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [DashboardController, DashboardAuthController],
+  controllers: [DashboardController],
   providers: [
-    DashboardAuthService,
     DashboardQueryService,
     DashboardDecisionClient,
     DashboardCampaignReader,
     DashboardFunnelReader,
     DashboardSegmentQueryRepository
-  ],
-  exports: [DashboardAuthService]
+  ]
 })
 export class DashboardModule {}

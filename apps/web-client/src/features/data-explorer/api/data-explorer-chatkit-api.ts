@@ -1,5 +1,4 @@
 import type { DataExplorerAiChatCurrentResult } from "@loopad/shared";
-import { apiFetch } from "../../../shared/api/http-client.js";
 import { dashboardConfig } from "../../dashboard/model/dashboard-config.js";
 
 const DATA_EXPLORER_CHATKIT_PATH = "/dashboard/data-explorer/chatkit";
@@ -18,13 +17,13 @@ export function createDataExplorerChatKitFetch(input: {
   return async (resource, init) => {
     const body = await readJsonBody(resource, init);
     if (!body) {
-      return apiFetch(resource, init);
+      return fetch(resource, init);
     }
 
     const headers = mergeHeaders(resource, init);
     headers.set("Content-Type", "application/json");
 
-    return apiFetch(resource, {
+    return fetch(resource, {
       ...init,
       body: JSON.stringify({
         ...body,
