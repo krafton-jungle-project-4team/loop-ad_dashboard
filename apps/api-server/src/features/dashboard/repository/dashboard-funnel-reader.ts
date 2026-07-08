@@ -10,6 +10,7 @@ import type {
   DashboardFunnel,
   DashboardFunnelMetricStep,
   DashboardFunnelMetrics,
+  DashboardFunnelMetricsScope,
   DashboardFunnelPreview,
   DashboardFunnelPreviewRequest,
   DashboardFunnelSummary,
@@ -65,6 +66,11 @@ type FunnelMetricInputStep = {
   eventName: string;
   stepName: string;
   stepOrder: number;
+};
+
+type FunnelMetricsScopeFilter = {
+  filterSql: string;
+  queryParams: Record<string, string>;
 };
 
 type SegmentRealtimeMetricRow = {
@@ -181,7 +187,11 @@ export class DashboardFunnelReader {
     return toFunnel(funnel, steps);
   }
 
-  async getFunnelMetrics(projectId: string, funnelId: string): Promise<DashboardFunnelMetrics> {
+  async getFunnelMetrics(
+    projectId: string,
+    funnelId: string,
+    scope?: DashboardFunnelMetricsScope
+  ): Promise<DashboardFunnelMetrics> {
     const [funnel, steps] = await Promise.all([
       this.db.query(getActiveFunnelById, { funnelId, projectId }).single(),
       this.db.query(listActiveFunnelStepsByFunnelId, { funnelId, projectId }).multiple()
@@ -192,7 +202,8 @@ export class DashboardFunnelReader {
         eventName: step.eventName,
         stepName: step.stepName,
         stepOrder: step.stepOrder
-      }))
+      })),
+      scope
     );
 
     return {
@@ -931,9 +942,12 @@ export class DashboardFunnelReader {
 
   private async buildFunnelMetricSteps(
     projectId: string,
-    steps: FunnelMetricInputStep[]
+    steps: FunnelMetricInputStep[],
+    scope?: DashboardFunnelMetricsScope
   ): Promise<DashboardFunnelMetricStep[]> {
-    const eventCounts = await this.countSequentialFunnelStepEvents(projectId, steps);
+    const eventCounts = scope
+      ? await this.countScopedSequentialFunnelStepEvents(projectId, steps, scope)
+      : await this.countSequentialFunnelStepEvents(projectId, steps);
 
     return steps.map((step) => ({
       step_order: step.stepOrder,
@@ -1007,6 +1021,105 @@ export class DashboardFunnelReader {
     const rows = await result.json<FunnelStepMetricRow>();
 
     return new Map(rows.map((row) => [countValue(row.step_order), countValue(row.event_count)]));
+  }
+
+  private async countScopedSequentialFunnelStepEvents(
+    projectId: string,
+    steps: FunnelMetricInputStep[],
+    scope: DashboardFunnelMetricsScope
+  ): Promise<Map<number, number>> {
+    if (steps.length === 0) {
+      return new Map();
+    }
+
+    const scopeFilter = funnelMetricsScopeFilter(scope);
+    const queryParams: Record<string, string> = { projectId, ...scopeFilter.queryParams };
+    const stepQueries = steps.map((step, index) => {
+      const stepNumber = index + 1;
+      const previousStepName = `step_${stepNumber - 1}_sessions`;
+      const currentStepName = `step_${stepNumber}_sessions`;
+      const eventParamName = `stepEvent${stepNumber}`;
+      queryParams[eventParamName] = step.eventName;
+
+      if (stepNumber === 1) {
+        return `
+        ${currentStepName} AS (
+          SELECT
+            session_id,
+            min(event_time) AS reached_at
+          FROM funnel_step_events
+          WHERE project_id = {projectId:String}
+            AND event_name = {${eventParamName}:String}
+            AND nullIf(session_id, '') IS NOT NULL
+            ${scopeFilter.filterSql}
+          GROUP BY session_id
+        )`;
+      }
+
+      return `
+        ${currentStepName} AS (
+          SELECT
+            fse.session_id,
+            min(fse.event_time) AS reached_at
+          FROM funnel_step_events fse
+          INNER JOIN ${previousStepName} previous
+            ON previous.session_id = fse.session_id
+          WHERE fse.project_id = {projectId:String}
+            AND fse.event_name = {${eventParamName}:String}
+            AND nullIf(fse.session_id, '') IS NOT NULL
+            AND fse.event_time >= previous.reached_at
+          GROUP BY fse.session_id
+        )`;
+    });
+    const resultQueries = steps.map(
+      (step, index) => `
+        SELECT
+          ${step.stepOrder} AS step_order,
+          count() AS event_count
+        FROM step_${index + 1}_sessions`
+    );
+
+    const result = await this.clickhouse.query({
+      query: `
+        WITH
+        ${stepQueries.join(",\n")}
+        ${resultQueries.join("\n        UNION ALL\n")}
+        ORDER BY step_order ASC
+      `,
+      format: "JSONEachRow",
+      query_params: queryParams
+    });
+    const rows = await result.json<FunnelStepMetricRow>();
+
+    return new Map(rows.map((row) => [countValue(row.step_order), countValue(row.event_count)]));
+  }
+}
+
+function funnelMetricsScopeFilter(scope: DashboardFunnelMetricsScope): FunnelMetricsScopeFilter {
+  switch (scope.scope_type) {
+    case "campaign":
+      return {
+        filterSql: "AND nullIf(campaign_id, '') = {campaignId:String}",
+        queryParams: { campaignId: scope.campaign_id }
+      };
+    case "promotion":
+      return {
+        filterSql: "AND nullIf(promotion_id, '') = {promotionId:String}",
+        queryParams: { promotionId: scope.promotion_id }
+      };
+    case "segment": {
+      const queryParams: Record<string, string> = { segmentId: scope.segment_id };
+      const filters = ["AND nullIf(segment_id, '') = {segmentId:String}"];
+      if (scope.promotion_id) {
+        queryParams.promotionId = scope.promotion_id;
+        filters.unshift("AND nullIf(promotion_id, '') = {promotionId:String}");
+      }
+
+      return {
+        filterSql: filters.join("\n            "),
+        queryParams
+      };
+    }
   }
 }
 

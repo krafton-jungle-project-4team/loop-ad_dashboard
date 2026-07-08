@@ -31,6 +31,7 @@ import type {
   DashboardFunnel,
   DashboardFunnelList,
   DashboardFunnelMetrics,
+  DashboardFunnelMetricsScope,
   DashboardFunnelPreview,
   DashboardFunnelPreviewRequest,
   DashboardMain,
@@ -734,11 +735,15 @@ export class DashboardQueryService {
   }
 
   @LogContextScope()
-  async funnelMetrics(projectId: string, funnelId: string): Promise<DashboardFunnelMetrics> {
+  async funnelMetrics(
+    projectId: string,
+    funnelId: string,
+    scope?: DashboardFunnelMetricsScope
+  ): Promise<DashboardFunnelMetrics> {
     const startedAt = Date.now();
     log.assignContext({ funnelId, projectId });
-    log.info("started", { projectId, funnelId });
-    const response = await this.funnelReader.getFunnelMetrics(projectId, funnelId);
+    log.info("started", { projectId, funnelId, scope });
+    const response = await this.funnelReader.getFunnelMetrics(projectId, funnelId, scope);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;

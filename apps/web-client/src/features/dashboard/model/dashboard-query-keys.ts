@@ -1,3 +1,4 @@
+import type { DashboardFunnelMetricsScope } from "@loopad/shared";
 import type { DashboardQuery, DashboardTab } from "./dashboard-types.js";
 
 export function dashboardPageQueryKey(tab: DashboardTab, query: DashboardQuery) {
@@ -24,10 +25,7 @@ export function dashboardPromotionDetailQueryKey(projectId: string, promotionId:
   return ["dashboard", "promotion-detail", projectId, promotionId] as const;
 }
 
-export function dashboardPromotionAnalysisProgressQueryKey(
-  projectId: string,
-  promotionId: string
-) {
+export function dashboardPromotionAnalysisProgressQueryKey(projectId: string, promotionId: string) {
   return ["dashboard", "promotion-analysis-progress", projectId, promotionId] as const;
 }
 
@@ -60,8 +58,16 @@ export function dashboardSegmentDetailQueryKey(
   return ["dashboard", "segment-detail", projectId, promotionId, segmentId] as const;
 }
 
-export function dashboardFunnelMetricsQueryKey(projectId: string, funnelId: string) {
-  return ["dashboard", "funnel-metrics", projectId, funnelId] as const;
+export function dashboardFunnelListQueryKey(projectId: string) {
+  return ["dashboard", "funnel-list", projectId] as const;
+}
+
+export function dashboardFunnelMetricsQueryKey(
+  projectId: string,
+  funnelId: string,
+  scope?: DashboardFunnelMetricsScope | null
+) {
+  return ["dashboard", "funnel-metrics", projectId, funnelId, scope ?? null] as const;
 }
 
 export function dashboardFunnelDetailQueryKey(projectId: string, funnelId: string) {

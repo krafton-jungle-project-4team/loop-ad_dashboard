@@ -952,6 +952,23 @@ export const DashboardFunnelMetricStepSchema = DashboardFunnelStepSchema.extend(
 });
 export type DashboardFunnelMetricStep = z.infer<typeof DashboardFunnelMetricStepSchema>;
 
+export const DashboardFunnelMetricsScopeSchema = z.discriminatedUnion("scope_type", [
+  z.object({
+    scope_type: z.literal("campaign"),
+    campaign_id: z.string().min(1)
+  }),
+  z.object({
+    scope_type: z.literal("promotion"),
+    promotion_id: z.string().min(1)
+  }),
+  z.object({
+    scope_type: z.literal("segment"),
+    promotion_id: z.string().min(1).optional(),
+    segment_id: z.string().min(1)
+  })
+]);
+export type DashboardFunnelMetricsScope = z.infer<typeof DashboardFunnelMetricsScopeSchema>;
+
 export const DashboardFunnelMetricsSchema = z.object({
   funnel_id: z.string(),
   funnel_name: z.string(),

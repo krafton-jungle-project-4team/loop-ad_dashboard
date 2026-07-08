@@ -91,7 +91,9 @@ import type {
   DashboardEventCatalog,
   DashboardEvaluatePromotionRunResult,
   DashboardFunnel,
+  DashboardFunnelList,
   DashboardFunnelMetrics,
+  DashboardFunnelMetricsScope,
   DashboardFunnelPreview,
   DashboardFunnelPreviewRequest,
   DashboardProject,
@@ -1034,16 +1036,25 @@ export async function fetchDashboardEventCatalog(
   return request("/dashboard/v1/event-catalog", DashboardEventCatalogSchema, query, signal);
 }
 
+export async function fetchDashboardFunnelList(
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<DashboardFunnelList> {
+  return request("/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal);
+}
+
 export async function fetchDashboardFunnelMetrics(
   query: DashboardQuery,
   funnelId: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  scope?: DashboardFunnelMetricsScope
 ): Promise<DashboardFunnelMetrics> {
   return request(
     `/dashboard/v1/funnels/${encodeURIComponent(funnelId)}/metrics`,
     DashboardFunnelMetricsSchema,
     query,
-    signal
+    signal,
+    funnelMetricsScopeSearchParams(scope)
   );
 }
 
@@ -1090,7 +1101,8 @@ async function request<T>(
   path: string,
   schema: z.ZodType<T>,
   query: DashboardQuery,
-  signal: AbortSignal
+  signal: AbortSignal,
+  extraSearchParams?: Record<string, string | undefined>
 ): Promise<T> {
   const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
   url.searchParams.set("project_id", query.projectId);
@@ -1107,6 +1119,11 @@ async function request<T>(
   if (query.filter) {
     url.searchParams.set("filter", query.filter);
   }
+  for (const [key, value] of Object.entries(extraSearchParams ?? {})) {
+    if (value) {
+      url.searchParams.set(key, value);
+    }
+  }
 
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
@@ -1117,6 +1134,33 @@ async function request<T>(
   }
 
   return createApiSuccessResponseSchema(schema).parse(await response.json()).data;
+}
+
+function funnelMetricsScopeSearchParams(
+  scope: DashboardFunnelMetricsScope | undefined
+): Record<string, string | undefined> | undefined {
+  if (!scope) {
+    return undefined;
+  }
+
+  switch (scope.scope_type) {
+    case "campaign":
+      return {
+        scope_type: scope.scope_type,
+        campaign_id: scope.campaign_id
+      };
+    case "promotion":
+      return {
+        scope_type: scope.scope_type,
+        promotion_id: scope.promotion_id
+      };
+    case "segment":
+      return {
+        scope_type: scope.scope_type,
+        promotion_id: scope.promotion_id,
+        segment_id: scope.segment_id
+      };
+  }
 }
 
 async function readApiErrorMessage(response: Response) {
