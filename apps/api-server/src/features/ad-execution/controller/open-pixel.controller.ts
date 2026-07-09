@@ -1,6 +1,8 @@
-import { Controller, Get, Param, Res } from "@nestjs/common";
+import { Controller, Get, Inject, Param, Res } from "@nestjs/common";
 import { z } from "zod";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
+import { OpenPixelEventPublisher } from "../adapters/event-collector.js";
+import { decodeOpenPixelToken } from "../adapters/open-pixel-token.js";
 
 type ImageResponse = {
   setHeader: (name: string, value: string) => ImageResponse;
@@ -19,16 +21,29 @@ const TRANSPARENT_GIF = Buffer.from(
 
 @Controller("p")
 export class OpenPixelController {
+  constructor(
+    @Inject(OpenPixelEventPublisher)
+    private readonly eventPublisher: OpenPixelEventPublisher
+  ) {}
+
   @Get("open/:openPixelId")
   @LogContextScope()
   async openPixel(@Param() params: unknown, @Res() response: ImageResponse) {
     const startedAt = Date.now();
     const parsedParams = OpenPixelParamsSchema.parse(params);
-    log.assignContext({ openPixelId: parsedParams.openPixelId });
-    log.info("started", {
-      openPixelId: parsedParams.openPixelId,
-      snapshot: decodeOpenPixelId(parsedParams.openPixelId)
-    });
+    const openPixel = decodeOpenPixelToken(parsedParams.openPixelId);
+    log.info("started", { tokenValid: Boolean(openPixel) });
+
+    if (openPixel) {
+      log.assignContext({
+        projectId: openPixel.attribution.project_id,
+        promotionRunId: openPixel.attribution.promotion_run_id,
+        userId: openPixel.recipient_user_id
+      });
+      await this.publishOpenEvent(openPixel);
+    } else {
+      log.warn("open_pixel_token_invalid");
+    }
 
     response
       .status(200)
@@ -38,12 +53,12 @@ export class OpenPixelController {
       .send(TRANSPARENT_GIF);
     log.info("completed", { durationMs: durationMs(startedAt) });
   }
-}
 
-function decodeOpenPixelId(openPixelId: string) {
-  try {
-    return JSON.parse(Buffer.from(openPixelId, "base64url").toString("utf8")) as unknown;
-  } catch {
-    return null;
+  private async publishOpenEvent(openPixel: NonNullable<ReturnType<typeof decodeOpenPixelToken>>) {
+    try {
+      await this.eventPublisher.publishOpenEvent(openPixel);
+    } catch (error) {
+      log.warn("open_pixel_event_publish_failed", { err: error });
+    }
   }
 }
