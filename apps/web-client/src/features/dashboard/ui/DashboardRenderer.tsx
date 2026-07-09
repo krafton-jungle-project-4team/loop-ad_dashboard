@@ -1,6 +1,5 @@
 import type { DashboardPageResource, DashboardQuery } from "../model/dashboard-types.js";
 import { CampaignManagementPage } from "./pages/campaign/CampaignManagementPage.js";
-import { CampaignOperationsPage } from "./pages/campaign/CampaignOperationsPage.js";
 import { CampaignOverviewPage } from "./pages/campaign/CampaignOverviewPage.js";
 import { CampaignPerformancePage } from "./pages/campaign/CampaignPerformancePage.js";
 import { PromotionManagementPage } from "./pages/campaign/promotion/PromotionManagementPage.js";
@@ -33,7 +32,5 @@ export function DashboardPanelRenderer({
       return <CampaignOverviewPage data={resource.data} query={query} />;
     case "campaign-metrics":
       return <CampaignPerformancePage data={resource.data} query={query} />;
-    case "campaign-operations":
-      return <CampaignOperationsPage data={resource.data} query={query} />;
   }
 }

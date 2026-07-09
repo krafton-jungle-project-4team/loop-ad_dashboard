@@ -56,12 +56,6 @@ export const dashboardTabs = [
     pathSegment: "campaign-metrics"
   },
   {
-    value: "campaign-operations",
-    label: "캠페인 운영 현황",
-    icon: Workflow,
-    pathSegment: "campaign-operations"
-  },
-  {
     value: "campaign-promotions",
     label: "프로모션 관리",
     icon: Megaphone,
@@ -129,13 +123,6 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
         type: "link"
       },
       {
-        label: "캠페인 운영 현황",
-        value: "campaign-operations",
-        pathSegment: "campaign-operations",
-        icon: Workflow,
-        type: "link"
-      },
-      {
         label: "프로모션",
         icon: Folder,
         type: "folder",
@@ -148,11 +135,18 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
             type: "link"
           },
           {
-            label: "실험 관리",
-            value: "experiments",
-            pathSegment: "experiments",
-            icon: FlaskConical,
-            type: "link"
+            label: "실험",
+            icon: Folder,
+            type: "folder",
+            children: [
+              {
+                label: "실험 관리",
+                value: "experiments",
+                pathSegment: "experiments",
+                icon: FlaskConical,
+                type: "link"
+              }
+            ]
           }
         ]
       }
