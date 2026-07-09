@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { EmptyState } from "../../dashboard/ui/EmptyState.js";
+import { EmptyState } from "../../dashboard/ui/shared/EmptyState.js";
 
 export function SchemaInspectorPanel({
   detail,

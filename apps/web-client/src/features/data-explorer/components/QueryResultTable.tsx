@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { EmptyState } from "../../dashboard/ui/EmptyState.js";
+import { EmptyState } from "../../dashboard/ui/shared/EmptyState.js";
 
 export function QueryResultTable({ result }: { result: DataExplorerQueryRunResponse | null }) {
   if (!result || result.rows.length === 0) {

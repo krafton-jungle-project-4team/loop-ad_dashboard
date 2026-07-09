@@ -8,9 +8,9 @@ import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Gauge, Plus } from "lucide-react";
-import { fetchDashboardProjects } from "../api/dashboard-api.js";
-import { dashboardProjectsQueryKey } from "../model/dashboard-query-keys.js";
-import { ProjectManagementDialog } from "../ui/ProjectManagementDialog.js";
+import { fetchDashboardProjects } from "../../api/dashboard-api.js";
+import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
+import { ProjectManagementDialog } from "./ProjectManagementDialog.js";
 
 const PROJECT_ACCENT_CLASSES = [
   "bg-[#0066cc]",

@@ -20,8 +20,8 @@ import {
   createDashboardProject,
   deleteDashboardProject,
   fetchDashboardProjects
-} from "../api/dashboard-api.js";
-import { dashboardProjectsQueryKey } from "../model/dashboard-query-keys.js";
+} from "../../api/dashboard-api.js";
+import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
 
 type ProjectFormState = {
   domain: string;

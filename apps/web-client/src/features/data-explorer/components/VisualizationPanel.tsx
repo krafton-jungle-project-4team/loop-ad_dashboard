@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis
 } from "@loopad/ui/charts";
-import { EmptyState } from "../../dashboard/ui/EmptyState.js";
+import { EmptyState } from "../../dashboard/ui/shared/EmptyState.js";
 
 export function VisualizationPanel({ result }: { result: DataExplorerQueryRunResponse | null }) {
   const spec = result?.suggested_visualizations[0];

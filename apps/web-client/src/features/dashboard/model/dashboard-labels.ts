@@ -51,7 +51,7 @@ const METRIC_LABELS: Record<string, string> = {
   booking_complete_count: "예약 완료 수",
   booking_conversion_rate: "예약 전환율",
   conversion_lift: "전환 증분",
-  funnel_step_rate: "퍼널 단계 전환율",
+  funnel_step_rate: "여정 단계 전환율",
   goal_achievement_rate: "목표 달성률",
   inflow_rate: "유입률",
   promotion_click_rate: "프로모션 클릭률"

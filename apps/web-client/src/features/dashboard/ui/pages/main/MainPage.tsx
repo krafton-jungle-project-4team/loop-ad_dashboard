@@ -15,17 +15,17 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
+import { formatInteger, formatPercent } from "../../../model/dashboard-format.js";
 import {
   formatActionLabel,
   formatChannelLabel,
   formatLandingTypeLabel,
   formatStatusLabel
-} from "../model/dashboard-labels.js";
-import { formatInteger, formatPercent } from "../model/dashboard-format.js";
-import type { DashboardQuery } from "../model/dashboard-types.js";
-import { EmptyState } from "./EmptyState.js";
+} from "../../../model/dashboard-labels.js";
+import type { DashboardQuery } from "../../../model/dashboard-types.js";
+import { EmptyState } from "../../shared/EmptyState.js";
 
-export function MainDashboardPanel({ data }: { data: DashboardMain; query: DashboardQuery }) {
+export function MainPage({ data }: { data: DashboardMain; query: DashboardQuery }) {
   const summary = createMainSummary(data.campaigns);
 
   return (

@@ -1,12 +1,17 @@
+import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator
-} from "@loopad/ui/shadcn/breadcrumb";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@loopad/ui/shadcn/collapsible";
 import { Separator } from "@loopad/ui/shadcn/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@loopad/ui/shadcn/select";
 import {
   Sidebar,
   SidebarContent,
@@ -28,23 +33,31 @@ import {
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Gauge } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type CSSProperties,
   type PointerEvent,
   type ReactNode
 } from "react";
-import { fetchDashboardProjects } from "../api/dashboard-api.js";
+import { fetchDashboardCampaignDetail, fetchDashboardPageResource } from "../api/dashboard-api.js";
 import {
   dashboardNavigationTree,
   getDashboardTabLabel,
-  type DashboardNavTreeItem
+  type DashboardNavTreeFolderItem,
+  type DashboardNavTreeItem,
+  type DashboardNavTreeLinkItem
 } from "../model/dashboard-navigation.js";
-import { dashboardProjectsQueryKey } from "../model/dashboard-query-keys.js";
-import type { DashboardTab } from "../model/dashboard-types.js";
+import { normalizeDashboardQuery, useDashboardQueryState } from "../model/dashboard-query.js";
+import {
+  dashboardCampaignDetailQueryKey,
+  dashboardPageQueryKey
+} from "../model/dashboard-query-keys.js";
+import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
+import { ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 360;
@@ -96,7 +109,7 @@ export function DashboardShell({
             <div className="flex h-6 items-center">
               <Separator className="h-full" orientation="vertical" />
             </div>
-            <DashboardBreadcrumbs projectId={projectId} tab={activeTab} />
+            <DashboardHeaderContext activeTab={activeTab} projectId={projectId} />
           </div>
         </header>
 
@@ -124,37 +137,6 @@ export function DashboardShell({
   );
 }
 
-function ProjectSidebarBrand({ projectId }: { projectId: string }) {
-  const projectsQuery = useQuery({
-    queryFn: ({ signal }) => fetchDashboardProjects(signal),
-    queryKey: dashboardProjectsQueryKey()
-  });
-  const currentProject = projectsQuery.data?.projects.find(
-    (project) => project.project_id === projectId
-  );
-  const projectName = currentProject?.project_name ?? "프로젝트";
-  const projectDescription = currentProject?.domain ?? "프로젝트 선택으로 돌아가기";
-
-  return (
-    <Link
-      aria-label="프로젝트 선택으로 돌아가기"
-      className="flex w-full items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0"
-      title="프로젝트 선택"
-      to="/"
-    >
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#0066cc] text-white">
-        <Gauge size={18} />
-      </div>
-      <div className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
-        <span className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
-          {projectName}
-        </span>
-        <span className="truncate text-xs text-muted-foreground">{projectDescription}</span>
-      </div>
-    </Link>
-  );
-}
-
 function DashboardNavigation({
   activeTab,
   projectId
@@ -164,130 +146,439 @@ function DashboardNavigation({
 }) {
   return (
     <SidebarMenu>
-      {dashboardNavigationTree.map((item) => {
-        const Icon = item.icon;
-        const isActive = isNavigationItemActive(item, activeTab);
-
-        return (
-          <SidebarMenuItem key={item.label}>
-            <SidebarMenuButton
-              asChild
-              className={
-                isActive
-                  ? "rounded-full bg-[#0066cc] text-white hover:bg-[#0066cc] hover:text-white data-[active=true]:bg-[#0066cc] data-[active=true]:text-white"
-                  : "rounded-full text-sidebar-foreground/80"
-              }
-              isActive={isActive}
-              tooltip={item.label}
-            >
-              <Link
-                params={{ projectId, tabPath: item.pathSegment ?? "main" }}
-                search={(current) => current}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                {Icon ? <Icon /> : null}
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuButton>
-            {item.children ? (
-              <DashboardNavigationSubItems
-                activeTab={activeTab}
-                items={item.children}
-                projectId={projectId}
-              />
-            ) : null}
-          </SidebarMenuItem>
-        );
-      })}
+      {dashboardNavigationTree.map((item) =>
+        item.type === "folder" ? (
+          <DashboardNavigationFolderItem
+            activeTab={activeTab}
+            item={item}
+            key={getNavigationItemKey(item)}
+            projectId={projectId}
+          />
+        ) : (
+          <DashboardNavigationLinkItem
+            activeTab={activeTab}
+            item={item}
+            key={getNavigationItemKey(item)}
+            projectId={projectId}
+          />
+        )
+      )}
     </SidebarMenu>
+  );
+}
+
+function DashboardNavigationLinkItem({
+  activeTab,
+  item,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  item: DashboardNavTreeLinkItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  const isActive = activeTab === item.value;
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        className={cn(
+          "rounded-full text-sidebar-foreground/80",
+          isActive &&
+            "bg-[#0066cc] text-white hover:bg-[#0066cc] hover:text-white data-[active=true]:bg-[#0066cc] data-[active=true]:text-white"
+        )}
+        isActive={isActive}
+        tooltip={item.label}
+      >
+        <Link
+          params={{ projectId, tabPath: item.pathSegment }}
+          search={(current) => current}
+          to="/dashboard/$projectId/$tabPath"
+        >
+          <Icon />
+          <span>{item.label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function DashboardNavigationFolderItem({
+  activeTab,
+  item,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  item: DashboardNavTreeFolderItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  const isBranchActive = isNavigationItemActive(item, activeTab);
+
+  return (
+    <Collapsible asChild className="group/collapsible" defaultOpen={isBranchActive}>
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton
+            className={cn(
+              "rounded-full text-sidebar-foreground/80",
+              isBranchActive && "bg-sidebar-accent/70 font-medium text-sidebar-accent-foreground"
+            )}
+            isActive={isBranchActive}
+            tooltip={item.label}
+          >
+            {Icon ? <Icon /> : null}
+            <span>{item.label}</span>
+            <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <DashboardNavigationSubItems
+            activeTab={activeTab}
+            depth={0}
+            items={item.children}
+            projectId={projectId}
+          />
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
   );
 }
 
 function DashboardNavigationSubItems({
   activeTab,
+  depth,
   items,
   projectId
 }: {
   activeTab: DashboardTab;
+  depth: number;
   items: DashboardNavTreeItem[];
   projectId: string;
 }) {
   return (
-    <SidebarMenuSub>
-      {items.map((item) => {
-        const isExactActive = activeTab === item.value;
-        const isBranchActive = isNavigationItemActive(item, activeTab);
-
-        return (
-          <SidebarMenuSubItem key={item.label}>
-            <SidebarMenuSubButton
-              asChild
-              className={cn(
-                "relative transition-colors",
-                isExactActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground",
-                !isExactActive && isBranchActive && "bg-sidebar-accent/60 text-sidebar-foreground"
-              )}
-              isActive={isExactActive}
-            >
-              <Link
-                params={{ projectId, tabPath: item.pathSegment ?? "main" }}
-                search={(current) => current}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                {isExactActive ? (
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sidebar-primary"
-                  />
-                ) : null}
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuSubButton>
-            {item.children ? (
-              <DashboardNavigationSubItems
-                activeTab={activeTab}
-                items={item.children}
-                projectId={projectId}
-              />
-            ) : null}
-          </SidebarMenuSubItem>
-        );
-      })}
+    <SidebarMenuSub className={cn("mr-0 pr-0", depth > 0 && "ml-3 pl-3")}>
+      {items.map((item) =>
+        item.type === "folder" ? (
+          <DashboardNavigationSubFolderItem
+            activeTab={activeTab}
+            depth={depth}
+            item={item}
+            key={getNavigationItemKey(item)}
+            projectId={projectId}
+          />
+        ) : (
+          <DashboardNavigationSubLinkItem
+            activeTab={activeTab}
+            item={item}
+            key={getNavigationItemKey(item)}
+            projectId={projectId}
+          />
+        )
+      )}
     </SidebarMenuSub>
   );
 }
 
-function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: DashboardTab): boolean {
+function DashboardNavigationSubLinkItem({
+  activeTab,
+  item,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  item: DashboardNavTreeLinkItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  const isExactActive = activeTab === item.value;
+
   return (
-    item.value === activeTab ||
-    Boolean(item.children?.some((child) => isNavigationItemActive(child, activeTab)))
+    <SidebarMenuSubItem>
+      <SidebarMenuSubButton
+        asChild
+        className={cn(
+          "relative w-full transition-colors [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1 [&>span:last-child]:whitespace-nowrap",
+          isExactActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+        )}
+        isActive={isExactActive}
+      >
+        <Link
+          params={{ projectId, tabPath: item.pathSegment }}
+          search={(current) => current}
+          to="/dashboard/$projectId/$tabPath"
+        >
+          {isExactActive ? (
+            <span
+              aria-hidden="true"
+              className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sidebar-primary"
+            />
+          ) : null}
+          <Icon />
+          <span>{item.label}</span>
+        </Link>
+      </SidebarMenuSubButton>
+    </SidebarMenuSubItem>
   );
 }
 
-function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: DashboardTab }) {
+function DashboardNavigationSubFolderItem({
+  activeTab,
+  depth,
+  item,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  depth: number;
+  item: DashboardNavTreeFolderItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  const isBranchActive = isNavigationItemActive(item, activeTab);
+
   return (
-    <Breadcrumb>
-      <BreadcrumbList className="min-w-0 flex-nowrap text-xs">
-        <BreadcrumbItem className="hidden sm:inline-flex">
-          <BreadcrumbLink asChild className="text-xs text-muted-foreground hover:text-[#0066cc]">
-            <Link
-              params={{ projectId, tabPath: "main" }}
-              search={(current) => current}
-              to="/dashboard/$projectId/$tabPath"
-            >
-              Dashboard
-            </Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator className="hidden sm:inline-flex" />
-        <BreadcrumbItem className="min-w-0">
-          <BreadcrumbPage className="truncate text-sm font-semibold leading-none tracking-tight text-[#1d1d1f]">
-            {getDashboardTabLabel(tab)}
-          </BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+    <Collapsible asChild className="group/collapsible" defaultOpen={isBranchActive}>
+      <SidebarMenuSubItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuSubButton
+            asChild
+            className={cn(
+              "transition-colors",
+              isBranchActive && "bg-sidebar-accent/60 font-medium text-sidebar-foreground"
+            )}
+            isActive={isBranchActive}
+          >
+            <button type="button">
+              {Icon ? <Icon /> : null}
+              <span className="whitespace-nowrap">{item.label}</span>
+              <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
+            </button>
+          </SidebarMenuSubButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <DashboardNavigationSubItems
+            activeTab={activeTab}
+            depth={depth + 1}
+            items={item.children}
+            projectId={projectId}
+          />
+        </CollapsibleContent>
+      </SidebarMenuSubItem>
+    </Collapsible>
   );
+}
+
+function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: DashboardTab): boolean {
+  if (item.type === "link") {
+    return item.value === activeTab;
+  }
+
+  return item.children.some((child) => isNavigationItemActive(child, activeTab));
+}
+
+function getNavigationItemKey(item: DashboardNavTreeItem): string {
+  return item.type === "link" ? item.pathSegment : item.label;
+}
+
+type DashboardContextDepth = "campaign" | "promotion" | "segment";
+
+function DashboardHeaderContext({
+  activeTab,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  projectId: string;
+}) {
+  const contextDepth = getDashboardContextDepth(activeTab);
+
+  if (!contextDepth) {
+    return (
+      <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-[#1d1d1f]">
+        {getDashboardTabLabel(activeTab)}
+      </div>
+    );
+  }
+
+  return <DashboardSelectionContext depth={contextDepth} projectId={projectId} />;
+}
+
+function DashboardSelectionContext({
+  depth,
+  projectId
+}: {
+  depth: DashboardContextDepth;
+  projectId: string;
+}) {
+  const [queryState, setDashboardQueryState] = useDashboardQueryState();
+  const query = useMemo(
+    () => normalizeDashboardQuery(queryState, projectId),
+    [projectId, queryState]
+  );
+  const mainQuery = useQuery({
+    queryFn: ({ signal }) => fetchDashboardPageResource("main", query, signal),
+    queryKey: dashboardPageQueryKey("main", query),
+    select: (resource): DashboardMain => resource.data as DashboardMain
+  });
+  const campaigns = mainQuery.data?.campaigns ?? [];
+  const selectedCampaign =
+    campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
+    campaigns[0];
+  const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
+  const needsPromotionContext = depth === "promotion" || depth === "segment";
+  const campaignDetailQuery = useQuery({
+    enabled: needsPromotionContext && Boolean(selectedCampaignId),
+    queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
+    queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+  });
+  const campaignDetail = campaignDetailQuery.data;
+  const promotions = campaignDetail?.promotions ?? [];
+  const selectedPromotion = promotions.find(
+    (promotion) => promotion.promotion_id === query.selectedPromotionId
+  );
+  const selectedPromotionId = selectedPromotion?.promotion_id ?? "";
+  const segments = getPromotionSegments(campaignDetail, selectedPromotionId);
+  const selectedSegment = segments.find((segment) => segment.segment_id === query.selectedSegmentId);
+
+  return (
+    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+      <DashboardContextSelect
+        disabled={campaigns.length === 0}
+        label="캠페인"
+        onValueChange={(campaignId) => {
+          void setDashboardQueryState({
+            selectedCampaignId: campaignId,
+            selectedPromotionId: "",
+            selectedSegmentId: ""
+          });
+        }}
+        placeholder={mainQuery.isLoading ? "캠페인 로딩" : "캠페인 선택"}
+        value={selectedCampaign?.campaign_id}
+        widthClassName="w-[min(35vw,268px)]"
+      >
+        {campaigns.map((campaign) => (
+          <SelectItem key={campaign.campaign_id} value={campaign.campaign_id}>
+            {campaign.campaign_name}
+          </SelectItem>
+        ))}
+      </DashboardContextSelect>
+
+      {needsPromotionContext ? (
+        <>
+          <ChevronRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+
+          <DashboardContextSelect
+            disabled={!campaignDetail || promotions.length === 0}
+            label="프로모션"
+            onValueChange={(promotionId) => {
+              void setDashboardQueryState({
+                selectedCampaignId,
+                selectedPromotionId: promotionId,
+                selectedSegmentId: ""
+              });
+            }}
+            placeholder={campaignDetailQuery.isLoading ? "프로모션 로딩" : "프로모션 선택"}
+            value={selectedPromotion?.promotion_id}
+            widthClassName="w-[min(28vw,234px)]"
+          >
+            {promotions.map((promotion) => (
+              <SelectItem key={promotion.promotion_id} value={promotion.promotion_id}>
+                {promotion.marketing_theme}
+              </SelectItem>
+            ))}
+          </DashboardContextSelect>
+        </>
+      ) : null}
+
+      {depth === "segment" ? (
+        <>
+          <ChevronRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+
+          <DashboardContextSelect
+            disabled={!selectedPromotion || segments.length === 0}
+            label="세그먼트"
+            onValueChange={(segmentId) => {
+              void setDashboardQueryState({
+                selectedCampaignId,
+                selectedPromotionId,
+                selectedSegmentId: segmentId
+              });
+            }}
+            placeholder="세그먼트 선택"
+            value={selectedSegment?.segment_id}
+            widthClassName="w-[min(28vw,234px)]"
+          >
+            {segments.map((segment) => (
+              <SelectItem key={segment.segment_id} value={segment.segment_id}>
+                {segment.segment_name}
+              </SelectItem>
+            ))}
+          </DashboardContextSelect>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function DashboardContextSelect({
+  children,
+  disabled,
+  label,
+  onValueChange,
+  placeholder,
+  value,
+  widthClassName
+}: {
+  children: ReactNode;
+  disabled: boolean;
+  label: string;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+  value: string | undefined;
+  widthClassName: string;
+}) {
+  return (
+    <Select disabled={disabled} onValueChange={onValueChange} value={value}>
+      <SelectTrigger
+        className={cn(
+          "h-9 min-w-0 rounded-full border-black/10 bg-white px-3 text-sm font-medium text-[#1d1d1f] shadow-none",
+          widthClassName
+        )}
+      >
+        <span className="mr-2 shrink-0 text-xs font-medium text-muted-foreground">{label}</span>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
+  );
+}
+
+function getDashboardContextDepth(tab: DashboardTab): DashboardContextDepth | null {
+  switch (tab) {
+    case "campaigns":
+    case "campaign-detail":
+    case "campaign-metrics":
+    case "campaign-flow-map":
+      return "campaign";
+    case "campaign-promotions":
+    case "promotion-metrics":
+      return "promotion";
+    case "segments":
+    case "experiments":
+      return "segment";
+    default:
+      return null;
+  }
+}
+
+function getPromotionSegments(
+  campaignDetail: DashboardCampaignDetail | undefined,
+  promotionId: string
+) {
+  if (!campaignDetail || !promotionId) {
+    return [];
+  }
+
+  return campaignDetail.segments.filter((segment) => segment.promotion_id === promotionId);
 }
 
 function SidebarResizeHandle({
