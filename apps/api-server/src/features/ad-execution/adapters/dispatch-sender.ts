@@ -9,11 +9,17 @@ import { durationMs, log } from "../../../infra/logger/index.js";
 export interface EmailSendInput {
   recipient: string;
   subject: string;
+  htmlBody: string;
+  textBody: string;
+  redirectUrl: string;
+  openPixelUrl: string;
+}
+
+export interface SmsSendInput {
+  recipient: string;
   body: string;
   redirectUrl: string;
 }
-
-export type SmsSendInput = Omit<EmailSendInput, "subject">;
 
 export interface DispatchSendResult {
   provider: string;
@@ -90,8 +96,12 @@ export class AwsSesEmailSender extends EmailSender {
                 Charset: "UTF-8"
               },
               Body: {
+                Html: {
+                  Data: input.htmlBody,
+                  Charset: "UTF-8"
+                },
                 Text: {
-                  Data: input.body,
+                  Data: input.textBody,
                   Charset: "UTF-8"
                 }
               }

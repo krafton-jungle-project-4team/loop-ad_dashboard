@@ -2,7 +2,11 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { BannerResolveQuery, BannerResolveResponse } from "@loopad/shared";
 import { LogContextScope, log } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
-import { AdExecutionDomain, type ActiveAdServingAssignmentEntity } from "../domain/index.js";
+import {
+  AdExecutionDomain,
+  creativeArtifact,
+  type ActiveAdServingAssignmentEntity
+} from "../domain/index.js";
 import { AdExecutionReader } from "../repository/index.js";
 import { requirePromotionLandingUrl } from "./landing-url.guard.js";
 
@@ -25,7 +29,16 @@ export class BannerResolveService {
     });
     log.info("started", { request });
 
-    const assignment = await this.requireBannerAssignment(request);
+    const assignment = await this.findBannerAssignment(request);
+    if (!assignment) {
+      const response: BannerResolveResponse = {
+        status: "empty",
+        placement_id: request.placement_id,
+        reason: "assignment_not_found"
+      };
+      log.info("completed", { request, response });
+      return response;
+    }
     log.assignContext({
       adExperimentId: assignment.adExperimentId,
       campaignId: assignment.campaignId,
@@ -35,20 +48,27 @@ export class BannerResolveService {
       promotionId: assignment.promotionId,
       segmentId: assignment.segmentId
     });
-    const targetUrl = requirePromotionLandingUrl(assignment);
-    const response = {
-      ...AdExecutionDomain.toBannerResponse(assignment, request.placement_id),
-      target_url: targetUrl
-    };
+    const emptyReason = bannerEmptyReason(assignment);
+    if (emptyReason) {
+      const response: BannerResolveResponse = {
+        status: "empty",
+        placement_id: request.placement_id,
+        reason: emptyReason
+      };
+      log.info("completed", { request, assignment, response });
+      return response;
+    }
+    requirePromotionLandingUrl(assignment);
+    const response = AdExecutionDomain.toBannerResponse(assignment, request.placement_id);
 
     log.info("completed", { request, assignment, response });
 
     return response;
   }
 
-  private async requireBannerAssignment(
+  private async findBannerAssignment(
     request: BannerResolveQuery
-  ): Promise<ActiveAdServingAssignmentEntity> {
+  ): Promise<ActiveAdServingAssignmentEntity | null> {
     const assignment = await this.reader.findBannerAssignment({
       projectId: request.project_id,
       promotionRunId: request.promotion_run_id,
@@ -57,7 +77,7 @@ export class BannerResolveService {
 
     if (!assignment) {
       log.warn("banner_assignment_not_found", { request });
-      throw adExecutionErrors.bannerAssignmentNotFound(request.promotion_run_id, request.user_id);
+      return null;
     }
 
     if (assignment.channel !== "onsite_banner") {
@@ -72,4 +92,23 @@ export class BannerResolveService {
 
     return assignment;
   }
+}
+
+function bannerEmptyReason(
+  assignment: ActiveAdServingAssignmentEntity
+): Extract<BannerResolveResponse, { status: "empty" }>["reason"] | null {
+  const artifact = creativeArtifact(assignment);
+  if (!artifact || artifact.creative_format !== "banner_html") {
+    return "artifact_not_ready";
+  }
+  if (artifact.artifact_status === "pending") {
+    return "artifact_not_ready";
+  }
+  if (artifact.artifact_status === "failed") {
+    return "artifact_failed";
+  }
+  if (artifact.artifact_status !== "published" || !artifact.public_url) {
+    return "artifact_not_ready";
+  }
+  return null;
 }

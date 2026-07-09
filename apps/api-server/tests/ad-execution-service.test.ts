@@ -50,6 +50,8 @@ const { PromotionDispatchService } =
   await import("../src/features/ad-execution/service/promotion-dispatch.service.js");
 const { RedirectService } =
   await import("../src/features/ad-execution/service/redirect.service.js");
+const { OpenPixelController } =
+  await import("../src/features/ad-execution/controller/open-pixel.controller.js");
 const { AwsEndUserMessagingSmsSender, AwsSesEmailSender } =
   await import("../src/features/ad-execution/adapters/dispatch-sender.js");
 const {
@@ -133,6 +135,9 @@ test("dispatch uses stored assignments and records sender success", async () => 
     undefined
   );
   assert.equal(emailSender.inputs.length, 2);
+  assert.equal(emailSender.inputs[0]?.htmlBody.includes("{{redirect_url}}"), false);
+  assert.equal(emailSender.inputs[0]?.htmlBody.includes("{{open_pixel_url}}"), false);
+  assert.equal(emailSender.inputs[0]?.htmlBody.includes("/p/open/"), true);
   assert.deepEqual(
     logs
       .filter((entry) => entry.event === "assignment_sent")
@@ -300,8 +305,10 @@ test("AWS senders build SES and SMS v2 command inputs from options", async () =>
     await emailSender.sendEmail({
       recipient: "person@example.test",
       subject: "Subject",
-      body: "Body",
-      redirectUrl: "https://loop-ad.example/r/1"
+      htmlBody: "<p>Body</p>",
+      textBody: "Body",
+      redirectUrl: "https://loop-ad.example/r/1",
+      openPixelUrl: "https://loop-ad.example/p/open/1"
     });
     await smsSender.sendSms({
       recipient: "+15555550123",
@@ -322,6 +329,10 @@ test("AWS senders build SES and SMS v2 command inputs from options", async () =>
           Charset: "UTF-8"
         },
         Body: {
+          Html: {
+            Data: "<p>Body</p>",
+            Charset: "UTF-8"
+          },
           Text: {
             Data: "Body",
             Charset: "UTF-8"
@@ -371,6 +382,59 @@ test("dispatch fails invalid email content instead of synthesizing fallbacks", a
   );
 });
 
+test("dispatch fails pending and failed email artifacts without sending", async () => {
+  const pendingReader = new FakeAdExecutionReader();
+  const failedReader = new FakeAdExecutionReader();
+  const pendingWriter = new FakeAdExecutionWriter();
+  const failedWriter = new FakeAdExecutionWriter();
+  const pendingEmailSender = new RecordingEmailSender();
+  const failedEmailSender = new RecordingEmailSender();
+
+  pendingReader.dispatchAssignments = [
+    assignment({
+      contentMetadataJson: {
+        creative: {
+          artifact: {
+            creative_format: "email_html",
+            artifact_status: "pending"
+          }
+        }
+      }
+    })
+  ];
+  failedReader.dispatchAssignments = [
+    assignment({
+      contentMetadataJson: {
+        creative: {
+          artifact: {
+            creative_format: "email_html",
+            artifact_status: "failed",
+            error_code: "s3_put_failed"
+          }
+        }
+      }
+    })
+  ];
+
+  const { result: pendingResponse } = await captureDispatchLogs(() =>
+    createDispatchService(pendingReader, pendingWriter, pendingEmailSender).dispatchPromotionRun(
+      "run-1"
+    )
+  );
+  const { result: failedResponse } = await captureDispatchLogs(() =>
+    createDispatchService(failedReader, failedWriter, failedEmailSender).dispatchPromotionRun(
+      "run-1"
+    )
+  );
+
+  assert.equal(pendingResponse.dispatched_count, 0);
+  assert.equal(failedResponse.dispatched_count, 0);
+  assert.deepEqual(dispatchAttemptErrorCodes(pendingWriter), ["ARTIFACT_NOT_READY"]);
+  assert.deepEqual(dispatchAttemptErrorCodes(failedWriter), ["ARTIFACT_FAILED"]);
+  assert.equal(pendingEmailSender.inputs.length, 0);
+  assert.equal(failedEmailSender.inputs.length, 0);
+});
+
 test("dispatch rejects onsite banner promotion runs", async () => {
   const reader = new FakeAdExecutionReader();
   reader.promotion = { ...reader.promotion, channel: "onsite_banner" };
@@ -409,14 +473,13 @@ test("dispatch rejects unknown promotion channels before sender selection", asyn
 
 test("banner resolve returns the precomputed segment content", async () => {
   const reader = new FakeAdExecutionReader();
-  reader.bannerAssignment = {
-    ...assignment(),
+  reader.bannerAssignment = assignment({
     title: "Approved title",
     body: "Approved body",
     cta: "Book now",
     landingUrl: "https://loop-ad.example/landing",
     channel: "onsite_banner"
-  };
+  });
 
   const { result: response } = await captureDispatchLogs(() =>
     createBannerService(reader).resolveBanner({
@@ -428,21 +491,37 @@ test("banner resolve returns the precomputed segment content", async () => {
   );
 
   assert.deepEqual(response, {
-    project_id: "project-1",
-    user_id: "user-1",
-    campaign_id: "campaign-1",
-    promotion_id: "promotion-1",
-    promotion_run_id: "run-1",
-    ad_experiment_id: "exp-1",
-    segment_id: "seg-1",
-    content_id: "content-1",
-    content_option_id: "option-1",
-    promotion_channel: "onsite_banner",
+    status: "filled",
     placement_id: "hero",
-    title: "Approved title",
-    body: "Approved body",
-    cta: "Book now",
-    target_url: "https://loop-ad.example/landing"
+    creative: {
+      creative_id: "content-1",
+      creative_format: "banner_html",
+      html_url: "https://gen-ai.asset.dev.loop-ad.org/generated/content-1.banner_html.html",
+      width: 320,
+      height: 100,
+      click_url:
+        "https://loop-ad.example/landing?loopad_project_id=project-1&loopad_campaign_id=campaign-1&loopad_promotion_id=promotion-1&loopad_promotion_run_id=run-1&loopad_ad_experiment_id=exp-1&loopad_segment_id=seg-1&loopad_content_id=content-1&loopad_content_option_id=option-1&loopad_creative_id=content-1&loopad_channel=onsite_banner&loopad_placement_id=hero",
+      target_url: "https://loop-ad.example/landing",
+      sandbox: {
+        allow_scripts: true,
+        allow_same_origin: false,
+        allow_popups: false
+      }
+    },
+    attribution: {
+      project_id: "project-1",
+      campaign_id: "campaign-1",
+      promotion_id: "promotion-1",
+      promotion_run_id: "run-1",
+      ad_experiment_id: "exp-1",
+      segment_id: "seg-1",
+      content_id: "content-1",
+      content_option_id: "option-1",
+      creative_id: "content-1",
+      promotion_channel: "onsite_banner",
+      target_url: "https://loop-ad.example/landing",
+      placement_id: "hero"
+    }
   });
 });
 
@@ -470,6 +549,58 @@ test("banner resolve rejects non-banner assignment channels", async () => {
   );
 });
 
+test("banner resolve returns empty for missing, pending, and failed artifacts", async () => {
+  const missingReader = new FakeAdExecutionReader();
+  const pendingReader = new FakeAdExecutionReader();
+  const failedReader = new FakeAdExecutionReader();
+  const request = {
+    project_id: "project-1",
+    promotion_run_id: "run-1",
+    user_id: "user-1",
+    placement_id: "hero"
+  };
+
+  pendingReader.bannerAssignment = assignment({
+    channel: "onsite_banner",
+    contentMetadataJson: {
+      creative: {
+        artifact: {
+          creative_format: "banner_html",
+          artifact_status: "pending"
+        }
+      }
+    }
+  });
+  failedReader.bannerAssignment = assignment({
+    channel: "onsite_banner",
+    contentMetadataJson: {
+      creative: {
+        artifact: {
+          creative_format: "banner_html",
+          artifact_status: "failed",
+          error_code: "s3_put_failed"
+        }
+      }
+    }
+  });
+
+  assert.deepEqual(await createBannerService(missingReader).resolveBanner(request), {
+    status: "empty",
+    placement_id: "hero",
+    reason: "assignment_not_found"
+  });
+  assert.deepEqual(await createBannerService(pendingReader).resolveBanner(request), {
+    status: "empty",
+    placement_id: "hero",
+    reason: "artifact_not_ready"
+  });
+  assert.deepEqual(await createBannerService(failedReader).resolveBanner(request), {
+    status: "empty",
+    placement_id: "hero",
+    reason: "artifact_failed"
+  });
+});
+
 test("redirect returns an SDK handoff page with ad_experiment_id context", async () => {
   const reader = new FakeAdExecutionReader();
   const service = createRedirectService(reader);
@@ -481,6 +612,7 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   const targetUrl = new URL(page.targetUrl);
 
   assert.equal(targetUrl.origin + targetUrl.pathname, "https://loop-ad.example/landing");
+  assert.equal(targetUrl.searchParams.get("loopad_project_id"), "project-1");
   assert.equal(targetUrl.searchParams.get("loopad_campaign_id"), "campaign-1");
   assert.equal(targetUrl.searchParams.get("loopad_promotion_id"), "promotion-1");
   assert.equal(targetUrl.searchParams.get("loopad_promotion_run_id"), "run-1");
@@ -488,14 +620,17 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   assert.equal(targetUrl.searchParams.get("loopad_segment_id"), "seg-1");
   assert.equal(targetUrl.searchParams.get("loopad_content_id"), "content-1");
   assert.equal(targetUrl.searchParams.get("loopad_content_option_id"), "option-1");
+  assert.equal(targetUrl.searchParams.get("loopad_creative_id"), "content-1");
+  assert.equal(targetUrl.searchParams.get("loopad_channel"), "email");
   assert.equal(targetUrl.searchParams.get("loopad_redirect_id"), "redirect-1");
-  assert.equal(page.event.name, "campaign_redirect_click");
+  assert.equal(page.event.name, "리다이렉트_클릭");
   assert.equal(page.event.projectId, "project-1");
   assert.equal(page.event.identity.userId, "user-1");
   assert.equal(page.event.identity.sessionId, "redirect:redirect-1");
   assert.equal(page.event.fields.ad_experiment_id, "exp-1");
   assert.equal(page.event.fields.redirect_id, "redirect-1");
   assert.equal(page.event.fields.content_option_id, "option-1");
+  assert.equal(page.event.fields.creative_id, "content-1");
   assert.equal(page.event.fields.target_url, "https://loop-ad.example/landing");
   assert.equal(
     page.eventSdk.url,
@@ -503,9 +638,34 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   );
   assert.equal(page.eventSdk.writeKey, "public_write_key");
   assert.match(html, /LoopAdEventSDK\.init/);
-  assert.match(html, /campaign_redirect_click/);
+  assert.match(html, /리다이렉트_클릭/);
   assert.match(html, /properties:\s*redirect\.event\.fields/);
   assert.match(html, /window\.location\.replace/);
+});
+
+test("open pixel endpoint returns an uncacheable transparent image", async () => {
+  const controller = new OpenPixelController();
+  const response = new RecordingImageResponse();
+  const openPixelId = Buffer.from(
+    JSON.stringify({
+      recipient_user_id: "사용자-1",
+      attribution: {
+        event_name: "이메일_열람"
+      }
+    })
+  ).toString("base64url");
+
+  await controller.openPixel({ openPixelId }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.headers.get("Content-Type"), "image/gif");
+  assert.equal(
+    response.headers.get("Cache-Control"),
+    "no-store, no-cache, must-revalidate, max-age=0"
+  );
+  assert.equal(response.headers.get("Pragma"), "no-cache");
+  assert.equal(Buffer.isBuffer(response.body), true);
+  assert.equal(response.body?.length, 43);
 });
 
 test("redirect page escapes script data and fallback href with stable libraries", () => {
@@ -516,7 +676,7 @@ test("redirect page escapes script data and fallback href with stable libraries"
       writeKey: "public_write_key"
     },
     event: {
-      name: "campaign_redirect_click",
+      name: "리다이렉트_클릭",
       projectId: "project-1",
       identity: {
         userId: "user-1",
@@ -524,12 +684,14 @@ test("redirect page escapes script data and fallback href with stable libraries"
       },
       fields: {
         campaign_id: "campaign-1",
+        project_id: "project-1",
         promotion_id: "promotion-1",
         promotion_run_id: "run-1",
         ad_experiment_id: "exp-1",
         segment_id: "seg-1",
         content_id: "content-1",
         content_option_id: "option-1",
+        creative_id: "content-1",
         promotion_channel: "email",
         redirect_id: "redirect-1",
         target_url: "</script><img src=x>"
@@ -548,14 +710,16 @@ function createDispatchService(
   writer = new FakeAdExecutionWriter(),
   emailSender = new RecordingEmailSender(),
   smsSender = new RecordingSmsSender(),
-  recipientDirectory = new FakeRecipientDirectory()
+  recipientDirectory = new FakeRecipientDirectory(),
+  artifactReader = new FakeHtmlArtifactReader()
 ) {
   return new PromotionDispatchService(
     reader as ConstructorParameters<typeof PromotionDispatchService>[0],
     writer as ConstructorParameters<typeof PromotionDispatchService>[1],
     recipientDirectory as ConstructorParameters<typeof PromotionDispatchService>[2],
     emailSender as ConstructorParameters<typeof PromotionDispatchService>[3],
-    smsSender as ConstructorParameters<typeof PromotionDispatchService>[4]
+    smsSender as ConstructorParameters<typeof PromotionDispatchService>[4],
+    artifactReader as ConstructorParameters<typeof PromotionDispatchService>[5]
   );
 }
 
@@ -570,7 +734,7 @@ function createRedirectService(reader = new FakeAdExecutionReader()) {
 function assignment(
   overrides: Partial<ActiveAdServingAssignmentEntity> = {}
 ): ActiveAdServingAssignmentEntity {
-  return {
+  const base = {
     promotionRunId: "run-1",
     userId: "user-1",
     segmentId: "seg-1",
@@ -591,9 +755,51 @@ function assignment(
     message: "Message",
     imagePrompt: null,
     landingUrl: "https://loop-ad.example/landing",
+    contentMetadataJson: {},
     contentStatus: "approved",
     adExperimentStatus: "approved",
     ...overrides
+  };
+  return {
+    ...base,
+    contentMetadataJson: overrides.contentMetadataJson ?? contentMetadataForChannel(base.channel)
+  };
+}
+
+function contentMetadataForChannel(channel: ActiveAdServingAssignmentEntity["channel"]) {
+  if (channel === "email") {
+    return {
+      creative: {
+        artifact: {
+          creative_format: "email_html",
+          artifact_status: "published",
+          public_url: "https://gen-ai.asset.dev.loop-ad.org/generated/content-1.email_html.html",
+          content_type: "text/html; charset=utf-8"
+        }
+      }
+    };
+  }
+  if (channel === "onsite_banner") {
+    return {
+      creative: {
+        artifact: {
+          creative_format: "banner_html",
+          artifact_status: "published",
+          public_url: "https://gen-ai.asset.dev.loop-ad.org/generated/content-1.banner_html.html",
+          width: 320,
+          height: 100,
+          content_type: "text/html; charset=utf-8"
+        }
+      }
+    };
+  }
+  return {
+    creative: {
+      artifact: {
+        creative_format: "sms_text",
+        artifact_status: "not_required"
+      }
+    }
   };
 }
 
@@ -654,6 +860,37 @@ class RecordingEmailSender {
       provider: this.providerName,
       providerMessageId: `recording_email_${this.inputs.length}`
     };
+  }
+}
+
+class FakeHtmlArtifactReader {
+  async readHtml() {
+    return [
+      "<html>",
+      '<body><a href="{{redirect_url}}">Open</a>',
+      '<img src="{{open_pixel_url}}" width="1" height="1" alt=""></body>',
+      "</html>"
+    ].join("");
+  }
+}
+
+class RecordingImageResponse {
+  statusCode = 0;
+  readonly headers = new Map<string, string>();
+  body: Buffer | null = null;
+
+  status(statusCode: number) {
+    this.statusCode = statusCode;
+    return this;
+  }
+
+  setHeader(name: string, value: string) {
+    this.headers.set(name, value);
+    return this;
+  }
+
+  send(body: Buffer) {
+    this.body = body;
   }
 }
 

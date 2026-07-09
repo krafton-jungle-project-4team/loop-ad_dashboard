@@ -85,12 +85,19 @@ SELECT
   aas.message,
   aas.image_prompt AS "imagePrompt",
   p.landing_url AS "landingUrl",
+  COALESCE(cc.metadata_json, '{}'::jsonb) AS "contentMetadataJson",
   aas.content_status AS "contentStatus",
   aas.ad_experiment_status AS "adExperimentStatus"
 FROM active_ad_serving_assignments aas
 JOIN promotions p
   ON p.project_id = aas.project_id
  AND p.promotion_id = aas.promotion_id
+LEFT JOIN content_candidates cc
+  ON cc.project_id = aas.project_id
+ AND cc.campaign_id = aas.campaign_id
+ AND cc.promotion_id = aas.promotion_id
+ AND cc.content_id = aas.content_id
+ AND cc.content_option_id = aas.content_option_id
 WHERE aas.promotion_run_id = :promotionRunId
 
 ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC;
@@ -118,12 +125,19 @@ SELECT
   aas.message,
   aas.image_prompt AS "imagePrompt",
   p.landing_url AS "landingUrl",
+  COALESCE(cc.metadata_json, '{}'::jsonb) AS "contentMetadataJson",
   aas.content_status AS "contentStatus",
   aas.ad_experiment_status AS "adExperimentStatus"
 FROM active_ad_serving_assignments aas
 JOIN promotions p
   ON p.project_id = aas.project_id
  AND p.promotion_id = aas.promotion_id
+LEFT JOIN content_candidates cc
+  ON cc.project_id = aas.project_id
+ AND cc.campaign_id = aas.campaign_id
+ AND cc.promotion_id = aas.promotion_id
+ AND cc.content_id = aas.content_id
+ AND cc.content_option_id = aas.content_option_id
 WHERE aas.project_id = :projectId
   AND aas.promotion_run_id = :promotionRunId
   AND aas.user_id = :userId
