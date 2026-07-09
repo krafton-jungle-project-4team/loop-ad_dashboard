@@ -107,15 +107,39 @@ import {
   uniquePromotionsById,
   type PromotionAnalysisProgress,
   type PromotionCreateFormState,
+  type PromotionWorkspaceMode,
   type PromotionSegmentCreateFormState,
   type PromotionWorkspaceTab
 } from "./promotionUtils.js";
 
-export function PromotionWorkspace({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
+const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
+  promotion: ["overview"],
+  promotionMetrics: ["overview"],
+  segment: ["segments", "segment-detail"]
+};
+
+const defaultPromotionWorkspaceTabByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab> = {
+  promotion: "overview",
+  promotionMetrics: "overview",
+  segment: "segments"
+};
+
+export function PromotionWorkspace({
+  data,
+  mode = "promotion",
+  query
+}: {
+  data: DashboardMain;
+  mode?: PromotionWorkspaceMode;
+  query: DashboardQuery;
+}) {
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [workspaceTab, setWorkspaceTab] = useState<PromotionWorkspaceTab>("overview");
+  const visibleTabs = promotionWorkspaceTabsByMode[mode];
+  const [workspaceTab, setWorkspaceTab] = useState<PromotionWorkspaceTab>(
+    defaultPromotionWorkspaceTabByMode[mode]
+  );
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
     data.campaigns[0];
@@ -183,6 +207,12 @@ export function PromotionWorkspace({ data, query }: { data: DashboardMain; query
       });
     }
   }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
+
+  useEffect(() => {
+    if (!visibleTabs.includes(workspaceTab)) {
+      setWorkspaceTab(defaultPromotionWorkspaceTabByMode[mode]);
+    }
+  }, [mode, visibleTabs, workspaceTab]);
 
   useEffect(() => {
     if (!campaignDetail.data || !selectedPromotionId) {
@@ -724,13 +754,15 @@ export function PromotionWorkspace({ data, query }: { data: DashboardMain; query
 
   return (
     <section className="overflow-hidden rounded-[18px] bg-white shadow-none ring-1 ring-black/10">
-      <PromotionChromeTabs
-        onAdd={() => setIsAddDialogOpen(true)}
-        onClosePromotion={closePromotion}
-        onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
-        openPromotions={openPromotions}
-        selectedPromotionId={selectedOpenPromotion?.promotion_id ?? ""}
-      />
+      {mode === "promotion" ? (
+        <PromotionChromeTabs
+          onAdd={() => setIsAddDialogOpen(true)}
+          onClosePromotion={closePromotion}
+          onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
+          openPromotions={openPromotions}
+          selectedPromotionId={selectedOpenPromotion?.promotion_id ?? ""}
+        />
+      ) : null}
       <div className="grid gap-6 px-6 py-6">
         {campaignDetail.isError ? (
           <Alert variant="destructive">
@@ -757,7 +789,17 @@ export function PromotionWorkspace({ data, query }: { data: DashboardMain; query
         {campaignDetail.data ? (
           <>
             {openPromotions.length === 0 ? (
-              <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
+              mode === "promotion" ? (
+                <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
+              ) : (
+                <EmptyState
+                  message={
+                    mode === "promotionMetrics"
+                      ? "통계를 확인할 프로모션을 먼저 선택해주세요."
+                      : "세그먼트를 관리할 프로모션을 먼저 선택해주세요."
+                  }
+                />
+              )
             ) : null}
             {selectedOpenPromotion ? (
               <PromotionTabWorkspace
@@ -886,16 +928,19 @@ export function PromotionWorkspace({ data, query }: { data: DashboardMain; query
                 suggestionsIsError={segmentSuggestions.isError}
                 suggestionsIsLoading={segmentSuggestions.isLoading}
                 tab={workspaceTab}
+                visibleTabs={visibleTabs}
               />
             ) : null}
-            <PromotionAddDialog
-              createError={createPromotionMutation.error}
-              createIsError={createPromotionMutation.isError}
-              createIsPending={createPromotionMutation.isPending}
-              onCreate={(form) => createPromotionMutation.mutate(form)}
-              onOpenChange={setIsAddDialogOpen}
-              open={isAddDialogOpen}
-            />
+            {mode === "promotion" ? (
+              <PromotionAddDialog
+                createError={createPromotionMutation.error}
+                createIsError={createPromotionMutation.isError}
+                createIsPending={createPromotionMutation.isPending}
+                onCreate={(form) => createPromotionMutation.mutate(form)}
+                onOpenChange={setIsAddDialogOpen}
+                open={isAddDialogOpen}
+              />
+            ) : null}
           </>
         ) : null}
       </div>

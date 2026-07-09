@@ -258,7 +258,7 @@ function DashboardNavigationSubItems({
   projectId: string;
 }) {
   return (
-    <SidebarMenuSub className={cn(depth > 0 && "mx-2 px-1.5")}>
+    <SidebarMenuSub className={cn("mr-0 pr-0", depth > 0 && "ml-3 pl-3")}>
       {items.map((item) =>
         item.type === "folder" ? (
           <DashboardNavigationSubFolderItem
@@ -298,7 +298,7 @@ function DashboardNavigationSubLinkItem({
       <SidebarMenuSubButton
         asChild
         className={cn(
-          "relative transition-colors",
+          "relative w-full transition-colors [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1 [&>span:last-child]:whitespace-nowrap",
           isExactActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
         )}
         isActive={isExactActive}
@@ -350,7 +350,7 @@ function DashboardNavigationSubFolderItem({
           >
             <button type="button">
               {Icon ? <Icon /> : null}
-              <span>{item.label}</span>
+              <span className="whitespace-nowrap">{item.label}</span>
               <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
             </button>
           </SidebarMenuSubButton>
@@ -560,7 +560,9 @@ function getDashboardContextDepth(tab: DashboardTab): DashboardContextDepth | nu
     case "campaign-flow-map":
       return "campaign";
     case "campaign-promotions":
+    case "promotion-metrics":
       return "promotion";
+    case "segments":
     case "experiments":
       return "segment";
     default:

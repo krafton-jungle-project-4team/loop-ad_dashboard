@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ListFilter,
   Megaphone,
+  Users,
   Workflow,
   type LucideIcon
 } from "lucide-react";
@@ -35,7 +36,7 @@ export type DashboardNavTreeItem = DashboardNavTreeFolderItem | DashboardNavTree
 
 export const dashboardTabs = [
   { value: "main", label: "메인 대시보드", icon: Activity, pathSegment: "main" },
-  { value: "funnels", label: "퍼널", icon: ListFilter, pathSegment: "funnels" },
+  { value: "funnels", label: "사용자 여정", icon: ListFilter, pathSegment: "funnels" },
   {
     value: "campaign-flow-map",
     label: "워크플로우 맵",
@@ -60,6 +61,18 @@ export const dashboardTabs = [
     label: "프로모션 관리",
     icon: Megaphone,
     pathSegment: "campaign-promotions"
+  },
+  {
+    value: "promotion-metrics",
+    label: "프로모션 통계",
+    icon: Activity,
+    pathSegment: "promotion-metrics"
+  },
+  {
+    value: "segments",
+    label: "세그먼트 관리",
+    icon: Users,
+    pathSegment: "segments"
   },
   {
     value: "experiments",
@@ -90,7 +103,7 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     type: "link"
   },
   {
-    label: "퍼널",
+    label: "사용자 여정",
     value: "funnels",
     pathSegment: "funnels",
     icon: ListFilter,
@@ -135,11 +148,32 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
             type: "link"
           },
           {
-            label: "실험 관리",
-            value: "experiments",
-            pathSegment: "experiments",
-            icon: FlaskConical,
+            label: "프로모션 통계",
+            value: "promotion-metrics",
+            pathSegment: "promotion-metrics",
+            icon: Activity,
             type: "link"
+          },
+          {
+            label: "세그먼트",
+            icon: Folder,
+            type: "folder",
+            children: [
+              {
+                label: "세그먼트 관리",
+                value: "segments",
+                pathSegment: "segments",
+                icon: Users,
+                type: "link"
+              },
+              {
+                label: "실험 관리",
+                value: "experiments",
+                pathSegment: "experiments",
+                icon: FlaskConical,
+                type: "link"
+              }
+            ]
           }
         ]
       }

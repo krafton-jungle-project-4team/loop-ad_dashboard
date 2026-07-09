@@ -152,6 +152,8 @@ export async function fetchDashboardPageResource(
     case "campaign-detail":
     case "campaign-flow-map":
     case "campaign-promotions":
+    case "promotion-metrics":
+    case "segments":
     case "experiments":
     case "campaign-metrics":
       return {

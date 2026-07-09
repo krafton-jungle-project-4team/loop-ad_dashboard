@@ -124,7 +124,7 @@ export function FunnelPage({
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!editingFunnelId) {
-        throw new Error("수정할 퍼널이 없습니다.");
+        throw new Error("수정할 사용자 여정이 없습니다.");
       }
       return updateDashboardFunnel(query, editingFunnelId, createFunnelRequest(funnelName, steps));
     },
@@ -176,19 +176,19 @@ export function FunnelPage({
         <CardHeader className="flex flex-col gap-3 px-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid gap-1.5">
             <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-              퍼널 목록
+              사용자 여정 목록
             </CardTitle>
-            <CardDescription>저장된 퍼널을 선택해 단계별 지표를 확인합니다.</CardDescription>
+            <CardDescription>저장된 사용자 여정을 선택해 단계별 지표를 확인합니다.</CardDescription>
           </div>
           <Button onClick={openCreateDialog} type="button">
             <Plus data-icon="inline-start" />
-            퍼널 생성
+            사용자 여정 생성
           </Button>
         </CardHeader>
         <CardContent className="px-5">
           {deleteMutation.isError ? (
             <Alert className="mb-4" variant="destructive">
-              <AlertTitle>퍼널을 삭제하지 못했습니다</AlertTitle>
+              <AlertTitle>사용자 여정을 삭제하지 못했습니다</AlertTitle>
               <AlertDescription>{mutationErrorMessage(deleteMutation.error)}</AlertDescription>
             </Alert>
           ) : null}
@@ -266,7 +266,7 @@ export function FunnelPage({
                             variant="outline"
                           >
                             <Trash2 data-icon="inline-start" />
-                            <span className="sr-only">퍼널 삭제</span>
+                            <span className="sr-only">사용자 여정 삭제</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -276,7 +276,7 @@ export function FunnelPage({
               </Table>
             </div>
           ) : (
-            <EmptyState message="등록된 퍼널이 없습니다." />
+            <EmptyState message="등록된 사용자 여정이 없습니다." />
           )}
         </CardContent>
       </Card>
@@ -307,7 +307,7 @@ export function FunnelPage({
             <GripHorizontal size={18} />
           </div>
           <h2 className="min-w-0 truncate pt-1 text-lg font-semibold tracking-tight text-[#1d1d1f]">
-            {selectedFunnel?.funnel_name ?? "퍼널 선택"}
+            {selectedFunnel?.funnel_name ?? "사용자 여정 선택"}
           </h2>
           <Button
             aria-label={isDetailPanelCollapsed ? "상세 패널 펼치기" : "상세 패널 접기"}
@@ -328,13 +328,13 @@ export function FunnelPage({
           <div className="grid min-h-0 gap-6 overflow-hidden px-6 py-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] lg:px-8">
             {!selectedFunnel ? (
               <div className="lg:col-span-2">
-                <EmptyState message="퍼널을 선택하면 단계별 지표가 표시됩니다." />
+                <EmptyState message="사용자 여정을 선택하면 단계별 지표가 표시됩니다." />
               </div>
             ) : (
               <>
                 {funnelMetrics.isError ? (
                   <Alert className="lg:col-span-2" variant="destructive">
-                    <AlertTitle>퍼널 수치를 불러오지 못했습니다</AlertTitle>
+                    <AlertTitle>사용자 여정 수치를 불러오지 못했습니다</AlertTitle>
                     <AlertDescription>{mutationErrorMessage(funnelMetrics.error)}</AlertDescription>
                   </Alert>
                 ) : null}
@@ -345,7 +345,7 @@ export function FunnelPage({
                   </>
                 ) : (
                   <div className="lg:col-span-2">
-                    <EmptyState message="퍼널 지표를 불러오는 중입니다." />
+                    <EmptyState message="사용자 여정 지표를 불러오는 중입니다." />
                   </div>
                 )}
               </>
@@ -358,24 +358,24 @@ export function FunnelPage({
         <DialogContent className="w-[min(96vw,1180px)] max-w-none overflow-visible p-0">
           <DialogHeader className="border-b px-8 py-6">
             <DialogTitle className="text-2xl font-semibold">
-              {isEditMode ? "퍼널 수정" : "새 퍼널 생성"}
+              {isEditMode ? "사용자 여정 수정" : "새 사용자 여정 생성"}
             </DialogTitle>
             <DialogDescription>
               {isEditMode
-                ? "저장된 퍼널 이름과 단계 순서를 변경합니다."
+                ? "저장된 사용자 여정 이름과 단계 순서를 변경합니다."
                 : "수집된 이벤트를 순서대로 선택하면 단계별 전환 수가 미리 계산됩니다."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 px-8 py-6 lg:grid-cols-[minmax(320px,0.85fr)_minmax(480px,1.15fr)]">
             {isDraftLoading ? (
               <Alert className="lg:col-span-2">
-                <AlertTitle>퍼널 정보를 불러오는 중입니다</AlertTitle>
+                <AlertTitle>사용자 여정 정보를 불러오는 중입니다</AlertTitle>
                 <AlertDescription>저장된 단계 구성을 가져오고 있습니다.</AlertDescription>
               </Alert>
             ) : null}
             {draftLoadError ? (
               <Alert className="lg:col-span-2" variant="destructive">
-                <AlertTitle>퍼널 정보를 불러오지 못했습니다</AlertTitle>
+                <AlertTitle>사용자 여정 정보를 불러오지 못했습니다</AlertTitle>
                 <AlertDescription>{draftLoadError}</AlertDescription>
               </Alert>
             ) : null}
@@ -389,20 +389,20 @@ export function FunnelPage({
               <Alert className="lg:col-span-2">
                 <AlertTitle>선택 가능한 이벤트가 없습니다</AlertTitle>
                 <AlertDescription>
-                  ClickHouse에 수집된 퍼널 이벤트가 있어야 단계를 선택할 수 있습니다.
+                  ClickHouse에 수집된 사용자 여정 이벤트가 있어야 단계를 선택할 수 있습니다.
                 </AlertDescription>
               </Alert>
             ) : null}
             {draftMutationError ? (
               <Alert className="lg:col-span-2" variant="destructive">
-                <AlertTitle>퍼널을 저장하지 못했습니다</AlertTitle>
+                <AlertTitle>사용자 여정을 저장하지 못했습니다</AlertTitle>
                 <AlertDescription>{mutationErrorMessage(draftMutationError)}</AlertDescription>
               </Alert>
             ) : null}
             <div className="grid content-start gap-5">
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="funnel-name">퍼널 이름</FieldLabel>
+                  <FieldLabel htmlFor="funnel-name">사용자 여정 이름</FieldLabel>
                   <Input
                     disabled={isDraftLoading || isDraftSaving}
                     id="funnel-name"
@@ -415,7 +415,7 @@ export function FunnelPage({
                 {steps.map((step, index) => (
                   <div className="grid gap-2 md:grid-cols-[1fr_auto]" key={index}>
                     <NativeSelect
-                      aria-label={`${index + 1}번째 퍼널 이벤트`}
+                      aria-label={`${index + 1}번째 사용자 여정 이벤트`}
                       className="w-full"
                       disabled={
                         eventCatalog.isLoading ||

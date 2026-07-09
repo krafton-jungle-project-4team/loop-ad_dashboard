@@ -67,6 +67,12 @@ import {
   type PromotionWorkspaceTab
 } from "../promotionUtils.js";
 
+const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
+  overview: "프로모션 개요",
+  segments: "세그먼트 추천/확정",
+  "segment-detail": "세그먼트 상세"
+};
+
 export function PromotionChromeTabs({
   onAdd,
   onClosePromotion,
@@ -278,7 +284,8 @@ export function PromotionTabWorkspace({
   suggestionsError,
   suggestionsIsError,
   suggestionsIsLoading,
-  tab
+  tab,
+  visibleTabs
 }: {
   archiveScopedSegmentError: Error | null;
   archiveScopedSegmentIsError: boolean;
@@ -369,10 +376,14 @@ export function PromotionTabWorkspace({
   suggestionsIsError: boolean;
   suggestionsIsLoading: boolean;
   tab: PromotionWorkspaceTab;
+  visibleTabs: PromotionWorkspaceTab[];
 }) {
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
   const selectedSegmentSuggestion =
     suggestions.find((suggestion) => suggestion.segment_id === selectedSegmentId) ?? null;
+  const showsOverviewTab = visibleTabs.includes("overview");
+  const showsSegmentsTab = visibleTabs.includes("segments");
+  const showsSegmentDetailTab = visibleTabs.includes("segment-detail");
   return (
     <section className="grid gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -408,128 +419,131 @@ export function PromotionTabWorkspace({
         isLoading={funnelListIsLoading}
         query={query}
         scope={{ promotion_id: promotion.promotion_id, scope_type: "promotion" }}
-        title="프로모션 퍼널 분석"
+        title="프로모션 사용자 여정 분석"
       />
       <Tabs
         className="grid gap-4"
         onValueChange={(value) => onTabChange(value as PromotionWorkspaceTab)}
         value={tab}
       >
-        <TabsList className="w-fit" variant="line">
-          <TabsTrigger value="overview">프로모션 개요</TabsTrigger>
-          <TabsTrigger value="segments">세그먼트 추천/확정</TabsTrigger>
-          <TabsTrigger value="segment-detail">세그먼트 상세</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview">
-          <PromotionOverviewTab
-            activeSegments={activeSegments}
-            deleteError={deleteConfirmedSegmentError}
-            deleteIsError={deleteConfirmedSegmentIsError}
-            deleteIsPending={deleteConfirmedSegmentIsPending}
-            onDeleteSegment={onDeleteConfirmedSegment}
-            onSelectSegment={onSelectSegment}
-            promotion={promotion}
-            segments={activeSegments}
-            selectedSegmentId={selectedSegmentId}
-          />
-        </TabsContent>
-        <TabsContent value="segments">
-          <div className="grid gap-4">
-            <PromotionCurrentSegmentsPanel
-              deleteError={deleteConfirmedSegmentError}
-              deleteIsError={deleteConfirmedSegmentIsError}
-              deleteIsPending={deleteConfirmedSegmentIsPending}
-              onDeleteSegment={onDeleteConfirmedSegment}
-              onSelectSegment={onSelectSegment}
+        {visibleTabs.length > 1 ? (
+          <TabsList className="w-fit" variant="line">
+            {visibleTabs.map((visibleTab) => (
+              <TabsTrigger key={visibleTab} value={visibleTab}>
+                {promotionWorkspaceTabLabels[visibleTab]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        ) : null}
+        {showsOverviewTab ? (
+          <TabsContent value="overview">
+            <PromotionOverviewTab
+              activeSegments={activeSegments}
               promotion={promotion}
-              segments={activeSegments}
+            />
+          </TabsContent>
+        ) : null}
+        {showsSegmentsTab ? (
+          <TabsContent value="segments">
+            <div className="grid gap-4">
+              <PromotionCurrentSegmentsPanel
+                deleteError={deleteConfirmedSegmentError}
+                deleteIsError={deleteConfirmedSegmentIsError}
+                deleteIsPending={deleteConfirmedSegmentIsPending}
+                onDeleteSegment={onDeleteConfirmedSegment}
+                onSelectSegment={onSelectSegment}
+                promotion={promotion}
+                segments={activeSegments}
+                selectedSegmentId={selectedSegmentId}
+              />
+              <PromotionSegmentSuggestionPanel
+                confirmError={confirmError}
+                confirmIsError={confirmIsError}
+                confirmIsPending={confirmIsPending}
+                createScopedSegmentError={scopedSegmentCreateError}
+                createScopedSegmentIsError={scopedSegmentCreateIsError}
+                createScopedSegmentIsPending={scopedSegmentCreateIsPending}
+                decideError={decideError}
+                decideIsError={decideIsError}
+                decideIsPending={decideIsPending}
+                archiveScopedSegmentError={archiveScopedSegmentError}
+                archiveScopedSegmentIsError={archiveScopedSegmentIsError}
+                archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+                onArchiveScopedSegment={onArchiveScopedSegment}
+                onConfirmSuggestions={onConfirmSuggestions}
+                onCreateScopedSegment={onCreateScopedSegment}
+                onDecideSuggestion={onDecideSuggestion}
+                onStartAnalysis={onStartAnalysis}
+                promotionAnalysisError={promotionAnalysisError}
+                promotionAnalysisIsError={promotionAnalysisIsError}
+                promotionAnalysisIsPending={promotionAnalysisIsPending}
+                scopedSegments={scopedSegments}
+                scopedSegmentsError={scopedSegmentsError}
+                scopedSegmentsIsError={scopedSegmentsIsError}
+                scopedSegmentsIsLoading={scopedSegmentsIsLoading}
+                suggestions={suggestions}
+                suggestionsError={suggestionsError}
+                suggestionsIsError={suggestionsIsError}
+                suggestionsIsLoading={suggestionsIsLoading}
+              />
+            </div>
+          </TabsContent>
+        ) : null}
+        {showsSegmentDetailTab ? (
+          <TabsContent value="segment-detail">
+            <PromotionSegmentDetailTab
+              approveContentCandidateError={approveContentCandidateError}
+              approveContentCandidateIsError={approveContentCandidateIsError}
+              approveContentCandidateIsPending={approveContentCandidateIsPending}
+              detail={selectedSegmentDetail}
+              dispatchPromotionRunError={dispatchPromotionRunError}
+              dispatchPromotionRunIsError={dispatchPromotionRunIsError}
+              dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
+              createPromotionRunError={createPromotionRunError}
+              createPromotionRunIsError={createPromotionRunIsError}
+              createPromotionRunIsPending={createPromotionRunIsPending}
+              buildAssignmentsError={buildAssignmentsError}
+              buildAssignmentsIsError={buildAssignmentsIsError}
+              buildAssignmentsIsPending={buildAssignmentsIsPending}
+              evaluatePromotionRunError={evaluatePromotionRunError}
+              evaluatePromotionRunIsError={evaluatePromotionRunIsError}
+              evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
+              evaluatePromotionRunResult={evaluatePromotionRunResult}
+              createNextLoopError={createNextLoopError}
+              createNextLoopIsError={createNextLoopIsError}
+              createNextLoopIsPending={createNextLoopIsPending}
+              error={selectedSegmentDetailError}
+              generation={promotionGeneration}
+              generationError={promotionGenerationError}
+              generationIsError={promotionGenerationIsError}
+              generationIsPending={promotionGenerationIsPending}
+              funnelList={funnelList}
+              funnelListError={funnelListError}
+              funnelListIsError={funnelListIsError}
+              funnelListIsLoading={funnelListIsLoading}
+              isError={selectedSegmentDetailIsError}
+              isLoading={selectedSegmentDetailIsLoading}
+              onApproveContentCandidate={onApproveContentCandidate}
+              onBuildAssignments={onBuildAssignments}
+              onCreateNextLoop={onCreateNextLoop}
+              onCreatePromotionRun={onCreatePromotionRun}
+              onDispatchPromotionRun={onDispatchPromotionRun}
+              onEvaluatePromotionRun={onEvaluatePromotionRun}
+              onRejectContentCandidate={onRejectContentCandidate}
+              onStartAdExperiment={onStartAdExperiment}
+              onStartGeneration={onStartGeneration}
+              query={query}
+              rejectContentCandidateError={rejectContentCandidateError}
+              rejectContentCandidateIsError={rejectContentCandidateIsError}
+              rejectContentCandidateIsPending={rejectContentCandidateIsPending}
+              segmentSuggestion={selectedSegmentSuggestion}
               selectedSegmentId={selectedSegmentId}
+              startAdExperimentError={startAdExperimentError}
+              startAdExperimentIsError={startAdExperimentIsError}
+              startAdExperimentIsPending={startAdExperimentIsPending}
             />
-            <PromotionSegmentSuggestionPanel
-              confirmError={confirmError}
-              confirmIsError={confirmIsError}
-              confirmIsPending={confirmIsPending}
-              createScopedSegmentError={scopedSegmentCreateError}
-              createScopedSegmentIsError={scopedSegmentCreateIsError}
-              createScopedSegmentIsPending={scopedSegmentCreateIsPending}
-              decideError={decideError}
-              decideIsError={decideIsError}
-              decideIsPending={decideIsPending}
-              archiveScopedSegmentError={archiveScopedSegmentError}
-              archiveScopedSegmentIsError={archiveScopedSegmentIsError}
-              archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
-              onArchiveScopedSegment={onArchiveScopedSegment}
-              onConfirmSuggestions={onConfirmSuggestions}
-              onCreateScopedSegment={onCreateScopedSegment}
-              onDecideSuggestion={onDecideSuggestion}
-              onStartAnalysis={onStartAnalysis}
-              promotionAnalysisError={promotionAnalysisError}
-              promotionAnalysisIsError={promotionAnalysisIsError}
-              promotionAnalysisIsPending={promotionAnalysisIsPending}
-              scopedSegments={scopedSegments}
-              scopedSegmentsError={scopedSegmentsError}
-              scopedSegmentsIsError={scopedSegmentsIsError}
-              scopedSegmentsIsLoading={scopedSegmentsIsLoading}
-              suggestions={suggestions}
-              suggestionsError={suggestionsError}
-              suggestionsIsError={suggestionsIsError}
-              suggestionsIsLoading={suggestionsIsLoading}
-            />
-          </div>
-        </TabsContent>
-        <TabsContent value="segment-detail">
-          <PromotionSegmentDetailTab
-            approveContentCandidateError={approveContentCandidateError}
-            approveContentCandidateIsError={approveContentCandidateIsError}
-            approveContentCandidateIsPending={approveContentCandidateIsPending}
-            detail={selectedSegmentDetail}
-            dispatchPromotionRunError={dispatchPromotionRunError}
-            dispatchPromotionRunIsError={dispatchPromotionRunIsError}
-            dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
-            createPromotionRunError={createPromotionRunError}
-            createPromotionRunIsError={createPromotionRunIsError}
-            createPromotionRunIsPending={createPromotionRunIsPending}
-            buildAssignmentsError={buildAssignmentsError}
-            buildAssignmentsIsError={buildAssignmentsIsError}
-            buildAssignmentsIsPending={buildAssignmentsIsPending}
-            evaluatePromotionRunError={evaluatePromotionRunError}
-            evaluatePromotionRunIsError={evaluatePromotionRunIsError}
-            evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
-            evaluatePromotionRunResult={evaluatePromotionRunResult}
-            createNextLoopError={createNextLoopError}
-            createNextLoopIsError={createNextLoopIsError}
-            createNextLoopIsPending={createNextLoopIsPending}
-            error={selectedSegmentDetailError}
-            generation={promotionGeneration}
-            generationError={promotionGenerationError}
-            generationIsError={promotionGenerationIsError}
-            generationIsPending={promotionGenerationIsPending}
-            funnelList={funnelList}
-            funnelListError={funnelListError}
-            funnelListIsError={funnelListIsError}
-            funnelListIsLoading={funnelListIsLoading}
-            isError={selectedSegmentDetailIsError}
-            isLoading={selectedSegmentDetailIsLoading}
-            onApproveContentCandidate={onApproveContentCandidate}
-            onBuildAssignments={onBuildAssignments}
-            onCreateNextLoop={onCreateNextLoop}
-            onCreatePromotionRun={onCreatePromotionRun}
-            onDispatchPromotionRun={onDispatchPromotionRun}
-            onEvaluatePromotionRun={onEvaluatePromotionRun}
-            onRejectContentCandidate={onRejectContentCandidate}
-            onStartAdExperiment={onStartAdExperiment}
-            onStartGeneration={onStartGeneration}
-            query={query}
-            rejectContentCandidateError={rejectContentCandidateError}
-            rejectContentCandidateIsError={rejectContentCandidateIsError}
-            rejectContentCandidateIsPending={rejectContentCandidateIsPending}
-            segmentSuggestion={selectedSegmentSuggestion}
-            selectedSegmentId={selectedSegmentId}
-            startAdExperimentError={startAdExperimentError}
-            startAdExperimentIsError={startAdExperimentIsError}
-            startAdExperimentIsPending={startAdExperimentIsPending}
-          />
-        </TabsContent>
+          </TabsContent>
+        ) : null}
       </Tabs>
     </section>
   );
@@ -537,30 +551,16 @@ export function PromotionTabWorkspace({
 
 function PromotionOverviewTab({
   activeSegments,
-  deleteError,
-  deleteIsError,
-  deleteIsPending,
-  onDeleteSegment,
-  onSelectSegment,
-  promotion,
-  segments,
-  selectedSegmentId
+  promotion
 }: {
   activeSegments: DashboardCampaignSegment[];
-  deleteError: Error | null;
-  deleteIsError: boolean;
-  deleteIsPending: boolean;
-  onDeleteSegment: (promotionId: string, segmentId: string) => void;
-  onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotion: DashboardCampaignPromotion;
-  segments: DashboardCampaignSegment[];
-  selectedSegmentId: string;
 }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid gap-4">
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle>프로모션 퍼널 효율</CardTitle>
+          <CardTitle>프로모션 사용자 여정 효율</CardTitle>
           <CardDescription>현재 프로모션 목표와 루프 상태를 기준으로 확인합니다.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -583,33 +583,21 @@ function PromotionOverviewTab({
           </div>
         </CardContent>
       </Card>
-      <div className="grid gap-4">
-        <PromotionCurrentSegmentsPanel
-          deleteError={deleteError}
-          deleteIsError={deleteIsError}
-          deleteIsPending={deleteIsPending}
-          onDeleteSegment={onDeleteSegment}
-          onSelectSegment={onSelectSegment}
-          promotion={promotion}
-          segments={segments}
-          selectedSegmentId={selectedSegmentId}
-        />
-        <Card className="border-[#3927d9]/20 bg-[#f2f6ff] shadow-none">
-          <CardContent className="grid gap-2 p-5">
-            <div className="flex items-center gap-2 font-semibold text-[#3927d9]">
-              <CheckCircle2 className="size-4" />
-              최적화 힌트
-            </div>
-            <p className="text-sm leading-6 text-muted-foreground">
-              목표 달성률과 세그먼트 반응을 기준으로 다음 루프 분석 후보를 확인하세요.
-            </p>
-            <div className="text-xs text-muted-foreground">
-              활성 세그먼트 {formatInteger(activeSegments.length)}개 · 실험{" "}
-              {formatInteger(promotion.ad_experiment_count)}개
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border-[#3927d9]/20 bg-[#f2f6ff] shadow-none">
+        <CardContent className="grid gap-2 p-5">
+          <div className="flex items-center gap-2 font-semibold text-[#3927d9]">
+            <CheckCircle2 className="size-4" />
+            최적화 힌트
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">
+            세그먼트 추천, 광고 생성, 실험 연결은 세그먼트 관리 탭에서 진행합니다.
+          </p>
+          <div className="text-xs text-muted-foreground">
+            활성 세그먼트 {formatInteger(activeSegments.length)}개 · 실험{" "}
+            {formatInteger(promotion.ad_experiment_count)}개
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -928,7 +916,7 @@ function PromotionSegmentDetailTab({
           scope_type: "segment",
           segment_id: detail.segment.segment_id
         }}
-        title="세그먼트 퍼널 분석"
+        title="세그먼트 사용자 여정 분석"
       />
 
       <SegmentDetailReportCard suggestion={segmentSuggestion} />

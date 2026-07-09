@@ -809,7 +809,7 @@ function CampaignTabContent({
             isLoading={funnelListIsLoading}
             query={query}
             scope={{ campaign_id: detail.campaign.campaign_id, scope_type: "campaign" }}
-            title="캠페인 퍼널 분석"
+            title="캠페인 사용자 여정 분석"
           />
           <EvaluationOutcomePanel
             adExperiments={detail.ad_experiments}
@@ -842,7 +842,7 @@ function campaignDetailPanelTitle(tab: DashboardTab) {
 
 function campaignDetailPanelDescription(tab: DashboardTab) {
   if (tab === "campaign-metrics") {
-    return "실시간 추이, 퍼널, 실험 평가 결과를 기준으로 캠페인 성과를 확인합니다.";
+    return "실시간 추이, 사용자 여정, 실험 평가 결과를 기준으로 캠페인 성과를 확인합니다.";
   }
   return "선택한 캠페인의 기본 정보와 하위 프로모션 구성을 확인합니다.";
 }
