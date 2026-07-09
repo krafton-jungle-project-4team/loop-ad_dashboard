@@ -815,6 +815,7 @@ function setRequiredEnv() {
   process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
   process.env.LOOPAD_DECISION_API_BASE_URL ??= "http://localhost:8081";
   process.env.LOOPAD_INTERNAL_API_KEY ??= "test-internal-key";
+  process.env.LOOPAD_OPEN_PIXEL_SIGNING_SECRET ??= "test-open-pixel-signing-secret";
   process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
   process.env.LOOPAD_DEMO_DISPATCH_RECIPIENTS ??= JSON.stringify([
     {

@@ -37,7 +37,7 @@ const envSchema = z.object({
   LOOPAD_CLICKHOUSE_PASSWORD: requiredString,
   LOOPAD_DECISION_API_BASE_URL: httpUrl,
   LOOPAD_INTERNAL_API_KEY: requiredString,
-  LOOPAD_OPEN_PIXEL_SIGNING_SECRET: requiredString.optional(),
+  LOOPAD_OPEN_PIXEL_SIGNING_SECRET: requiredString,
   LOOPAD_OPENAI_API_KEY: requiredString,
   LOOPAD_DEMO_DISPATCH_RECIPIENTS: requiredString
 });
@@ -69,7 +69,7 @@ export const env = Object.freeze({
     internalApiKey: parsedEnv.LOOPAD_INTERNAL_API_KEY
   },
   openPixel: {
-    signingSecret: parsedEnv.LOOPAD_OPEN_PIXEL_SIGNING_SECRET ?? parsedEnv.LOOPAD_INTERNAL_API_KEY
+    signingSecret: parsedEnv.LOOPAD_OPEN_PIXEL_SIGNING_SECRET
   },
   openai: {
     apiKey: parsedEnv.LOOPAD_OPENAI_API_KEY
