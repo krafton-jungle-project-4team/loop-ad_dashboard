@@ -220,7 +220,6 @@ function ExperimentSegmentPanel({
     <section className="grid gap-4">
       <SelectedSegmentExperimentCards
         detail={detail}
-        error={error}
         isError={isError}
         isLoading={isLoading}
         selectedSegmentId={selectedSegmentId}
@@ -231,13 +230,11 @@ function ExperimentSegmentPanel({
 
 function SelectedSegmentExperimentCards({
   detail,
-  error,
   isError,
   isLoading,
   selectedSegmentId
 }: {
   detail: DashboardSegmentDetail | undefined;
-  error: Error | null;
   isError: boolean;
   isLoading: boolean;
   selectedSegmentId: string;
