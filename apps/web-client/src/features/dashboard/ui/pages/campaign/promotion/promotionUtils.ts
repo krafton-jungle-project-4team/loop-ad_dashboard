@@ -261,15 +261,45 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
   const signalChips = Array.isArray(raw.signal_chips)
     ? raw.signal_chips.map(nonEmptyText).filter((chip): chip is string => chip !== null)
     : [];
+  const performanceEstimate = normalizePerformanceEstimate(raw.performance_estimate);
 
   return {
     title,
     rank_role: nonEmptyText(raw.rank_role) ?? undefined,
     audience_summary: audienceSummary,
+    performance_estimate: performanceEstimate,
     signal_chips: signalChips,
     reason,
     difference_summary: nonEmptyText(raw.difference_summary) ?? undefined,
     action_hint: actionHint
+  };
+}
+
+function normalizePerformanceEstimate(
+  value: unknown
+): SegmentDisplayCopy["performance_estimate"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const raw = value as Record<string, unknown>;
+  const metric = nonEmptyText(raw.metric);
+  const label = nonEmptyText(raw.label);
+  const formatted = nonEmptyText(raw.formatted);
+  const rawValue = raw.value;
+  const estimatedValue =
+    typeof rawValue === "number" || typeof rawValue === "string"
+      ? Math.min(Math.max(Number(rawValue), 0), 1)
+      : null;
+  if (!metric || !label || !formatted || estimatedValue === null || !Number.isFinite(estimatedValue)) {
+    return undefined;
+  }
+
+  return {
+    metric,
+    label,
+    value: estimatedValue,
+    formatted
   };
 }
 

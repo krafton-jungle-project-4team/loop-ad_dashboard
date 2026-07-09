@@ -347,7 +347,7 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsSegmentsTab ? (
           <TabsContent value="segments">
-            <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+            <div className="grid gap-4">
               <PromotionSegmentSuggestionPanel
                 confirmIsPending={confirmIsPending}
                 createScopedSegmentIsPending={scopedSegmentCreateIsPending}
@@ -1222,23 +1222,29 @@ function PromotionSegmentSuggestionPanel({
               const displayCopy = suggestion.display_copy;
               const rankLabel = `Rank ${formatInteger(suggestion.suggested_rank)}`;
               const rankRole = displayCopy?.rank_role;
+              const performanceEstimate = displayCopy?.performance_estimate;
               const fallbackSummary = segmentAudienceSummary(
                 suggestion.sample_size,
                 suggestion.sample_ratio
               );
               return (
                 <div
-                  className={`grid gap-3 rounded-md border p-4 ${
+                  className={`flex min-h-full flex-col gap-4 rounded-md border p-4 ${
                     isAccepted ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-white"
                   }`}
                   key={suggestion.suggestion_id}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="grid gap-1">
-                      <div className="text-xs font-semibold text-[#3927d9]">
-                        {rankRole ? `${rankLabel} · ${rankRole}` : rankLabel}
+                    <div className="grid min-w-0 gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[#3927d9]">
+                        <span>{rankLabel}</span>
+                        {rankRole ? (
+                          <Badge className="border-[#d7d3ff] bg-[#f7f6ff] text-[#3927d9]" variant="outline">
+                            {rankRole}
+                          </Badge>
+                        ) : null}
                       </div>
-                      <h3 className="text-base font-semibold">
+                      <h3 className="text-lg font-semibold leading-7 text-foreground">
                         {displayCopy?.title ?? suggestion.segment_name}
                       </h3>
                       <p className="text-xs text-muted-foreground">
@@ -1251,8 +1257,24 @@ function PromotionSegmentSuggestionPanel({
                       {formatStatusLabel(suggestion.suggestion_status)}
                     </Badge>
                   </div>
-                  <div className="grid gap-2 text-sm text-muted-foreground">
-                    <div>{displayCopy?.audience_summary ?? fallbackSummary}</div>
+                  <div className="grid gap-3 text-sm text-muted-foreground">
+                    {performanceEstimate ? (
+                      <div className="grid gap-3 rounded-md border border-[#dfe5ff] bg-[#f7f8ff] p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                        <div className="grid gap-1">
+                          <div className="text-xs font-medium text-[#3927d9]">
+                            {performanceEstimate.label}
+                          </div>
+                          <div className="text-2xl font-semibold tabular-nums text-foreground">
+                            {performanceEstimate.formatted}
+                          </div>
+                        </div>
+                        <div className="text-xs leading-5 text-muted-foreground sm:text-right">
+                          {displayCopy?.audience_summary ?? fallbackSummary}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>{displayCopy?.audience_summary ?? fallbackSummary}</div>
+                    )}
                     {displayCopy?.signal_chips.length ? (
                       <div className="flex flex-wrap gap-1">
                         {displayCopy.signal_chips.map((chip) => (
@@ -1278,7 +1300,7 @@ function PromotionSegmentSuggestionPanel({
                       </div>
                     ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
                     {suggestion.ai_report ? (
                       <Button
                         onClick={() => setReportSuggestion(suggestion)}
@@ -1405,6 +1427,7 @@ function SegmentSuggestionReportContent({
 }) {
   const report = suggestion?.ai_report ?? null;
   const displayCopy = suggestion?.display_copy ?? null;
+  const performanceEstimate = displayCopy?.performance_estimate;
 
   if (!report) {
     return null;
@@ -1425,6 +1448,16 @@ function SegmentSuggestionReportContent({
           {displayCopy?.audience_summary ??
             segmentAudienceSummary(suggestion?.sample_size ?? 0, suggestion?.sample_ratio ?? 0)}
         </div>
+        {performanceEstimate ? (
+          <div className="flex w-fit items-center gap-3 rounded-md border border-[#dfe5ff] bg-white px-3 py-2">
+            <span className="text-xs font-medium text-[#3927d9]">
+              {performanceEstimate.label}
+            </span>
+            <span className="text-base font-semibold tabular-nums text-foreground">
+              {performanceEstimate.formatted}
+            </span>
+          </div>
+        ) : null}
         {displayCopy?.signal_chips.length ? (
           <div className="flex flex-wrap gap-1">
             {displayCopy.signal_chips.map((chip) => (

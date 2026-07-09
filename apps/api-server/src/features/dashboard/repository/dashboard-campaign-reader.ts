@@ -1151,15 +1151,45 @@ function suggestionDisplayCopy(
   const signalChips = Array.isArray(raw.signal_chips)
     ? raw.signal_chips.map(nonEmptyString).filter((chip): chip is string => chip !== null)
     : [];
+  const performanceEstimate = suggestionPerformanceEstimate(raw.performance_estimate);
 
   return {
     title,
     rank_role: nonEmptyString(raw.rank_role) ?? undefined,
     audience_summary: audienceSummary,
+    performance_estimate: performanceEstimate,
     signal_chips: signalChips,
     reason,
     difference_summary: nonEmptyString(raw.difference_summary) ?? undefined,
     action_hint: actionHint
+  };
+}
+
+function suggestionPerformanceEstimate(
+  value: unknown
+): NonNullable<DashboardPromotionSegmentSuggestion["display_copy"]>["performance_estimate"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const raw = value as Record<string, unknown>;
+  const metric = nonEmptyString(raw.metric);
+  const label = nonEmptyString(raw.label);
+  const formatted = nonEmptyString(raw.formatted);
+  const rawValue = raw.value;
+  const estimatedValue =
+    typeof rawValue === "number" || typeof rawValue === "string"
+      ? nullableRate(rawValue)
+      : null;
+  if (!metric || !label || !formatted || estimatedValue === null) {
+    return undefined;
+  }
+
+  return {
+    metric,
+    label,
+    value: estimatedValue,
+    formatted
   };
 }
 

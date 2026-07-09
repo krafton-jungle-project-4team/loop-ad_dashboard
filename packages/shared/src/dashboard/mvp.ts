@@ -701,10 +701,21 @@ export type DashboardPromotionSegmentSuggestionSource = z.infer<
   typeof DashboardPromotionSegmentSuggestionSourceSchema
 >;
 
+export const DashboardPromotionSegmentSuggestionPerformanceEstimateSchema = z.object({
+  metric: z.string(),
+  label: z.string(),
+  value: RateSchema,
+  formatted: z.string()
+});
+export type DashboardPromotionSegmentSuggestionPerformanceEstimate = z.infer<
+  typeof DashboardPromotionSegmentSuggestionPerformanceEstimateSchema
+>;
+
 export const DashboardPromotionSegmentSuggestionDisplayCopySchema = z.object({
   title: z.string(),
   rank_role: z.string().optional(),
   audience_summary: z.string(),
+  performance_estimate: DashboardPromotionSegmentSuggestionPerformanceEstimateSchema.optional(),
   signal_chips: z.array(z.string()),
   reason: z.string(),
   difference_summary: z.string().optional(),
