@@ -445,17 +445,7 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsSegmentsTab ? (
           <TabsContent value="segments">
-            <div className="grid gap-4">
-              <PromotionCurrentSegmentsPanel
-                deleteError={deleteConfirmedSegmentError}
-                deleteIsError={deleteConfirmedSegmentIsError}
-                deleteIsPending={deleteConfirmedSegmentIsPending}
-                onDeleteSegment={onDeleteConfirmedSegment}
-                onSelectSegment={onSelectSegment}
-                promotion={promotion}
-                segments={activeSegments}
-                selectedSegmentId={selectedSegmentId}
-              />
+            <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
               <PromotionSegmentSuggestionPanel
                 confirmError={confirmError}
                 confirmIsError={confirmIsError}
@@ -485,6 +475,16 @@ export function PromotionTabWorkspace({
                 suggestionsError={suggestionsError}
                 suggestionsIsError={suggestionsIsError}
                 suggestionsIsLoading={suggestionsIsLoading}
+              />
+              <PromotionCurrentSegmentsPanel
+                deleteError={deleteConfirmedSegmentError}
+                deleteIsError={deleteConfirmedSegmentIsError}
+                deleteIsPending={deleteConfirmedSegmentIsPending}
+                onDeleteSegment={onDeleteConfirmedSegment}
+                onSelectSegment={onSelectSegment}
+                promotion={promotion}
+                segments={activeSegments}
+                selectedSegmentId={selectedSegmentId}
               />
             </div>
           </TabsContent>
@@ -624,7 +624,7 @@ function PromotionCurrentSegmentsPanel({
   const visibleSegments = latestSegmentPerSegmentId(segments);
 
   return (
-    <Card className="shadow-none">
+    <Card className="h-full shadow-none">
       <CardHeader>
         <CardTitle className="text-base">확정 세그먼트</CardTitle>
         <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
@@ -1505,8 +1505,8 @@ function PromotionSegmentSuggestionPanel({
   const confirmableCount = acceptedCount + scopedSegments.length;
 
   return (
-    <Card className="shadow-none">
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <Card className="h-full shadow-none">
+      <CardHeader className="grid gap-4">
         <div className="grid gap-1">
           <CardTitle>추천 세그먼트 후보</CardTitle>
           <CardDescription>
@@ -1514,7 +1514,7 @@ function PromotionSegmentSuggestionPanel({
             저장됩니다.
           </CardDescription>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             disabled={promotionAnalysisIsPending}
             onClick={onStartAnalysis}
@@ -1590,7 +1590,7 @@ function PromotionSegmentSuggestionPanel({
               <h3 className="text-sm font-semibold">직접 추가 세그먼트 후보</h3>
               <Badge variant="secondary">{formatInteger(scopedSegments.length)}</Badge>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2">
               {scopedSegments.map((segment) => (
                 <div
                   className="grid gap-3 rounded-md border bg-[#f7fbff] p-4"
@@ -1637,7 +1637,7 @@ function PromotionSegmentSuggestionPanel({
           <EmptyState message="표시할 세그먼트 후보가 없습니다." />
         ) : null}
         {suggestions.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             {suggestions.map((suggestion) => {
               const isAccepted = suggestion.suggestion_status === "accepted";
               const isConfirmed = suggestion.suggestion_status === "confirmed";
