@@ -38,10 +38,14 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { BarChart3, CheckCircle2, FileText, ImageIcon, Plus, Send, Target, Trash2, Users, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatActionLabel, formatBasisLabel, formatChannelLabel, formatMetricLabel, formatStatusLabel } from "../../../../../model/dashboard-labels.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
+import {
+  EntityWorkspaceEmptyState,
+  EntityWorkspaceTabs
+} from "../../../../shared/EntityWorkspace.js";
 import {
   campaignSegmentDisplayCopy,
   createEmptyPromotionSegmentFormState,
@@ -79,116 +83,49 @@ export function PromotionChromeTabs({
   openPromotions: DashboardCampaignPromotion[];
   selectedPromotionId: string;
 }) {
+  const promotionTabs = openPromotions.map((promotion) => ({
+    id: promotion.promotion_id,
+    label: promotion.marketing_theme,
+    promotion
+  }));
+
   return (
-    <div className="flex min-h-14 items-end gap-1 border-b bg-[#edf3ff] px-5 pt-3">
-      <Button
-        aria-label="프로모션 탭 추가"
-        className="mb-0 h-11 w-14 rounded-b-none rounded-t-md border-b-0 bg-white text-[#1d1d1f] shadow-none hover:bg-white"
-        onClick={onAdd}
-        size="icon"
-        type="button"
-        variant="outline"
-      >
-        <Plus className="size-4" />
-      </Button>
-      {openPromotions.map((promotion) => {
-        const isSelected = promotion.promotion_id === selectedPromotionId;
-        return (
-          <button
-            className={`mb-0 flex h-11 max-w-[260px] items-center gap-2 rounded-b-none rounded-t-md border px-3 text-left text-sm ${
-              isSelected
-                ? "border-b-white bg-white font-semibold text-[#2f24d9]"
-                : "border-transparent bg-transparent text-muted-foreground hover:bg-white/60"
-            }`}
-            key={promotion.promotion_id}
-            onClick={() => onSelectPromotion(promotion.promotion_id)}
-            type="button"
-          >
-            <span className="truncate">{promotion.marketing_theme}</span>
-            <span
-              className="grid size-5 place-items-center rounded-sm text-muted-foreground hover:bg-muted"
-              onClick={(event) => {
-                event.stopPropagation();
-                onClosePromotion(promotion.promotion_id);
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <X className="size-3.5" />
-            </span>
-          </button>
-        );
-      })}
-    </div>
+    <EntityWorkspaceTabs
+      addLabel="프로모션 탭 추가"
+      items={promotionTabs}
+      onAdd={onAdd}
+      onClose={(item) => onClosePromotion(item.promotion.promotion_id)}
+      onSelect={(item) => onSelectPromotion(item.promotion.promotion_id)}
+      selectedItemId={selectedPromotionId}
+    />
   );
 }
 
 export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <section className="grid min-h-[620px] content-between gap-8">
-      <div className="grid place-items-center gap-6 pt-14 text-center">
-        <div className="relative h-40 w-40">
-          <div className="absolute left-9 top-10 size-28 rotate-3 rounded-[28px] border bg-[#dfe9ff]" />
-          <div className="absolute right-3 top-6 grid size-12 place-items-center rounded-md bg-emerald-300 text-emerald-900">
-            <Target className="size-6" />
-          </div>
-          <div className="absolute bottom-4 left-3 grid size-14 -rotate-12 place-items-center rounded-md bg-rose-100 text-rose-600">
-            <BarChart3 className="size-6" />
-          </div>
-        </div>
-        <div className="grid max-w-xl gap-3">
-          <h2 className="text-2xl font-semibold tracking-tight text-[#102033]">
-            현재 프로모션이 없습니다.
-          </h2>
-          <p className="text-sm leading-7 text-muted-foreground">
-            새 프로모션을 생성하면 현재 캠페인의 프로모션 탭으로 열립니다. 진행 중인 캠페인의 상세
-            지표와 워크플로우를 한눈에 관리할 수 있습니다.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button className="gap-2 bg-[#3927d9] px-8" onClick={onAdd} type="button">
-            <Plus className="size-4" />탭 추가
-          </Button>
-        </div>
-      </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <PromotionGuideCard
-          icon={<Target className="size-5" />}
-          title="빠른 설정"
-          value="새 프로모션을 생성하면 캠페인 하위 탭으로 바로 동기화됩니다."
-        />
-        <PromotionGuideCard
-          icon={<Users className="size-5" />}
-          title="세그먼트 타겟팅"
-          value="고객군별로 특화된 프로모션 뷰를 구성하여 정밀한 마케팅을 지원합니다."
-        />
-        <PromotionGuideCard
-          icon={<BarChart3 className="size-5" />}
-          title="실시간 분석"
-          value="추가된 탭에서 각 프로모션의 성과를 실시간으로 모니터링할 수 있습니다."
-        />
-      </div>
-    </section>
-  );
-}
-
-function PromotionGuideCard({
-  icon,
-  title,
-  value
-}: {
-  icon: ReactNode;
-  title: string;
-  value: string;
-}) {
-  return (
-    <div className="grid gap-4 rounded-md border bg-[#f2f6ff] p-6">
-      <div className="text-[#3927d9]">{icon}</div>
-      <div className="grid gap-2">
-        <h3 className="text-sm font-semibold text-[#1d1d1f]">{title}</h3>
-        <p className="text-sm leading-6 text-muted-foreground">{value}</p>
-      </div>
-    </div>
+    <EntityWorkspaceEmptyState
+      actionLabel="탭 추가"
+      description="새 프로모션을 생성하면 현재 캠페인의 프로모션 탭으로 열립니다. 진행 중인 캠페인의 상세 지표와 워크플로우를 한눈에 관리할 수 있습니다."
+      guideCards={[
+        {
+          icon: <Target className="size-5" />,
+          title: "빠른 설정",
+          value: "새 프로모션을 생성하면 캠페인 하위 탭으로 바로 동기화됩니다."
+        },
+        {
+          icon: <Users className="size-5" />,
+          title: "세그먼트 타겟팅",
+          value: "고객군별로 특화된 프로모션 뷰를 구성하여 정밀한 마케팅을 지원합니다."
+        },
+        {
+          icon: <BarChart3 className="size-5" />,
+          title: "실시간 분석",
+          value: "추가된 탭에서 각 프로모션의 성과를 실시간으로 모니터링할 수 있습니다."
+        }
+      ]}
+      onAction={onAdd}
+      title="현재 프로모션이 없습니다."
+    />
   );
 }
 

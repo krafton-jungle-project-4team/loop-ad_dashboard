@@ -2,48 +2,13 @@ import type {
   DashboardCampaignPromotion,
   DashboardCampaignDetail,
   DashboardCampaignSegment,
-  DashboardCreatePromotionSegmentDefinitionRequest,
-  DashboardCreatePromotionRequest,
-  DashboardEvaluatePromotionRunResult,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
   DashboardSegmentDetail,
-  DashboardPromotionSegmentSuggestion,
-  DashboardStartPromotionGenerationResult
+  DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
-import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button } from "@loopad/ui/shadcn/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@loopad/ui/shadcn/dialog";
-import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
-import { Input } from "@loopad/ui/shadcn/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@loopad/ui/shadcn/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@loopad/ui/shadcn/table";
-import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import {
   confirmDashboardPromotionSegmentSuggestions,
   archiveDashboardPromotionScopedSegmentDefinition,
@@ -68,14 +33,6 @@ import {
   startDashboardPromotionAnalysis,
   startDashboardPromotionGeneration
 } from "../../../../api/dashboard-api.js";
-import { formatInteger } from "../../../../model/dashboard-format.js";
-import {
-  formatActionLabel,
-  formatBasisLabel,
-  formatChannelLabel,
-  formatMetricLabel,
-  formatStatusLabel
-} from "../../../../model/dashboard-labels.js";
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
@@ -87,6 +44,7 @@ import {
 } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
+import { EntityWorkspaceShell } from "../../../shared/EntityWorkspace.js";
 
 import { PromotionAddDialog } from "./components/PromotionDialogs.js";
 import { PromotionChromeTabs, PromotionEmptyState, PromotionTabWorkspace } from "./components/PromotionWorkspaceContent.js";
@@ -737,17 +695,19 @@ export function PromotionWorkspace({
     startAnalysisMutation.isPending || analysisProgress.data.status === "pending";
 
   return (
-    <section className="overflow-hidden rounded-[18px] bg-white shadow-none ring-1 ring-black/10">
-      {mode === "promotion" ? (
-        <PromotionChromeTabs
-          onAdd={() => setIsAddDialogOpen(true)}
-          onClosePromotion={closePromotion}
-          onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
-          openPromotions={openPromotions}
-          selectedPromotionId={selectedOpenPromotion?.promotion_id ?? ""}
-        />
-      ) : null}
-      <div className="grid gap-6 px-6 py-6">
+    <EntityWorkspaceShell
+      chrome={
+        mode === "promotion" ? (
+          <PromotionChromeTabs
+            onAdd={() => setIsAddDialogOpen(true)}
+            onClosePromotion={closePromotion}
+            onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
+            openPromotions={openPromotions}
+            selectedPromotionId={selectedOpenPromotion?.promotion_id ?? ""}
+          />
+        ) : null
+      }
+    >
         {!selectedCampaign ? (
           <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." />
         ) : null}
@@ -868,7 +828,6 @@ export function PromotionWorkspace({
             ) : null}
           </>
         ) : null}
-      </div>
-    </section>
+    </EntityWorkspaceShell>
   );
 }
