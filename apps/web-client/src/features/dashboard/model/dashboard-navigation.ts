@@ -43,9 +43,21 @@ export const dashboardTabs = [
   { value: "campaigns", label: "캠페인 관리", icon: FolderKanban, pathSegment: "campaigns" },
   {
     value: "campaign-detail",
-    label: "캠페인 상세",
+    label: "캠페인 개요",
     icon: Activity,
     pathSegment: "campaign-detail"
+  },
+  {
+    value: "campaign-metrics",
+    label: "캠페인 성과",
+    icon: Activity,
+    pathSegment: "campaign-metrics"
+  },
+  {
+    value: "campaign-operations",
+    label: "캠페인 운영 현황",
+    icon: Workflow,
+    pathSegment: "campaign-operations"
   },
   {
     value: "campaign-promotions",
@@ -58,12 +70,6 @@ export const dashboardTabs = [
     label: "실험 관리",
     icon: FlaskConical,
     pathSegment: "experiments"
-  },
-  {
-    value: "campaign-metrics",
-    label: "캠페인 지표",
-    icon: Megaphone,
-    pathSegment: "campaign-metrics"
   },
   {
     value: "sdk",
@@ -107,10 +113,24 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
         type: "link"
       },
       {
-        label: "캠페인 상세",
+        label: "캠페인 개요",
         value: "campaign-detail",
         pathSegment: "campaign-detail",
         icon: Activity,
+        type: "link"
+      },
+      {
+        label: "캠페인 성과",
+        value: "campaign-metrics",
+        pathSegment: "campaign-metrics",
+        icon: Activity,
+        type: "link"
+      },
+      {
+        label: "캠페인 운영 현황",
+        value: "campaign-operations",
+        pathSegment: "campaign-operations",
+        icon: Workflow,
         type: "link"
       },
       {

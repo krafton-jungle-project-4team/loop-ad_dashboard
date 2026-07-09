@@ -822,23 +822,26 @@ function CampaignDetailPanel({
   selectedSegmentId: string;
   tab: DashboardTab;
 }) {
+  const title = campaignDetailPanelTitle(tab);
+  const description = campaignDetailPanelDescription(tab);
+
   return (
     <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
       <CardHeader className="gap-1.5 px-5">
         <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-          캠페인 상세
+          {title}
         </CardTitle>
-        <CardDescription>캠페인 안에서 실시간 추이와 프로모션 목록을 관리합니다.</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 px-5">
         {isError ? (
           <Alert variant="destructive">
-            <AlertTitle>캠페인 상세를 불러오지 못했습니다</AlertTitle>
+            <AlertTitle>캠페인 데이터를 불러오지 못했습니다</AlertTitle>
             <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
           </Alert>
         ) : null}
         {!campaign ? <EmptyState message="상세를 확인할 캠페인을 선택해주세요." /> : null}
-        {campaign && isLoading ? <EmptyState message="캠페인 상세를 불러오는 중입니다." /> : null}
+        {campaign && isLoading ? <EmptyState message="캠페인 데이터를 불러오는 중입니다." /> : null}
         {detail ? (
           <CampaignTabContent
             detail={detail}
@@ -985,6 +988,17 @@ function CampaignTabContent({
             adExperiments={detail.ad_experiments}
             metrics={detail.experiment_metrics}
           />
+        </>
+      );
+    case "campaign-operations":
+      return (
+        <>
+          <CampaignPromotionTable
+            onSelectPromotion={onSelectPromotion}
+            promotions={detail.promotions}
+            segments={detail.segments}
+            selectedPromotionId={selectedPromotionId}
+          />
           <PromotionDetail
             approveContentCandidateError={approveContentCandidateMutation.error}
             approveContentCandidateIsError={approveContentCandidateMutation.isError}
@@ -1022,59 +1036,35 @@ function CampaignTabContent({
       return (
         <>
           <CampaignSummary detail={detail} />
-          <CampaignRealtimeTrend detail={detail} />
-          <ScopedFunnelAnalysisPanel
-            error={funnelListError}
-            funnels={funnelList?.funnels ?? []}
-            isError={funnelListIsError}
-            isLoading={funnelListIsLoading}
-            query={query}
-            scope={{ campaign_id: detail.campaign.campaign_id, scope_type: "campaign" }}
-            title="캠페인 퍼널 분석"
-          />
           <CampaignPromotionTable
             onSelectPromotion={onSelectPromotion}
             promotions={detail.promotions}
             segments={detail.segments}
             selectedPromotionId={selectedPromotionId}
           />
-          <EvaluationOutcomePanel
-            adExperiments={detail.ad_experiments}
-            metrics={detail.experiment_metrics}
-          />
-          <PromotionDetail
-            approveContentCandidateError={approveContentCandidateMutation.error}
-            approveContentCandidateIsError={approveContentCandidateMutation.isError}
-            approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
-            detail={promotionDetail}
-            error={promotionError}
-            funnelList={funnelList}
-            funnelListError={funnelListError}
-            funnelListIsError={funnelListIsError}
-            funnelListIsLoading={funnelListIsLoading}
-            isError={promotionIsError}
-            isLoading={promotionIsLoading}
-            query={query}
-            onApproveContentCandidate={(promotionId, segmentId, contentId) =>
-              approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-            }
-            onRejectContentCandidate={(promotionId, segmentId, contentId) =>
-              rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-            }
-            onSelectSegment={onSelectSegment}
-            rejectContentCandidateError={rejectContentCandidateMutation.error}
-            rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
-            rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
-            selectedPromotionId={selectedPromotionId}
-            selectedSegmentId={selectedSegmentId}
-            segmentDetail={segmentDetail}
-            segmentError={segmentError}
-            segmentIsError={segmentIsError}
-            segmentIsLoading={segmentIsLoading}
-          />
         </>
       );
   }
+}
+
+function campaignDetailPanelTitle(tab: DashboardTab) {
+  if (tab === "campaign-metrics") {
+    return "캠페인 성과";
+  }
+  if (tab === "campaign-operations") {
+    return "캠페인 운영 현황";
+  }
+  return "캠페인 개요";
+}
+
+function campaignDetailPanelDescription(tab: DashboardTab) {
+  if (tab === "campaign-metrics") {
+    return "실시간 추이, 퍼널, 실험 평가 결과를 기준으로 캠페인 성과를 확인합니다.";
+  }
+  if (tab === "campaign-operations") {
+    return "프로모션, 세그먼트, 콘텐츠 후보의 연결 상태와 다음 작업을 관리합니다.";
+  }
+  return "선택한 캠페인의 기본 정보와 하위 프로모션 구성을 확인합니다.";
 }
 
 function CampaignSummary({ detail }: { detail: DashboardCampaignDetail }) {
