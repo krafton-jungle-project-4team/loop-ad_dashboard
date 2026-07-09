@@ -40,7 +40,7 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
-import { BarChart3, CheckCircle2, FileText, ImageIcon, Plus, Target, Trash2, Users, X } from "lucide-react";
+import { BarChart3, CheckCircle2, FileText, ImageIcon, Plus, Send, Target, Trash2, Users, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatActionLabel, formatBasisLabel, formatChannelLabel, formatMetricLabel, formatStatusLabel } from "../../../../../model/dashboard-labels.js";
@@ -905,6 +905,35 @@ function PromotionSegmentDetailTab({
         </Alert>
       ) : null}
 
+      <SegmentConnectedExperimentsCard
+        buildAssignmentsError={buildAssignmentsError}
+        buildAssignmentsIsError={buildAssignmentsIsError}
+        buildAssignmentsIsPending={buildAssignmentsIsPending}
+        createNextLoopError={createNextLoopError}
+        createNextLoopIsError={createNextLoopIsError}
+        createNextLoopIsPending={createNextLoopIsPending}
+        createPromotionRunError={createPromotionRunError}
+        createPromotionRunIsError={createPromotionRunIsError}
+        createPromotionRunIsPending={createPromotionRunIsPending}
+        detail={detail}
+        dispatchPromotionRunError={dispatchPromotionRunError}
+        dispatchPromotionRunIsError={dispatchPromotionRunIsError}
+        dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
+        evaluatePromotionRunError={evaluatePromotionRunError}
+        evaluatePromotionRunIsError={evaluatePromotionRunIsError}
+        evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
+        evaluatePromotionRunResult={evaluatePromotionRunResult}
+        onBuildAssignments={onBuildAssignments}
+        onCreateNextLoop={onCreateNextLoop}
+        onCreatePromotionRun={onCreatePromotionRun}
+        onDispatchPromotionRun={onDispatchPromotionRun}
+        onEvaluatePromotionRun={onEvaluatePromotionRun}
+        onStartAdExperiment={onStartAdExperiment}
+        startAdExperimentError={startAdExperimentError}
+        startAdExperimentIsError={startAdExperimentIsError}
+        startAdExperimentIsPending={startAdExperimentIsPending}
+      />
+
       <ScopedFunnelAnalysisPanel
         error={funnelListError}
         funnels={funnelList?.funnels ?? []}
@@ -1128,6 +1157,283 @@ function PromotionSegmentDetailTab({
         </div>
       </section>
     </section>
+  );
+}
+
+function SegmentConnectedExperimentsCard({
+  buildAssignmentsError,
+  buildAssignmentsIsError,
+  buildAssignmentsIsPending,
+  createNextLoopError,
+  createNextLoopIsError,
+  createNextLoopIsPending,
+  createPromotionRunError,
+  createPromotionRunIsError,
+  createPromotionRunIsPending,
+  detail,
+  dispatchPromotionRunError,
+  dispatchPromotionRunIsError,
+  dispatchPromotionRunIsPending,
+  evaluatePromotionRunError,
+  evaluatePromotionRunIsError,
+  evaluatePromotionRunIsPending,
+  evaluatePromotionRunResult,
+  onBuildAssignments,
+  onCreateNextLoop,
+  onCreatePromotionRun,
+  onDispatchPromotionRun,
+  onEvaluatePromotionRun,
+  onStartAdExperiment,
+  startAdExperimentError,
+  startAdExperimentIsError,
+  startAdExperimentIsPending
+}: {
+  buildAssignmentsError: Error | null;
+  buildAssignmentsIsError: boolean;
+  buildAssignmentsIsPending: boolean;
+  createNextLoopError: Error | null;
+  createNextLoopIsError: boolean;
+  createNextLoopIsPending: boolean;
+  createPromotionRunError: Error | null;
+  createPromotionRunIsError: boolean;
+  createPromotionRunIsPending: boolean;
+  detail: DashboardSegmentDetail;
+  dispatchPromotionRunError: Error | null;
+  dispatchPromotionRunIsError: boolean;
+  dispatchPromotionRunIsPending: boolean;
+  evaluatePromotionRunError: Error | null;
+  evaluatePromotionRunIsError: boolean;
+  evaluatePromotionRunIsPending: boolean;
+  evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
+  onBuildAssignments: (promotionRunId: string) => void;
+  onCreateNextLoop: (
+    promotionRunId: string,
+    failedSegmentIds: string[],
+    failedAdExperimentIds: string[]
+  ) => void;
+  onCreatePromotionRun: (promotionId: string, analysisId: string, generationId: string) => void;
+  onDispatchPromotionRun: (promotionRunId: string) => void;
+  onEvaluatePromotionRun: (promotionRunId: string) => void;
+  onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
+  startAdExperimentError: Error | null;
+  startAdExperimentIsError: boolean;
+  startAdExperimentIsPending: boolean;
+}) {
+  const approvedContentCandidate = detail.content_candidates.find(
+    (candidate) => candidate.status === "approved"
+  );
+  const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
+  const failedSegmentIds = uniqueStringValues(
+    (
+      evaluatePromotionRunResult?.failed_segment_ids ??
+      detail.experiment_metrics
+        .filter((metric) => metric.status === "goal_not_met" && metric.segment_id)
+        .map((metric) => metric.segment_id)
+    ).filter(isPresentString)
+  );
+  const failedAdExperimentIds = uniqueStringValues(
+    (
+      evaluatePromotionRunResult?.failed_ad_experiment_ids ??
+      detail.experiment_metrics
+        .filter((metric) => metric.status === "goal_not_met" && metric.ad_experiment_id)
+        .map((metric) => metric.ad_experiment_id)
+    ).filter(isPresentString)
+  );
+  const canCreateNextLoop = Boolean(
+    activePromotionRunId &&
+      (evaluatePromotionRunResult?.next_loop_required ||
+        failedSegmentIds.length > 0 ||
+        failedAdExperimentIds.length > 0)
+  );
+
+  return (
+    <Card className="shadow-none">
+      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="grid gap-1">
+          <CardTitle className="text-base">연결된 광고 실험</CardTitle>
+          <CardDescription>실험 시작 후 발송/노출 대상 assignment가 활성화됩니다.</CardDescription>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={
+              createPromotionRunIsPending ||
+              !approvedContentCandidate ||
+              detail.ad_experiments.length > 0
+            }
+            onClick={() => {
+              if (approvedContentCandidate) {
+                onCreatePromotionRun(
+                  detail.segment.promotion_id,
+                  approvedContentCandidate.analysis_id,
+                  approvedContentCandidate.generation_id
+                );
+              }
+            }}
+            type="button"
+            variant="outline"
+          >
+            <Plus className="mr-2 size-4" />
+            {createPromotionRunIsPending ? "실험 생성 중" : "실험 생성"}
+          </Button>
+          <Button
+            disabled={!activePromotionRunId || buildAssignmentsIsPending}
+            onClick={() => {
+              if (activePromotionRunId) {
+                onBuildAssignments(activePromotionRunId);
+              }
+            }}
+            type="button"
+            variant="outline"
+          >
+            <Target className="mr-2 size-4" />
+            {buildAssignmentsIsPending ? "배정 생성 중" : "대상 배정 생성"}
+          </Button>
+          <Button
+            disabled={!activePromotionRunId || evaluatePromotionRunIsPending}
+            onClick={() => {
+              if (activePromotionRunId) {
+                onEvaluatePromotionRun(activePromotionRunId);
+              }
+            }}
+            type="button"
+            variant="outline"
+          >
+            <BarChart3 className="mr-2 size-4" />
+            {evaluatePromotionRunIsPending ? "평가 중" : "성과 평가"}
+          </Button>
+          <Button
+            disabled={!canCreateNextLoop || createNextLoopIsPending}
+            onClick={() => {
+              if (activePromotionRunId) {
+                onCreateNextLoop(activePromotionRunId, failedSegmentIds, failedAdExperimentIds);
+              }
+            }}
+            type="button"
+            variant="outline"
+          >
+            <Plus className="mr-2 size-4" />
+            {createNextLoopIsPending ? "다음 루프 생성 중" : "다음 루프 생성"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {createPromotionRunIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>실험 생성 요청에 실패했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(createPromotionRunError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {buildAssignmentsIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>대상 배정 생성에 실패했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(buildAssignmentsError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {evaluatePromotionRunIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>성과 평가 요청에 실패했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(evaluatePromotionRunError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {createNextLoopIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>다음 루프 생성에 실패했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(createNextLoopError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {dispatchPromotionRunIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>광고 실행 요청에 실패했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(dispatchPromotionRunError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {startAdExperimentIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>광고 실험을 시작하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(startAdExperimentError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {detail.ad_experiments.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>실험</TableHead>
+                <TableHead>콘텐츠</TableHead>
+                <TableHead>채널</TableHead>
+                <TableHead>루프</TableHead>
+                <TableHead>목표</TableHead>
+                <TableHead>상태</TableHead>
+                <TableHead className="text-right">액션</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {detail.ad_experiments.map((experiment, index) => {
+                const canDispatch =
+                  experiment.status === "running" &&
+                  (experiment.channel === "email" || experiment.channel === "sms");
+                const contentCandidate =
+                  detail.content_candidates.find(
+                    (candidate) => candidate.content_id === experiment.content_id
+                  ) ?? null;
+
+                return (
+                  <TableRow key={experiment.ad_experiment_id}>
+                    <TableCell className="font-medium">
+                      {experimentDisplayName(experiment.loop_count, index)}
+                    </TableCell>
+                    <TableCell>{contentCandidate ? contentCandidateTitle(contentCandidate) : "-"}</TableCell>
+                    <TableCell>{formatChannelLabel(experiment.channel)}</TableCell>
+                    <TableCell>{formatInteger(experiment.loop_count)}</TableCell>
+                    <TableCell>
+                      {formatMetricLabel(experiment.goal_metric)} ·{" "}
+                      {formatGoalValue(experiment.goal_target_value)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(experiment.status)}>
+                        {formatStatusLabel(experiment.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          disabled={
+                            startAdExperimentIsPending || !canStartAdExperiment(experiment.status)
+                          }
+                          onClick={() =>
+                            onStartAdExperiment(
+                              experiment.promotion_id,
+                              experiment.ad_experiment_id
+                            )
+                          }
+                          size="sm"
+                          type="button"
+                          variant={experiment.status === "running" ? "outline" : "default"}
+                        >
+                          <CheckCircle2 className="mr-2 size-4" />
+                          {experiment.status === "running" ? "실행 중" : "실험 시작"}
+                        </Button>
+                        <Button
+                          disabled={!canDispatch || dispatchPromotionRunIsPending}
+                          onClick={() => onDispatchPromotionRun(experiment.promotion_run_id)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Send className="mr-2 size-4" />
+                          {experiment.channel === "onsite_banner" ? "배너 제외" : "실행"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState message="아직 연결된 광고 실험이 없습니다." />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1721,6 +2027,22 @@ function PromotionProgressRow({ label, value }: { label: string; value: number }
   );
 }
 
+function experimentDisplayName(loopCount: number | null | undefined, index = 0) {
+  const loopLabel = loopCount ? `${formatInteger(loopCount)}차` : `${formatInteger(index + 1)}번`;
+  return `${loopLabel} 광고 실험`;
+}
+
+function canStartAdExperiment(status: string) {
+  return status === "created" || status === "ready" || status === "approved";
+}
+
+function uniqueStringValues(values: string[]) {
+  return Array.from(new Set(values));
+}
+
+function isPresentString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
 
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (

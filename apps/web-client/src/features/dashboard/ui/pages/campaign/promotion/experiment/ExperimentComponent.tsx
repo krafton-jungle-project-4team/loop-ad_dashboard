@@ -1,26 +1,12 @@
 import type {
-  DashboardAdExperiment,
-  DashboardCampaignDetail,
-  DashboardCampaignExperimentMetric,
-  DashboardCampaignPromotion,
-  DashboardCampaignSegment,
-  DashboardContentCandidate,
-  DashboardEvaluatePromotionRunResult,
   DashboardMain,
-  DashboardSegmentDetail
 } from "@loopad/shared";
 import { Card, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import {
-  buildDashboardPromotionRunAssignments,
-  createDashboardNextLoop,
-  createDashboardPromotionRun,
-  dispatchDashboardPromotionRun,
-  evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
-  fetchDashboardSegmentDetail,
-  startDashboardAdExperiment
+  fetchDashboardSegmentDetail
 } from "../../../../../api/dashboard-api.js";
 import { useDashboardQueryState } from "../../../../../model/dashboard-query.js";
 import {
@@ -40,7 +26,6 @@ export function ExperimentComponent({
   query: DashboardQuery;
 }) {
   const [, setDashboardQueryState] = useDashboardQueryState();
-  const queryClient = useQueryClient();
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
     data.campaigns[0];
@@ -58,88 +43,6 @@ export function ExperimentComponent({
     queryFn: ({ signal }) =>
       fetchDashboardSegmentDetail(query, selectedPromotionId, selectedSegmentId, signal),
     queryKey: dashboardSegmentDetailQueryKey(query.projectId, selectedPromotionId, selectedSegmentId)
-  });
-  const invalidateExperimentQueries = async (promotionId?: string, segmentId?: string) => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      queryClient.invalidateQueries({
-        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
-      }),
-      promotionId && segmentId
-        ? queryClient.invalidateQueries({
-            queryKey: dashboardSegmentDetailQueryKey(query.projectId, promotionId, segmentId)
-          })
-        : Promise.resolve()
-    ]);
-  };
-  const createPromotionRunMutation = useMutation({
-    mutationFn: ({
-      analysisId,
-      generationId,
-      promotionId
-    }: {
-      analysisId: string;
-      generationId: string;
-      promotionId: string;
-    }) =>
-      createDashboardPromotionRun(query, promotionId, {
-        analysis_id: analysisId,
-        generation_id: generationId,
-        loop_count: 1
-      }),
-    onSuccess: async (result) => {
-      const createdSegmentId = result.ad_experiments[0]?.segment_id ?? selectedSegmentId;
-      await invalidateExperimentQueries(result.promotion_id, createdSegmentId);
-    }
-  });
-  const buildPromotionRunAssignmentsMutation = useMutation({
-    mutationFn: (promotionRunId: string) =>
-      buildDashboardPromotionRunAssignments(query, promotionRunId),
-    onSuccess: async () => {
-      await invalidateExperimentQueries(selectedPromotionId, selectedSegmentId);
-    }
-  });
-  const evaluatePromotionRunMutation = useMutation({
-    mutationFn: (promotionRunId: string) => evaluateDashboardPromotionRun(query, promotionRunId),
-    onSuccess: async () => {
-      await invalidateExperimentQueries(selectedPromotionId, selectedSegmentId);
-    }
-  });
-  const createNextLoopMutation = useMutation({
-    mutationFn: ({
-      failedAdExperimentIds,
-      failedSegmentIds,
-      promotionRunId
-    }: {
-      failedAdExperimentIds: string[];
-      failedSegmentIds: string[];
-      promotionRunId: string;
-    }) =>
-      createDashboardNextLoop(query, promotionRunId, {
-        failed_ad_experiment_ids: failedAdExperimentIds,
-        failed_segment_ids: failedSegmentIds
-      }),
-    onSuccess: async (result) => {
-      await invalidateExperimentQueries(result.promotion_id, selectedSegmentId);
-    }
-  });
-  const dispatchPromotionRunMutation = useMutation({
-    mutationFn: (promotionRunId: string) => dispatchDashboardPromotionRun(promotionRunId),
-    onSuccess: async () => {
-      await invalidateExperimentQueries(selectedPromotionId, selectedSegmentId);
-    }
-  });
-  const startAdExperimentMutation = useMutation({
-    mutationFn: ({
-      adExperimentId,
-      promotionId
-    }: {
-      adExperimentId: string;
-      promotionId: string;
-    }) => startDashboardAdExperiment(query, promotionId, adExperimentId),
-    onSuccess: async (experiment) => {
-      await invalidateExperimentQueries(experiment.promotion_id, experiment.segment_id);
-    }
   });
 
   useEffect(() => {
@@ -194,54 +97,13 @@ export function ExperimentComponent({
         </Card>
       ) : (
         <ExperimentContent
-          buildAssignmentsError={buildPromotionRunAssignmentsMutation.error}
-          buildAssignmentsIsError={buildPromotionRunAssignmentsMutation.isError}
-          buildAssignmentsIsPending={buildPromotionRunAssignmentsMutation.isPending}
-          createNextLoopError={createNextLoopMutation.error}
-          createNextLoopIsError={createNextLoopMutation.isError}
-          createNextLoopIsPending={createNextLoopMutation.isPending}
-          createPromotionRunError={createPromotionRunMutation.error}
-          createPromotionRunIsError={createPromotionRunMutation.isError}
-          createPromotionRunIsPending={createPromotionRunMutation.isPending}
           detail={detailQuery.data}
-          dispatchPromotionRunError={dispatchPromotionRunMutation.error}
-          dispatchPromotionRunIsError={dispatchPromotionRunMutation.isError}
-          dispatchPromotionRunIsPending={dispatchPromotionRunMutation.isPending}
-          evaluatePromotionRunError={evaluatePromotionRunMutation.error}
-          evaluatePromotionRunIsError={evaluatePromotionRunMutation.isError}
-          evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
-          evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
           isLoading={detailQuery.isFetching}
-          onBuildAssignments={(promotionRunId) =>
-            buildPromotionRunAssignmentsMutation.mutate(promotionRunId)
-          }
-          onCreateNextLoop={(promotionRunId, failedSegmentIds, failedAdExperimentIds) =>
-            createNextLoopMutation.mutate({
-              failedAdExperimentIds,
-              failedSegmentIds,
-              promotionRunId
-            })
-          }
-          onCreatePromotionRun={(promotionId, analysisId, generationId) =>
-            createPromotionRunMutation.mutate({ analysisId, generationId, promotionId })
-          }
-          onDispatchPromotionRun={(promotionRunId) =>
-            dispatchPromotionRunMutation.mutate(promotionRunId)
-          }
-          onEvaluatePromotionRun={(promotionRunId) =>
-            evaluatePromotionRunMutation.mutate(promotionRunId)
-          }
-          onStartAdExperiment={(promotionId, adExperimentId) =>
-            startAdExperimentMutation.mutate({ adExperimentId, promotionId })
-          }
           selectedSegmentDetail={segmentDetailQuery.data}
           selectedSegmentDetailError={segmentDetailQuery.error}
           selectedSegmentDetailIsError={segmentDetailQuery.isError}
           selectedSegmentDetailIsLoading={segmentDetailQuery.isLoading}
           selectedSegmentId={selectedSegmentId}
-          startAdExperimentError={startAdExperimentMutation.error}
-          startAdExperimentIsError={startAdExperimentMutation.isError}
-          startAdExperimentIsPending={startAdExperimentMutation.isPending}
         />
       )}
     </div>
