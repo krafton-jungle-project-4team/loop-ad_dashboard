@@ -1,17 +1,17 @@
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator
-} from "@loopad/ui/shadcn/breadcrumb";
+import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger
 } from "@loopad/ui/shadcn/collapsible";
 import { Separator } from "@loopad/ui/shadcn/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@loopad/ui/shadcn/select";
 import {
   Sidebar,
   SidebarContent,
@@ -31,16 +31,19 @@ import {
   SidebarTrigger
 } from "@loopad/ui/shadcn/sidebar";
 import { cn } from "@loopad/ui/shadcn/utils";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type CSSProperties,
   type PointerEvent,
   type ReactNode
 } from "react";
+import { fetchDashboardCampaignDetail, fetchDashboardPageResource } from "../api/dashboard-api.js";
 import {
   dashboardNavigationTree,
   getDashboardTabLabel,
@@ -48,7 +51,12 @@ import {
   type DashboardNavTreeItem,
   type DashboardNavTreeLinkItem
 } from "../model/dashboard-navigation.js";
-import type { DashboardTab } from "../model/dashboard-types.js";
+import { normalizeDashboardQuery, useDashboardQueryState } from "../model/dashboard-query.js";
+import {
+  dashboardCampaignDetailQueryKey,
+  dashboardPageQueryKey
+} from "../model/dashboard-query-keys.js";
+import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
@@ -101,7 +109,7 @@ export function DashboardShell({
             <div className="flex h-6 items-center">
               <Separator className="h-full" orientation="vertical" />
             </div>
-            <DashboardBreadcrumbs projectId={projectId} tab={activeTab} />
+            <DashboardHeaderContext activeTab={activeTab} projectId={projectId} />
           </div>
         </header>
 
@@ -222,7 +230,7 @@ function DashboardNavigationFolderItem({
           >
             {Icon ? <Icon /> : null}
             <span>{item.label}</span>
-            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+            <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -343,7 +351,7 @@ function DashboardNavigationSubFolderItem({
             <button type="button">
               {Icon ? <Icon /> : null}
               <span>{item.label}</span>
-              <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+              <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
             </button>
           </SidebarMenuSubButton>
         </CollapsibleTrigger>
@@ -372,30 +380,203 @@ function getNavigationItemKey(item: DashboardNavTreeItem): string {
   return item.type === "link" ? item.pathSegment : item.label;
 }
 
-function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: DashboardTab }) {
-  return (
-    <Breadcrumb>
-      <BreadcrumbList className="min-w-0 flex-nowrap text-xs">
-        <BreadcrumbItem className="hidden sm:inline-flex">
-          <BreadcrumbLink asChild className="text-xs text-muted-foreground hover:text-[#0066cc]">
-            <Link
-              params={{ projectId, tabPath: "main" }}
-              search={(current) => current}
-              to="/dashboard/$projectId/$tabPath"
-            >
-              Dashboard
-            </Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator className="hidden sm:inline-flex" />
-        <BreadcrumbItem className="min-w-0">
-          <BreadcrumbPage className="truncate text-sm font-semibold leading-none tracking-tight text-[#1d1d1f]">
-            {getDashboardTabLabel(tab)}
-          </BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+type DashboardContextDepth = "campaign" | "promotion" | "segment";
+
+function DashboardHeaderContext({
+  activeTab,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  projectId: string;
+}) {
+  const contextDepth = getDashboardContextDepth(activeTab);
+
+  if (!contextDepth) {
+    return (
+      <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-[#1d1d1f]">
+        {getDashboardTabLabel(activeTab)}
+      </div>
+    );
+  }
+
+  return <DashboardSelectionContext depth={contextDepth} projectId={projectId} />;
+}
+
+function DashboardSelectionContext({
+  depth,
+  projectId
+}: {
+  depth: DashboardContextDepth;
+  projectId: string;
+}) {
+  const [queryState, setDashboardQueryState] = useDashboardQueryState();
+  const query = useMemo(
+    () => normalizeDashboardQuery(queryState, projectId),
+    [projectId, queryState]
   );
+  const mainQuery = useQuery({
+    queryFn: ({ signal }) => fetchDashboardPageResource("main", query, signal),
+    queryKey: dashboardPageQueryKey("main", query),
+    select: (resource): DashboardMain => resource.data as DashboardMain
+  });
+  const campaigns = mainQuery.data?.campaigns ?? [];
+  const selectedCampaign =
+    campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
+    campaigns[0];
+  const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
+  const needsPromotionContext = depth === "promotion" || depth === "segment";
+  const campaignDetailQuery = useQuery({
+    enabled: needsPromotionContext && Boolean(selectedCampaignId),
+    queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
+    queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+  });
+  const campaignDetail = campaignDetailQuery.data;
+  const promotions = campaignDetail?.promotions ?? [];
+  const selectedPromotion = promotions.find(
+    (promotion) => promotion.promotion_id === query.selectedPromotionId
+  );
+  const selectedPromotionId = selectedPromotion?.promotion_id ?? "";
+  const segments = getPromotionSegments(campaignDetail, selectedPromotionId);
+  const selectedSegment = segments.find((segment) => segment.segment_id === query.selectedSegmentId);
+
+  return (
+    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+      <DashboardContextSelect
+        disabled={campaigns.length === 0}
+        label="캠페인"
+        onValueChange={(campaignId) => {
+          void setDashboardQueryState({
+            selectedCampaignId: campaignId,
+            selectedPromotionId: "",
+            selectedSegmentId: ""
+          });
+        }}
+        placeholder={mainQuery.isLoading ? "캠페인 로딩" : "캠페인 선택"}
+        value={selectedCampaign?.campaign_id}
+        widthClassName="w-[min(42vw,320px)]"
+      >
+        {campaigns.map((campaign) => (
+          <SelectItem key={campaign.campaign_id} value={campaign.campaign_id}>
+            {campaign.campaign_name}
+          </SelectItem>
+        ))}
+      </DashboardContextSelect>
+
+      {needsPromotionContext ? (
+        <>
+          <ChevronRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+
+          <DashboardContextSelect
+            disabled={!campaignDetail || promotions.length === 0}
+            label="프로모션"
+            onValueChange={(promotionId) => {
+              void setDashboardQueryState({
+                selectedCampaignId,
+                selectedPromotionId: promotionId,
+                selectedSegmentId: ""
+              });
+            }}
+            placeholder={campaignDetailQuery.isLoading ? "프로모션 로딩" : "프로모션 선택"}
+            value={selectedPromotion?.promotion_id}
+            widthClassName="w-[min(34vw,280px)]"
+          >
+            {promotions.map((promotion) => (
+              <SelectItem key={promotion.promotion_id} value={promotion.promotion_id}>
+                {promotion.marketing_theme}
+              </SelectItem>
+            ))}
+          </DashboardContextSelect>
+        </>
+      ) : null}
+
+      {depth === "segment" ? (
+        <>
+          <ChevronRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+
+          <DashboardContextSelect
+            disabled={!selectedPromotion || segments.length === 0}
+            label="세그먼트"
+            onValueChange={(segmentId) => {
+              void setDashboardQueryState({
+                selectedCampaignId,
+                selectedPromotionId,
+                selectedSegmentId: segmentId
+              });
+            }}
+            placeholder="세그먼트 선택"
+            value={selectedSegment?.segment_id}
+            widthClassName="w-[min(34vw,280px)]"
+          >
+            {segments.map((segment) => (
+              <SelectItem key={segment.segment_id} value={segment.segment_id}>
+                {segment.segment_name}
+              </SelectItem>
+            ))}
+          </DashboardContextSelect>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function DashboardContextSelect({
+  children,
+  disabled,
+  label,
+  onValueChange,
+  placeholder,
+  value,
+  widthClassName
+}: {
+  children: ReactNode;
+  disabled: boolean;
+  label: string;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+  value: string | undefined;
+  widthClassName: string;
+}) {
+  return (
+    <Select disabled={disabled} onValueChange={onValueChange} value={value}>
+      <SelectTrigger
+        className={cn(
+          "h-9 min-w-0 rounded-full border-black/10 bg-white px-3 text-sm font-medium text-[#1d1d1f] shadow-none",
+          widthClassName
+        )}
+      >
+        <span className="mr-2 shrink-0 text-xs font-medium text-muted-foreground">{label}</span>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
+  );
+}
+
+function getDashboardContextDepth(tab: DashboardTab): DashboardContextDepth | null {
+  switch (tab) {
+    case "campaigns":
+    case "campaign-detail":
+    case "campaign-metrics":
+    case "campaign-flow-map":
+      return "campaign";
+    case "campaign-promotions":
+      return "promotion";
+    case "experiments":
+      return "segment";
+    default:
+      return null;
+  }
+}
+
+function getPromotionSegments(
+  campaignDetail: DashboardCampaignDetail | undefined,
+  promotionId: string
+) {
+  if (!campaignDetail || !promotionId) {
+    return [];
+  }
+
+  return campaignDetail.segments.filter((segment) => segment.promotion_id === promotionId);
 }
 
 function SidebarResizeHandle({

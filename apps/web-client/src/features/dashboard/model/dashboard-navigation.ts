@@ -135,18 +135,11 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
             type: "link"
           },
           {
-            label: "실험",
-            icon: Folder,
-            type: "folder",
-            children: [
-              {
-                label: "실험 관리",
-                value: "experiments",
-                pathSegment: "experiments",
-                icon: FlaskConical,
-                type: "link"
-              }
-            ]
+            label: "실험 관리",
+            value: "experiments",
+            pathSegment: "experiments",
+            icon: FlaskConical,
+            type: "link"
           }
         ]
       }
