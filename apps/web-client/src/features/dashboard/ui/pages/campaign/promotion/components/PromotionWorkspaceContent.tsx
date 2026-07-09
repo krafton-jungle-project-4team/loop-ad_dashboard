@@ -864,37 +864,6 @@ function PromotionSegmentDetailTab({
         </Alert>
       ) : null}
 
-      <SegmentConnectedExperimentsCard
-        buildAssignmentsError={buildAssignmentsError}
-        buildAssignmentsIsError={buildAssignmentsIsError}
-        buildAssignmentsIsPending={buildAssignmentsIsPending}
-        createNextLoopError={createNextLoopError}
-        createNextLoopIsError={createNextLoopIsError}
-        createNextLoopIsPending={createNextLoopIsPending}
-        createPromotionRunError={createPromotionRunError}
-        createPromotionRunIsError={createPromotionRunIsError}
-        createPromotionRunIsPending={createPromotionRunIsPending}
-        detail={detail}
-        dispatchPromotionRunError={dispatchPromotionRunError}
-        dispatchPromotionRunIsError={dispatchPromotionRunIsError}
-        dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
-        evaluatePromotionRunError={evaluatePromotionRunError}
-        evaluatePromotionRunIsError={evaluatePromotionRunIsError}
-        evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
-        evaluatePromotionRunResult={evaluatePromotionRunResult}
-        onBuildAssignments={onBuildAssignments}
-        onCreateNextLoop={onCreateNextLoop}
-        onCreatePromotionRun={onCreatePromotionRun}
-        onDispatchPromotionRun={onDispatchPromotionRun}
-        onEvaluatePromotionRun={onEvaluatePromotionRun}
-        onStartAdExperiment={onStartAdExperiment}
-        startAdExperimentError={startAdExperimentError}
-        startAdExperimentIsError={startAdExperimentIsError}
-        startAdExperimentIsPending={startAdExperimentIsPending}
-      />
-
-      <SegmentDetailReportCard suggestion={segmentSuggestion} />
-
       <section className="grid gap-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="grid gap-1">
@@ -1101,6 +1070,37 @@ function PromotionSegmentDetailTab({
           )}
         </div>
       </section>
+
+      <SegmentConnectedExperimentsCard
+        buildAssignmentsError={buildAssignmentsError}
+        buildAssignmentsIsError={buildAssignmentsIsError}
+        buildAssignmentsIsPending={buildAssignmentsIsPending}
+        createNextLoopError={createNextLoopError}
+        createNextLoopIsError={createNextLoopIsError}
+        createNextLoopIsPending={createNextLoopIsPending}
+        createPromotionRunError={createPromotionRunError}
+        createPromotionRunIsError={createPromotionRunIsError}
+        createPromotionRunIsPending={createPromotionRunIsPending}
+        detail={detail}
+        dispatchPromotionRunError={dispatchPromotionRunError}
+        dispatchPromotionRunIsError={dispatchPromotionRunIsError}
+        dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
+        evaluatePromotionRunError={evaluatePromotionRunError}
+        evaluatePromotionRunIsError={evaluatePromotionRunIsError}
+        evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
+        evaluatePromotionRunResult={evaluatePromotionRunResult}
+        onBuildAssignments={onBuildAssignments}
+        onCreateNextLoop={onCreateNextLoop}
+        onCreatePromotionRun={onCreatePromotionRun}
+        onDispatchPromotionRun={onDispatchPromotionRun}
+        onEvaluatePromotionRun={onEvaluatePromotionRun}
+        onStartAdExperiment={onStartAdExperiment}
+        startAdExperimentError={startAdExperimentError}
+        startAdExperimentIsError={startAdExperimentIsError}
+        startAdExperimentIsPending={startAdExperimentIsPending}
+      />
+
+      <SegmentDetailReportCard suggestion={segmentSuggestion} />
     </section>
   );
 }
