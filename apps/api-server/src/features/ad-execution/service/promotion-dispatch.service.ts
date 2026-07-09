@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
@@ -13,8 +14,11 @@ import {
   SmsSender,
   type SmsSendInput
 } from "../adapters/dispatch-sender.js";
+import { HtmlArtifactReader } from "../adapters/artifact-reader.js";
 import {
   AdExecutionDomain,
+  creativeArtifact,
+  toAttribution,
   type ActiveAdServingAssignmentEntity,
   type DispatchAttemptSnapshot,
   type DispatchChannel,
@@ -47,7 +51,11 @@ interface DispatchContext {
   channel: DispatchChannel;
 }
 
-type DispatchFailureCode = "RECIPIENT_CONTACT_INVALID";
+type DispatchFailureCode =
+  | "ARTIFACT_FAILED"
+  | "ARTIFACT_NOT_READY"
+  | "CONTENT_INVALID"
+  | "RECIPIENT_CONTACT_INVALID";
 
 /** 프로모션 외부 발행 요청을 저장된 assignment 기반으로 처리합니다. */
 @Injectable()
@@ -62,7 +70,9 @@ export class PromotionDispatchService {
     @Inject(EmailSender)
     private readonly emailSender: EmailSender,
     @Inject(SmsSender)
-    private readonly smsSender: SmsSender
+    private readonly smsSender: SmsSender,
+    @Inject(HtmlArtifactReader)
+    private readonly artifactReader: HtmlArtifactReader
   ) {}
 
   /** promotion_run_id 기준으로 Email/SMS 발송을 실행합니다. */
@@ -281,7 +291,14 @@ export class PromotionDispatchService {
 
       redirectId = await this.createRedirectLink(assignment);
       const targetUrl = redirectUrl(redirectId);
-      const sendResult = await this.sendToResolvedContact(channel, assignment, targetUrl, contact);
+      const openPixelUrl = openPixelUrlFor(assignment, redirectId);
+      const sendResult = await this.sendToResolvedContact(
+        channel,
+        assignment,
+        targetUrl,
+        contact,
+        openPixelUrl
+      );
       const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
 
       log.info("assignment_sent", { assignment, contact, targetUrl, sendResult, attempt });
@@ -323,11 +340,12 @@ export class PromotionDispatchService {
     channel: DispatchChannel,
     assignment: ActiveAdServingAssignmentEntity,
     targetUrl: string,
-    contact: string
+    contact: string,
+    openPixelUrl: string
   ): Promise<DispatchSendResult> {
     switch (channel) {
       case "email": {
-        const input = toEmailSendInput(assignment, targetUrl, contact);
+        const input = await this.toEmailSendInput(assignment, targetUrl, contact, openPixelUrl);
         log.info("send_input_prepared", { channel, assignment, input });
         return this.emailSender.sendEmail(input);
       }
@@ -339,6 +357,47 @@ export class PromotionDispatchService {
       default:
         return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
     }
+  }
+
+  private async toEmailSendInput(
+    assignment: ActiveAdServingAssignmentEntity,
+    targetUrl: string,
+    recipient: string,
+    openPixelUrl: string
+  ): Promise<EmailSendInput> {
+    const content = emailContentSchema.parse(assignment);
+    const artifact = creativeArtifact(assignment);
+
+    if (!artifact || artifact.creative_format !== "email_html") {
+      return throwDispatchFailure("CONTENT_INVALID");
+    }
+    if (artifact.artifact_status === "pending") {
+      return throwDispatchFailure("ARTIFACT_NOT_READY");
+    }
+    if (artifact.artifact_status === "failed") {
+      return throwDispatchFailure("ARTIFACT_FAILED");
+    }
+    if (artifact.artifact_status !== "published" || !artifact.public_url) {
+      return throwDispatchFailure("CONTENT_INVALID");
+    }
+
+    const template = await this.artifactReader.readHtml(artifact);
+    const htmlBody = fillEmailPlaceholders(template, {
+      openPixelUrl,
+      redirectUrl: targetUrl
+    });
+    const textBody = [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
+      .filter(Boolean)
+      .join("\n\n");
+
+    return {
+      recipient,
+      subject: content.subject,
+      htmlBody,
+      textBody,
+      redirectUrl: targetUrl,
+      openPixelUrl
+    };
   }
 
   @Transactional()
@@ -415,33 +474,19 @@ export class PromotionDispatchService {
   }
 }
 
-function toEmailSendInput(
-  assignment: ActiveAdServingAssignmentEntity,
-  targetUrl: string,
-  recipient: string
-): EmailSendInput {
-  const content = emailContentSchema.parse(assignment);
-
-  return {
-    recipient,
-    subject: content.subject,
-    body: [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
-      .filter(Boolean)
-      .join("\n\n"),
-    redirectUrl: targetUrl
-  };
-}
-
 function toSmsSendInput(
   assignment: ActiveAdServingAssignmentEntity,
   targetUrl: string,
   recipient: string
 ): SmsSendInput {
   const content = smsContentSchema.parse(assignment);
+  const body = content.message.includes("{{redirect_url}}")
+    ? content.message.replaceAll("{{redirect_url}}", targetUrl)
+    : [content.message, targetUrl].join(" ");
 
   return {
     recipient,
-    body: [content.message, targetUrl].join(" "),
+    body,
     redirectUrl: targetUrl
   };
 }
@@ -491,6 +536,19 @@ function ctaLine(cta: string | null, targetUrl: string) {
 
 function redirectUrl(redirectId: string) {
   return `${dashboardPublicBaseUrl()}/r/${encodeURIComponent(redirectId)}`;
+}
+
+function openPixelUrlFor(assignment: ActiveAdServingAssignmentEntity, redirectId: string) {
+  return `${dashboardPublicBaseUrl()}/p/open/${encodeURIComponent(openPixelId(assignment, redirectId))}`;
+}
+
+function openPixelId(assignment: ActiveAdServingAssignmentEntity, redirectId: string) {
+  const targetUrl = requirePromotionLandingUrl(assignment);
+  const payload = {
+    recipient_user_id: assignment.userId,
+    attribution: toAttribution(assignment, targetUrl, undefined, redirectId)
+  };
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
 }
 
 function dashboardPublicBaseUrl() {
@@ -574,4 +632,19 @@ class DispatchFailureError extends Error {
   constructor(readonly code: DispatchFailureCode) {
     super(code);
   }
+}
+
+function fillEmailPlaceholders(
+  template: string,
+  replacements: { redirectUrl: string; openPixelUrl: string }
+) {
+  const htmlBody = template
+    .replaceAll("{{redirect_url}}", replacements.redirectUrl)
+    .replaceAll("{{open_pixel_url}}", replacements.openPixelUrl);
+
+  if (htmlBody.includes("{{redirect_url}}") || htmlBody.includes("{{open_pixel_url}}")) {
+    return throwDispatchFailure("CONTENT_INVALID");
+  }
+
+  return htmlBody;
 }

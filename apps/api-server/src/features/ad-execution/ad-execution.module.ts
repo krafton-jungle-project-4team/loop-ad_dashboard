@@ -6,7 +6,9 @@ import {
   EmailSender,
   SmsSender
 } from "./adapters/dispatch-sender.js";
+import { FetchHtmlArtifactReader, HtmlArtifactReader } from "./adapters/artifact-reader.js";
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
+import { OpenPixelController } from "./controller/open-pixel.controller.js";
 import { RedirectController } from "./controller/redirect.controller.js";
 import {
   AdExecutionReader,
@@ -26,7 +28,7 @@ export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@loop-ad.org";
 /** 광고 실행 기능의 controller, service, adapter provider를 묶는 모듈입니다. */
 @Module({
   imports: [DatabaseModule],
-  controllers: [AdExecutionController, RedirectController],
+  controllers: [AdExecutionController, RedirectController, OpenPixelController],
   providers: [
     PromotionDispatchService,
     BannerResolveService,
@@ -44,6 +46,10 @@ export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@loop-ad.org";
     {
       provide: SmsSender,
       useFactory: createSmsSender
+    },
+    {
+      provide: HtmlArtifactReader,
+      useClass: FetchHtmlArtifactReader
     }
   ]
 })

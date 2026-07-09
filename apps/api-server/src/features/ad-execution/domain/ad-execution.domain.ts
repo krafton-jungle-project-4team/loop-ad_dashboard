@@ -1,7 +1,9 @@
 import type {
   BannerResolveResponse,
+  CreativeArtifact,
   DispatchAttemptSummary,
   DispatchJobSummary,
+  LoopAdAttribution,
   PromotionRunDispatchResponse
 } from "@loopad/shared";
 import { z } from "zod";
@@ -98,6 +100,7 @@ export const activeAdServingAssignmentEntitySchema = z.object({
   message: nullableStringSchema,
   imagePrompt: nullableStringSchema,
   landingUrl: requiredStringSchema.nullable(),
+  contentMetadataJson: jsonObjectSchema,
   contentStatus: requiredStringSchema,
   adExperimentStatus: requiredStringSchema
 });
@@ -122,6 +125,7 @@ export const redirectLinkEntitySchema = z.object({
 export type RedirectLinkEntity = z.infer<typeof redirectLinkEntitySchema>;
 
 export interface RedirectClickFields {
+  project_id: string;
   campaign_id: string;
   promotion_id: string;
   promotion_run_id: string;
@@ -129,13 +133,14 @@ export interface RedirectClickFields {
   segment_id: string;
   content_id: string;
   content_option_id: string;
+  creative_id: string;
   promotion_channel: AdExecutionChannel;
   redirect_id: string;
   target_url: string;
 }
 
 export interface RedirectClickEventSnapshot {
-  name: "campaign_redirect_click";
+  name: string;
   projectId: string;
   identity: {
     userId: string;
@@ -210,22 +215,30 @@ export const AdExecutionDomain = {
     assignment: ActiveAdServingAssignmentEntity,
     placementId: string
   ): BannerResolveResponse {
+    const artifact = requireCreativeArtifact(assignment, "banner_html");
+    const targetUrl = requiredStringSchema.parse(assignment.landingUrl);
+    const attribution = toAttribution(assignment, targetUrl, placementId);
     return {
-      project_id: assignment.projectId,
-      user_id: assignment.userId,
-      campaign_id: assignment.campaignId,
-      promotion_id: assignment.promotionId,
-      promotion_run_id: assignment.promotionRunId,
-      ad_experiment_id: assignment.adExperimentId,
-      segment_id: assignment.segmentId,
-      content_id: assignment.contentId,
-      content_option_id: assignment.contentOptionId,
-      promotion_channel: "onsite_banner",
+      status: "filled",
       placement_id: placementId,
-      title: requiredStringSchema.parse(assignment.title),
-      body: requiredStringSchema.parse(assignment.body),
-      cta: requiredStringSchema.parse(assignment.cta),
-      target_url: requiredStringSchema.parse(assignment.landingUrl)
+      creative: {
+        creative_id: assignment.contentId,
+        creative_format: "banner_html",
+        html_url: requiredStringSchema.url().parse(artifact.public_url),
+        width: artifact.width ?? 320,
+        height: artifact.height ?? 100,
+        click_url: withLoopAdAttribution(targetUrl, {
+          ...attribution,
+          redirect_id: undefined
+        }),
+        target_url: targetUrl,
+        sandbox: {
+          allow_scripts: true,
+          allow_same_origin: false,
+          allow_popups: false
+        }
+      },
+      attribution
     };
   },
 
@@ -285,7 +298,7 @@ export const AdExecutionDomain = {
     promotionChannel: AdExecutionChannel
   ): RedirectClickEventSnapshot {
     return {
-      name: "campaign_redirect_click",
+      name: redirectEventName(link),
       projectId: link.projectId,
       identity: {
         userId: requiredStringSchema.parse(link.userId),
@@ -293,12 +306,14 @@ export const AdExecutionDomain = {
       },
       fields: {
         campaign_id: link.campaignId,
+        project_id: link.projectId,
         promotion_id: link.promotionId,
         promotion_run_id: link.promotionRunId,
         ad_experiment_id: requiredStringSchema.parse(link.adExperimentId),
         segment_id: requiredStringSchema.parse(link.segmentId),
         content_id: requiredStringSchema.parse(link.contentId),
         content_option_id: requiredStringSchema.parse(link.contentOptionId),
+        creative_id: requiredStringSchema.parse(link.contentId),
         promotion_channel: promotionChannel,
         redirect_id: link.redirectToken,
         target_url: link.destinationUrl
@@ -355,9 +370,13 @@ function optionalSummaryField<TKey extends string>(
   return value ? ({ [key]: value } as Record<TKey, string>) : {};
 }
 
-function withLoopAdAttribution(targetUrl: string, fields: RedirectClickFields) {
+export function withLoopAdAttribution(
+  targetUrl: string,
+  fields: Omit<LoopAdAttribution, "redirect_id"> & { redirect_id?: string }
+) {
   const url = new URL(targetUrl);
   const params: Record<string, string> = {
+    loopad_project_id: fields.project_id,
     loopad_campaign_id: fields.campaign_id,
     loopad_promotion_id: fields.promotion_id,
     loopad_promotion_run_id: fields.promotion_run_id,
@@ -365,13 +384,98 @@ function withLoopAdAttribution(targetUrl: string, fields: RedirectClickFields) {
     loopad_segment_id: fields.segment_id,
     loopad_content_id: fields.content_id,
     loopad_content_option_id: fields.content_option_id,
-    loopad_promotion_channel: fields.promotion_channel,
-    loopad_redirect_id: fields.redirect_id
+    loopad_creative_id: fields.creative_id,
+    loopad_channel: fields.promotion_channel
   };
+  if (fields.placement_id) {
+    params.loopad_placement_id = fields.placement_id;
+  }
+  if (fields.redirect_id) {
+    params.loopad_redirect_id = fields.redirect_id;
+  }
 
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
 
   return url.toString();
+}
+
+export function toAttribution(
+  assignment: ActiveAdServingAssignmentEntity,
+  targetUrl: string,
+  placementId?: string,
+  redirectId?: string
+): LoopAdAttribution {
+  return {
+    project_id: assignment.projectId,
+    campaign_id: assignment.campaignId,
+    promotion_id: assignment.promotionId,
+    promotion_run_id: assignment.promotionRunId,
+    ad_experiment_id: assignment.adExperimentId,
+    segment_id: assignment.segmentId,
+    content_id: assignment.contentId,
+    content_option_id: assignment.contentOptionId,
+    creative_id: assignment.contentId,
+    promotion_channel: assignment.channel,
+    target_url: targetUrl,
+    ...optionalSummaryField("placement_id", placementId),
+    ...optionalSummaryField("redirect_id", redirectId)
+  };
+}
+
+export function creativeArtifact(
+  assignment: ActiveAdServingAssignmentEntity
+): CreativeArtifact | null {
+  const creative = isRecord(assignment.contentMetadataJson.creative)
+    ? assignment.contentMetadataJson.creative
+    : null;
+  const artifact = creative && isRecord(creative.artifact) ? creative.artifact : null;
+  if (!artifact) {
+    return null;
+  }
+
+  const parsed = z
+    .object({
+      creative_format: z.enum(["email_html", "sms_text", "banner_html"]),
+      artifact_status: z.enum(["not_required", "pending", "published", "failed"]),
+      storage_key: z.string().min(1).optional(),
+      public_url: z.string().url().optional(),
+      sha256: z.string().min(1).optional(),
+      bytes: z.number().int().nonnegative().optional(),
+      content_type: z.string().min(1).optional(),
+      width: z.number().int().positive().optional(),
+      height: z.number().int().positive().optional(),
+      error_code: z.string().min(1).optional()
+    })
+    .safeParse(artifact);
+
+  return parsed.success ? parsed.data : null;
+}
+
+export function requireCreativeArtifact(
+  assignment: ActiveAdServingAssignmentEntity,
+  creativeFormat: CreativeArtifact["creative_format"]
+): CreativeArtifact {
+  const artifact = creativeArtifact(assignment);
+  if (!artifact || artifact.creative_format !== creativeFormat) {
+    throw new Error(
+      `content_id '${assignment.contentId}' is missing ${creativeFormat} artifact metadata.`
+    );
+  }
+  return artifact;
+}
+
+function redirectEventName(link: RedirectLinkEntity) {
+  const configured = stringFromRecord(link.metadataJson, "redirect_event_name");
+  return configured || "리다이렉트_클릭";
+}
+
+function stringFromRecord(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
