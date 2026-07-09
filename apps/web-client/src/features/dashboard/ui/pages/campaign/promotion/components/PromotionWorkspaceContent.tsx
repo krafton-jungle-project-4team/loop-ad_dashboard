@@ -276,10 +276,7 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsOverviewTab ? (
           <TabsContent value="overview">
-            <PromotionOverviewTab
-              activeSegments={activeSegments}
-              promotion={promotion}
-            />
+            <PromotionOverviewTab promotion={promotion} />
           </TabsContent>
         ) : null}
         {showsSegmentsTab ? (
@@ -347,13 +344,7 @@ export function PromotionTabWorkspace({
   );
 }
 
-function PromotionOverviewTab({
-  activeSegments,
-  promotion
-}: {
-  activeSegments: DashboardCampaignSegment[];
-  promotion: DashboardCampaignPromotion;
-}) {
+function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromotion }) {
   return (
     <div className="grid gap-4">
       <Card className="shadow-none">
@@ -378,21 +369,6 @@ function PromotionOverviewTab({
             <SummaryItem label="목표 기준" value={formatBasisLabel(promotion.goal_basis)} />
             <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
             <SummaryItem label="다음 액션" value={formatActionLabel(promotion.next_action)} />
-          </div>
-        </CardContent>
-      </Card>
-      <Card className="border-[#3927d9]/20 bg-[#f2f6ff] shadow-none">
-        <CardContent className="grid gap-2 p-5">
-          <div className="flex items-center gap-2 font-semibold text-[#3927d9]">
-            <CheckCircle2 className="size-4" />
-            최적화 힌트
-          </div>
-          <p className="text-sm leading-6 text-muted-foreground">
-            세그먼트 추천, 광고 생성, 실험 연결은 세그먼트 관리 탭에서 진행합니다.
-          </p>
-          <div className="text-xs text-muted-foreground">
-            활성 세그먼트 {formatInteger(activeSegments.length)}개 · 실험{" "}
-            {formatInteger(promotion.ad_experiment_count)}개
           </div>
         </CardContent>
       </Card>
