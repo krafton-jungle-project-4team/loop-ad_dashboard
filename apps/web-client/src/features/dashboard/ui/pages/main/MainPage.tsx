@@ -29,14 +29,16 @@ export function MainPage({ data }: { data: DashboardMain; query: DashboardQuery 
   const summary = createMainSummary(data.campaigns);
 
   return (
-    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
-      <CardHeader className="gap-1.5 px-5">
-        <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+    <Card className="w-full min-w-0 rounded-lg bg-white py-4 shadow-none ring-1 ring-black/10">
+      <CardHeader className="gap-1.5 px-4">
+        <CardTitle className="text-lg font-semibold tracking-tight text-[#1d1d1f]">
           메인 대시보드
         </CardTitle>
-        <CardDescription>프로젝트의 운영 현황과 캠페인 목록을 확인합니다.</CardDescription>
+        <CardDescription className="text-sm">
+          프로젝트의 운영 현황과 캠페인 목록을 확인합니다.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-5 px-5">
+      <CardContent className="grid gap-4 px-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <MainSummaryCard
             label="전체 캠페인"
@@ -93,7 +95,7 @@ export function MainPage({ data }: { data: DashboardMain; query: DashboardQuery 
         <MainRealtimeAnalytics metrics={data.realtime_metrics} />
 
         {data.campaigns.length > 0 ? (
-          <Table>
+          <Table className="text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead>캠페인</TableHead>
@@ -120,20 +122,12 @@ export function MainPage({ data }: { data: DashboardMain; query: DashboardQuery 
   );
 }
 
-function MainSummaryCard({
-  label,
-  note,
-  value
-}: {
-  label: string;
-  note: string;
-  value: string;
-}) {
+function MainSummaryCard({ label, note, value }: { label: string; note: string; value: string }) {
   return (
-    <div className="grid min-h-[118px] gap-2 rounded-lg border border-black/10 bg-[#f5f5f7] p-4">
+    <div className="grid min-h-[104px] gap-2 rounded-md border border-black/10 bg-[#f5f5f7] p-3.5">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-2xl font-semibold tracking-tight text-[#1d1d1f]">{value}</span>
-      <span className="text-xs text-muted-foreground">{note}</span>
+      <span className="text-xl font-semibold tracking-tight text-[#1d1d1f]">{value}</span>
+      <span className="text-xs leading-5 text-muted-foreground">{note}</span>
     </div>
   );
 }
@@ -146,43 +140,41 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
     <section className="grid gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-1">
-          <h3 className="text-lg font-semibold tracking-tight text-[#1d1d1f]">
-            실시간 지표
-          </h3>
+          <h3 className="text-base font-semibold tracking-tight text-[#1d1d1f]">실시간 지표</h3>
         </div>
         <Badge variant="outline">전체 캠페인 합산</Badge>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-        <div className="overflow-hidden rounded-xl border bg-background">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+        <div className="overflow-hidden rounded-lg border bg-background">
           <div className="grid border-b md:grid-cols-4">
             {kpis.map((kpi, index) => (
               <div
                 className={
                   index === 0
-                    ? "grid min-h-32 content-between bg-[#eaf2ff] p-5"
-                    : "grid min-h-32 content-between border-t p-5 md:border-l md:border-t-0"
+                    ? "grid min-h-28 content-between bg-[#eaf2ff] p-4"
+                    : "grid min-h-28 content-between border-t p-4 md:border-l md:border-t-0"
                 }
                 key={kpi.label}
               >
                 <div className="grid gap-1">
                   <div className="text-sm font-medium text-muted-foreground">{kpi.label}</div>
-                  <div className="text-3xl font-semibold tabular-nums text-[#202124]">
+                  <div className="text-2xl font-semibold tabular-nums text-[#202124]">
                     {kpi.value}
                   </div>
                 </div>
-                <div className="text-sm text-muted-foreground">{kpi.helper}</div>
+                <div className="text-xs leading-5 text-muted-foreground">{kpi.helper}</div>
               </div>
             ))}
           </div>
 
-          <div className="grid gap-3 p-5">
+          <div className="grid gap-3 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm font-medium text-[#202124]">시간대별 이벤트 추이</div>
             </div>
             {trendData.length > 0 ? (
               <ChartContainer
-                className="min-h-[280px] w-full"
+                className="h-[260px] min-h-0 w-full aspect-auto"
                 config={{
                   event_count: {
                     color: "#1a73e8",
@@ -278,12 +270,12 @@ function MainRealtimeActivityCard({
   const topCluster = metrics.hotel_cluster_breakdown[0];
 
   return (
-    <div className="grid min-h-[420px] content-between rounded-xl border bg-background p-5">
-      <div className="grid gap-4">
+    <div className="grid min-h-[260px] content-between self-start rounded-lg border bg-background p-4">
+      <div className="grid gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="grid gap-1">
             <div className="text-sm font-medium text-muted-foreground">최근 5분 이벤트</div>
-            <div className="text-5xl font-semibold tabular-nums text-[#202124]">
+            <div className="text-4xl font-semibold tabular-nums text-[#202124]">
               {formatInteger(metrics.recent_5m_event_count)}
             </div>
           </div>
@@ -293,11 +285,11 @@ function MainRealtimeActivityCard({
         </div>
         <div className="grid gap-1">
           <div className="text-sm text-muted-foreground">최근 1시간 이벤트</div>
-          <div className="text-2xl font-semibold tabular-nums">
+          <div className="text-xl font-semibold tabular-nums">
             {formatInteger(metrics.recent_1h_event_count)}
           </div>
         </div>
-        <div className="flex h-24 items-end gap-1.5">
+        <div className="flex h-16 items-end gap-1.5">
           {recentBars.length > 0 ? (
             recentBars.map((item) => (
               <div
@@ -346,13 +338,13 @@ function MainAnalyticsRankCard({
   const maxValue = Math.max(...visibleItems.map((item) => item.value), 1);
 
   return (
-    <div className="grid gap-4 rounded-xl border bg-background p-5">
+    <div className="grid content-start gap-3 rounded-lg border bg-background p-4">
       <div className="flex items-center justify-between gap-3">
         <h4 className="text-base font-semibold text-[#202124]">{title}</h4>
         <span className="text-xs text-muted-foreground">수집 기준</span>
       </div>
       {visibleItems.length > 0 ? (
-        <div className="grid gap-3">
+        <div className="grid gap-2.5">
           {visibleItems.map((item) => (
             <div className="grid gap-1.5" key={item.key}>
               <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
@@ -363,7 +355,7 @@ function MainAnalyticsRankCard({
                   {formatInteger(item.value)}
                 </div>
               </div>
-              <div className="h-0.5 bg-muted">
+              <div className="h-1 bg-muted">
                 <div
                   className="h-full bg-[#1a73e8]"
                   style={{ width: `${Math.max((item.value / maxValue) * 100, 4)}%` }}
@@ -379,15 +371,11 @@ function MainAnalyticsRankCard({
   );
 }
 
-function CampaignListRow({
-  campaign
-}: {
-  campaign: DashboardCampaignSummary;
-}) {
+function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
   return (
     <TableRow>
       <TableCell>
-        <div className="flex min-w-[220px] flex-col gap-1">
+        <div className="flex min-w-[200px] flex-col gap-1">
           <span className="font-medium text-foreground">{campaign.campaign_name}</span>
           {campaign.objective ? (
             <span className="line-clamp-2 text-sm text-muted-foreground">{campaign.objective}</span>
@@ -523,9 +511,7 @@ function analyticsTrendData(metrics: DashboardRealtimeMetrics): AnalyticsTrendDa
 }
 
 function realtimeEventCount(metrics: DashboardRealtimeMetrics, eventName: string) {
-  return (
-    metrics.events.find((event) => event.event_name === eventName)?.event_count ?? 0
-  );
+  return metrics.events.find((event) => event.event_name === eventName)?.event_count ?? 0;
 }
 
 function formatPercentValue(value: number) {

@@ -1,6 +1,4 @@
-import type {
-  DashboardMain,
-} from "@loopad/shared";
+import type { DashboardMain } from "@loopad/shared";
 import { Card, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -42,7 +40,11 @@ export function ExperimentComponent({
     enabled: Boolean(selectedPromotionId && selectedSegmentId),
     queryFn: ({ signal }) =>
       fetchDashboardSegmentDetail(query, selectedPromotionId, selectedSegmentId, signal),
-    queryKey: dashboardSegmentDetailQueryKey(query.projectId, selectedPromotionId, selectedSegmentId)
+    queryKey: dashboardSegmentDetailQueryKey(
+      query.projectId,
+      selectedPromotionId,
+      selectedSegmentId
+    )
   });
 
   useEffect(() => {

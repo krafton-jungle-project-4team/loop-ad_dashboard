@@ -277,7 +277,10 @@ export function CampaignPageSections({
           funnelListIsError={funnelList.isError}
           funnelListIsLoading={funnelList.isLoading}
           onSelectPromotion={(promotionId) => {
-            void setDashboardQueryState({ selectedPromotionId: promotionId, selectedSegmentId: "" });
+            void setDashboardQueryState({
+              selectedPromotionId: promotionId,
+              selectedSegmentId: ""
+            });
           }}
           query={query}
           selectedPromotionId={selectedPromotionId}
@@ -687,7 +690,9 @@ function CampaignManagementWorkspace({
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle className="text-base">캠페인 운영 요약</CardTitle>
-          <CardDescription>선택한 캠페인의 목표 달성률과 최근 변경 정보를 확인합니다.</CardDescription>
+          <CardDescription>
+            선택한 캠페인의 목표 달성률과 최근 변경 정보를 확인합니다.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           <SummaryItem
@@ -867,14 +872,14 @@ function CampaignTabContent({
 
 function campaignDetailPanelTitle(tab: DashboardTab) {
   if (tab === "campaign-metrics") {
-    return "캠페인 성과";
+    return "캠페인 통계";
   }
   return "캠페인 개요";
 }
 
 function campaignDetailPanelDescription(tab: DashboardTab) {
   if (tab === "campaign-metrics") {
-    return "실시간 추이, 사용자 여정, 실험 평가 결과를 기준으로 캠페인 성과를 확인합니다.";
+    return "실시간 추이, 사용자 여정, 실험 평가 결과를 기준으로 캠페인 통계를 확인합니다.";
   }
   return "선택한 캠페인의 기본 정보와 하위 프로모션 구성을 확인합니다.";
 }

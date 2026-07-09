@@ -83,9 +83,7 @@ type FlowNodeKind = "campaign" | "promotion" | "evaluation" | "retryQueue";
 type FlowPathTone = "normal" | "warning" | "insufficient";
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost" | "link";
 
-type DetailTabPath =
-  | "campaign-metrics"
-  | "campaign-promotions";
+type DetailTabPath = "campaign-metrics" | "campaign-promotions";
 
 type DetailAction = {
   projectId: string;
@@ -210,13 +208,7 @@ const emptyGraph: CampaignFlowGraph = {
   nodes: []
 };
 
-export function WorkflowMapPage({
-  data,
-  query
-}: {
-  data: DashboardMain;
-  query: DashboardQuery;
-}) {
+export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const selectedCampaign =
@@ -462,12 +454,7 @@ function LegendItem({ label, tone }: { label: string; tone: FlowPathTone }) {
 }
 
 function PipelineStageStrip() {
-  const stages = [
-    "캠페인",
-    "프로모션 실행",
-    "수집 및 평가",
-    "재시도 대기열"
-  ];
+  const stages = ["캠페인", "프로모션 실행", "수집 및 평가", "재시도 대기열"];
 
   return (
     <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
@@ -693,7 +680,10 @@ function RetryQueueList({ flows }: { flows: PromotionFlowSummary[] }) {
               {flow.promotion.marketing_theme}
             </span>
             <span className="font-semibold tabular-nums text-amber-900">
-              L{formatInteger(Math.min(flow.promotion.current_loop_count + 1, flow.promotion.max_loop_count))}
+              L
+              {formatInteger(
+                Math.min(flow.promotion.current_loop_count + 1, flow.promotion.max_loop_count)
+              )}
             </span>
           </div>
           <div className="grid gap-1 sm:grid-cols-2">
@@ -733,9 +723,7 @@ function CompactFact({
       )}
     >
       <span className="truncate">{label}</span>
-      <span className="truncate text-right font-semibold tabular-nums text-[#1d1d1f]">
-        {value}
-      </span>
+      <span className="truncate text-right font-semibold tabular-nums text-[#1d1d1f]">{value}</span>
     </div>
   );
 }
@@ -821,8 +809,7 @@ function NodeSummaryGrid({ items }: { items: FlowSummaryItem[] }) {
           className={cn(
             "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs",
             item.tone === "warning" && "text-amber-900",
-            item.tone === "insufficient" &&
-              "text-amber-900"
+            item.tone === "insufficient" && "text-amber-900"
           )}
           key={item.label}
         >
@@ -926,9 +913,7 @@ function NodeMetricsDrawer({
                     title="재시도 후보 · 목표 달성률 낮은 순"
                   />
                   <SegmentSummaryList segments={data.segments ?? []} />
-                  <ExperimentMetricList
-                    metrics={(data.metrics ?? []).filter(isRetryMetric)}
-                  />
+                  <ExperimentMetricList metrics={(data.metrics ?? []).filter(isRetryMetric)} />
                 </>
               ) : null}
               {data.kind === "campaign" ? <CampaignNodeDetail campaign={data.campaign} /> : null}
@@ -1046,9 +1031,7 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
 
   return (
     <div className="grid gap-2">
-      <div className="text-sm font-semibold text-[#1d1d1f]">
-        세그먼트 · 목표 달성률 낮은 순
-      </div>
+      <div className="text-sm font-semibold text-[#1d1d1f]">세그먼트 · 목표 달성률 낮은 순</div>
       {sortedSegments.map((segment) => (
         <DetailAnchor
           action={segment.action}
@@ -1094,9 +1077,7 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
 
   return (
     <div className="grid gap-2">
-      <div className="text-sm font-semibold text-[#1d1d1f]">
-        실험 지표 · 목표 달성률 낮은 순
-      </div>
+      <div className="text-sm font-semibold text-[#1d1d1f]">실험 지표 · 목표 달성률 낮은 순</div>
       {sortedMetrics.map((metric) => (
         <div
           className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-2 text-sm"
@@ -1112,7 +1093,9 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
           <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-5">
             <MetricLine
               label="달성률"
-              value={formatOptionalGoalAchievement(goalAchievementRate(metric.actual_value, metric.target_value))}
+              value={formatOptionalGoalAchievement(
+                goalAchievementRate(metric.actual_value, metric.target_value)
+              )}
             />
             <MetricLine label="실제값" value={formatMetricValue(metric.actual_value)} />
             <MetricLine label="목표값" value={formatMetricValue(metric.target_value)} />

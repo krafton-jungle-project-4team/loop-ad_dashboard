@@ -62,7 +62,8 @@ export const promotionGoalMetricOptions = [
   value: string;
 }>;
 export const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
-export const defaultPromotionLandingUrl = "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
+export const defaultPromotionLandingUrl =
+  "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 export const onsiteBannerImagePollIntervalMs = 3000;
 export type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 export type PromotionWorkspaceMode = "promotion" | "promotionMetrics" | "segment";
@@ -81,7 +82,6 @@ export const defaultPromotionAnalysisProgress: PromotionAnalysisProgress = {
 };
 export const promotionAnalysisProgressCacheTimeMs = 1000 * 60 * 30;
 
-
 export function uniquePromotionsById(
   promotions: DashboardCampaignPromotion[]
 ): DashboardCampaignPromotion[] {
@@ -93,7 +93,6 @@ export function uniquePromotionsById(
   }
   return [...promotionMap.values()];
 }
-
 
 export type PromotionCreateFormState = {
   channel: string;
@@ -198,7 +197,6 @@ export function promotionSegmentCreateFormToRequest(
   };
 }
 
-
 export function latestSegmentPerSegmentId(segments: DashboardCampaignSegment[]) {
   const latestSegments = new Map<string, DashboardCampaignSegment>();
   for (const segment of segments) {
@@ -240,7 +238,9 @@ export function formatPercentValue(value: number) {
 
 type SegmentDisplayCopy = NonNullable<DashboardPromotionSegmentSuggestion["display_copy"]>;
 
-export function campaignSegmentDisplayCopy(segment: DashboardCampaignSegment): SegmentDisplayCopy | null {
+export function campaignSegmentDisplayCopy(
+  segment: DashboardCampaignSegment
+): SegmentDisplayCopy | null {
   return normalizeSegmentDisplayCopy(segment.data_evidence_json.display_copy);
 }
 
@@ -279,11 +279,15 @@ export function nonEmptyText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-export function contentCandidateTitle(candidate: DashboardSegmentDetail["content_candidates"][number]) {
+export function contentCandidateTitle(
+  candidate: DashboardSegmentDetail["content_candidates"][number]
+) {
   return candidate.title ?? candidate.subject ?? candidate.message ?? candidate.content_id;
 }
 
-export function contentCandidateMessage(candidate: DashboardSegmentDetail["content_candidates"][number]) {
+export function contentCandidateMessage(
+  candidate: DashboardSegmentDetail["content_candidates"][number]
+) {
   return candidate.body ?? candidate.message ?? candidate.generation_prompt ?? "-";
 }
 

@@ -1,8 +1,4 @@
-import type {
-  DashboardCampaignDetail,
-  DashboardCampaignPromotion,
-  DashboardCampaignSegment
-} from "@loopad/shared";
+import type { DashboardCampaignPromotion, DashboardCampaignSegment } from "@loopad/shared";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import {

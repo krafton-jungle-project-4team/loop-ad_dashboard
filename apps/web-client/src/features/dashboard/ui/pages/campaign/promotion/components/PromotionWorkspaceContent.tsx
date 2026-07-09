@@ -1,6 +1,5 @@
 import type {
   DashboardCampaignPromotion,
-  DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardEvaluatePromotionRunResult,
   DashboardPromotionScopedSegmentDefinition,
@@ -20,13 +19,6 @@ import {
 } from "@loopad/ui/shadcn/dialog";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@loopad/ui/shadcn/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import {
   Table,
@@ -37,10 +29,27 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
-import { BarChart3, CheckCircle2, FileText, ImageIcon, Plus, Send, Target, Trash2, Users, X } from "lucide-react";
+import {
+  BarChart3,
+  CheckCircle2,
+  FileText,
+  ImageIcon,
+  Plus,
+  Send,
+  Target,
+  Trash2,
+  Users,
+  X
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
-import { formatActionLabel, formatBasisLabel, formatChannelLabel, formatMetricLabel, formatStatusLabel } from "../../../../../model/dashboard-labels.js";
+import {
+  formatActionLabel,
+  formatBasisLabel,
+  formatChannelLabel,
+  formatMetricLabel,
+  formatStatusLabel
+} from "../../../../../model/dashboard-labels.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
   EntityWorkspaceEmptyState,
@@ -54,7 +63,6 @@ import {
   formatPercentValue,
   latestSegmentPerSegmentId,
   parseJsonObject,
-  promotionSegmentCreateFormToRequest,
   segmentAudienceSummary,
   segmentLoopCount,
   statusBadgeVariant,
@@ -840,9 +848,9 @@ function SegmentConnectedExperimentsCard({
   );
   const canCreateNextLoop = Boolean(
     activePromotionRunId &&
-      (evaluatePromotionRunResult?.next_loop_required ||
-        failedSegmentIds.length > 0 ||
-        failedAdExperimentIds.length > 0)
+    (evaluatePromotionRunResult?.next_loop_required ||
+      failedSegmentIds.length > 0 ||
+      failedAdExperimentIds.length > 0)
   );
 
   return (
@@ -944,7 +952,9 @@ function SegmentConnectedExperimentsCard({
                     <TableCell className="font-medium">
                       {experimentDisplayName(experiment.loop_count, index)}
                     </TableCell>
-                    <TableCell>{contentCandidate ? contentCandidateTitle(contentCandidate) : "-"}</TableCell>
+                    <TableCell>
+                      {contentCandidate ? contentCandidateTitle(contentCandidate) : "-"}
+                    </TableCell>
                     <TableCell>{formatChannelLabel(experiment.channel)}</TableCell>
                     <TableCell>{formatInteger(experiment.loop_count)}</TableCell>
                     <TableCell>

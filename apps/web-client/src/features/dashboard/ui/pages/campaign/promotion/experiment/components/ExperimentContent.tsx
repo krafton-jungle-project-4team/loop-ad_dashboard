@@ -1,7 +1,5 @@
 import type {
   DashboardCampaignDetail,
-  DashboardCampaignExperimentMetric,
-  DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardSegmentDetail
 } from "@loopad/shared";
@@ -25,8 +23,12 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { useEffect, useMemo, useState } from "react";
-import { formatChannelLabel, formatMetricLabel, formatStatusLabel } from "../../../../../../model/dashboard-labels.js";
-import { formatDateTime, formatInteger, formatPercent } from "../../../../../../model/dashboard-format.js";
+import {
+  formatChannelLabel,
+  formatMetricLabel,
+  formatStatusLabel
+} from "../../../../../../model/dashboard-labels.js";
+import { formatDateTime, formatInteger } from "../../../../../../model/dashboard-format.js";
 import { EmptyState } from "../../../../../shared/EmptyState.js";
 import {
   buildExperimentRows,
@@ -39,7 +41,6 @@ import {
   formatGoalValue,
   insufficientReason,
   statusBadgeVariant,
-  toErrorMessage,
   uniqueValues,
   type ExperimentRow
 } from "../experimentUtils.js";
@@ -50,7 +51,7 @@ export function ExperimentContent({
   selectedSegmentDetail,
   selectedSegmentDetailIsError,
   selectedSegmentDetailIsLoading,
-  selectedSegmentId,
+  selectedSegmentId
 }: {
   detail: DashboardCampaignDetail | undefined;
   isLoading: boolean;
@@ -275,7 +276,9 @@ function SelectedSegmentExperimentCards({
                   <TableRow
                     key={`${metric.promotion_run_id}-${metric.ad_experiment_id ?? metric.segment_id}-${metric.created_at}`}
                   >
-                    <TableCell className="font-medium">{formatMetricLabel(metric.metric)}</TableCell>
+                    <TableCell className="font-medium">
+                      {formatMetricLabel(metric.metric)}
+                    </TableCell>
                     <TableCell>{metricExperimentLabel(metric, detail.ad_experiments)}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatGoalValue(metric.target_value)}

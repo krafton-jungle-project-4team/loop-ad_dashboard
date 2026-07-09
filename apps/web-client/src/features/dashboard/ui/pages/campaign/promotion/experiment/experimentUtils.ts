@@ -36,7 +36,9 @@ export type ExperimentRow = {
 };
 
 export function experimentDisplayName(loopCount: number | null | undefined, index = 0) {
-  return loopCount ? `루프 ${formatInteger(loopCount)} 실험` : `광고 실험 ${formatInteger(index + 1)}`;
+  return loopCount
+    ? `루프 ${formatInteger(loopCount)} 실험`
+    : `광고 실험 ${formatInteger(index + 1)}`;
 }
 
 export function metricExperimentLabel(

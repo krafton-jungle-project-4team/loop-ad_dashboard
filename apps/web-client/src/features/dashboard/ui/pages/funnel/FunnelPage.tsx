@@ -35,7 +35,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, GripHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   useId,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent
@@ -77,13 +79,7 @@ const DETAIL_PANEL_DEFAULT_HEIGHT_RATIO = 0.5;
 const DETAIL_PANEL_MIN_HEIGHT = 260;
 const DETAIL_PANEL_RESIZE_STEP = 40;
 
-export function FunnelPage({
-  data,
-  query
-}: {
-  data: DashboardFunnelList;
-  query: DashboardQuery;
-}) {
+export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: DashboardQuery }) {
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [draftDialogMode, setDraftDialogMode] = useState<DraftDialogMode>("create");
@@ -95,6 +91,14 @@ export function FunnelPage({
   const [selectedFunnelId, setSelectedFunnelId] = useState("");
   const [detailPanelHeight, setDetailPanelHeight] = useState(() => getDetailPanelDefaultHeight());
   const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
+  const detailPanelResizeCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      detailPanelResizeCleanupRef.current?.();
+    },
+    []
+  );
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
     queryKey: dashboardEventCatalogQueryKey(query.projectId)
@@ -572,6 +576,7 @@ export function FunnelPage({
   function startDetailPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDetailPanelCollapsed(false);
+    detailPanelResizeCleanupRef.current?.();
 
     const startY = event.clientY;
     const startHeight = isDetailPanelCollapsed
@@ -593,11 +598,13 @@ export function FunnelPage({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", cleanup);
       window.removeEventListener("pointercancel", cleanup);
+      detailPanelResizeCleanupRef.current = null;
     }
 
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", cleanup);
     window.addEventListener("pointercancel", cleanup);
+    detailPanelResizeCleanupRef.current = cleanup;
   }
 
   async function openEditDialog(funnelId: string) {

@@ -1,4 +1,3 @@
-import type { DashboardCampaignPromotion } from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
 import {
   Dialog,
@@ -19,20 +18,14 @@ import {
 } from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useEffect, useState } from "react";
-import {
-  formatBasisLabel,
-  formatChannelLabel,
-  formatMetricLabel
-} from "../../../../../model/dashboard-labels.js";
+import { formatBasisLabel, formatChannelLabel } from "../../../../../model/dashboard-labels.js";
 import {
   createEmptyPromotionFormState,
   defaultPromotionLandingUrl,
   isValidHttpUrl,
   promotionChannelOptions,
-  promotionCreateFormToRequest,
   promotionGoalBasisOptions,
   promotionGoalMetricOptions,
-  promotionStatusOptions,
   type PromotionCreateFormState
 } from "../promotionUtils.js";
 
