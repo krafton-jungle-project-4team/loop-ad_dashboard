@@ -3,13 +3,10 @@ import type {
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardEvaluatePromotionRunResult,
-  DashboardFunnelList,
   DashboardPromotionScopedSegmentDefinition,
   DashboardSegmentDetail,
-  DashboardPromotionSegmentSuggestion,
-  DashboardStartPromotionGenerationResult
+  DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
-import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -44,18 +41,14 @@ import { BarChart3, CheckCircle2, FileText, ImageIcon, Plus, Send, Target, Trash
 import { useEffect, useState, type ReactNode } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatActionLabel, formatBasisLabel, formatChannelLabel, formatMetricLabel, formatStatusLabel } from "../../../../../model/dashboard-labels.js";
-import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
-import { ScopedFunnelAnalysisPanel } from "../../../../shared/ScopedFunnelAnalysisPanel.js";
 import {
   campaignSegmentDisplayCopy,
   createEmptyPromotionSegmentFormState,
   formatGoalValue,
   formatJsonObject,
   formatPercentValue,
-  hasPendingOnsiteBannerImage,
   latestSegmentPerSegmentId,
-  mutationErrorMessage,
   parseJsonObject,
   promotionSegmentCreateFormToRequest,
   segmentAudienceSummary,
@@ -70,7 +63,7 @@ import {
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   overview: "프로모션 개요",
   segments: "세그먼트 추천/확정",
-  "segment-detail": "세그먼트 상세"
+  "segment-detail": "세그먼트 맞춤 광고 생성"
 };
 
 export function PromotionChromeTabs({
@@ -200,40 +193,16 @@ function PromotionGuideCard({
 }
 
 export function PromotionTabWorkspace({
-  archiveScopedSegmentError,
-  archiveScopedSegmentIsError,
   archiveScopedSegmentIsPending,
-  approveContentCandidateError,
-  approveContentCandidateIsError,
   approveContentCandidateIsPending,
-  confirmError,
-  confirmIsError,
   confirmIsPending,
-  decideError,
-  decideIsError,
   decideIsPending,
-  deleteConfirmedSegmentError,
-  deleteConfirmedSegmentIsError,
   deleteConfirmedSegmentIsPending,
-  dispatchPromotionRunError,
-  dispatchPromotionRunIsError,
   dispatchPromotionRunIsPending,
-  createPromotionRunError,
-  createPromotionRunIsError,
   createPromotionRunIsPending,
-  buildAssignmentsError,
-  buildAssignmentsIsError,
   buildAssignmentsIsPending,
-  evaluatePromotionRunError,
-  evaluatePromotionRunIsError,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
-  funnelList,
-  funnelListError,
-  funnelListIsError,
-  funnelListIsLoading,
-  createNextLoopError,
-  createNextLoopIsError,
   createNextLoopIsPending,
   onArchiveScopedSegment,
   onApproveContentCandidate,
@@ -253,74 +222,33 @@ export function PromotionTabWorkspace({
   onStartGeneration,
   onTabChange,
   promotion,
-  promotionAnalysisError,
-  promotionAnalysisIsError,
   promotionAnalysisIsPending,
-  promotionGeneration,
-  promotionGenerationError,
-  promotionGenerationIsError,
   promotionGenerationIsPending,
-  query,
-  rejectContentCandidateError,
-  rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
-  startAdExperimentError,
-  startAdExperimentIsError,
   startAdExperimentIsPending,
-  scopedSegmentCreateError,
-  scopedSegmentCreateIsError,
   scopedSegmentCreateIsPending,
   scopedSegments,
-  scopedSegmentsError,
-  scopedSegmentsIsError,
   scopedSegmentsIsLoading,
   segments,
   selectedSegmentDetail,
-  selectedSegmentDetailError,
   selectedSegmentDetailIsError,
   selectedSegmentDetailIsLoading,
   selectedSegmentId,
   suggestions,
-  suggestionsError,
-  suggestionsIsError,
   suggestionsIsLoading,
   tab,
   visibleTabs
 }: {
-  archiveScopedSegmentError: Error | null;
-  archiveScopedSegmentIsError: boolean;
   archiveScopedSegmentIsPending: boolean;
-  approveContentCandidateError: Error | null;
-  approveContentCandidateIsError: boolean;
   approveContentCandidateIsPending: boolean;
-  confirmError: Error | null;
-  confirmIsError: boolean;
   confirmIsPending: boolean;
-  decideError: Error | null;
-  decideIsError: boolean;
   decideIsPending: boolean;
-  deleteConfirmedSegmentError: Error | null;
-  deleteConfirmedSegmentIsError: boolean;
   deleteConfirmedSegmentIsPending: boolean;
-  dispatchPromotionRunError: Error | null;
-  dispatchPromotionRunIsError: boolean;
   dispatchPromotionRunIsPending: boolean;
-  createPromotionRunError: Error | null;
-  createPromotionRunIsError: boolean;
   createPromotionRunIsPending: boolean;
-  buildAssignmentsError: Error | null;
-  buildAssignmentsIsError: boolean;
   buildAssignmentsIsPending: boolean;
-  evaluatePromotionRunError: Error | null;
-  evaluatePromotionRunIsError: boolean;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
-  funnelList: DashboardFunnelList | undefined;
-  funnelListError: Error | null;
-  funnelListIsError: boolean;
-  funnelListIsLoading: boolean;
-  createNextLoopError: Error | null;
-  createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
   onArchiveScopedSegment: (segmentId: string) => void;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
@@ -344,36 +272,19 @@ export function PromotionTabWorkspace({
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
-  promotionAnalysisError: Error | null;
-  promotionAnalysisIsError: boolean;
   promotionAnalysisIsPending: boolean;
-  promotionGeneration: DashboardStartPromotionGenerationResult | null;
-  promotionGenerationError: Error | null;
-  promotionGenerationIsError: boolean;
   promotionGenerationIsPending: boolean;
-  query: DashboardQuery;
-  rejectContentCandidateError: Error | null;
-  rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
-  startAdExperimentError: Error | null;
-  startAdExperimentIsError: boolean;
   startAdExperimentIsPending: boolean;
-  scopedSegmentCreateError: Error | null;
-  scopedSegmentCreateIsError: boolean;
   scopedSegmentCreateIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
-  scopedSegmentsError: Error | null;
-  scopedSegmentsIsError: boolean;
   scopedSegmentsIsLoading: boolean;
   segments: DashboardCampaignSegment[];
   selectedSegmentDetail: DashboardSegmentDetail | undefined;
-  selectedSegmentDetailError: Error | null;
   selectedSegmentDetailIsError: boolean;
   selectedSegmentDetailIsLoading: boolean;
   selectedSegmentId: string;
   suggestions: DashboardPromotionSegmentSuggestion[];
-  suggestionsError: Error | null;
-  suggestionsIsError: boolean;
   suggestionsIsLoading: boolean;
   tab: PromotionWorkspaceTab;
   visibleTabs: PromotionWorkspaceTab[];
@@ -412,15 +323,6 @@ export function PromotionTabWorkspace({
         <PromotionMetricCard label="세그먼트" value={formatInteger(activeSegments.length)} />
         <PromotionMetricCard label="실험" value={formatInteger(promotion.ad_experiment_count)} />
       </div>
-      <ScopedFunnelAnalysisPanel
-        error={funnelListError}
-        funnels={funnelList?.funnels ?? []}
-        isError={funnelListIsError}
-        isLoading={funnelListIsLoading}
-        query={query}
-        scope={{ promotion_id: promotion.promotion_id, scope_type: "promotion" }}
-        title="프로모션 사용자 여정 분석"
-      />
       <Tabs
         className="grid gap-4"
         onValueChange={(value) => onTabChange(value as PromotionWorkspaceTab)}
@@ -445,10 +347,24 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsSegmentsTab ? (
           <TabsContent value="segments">
-            <div className="grid gap-4">
+            <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+              <PromotionSegmentSuggestionPanel
+                confirmIsPending={confirmIsPending}
+                createScopedSegmentIsPending={scopedSegmentCreateIsPending}
+                decideIsPending={decideIsPending}
+                archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+                onArchiveScopedSegment={onArchiveScopedSegment}
+                onConfirmSuggestions={onConfirmSuggestions}
+                onCreateScopedSegment={onCreateScopedSegment}
+                onDecideSuggestion={onDecideSuggestion}
+                onStartAnalysis={onStartAnalysis}
+                promotionAnalysisIsPending={promotionAnalysisIsPending}
+                scopedSegments={scopedSegments}
+                scopedSegmentsIsLoading={scopedSegmentsIsLoading}
+                suggestions={suggestions}
+                suggestionsIsLoading={suggestionsIsLoading}
+              />
               <PromotionCurrentSegmentsPanel
-                deleteError={deleteConfirmedSegmentError}
-                deleteIsError={deleteConfirmedSegmentIsError}
                 deleteIsPending={deleteConfirmedSegmentIsPending}
                 onDeleteSegment={onDeleteConfirmedSegment}
                 onSelectSegment={onSelectSegment}
@@ -456,71 +372,21 @@ export function PromotionTabWorkspace({
                 segments={activeSegments}
                 selectedSegmentId={selectedSegmentId}
               />
-              <PromotionSegmentSuggestionPanel
-                confirmError={confirmError}
-                confirmIsError={confirmIsError}
-                confirmIsPending={confirmIsPending}
-                createScopedSegmentError={scopedSegmentCreateError}
-                createScopedSegmentIsError={scopedSegmentCreateIsError}
-                createScopedSegmentIsPending={scopedSegmentCreateIsPending}
-                decideError={decideError}
-                decideIsError={decideIsError}
-                decideIsPending={decideIsPending}
-                archiveScopedSegmentError={archiveScopedSegmentError}
-                archiveScopedSegmentIsError={archiveScopedSegmentIsError}
-                archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
-                onArchiveScopedSegment={onArchiveScopedSegment}
-                onConfirmSuggestions={onConfirmSuggestions}
-                onCreateScopedSegment={onCreateScopedSegment}
-                onDecideSuggestion={onDecideSuggestion}
-                onStartAnalysis={onStartAnalysis}
-                promotionAnalysisError={promotionAnalysisError}
-                promotionAnalysisIsError={promotionAnalysisIsError}
-                promotionAnalysisIsPending={promotionAnalysisIsPending}
-                scopedSegments={scopedSegments}
-                scopedSegmentsError={scopedSegmentsError}
-                scopedSegmentsIsError={scopedSegmentsIsError}
-                scopedSegmentsIsLoading={scopedSegmentsIsLoading}
-                suggestions={suggestions}
-                suggestionsError={suggestionsError}
-                suggestionsIsError={suggestionsIsError}
-                suggestionsIsLoading={suggestionsIsLoading}
-              />
             </div>
           </TabsContent>
         ) : null}
         {showsSegmentDetailTab ? (
           <TabsContent value="segment-detail">
             <PromotionSegmentDetailTab
-              approveContentCandidateError={approveContentCandidateError}
-              approveContentCandidateIsError={approveContentCandidateIsError}
               approveContentCandidateIsPending={approveContentCandidateIsPending}
               detail={selectedSegmentDetail}
-              dispatchPromotionRunError={dispatchPromotionRunError}
-              dispatchPromotionRunIsError={dispatchPromotionRunIsError}
               dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
-              createPromotionRunError={createPromotionRunError}
-              createPromotionRunIsError={createPromotionRunIsError}
               createPromotionRunIsPending={createPromotionRunIsPending}
-              buildAssignmentsError={buildAssignmentsError}
-              buildAssignmentsIsError={buildAssignmentsIsError}
               buildAssignmentsIsPending={buildAssignmentsIsPending}
-              evaluatePromotionRunError={evaluatePromotionRunError}
-              evaluatePromotionRunIsError={evaluatePromotionRunIsError}
               evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
               evaluatePromotionRunResult={evaluatePromotionRunResult}
-              createNextLoopError={createNextLoopError}
-              createNextLoopIsError={createNextLoopIsError}
               createNextLoopIsPending={createNextLoopIsPending}
-              error={selectedSegmentDetailError}
-              generation={promotionGeneration}
-              generationError={promotionGenerationError}
-              generationIsError={promotionGenerationIsError}
               generationIsPending={promotionGenerationIsPending}
-              funnelList={funnelList}
-              funnelListError={funnelListError}
-              funnelListIsError={funnelListIsError}
-              funnelListIsLoading={funnelListIsLoading}
               isError={selectedSegmentDetailIsError}
               isLoading={selectedSegmentDetailIsLoading}
               onApproveContentCandidate={onApproveContentCandidate}
@@ -532,14 +398,9 @@ export function PromotionTabWorkspace({
               onRejectContentCandidate={onRejectContentCandidate}
               onStartAdExperiment={onStartAdExperiment}
               onStartGeneration={onStartGeneration}
-              query={query}
-              rejectContentCandidateError={rejectContentCandidateError}
-              rejectContentCandidateIsError={rejectContentCandidateIsError}
               rejectContentCandidateIsPending={rejectContentCandidateIsPending}
               segmentSuggestion={selectedSegmentSuggestion}
               selectedSegmentId={selectedSegmentId}
-              startAdExperimentError={startAdExperimentError}
-              startAdExperimentIsError={startAdExperimentIsError}
               startAdExperimentIsPending={startAdExperimentIsPending}
             />
           </TabsContent>
@@ -603,8 +464,6 @@ function PromotionOverviewTab({
 }
 
 function PromotionCurrentSegmentsPanel({
-  deleteError,
-  deleteIsError,
   deleteIsPending,
   onDeleteSegment,
   onSelectSegment,
@@ -612,8 +471,6 @@ function PromotionCurrentSegmentsPanel({
   segments,
   selectedSegmentId
 }: {
-  deleteError: Error | null;
-  deleteIsError: boolean;
   deleteIsPending: boolean;
   onDeleteSegment: (promotionId: string, segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
@@ -624,137 +481,107 @@ function PromotionCurrentSegmentsPanel({
   const visibleSegments = latestSegmentPerSegmentId(segments);
 
   return (
-    <Card className="shadow-none">
+    <Card className="h-full shadow-none">
       <CardHeader>
         <CardTitle className="text-base">확정 세그먼트</CardTitle>
         <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
-        {deleteIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>확정 세그먼트를 삭제하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {visibleSegments.length > 0 ? (
-          visibleSegments.map((segment) => {
-            const isSelected = segment.segment_id === selectedSegmentId;
-            const loopCount = segmentLoopCount(segment);
-            const displayCopy = campaignSegmentDisplayCopy(segment);
-            const hiddenLoopCount = segments.filter(
-              (candidate) =>
-                candidate.segment_id === segment.segment_id &&
-                candidate.analysis_id !== segment.analysis_id
-            ).length;
-            return (
-              <div
-                className={`rounded-md border p-3 text-left transition ${
-                  isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
-                }`}
-                key={`${segment.segment_id}:${segment.analysis_id}`}
-                onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelectSegment(promotion.promotion_id, segment.segment_id);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="truncate font-medium">
-                        {displayCopy?.title ?? segment.segment_name}
-                      </span>
-                      <Badge variant="secondary">루프 {formatInteger(loopCount)}</Badge>
-                      {loopCount > 1 ? <Badge variant="default">다음 루프</Badge> : null}
-                    </div>
-                    {displayCopy?.signal_chips.length ? (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {displayCopy.signal_chips.map((chip) => (
-                          <Badge className="text-[11px]" key={chip} variant="outline">
-                            {chip}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {displayCopy?.audience_summary ??
-                        `${formatInteger(segment.estimated_size)}명 · 표본 ${formatInteger(
-                          segment.sample_size
-                        )} · ${formatMetricLabel(segment.goal_metric)}`}
-                      {hiddenLoopCount > 0
-                        ? ` · 이전 루프 ${formatInteger(hiddenLoopCount)}개 숨김`
-                        : ""}
-                    </div>
-                    {displayCopy?.reason ? (
-                      <div className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                        {displayCopy.reason}
-                      </div>
-                    ) : null}
+        {visibleSegments.map((segment) => {
+          const isSelected = segment.segment_id === selectedSegmentId;
+          const loopCount = segmentLoopCount(segment);
+          const displayCopy = campaignSegmentDisplayCopy(segment);
+          const hiddenLoopCount = segments.filter(
+            (candidate) =>
+              candidate.segment_id === segment.segment_id &&
+              candidate.analysis_id !== segment.analysis_id
+          ).length;
+          return (
+            <div
+              className={`rounded-md border p-3 text-left transition ${
+                isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
+              }`}
+              key={`${segment.segment_id}:${segment.analysis_id}`}
+              onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectSegment(promotion.promotion_id, segment.segment_id);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">
+                      {displayCopy?.title ?? segment.segment_name}
+                    </span>
+                    <Badge variant="secondary">루프 {formatInteger(loopCount)}</Badge>
+                    {loopCount > 1 ? <Badge variant="default">다음 루프</Badge> : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant={statusBadgeVariant(segment.status)}>
-                      {formatStatusLabel(segment.status)}
-                    </Badge>
-                    <Button
-                      aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
-                      disabled={deleteIsPending}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDeleteSegment(promotion.promotion_id, segment.segment_id);
-                      }}
-                      size="icon"
-                      type="button"
-                      variant="ghost"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                  {displayCopy?.signal_chips.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {displayCopy.signal_chips.map((chip) => (
+                        <Badge className="text-[11px]" key={chip} variant="outline">
+                          {chip}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {displayCopy?.audience_summary ??
+                      `${formatInteger(segment.estimated_size)}명 · 표본 ${formatInteger(
+                        segment.sample_size
+                      )} · ${formatMetricLabel(segment.goal_metric)}`}
+                    {hiddenLoopCount > 0
+                      ? ` · 이전 루프 ${formatInteger(hiddenLoopCount)}개 숨김`
+                      : ""}
                   </div>
+                  {displayCopy?.reason ? (
+                    <div className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                      {displayCopy.reason}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge variant={statusBadgeVariant(segment.status)}>
+                    {formatStatusLabel(segment.status)}
+                  </Badge>
+                  <Button
+                    aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
+                    disabled={deleteIsPending}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDeleteSegment(promotion.promotion_id, segment.segment_id);
+                    }}
+                    size="icon"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
                 </div>
               </div>
-            );
-          })
-        ) : (
-          <EmptyState message="확정된 세그먼트가 없습니다. 세그먼트 추천/확정 탭에서 후보를 확정해주세요." />
-        )}
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );
 }
 
 function PromotionSegmentDetailTab({
-  approveContentCandidateError,
-  approveContentCandidateIsError,
   approveContentCandidateIsPending,
   detail,
-  dispatchPromotionRunError,
-  dispatchPromotionRunIsError,
   dispatchPromotionRunIsPending,
-  createPromotionRunError,
-  createPromotionRunIsError,
   createPromotionRunIsPending,
-  buildAssignmentsError,
-  buildAssignmentsIsError,
   buildAssignmentsIsPending,
-  evaluatePromotionRunError,
-  evaluatePromotionRunIsError,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
-  createNextLoopError,
-  createNextLoopIsError,
   createNextLoopIsPending,
-  error,
-  generation,
-  generationError,
-  generationIsError,
   generationIsPending,
-  funnelList,
-  funnelListError,
-  funnelListIsError,
-  funnelListIsLoading,
   isError,
   isLoading,
   onApproveContentCandidate,
@@ -766,45 +593,20 @@ function PromotionSegmentDetailTab({
   onRejectContentCandidate,
   onStartAdExperiment,
   onStartGeneration,
-  query,
-  rejectContentCandidateError,
-  rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
   segmentSuggestion,
   selectedSegmentId,
-  startAdExperimentError,
-  startAdExperimentIsError,
   startAdExperimentIsPending
 }: {
-  approveContentCandidateError: Error | null;
-  approveContentCandidateIsError: boolean;
   approveContentCandidateIsPending: boolean;
   detail: DashboardSegmentDetail | undefined;
-  dispatchPromotionRunError: Error | null;
-  dispatchPromotionRunIsError: boolean;
   dispatchPromotionRunIsPending: boolean;
-  createPromotionRunError: Error | null;
-  createPromotionRunIsError: boolean;
   createPromotionRunIsPending: boolean;
-  buildAssignmentsError: Error | null;
-  buildAssignmentsIsError: boolean;
   buildAssignmentsIsPending: boolean;
-  evaluatePromotionRunError: Error | null;
-  evaluatePromotionRunIsError: boolean;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
-  createNextLoopError: Error | null;
-  createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
-  error: Error | null;
-  generation: DashboardStartPromotionGenerationResult | null;
-  generationError: Error | null;
-  generationIsError: boolean;
   generationIsPending: boolean;
-  funnelList: DashboardFunnelList | undefined;
-  funnelListError: Error | null;
-  funnelListIsError: boolean;
-  funnelListIsLoading: boolean;
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
@@ -820,41 +622,26 @@ function PromotionSegmentDetailTab({
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
-  query: DashboardQuery;
-  rejectContentCandidateError: Error | null;
-  rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
   segmentSuggestion: DashboardPromotionSegmentSuggestion | null;
   selectedSegmentId: string;
-  startAdExperimentError: Error | null;
-  startAdExperimentIsError: boolean;
   startAdExperimentIsPending: boolean;
 }) {
   if (!selectedSegmentId) {
     return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
   }
   if (isError) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>세그먼트 상세를 불러오지 못했습니다</AlertTitle>
-        <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
-      </Alert>
-    );
+    return null;
   }
   if (isLoading || !detail) {
-    return <EmptyState message="세그먼트 상세를 불러오는 중입니다." />;
+    return <EmptyState message="세그먼트 맞춤 광고 생성 중입니다..." />;
   }
 
-  const insufficientMetrics = detail.experiment_metrics.filter(
-    (metric) => metric.status === "insufficient_data"
-  );
   const latestMetric = detail.experiment_metrics[0];
   const approvedContentCandidate = detail.content_candidates.find(
     (candidate) => candidate.status === "approved"
   );
   const hasGeneratedContentCandidates = detail.content_candidates.length > 0;
-  const hasPendingImage = hasPendingOnsiteBannerImage(detail);
-  const generationFailed = generation?.status.toLowerCase() === "failed";
 
   return (
     <section className="grid gap-4">
@@ -895,61 +682,6 @@ function PromotionSegmentDetailTab({
         </CardContent>
       </Card>
 
-      {insufficientMetrics.length > 0 || detail.segment.status === "insufficient_data" ? (
-        <Alert variant="destructive">
-          <AlertTitle>표본 부족 상태</AlertTitle>
-          <AlertDescription>
-            표본 부족은 실패가 아니라 판단 보류 상태입니다. 실험 대상 수와 평가 결과 JSON을 함께
-            확인해야 합니다.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      <SegmentConnectedExperimentsCard
-        buildAssignmentsError={buildAssignmentsError}
-        buildAssignmentsIsError={buildAssignmentsIsError}
-        buildAssignmentsIsPending={buildAssignmentsIsPending}
-        createNextLoopError={createNextLoopError}
-        createNextLoopIsError={createNextLoopIsError}
-        createNextLoopIsPending={createNextLoopIsPending}
-        createPromotionRunError={createPromotionRunError}
-        createPromotionRunIsError={createPromotionRunIsError}
-        createPromotionRunIsPending={createPromotionRunIsPending}
-        detail={detail}
-        dispatchPromotionRunError={dispatchPromotionRunError}
-        dispatchPromotionRunIsError={dispatchPromotionRunIsError}
-        dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
-        evaluatePromotionRunError={evaluatePromotionRunError}
-        evaluatePromotionRunIsError={evaluatePromotionRunIsError}
-        evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
-        evaluatePromotionRunResult={evaluatePromotionRunResult}
-        onBuildAssignments={onBuildAssignments}
-        onCreateNextLoop={onCreateNextLoop}
-        onCreatePromotionRun={onCreatePromotionRun}
-        onDispatchPromotionRun={onDispatchPromotionRun}
-        onEvaluatePromotionRun={onEvaluatePromotionRun}
-        onStartAdExperiment={onStartAdExperiment}
-        startAdExperimentError={startAdExperimentError}
-        startAdExperimentIsError={startAdExperimentIsError}
-        startAdExperimentIsPending={startAdExperimentIsPending}
-      />
-
-      <ScopedFunnelAnalysisPanel
-        error={funnelListError}
-        funnels={funnelList?.funnels ?? []}
-        isError={funnelListIsError}
-        isLoading={funnelListIsLoading}
-        query={query}
-        scope={{
-          promotion_id: detail.segment.promotion_id,
-          scope_type: "segment",
-          segment_id: detail.segment.segment_id
-        }}
-        title="세그먼트 사용자 여정 분석"
-      />
-
-      <SegmentDetailReportCard suggestion={segmentSuggestion} />
-
       <section className="grid gap-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="grid gap-1">
@@ -975,47 +707,6 @@ function PromotionSegmentDetailTab({
           </Button>
         </div>
         <div className="grid gap-3">
-          {generationIsError ? (
-            <Alert variant="destructive">
-              <AlertTitle>광고 생성 요청에 실패했습니다</AlertTitle>
-              <AlertDescription>{mutationErrorMessage(generationError)}</AlertDescription>
-            </Alert>
-          ) : null}
-          {generation && generationFailed ? (
-            <Alert variant={generationFailed ? "destructive" : "default"}>
-              <AlertTitle>광고 생성이 실패했습니다</AlertTitle>
-              <AlertDescription>
-                {generation.generation_id} · {formatStatusLabel(generation.status)}
-                {generation.content_candidate_count === undefined
-                  ? ""
-                  : ` · 후보 ${formatInteger(generation.content_candidate_count)}개`}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {hasPendingImage ? (
-            <Alert>
-              <AlertTitle>배너 이미지를 생성하는 중입니다</AlertTitle>
-              <AlertDescription>
-                이미지 URL이 저장되면 자동으로 다시 불러와 카드에 표시합니다.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {approveContentCandidateIsError ? (
-            <Alert variant="destructive">
-              <AlertTitle>광고 후보를 승인하지 못했습니다</AlertTitle>
-              <AlertDescription>
-                {mutationErrorMessage(approveContentCandidateError)}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {rejectContentCandidateIsError ? (
-            <Alert variant="destructive">
-              <AlertTitle>광고 후보를 거절하지 못했습니다</AlertTitle>
-              <AlertDescription>
-                {mutationErrorMessage(rejectContentCandidateError)}
-              </AlertDescription>
-            </Alert>
-          ) : null}
           {detail.content_candidates.length > 0 ? (
             <div className="grid gap-3 lg:grid-cols-2">
               {detail.content_candidates.map((candidate) => {
@@ -1156,26 +847,35 @@ function PromotionSegmentDetailTab({
           )}
         </div>
       </section>
+
+      <SegmentConnectedExperimentsCard
+        buildAssignmentsIsPending={buildAssignmentsIsPending}
+        createNextLoopIsPending={createNextLoopIsPending}
+        createPromotionRunIsPending={createPromotionRunIsPending}
+        detail={detail}
+        dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
+        evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
+        evaluatePromotionRunResult={evaluatePromotionRunResult}
+        onBuildAssignments={onBuildAssignments}
+        onCreateNextLoop={onCreateNextLoop}
+        onCreatePromotionRun={onCreatePromotionRun}
+        onDispatchPromotionRun={onDispatchPromotionRun}
+        onEvaluatePromotionRun={onEvaluatePromotionRun}
+        onStartAdExperiment={onStartAdExperiment}
+        startAdExperimentIsPending={startAdExperimentIsPending}
+      />
+
+      <SegmentDetailReportCard suggestion={segmentSuggestion} />
     </section>
   );
 }
 
 function SegmentConnectedExperimentsCard({
-  buildAssignmentsError,
-  buildAssignmentsIsError,
   buildAssignmentsIsPending,
-  createNextLoopError,
-  createNextLoopIsError,
   createNextLoopIsPending,
-  createPromotionRunError,
-  createPromotionRunIsError,
   createPromotionRunIsPending,
   detail,
-  dispatchPromotionRunError,
-  dispatchPromotionRunIsError,
   dispatchPromotionRunIsPending,
-  evaluatePromotionRunError,
-  evaluatePromotionRunIsError,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
   onBuildAssignments,
@@ -1184,25 +884,13 @@ function SegmentConnectedExperimentsCard({
   onDispatchPromotionRun,
   onEvaluatePromotionRun,
   onStartAdExperiment,
-  startAdExperimentError,
-  startAdExperimentIsError,
   startAdExperimentIsPending
 }: {
-  buildAssignmentsError: Error | null;
-  buildAssignmentsIsError: boolean;
   buildAssignmentsIsPending: boolean;
-  createNextLoopError: Error | null;
-  createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
-  createPromotionRunError: Error | null;
-  createPromotionRunIsError: boolean;
   createPromotionRunIsPending: boolean;
   detail: DashboardSegmentDetail;
-  dispatchPromotionRunError: Error | null;
-  dispatchPromotionRunIsError: boolean;
   dispatchPromotionRunIsPending: boolean;
-  evaluatePromotionRunError: Error | null;
-  evaluatePromotionRunIsError: boolean;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
   onBuildAssignments: (promotionRunId: string) => void;
@@ -1215,8 +903,6 @@ function SegmentConnectedExperimentsCard({
   onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
   onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
-  startAdExperimentError: Error | null;
-  startAdExperimentIsError: boolean;
   startAdExperimentIsPending: boolean;
 }) {
   const approvedContentCandidate = detail.content_candidates.find(
@@ -1317,42 +1003,6 @@ function SegmentConnectedExperimentsCard({
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
-        {createPromotionRunIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>실험 생성 요청에 실패했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(createPromotionRunError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {buildAssignmentsIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>대상 배정 생성에 실패했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(buildAssignmentsError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {evaluatePromotionRunIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>성과 평가 요청에 실패했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(evaluatePromotionRunError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {createNextLoopIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>다음 루프 생성에 실패했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(createNextLoopError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {dispatchPromotionRunIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>광고 실행 요청에 실패했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(dispatchPromotionRunError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {startAdExperimentIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>광고 실험을 시작하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(startAdExperimentError)}</AlertDescription>
-          </Alert>
-        ) : null}
         {detail.ad_experiments.length > 0 ? (
           <Table>
             <TableHeader>
@@ -1438,62 +1088,34 @@ function SegmentConnectedExperimentsCard({
 }
 
 function PromotionSegmentSuggestionPanel({
-  archiveScopedSegmentError,
-  archiveScopedSegmentIsError,
   archiveScopedSegmentIsPending,
-  confirmError,
-  confirmIsError,
   confirmIsPending,
-  createScopedSegmentError,
-  createScopedSegmentIsError,
   createScopedSegmentIsPending,
-  decideError,
-  decideIsError,
   decideIsPending,
   onArchiveScopedSegment,
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
   onStartAnalysis,
-  promotionAnalysisError,
-  promotionAnalysisIsError,
   promotionAnalysisIsPending,
   scopedSegments,
-  scopedSegmentsError,
-  scopedSegmentsIsError,
   scopedSegmentsIsLoading,
   suggestions,
-  suggestionsError,
-  suggestionsIsError,
   suggestionsIsLoading
 }: {
-  archiveScopedSegmentError: Error | null;
-  archiveScopedSegmentIsError: boolean;
   archiveScopedSegmentIsPending: boolean;
-  confirmError: Error | null;
-  confirmIsError: boolean;
   confirmIsPending: boolean;
-  createScopedSegmentError: Error | null;
-  createScopedSegmentIsError: boolean;
   createScopedSegmentIsPending: boolean;
-  decideError: Error | null;
-  decideIsError: boolean;
   decideIsPending: boolean;
   onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onStartAnalysis: () => void;
-  promotionAnalysisError: Error | null;
-  promotionAnalysisIsError: boolean;
   promotionAnalysisIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
-  scopedSegmentsError: Error | null;
-  scopedSegmentsIsError: boolean;
   scopedSegmentsIsLoading: boolean;
   suggestions: DashboardPromotionSegmentSuggestion[];
-  suggestionsError: Error | null;
-  suggestionsIsError: boolean;
   suggestionsIsLoading: boolean;
 }) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -1505,8 +1127,8 @@ function PromotionSegmentSuggestionPanel({
   const confirmableCount = acceptedCount + scopedSegments.length;
 
   return (
-    <Card className="shadow-none">
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <Card className="h-full shadow-none">
+      <CardHeader className="grid gap-4">
         <div className="grid gap-1">
           <CardTitle>추천 세그먼트 후보</CardTitle>
           <CardDescription>
@@ -1514,7 +1136,7 @@ function PromotionSegmentSuggestionPanel({
             저장됩니다.
           </CardDescription>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             disabled={promotionAnalysisIsPending}
             onClick={onStartAnalysis}
@@ -1539,48 +1161,6 @@ function PromotionSegmentSuggestionPanel({
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
-        {promotionAnalysisIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>AI 추천 요청에 실패했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(promotionAnalysisError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {suggestionsIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>추천 세그먼트를 불러오지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(suggestionsError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {decideIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>추천 후보 상태를 변경하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(decideError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {confirmIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>추천 후보를 확정하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(confirmError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {scopedSegmentsIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>직접 추가 세그먼트를 불러오지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(scopedSegmentsError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {createScopedSegmentIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>직접 추가 세그먼트를 저장하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(createScopedSegmentError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {archiveScopedSegmentIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>직접 추가 세그먼트를 삭제하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(archiveScopedSegmentError)}</AlertDescription>
-          </Alert>
-        ) : null}
         {scopedSegmentsIsLoading ? (
           <EmptyState message="직접 추가 세그먼트를 불러오는 중입니다." />
         ) : null}
@@ -1590,7 +1170,7 @@ function PromotionSegmentSuggestionPanel({
               <h3 className="text-sm font-semibold">직접 추가 세그먼트 후보</h3>
               <Badge variant="secondary">{formatInteger(scopedSegments.length)}</Badge>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2">
               {scopedSegments.map((segment) => (
                 <div
                   className="grid gap-3 rounded-md border bg-[#f7fbff] p-4"
@@ -1633,11 +1213,8 @@ function PromotionSegmentSuggestionPanel({
           </div>
         ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 세그먼트를 불러오는 중입니다." /> : null}
-        {!suggestionsIsLoading && suggestions.length === 0 && scopedSegments.length === 0 ? (
-          <EmptyState message="표시할 세그먼트 후보가 없습니다." />
-        ) : null}
         {suggestions.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             {suggestions.map((suggestion) => {
               const isAccepted = suggestion.suggestion_status === "accepted";
               const isConfirmed = suggestion.suggestion_status === "confirmed";
@@ -1886,12 +1463,10 @@ function PromotionSegmentCreateDialog({
   const [form, setForm] = useState<PromotionSegmentCreateFormState>(
     createEmptyPromotionSegmentFormState()
   );
-  const [jsonError, setJsonError] = useState("");
 
   useEffect(() => {
     if (open) {
       setForm(createEmptyPromotionSegmentFormState());
-      setJsonError("");
     }
   }, [open]);
 
@@ -1908,12 +1483,6 @@ function PromotionSegmentCreateDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          {jsonError ? (
-            <Alert variant="destructive">
-              <AlertTitle>조건 JSON을 확인해주세요</AlertTitle>
-              <AlertDescription>{jsonError}</AlertDescription>
-            </Alert>
-          ) : null}
           <Field>
             <FieldLabel htmlFor="promotion-segment-name">세그먼트 이름</FieldLabel>
             <Input
@@ -1987,10 +1556,8 @@ function PromotionSegmentCreateDialog({
             onClick={() => {
               const ruleJson = parseJsonObject(form.ruleJsonText);
               if (!ruleJson) {
-                setJsonError("객체 형태의 JSON만 입력할 수 있습니다.");
                 return;
               }
-              setJsonError("");
               onCreate({ ...form, ruleJsonText: JSON.stringify(ruleJson) });
               onOpenChange(false);
             }}

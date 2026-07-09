@@ -100,7 +100,6 @@ export function ExperimentComponent({
           detail={detailQuery.data}
           isLoading={detailQuery.isFetching}
           selectedSegmentDetail={segmentDetailQuery.data}
-          selectedSegmentDetailError={segmentDetailQuery.error}
           selectedSegmentDetailIsError={segmentDetailQuery.isError}
           selectedSegmentDetailIsLoading={segmentDetailQuery.isLoading}
           selectedSegmentId={selectedSegmentId}

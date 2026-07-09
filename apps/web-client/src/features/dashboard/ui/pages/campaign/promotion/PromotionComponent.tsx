@@ -5,14 +5,12 @@ import type {
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
   DashboardEvaluatePromotionRunResult,
-  DashboardFunnelList,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
   DashboardSegmentDetail,
   DashboardPromotionSegmentSuggestion,
   DashboardStartPromotionGenerationResult
 } from "@loopad/shared";
-import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -61,7 +59,6 @@ import {
   dispatchDashboardPromotionRun,
   evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
-  fetchDashboardFunnelList,
   fetchDashboardPromotionDetail,
   fetchDashboardSegmentDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
@@ -82,7 +79,6 @@ import {
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
-  dashboardFunnelListQueryKey,
   dashboardPromotionAnalysisProgressQueryKey,
   dashboardPromotionDetailQueryKey,
   dashboardPromotionScopedSegmentDefinitionsQueryKey,
@@ -91,7 +87,6 @@ import {
 } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
-import { ScopedFunnelAnalysisPanel } from "../../../shared/ScopedFunnelAnalysisPanel.js";
 
 import { PromotionAddDialog } from "./components/PromotionDialogs.js";
 import { PromotionChromeTabs, PromotionEmptyState, PromotionTabWorkspace } from "./components/PromotionWorkspaceContent.js";
@@ -149,10 +144,6 @@ export function PromotionWorkspace({
     enabled: Boolean(selectedCampaignId),
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
-  });
-  const funnelList = useQuery({
-    queryFn: ({ signal }) => fetchDashboardFunnelList(query, signal),
-    queryKey: dashboardFunnelListQueryKey(query.projectId)
   });
   const createPromotionMutation = useMutation({
     mutationFn: (form: PromotionCreateFormState) =>
@@ -742,13 +733,6 @@ export function PromotionWorkspace({
   const closePromotion = (promotionId: string) => {
     deletePromotionMutation.mutate(promotionId);
   };
-  const promotionAnalysisError =
-    startAnalysisMutation.error ??
-    (analysisProgress.data.status === "error"
-      ? new Error(analysisProgress.data.errorMessage ?? "AI 추천 요청에 실패했습니다")
-      : null);
-  const promotionAnalysisIsError =
-    startAnalysisMutation.isError || analysisProgress.data.status === "error";
   const promotionAnalysisIsPending =
     startAnalysisMutation.isPending || analysisProgress.data.status === "pending";
 
@@ -764,22 +748,6 @@ export function PromotionWorkspace({
         />
       ) : null}
       <div className="grid gap-6 px-6 py-6">
-        {campaignDetail.isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>프로모션 데이터를 불러오지 못했습니다</AlertTitle>
-            <AlertDescription>
-              {campaignDetail.error?.message ?? "API 요청에 실패했습니다."}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {deletePromotionMutation.isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>프로모션을 삭제하지 못했습니다</AlertTitle>
-            <AlertDescription>
-              {mutationErrorMessage(deletePromotionMutation.error)}
-            </AlertDescription>
-          </Alert>
-        ) : null}
         {!selectedCampaign ? (
           <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." />
         ) : null}
@@ -803,36 +771,16 @@ export function PromotionWorkspace({
             ) : null}
             {selectedOpenPromotion ? (
               <PromotionTabWorkspace
-                approveContentCandidateError={approveContentCandidateMutation.error}
-                approveContentCandidateIsError={approveContentCandidateMutation.isError}
                 approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
-                confirmError={confirmSuggestionsMutation.error}
-                confirmIsError={confirmSuggestionsMutation.isError}
                 confirmIsPending={confirmSuggestionsMutation.isPending}
-                decideError={decideSuggestionMutation.error}
-                decideIsError={decideSuggestionMutation.isError}
                 decideIsPending={decideSuggestionMutation.isPending}
-                deleteConfirmedSegmentError={deleteConfirmedSegmentMutation.error}
-                deleteConfirmedSegmentIsError={deleteConfirmedSegmentMutation.isError}
                 deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}
-                dispatchPromotionRunError={dispatchPromotionRunMutation.error}
-                dispatchPromotionRunIsError={dispatchPromotionRunMutation.isError}
                 dispatchPromotionRunIsPending={dispatchPromotionRunMutation.isPending}
-                createPromotionRunError={createPromotionRunMutation.error}
-                createPromotionRunIsError={createPromotionRunMutation.isError}
                 createPromotionRunIsPending={createPromotionRunMutation.isPending}
-                buildAssignmentsError={buildPromotionRunAssignmentsMutation.error}
-                buildAssignmentsIsError={buildPromotionRunAssignmentsMutation.isError}
                 buildAssignmentsIsPending={buildPromotionRunAssignmentsMutation.isPending}
-                evaluatePromotionRunError={evaluatePromotionRunMutation.error}
-                evaluatePromotionRunIsError={evaluatePromotionRunMutation.isError}
                 evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
                 evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
-                createNextLoopError={createNextLoopMutation.error}
-                createNextLoopIsError={createNextLoopMutation.isError}
                 createNextLoopIsPending={createNextLoopMutation.isPending}
-                archiveScopedSegmentError={archiveScopedSegmentMutation.error}
-                archiveScopedSegmentIsError={archiveScopedSegmentMutation.isError}
                 archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
                 onArchiveScopedSegment={(segmentId) => {
                   if (!selectedOpenPromotion) {
@@ -892,40 +840,19 @@ export function PromotionWorkspace({
                 onSelectSegment={selectSegment}
                 onTabChange={setWorkspaceTab}
                 promotion={selectedOpenPromotion}
-                promotionAnalysisError={promotionAnalysisError}
-                promotionAnalysisIsError={promotionAnalysisIsError}
                 promotionAnalysisIsPending={promotionAnalysisIsPending}
-                promotionGeneration={startGenerationMutation.data ?? null}
-                promotionGenerationError={startGenerationMutation.error}
-                promotionGenerationIsError={startGenerationMutation.isError}
                 promotionGenerationIsPending={startGenerationMutation.isPending}
-                funnelList={funnelList.data}
-                funnelListError={funnelList.error}
-                funnelListIsError={funnelList.isError}
-                funnelListIsLoading={funnelList.isLoading}
-                query={query}
-                rejectContentCandidateError={rejectContentCandidateMutation.error}
-                rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
                 rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
-                startAdExperimentError={startAdExperimentMutation.error}
-                startAdExperimentIsError={startAdExperimentMutation.isError}
                 startAdExperimentIsPending={startAdExperimentMutation.isPending}
                 segments={selectedPromotionSegments}
                 scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
-                scopedSegmentsError={scopedSegmentDefinitions.error}
-                scopedSegmentsIsError={scopedSegmentDefinitions.isError}
                 scopedSegmentsIsLoading={scopedSegmentDefinitions.isLoading}
-                scopedSegmentCreateError={createScopedSegmentMutation.error}
-                scopedSegmentCreateIsError={createScopedSegmentMutation.isError}
                 scopedSegmentCreateIsPending={createScopedSegmentMutation.isPending}
                 selectedSegmentDetail={segmentDetail.data}
-                selectedSegmentDetailError={segmentDetail.error}
                 selectedSegmentDetailIsError={segmentDetail.isError}
                 selectedSegmentDetailIsLoading={segmentDetail.isLoading}
                 selectedSegmentId={selectedPromotionSegmentId}
                 suggestions={segmentSuggestions.data?.suggestions ?? []}
-                suggestionsError={segmentSuggestions.error}
-                suggestionsIsError={segmentSuggestions.isError}
                 suggestionsIsLoading={segmentSuggestions.isLoading}
                 tab={workspaceTab}
                 visibleTabs={visibleTabs}
@@ -933,8 +860,6 @@ export function PromotionWorkspace({
             ) : null}
             {mode === "promotion" ? (
               <PromotionAddDialog
-                createError={createPromotionMutation.error}
-                createIsError={createPromotionMutation.isError}
                 createIsPending={createPromotionMutation.isPending}
                 onCreate={(form) => createPromotionMutation.mutate(form)}
                 onOpenChange={setIsAddDialogOpen}

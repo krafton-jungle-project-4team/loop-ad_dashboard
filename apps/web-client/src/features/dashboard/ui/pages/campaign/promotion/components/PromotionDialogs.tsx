@@ -1,5 +1,4 @@
 import type { DashboardCampaignPromotion } from "@loopad/shared";
-import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Button } from "@loopad/ui/shadcn/button";
 import {
   Dialog,
@@ -29,7 +28,6 @@ import {
   createEmptyPromotionFormState,
   defaultPromotionLandingUrl,
   isValidHttpUrl,
-  mutationErrorMessage,
   promotionChannelOptions,
   promotionCreateFormToRequest,
   promotionGoalBasisOptions,
@@ -39,15 +37,11 @@ import {
 } from "../promotionUtils.js";
 
 export function PromotionAddDialog({
-  createError,
-  createIsError,
   createIsPending,
   onCreate,
   onOpenChange,
   open
 }: {
-  createError: Error | null;
-  createIsError: boolean;
   createIsPending: boolean;
   onCreate: (form: PromotionCreateFormState) => void;
   onOpenChange: (open: boolean) => void;
@@ -74,12 +68,6 @@ export function PromotionAddDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 px-8 py-6">
-          {createIsError ? (
-            <Alert variant="destructive">
-              <AlertTitle>프로모션을 생성하지 못했습니다</AlertTitle>
-              <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
-            </Alert>
-          ) : null}
           <div className="grid gap-4">
             <Field>
               <FieldLabel htmlFor="promotion-create-theme">프로모션 이름</FieldLabel>
