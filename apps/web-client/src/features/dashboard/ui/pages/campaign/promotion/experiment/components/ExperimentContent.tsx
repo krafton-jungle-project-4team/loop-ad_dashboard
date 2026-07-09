@@ -5,7 +5,6 @@ import type {
   DashboardCampaignSegment,
   DashboardSegmentDetail
 } from "@loopad/shared";
-import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -49,7 +48,6 @@ export function ExperimentContent({
   detail,
   isLoading,
   selectedSegmentDetail,
-  selectedSegmentDetailError,
   selectedSegmentDetailIsError,
   selectedSegmentDetailIsLoading,
   selectedSegmentId,
@@ -57,7 +55,6 @@ export function ExperimentContent({
   detail: DashboardCampaignDetail | undefined;
   isLoading: boolean;
   selectedSegmentDetail: DashboardSegmentDetail | undefined;
-  selectedSegmentDetailError: Error | null;
   selectedSegmentDetailIsError: boolean;
   selectedSegmentDetailIsLoading: boolean;
   selectedSegmentId: string;
@@ -117,7 +114,6 @@ export function ExperimentContent({
 
       <ExperimentSegmentPanel
         detail={selectedSegmentDetail}
-        error={selectedSegmentDetailError}
         isError={selectedSegmentDetailIsError}
         isLoading={selectedSegmentDetailIsLoading}
         selectedSegmentId={selectedSegmentId}
@@ -206,14 +202,12 @@ export function ExperimentContent({
 
 function ExperimentSegmentPanel({
   detail,
-  error,
   isError,
   isLoading,
   selectedSegmentId,
   segments
 }: {
   detail: DashboardSegmentDetail | undefined;
-  error: Error | null;
   isError: boolean;
   isLoading: boolean;
   selectedSegmentId: string;
@@ -252,12 +246,7 @@ function SelectedSegmentExperimentCards({
     return <EmptyState message="실험을 확인할 세그먼트를 선택해주세요." />;
   }
   if (isError) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>세그먼트 실험 정보를 불러오지 못했습니다</AlertTitle>
-        <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
-      </Alert>
-    );
+    return null;
   }
   if (isLoading || !detail) {
     return <EmptyState message="세그먼트 실험 정보를 불러오는 중입니다." />;
