@@ -1112,8 +1112,7 @@ selected_segments AS (
 ),
 reset_unselected_approved AS (
   UPDATE promotion_target_segments pts
-  SET status = 'planned',
-      updated_at = now()
+  SET status = 'planned'
   WHERE pts.project_id = :projectId
     AND pts.promotion_id = :promotionId
     AND pts.status = 'approved'
@@ -1179,8 +1178,10 @@ confirmed AS (
     suggestion_id = EXCLUDED.suggestion_id,
     confirmed_by = EXCLUDED.confirmed_by,
     confirmed_at = EXCLUDED.confirmed_at,
-    status = 'approved',
-    updated_at = now()
+    status = CASE
+      WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'
+      ELSE promotion_target_segments.status
+    END
   RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", suggestion_id AS "suggestionId"
 ),
 updated AS (
