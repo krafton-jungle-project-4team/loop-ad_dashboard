@@ -6,6 +6,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from "@loopad/ui/shadcn/breadcrumb";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@loopad/ui/shadcn/collapsible";
 import { Separator } from "@loopad/ui/shadcn/separator";
 import {
   Sidebar,
@@ -28,7 +33,7 @@ import {
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Gauge } from "lucide-react";
+import { ChevronRight, Gauge } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -41,7 +46,9 @@ import { fetchDashboardProjects } from "../api/dashboard-api.js";
 import {
   dashboardNavigationTree,
   getDashboardTabLabel,
-  type DashboardNavTreeItem
+  type DashboardNavTreeFolderItem,
+  type DashboardNavTreeItem,
+  type DashboardNavTreeLinkItem
 } from "../model/dashboard-navigation.js";
 import { dashboardProjectsQueryKey } from "../model/dashboard-query-keys.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
@@ -164,104 +171,238 @@ function DashboardNavigation({
 }) {
   return (
     <SidebarMenu>
-      {dashboardNavigationTree.map((item) => {
-        const Icon = item.icon;
-        const isActive = isNavigationItemActive(item, activeTab);
-
-        return (
-          <SidebarMenuItem key={item.label}>
-            <SidebarMenuButton
-              asChild
-              className={
-                isActive
-                  ? "rounded-full bg-[#0066cc] text-white hover:bg-[#0066cc] hover:text-white data-[active=true]:bg-[#0066cc] data-[active=true]:text-white"
-                  : "rounded-full text-sidebar-foreground/80"
-              }
-              isActive={isActive}
-              tooltip={item.label}
-            >
-              <Link
-                params={{ projectId, tabPath: item.pathSegment ?? "main" }}
-                search={(current) => current}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                {Icon ? <Icon /> : null}
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuButton>
-            {item.children ? (
-              <DashboardNavigationSubItems
-                activeTab={activeTab}
-                items={item.children}
-                projectId={projectId}
-              />
-            ) : null}
-          </SidebarMenuItem>
-        );
-      })}
+      {dashboardNavigationTree.map((item) =>
+        item.type === "folder" ? (
+          <DashboardNavigationFolderItem
+            activeTab={activeTab}
+            item={item}
+            key={getNavigationItemKey(item)}
+            projectId={projectId}
+          />
+        ) : (
+          <DashboardNavigationLinkItem
+            activeTab={activeTab}
+            item={item}
+            key={getNavigationItemKey(item)}
+            projectId={projectId}
+          />
+        )
+      )}
     </SidebarMenu>
+  );
+}
+
+function DashboardNavigationLinkItem({
+  activeTab,
+  item,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  item: DashboardNavTreeLinkItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  const isActive = activeTab === item.value;
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        className={cn(
+          "rounded-full text-sidebar-foreground/80",
+          isActive &&
+            "bg-[#0066cc] text-white hover:bg-[#0066cc] hover:text-white data-[active=true]:bg-[#0066cc] data-[active=true]:text-white"
+        )}
+        isActive={isActive}
+        tooltip={item.label}
+      >
+        <Link
+          params={{ projectId, tabPath: item.pathSegment }}
+          search={(current) => current}
+          to="/dashboard/$projectId/$tabPath"
+        >
+          <Icon />
+          <span>{item.label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function DashboardNavigationFolderItem({
+  activeTab,
+  item,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  item: DashboardNavTreeFolderItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  const isBranchActive = isNavigationItemActive(item, activeTab);
+
+  return (
+    <Collapsible asChild className="group/collapsible" defaultOpen={isBranchActive}>
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton
+            className={cn(
+              "rounded-full text-sidebar-foreground/80",
+              isBranchActive && "bg-sidebar-accent/70 font-medium text-sidebar-accent-foreground"
+            )}
+            isActive={isBranchActive}
+            tooltip={item.label}
+          >
+            {Icon ? <Icon /> : null}
+            <span>{item.label}</span>
+            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <DashboardNavigationSubItems
+            activeTab={activeTab}
+            depth={0}
+            items={item.children}
+            projectId={projectId}
+          />
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
   );
 }
 
 function DashboardNavigationSubItems({
   activeTab,
+  depth,
   items,
   projectId
 }: {
   activeTab: DashboardTab;
+  depth: number;
   items: DashboardNavTreeItem[];
   projectId: string;
 }) {
   return (
-    <SidebarMenuSub>
-      {items.map((item) => {
-        const isExactActive = activeTab === item.value;
-        const isBranchActive = isNavigationItemActive(item, activeTab);
-
-        return (
-          <SidebarMenuSubItem key={item.label}>
-            <SidebarMenuSubButton
-              asChild
-              className={cn(
-                "relative transition-colors",
-                isExactActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground",
-                !isExactActive && isBranchActive && "bg-sidebar-accent/60 text-sidebar-foreground"
-              )}
-              isActive={isExactActive}
-            >
-              <Link
-                params={{ projectId, tabPath: item.pathSegment ?? "main" }}
-                search={(current) => current}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                {isExactActive ? (
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sidebar-primary"
-                  />
-                ) : null}
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuSubButton>
-            {item.children ? (
-              <DashboardNavigationSubItems
-                activeTab={activeTab}
-                items={item.children}
-                projectId={projectId}
-              />
-            ) : null}
-          </SidebarMenuSubItem>
-        );
-      })}
+    <SidebarMenuSub className={cn(depth > 0 && "mx-2 px-1.5")}>
+      {items.map((item) =>
+        item.type === "folder" ? (
+          <DashboardNavigationSubFolderItem
+            activeTab={activeTab}
+            depth={depth}
+            item={item}
+            key={getNavigationItemKey(item)}
+            projectId={projectId}
+          />
+        ) : (
+          <DashboardNavigationSubLinkItem
+            activeTab={activeTab}
+            item={item}
+            key={getNavigationItemKey(item)}
+            projectId={projectId}
+          />
+        )
+      )}
     </SidebarMenuSub>
   );
 }
 
-function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: DashboardTab): boolean {
+function DashboardNavigationSubLinkItem({
+  activeTab,
+  item,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  item: DashboardNavTreeLinkItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  const isExactActive = activeTab === item.value;
+
   return (
-    item.value === activeTab ||
-    Boolean(item.children?.some((child) => isNavigationItemActive(child, activeTab)))
+    <SidebarMenuSubItem>
+      <SidebarMenuSubButton
+        asChild
+        className={cn(
+          "relative transition-colors",
+          isExactActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+        )}
+        isActive={isExactActive}
+      >
+        <Link
+          params={{ projectId, tabPath: item.pathSegment }}
+          search={(current) => current}
+          to="/dashboard/$projectId/$tabPath"
+        >
+          {isExactActive ? (
+            <span
+              aria-hidden="true"
+              className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sidebar-primary"
+            />
+          ) : null}
+          <Icon />
+          <span>{item.label}</span>
+        </Link>
+      </SidebarMenuSubButton>
+    </SidebarMenuSubItem>
   );
+}
+
+function DashboardNavigationSubFolderItem({
+  activeTab,
+  depth,
+  item,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  depth: number;
+  item: DashboardNavTreeFolderItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  const isBranchActive = isNavigationItemActive(item, activeTab);
+
+  return (
+    <Collapsible asChild className="group/collapsible" defaultOpen={isBranchActive}>
+      <SidebarMenuSubItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuSubButton
+            asChild
+            className={cn(
+              "transition-colors",
+              isBranchActive && "bg-sidebar-accent/60 font-medium text-sidebar-foreground"
+            )}
+            isActive={isBranchActive}
+          >
+            <button type="button">
+              {Icon ? <Icon /> : null}
+              <span>{item.label}</span>
+              <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+            </button>
+          </SidebarMenuSubButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <DashboardNavigationSubItems
+            activeTab={activeTab}
+            depth={depth + 1}
+            items={item.children}
+            projectId={projectId}
+          />
+        </CollapsibleContent>
+      </SidebarMenuSubItem>
+    </Collapsible>
+  );
+}
+
+function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: DashboardTab): boolean {
+  if (item.type === "link") {
+    return item.value === activeTab;
+  }
+
+  return item.children.some((child) => isNavigationItemActive(child, activeTab));
+}
+
+function getNavigationItemKey(item: DashboardNavTreeItem): string {
+  return item.type === "link" ? item.pathSegment : item.label;
 }
 
 function DashboardBreadcrumbs({ projectId, tab }: { projectId: string; tab: DashboardTab }) {

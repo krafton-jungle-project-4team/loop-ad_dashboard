@@ -18,13 +18,18 @@ export type DashboardNavItem = {
   value: DashboardTab;
 };
 
-export type DashboardNavTreeItem = {
-  children?: DashboardNavTreeItem[];
+export type DashboardNavTreeFolderItem = {
+  children: DashboardNavTreeItem[];
   icon?: LucideIcon;
   label: string;
-  pathSegment?: string;
-  value?: DashboardTab;
+  type: "folder";
 };
+
+export type DashboardNavTreeLinkItem = DashboardNavItem & {
+  type: "link";
+};
+
+export type DashboardNavTreeItem = DashboardNavTreeFolderItem | DashboardNavTreeLinkItem;
 
 export const dashboardTabs = [
   { value: "main", label: "메인 대시보드", icon: Activity, pathSegment: "main" },
@@ -35,16 +40,16 @@ export const dashboardTabs = [
     icon: Workflow,
     pathSegment: "campaign-flow-map"
   },
-  { value: "campaigns", label: "캠페인", icon: FolderKanban, pathSegment: "campaigns" },
+  { value: "campaigns", label: "캠페인 관리", icon: FolderKanban, pathSegment: "campaigns" },
   {
     value: "campaign-promotions",
-    label: "프로모션",
+    label: "프로모션 관리",
     icon: Megaphone,
     pathSegment: "campaign-promotions"
   },
   {
     value: "experiments",
-    label: "실험",
+    label: "실험 관리",
     icon: FlaskConical,
     pathSegment: "experiments"
   },
@@ -73,49 +78,71 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
     label: "메인",
     value: "main",
     pathSegment: "main",
-    icon: Activity
+    icon: Activity,
+    type: "link"
   },
   {
     label: "퍼널",
     value: "funnels",
     pathSegment: "funnels",
-    icon: ListFilter
+    icon: ListFilter,
+    type: "link"
   },
   {
     label: "캠페인",
-    value: "campaigns",
-    pathSegment: "campaigns",
-    icon: FolderKanban
-  },
-  {
-    label: "프로모션",
-    value: "campaign-promotions",
-    pathSegment: "campaign-promotions",
-    icon: Megaphone
-  },
-  {
-    label: "실험",
-    value: "experiments",
-    pathSegment: "experiments",
-    icon: FlaskConical
+    icon: FolderKanban,
+    type: "folder",
+    children: [
+      {
+        label: "캠페인 관리",
+        value: "campaigns",
+        pathSegment: "campaigns",
+        icon: FolderKanban,
+        type: "link"
+      },
+      {
+        label: "프로모션",
+        icon: Megaphone,
+        type: "folder",
+        children: [
+          {
+            label: "프로모션 관리",
+            value: "campaign-promotions",
+            pathSegment: "campaign-promotions",
+            icon: Megaphone,
+            type: "link"
+          },
+          {
+            label: "실험 관리",
+            value: "experiments",
+            pathSegment: "experiments",
+            icon: FlaskConical,
+            type: "link"
+          }
+        ]
+      }
+    ]
   },
   {
     label: "SDK 연동",
     value: "sdk",
     pathSegment: "sdk",
-    icon: BookOpenText
+    icon: BookOpenText,
+    type: "link"
   },
   {
     label: "데이터 탐색기",
     value: "dataExplorer",
     pathSegment: "data-explorer",
-    icon: DatabaseZap
+    icon: DatabaseZap,
+    type: "link"
   },
   {
     label: "워크플로우 맵",
     value: "campaign-flow-map",
     pathSegment: "campaign-flow-map",
-    icon: Workflow
+    icon: Workflow,
+    type: "link"
   }
 ];
 
