@@ -1214,12 +1214,14 @@ function PromotionSegmentSuggestionPanel({
         ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 세그먼트를 불러오는 중입니다." /> : null}
         {suggestions.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {suggestions.map((suggestion) => {
               const isAccepted = suggestion.suggestion_status === "accepted";
               const isConfirmed = suggestion.suggestion_status === "confirmed";
               const isDismissed = suggestion.suggestion_status === "dismissed";
               const displayCopy = suggestion.display_copy;
+              const rankLabel = `Rank ${formatInteger(suggestion.suggested_rank)}`;
+              const rankRole = displayCopy?.rank_role;
               const fallbackSummary = segmentAudienceSummary(
                 suggestion.sample_size,
                 suggestion.sample_ratio
@@ -1234,7 +1236,7 @@ function PromotionSegmentSuggestionPanel({
                   <div className="flex items-start justify-between gap-3">
                     <div className="grid gap-1">
                       <div className="text-xs font-semibold text-[#3927d9]">
-                        Rank {formatInteger(suggestion.suggested_rank)}
+                        {rankRole ? `${rankLabel} · ${rankRole}` : rankLabel}
                       </div>
                       <h3 className="text-base font-semibold">
                         {displayCopy?.title ?? suggestion.segment_name}
@@ -1265,8 +1267,13 @@ function PromotionSegmentSuggestionPanel({
                         formatJsonObject(suggestion.reason_json) ||
                         "추천 사유가 비어 있습니다."}
                     </div>
+                    {displayCopy?.difference_summary ? (
+                      <div className="rounded-md border-l-2 border-[#3927d9] bg-[#f7f8ff] px-3 py-2 text-xs leading-5 text-foreground">
+                        {displayCopy.difference_summary}
+                      </div>
+                    ) : null}
                     {displayCopy?.action_hint ? (
-                      <div className="rounded-md bg-[#f7f8ff] px-3 py-2 text-xs leading-5 text-foreground">
+                      <div className="rounded-md bg-muted px-3 py-2 text-xs leading-5 text-muted-foreground">
                         {displayCopy.action_hint}
                       </div>
                     ) : null}
@@ -1334,6 +1341,7 @@ function SegmentSuggestionReportDialog({
   suggestion: DashboardPromotionSegmentSuggestion | null;
 }) {
   const report = suggestion?.ai_report ?? null;
+  const rankRole = suggestion?.display_copy?.rank_role;
 
   return (
     <Dialog onOpenChange={onOpenChange} open={Boolean(report)}>
@@ -1344,6 +1352,7 @@ function SegmentSuggestionReportDialog({
               <Badge variant="secondary">
                 Rank {formatInteger(suggestion?.suggested_rank ?? 0)}
               </Badge>
+              {rankRole ? <Badge variant="outline">{rankRole}</Badge> : null}
               <Badge variant="outline">AI 추천 리포트</Badge>
             </div>
             <DialogTitle>{report.title}</DialogTitle>
@@ -1404,7 +1413,14 @@ function SegmentSuggestionReportContent({
   return (
     <div className="grid gap-4">
       <section className="grid gap-2 rounded-md border bg-[#f8f8ff] p-4">
-        <div className="text-sm font-medium text-foreground">{report.summary}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-sm font-medium text-foreground">{report.summary}</div>
+          {report.confidence_label ? (
+            <Badge className="text-[11px]" variant="secondary">
+              신뢰도 {formatConfidenceLabel(report.confidence_label)}
+            </Badge>
+          ) : null}
+        </div>
         <div className="text-sm text-muted-foreground">
           {displayCopy?.audience_summary ??
             segmentAudienceSummary(suggestion?.sample_size ?? 0, suggestion?.sample_ratio ?? 0)}
@@ -1419,8 +1435,10 @@ function SegmentSuggestionReportContent({
           </div>
         ) : null}
       </section>
-      <ReportSection items={report.why_recommended} title="왜 추천했나요" />
-      <ReportSection items={report.evidence} title="확인된 근거" />
+      <ReportSection items={report.promotion_interpretation} title="프로모션 해석" />
+      <ReportSection items={report.why_recommended} title="추천한 이유" />
+      <ReportSection items={report.evidence} title="확인된 행동 근거" />
+      <ReportSection items={report.difference_from_other_ranks} title="다른 Rank와의 차이" />
       <section className="grid gap-2 rounded-md border p-4">
         <h4 className="text-sm font-semibold">활용 방법</h4>
         <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
@@ -1433,7 +1451,11 @@ function SegmentSuggestionReportContent({
   );
 }
 
-function ReportSection({ items, title }: { items: string[]; title: string }) {
+function ReportSection({ items, title }: { items: string[] | undefined; title: string }) {
+  if (!items?.length) {
+    return null;
+  }
+
   return (
     <section className="grid gap-2 rounded-md border p-4">
       <h4 className="text-sm font-semibold">{title}</h4>
@@ -1447,6 +1469,16 @@ function ReportSection({ items, title }: { items: string[]; title: string }) {
       </ul>
     </section>
   );
+}
+
+function formatConfidenceLabel(value: "high" | "medium" | "low") {
+  if (value === "high") {
+    return "높음";
+  }
+  if (value === "medium") {
+    return "보통";
+  }
+  return "낮음";
 }
 
 function PromotionSegmentCreateDialog({

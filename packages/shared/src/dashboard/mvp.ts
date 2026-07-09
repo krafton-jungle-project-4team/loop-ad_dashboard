@@ -703,9 +703,11 @@ export type DashboardPromotionSegmentSuggestionSource = z.infer<
 
 export const DashboardPromotionSegmentSuggestionDisplayCopySchema = z.object({
   title: z.string(),
+  rank_role: z.string().optional(),
   audience_summary: z.string(),
   signal_chips: z.array(z.string()),
   reason: z.string(),
+  difference_summary: z.string().optional(),
   action_hint: z.string()
 });
 export type DashboardPromotionSegmentSuggestionDisplayCopy = z.infer<
@@ -717,10 +719,13 @@ export const DashboardPromotionSegmentSuggestionReportSchema = z.object({
   source: z.string().optional(),
   title: z.string(),
   summary: z.string(),
+  promotion_interpretation: z.array(z.string()).optional(),
   why_recommended: z.array(z.string()),
   evidence: z.array(z.string()),
+  difference_from_other_ranks: z.array(z.string()).optional(),
   action_hint: z.string(),
-  caution: z.string()
+  caution: z.string(),
+  confidence_label: z.enum(["high", "medium", "low"]).optional()
 });
 export type DashboardPromotionSegmentSuggestionReport = z.infer<
   typeof DashboardPromotionSegmentSuggestionReportSchema

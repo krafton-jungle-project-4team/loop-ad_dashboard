@@ -264,9 +264,11 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
 
   return {
     title,
+    rank_role: nonEmptyText(raw.rank_role) ?? undefined,
     audience_summary: audienceSummary,
     signal_chips: signalChips,
     reason,
+    difference_summary: nonEmptyText(raw.difference_summary) ?? undefined,
     action_hint: actionHint
   };
 }

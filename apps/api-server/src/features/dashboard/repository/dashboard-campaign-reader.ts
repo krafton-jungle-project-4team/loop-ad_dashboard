@@ -1093,6 +1093,9 @@ function suggestionAiReport(
   const caution = nonEmptyString(raw.caution);
   const whyRecommended = jsonStringArray(raw.why_recommended);
   const evidence = jsonStringArray(raw.evidence);
+  const promotionInterpretation = jsonStringArray(raw.promotion_interpretation);
+  const differenceFromOtherRanks = jsonStringArray(raw.difference_from_other_ranks);
+  const confidenceLabel = nonEmptyString(raw.confidence_label);
   if (
     !title ||
     !summary ||
@@ -1109,10 +1112,22 @@ function suggestionAiReport(
     source: nonEmptyString(raw.source) ?? undefined,
     title,
     summary,
+    promotion_interpretation: promotionInterpretation.length
+      ? promotionInterpretation
+      : undefined,
     why_recommended: whyRecommended,
     evidence,
+    difference_from_other_ranks: differenceFromOtherRanks.length
+      ? differenceFromOtherRanks
+      : undefined,
     action_hint: actionHint,
-    caution
+    caution,
+    confidence_label:
+      confidenceLabel === "high" ||
+      confidenceLabel === "medium" ||
+      confidenceLabel === "low"
+        ? confidenceLabel
+        : undefined
   };
 }
 
@@ -1139,9 +1154,11 @@ function suggestionDisplayCopy(
 
   return {
     title,
+    rank_role: nonEmptyString(raw.rank_role) ?? undefined,
     audience_summary: audienceSummary,
     signal_chips: signalChips,
     reason,
+    difference_summary: nonEmptyString(raw.difference_summary) ?? undefined,
     action_hint: actionHint
   };
 }
