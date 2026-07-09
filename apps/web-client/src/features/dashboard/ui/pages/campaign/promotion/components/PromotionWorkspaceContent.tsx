@@ -70,7 +70,7 @@ import {
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   overview: "프로모션 개요",
   segments: "세그먼트 추천/확정",
-  "segment-detail": "세그먼트 상세"
+  "segment-detail": "세그먼트 맞춤 광고 생성"
 };
 
 export function PromotionChromeTabs({
@@ -836,13 +836,13 @@ function PromotionSegmentDetailTab({
   if (isError) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>세그먼트 상세를 불러오지 못했습니다</AlertTitle>
+        <AlertTitle>광고 생성을 불러오지 못했습니다</AlertTitle>
         <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
       </Alert>
     );
   }
   if (isLoading || !detail) {
-    return <EmptyState message="세그먼트 상세를 불러오는 중입니다." />;
+    return <EmptyState message="세그먼트 맞춤 광고 생성 중입니다..." />;
   }
 
   const insufficientMetrics = detail.experiment_metrics.filter(

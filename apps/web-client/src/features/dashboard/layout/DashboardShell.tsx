@@ -185,8 +185,7 @@ function DashboardNavigationLinkItem({
         asChild
         className={cn(
           "rounded-full text-sidebar-foreground/80",
-          isActive &&
-            "bg-[#0066cc] text-white hover:bg-[#0066cc] hover:text-white data-[active=true]:bg-[#0066cc] data-[active=true]:text-white"
+          isActive && "font-bold text-[#111111] [&>svg]:stroke-[2.5] [&>svg]:text-[#111111]"
         )}
         isActive={isActive}
         tooltip={item.label}
@@ -197,7 +196,7 @@ function DashboardNavigationLinkItem({
           to="/dashboard/$projectId/$tabPath"
         >
           <Icon />
-          <span>{item.label}</span>
+          <span className={cn(isActive && "font-bold text-[#111111]")}>{item.label}</span>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -223,13 +222,15 @@ function DashboardNavigationFolderItem({
           <SidebarMenuButton
             className={cn(
               "rounded-full text-sidebar-foreground/80",
-              isBranchActive && "bg-sidebar-accent/70 font-medium text-sidebar-accent-foreground"
+              isBranchActive && "font-bold text-[#111111] [&>svg]:stroke-[2.5] [&>svg]:text-[#111111]"
             )}
             isActive={isBranchActive}
             tooltip={item.label}
           >
             {Icon ? <Icon /> : null}
-            <span>{item.label}</span>
+            <span className={cn(isBranchActive && "font-bold text-[#111111]")}>
+              {item.label}
+            </span>
             <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
@@ -299,7 +300,7 @@ function DashboardNavigationSubLinkItem({
         asChild
         className={cn(
           "relative w-full transition-colors [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1 [&>span:last-child]:whitespace-nowrap",
-          isExactActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+          isExactActive && "font-bold text-[#111111] [&>svg]:stroke-[2.5] [&>svg]:text-[#111111]"
         )}
         isActive={isExactActive}
       >
@@ -308,14 +309,8 @@ function DashboardNavigationSubLinkItem({
           search={(current) => current}
           to="/dashboard/$projectId/$tabPath"
         >
-          {isExactActive ? (
-            <span
-              aria-hidden="true"
-              className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sidebar-primary"
-            />
-          ) : null}
           <Icon />
-          <span>{item.label}</span>
+          <span className={cn(isExactActive && "font-bold text-[#111111]")}>{item.label}</span>
         </Link>
       </SidebarMenuSubButton>
     </SidebarMenuSubItem>
@@ -344,13 +339,15 @@ function DashboardNavigationSubFolderItem({
             asChild
             className={cn(
               "transition-colors",
-              isBranchActive && "bg-sidebar-accent/60 font-medium text-sidebar-foreground"
+              isBranchActive && "font-bold text-[#111111] [&>svg]:stroke-[2.5] [&>svg]:text-[#111111]"
             )}
             isActive={isBranchActive}
           >
             <button type="button">
               {Icon ? <Icon /> : null}
-              <span className="whitespace-nowrap">{item.label}</span>
+              <span className={cn("whitespace-nowrap", isBranchActive && "font-bold text-[#111111]")}>
+                {item.label}
+              </span>
               <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
             </button>
           </SidebarMenuSubButton>
