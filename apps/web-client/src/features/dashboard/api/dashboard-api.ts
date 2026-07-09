@@ -149,6 +149,7 @@ export async function fetchDashboardPageResource(
         data: await request("/dashboard/v1/funnels", DashboardFunnelListSchema, query, signal)
       };
     case "campaigns":
+    case "campaign-detail":
     case "campaign-flow-map":
     case "campaign-promotions":
     case "experiments":

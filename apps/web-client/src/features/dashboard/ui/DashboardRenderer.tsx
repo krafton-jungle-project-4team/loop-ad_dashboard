@@ -24,6 +24,7 @@ export function DashboardPanelRenderer({
       return <PromotionPanel data={resource.data} query={query} />;
     case "experiments":
       return <ExperimentDashboardPanel data={resource.data} query={query} />;
+    case "campaign-detail":
     case "campaigns":
     case "campaign-metrics":
       return <CampaignDashboardPanel data={resource.data} query={query} tab={resource.tab} />;

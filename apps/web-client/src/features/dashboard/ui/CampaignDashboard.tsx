@@ -106,6 +106,7 @@ export function CampaignDashboardPanel({
   const [, setDashboardQueryState] = useDashboardQueryState();
   const selectedPromotionId = query.selectedPromotionId;
   const selectedSegmentId = query.selectedSegmentId;
+  const showsCampaignDetail = tab !== "campaigns";
   const [campaignFormSheet, setCampaignFormSheet] = useState<CampaignFormSheetState>(null);
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
@@ -116,21 +117,22 @@ export function CampaignDashboardPanel({
       ? data.campaigns.find((campaign) => campaign.campaign_id === campaignFormSheet.campaignId)
       : undefined;
   const campaignDetail = useQuery({
-    enabled: Boolean(selectedCampaignId),
+    enabled: showsCampaignDetail && Boolean(selectedCampaignId),
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
   });
   const funnelList = useQuery({
+    enabled: showsCampaignDetail,
     queryFn: ({ signal }) => fetchDashboardFunnelList(query, signal),
     queryKey: dashboardFunnelListQueryKey(query.projectId)
   });
   const promotionDetail = useQuery({
-    enabled: Boolean(selectedPromotionId),
+    enabled: showsCampaignDetail && Boolean(selectedPromotionId),
     queryFn: ({ signal }) => fetchDashboardPromotionDetail(query, selectedPromotionId, signal),
     queryKey: dashboardPromotionDetailQueryKey(query.projectId, selectedPromotionId)
   });
   const segmentDetail = useQuery({
-    enabled: Boolean(selectedPromotionId && selectedSegmentId),
+    enabled: showsCampaignDetail && Boolean(selectedPromotionId && selectedSegmentId),
     queryFn: ({ signal }) =>
       fetchDashboardSegmentDetail(query, selectedPromotionId, selectedSegmentId, signal),
     queryKey: dashboardSegmentDetailQueryKey(
@@ -320,38 +322,40 @@ export function CampaignDashboardPanel({
         </>
       ) : null}
 
-      <CampaignDetailPanel
-        campaign={selectedCampaign}
-        detail={campaignDetail.data}
-        error={campaignDetail.error}
-        isError={campaignDetail.isError}
-        isLoading={campaignDetail.isLoading}
-        funnelList={funnelList.data}
-        funnelListError={funnelList.error}
-        funnelListIsError={funnelList.isError}
-        funnelListIsLoading={funnelList.isLoading}
-        onSelectPromotion={(promotionId) => {
-          void setDashboardQueryState({ selectedPromotionId: promotionId, selectedSegmentId: "" });
-        }}
-        onSelectSegment={(promotionId, segmentId) => {
-          void setDashboardQueryState({
-            selectedPromotionId: promotionId,
-            selectedSegmentId: segmentId
-          });
-        }}
-        promotionDetail={promotionDetail.data}
-        promotionError={promotionDetail.error}
-        promotionIsError={promotionDetail.isError}
-        promotionIsLoading={promotionDetail.isLoading}
-        query={query}
-        segmentDetail={segmentDetail.data}
-        segmentError={segmentDetail.error}
-        segmentIsError={segmentDetail.isError}
-        segmentIsLoading={segmentDetail.isLoading}
-        selectedPromotionId={selectedPromotionId}
-        selectedSegmentId={selectedSegmentId}
-        tab={tab}
-      />
+      {showsCampaignDetail ? (
+        <CampaignDetailPanel
+          campaign={selectedCampaign}
+          detail={campaignDetail.data}
+          error={campaignDetail.error}
+          isError={campaignDetail.isError}
+          isLoading={campaignDetail.isLoading}
+          funnelList={funnelList.data}
+          funnelListError={funnelList.error}
+          funnelListIsError={funnelList.isError}
+          funnelListIsLoading={funnelList.isLoading}
+          onSelectPromotion={(promotionId) => {
+            void setDashboardQueryState({ selectedPromotionId: promotionId, selectedSegmentId: "" });
+          }}
+          onSelectSegment={(promotionId, segmentId) => {
+            void setDashboardQueryState({
+              selectedPromotionId: promotionId,
+              selectedSegmentId: segmentId
+            });
+          }}
+          promotionDetail={promotionDetail.data}
+          promotionError={promotionDetail.error}
+          promotionIsError={promotionDetail.isError}
+          promotionIsLoading={promotionDetail.isLoading}
+          query={query}
+          segmentDetail={segmentDetail.data}
+          segmentError={segmentDetail.error}
+          segmentIsError={segmentDetail.isError}
+          segmentIsLoading={segmentDetail.isLoading}
+          selectedPromotionId={selectedPromotionId}
+          selectedSegmentId={selectedSegmentId}
+          tab={tab}
+        />
+      ) : null}
     </div>
   );
 }

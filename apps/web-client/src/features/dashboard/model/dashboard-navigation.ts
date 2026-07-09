@@ -42,6 +42,12 @@ export const dashboardTabs = [
   },
   { value: "campaigns", label: "캠페인 관리", icon: FolderKanban, pathSegment: "campaigns" },
   {
+    value: "campaign-detail",
+    label: "캠페인 상세",
+    icon: Activity,
+    pathSegment: "campaign-detail"
+  },
+  {
     value: "campaign-promotions",
     label: "프로모션 관리",
     icon: Megaphone,
@@ -98,6 +104,13 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
         value: "campaigns",
         pathSegment: "campaigns",
         icon: FolderKanban,
+        type: "link"
+      },
+      {
+        label: "캠페인 상세",
+        value: "campaign-detail",
+        pathSegment: "campaign-detail",
+        icon: Activity,
         type: "link"
       },
       {
