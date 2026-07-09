@@ -3,7 +3,9 @@ import {
   BookOpenText,
   DatabaseZap,
   FlaskConical,
+  Folder,
   FolderKanban,
+  LayoutDashboard,
   ListFilter,
   Megaphone,
   Workflow,
@@ -44,7 +46,7 @@ export const dashboardTabs = [
   {
     value: "campaign-detail",
     label: "캠페인 개요",
-    icon: Activity,
+    icon: LayoutDashboard,
     pathSegment: "campaign-detail"
   },
   {
@@ -102,7 +104,7 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
   },
   {
     label: "캠페인",
-    icon: FolderKanban,
+    icon: Folder,
     type: "folder",
     children: [
       {
@@ -116,7 +118,7 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
         label: "캠페인 개요",
         value: "campaign-detail",
         pathSegment: "campaign-detail",
-        icon: Activity,
+        icon: LayoutDashboard,
         type: "link"
       },
       {
@@ -135,7 +137,7 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
       },
       {
         label: "프로모션",
-        icon: Megaphone,
+        icon: Folder,
         type: "folder",
         children: [
           {
