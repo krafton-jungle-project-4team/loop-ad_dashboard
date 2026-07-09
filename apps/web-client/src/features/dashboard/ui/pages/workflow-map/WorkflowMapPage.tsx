@@ -67,17 +67,17 @@ import {
   type ComponentType,
   type ReactNode
 } from "react";
-import { fetchDashboardCampaignDetail } from "../api/dashboard-api.js";
+import { fetchDashboardCampaignDetail } from "../../../api/dashboard-api.js";
 import {
   formatActionLabel,
   formatChannelLabel,
   formatMetricLabel,
   formatStatusLabel
-} from "../model/dashboard-labels.js";
-import { formatDateTime, formatInteger, formatPercent } from "../model/dashboard-format.js";
-import { useDashboardQueryState } from "../model/dashboard-query.js";
-import { dashboardCampaignDetailQueryKey } from "../model/dashboard-query-keys.js";
-import type { DashboardQuery } from "../model/dashboard-types.js";
+} from "../../../model/dashboard-labels.js";
+import { formatDateTime, formatInteger, formatPercent } from "../../../model/dashboard-format.js";
+import { useDashboardQueryState } from "../../../model/dashboard-query.js";
+import { dashboardCampaignDetailQueryKey } from "../../../model/dashboard-query-keys.js";
+import type { DashboardQuery } from "../../../model/dashboard-types.js";
 
 type FlowNodeKind = "campaign" | "promotion" | "evaluation" | "retryQueue";
 type FlowPathTone = "normal" | "warning" | "insufficient";
@@ -210,7 +210,7 @@ const emptyGraph: CampaignFlowGraph = {
   nodes: []
 };
 
-export function CampaignFlowMapPanel({
+export function WorkflowMapPage({
   data,
   query
 }: {

@@ -1,10 +1,11 @@
 import type { DashboardPageResource, DashboardQuery } from "../model/dashboard-types.js";
-import { CampaignDashboardPanel } from "./CampaignDashboard.js";
-import { CampaignFlowMapPanel } from "./CampaignFlowMapPanel.js";
-import { ExperimentDashboardPanel } from "./ExperimentDashboard.js";
-import { FunnelDashboardPanel } from "./FunnelDashboard.js";
-import { MainDashboardPanel } from "./MainDashboard.js";
-import { PromotionPanel } from "./Promotion.js";
+import { CampaignDetailPage } from "./pages/campaign/CampaignDetailPage.js";
+import { CampaignManagementPage } from "./pages/campaign/CampaignManagementPage.js";
+import { PromotionManagementPage } from "./pages/campaign/promotion/PromotionManagementPage.js";
+import { ExperimentManagementPage } from "./pages/campaign/promotion/experiment/ExperimentManagementPage.js";
+import { FunnelPage } from "./pages/funnel/FunnelPage.js";
+import { MainPage } from "./pages/main/MainPage.js";
+import { WorkflowMapPage } from "./pages/workflow-map/WorkflowMapPage.js";
 
 export function DashboardPanelRenderer({
   query,
@@ -15,18 +16,19 @@ export function DashboardPanelRenderer({
 }) {
   switch (resource.tab) {
     case "main":
-      return <MainDashboardPanel data={resource.data} query={query} />;
+      return <MainPage data={resource.data} query={query} />;
     case "funnels":
-      return <FunnelDashboardPanel data={resource.data} query={query} />;
+      return <FunnelPage data={resource.data} query={query} />;
     case "campaign-flow-map":
-      return <CampaignFlowMapPanel data={resource.data} query={query} />;
+      return <WorkflowMapPage data={resource.data} query={query} />;
     case "campaign-promotions":
-      return <PromotionPanel data={resource.data} query={query} />;
+      return <PromotionManagementPage data={resource.data} query={query} />;
     case "experiments":
-      return <ExperimentDashboardPanel data={resource.data} query={query} />;
-    case "campaign-detail":
+      return <ExperimentManagementPage data={resource.data} query={query} />;
     case "campaigns":
+      return <CampaignManagementPage data={resource.data} query={query} />;
+    case "campaign-detail":
     case "campaign-metrics":
-      return <CampaignDashboardPanel data={resource.data} query={query} tab={resource.tab} />;
+      return <CampaignDetailPage data={resource.data} query={query} tab={resource.tab} />;
   }
 }

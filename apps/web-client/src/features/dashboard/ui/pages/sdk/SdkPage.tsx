@@ -272,7 +272,7 @@ const prerequisites = [
   }
 ];
 
-export function SdkIntegrationPage() {
+export function SdkPage() {
   return (
     <div className="grid gap-6">
       <PageHeader />

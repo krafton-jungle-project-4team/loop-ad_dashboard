@@ -24,10 +24,10 @@ import {
 import { useQueries } from "@tanstack/react-query";
 import { ChevronDown, Plus, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import { fetchDashboardFunnelMetrics } from "../api/dashboard-api.js";
-import { formatInteger } from "../model/dashboard-format.js";
-import { dashboardFunnelMetricsQueryKey } from "../model/dashboard-query-keys.js";
-import type { DashboardQuery } from "../model/dashboard-types.js";
+import { fetchDashboardFunnelMetrics } from "../../api/dashboard-api.js";
+import { formatInteger } from "../../model/dashboard-format.js";
+import { dashboardFunnelMetricsQueryKey } from "../../model/dashboard-query-keys.js";
+import type { DashboardQuery } from "../../model/dashboard-types.js";
 import { EmptyState } from "./EmptyState.js";
 
 type DashboardFunnelSummary = DashboardFunnelList["funnels"][number];

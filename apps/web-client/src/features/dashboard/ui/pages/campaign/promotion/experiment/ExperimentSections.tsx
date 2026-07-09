@@ -41,20 +41,24 @@ import {
   fetchDashboardCampaignDetail,
   fetchDashboardSegmentDetail,
   startDashboardAdExperiment
-} from "../api/dashboard-api.js";
+} from "../../../../../api/dashboard-api.js";
 import {
   formatChannelLabel,
   formatMetricLabel,
   formatStatusLabel
-} from "../model/dashboard-labels.js";
-import { formatDateTime, formatInteger, formatPercent } from "../model/dashboard-format.js";
-import { useDashboardQueryState } from "../model/dashboard-query.js";
+} from "../../../../../model/dashboard-labels.js";
+import {
+  formatDateTime,
+  formatInteger,
+  formatPercent
+} from "../../../../../model/dashboard-format.js";
+import { useDashboardQueryState } from "../../../../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardSegmentDetailQueryKey
-} from "../model/dashboard-query-keys.js";
-import type { DashboardQuery } from "../model/dashboard-types.js";
-import { EmptyState } from "./EmptyState.js";
+} from "../../../../../model/dashboard-query-keys.js";
+import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
+import { EmptyState } from "../../../../shared/EmptyState.js";
 
 type BadgeVariant = ComponentProps<typeof Badge>["variant"];
 const FALLBACK_SEGMENT_ID = "seg_existing_all";
@@ -79,7 +83,7 @@ type ExperimentRow = {
   targetValue: number | null;
 };
 
-export function ExperimentDashboardPanel({
+export function ExperimentSections({
   data,
   query
 }: {
@@ -266,7 +270,7 @@ export function ExperimentDashboardPanel({
           </CardHeader>
         </Card>
       ) : (
-        <ExperimentDashboardContent
+        <ExperimentContent
           buildAssignmentsError={buildPromotionRunAssignmentsMutation.error}
           buildAssignmentsIsError={buildPromotionRunAssignmentsMutation.isError}
           buildAssignmentsIsPending={buildPromotionRunAssignmentsMutation.isPending}
@@ -327,7 +331,7 @@ export function ExperimentDashboardPanel({
   );
 }
 
-function ExperimentDashboardContent({
+function ExperimentContent({
   buildAssignmentsError,
   buildAssignmentsIsError,
   buildAssignmentsIsPending,

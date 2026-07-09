@@ -80,16 +80,16 @@ import {
   startDashboardAdExperiment,
   startDashboardPromotionAnalysis,
   startDashboardPromotionGeneration
-} from "../api/dashboard-api.js";
-import { formatInteger } from "../model/dashboard-format.js";
+} from "../../../../api/dashboard-api.js";
+import { formatInteger } from "../../../../model/dashboard-format.js";
 import {
   formatActionLabel,
   formatBasisLabel,
   formatChannelLabel,
   formatMetricLabel,
   formatStatusLabel
-} from "../model/dashboard-labels.js";
-import { useDashboardQueryState } from "../model/dashboard-query.js";
+} from "../../../../model/dashboard-labels.js";
+import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardFunnelListQueryKey,
@@ -98,10 +98,10 @@ import {
   dashboardPromotionScopedSegmentDefinitionsQueryKey,
   dashboardPromotionSegmentSuggestionsQueryKey,
   dashboardSegmentDetailQueryKey
-} from "../model/dashboard-query-keys.js";
-import type { DashboardQuery } from "../model/dashboard-types.js";
-import { EmptyState } from "./EmptyState.js";
-import { ScopedFunnelAnalysisPanel } from "./ScopedFunnelAnalysisPanel.js";
+} from "../../../../model/dashboard-query-keys.js";
+import type { DashboardQuery } from "../../../../model/dashboard-types.js";
+import { EmptyState } from "../../../shared/EmptyState.js";
+import { ScopedFunnelAnalysisPanel } from "../../../shared/ScopedFunnelAnalysisPanel.js";
 
 export const promotionChannelOptions = ["email", "sms", "onsite_banner"] as const;
 export const promotionStatusOptions = [
@@ -174,7 +174,7 @@ const defaultPromotionAnalysisProgress: PromotionAnalysisProgress = {
 };
 const promotionAnalysisProgressCacheTimeMs = 1000 * 60 * 30;
 
-export function PromotionPanel({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
+export function PromotionWorkspace({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

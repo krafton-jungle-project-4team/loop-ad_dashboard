@@ -56,15 +56,15 @@ import {
   fetchDashboardSegmentDetail,
   rejectDashboardContentCandidate,
   updateDashboardCampaign
-} from "../api/dashboard-api.js";
-import { formatInteger, formatPercent } from "../model/dashboard-format.js";
-import { useDashboardQueryState } from "../model/dashboard-query.js";
+} from "../../../api/dashboard-api.js";
+import { formatInteger, formatPercent } from "../../../model/dashboard-format.js";
+import { useDashboardQueryState } from "../../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardFunnelListQueryKey,
   dashboardPromotionDetailQueryKey,
   dashboardSegmentDetailQueryKey
-} from "../model/dashboard-query-keys.js";
+} from "../../../model/dashboard-query-keys.js";
 import {
   formatActionLabel,
   formatBasisLabel,
@@ -72,11 +72,11 @@ import {
   formatLandingTypeLabel,
   formatMetricLabel,
   formatStatusLabel
-} from "../model/dashboard-labels.js";
-import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
-import { CampaignPromotionTable } from "./Promotion.js";
-import { EmptyState } from "./EmptyState.js";
-import { ScopedFunnelAnalysisPanel } from "./ScopedFunnelAnalysisPanel.js";
+} from "../../../model/dashboard-labels.js";
+import type { DashboardQuery, DashboardTab } from "../../../model/dashboard-types.js";
+import { CampaignPromotionTable } from "./promotion/PromotionWorkspace.js";
+import { EmptyState } from "../../shared/EmptyState.js";
+import { ScopedFunnelAnalysisPanel } from "../../shared/ScopedFunnelAnalysisPanel.js";
 
 const campaignPrimaryMetricOptions = [
   "inflow_rate",
@@ -93,7 +93,7 @@ type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
 type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
 type CampaignFormSheetState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
 
-export function CampaignDashboardPanel({
+export function CampaignPageSections({
   data,
   query,
   tab

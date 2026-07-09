@@ -48,17 +48,17 @@ import {
   fetchDashboardFunnelMetrics,
   previewDashboardFunnelMetrics,
   updateDashboardFunnel
-} from "../api/dashboard-api.js";
+} from "../../../api/dashboard-api.js";
 import {
   dashboardEventCatalogQueryKey,
   dashboardFunnelDetailQueryKey,
   dashboardFunnelMetricsQueryKey,
   dashboardFunnelPreviewQueryKey,
   dashboardTabQueryKey
-} from "../model/dashboard-query-keys.js";
-import { formatStatusLabel } from "../model/dashboard-labels.js";
-import type { DashboardQuery } from "../model/dashboard-types.js";
-import { EmptyState } from "./EmptyState.js";
+} from "../../../model/dashboard-query-keys.js";
+import { formatStatusLabel } from "../../../model/dashboard-labels.js";
+import type { DashboardQuery } from "../../../model/dashboard-types.js";
+import { EmptyState } from "../../shared/EmptyState.js";
 
 type FunnelDraftStep = {
   step_name: string;
@@ -77,7 +77,7 @@ const DETAIL_PANEL_DEFAULT_HEIGHT_RATIO = 0.5;
 const DETAIL_PANEL_MIN_HEIGHT = 260;
 const DETAIL_PANEL_RESIZE_STEP = 40;
 
-export function FunnelDashboardPanel({
+export function FunnelPage({
   data,
   query
 }: {
