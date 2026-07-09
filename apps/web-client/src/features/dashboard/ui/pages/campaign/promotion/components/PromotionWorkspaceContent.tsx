@@ -3,7 +3,6 @@ import type {
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardEvaluatePromotionRunResult,
-  DashboardFunnelList,
   DashboardPromotionScopedSegmentDefinition,
   DashboardSegmentDetail,
   DashboardPromotionSegmentSuggestion,
@@ -44,9 +43,7 @@ import { BarChart3, CheckCircle2, FileText, ImageIcon, Plus, Send, Target, Trash
 import { useEffect, useState, type ReactNode } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatActionLabel, formatBasisLabel, formatChannelLabel, formatMetricLabel, formatStatusLabel } from "../../../../../model/dashboard-labels.js";
-import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
-import { ScopedFunnelAnalysisPanel } from "../../../../shared/ScopedFunnelAnalysisPanel.js";
 import {
   campaignSegmentDisplayCopy,
   createEmptyPromotionSegmentFormState,
@@ -228,10 +225,6 @@ export function PromotionTabWorkspace({
   evaluatePromotionRunIsError,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
-  funnelList,
-  funnelListError,
-  funnelListIsError,
-  funnelListIsLoading,
   createNextLoopError,
   createNextLoopIsError,
   createNextLoopIsPending,
@@ -260,7 +253,6 @@ export function PromotionTabWorkspace({
   promotionGenerationError,
   promotionGenerationIsError,
   promotionGenerationIsPending,
-  query,
   rejectContentCandidateError,
   rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
@@ -315,10 +307,6 @@ export function PromotionTabWorkspace({
   evaluatePromotionRunIsError: boolean;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
-  funnelList: DashboardFunnelList | undefined;
-  funnelListError: Error | null;
-  funnelListIsError: boolean;
-  funnelListIsLoading: boolean;
   createNextLoopError: Error | null;
   createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
@@ -351,7 +339,6 @@ export function PromotionTabWorkspace({
   promotionGenerationError: Error | null;
   promotionGenerationIsError: boolean;
   promotionGenerationIsPending: boolean;
-  query: DashboardQuery;
   rejectContentCandidateError: Error | null;
   rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -412,15 +399,6 @@ export function PromotionTabWorkspace({
         <PromotionMetricCard label="세그먼트" value={formatInteger(activeSegments.length)} />
         <PromotionMetricCard label="실험" value={formatInteger(promotion.ad_experiment_count)} />
       </div>
-      <ScopedFunnelAnalysisPanel
-        error={funnelListError}
-        funnels={funnelList?.funnels ?? []}
-        isError={funnelListIsError}
-        isLoading={funnelListIsLoading}
-        query={query}
-        scope={{ promotion_id: promotion.promotion_id, scope_type: "promotion" }}
-        title="프로모션 사용자 여정 분석"
-      />
       <Tabs
         className="grid gap-4"
         onValueChange={(value) => onTabChange(value as PromotionWorkspaceTab)}
@@ -517,10 +495,6 @@ export function PromotionTabWorkspace({
               generationError={promotionGenerationError}
               generationIsError={promotionGenerationIsError}
               generationIsPending={promotionGenerationIsPending}
-              funnelList={funnelList}
-              funnelListError={funnelListError}
-              funnelListIsError={funnelListIsError}
-              funnelListIsLoading={funnelListIsLoading}
               isError={selectedSegmentDetailIsError}
               isLoading={selectedSegmentDetailIsLoading}
               onApproveContentCandidate={onApproveContentCandidate}
@@ -532,7 +506,6 @@ export function PromotionTabWorkspace({
               onRejectContentCandidate={onRejectContentCandidate}
               onStartAdExperiment={onStartAdExperiment}
               onStartGeneration={onStartGeneration}
-              query={query}
               rejectContentCandidateError={rejectContentCandidateError}
               rejectContentCandidateIsError={rejectContentCandidateIsError}
               rejectContentCandidateIsPending={rejectContentCandidateIsPending}
@@ -747,10 +720,6 @@ function PromotionSegmentDetailTab({
   generationError,
   generationIsError,
   generationIsPending,
-  funnelList,
-  funnelListError,
-  funnelListIsError,
-  funnelListIsLoading,
   isError,
   isLoading,
   onApproveContentCandidate,
@@ -762,7 +731,6 @@ function PromotionSegmentDetailTab({
   onRejectContentCandidate,
   onStartAdExperiment,
   onStartGeneration,
-  query,
   rejectContentCandidateError,
   rejectContentCandidateIsError,
   rejectContentCandidateIsPending,
@@ -797,10 +765,6 @@ function PromotionSegmentDetailTab({
   generationError: Error | null;
   generationIsError: boolean;
   generationIsPending: boolean;
-  funnelList: DashboardFunnelList | undefined;
-  funnelListError: Error | null;
-  funnelListIsError: boolean;
-  funnelListIsLoading: boolean;
   isError: boolean;
   isLoading: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
@@ -816,7 +780,6 @@ function PromotionSegmentDetailTab({
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
-  query: DashboardQuery;
   rejectContentCandidateError: Error | null;
   rejectContentCandidateIsError: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -928,20 +891,6 @@ function PromotionSegmentDetailTab({
         startAdExperimentError={startAdExperimentError}
         startAdExperimentIsError={startAdExperimentIsError}
         startAdExperimentIsPending={startAdExperimentIsPending}
-      />
-
-      <ScopedFunnelAnalysisPanel
-        error={funnelListError}
-        funnels={funnelList?.funnels ?? []}
-        isError={funnelListIsError}
-        isLoading={funnelListIsLoading}
-        query={query}
-        scope={{
-          promotion_id: detail.segment.promotion_id,
-          scope_type: "segment",
-          segment_id: detail.segment.segment_id
-        }}
-        title="세그먼트 사용자 여정 분석"
       />
 
       <SegmentDetailReportCard suggestion={segmentSuggestion} />

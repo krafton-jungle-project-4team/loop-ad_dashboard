@@ -5,7 +5,6 @@ import type {
   DashboardCreatePromotionSegmentDefinitionRequest,
   DashboardCreatePromotionRequest,
   DashboardEvaluatePromotionRunResult,
-  DashboardFunnelList,
   DashboardMain,
   DashboardPromotionScopedSegmentDefinition,
   DashboardSegmentDetail,
@@ -61,7 +60,6 @@ import {
   dispatchDashboardPromotionRun,
   evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
-  fetchDashboardFunnelList,
   fetchDashboardPromotionDetail,
   fetchDashboardSegmentDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
@@ -82,7 +80,6 @@ import {
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
-  dashboardFunnelListQueryKey,
   dashboardPromotionAnalysisProgressQueryKey,
   dashboardPromotionDetailQueryKey,
   dashboardPromotionScopedSegmentDefinitionsQueryKey,
@@ -91,7 +88,6 @@ import {
 } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
-import { ScopedFunnelAnalysisPanel } from "../../../shared/ScopedFunnelAnalysisPanel.js";
 
 import { PromotionAddDialog } from "./components/PromotionDialogs.js";
 import { PromotionChromeTabs, PromotionEmptyState, PromotionTabWorkspace } from "./components/PromotionWorkspaceContent.js";
@@ -149,10 +145,6 @@ export function PromotionWorkspace({
     enabled: Boolean(selectedCampaignId),
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
-  });
-  const funnelList = useQuery({
-    queryFn: ({ signal }) => fetchDashboardFunnelList(query, signal),
-    queryKey: dashboardFunnelListQueryKey(query.projectId)
   });
   const createPromotionMutation = useMutation({
     mutationFn: (form: PromotionCreateFormState) =>
@@ -899,11 +891,6 @@ export function PromotionWorkspace({
                 promotionGenerationError={startGenerationMutation.error}
                 promotionGenerationIsError={startGenerationMutation.isError}
                 promotionGenerationIsPending={startGenerationMutation.isPending}
-                funnelList={funnelList.data}
-                funnelListError={funnelList.error}
-                funnelListIsError={funnelList.isError}
-                funnelListIsLoading={funnelList.isLoading}
-                query={query}
                 rejectContentCandidateError={rejectContentCandidateMutation.error}
                 rejectContentCandidateIsError={rejectContentCandidateMutation.isError}
                 rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
