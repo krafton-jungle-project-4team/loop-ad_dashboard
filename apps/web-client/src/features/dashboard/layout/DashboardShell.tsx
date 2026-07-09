@@ -453,7 +453,7 @@ function DashboardSelectionContext({
         }}
         placeholder={mainQuery.isLoading ? "캠페인 로딩" : "캠페인 선택"}
         value={selectedCampaign?.campaign_id}
-        widthClassName="w-[min(42vw,320px)]"
+        widthClassName="w-[min(35vw,268px)]"
       >
         {campaigns.map((campaign) => (
           <SelectItem key={campaign.campaign_id} value={campaign.campaign_id}>
@@ -478,7 +478,7 @@ function DashboardSelectionContext({
             }}
             placeholder={campaignDetailQuery.isLoading ? "프로모션 로딩" : "프로모션 선택"}
             value={selectedPromotion?.promotion_id}
-            widthClassName="w-[min(34vw,280px)]"
+            widthClassName="w-[min(28vw,234px)]"
           >
             {promotions.map((promotion) => (
               <SelectItem key={promotion.promotion_id} value={promotion.promotion_id}>
@@ -505,7 +505,7 @@ function DashboardSelectionContext({
             }}
             placeholder="세그먼트 선택"
             value={selectedSegment?.segment_id}
-            widthClassName="w-[min(34vw,280px)]"
+            widthClassName="w-[min(28vw,234px)]"
           >
             {segments.map((segment) => (
               <SelectItem key={segment.segment_id} value={segment.segment_id}>

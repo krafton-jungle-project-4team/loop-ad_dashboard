@@ -10,14 +10,6 @@ import type {
   DashboardSegmentDetail
 } from "@loopad/shared";
 import { Card, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@loopad/ui/shadcn/select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import {
@@ -186,37 +178,11 @@ export function ExperimentComponent({
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1d1d1f]">실험</h1>
-          <p className="text-sm text-muted-foreground">
-            {selectedCampaign.campaign_name} 아래의 프로모션, 세그먼트, 실험 상태를 확인합니다.
-          </p>
-        </div>
-        <Field className="w-full md:w-80">
-          <FieldLabel>캠페인</FieldLabel>
-          <Select
-            onValueChange={(campaignId) =>
-              void setDashboardQueryState({
-                selectedCampaignId: campaignId,
-                selectedPromotionId: "",
-                selectedSegmentId: ""
-              })
-            }
-            value={selectedCampaignId}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {data.campaigns.map((campaign) => (
-                <SelectItem key={campaign.campaign_id} value={campaign.campaign_id}>
-                  {campaign.campaign_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+      <div className="grid gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-[#1d1d1f]">실험</h1>
+        <p className="text-sm text-muted-foreground">
+          {selectedCampaign.campaign_name} 아래의 프로모션, 세그먼트, 실험 상태를 확인합니다.
+        </p>
       </div>
 
       {detailQuery.isError ? (
@@ -264,12 +230,6 @@ export function ExperimentComponent({
           }
           onEvaluatePromotionRun={(promotionRunId) =>
             evaluatePromotionRunMutation.mutate(promotionRunId)
-          }
-          onSelectSegment={(promotionId, segmentId) =>
-            void setDashboardQueryState({
-              selectedPromotionId: promotionId,
-              selectedSegmentId: segmentId
-            })
           }
           onStartAdExperiment={(promotionId, adExperimentId) =>
             startAdExperimentMutation.mutate({ adExperimentId, promotionId })

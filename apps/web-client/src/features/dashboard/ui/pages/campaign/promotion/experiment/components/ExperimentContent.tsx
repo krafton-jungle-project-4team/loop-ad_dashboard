@@ -44,7 +44,6 @@ import {
   formatGoalValue,
   insufficientReason,
   isPresentString,
-  segmentSelectValue,
   statusBadgeVariant,
   toErrorMessage,
   uniqueValues,
@@ -75,7 +74,6 @@ export function ExperimentContent({
   onCreatePromotionRun,
   onDispatchPromotionRun,
   onEvaluatePromotionRun,
-  onSelectSegment,
   onStartAdExperiment,
   selectedSegmentDetail,
   selectedSegmentDetailError,
@@ -117,7 +115,6 @@ export function ExperimentContent({
   ) => void;
   onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
-  onSelectSegment: (promotionId: string, segmentId: string) => void;
   onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   selectedSegmentDetail: DashboardSegmentDetail | undefined;
   selectedSegmentDetailError: Error | null;
@@ -207,7 +204,6 @@ export function ExperimentContent({
         onCreatePromotionRun={onCreatePromotionRun}
         onDispatchPromotionRun={onDispatchPromotionRun}
         onEvaluatePromotionRun={onEvaluatePromotionRun}
-        onSelectSegment={onSelectSegment}
         onStartAdExperiment={onStartAdExperiment}
         selectedSegmentId={selectedSegmentId}
         segments={detail.segments}
@@ -322,7 +318,6 @@ function ExperimentSegmentPanel({
   onCreatePromotionRun,
   onDispatchPromotionRun,
   onEvaluatePromotionRun,
-  onSelectSegment,
   onStartAdExperiment,
   selectedSegmentId,
   segments,
@@ -363,7 +358,6 @@ function ExperimentSegmentPanel({
   ) => void;
   onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
-  onSelectSegment: (promotionId: string, segmentId: string) => void;
   onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   selectedSegmentId: string;
   segments: DashboardCampaignSegment[];
@@ -374,50 +368,8 @@ function ExperimentSegmentPanel({
   if (segments.length === 0) {
     return <EmptyState message="실험을 확인할 세그먼트가 없습니다." />;
   }
-  const selectedSegmentValue = detail?.segment
-    ? segmentSelectValue(detail.segment)
-    : (segments.find((segment) => segment.segment_id === selectedSegmentId)
-        ? segmentSelectValue(segments.find((segment) => segment.segment_id === selectedSegmentId)!)
-        : "");
-
   return (
     <section className="grid gap-4">
-      <Card>
-        <CardHeader className="gap-3 md:grid md:grid-cols-[1fr_320px] md:items-end">
-          <div className="grid gap-1">
-            <CardTitle>세그먼트 실험 상세</CardTitle>
-            <CardDescription>
-              선택한 세그먼트에 연결된 광고 실험과 평가 지표를 확인합니다.
-            </CardDescription>
-          </div>
-          <Field>
-            <FieldLabel>세그먼트</FieldLabel>
-            <Select
-              onValueChange={(value) => {
-                const segment = segments.find(
-                  (candidate) => segmentSelectValue(candidate) === value
-                );
-                if (segment) {
-                  onSelectSegment(segment.promotion_id, segment.segment_id);
-                }
-              }}
-              value={selectedSegmentValue}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="세그먼트 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {segments.map((segment) => (
-                  <SelectItem key={segmentSelectValue(segment)} value={segmentSelectValue(segment)}>
-                    {segment.segment_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        </CardHeader>
-      </Card>
-
       <SelectedSegmentExperimentCards
         buildAssignmentsError={buildAssignmentsError}
         buildAssignmentsIsError={buildAssignmentsIsError}
