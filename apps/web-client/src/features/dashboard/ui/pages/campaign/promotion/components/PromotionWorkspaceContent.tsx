@@ -636,90 +636,86 @@ function PromotionCurrentSegmentsPanel({
             <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
           </Alert>
         ) : null}
-        {visibleSegments.length > 0 ? (
-          visibleSegments.map((segment) => {
-            const isSelected = segment.segment_id === selectedSegmentId;
-            const loopCount = segmentLoopCount(segment);
-            const displayCopy = campaignSegmentDisplayCopy(segment);
-            const hiddenLoopCount = segments.filter(
-              (candidate) =>
-                candidate.segment_id === segment.segment_id &&
-                candidate.analysis_id !== segment.analysis_id
-            ).length;
-            return (
-              <div
-                className={`rounded-md border p-3 text-left transition ${
-                  isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
-                }`}
-                key={`${segment.segment_id}:${segment.analysis_id}`}
-                onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelectSegment(promotion.promotion_id, segment.segment_id);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="truncate font-medium">
-                        {displayCopy?.title ?? segment.segment_name}
-                      </span>
-                      <Badge variant="secondary">루프 {formatInteger(loopCount)}</Badge>
-                      {loopCount > 1 ? <Badge variant="default">다음 루프</Badge> : null}
-                    </div>
-                    {displayCopy?.signal_chips.length ? (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {displayCopy.signal_chips.map((chip) => (
-                          <Badge className="text-[11px]" key={chip} variant="outline">
-                            {chip}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {displayCopy?.audience_summary ??
-                        `${formatInteger(segment.estimated_size)}명 · 표본 ${formatInteger(
-                          segment.sample_size
-                        )} · ${formatMetricLabel(segment.goal_metric)}`}
-                      {hiddenLoopCount > 0
-                        ? ` · 이전 루프 ${formatInteger(hiddenLoopCount)}개 숨김`
-                        : ""}
-                    </div>
-                    {displayCopy?.reason ? (
-                      <div className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                        {displayCopy.reason}
-                      </div>
-                    ) : null}
+        {visibleSegments.map((segment) => {
+          const isSelected = segment.segment_id === selectedSegmentId;
+          const loopCount = segmentLoopCount(segment);
+          const displayCopy = campaignSegmentDisplayCopy(segment);
+          const hiddenLoopCount = segments.filter(
+            (candidate) =>
+              candidate.segment_id === segment.segment_id &&
+              candidate.analysis_id !== segment.analysis_id
+          ).length;
+          return (
+            <div
+              className={`rounded-md border p-3 text-left transition ${
+                isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
+              }`}
+              key={`${segment.segment_id}:${segment.analysis_id}`}
+              onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectSegment(promotion.promotion_id, segment.segment_id);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">
+                      {displayCopy?.title ?? segment.segment_name}
+                    </span>
+                    <Badge variant="secondary">루프 {formatInteger(loopCount)}</Badge>
+                    {loopCount > 1 ? <Badge variant="default">다음 루프</Badge> : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant={statusBadgeVariant(segment.status)}>
-                      {formatStatusLabel(segment.status)}
-                    </Badge>
-                    <Button
-                      aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
-                      disabled={deleteIsPending}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDeleteSegment(promotion.promotion_id, segment.segment_id);
-                      }}
-                      size="icon"
-                      type="button"
-                      variant="ghost"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                  {displayCopy?.signal_chips.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {displayCopy.signal_chips.map((chip) => (
+                        <Badge className="text-[11px]" key={chip} variant="outline">
+                          {chip}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {displayCopy?.audience_summary ??
+                      `${formatInteger(segment.estimated_size)}명 · 표본 ${formatInteger(
+                        segment.sample_size
+                      )} · ${formatMetricLabel(segment.goal_metric)}`}
+                    {hiddenLoopCount > 0
+                      ? ` · 이전 루프 ${formatInteger(hiddenLoopCount)}개 숨김`
+                      : ""}
                   </div>
+                  {displayCopy?.reason ? (
+                    <div className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                      {displayCopy.reason}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge variant={statusBadgeVariant(segment.status)}>
+                    {formatStatusLabel(segment.status)}
+                  </Badge>
+                  <Button
+                    aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
+                    disabled={deleteIsPending}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDeleteSegment(promotion.promotion_id, segment.segment_id);
+                    }}
+                    size="icon"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
                 </div>
               </div>
-            );
-          })
-        ) : (
-          <EmptyState message="확정된 세그먼트가 없습니다. 세그먼트 추천/확정 탭에서 후보를 확정해주세요." />
-        )}
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );
@@ -1633,9 +1629,6 @@ function PromotionSegmentSuggestionPanel({
           </div>
         ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 세그먼트를 불러오는 중입니다." /> : null}
-        {!suggestionsIsLoading && suggestions.length === 0 && scopedSegments.length === 0 ? (
-          <EmptyState message="표시할 세그먼트 후보가 없습니다." />
-        ) : null}
         {suggestions.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
             {suggestions.map((suggestion) => {
