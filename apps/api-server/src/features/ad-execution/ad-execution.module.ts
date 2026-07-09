@@ -6,6 +6,10 @@ import {
   EmailSender,
   SmsSender
 } from "./adapters/dispatch-sender.js";
+import {
+  FetchOpenPixelEventPublisher,
+  OpenPixelEventPublisher
+} from "./adapters/event-collector.js";
 import { FetchHtmlArtifactReader, HtmlArtifactReader } from "./adapters/artifact-reader.js";
 import { AdExecutionController } from "./controller/ad-execution.controller.js";
 import { OpenPixelController } from "./controller/open-pixel.controller.js";
@@ -50,6 +54,10 @@ export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@loop-ad.org";
     {
       provide: HtmlArtifactReader,
       useClass: FetchHtmlArtifactReader
+    },
+    {
+      provide: OpenPixelEventPublisher,
+      useClass: FetchOpenPixelEventPublisher
     }
   ]
 })

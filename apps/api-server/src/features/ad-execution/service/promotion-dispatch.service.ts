@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
@@ -14,6 +13,7 @@ import {
   SmsSender,
   type SmsSendInput
 } from "../adapters/dispatch-sender.js";
+import { createOpenPixelTokenPayload, encodeOpenPixelToken } from "../adapters/open-pixel-token.js";
 import { HtmlArtifactReader } from "../adapters/artifact-reader.js";
 import {
   AdExecutionDomain,
@@ -544,11 +544,12 @@ function openPixelUrlFor(assignment: ActiveAdServingAssignmentEntity, redirectId
 
 function openPixelId(assignment: ActiveAdServingAssignmentEntity, redirectId: string) {
   const targetUrl = requirePromotionLandingUrl(assignment);
-  const payload = {
+  const payload = createOpenPixelTokenPayload({
     recipient_user_id: assignment.userId,
+    event_name: openPixelEventName(assignment),
     attribution: toAttribution(assignment, targetUrl, undefined, redirectId)
-  };
-  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  });
+  return encodeOpenPixelToken(payload);
 }
 
 function dashboardPublicBaseUrl() {
@@ -596,6 +597,26 @@ function assignmentsForDemoRecipients(
     ...(assignmentsByUserId.get(userId) ?? fallbackAssignment),
     userId
   }));
+}
+
+function openPixelEventName(assignment: ActiveAdServingAssignmentEntity) {
+  const creative = isRecord(assignment.contentMetadataJson.creative)
+    ? assignment.contentMetadataJson.creative
+    : null;
+  const configured =
+    stringFromRecord(assignment.contentMetadataJson, "open_event_name") ??
+    stringFromRecord(creative, "open_event_name");
+
+  return configured ?? "이메일_열람";
+}
+
+function stringFromRecord(record: Record<string, unknown> | null, key: string) {
+  const value = record?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function throwUnsupportedDispatchChannel(promotionRunId: string, channel: never): never {

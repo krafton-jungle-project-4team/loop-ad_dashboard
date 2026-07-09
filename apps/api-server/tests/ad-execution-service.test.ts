@@ -14,6 +14,7 @@ import type {
   EmailSendInput,
   SmsSendInput
 } from "../src/features/ad-execution/adapters/dispatch-sender.js";
+import type { OpenPixelTokenPayload } from "../src/features/ad-execution/adapters/open-pixel-token.js";
 import type { DispatchRecipient } from "../src/features/ad-execution/repository/index.js";
 
 process.env.LOOPAD_ENV ??= "test";
@@ -30,6 +31,7 @@ process.env.LOOPAD_CLICKHOUSE_USERNAME ??= "loopad_app";
 process.env.LOOPAD_CLICKHOUSE_PASSWORD ??= "loopad_local_password";
 process.env.LOOPAD_DECISION_API_BASE_URL ??= "http://localhost:8081";
 process.env.LOOPAD_INTERNAL_API_KEY ??= "test-internal-key";
+process.env.LOOPAD_OPEN_PIXEL_SIGNING_SECRET ??= "test-open-pixel-signing-secret";
 process.env.LOOPAD_OPENAI_API_KEY ??= "test-openai-api-key";
 process.env.LOOPAD_DEMO_DISPATCH_RECIPIENTS ??= JSON.stringify([
   {
@@ -52,6 +54,10 @@ const { RedirectService } =
   await import("../src/features/ad-execution/service/redirect.service.js");
 const { OpenPixelController } =
   await import("../src/features/ad-execution/controller/open-pixel.controller.js");
+const { createOpenPixelTokenPayload, decodeOpenPixelToken, encodeOpenPixelToken } =
+  await import("../src/features/ad-execution/adapters/open-pixel-token.js");
+const { toEventCollectorPayload } =
+  await import("../src/features/ad-execution/adapters/event-collector.js");
 const { AwsEndUserMessagingSmsSender, AwsSesEmailSender } =
   await import("../src/features/ad-execution/adapters/dispatch-sender.js");
 const {
@@ -138,6 +144,13 @@ test("dispatch uses stored assignments and records sender success", async () => 
   assert.equal(emailSender.inputs[0]?.htmlBody.includes("{{redirect_url}}"), false);
   assert.equal(emailSender.inputs[0]?.htmlBody.includes("{{open_pixel_url}}"), false);
   assert.equal(emailSender.inputs[0]?.htmlBody.includes("/p/open/"), true);
+  const openPixelUrl = new URL(emailSender.inputs[0]?.openPixelUrl ?? "");
+  const openPixelToken = decodeURIComponent(openPixelUrl.pathname.split("/").at(-1) ?? "");
+  const openPixel = decodeOpenPixelToken(openPixelToken);
+
+  assert.equal(openPixel?.event_name, "이메일_열람");
+  assert.equal(openPixel?.recipient_user_id, "user-ok");
+  assert.equal(openPixel?.attribution.redirect_id, writer.redirectLinks[0]?.redirectToken);
   assert.deepEqual(
     logs
       .filter((entry) => entry.event === "assignment_sent")
@@ -643,17 +656,30 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   assert.match(html, /window\.location\.replace/);
 });
 
-test("open pixel endpoint returns an uncacheable transparent image", async () => {
-  const controller = new OpenPixelController();
+test("open pixel endpoint publishes signed Korean event and returns an uncacheable image", async () => {
+  const eventPublisher = new RecordingOpenPixelEventPublisher();
+  const controller = new OpenPixelController(eventPublisher);
   const response = new RecordingImageResponse();
-  const openPixelId = Buffer.from(
-    JSON.stringify({
+  const openPixelId = encodeOpenPixelToken(
+    createOpenPixelTokenPayload({
       recipient_user_id: "사용자-1",
+      event_name: "이메일_열람",
       attribution: {
-        event_name: "이메일_열람"
+        project_id: "project-1",
+        campaign_id: "campaign-1",
+        promotion_id: "promotion-1",
+        promotion_run_id: "run-1",
+        ad_experiment_id: "exp-1",
+        segment_id: "seg-1",
+        content_id: "content-1",
+        content_option_id: "option-1",
+        creative_id: "content-1",
+        promotion_channel: "email",
+        target_url: "https://loop-ad.example/landing",
+        redirect_id: "redirect-1"
       }
     })
-  ).toString("base64url");
+  );
 
   await controller.openPixel({ openPixelId }, response);
 
@@ -666,6 +692,37 @@ test("open pixel endpoint returns an uncacheable transparent image", async () =>
   assert.equal(response.headers.get("Pragma"), "no-cache");
   assert.equal(Buffer.isBuffer(response.body), true);
   assert.equal(response.body?.length, 43);
+  assert.equal(eventPublisher.events.length, 1);
+  assert.equal(eventPublisher.events[0]?.recipient_user_id, "사용자-1");
+  assert.equal(eventPublisher.events[0]?.event_name, "이메일_열람");
+
+  const payload = toEventCollectorPayload(
+    eventPublisher.events[0]!,
+    new Date("2026-07-09T00:00:00.000Z")
+  );
+
+  assert.equal(payload.project_id, "project-1");
+  assert.equal(payload.write_key, "public_write_key");
+  assert.equal(payload.schema_version, "hotel_rec_promo.v1");
+  assert.equal(payload.event_name, "이메일_열람");
+  assert.equal(payload.source, "browser_sdk");
+  assert.equal(payload.user_id, "사용자-1");
+  assert.equal(payload.session_id, "open:run-1:사용자-1:redirect-1");
+  assert.equal(payload.event_time, "2026-07-09T00:00:00.000Z");
+  assert.equal(JSON.parse(payload.properties_json).redirect_id, "redirect-1");
+});
+
+test("open pixel endpoint ignores invalid tokens without publishing callbacks", async () => {
+  const eventPublisher = new RecordingOpenPixelEventPublisher();
+  const controller = new OpenPixelController(eventPublisher);
+  const response = new RecordingImageResponse();
+
+  await controller.openPixel({ openPixelId: "invalid-token" }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.headers.get("Content-Type"), "image/gif");
+  assert.equal(Buffer.isBuffer(response.body), true);
+  assert.equal(eventPublisher.events.length, 0);
 });
 
 test("redirect page escapes script data and fallback href with stable libraries", () => {
@@ -871,6 +928,14 @@ class FakeHtmlArtifactReader {
       '<img src="{{open_pixel_url}}" width="1" height="1" alt=""></body>',
       "</html>"
     ].join("");
+  }
+}
+
+class RecordingOpenPixelEventPublisher {
+  readonly events: OpenPixelTokenPayload[] = [];
+
+  async publishOpenEvent(openPixel: OpenPixelTokenPayload) {
+    this.events.push(openPixel);
   }
 }
 
