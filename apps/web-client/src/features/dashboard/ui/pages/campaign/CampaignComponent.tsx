@@ -74,7 +74,7 @@ import {
   formatStatusLabel
 } from "../../../model/dashboard-labels.js";
 import type { DashboardQuery, DashboardTab } from "../../../model/dashboard-types.js";
-import { CampaignPromotionTable } from "./promotion/PromotionWorkspace.js";
+import { CampaignPromotionTable } from "./promotion/PromotionComponent.js";
 import { EmptyState } from "../../shared/EmptyState.js";
 import { ScopedFunnelAnalysisPanel } from "../../shared/ScopedFunnelAnalysisPanel.js";
 

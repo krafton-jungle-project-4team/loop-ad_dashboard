@@ -83,7 +83,7 @@ type ExperimentRow = {
   targetValue: number | null;
 };
 
-export function ExperimentSections({
+export function ExperimentComponent({
   data,
   query
 }: {
@@ -1410,15 +1410,17 @@ function buildExperimentRows(detail: DashboardCampaignDetail): ExperimentRow[] {
         : latestMetric?.content_id
           ? (contentCandidatesById.get(latestMetric.content_id) ?? null)
           : null;
+      const experimentSegment = experiment
+        ? (segmentsByKey.get(segmentKey(experiment.promotion_id, experiment.segment_id)) ?? null)
+        : null;
+      const metricSegment = latestMetric?.segment_id
+        ? (segmentsByKey.get(segmentKey(latestMetric.promotion_id, latestMetric.segment_id)) ??
+          null)
+        : null;
       const segment =
         findSegmentForExperiment(detail.segments, experimentId, latestMetric) ??
-        (experiment
-          ? (segmentsByKey.get(segmentKey(experiment.promotion_id, experiment.segment_id)) ?? null)
-          : null) ??
-        (latestMetric?.segment_id
-          ? (segmentsByKey.get(segmentKey(latestMetric.promotion_id, latestMetric.segment_id)) ??
-            null)
-          : null);
+        experimentSegment ??
+        metricSegment;
       const promotionId =
         latestMetric?.promotion_id ?? experiment?.promotion_id ?? segment?.promotion_id ?? "";
       const promotion = promotionsById.get(promotionId) ?? null;

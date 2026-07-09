@@ -1,6 +1,6 @@
 import type { DashboardMain } from "@loopad/shared";
 import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
-import { ExperimentSections } from "./ExperimentSections.js";
+import { ExperimentComponent } from "./ExperimentComponent.js";
 
 export function ExperimentManagementPage({
   data,
@@ -9,5 +9,5 @@ export function ExperimentManagementPage({
   data: DashboardMain;
   query: DashboardQuery;
 }) {
-  return <ExperimentSections data={data} query={query} />;
+  return <ExperimentComponent data={data} query={query} />;
 }
