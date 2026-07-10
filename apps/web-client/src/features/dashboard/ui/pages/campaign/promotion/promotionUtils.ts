@@ -16,34 +16,9 @@ import { formatMetricLabel } from "../../../../model/dashboard-labels.js";
 export const promotionChannelOptions = DashboardPromotionChannelSchema.options;
 export const promotionStatusOptions = DashboardPromotionStatusSchema.options;
 
-export const promotionGoalMetricOptions = [
-  ...DashboardPromotionGoalMetricSchema.options.map((metric) => ({
-    label: formatMetricLabel(metric),
-    requestMetric: metric,
-    value: metric
-  })),
-  { label: "광고 클릭률", requestMetric: "inflow_rate", value: "ad_click_rate" },
-  {
-    label: "랜딩페이지 전환율",
-    requestMetric: "booking_conversion_rate",
-    value: "landing_page_conversion_rate"
-  },
-  { label: "일일 활성 사용자수", requestMetric: "inflow_rate", value: "daily_active_users" },
-  {
-    label: "결제 직전 이탈율",
-    requestMetric: "funnel_step_rate",
-    value: "checkout_abandonment_rate"
-  },
-  {
-    label: "구매전환율",
-    requestMetric: "booking_conversion_rate",
-    value: "purchase_conversion_rate"
-  }
-] satisfies Array<{
-  label: string;
-  requestMetric: DashboardCreatePromotionRequest["goal_metric"];
-  value: string;
-}>;
+export const promotionGoalMetricOptions = DashboardPromotionGoalMetricSchema.options.map(
+  (metric) => ({ label: formatMetricLabel(metric), value: metric })
+);
 export const promotionGoalBasisOptions = DashboardPromotionGoalBasisSchema.options;
 export const defaultPromotionLandingUrl =
   "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
@@ -80,7 +55,7 @@ export function uniquePromotionsById(
 export type PromotionCreateFormState = {
   channel: string;
   goalBasis: string;
-  goalMetric: string;
+  goalMetric: DashboardCreatePromotionRequest["goal_metric"];
   goalTargetValue: string;
   landingUrl: string;
   marketingTheme: string;
@@ -109,7 +84,7 @@ export function promotionCreateFormToRequest(
   return {
     channel: form.channel as DashboardCreatePromotionRequest["channel"],
     goal_basis: form.goalBasis as DashboardCreatePromotionRequest["goal_basis"],
-    goal_metric: promotionGoalMetricToRequestMetric(form.goalMetric),
+    goal_metric: form.goalMetric,
     goal_target_value: nonnegativeNumber(form.goalTargetValue),
     landing_url: form.landingUrl.trim(),
     marketing_theme: form.marketingTheme.trim(),
@@ -118,15 +93,6 @@ export function promotionCreateFormToRequest(
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     status: "draft"
   };
-}
-
-export function promotionGoalMetricToRequestMetric(
-  metric: string
-): DashboardCreatePromotionRequest["goal_metric"] {
-  return (
-    promotionGoalMetricOptions.find((option) => option.value === metric)?.requestMetric ??
-    "inflow_rate"
-  );
 }
 
 export function isValidHttpUrl(value: string) {

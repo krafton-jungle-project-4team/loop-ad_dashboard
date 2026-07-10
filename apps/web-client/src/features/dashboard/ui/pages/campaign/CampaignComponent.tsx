@@ -390,6 +390,7 @@ function CampaignCreateForm({
 }) {
   const [campaignName, setCampaignName] = useState("");
   const [objective, setObjective] = useState("");
+  const [primaryMetric, setPrimaryMetric] = useState<string>("none");
   const [status, setStatus] = useState<CreateCampaignInput["status"]>("draft");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -404,6 +405,7 @@ function CampaignCreateForm({
         onCampaignNameChange={setCampaignName}
         onEndDateChange={setEndDate}
         onObjectiveChange={setObjective}
+        primaryMetricControl={{ onValueChange: setPrimaryMetric, value: primaryMetric }}
         onStartDateChange={setStartDate}
         onStatusChange={(nextStatus) => setStatus(nextStatus as CreateCampaignInput["status"])}
         startDate={startDate}
@@ -421,6 +423,7 @@ function CampaignCreateForm({
               campaign_name: campaignName.trim(),
               end_date: nullableDate(endDate),
               objective: nullableText(objective),
+              primary_metric: nullableMetric(primaryMetric),
               start_date: nullableDate(startDate),
               status
             })

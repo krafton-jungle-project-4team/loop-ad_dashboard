@@ -100,7 +100,12 @@ export function PromotionAddDialog({
             <Field>
               <FieldLabel id="promotion-create-goal-metric-label">목표 지표</FieldLabel>
               <Select
-                onValueChange={(value) => setForm({ ...form, goalMetric: value })}
+                onValueChange={(value) =>
+                  setForm({
+                    ...form,
+                    goalMetric: value as PromotionCreateFormState["goalMetric"]
+                  })
+                }
                 value={form.goalMetric}
               >
                 <SelectTrigger
