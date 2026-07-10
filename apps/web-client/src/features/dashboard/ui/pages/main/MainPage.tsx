@@ -7,7 +7,6 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts"
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
-import { Button } from "@loopad/ui/shadcn/button";
 import {
   Table,
   TableBody,
@@ -17,7 +16,7 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Route, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { formatInteger, formatPercent } from "../../../model/dashboard-format.js";
 import {
   formatActionLabel,
@@ -34,7 +33,7 @@ export function MainPage({ data, query }: { data: DashboardMain; query: Dashboar
   return (
     <div className="grid gap-6">
       <Card className="w-full min-w-0 overflow-hidden bg-white py-0 shadow-none">
-        <CardHeader className="gap-5 border-b bg-gradient-to-br from-primary/[0.08] via-white to-white px-5 py-6 md:flex-row md:items-center md:justify-between md:px-6">
+        <CardHeader className="border-b bg-gradient-to-br from-primary/[0.08] via-white to-white px-5 py-6 md:px-6">
           <div className="grid gap-1.5">
             <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
               운영 현황
@@ -42,28 +41,6 @@ export function MainPage({ data, query }: { data: DashboardMain; query: Dashboar
             <CardDescription className="text-sm">
               사용자 행동을 확인하고 캠페인 작업으로 자연스럽게 이어가세요.
             </CardDescription>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button asChild variant="outline">
-              <Link
-                params={{ projectId: query.projectId, tabPath: "funnels" }}
-                search={(current) => current}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                <Route data-icon="inline-start" />
-                사용자 여정
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link
-                params={{ projectId: query.projectId, tabPath: "campaigns" }}
-                search={(current) => ({ ...current, campaignView: "manage" })}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                캠페인 관리
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="grid gap-5 px-5 py-5 md:px-6">
