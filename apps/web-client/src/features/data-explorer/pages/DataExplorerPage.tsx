@@ -423,5 +423,7 @@ function quoteClickHouseIdentifier(identifier: string) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "데이터 탐색기에서 예상하지 못한 오류가 발생했습니다.";
+  return error instanceof Error
+    ? error.message
+    : "데이터 탐색기에서 예상하지 못한 오류가 발생했습니다.";
 }

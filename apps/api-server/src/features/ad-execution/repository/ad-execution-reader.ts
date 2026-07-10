@@ -55,9 +55,7 @@ export class AdExecutionReader {
   async listDispatchAssignments(
     promotionRunId: string
   ): Promise<ActiveAdServingAssignmentEntity[]> {
-    const rows = await this.db
-      .query(listActiveAdServingAssignments, { promotionRunId })
-      .multiple();
+    const rows = await this.db.query(listActiveAdServingAssignments, { promotionRunId }).multiple();
 
     return activeAdServingAssignmentEntitySchema.array().parse(rows);
   }

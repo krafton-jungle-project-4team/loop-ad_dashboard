@@ -315,8 +315,7 @@ function ObjectActionMenu({
         <DropdownMenuLabel>{object.object_name}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => onBuildObjectQuery(object)}>
-          <FileCode2 />
-          행 조회
+          <FileCode2 />행 조회
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onBuildObjectDdlQuery(object)}>
           <Database />

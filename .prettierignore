@@ -1,3 +1,5 @@
 dist
 node_modules
 package-lock.json
+**/__generated__/**
+apps/web-client/src/routeTree.gen.ts
