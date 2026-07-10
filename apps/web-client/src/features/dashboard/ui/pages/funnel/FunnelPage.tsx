@@ -16,7 +16,8 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
+  AlertDialogTrigger
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
@@ -302,19 +303,38 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                             <Pencil data-icon="inline-start" />
                             수정
                           </Button>
-                          <Button
-                            disabled={deleteMutation.isPending}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              deleteMutation.mutate(funnel.funnel_id);
-                            }}
-                            size="icon"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Trash2 data-icon="inline-start" />
-                            <span className="sr-only">사용자 여정 삭제</span>
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                disabled={deleteMutation.isPending}
+                                onClick={(event) => event.stopPropagation()}
+                                size="icon"
+                                type="button"
+                                variant="outline"
+                              >
+                                <Trash2 data-icon="inline-start" />
+                                <span className="sr-only">사용자 여정 삭제</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>사용자 여정을 삭제할까요?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {funnel.funnel_name} 사용자 여정이 삭제됩니다. 이 작업은 되돌릴 수
+                                  없습니다.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>취소</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(funnel.funnel_id)}
+                                  variant="destructive"
+                                >
+                                  삭제
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>

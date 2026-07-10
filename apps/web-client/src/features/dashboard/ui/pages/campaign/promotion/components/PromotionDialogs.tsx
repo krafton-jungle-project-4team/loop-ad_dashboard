@@ -7,7 +7,7 @@ import {
   type DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
-import { DialogFooter } from "@loopad/ui/shadcn/dialog";
+import { DialogClose, DialogFooter } from "@loopad/ui/shadcn/dialog";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import {
@@ -60,10 +60,17 @@ export function PromotionEditDialog({
       setStatus(promotion.status);
     }
   }, [open, promotion]);
+  const isDirty = Boolean(
+    promotion &&
+    (marketingTheme !== promotion.marketing_theme ||
+      messageBrief !== (promotion.message_brief ?? "") ||
+      status !== promotion.status)
+  );
 
   return (
     <DashboardFormDialog
       description="프로모션 이름, 설명, 운영 상태를 수정합니다."
+      dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
       title="프로모션 수정"
@@ -106,9 +113,11 @@ export function PromotionEditDialog({
           </Select>
         </Field>
         <DialogFooter className="border-t pt-5">
-          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
-            취소
-          </Button>
+          <DialogClose asChild>
+            <Button type="button" variant="ghost">
+              취소
+            </Button>
+          </DialogClose>
           <Button
             disabled={!promotion || !marketingTheme.trim() || isPending}
             onClick={() =>
@@ -152,10 +161,17 @@ export function SegmentEditDialog({
       setStatus(segment.status);
     }
   }, [open, segment]);
+  const isDirty = Boolean(
+    segment &&
+    (segmentName !== segment.segment_name ||
+      priority !== (segment.priority ?? "none") ||
+      status !== segment.status)
+  );
 
   return (
     <DashboardFormDialog
       description="확정된 세그먼트의 이름, 우선순위, 운영 상태를 수정합니다."
+      dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
       title="세그먼트 수정"
@@ -206,9 +222,11 @@ export function SegmentEditDialog({
           </Field>
         </div>
         <DialogFooter className="border-t pt-5">
-          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
-            취소
-          </Button>
+          <DialogClose asChild>
+            <Button type="button" variant="ghost">
+              취소
+            </Button>
+          </DialogClose>
           <Button
             disabled={!segment || !segmentName.trim() || isPending}
             onClick={() =>
@@ -252,10 +270,12 @@ export function PromotionAddDialog({
 
   const canSubmit =
     Boolean(form.marketingTheme.trim()) && isValidHttpUrl(form.landingUrl) && !createIsPending;
+  const isDirty = JSON.stringify(form) !== JSON.stringify(createEmptyPromotionFormState());
 
   return (
     <DashboardFormDialog
       description="선택된 캠페인 하위에 새 프로모션을 생성하고 탭으로 엽니다."
+      dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
       title="새 프로모션 추가"
@@ -411,9 +431,11 @@ export function PromotionAddDialog({
         </div>
       </div>
       <DialogFooter className="px-5 py-5 sm:px-8">
-        <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
-          취소
-        </Button>
+        <DialogClose asChild>
+          <Button type="button" variant="ghost">
+            취소
+          </Button>
+        </DialogClose>
         <Button className="px-8" disabled={!canSubmit} onClick={() => onCreate(form)} type="button">
           {createIsPending ? "생성 중" : "프로모션 생성"}
         </Button>

@@ -30,7 +30,7 @@ import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useState } from "react";
 import { createDashboardCampaign, updateDashboardCampaign } from "../../../../api/dashboard-api.js";
 import { formatMetricLabel, formatStatusLabel } from "../../../../model/dashboard-labels.js";
-import { DashboardFormDialog } from "../../../shared/DashboardFormDialog.js";
+import { DashboardFormDialog, useDashboardFormDraft } from "../../../shared/DashboardFormDialog.js";
 
 const campaignPrimaryMetricOptions = DashboardCampaignPrimaryMetricSchema.options;
 const campaignStatusOptions = DashboardCampaignStatusSchema.options;
@@ -105,17 +105,12 @@ export function CampaignFormDialog({
           </Alert>
         ) : null}
         {isCreateMode ? (
-          <CampaignCreateForm
-            isPending={createIsPending}
-            onCancel={() => onOpenChange(false)}
-            onSubmit={onCreate}
-          />
+          <CampaignCreateForm isPending={createIsPending} onSubmit={onCreate} />
         ) : (
           <CampaignEditForm
             campaign={campaign}
             isPending={updateIsPending || deleteIsPending}
             key={campaign?.campaign_id ?? "missing-campaign"}
-            onCancel={() => onOpenChange(false)}
             onDelete={onDelete}
             onSubmit={onUpdate}
           />
@@ -127,11 +122,9 @@ export function CampaignFormDialog({
 
 function CampaignCreateForm({
   isPending,
-  onCancel,
   onSubmit
 }: {
   isPending: boolean;
-  onCancel: () => void;
   onSubmit: (requestBody: CreateCampaignInput) => void;
 }) {
   const [campaignName, setCampaignName] = useState("");
@@ -139,6 +132,9 @@ function CampaignCreateForm({
   const [primaryMetric, setPrimaryMetric] = useState<string>("none");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const requestClose = useDashboardFormDraft(
+    Boolean(campaignName || objective || startDate || endDate || primaryMetric !== "none")
+  );
   const canSubmit = Boolean(campaignName.trim()) && !isPending;
 
   return (
@@ -155,7 +151,7 @@ function CampaignCreateForm({
         startDate={startDate}
       />
       <DialogFooter className="border-t pt-5">
-        <Button onClick={onCancel} type="button" variant="ghost">
+        <Button onClick={requestClose} type="button" variant="ghost">
           취소
         </Button>
         <Button
@@ -183,13 +179,11 @@ function CampaignCreateForm({
 function CampaignEditForm({
   campaign,
   isPending,
-  onCancel,
   onDelete,
   onSubmit
 }: {
   campaign: DashboardCampaignSummary | undefined;
   isPending: boolean;
-  onCancel: () => void;
   onDelete: (campaignId: string) => void;
   onSubmit: (campaignId: string, requestBody: UpdateCampaignInput) => void;
 }) {
@@ -199,6 +193,17 @@ function CampaignEditForm({
   const [status, setStatus] = useState<string>(campaign?.status ?? "draft");
   const [startDate, setStartDate] = useState(campaign?.start_date ?? "");
   const [endDate, setEndDate] = useState(campaign?.end_date ?? "");
+  const requestClose = useDashboardFormDraft(
+    Boolean(
+      campaign &&
+      (campaignName !== campaign.campaign_name ||
+        objective !== (campaign.objective ?? "") ||
+        primaryMetric !== (campaign.primary_metric ?? "none") ||
+        status !== campaign.status ||
+        startDate !== (campaign.start_date ?? "") ||
+        endDate !== (campaign.end_date ?? ""))
+    )
+  );
 
   if (!campaign) {
     return (
@@ -249,7 +254,7 @@ function CampaignEditForm({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        <Button onClick={onCancel} type="button" variant="ghost">
+        <Button onClick={requestClose} type="button" variant="ghost">
           취소
         </Button>
         <Button
