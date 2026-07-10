@@ -40,7 +40,6 @@ import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import {
   defaultPromotionAnalysisProgress,
   hasPendingOnsiteBannerImage,
-  latestSegmentPerSegmentId,
   mutationErrorMessage,
   onsiteBannerImagePollIntervalMs,
   promotionAnalysisProgressCacheTimeMs,
@@ -90,9 +89,9 @@ export function usePromotionWorkspaceController({
   const [workspaceTab, setWorkspaceTab] = useState<PromotionWorkspaceTab>(
     mode === "segment" ? requestedSegmentTab : defaultPromotionWorkspaceTabByMode[mode]
   );
-  const selectedCampaign =
-    data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
-    data.campaigns[0];
+  const selectedCampaign = data.campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const selectedPromotionId = query.selectedPromotionId;
   const campaignDetail = useQuery({
@@ -101,9 +100,9 @@ export function usePromotionWorkspaceController({
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
   });
   const openPromotions = uniquePromotionsById(campaignDetail.data?.promotions ?? []);
-  const selectedOpenPromotion =
-    openPromotions.find((promotion) => promotion.promotion_id === selectedPromotionId) ??
-    openPromotions[0];
+  const selectedOpenPromotion = openPromotions.find(
+    (promotion) => promotion.promotion_id === selectedPromotionId
+  );
   const selectedPromotionSegments =
     campaignDetail.data?.segments.filter(
       (segment) => segment.promotion_id === selectedOpenPromotion?.promotion_id
@@ -134,25 +133,15 @@ export function usePromotionWorkspaceController({
   const deletePromotionMutation = useMutation({
     mutationFn: (promotionId: string) => deleteDashboardPromotion(query, promotionId),
     onSuccess: async (result) => {
-      const deletedIndex = openPromotions.findIndex(
-        (promotion) => promotion.promotion_id === result.promotion_id
-      );
-      const remainingPromotions = openPromotions.filter(
-        (promotion) => promotion.promotion_id !== result.promotion_id
-      );
-      const nextSelectedPromotion =
-        selectedPromotionId === result.promotion_id
-          ? (remainingPromotions[deletedIndex] ?? remainingPromotions[deletedIndex - 1])
-          : undefined;
-
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
       });
       if (selectedPromotionId === result.promotion_id) {
         await setDashboardQueryState({
+          promotionView: "manage",
           selectedCampaignId,
-          selectedPromotionId: nextSelectedPromotion?.promotion_id ?? "",
+          selectedPromotionId: "",
           selectedSegmentId: ""
         });
       }
@@ -176,12 +165,15 @@ export function usePromotionWorkspaceController({
   });
 
   useEffect(() => {
-    if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
-      void setDashboardQueryState({
-        selectedCampaignId: selectedCampaign.campaign_id,
-        selectedPromotionId: "",
-        selectedSegmentId: ""
-      });
+    if (query.selectedCampaignId && !selectedCampaign) {
+      void setDashboardQueryState(
+        {
+          selectedCampaignId: "",
+          selectedPromotionId: "",
+          selectedSegmentId: ""
+        },
+        { history: "replace" }
+      );
     }
   }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
 
@@ -202,28 +194,12 @@ export function usePromotionWorkspaceController({
       (promotion) => promotion.promotion_id === selectedPromotionId
     );
     if (!hasSelectedPromotion) {
-      void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+      void setDashboardQueryState(
+        { selectedPromotionId: "", selectedSegmentId: "" },
+        { history: "replace" }
+      );
     }
   }, [campaignDetail.data, selectedPromotionId, setDashboardQueryState]);
-
-  useEffect(() => {
-    if (
-      !campaignDetail.data ||
-      selectedPromotionId ||
-      campaignDetail.data.promotions.length === 0
-    ) {
-      return;
-    }
-
-    const firstPromotion = campaignDetail.data.promotions[0];
-    if (firstPromotion) {
-      void setDashboardQueryState({
-        selectedCampaignId,
-        selectedPromotionId: firstPromotion.promotion_id,
-        selectedSegmentId: ""
-      });
-    }
-  }, [campaignDetail.data, selectedCampaignId, selectedPromotionId, setDashboardQueryState]);
 
   const promotionDetail = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
@@ -254,26 +230,9 @@ export function usePromotionWorkspaceController({
 
   useEffect(() => {
     if (query.selectedSegmentId && !selectedPromotionSegmentId) {
-      void setDashboardQueryState({ selectedSegmentId: "" });
+      void setDashboardQueryState({ selectedSegmentId: "" }, { history: "replace" });
     }
   }, [query.selectedSegmentId, selectedPromotionSegmentId, setDashboardQueryState]);
-
-  useEffect(() => {
-    if (
-      selectedOpenPromotion?.promotion_id &&
-      !query.selectedSegmentId &&
-      selectedPromotionSegments.length > 0
-    ) {
-      void setDashboardQueryState({
-        selectedSegmentId: latestSegmentPerSegmentId(selectedPromotionSegments)[0]?.segment_id ?? ""
-      });
-    }
-  }, [
-    query.selectedSegmentId,
-    selectedOpenPromotion?.promotion_id,
-    selectedPromotionSegments,
-    setDashboardQueryState
-  ]);
 
   const segmentDetail = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id && selectedPromotionSegmentId),
@@ -633,7 +592,7 @@ export function usePromotionWorkspaceController({
         )
       });
       if (query.selectedSegmentId === result.segment_id) {
-        await setDashboardQueryState({ selectedSegmentId: "" });
+        await setDashboardQueryState({ segmentView: "manage", selectedSegmentId: "" });
       }
     }
   });

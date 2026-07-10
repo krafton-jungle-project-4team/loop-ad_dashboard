@@ -1,12 +1,10 @@
 import type { DashboardMain } from "@loopad/shared";
 import { Card, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
 import {
   fetchDashboardCampaignDetail,
   fetchDashboardSegmentDetail
 } from "../../../../../api/dashboard-api.js";
-import { useDashboardQueryState } from "../../../../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardSegmentDetailQueryKey
@@ -23,10 +21,9 @@ export function ExperimentComponent({
   data: DashboardMain;
   query: DashboardQuery;
 }) {
-  const [, setDashboardQueryState] = useDashboardQueryState();
-  const selectedCampaign =
-    data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
-    data.campaigns[0];
+  const selectedCampaign = data.campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const detailQuery = useQuery({
     enabled: Boolean(selectedCampaignId),
@@ -46,36 +43,6 @@ export function ExperimentComponent({
       selectedSegmentId
     )
   });
-
-  useEffect(() => {
-    if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
-      void setDashboardQueryState({
-        selectedCampaignId: selectedCampaign.campaign_id,
-        selectedPromotionId: "",
-        selectedSegmentId: ""
-      });
-    }
-  }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
-
-  useEffect(() => {
-    if (
-      selectedCampaignId &&
-      selectedSegment &&
-      (query.selectedPromotionId !== selectedSegment.promotion_id ||
-        query.selectedSegmentId !== selectedSegment.segment_id)
-    ) {
-      void setDashboardQueryState({
-        selectedPromotionId: selectedSegment.promotion_id,
-        selectedSegmentId: selectedSegment.segment_id
-      });
-    }
-  }, [
-    query.selectedPromotionId,
-    query.selectedSegmentId,
-    selectedCampaignId,
-    selectedSegment,
-    setDashboardQueryState
-  ]);
 
   if (!selectedCampaign) {
     return <EmptyState message="실험을 확인할 캠페인이 없습니다." />;

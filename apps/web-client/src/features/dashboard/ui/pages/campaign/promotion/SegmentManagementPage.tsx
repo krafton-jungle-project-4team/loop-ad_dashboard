@@ -1,5 +1,4 @@
 import type { DashboardMain } from "@loopad/shared";
-import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { WorkspacePageHeader, WorkspaceViewTabs } from "../../../shared/WorkspaceViewTabs.js";
 import { PromotionWorkspace } from "./PromotionComponent.js";
@@ -19,8 +18,6 @@ export function SegmentManagementPage({
   data: DashboardMain;
   query: DashboardQuery;
 }) {
-  const [, setDashboardQueryState] = useDashboardQueryState();
-
   return (
     <div className="grid gap-6">
       <WorkspacePageHeader
@@ -31,9 +28,7 @@ export function SegmentManagementPage({
       <WorkspaceViewTabs
         ariaLabel="세그먼트 작업 탭"
         items={segmentViews}
-        onValueChange={(segmentView) => {
-          void setDashboardQueryState({ segmentView });
-        }}
+        queryKey="segmentView"
         value={query.segmentView}
       />
       <PromotionWorkspace data={data} mode="segment" query={query} />

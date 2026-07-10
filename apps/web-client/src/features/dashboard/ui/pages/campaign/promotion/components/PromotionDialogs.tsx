@@ -67,8 +67,9 @@ export function PromotionEditDialog({
       onOpenChange={onOpenChange}
       open={open}
       title="프로모션 수정"
+      width="promotion"
     >
-      <div className="grid gap-6 px-8 py-6">
+      <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
         <Field>
           <FieldLabel htmlFor="promotion-edit-theme">프로모션 이름</FieldLabel>
           <Input
@@ -158,8 +159,9 @@ export function SegmentEditDialog({
       onOpenChange={onOpenChange}
       open={open}
       title="세그먼트 수정"
+      width="segment"
     >
-      <div className="grid gap-6 px-8 py-6">
+      <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
         <Field>
           <FieldLabel htmlFor="segment-edit-name">세그먼트 이름</FieldLabel>
           <Input
@@ -257,8 +259,9 @@ export function PromotionAddDialog({
       onOpenChange={onOpenChange}
       open={open}
       title="새 프로모션 추가"
+      width="promotion"
     >
-      <div className="grid gap-6 px-8 py-6">
+      <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
         <div className="grid gap-4">
           <Field>
             <FieldLabel htmlFor="promotion-create-theme">프로모션 이름</FieldLabel>
@@ -407,7 +410,7 @@ export function PromotionAddDialog({
           </Field>
         </div>
       </div>
-      <DialogFooter className="px-8 py-5">
+      <DialogFooter className="px-5 py-5 sm:px-8">
         <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
           취소
         </Button>

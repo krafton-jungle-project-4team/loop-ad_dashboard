@@ -1,5 +1,4 @@
 import type { DashboardMain } from "@loopad/shared";
-import { useDashboardQueryState } from "../../../model/dashboard-query.js";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
 import { WorkspacePageHeader, WorkspaceViewTabs } from "../../shared/WorkspaceViewTabs.js";
 import { ExperimentComponent } from "./promotion/experiment/ExperimentComponent.js";
@@ -19,8 +18,6 @@ export function CampaignManagementPage({
   data: DashboardMain;
   query: DashboardQuery;
 }) {
-  const [, setDashboardQueryState] = useDashboardQueryState();
-
   return (
     <div className="grid gap-6">
       <WorkspacePageHeader
@@ -31,9 +28,7 @@ export function CampaignManagementPage({
       <WorkspaceViewTabs
         ariaLabel="캠페인 작업 탭"
         items={campaignViews}
-        onValueChange={(campaignView) => {
-          void setDashboardQueryState({ campaignView });
-        }}
+        queryKey="campaignView"
         value={query.campaignView}
       />
       {query.campaignView === "manage" ? (

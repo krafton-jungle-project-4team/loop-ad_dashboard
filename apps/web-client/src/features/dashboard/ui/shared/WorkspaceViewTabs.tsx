@@ -1,4 +1,5 @@
-import { Tabs, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
+import { cn } from "@loopad/ui/shadcn/utils";
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 export type WorkspaceViewTab<Value extends string> = {
@@ -9,26 +10,38 @@ export type WorkspaceViewTab<Value extends string> = {
 export function WorkspaceViewTabs<Value extends string>({
   ariaLabel,
   items,
-  onValueChange,
+  queryKey,
   value
 }: {
   ariaLabel: string;
   items: ReadonlyArray<WorkspaceViewTab<Value>>;
-  onValueChange: (value: Value) => void;
+  queryKey: "campaignView" | "promotionView" | "segmentView";
   value: Value;
 }) {
   return (
-    <Tabs onValueChange={(nextValue) => onValueChange(nextValue as Value)} value={value}>
-      <div className="min-w-0 overflow-x-auto pb-1">
-        <TabsList aria-label={ariaLabel} className="min-w-max justify-start" variant="line">
-          {items.map((item) => (
-            <TabsTrigger key={item.value} value={item.value}>
+    <nav aria-label={ariaLabel} className="min-w-0 overflow-x-auto border-b">
+      <div className="flex min-w-max items-center gap-1">
+        {items.map((item) => {
+          const isActive = item.value === value;
+
+          return (
+            <Link
+              aria-current={isActive ? "page" : undefined}
+              className={cn(
+                "relative inline-flex h-11 items-center justify-center px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isActive &&
+                  "text-primary after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary"
+              )}
+              key={item.value}
+              search={(current) => ({ ...current, [queryKey]: item.value })}
+              to="."
+            >
               {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+            </Link>
+          );
+        })}
       </div>
-    </Tabs>
+    </nav>
   );
 }
 

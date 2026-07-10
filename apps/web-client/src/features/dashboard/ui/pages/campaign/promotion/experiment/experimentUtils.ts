@@ -82,10 +82,7 @@ export function selectExperimentSegment(
     return selectedSegment;
   }
 
-  const segmentsWithExperimentData = detail.segments.filter((segment) =>
-    hasSegmentExperimentData(segment, detail)
-  );
-  return segmentsWithExperimentData[0] ?? detail.segments[0] ?? null;
+  return null;
 }
 
 export function hasSegmentExperimentData(

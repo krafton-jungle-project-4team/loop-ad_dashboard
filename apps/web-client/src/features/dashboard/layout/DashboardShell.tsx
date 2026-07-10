@@ -1,5 +1,6 @@
 import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@loopad/ui/shadcn/collapsible";
+import { Button } from "@loopad/ui/shadcn/button";
 import { Separator } from "@loopad/ui/shadcn/separator";
 import {
   Select,
@@ -24,12 +25,13 @@ import {
   SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger
+  SidebarTrigger,
+  useSidebar
 } from "@loopad/ui/shadcn/sidebar";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -112,8 +114,8 @@ export function DashboardShell({
         <main
           className={
             isCanvasTab
-              ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
-              : "min-h-0 min-w-0 flex-1 overflow-auto bg-background"
+              ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background pb-20 md:pb-0"
+              : "min-h-0 min-w-0 flex-1 overflow-auto bg-background pb-20 md:pb-0"
           }
         >
           <div
@@ -128,8 +130,105 @@ export function DashboardShell({
             {children}
           </div>
         </main>
+        <MobileBottomNavigation activeTab={activeTab} projectId={projectId} />
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+function MobileBottomNavigation({
+  activeTab,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  projectId: string;
+}) {
+  const { toggleSidebar } = useSidebar();
+  const campaignIsActive = [
+    "campaigns",
+    "campaign-detail",
+    "campaign-metrics",
+    "promotions",
+    "campaign-promotions",
+    "promotion-metrics",
+    "segments",
+    "experiments"
+  ].includes(activeTab);
+
+  return (
+    <nav
+      aria-label="모바일 주요 메뉴"
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
+    >
+      <MobileNavigationLink
+        active={activeTab === "main"}
+        icon={<Home aria-hidden="true" />}
+        label="메인"
+        pathSegment="main"
+        projectId={projectId}
+      />
+      <MobileNavigationLink
+        active={activeTab === "funnels"}
+        icon={<Route aria-hidden="true" />}
+        label="여정"
+        pathSegment="funnels"
+        projectId={projectId}
+      />
+      <MobileNavigationLink
+        active={campaignIsActive}
+        icon={<Megaphone aria-hidden="true" />}
+        label="캠페인"
+        pathSegment="campaigns"
+        projectId={projectId}
+      />
+      <Button
+        aria-label="전체 메뉴 열기"
+        className="h-16 rounded-none text-xs text-muted-foreground"
+        onClick={toggleSidebar}
+        type="button"
+        variant="ghost"
+      >
+        <span className="grid place-items-center gap-1">
+          <MoreHorizontal aria-hidden="true" className="size-5" />
+          더보기
+        </span>
+      </Button>
+    </nav>
+  );
+}
+
+function MobileNavigationLink({
+  active,
+  icon,
+  label,
+  pathSegment,
+  projectId
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  pathSegment: string;
+  projectId: string;
+}) {
+  return (
+    <Button
+      asChild
+      className={cn(
+        "h-16 rounded-none text-xs text-muted-foreground",
+        active && "bg-primary/[0.06] text-primary"
+      )}
+      variant="ghost"
+    >
+      <Link
+        aria-current={active ? "page" : undefined}
+        params={{ projectId, tabPath: pathSegment }}
+        search={(current) => current}
+        to="/dashboard/$projectId/$tabPath"
+      >
+        <span className="grid place-items-center gap-1 [&_svg]:size-5">{icon}</span>
+        <span>{label}</span>
+      </Link>
+    </Button>
   );
 }
 
@@ -445,8 +544,9 @@ function DashboardSelectionContext({
     select: (resource): DashboardMain => resource.data as DashboardMain
   });
   const campaigns = mainQuery.data?.campaigns ?? [];
-  const selectedCampaign =
-    campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ?? campaigns[0];
+  const selectedCampaign = campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const needsPromotionContext = depth === "promotion" || depth === "segment";
   const campaignDetailQuery = useQuery({

@@ -85,7 +85,7 @@ export function CampaignFormDialog({
       open={open}
       title={isCreateMode ? "새 캠페인 추가" : "캠페인 수정"}
     >
-      <div className="grid gap-4 px-8 py-6">
+      <div className="grid gap-4 px-5 py-5 sm:px-8 sm:py-6">
         {isCreateMode && createIsError ? (
           <Alert variant="destructive">
             <AlertTitle>캠페인을 생성하지 못했습니다</AlertTitle>

@@ -69,9 +69,9 @@ export function CampaignPageSections({
   const showsCampaignDetail = tab !== "campaigns";
   const [campaignFormDialog, setCampaignFormDialog] = useState<CampaignFormDialogState>(null);
   const [campaignFilter, setCampaignFilter] = useState("");
-  const selectedCampaign =
-    data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
-    data.campaigns[0];
+  const selectedCampaign = data.campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const editingCampaign =
     campaignFormDialog?.mode === "edit"
@@ -152,13 +152,18 @@ export function CampaignPageSections({
   }, [createCampaignMutation, query.createCampaign, setDashboardQueryState, tab]);
 
   useEffect(() => {
-    if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
-      void setDashboardQueryState({
-        selectedCampaignId: selectedCampaign.campaign_id,
+    if (!query.selectedCampaignId || selectedCampaign) {
+      return;
+    }
+
+    void setDashboardQueryState(
+      {
+        selectedCampaignId: "",
         selectedPromotionId: "",
         selectedSegmentId: ""
-      });
-    }
+      },
+      { history: "replace" }
+    );
   }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
 
   useEffect(() => {
@@ -170,7 +175,10 @@ export function CampaignPageSections({
       (promotion) => promotion.promotion_id === selectedPromotionId
     );
     if (!hasSelectedPromotion) {
-      void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+      void setDashboardQueryState(
+        { selectedPromotionId: "", selectedSegmentId: "" },
+        { history: "replace" }
+      );
     }
   }, [campaignDetail.data, selectedPromotionId, setDashboardQueryState]);
 

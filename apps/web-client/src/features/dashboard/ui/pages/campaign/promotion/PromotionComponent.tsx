@@ -105,6 +105,15 @@ export function PromotionWorkspace({
               />
             )
           ) : null}
+          {openPromotions.length > 0 && !isManagementView && !selectedOpenPromotion ? (
+            <EmptyState
+              message={
+                mode === "segment"
+                  ? "세그먼트를 관리할 프로모션을 선택해주세요."
+                  : "개요를 확인할 프로모션을 선택해주세요."
+              }
+            />
+          ) : null}
           {selectedOpenPromotion && !isManagementView ? (
             <PromotionTabWorkspace
               approveContentCandidateIsPending={approveContentCandidateMutation.isPending}

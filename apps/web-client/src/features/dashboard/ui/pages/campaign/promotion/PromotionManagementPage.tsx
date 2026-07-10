@@ -1,5 +1,4 @@
 import type { DashboardMain } from "@loopad/shared";
-import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { WorkspacePageHeader, WorkspaceViewTabs } from "../../../shared/WorkspaceViewTabs.js";
 import { PromotionWorkspace } from "./PromotionComponent.js";
@@ -17,8 +16,6 @@ export function PromotionManagementPage({
   data: DashboardMain;
   query: DashboardQuery;
 }) {
-  const [, setDashboardQueryState] = useDashboardQueryState();
-
   return (
     <div className="grid gap-6">
       <WorkspacePageHeader
@@ -29,9 +26,7 @@ export function PromotionManagementPage({
       <WorkspaceViewTabs
         ariaLabel="프로모션 작업 탭"
         items={promotionViews}
-        onValueChange={(promotionView) => {
-          void setDashboardQueryState({ promotionView });
-        }}
+        queryKey="promotionView"
         value={query.promotionView}
       />
       <PromotionWorkspace
