@@ -44,15 +44,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { ChevronDown, GripHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import {
-  useId,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent
-} from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import {
   createDashboardFunnel,
   deleteDashboardFunnel,
@@ -72,6 +64,12 @@ import {
 import { formatStatusLabel } from "../../../model/dashboard-labels.js";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
 import { EmptyState } from "../../shared/EmptyState.js";
+import {
+  DETAIL_PANEL_COLLAPSED_HEIGHT,
+  DETAIL_PANEL_HEADER_HEIGHT,
+  getDetailPanelMaxHeight,
+  useFunnelDetailPanelResize
+} from "./useFunnelDetailPanelResize.js";
 
 type FunnelDraftStep = {
   step_name: string;
@@ -89,11 +87,6 @@ const DEFAULT_STEPS: FunnelDraftStep[] = [
   { step_name: "", event_name: "" },
   { step_name: "", event_name: "" }
 ];
-const DETAIL_PANEL_HEADER_HEIGHT = 58;
-const DETAIL_PANEL_COLLAPSED_HEIGHT = DETAIL_PANEL_HEADER_HEIGHT;
-const DETAIL_PANEL_DEFAULT_HEIGHT_RATIO = 0.5;
-const DETAIL_PANEL_MIN_HEIGHT = 260;
-const DETAIL_PANEL_RESIZE_STEP = 40;
 
 export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: DashboardQuery }) {
   const queryClient = useQueryClient();
@@ -109,16 +102,13 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   );
   const [isDiscardDraftDialogOpen, setIsDiscardDraftDialogOpen] = useState(false);
   const [selectedFunnelId, setSelectedFunnelId] = useState("");
-  const [detailPanelHeight, setDetailPanelHeight] = useState(() => getDetailPanelDefaultHeight());
-  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
-  const detailPanelResizeCleanupRef = useRef<(() => void) | null>(null);
-
-  useEffect(
-    () => () => {
-      detailPanelResizeCleanupRef.current?.();
-    },
-    []
-  );
+  const {
+    detailPanelHeight,
+    handleDetailPanelResizeKeyDown,
+    isDetailPanelCollapsed,
+    setIsDetailPanelCollapsed,
+    startDetailPanelResize
+  } = useFunnelDetailPanelResize();
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
     queryKey: dashboardEventCatalogQueryKey(query.projectId)
@@ -628,79 +618,6 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
     setSelectedFunnelId(funnelId);
   }
 
-  function handleDetailPanelResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      resizeDetailPanelBy(DETAIL_PANEL_RESIZE_STEP);
-      return;
-    }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      resizeDetailPanelBy(-DETAIL_PANEL_RESIZE_STEP);
-      return;
-    }
-    if (event.key === "PageUp") {
-      event.preventDefault();
-      resizeDetailPanelBy(DETAIL_PANEL_RESIZE_STEP * 3);
-      return;
-    }
-    if (event.key === "PageDown") {
-      event.preventDefault();
-      resizeDetailPanelBy(-DETAIL_PANEL_RESIZE_STEP * 3);
-      return;
-    }
-    if (event.key === "Home") {
-      event.preventDefault();
-      setIsDetailPanelCollapsed(false);
-      setDetailPanelHeight(DETAIL_PANEL_MIN_HEIGHT);
-      return;
-    }
-    if (event.key === "End") {
-      event.preventDefault();
-      setIsDetailPanelCollapsed(false);
-      setDetailPanelHeight(getDetailPanelMaxHeight());
-    }
-  }
-
-  function resizeDetailPanelBy(delta: number) {
-    setIsDetailPanelCollapsed(false);
-    setDetailPanelHeight((current) => clampDetailPanelHeight(current + delta));
-  }
-
-  function startDetailPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
-    event.preventDefault();
-    setIsDetailPanelCollapsed(false);
-    detailPanelResizeCleanupRef.current?.();
-
-    const startY = event.clientY;
-    const startHeight = isDetailPanelCollapsed
-      ? Math.max(detailPanelHeight, getDetailPanelDefaultHeight())
-      : detailPanelHeight;
-    const previousUserSelect = document.body.style.userSelect;
-    const previousCursor = document.body.style.cursor;
-    document.body.style.userSelect = "none";
-    document.body.style.cursor = "row-resize";
-
-    function handlePointerMove(pointerEvent: PointerEvent) {
-      const nextHeight = startHeight + startY - pointerEvent.clientY;
-      setDetailPanelHeight(clampDetailPanelHeight(nextHeight));
-    }
-
-    function cleanup() {
-      document.body.style.userSelect = previousUserSelect;
-      document.body.style.cursor = previousCursor;
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", cleanup);
-      window.removeEventListener("pointercancel", cleanup);
-      detailPanelResizeCleanupRef.current = null;
-    }
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", cleanup);
-    window.addEventListener("pointercancel", cleanup);
-    detailPanelResizeCleanupRef.current = cleanup;
-  }
-
   async function openEditDialog(funnelId: string) {
     createMutation.reset();
     updateMutation.reset();
@@ -924,26 +841,6 @@ function eventPlaceholder(isLoading: boolean, isEmpty: boolean): string {
     return "선택 가능한 이벤트 없음";
   }
   return "이벤트 선택";
-}
-
-function clampDetailPanelHeight(value: number): number {
-  return Math.min(Math.max(value, DETAIL_PANEL_MIN_HEIGHT), getDetailPanelMaxHeight());
-}
-
-function getDetailPanelMaxHeight(): number {
-  if (typeof window === "undefined") {
-    return DETAIL_PANEL_MIN_HEIGHT;
-  }
-
-  return Math.max(DETAIL_PANEL_MIN_HEIGHT, Math.round(window.innerHeight * 0.78));
-}
-
-function getDetailPanelDefaultHeight(): number {
-  if (typeof window === "undefined") {
-    return DETAIL_PANEL_MIN_HEIGHT;
-  }
-
-  return clampDetailPanelHeight(Math.round(window.innerHeight * DETAIL_PANEL_DEFAULT_HEIGHT_RATIO));
 }
 
 function formatDateTime(value: string): string {
