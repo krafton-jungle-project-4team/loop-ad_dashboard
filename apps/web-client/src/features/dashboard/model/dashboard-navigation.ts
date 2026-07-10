@@ -20,6 +20,11 @@ export type DashboardNavTreeLinkItem = DashboardNavItem & {
 
 export type DashboardNavTreeItem = DashboardNavTreeFolderItem | DashboardNavTreeLinkItem;
 
+export type DashboardNavigationGroup = {
+  items: DashboardNavTreeLinkItem[];
+  label: string;
+};
+
 export const dashboardTabs = [
   { value: "main", label: "메인 대시보드", pathSegment: "main" },
   { value: "funnels", label: "사용자 여정", pathSegment: "funnels" },
@@ -72,58 +77,40 @@ export const dashboardTabs = [
   }
 ] satisfies DashboardNavItem[];
 
-export const dashboardNavigationTree: DashboardNavTreeItem[] = [
+export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
   {
-    label: "메인",
-    value: "main",
-    pathSegment: "main",
-    type: "link"
-  },
-  {
-    label: "사용자 여정",
-    value: "funnels",
-    pathSegment: "funnels",
-    type: "link"
-  },
-  {
-    label: "캠페인",
-    value: "campaigns",
-    pathSegment: "campaigns",
-    type: "folder",
-    children: [
-      {
-        label: "프로모션",
-        value: "promotions",
-        pathSegment: "promotions",
-        type: "folder",
-        children: [
-          {
-            label: "세그먼트",
-            value: "segments",
-            pathSegment: "segments",
-            type: "link"
-          }
-        ]
-      }
+    label: "개요",
+    items: [
+      { label: "메인", value: "main", pathSegment: "main", type: "link" },
+      { label: "사용자 여정", value: "funnels", pathSegment: "funnels", type: "link" }
     ]
   },
   {
-    label: "SDK 연동",
-    value: "sdk",
-    pathSegment: "sdk",
-    type: "link"
+    label: "캠페인 운영",
+    items: [
+      { label: "캠페인", value: "campaigns", pathSegment: "campaigns", type: "link" },
+      { label: "프로모션", value: "promotions", pathSegment: "promotions", type: "link" },
+      { label: "세그먼트", value: "segments", pathSegment: "segments", type: "link" },
+      { label: "실험", value: "experiments", pathSegment: "experiments", type: "link" }
+    ]
   },
   {
-    label: "데이터 탐색기",
-    value: "dataExplorer",
-    pathSegment: "data-explorer",
-    type: "link"
-  },
-  {
-    label: "워크플로우 맵",
-    value: "campaign-flow-map",
-    pathSegment: "campaign-flow-map",
-    type: "link"
+    label: "도구",
+    items: [
+      {
+        label: "데이터 탐색기",
+        value: "dataExplorer",
+        pathSegment: "data-explorer",
+        type: "link"
+      },
+      {
+        label: "워크플로우",
+        value: "campaign-flow-map",
+        pathSegment: "campaign-flow-map",
+        type: "link"
+      },
+      { label: "SDK 연동", value: "sdk", pathSegment: "sdk", type: "link" }
+    ]
   }
 ];
 
