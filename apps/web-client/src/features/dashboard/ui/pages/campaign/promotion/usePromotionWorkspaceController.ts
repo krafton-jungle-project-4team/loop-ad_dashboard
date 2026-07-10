@@ -77,9 +77,14 @@ export function usePromotionWorkspaceController({
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const visibleTabs = promotionWorkspaceTabsByMode[mode];
+  const requestedSegmentTab: PromotionWorkspaceTab =
+    query.segmentView === "manage" || query.segmentView === "recommendations"
+      ? "segments"
+      : "segment-detail";
+  const visibleTabs =
+    mode === "segment" ? [requestedSegmentTab] : promotionWorkspaceTabsByMode[mode];
   const [workspaceTab, setWorkspaceTab] = useState<PromotionWorkspaceTab>(
-    defaultPromotionWorkspaceTabByMode[mode]
+    mode === "segment" ? requestedSegmentTab : defaultPromotionWorkspaceTabByMode[mode]
   );
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
@@ -114,6 +119,7 @@ export function usePromotionWorkspaceController({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
       });
       void setDashboardQueryState({
+        promotionView: "overview",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
         selectedSegmentId: ""
@@ -160,10 +166,12 @@ export function usePromotionWorkspaceController({
   }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
 
   useEffect(() => {
-    if (!visibleTabs.includes(workspaceTab)) {
-      setWorkspaceTab(defaultPromotionWorkspaceTabByMode[mode]);
+    const nextWorkspaceTab =
+      mode === "segment" ? requestedSegmentTab : defaultPromotionWorkspaceTabByMode[mode];
+    if (!visibleTabs.includes(workspaceTab) || workspaceTab !== nextWorkspaceTab) {
+      setWorkspaceTab(nextWorkspaceTab);
     }
-  }, [mode, visibleTabs, workspaceTab]);
+  }, [mode, requestedSegmentTab, visibleTabs, workspaceTab]);
 
   useEffect(() => {
     if (!campaignDetail.data || !selectedPromotionId) {
@@ -605,6 +613,7 @@ export function usePromotionWorkspaceController({
 
   const selectPromotion = (promotionId: string, segmentId = "") => {
     void setDashboardQueryState({
+      promotionView: "overview",
       selectedCampaignId,
       selectedPromotionId: promotionId,
       selectedSegmentId: segmentId
@@ -613,6 +622,7 @@ export function usePromotionWorkspaceController({
   const selectSegment = (promotionId: string, segmentId: string) => {
     setWorkspaceTab("segment-detail");
     void setDashboardQueryState({
+      segmentView: "overview",
       selectedCampaignId,
       selectedPromotionId: promotionId,
       selectedSegmentId: segmentId

@@ -1,6 +1,16 @@
 import type { DashboardMain } from "@loopad/shared";
+import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
+import { WorkspacePageHeader, WorkspaceViewTabs } from "../../../shared/WorkspaceViewTabs.js";
 import { PromotionWorkspace } from "./PromotionComponent.js";
+
+const segmentViews = [
+  { label: "관리", value: "manage" },
+  { label: "개요", value: "overview" },
+  { label: "AI 추천", value: "recommendations" },
+  { label: "광고 소재", value: "creative" },
+  { label: "실험", value: "experiments" }
+] as const;
 
 export function SegmentManagementPage({
   data,
@@ -9,5 +19,24 @@ export function SegmentManagementPage({
   data: DashboardMain;
   query: DashboardQuery;
 }) {
-  return <PromotionWorkspace data={data} mode="segment" query={query} />;
+  const [, setDashboardQueryState] = useDashboardQueryState();
+
+  return (
+    <div className="grid gap-6">
+      <WorkspacePageHeader
+        description="프로모션별 타깃을 관리하고 AI 추천, 광고 소재, 실험을 세그먼트 단위로 운영합니다."
+        eyebrow="Segment workspace"
+        title="세그먼트"
+      />
+      <WorkspaceViewTabs
+        ariaLabel="세그먼트 작업 탭"
+        items={segmentViews}
+        onValueChange={(segmentView) => {
+          void setDashboardQueryState({ segmentView });
+        }}
+        value={query.segmentView}
+      />
+      <PromotionWorkspace data={data} mode="segment" query={query} />
+    </div>
+  );
 }
