@@ -86,18 +86,18 @@ const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
 export function PromotionManagementList({
   filter,
   onAdd,
+  onDeletePromotion,
   onEditPromotion,
   onFilterChange,
   onSelectPromotion,
-  onStopPromotion,
   openPromotions
 }: {
   filter: string;
   onAdd: () => void;
+  onDeletePromotion: (promotionId: string) => void;
   onEditPromotion: (promotionId: string) => void;
   onFilterChange: (value: string) => void;
   onSelectPromotion: (promotionId: string) => void;
-  onStopPromotion: (promotionId: string) => void;
   openPromotions: DashboardCampaignPromotion[];
 }) {
   return (
@@ -187,8 +187,8 @@ export function PromotionManagementList({
                     </TableCell>
                     <TableCell>
                       <PromotionRowActions
+                        onDelete={onDeletePromotion}
                         onEdit={onEditPromotion}
-                        onStop={onStopPromotion}
                         promotion={promotion}
                       />
                     </TableCell>
@@ -218,8 +218,8 @@ export function PromotionManagementList({
                   />
                   <SummaryItem label="실험" value={formatInteger(promotion.ad_experiment_count)} />
                   <PromotionRowActions
+                    onDelete={onDeletePromotion}
                     onEdit={onEditPromotion}
-                    onStop={onStopPromotion}
                     promotion={promotion}
                   />
                 </CardContent>
@@ -233,12 +233,12 @@ export function PromotionManagementList({
 }
 
 function PromotionRowActions({
+  onDelete,
   onEdit,
-  onStop,
   promotion
 }: {
+  onDelete: (promotionId: string) => void;
   onEdit: (promotionId: string) => void;
-  onStop: (promotionId: string) => void;
   promotion: DashboardCampaignPromotion;
 }) {
   return (
@@ -254,20 +254,24 @@ function PromotionRowActions({
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button size="sm" type="button" variant="outline">
-            중지
+            삭제
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>프로모션을 중지할까요?</AlertDialogTitle>
+            <AlertDialogTitle>프로모션을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              {promotion.marketing_theme} 프로모션과 연결된 신규 실행이 중단됩니다.
+              {promotion.marketing_theme} 프로모션이 목록에서 제거됩니다. 연결된 세그먼트, 광고
+              소재, 실행과 실험도 중지 또는 보관되며 이 작업은 되돌릴 수 없습니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onStop(promotion.promotion_id)} variant="destructive">
-              프로모션 중지
+            <AlertDialogAction
+              onClick={() => onDelete(promotion.promotion_id)}
+              variant="destructive"
+            >
+              프로모션 삭제
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

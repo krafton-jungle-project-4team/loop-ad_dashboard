@@ -89,7 +89,7 @@ export function PromotionWorkspace({
               onEditPromotion={setEditingPromotionId}
               onFilterChange={setPromotionFilter}
               onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
-              onStopPromotion={(promotionId) => deletePromotionMutation.mutate(promotionId)}
+              onDeletePromotion={(promotionId) => deletePromotionMutation.mutate(promotionId)}
               openPromotions={filteredPromotions}
             />
           ) : null}
