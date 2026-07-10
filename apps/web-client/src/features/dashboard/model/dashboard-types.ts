@@ -7,6 +7,7 @@ export const dashboardTabValues = [
   "campaign-detail",
   "campaign-flow-map",
   "campaign-promotions",
+  "promotions",
   "promotion-metrics",
   "segments",
   "experiments",
@@ -33,12 +34,33 @@ export type DashboardConversionEvent =
   | "hotel_detail_view"
   | "promotion_click";
 
+export const campaignWorkspaceViewValues = [
+  "manage",
+  "overview",
+  "performance",
+  "experiments"
+] as const;
+export type CampaignWorkspaceView = (typeof campaignWorkspaceViewValues)[number];
+
+export const promotionWorkspaceViewValues = ["manage", "overview", "performance"] as const;
+export type PromotionWorkspaceView = (typeof promotionWorkspaceViewValues)[number];
+
+export const segmentWorkspaceViewValues = [
+  "manage",
+  "overview",
+  "recommendations",
+  "creative",
+  "experiments"
+] as const;
+export type SegmentWorkspaceView = (typeof segmentWorkspaceViewValues)[number];
+
 export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
   | { tab: "funnels"; data: DashboardFunnelList }
   | { tab: "campaign-flow-map"; data: DashboardMain }
   | { tab: "campaign-detail"; data: DashboardMain }
   | { tab: "campaign-promotions"; data: DashboardMain }
+  | { tab: "promotions"; data: DashboardMain }
   | { tab: "promotion-metrics"; data: DashboardMain }
   | { tab: "segments"; data: DashboardMain }
   | { tab: "experiments"; data: DashboardMain }
@@ -61,6 +83,9 @@ export type DashboardQuery = {
   experimentStatusFilter: string;
   experimentPage: number;
   experimentPageSize: number;
+  campaignView: CampaignWorkspaceView;
+  promotionView: PromotionWorkspaceView;
+  segmentView: SegmentWorkspaceView;
   sort: DashboardSort;
   filter: string;
 };

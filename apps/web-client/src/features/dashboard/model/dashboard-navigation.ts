@@ -9,7 +9,9 @@ export type DashboardNavItem = {
 export type DashboardNavTreeFolderItem = {
   children: DashboardNavTreeItem[];
   label: string;
+  pathSegment?: string;
   type: "folder";
+  value?: DashboardTab;
 };
 
 export type DashboardNavTreeLinkItem = DashboardNavItem & {
@@ -42,6 +44,7 @@ export const dashboardTabs = [
     label: "프로모션 관리",
     pathSegment: "campaign-promotions"
   },
+  { value: "promotions", label: "프로모션", pathSegment: "promotions" },
   {
     value: "promotion-metrics",
     label: "프로모션 통계",
@@ -84,59 +87,21 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
   },
   {
     label: "캠페인",
+    value: "campaigns",
+    pathSegment: "campaigns",
     type: "folder",
     children: [
       {
-        label: "캠페인 관리",
-        value: "campaigns",
-        pathSegment: "campaigns",
-        type: "link"
-      },
-      {
-        label: "캠페인 통계",
-        value: "campaign-metrics",
-        pathSegment: "campaign-metrics",
-        type: "link"
-      },
-      {
-        label: "캠페인 개요",
-        value: "campaign-detail",
-        pathSegment: "campaign-detail",
-        type: "link"
-      },
-      {
         label: "프로모션",
+        value: "promotions",
+        pathSegment: "promotions",
         type: "folder",
         children: [
           {
-            label: "프로모션 관리",
-            value: "campaign-promotions",
-            pathSegment: "campaign-promotions",
-            type: "link"
-          },
-          {
-            label: "프로모션 통계",
-            value: "promotion-metrics",
-            pathSegment: "promotion-metrics",
-            type: "link"
-          },
-          {
             label: "세그먼트",
-            type: "folder",
-            children: [
-              {
-                label: "세그먼트 관리",
-                value: "segments",
-                pathSegment: "segments",
-                type: "link"
-              },
-              {
-                label: "실험 관리",
-                value: "experiments",
-                pathSegment: "experiments",
-                type: "link"
-              }
-            ]
+            value: "segments",
+            pathSegment: "segments",
+            type: "link"
           }
         ]
       }

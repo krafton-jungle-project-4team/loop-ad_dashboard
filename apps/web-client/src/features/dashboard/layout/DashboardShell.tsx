@@ -211,19 +211,42 @@ function DashboardNavigationFolderItem({
   return (
     <Collapsible asChild className="group/collapsible" defaultOpen={isBranchActive}>
       <SidebarMenuItem>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton
-            className={cn(
-              "rounded-full text-sidebar-foreground/80",
-              isBranchActive && "font-semibold text-primary"
-            )}
-            isActive={isBranchActive}
-            tooltip={item.label}
-          >
-            <span className={cn(isBranchActive && "font-semibold text-primary")}>{item.label}</span>
-            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
+        <div className="flex items-center gap-1">
+          {item.value && item.pathSegment ? (
+            <SidebarMenuButton
+              asChild
+              className={cn(
+                "min-w-0 flex-1 rounded-full text-sidebar-foreground/80",
+                isBranchActive && "font-semibold text-primary"
+              )}
+              isActive={activeTab === item.value}
+              tooltip={item.label}
+            >
+              <Link
+                params={{ projectId, tabPath: item.pathSegment }}
+                search={(current) => current}
+                to="/dashboard/$projectId/$tabPath"
+              >
+                <span className={cn(isBranchActive && "font-semibold text-primary")}>
+                  {item.label}
+                </span>
+              </Link>
+            </SidebarMenuButton>
+          ) : (
+            <span className="min-w-0 flex-1 px-2 text-sm font-medium text-sidebar-foreground/80">
+              {item.label}
+            </span>
+          )}
+          <CollapsibleTrigger asChild>
+            <button
+              aria-label={`${item.label} 하위 메뉴 전환`}
+              className="grid size-8 shrink-0 place-items-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              type="button"
+            >
+              <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
+            </button>
+          </CollapsibleTrigger>
+        </div>
         <CollapsibleContent>
           <DashboardNavigationSubItems
             activeTab={activeTab}
@@ -321,22 +344,39 @@ function DashboardNavigationSubFolderItem({
   return (
     <Collapsible asChild className="group/collapsible" defaultOpen={isBranchActive}>
       <SidebarMenuSubItem>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuSubButton
-            asChild
-            className={cn("transition-colors", isBranchActive && "font-semibold text-primary")}
-            isActive={isBranchActive}
-          >
-            <button type="button">
-              <span
-                className={cn("whitespace-nowrap", isBranchActive && "font-semibold text-primary")}
+        <div className="flex items-center gap-1">
+          {item.value && item.pathSegment ? (
+            <SidebarMenuSubButton
+              asChild
+              className={cn(
+                "min-w-0 flex-1 transition-colors",
+                isBranchActive && "font-semibold text-primary"
+              )}
+              isActive={activeTab === item.value}
+            >
+              <Link
+                params={{ projectId, tabPath: item.pathSegment }}
+                search={(current) => current}
+                to="/dashboard/$projectId/$tabPath"
               >
-                {item.label}
-              </span>
-              <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            </SidebarMenuSubButton>
+          ) : (
+            <span className="min-w-0 flex-1 px-2 text-sm text-sidebar-foreground/80">
+              {item.label}
+            </span>
+          )}
+          <CollapsibleTrigger asChild>
+            <button
+              aria-label={`${item.label} 하위 메뉴 전환`}
+              className="grid size-7 shrink-0 place-items-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              type="button"
+            >
+              <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
             </button>
-          </SidebarMenuSubButton>
-        </CollapsibleTrigger>
+          </CollapsibleTrigger>
+        </div>
         <CollapsibleContent>
           <DashboardNavigationSubItems
             activeTab={activeTab}
@@ -355,7 +395,10 @@ function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: Dashboard
     return item.value === activeTab;
   }
 
-  return item.children.some((child) => isNavigationItemActive(child, activeTab));
+  return (
+    item.value === activeTab ||
+    item.children.some((child) => isNavigationItemActive(child, activeTab))
+  );
 }
 
 function getNavigationItemKey(item: DashboardNavTreeItem): string {
@@ -543,6 +586,7 @@ function getDashboardContextDepth(tab: DashboardTab): DashboardContextDepth | nu
     case "campaign-flow-map":
       return "campaign";
     case "campaign-promotions":
+    case "promotions":
     case "promotion-metrics":
       return "promotion";
     case "segments":
