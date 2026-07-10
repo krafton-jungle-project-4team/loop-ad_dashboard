@@ -9,6 +9,7 @@ import type {
   DashboardFunnel,
   DashboardFunnelMetricStep,
   DashboardFunnelMetrics,
+  DashboardFunnelMetricsDateRange,
   DashboardFunnelMetricsScope,
   DashboardFunnelPreview,
   DashboardFunnelPreviewRequest,
@@ -173,14 +174,22 @@ export class DashboardFunnelReader {
   async getFunnelMetrics(
     projectId: string,
     funnelId: string,
-    scope?: DashboardFunnelMetricsScope
+    scope?: DashboardFunnelMetricsScope,
+    dateRange: DashboardFunnelMetricsDateRange = "last-7-days"
   ): Promise<DashboardFunnelMetrics> {
     const funnel = await this.definitionRepository.getMetricDefinition(projectId, funnelId);
-    const metricSteps = await this.buildFunnelMetricSteps(projectId, funnel.steps, scope);
+    const metricSteps = await this.buildFunnelMetricSteps(
+      projectId,
+      funnel.steps,
+      dateRange,
+      scope
+    );
 
     return {
+      date_range: dateRange,
       funnel_id: funnel.funnelId,
       funnel_name: funnel.funnelName,
+      measurement_basis: scope ? "session" : "unique_user",
       steps: metricSteps
     };
   }
@@ -863,11 +872,12 @@ export class DashboardFunnelReader {
   private async buildFunnelMetricSteps(
     projectId: string,
     steps: FunnelMetricInputStep[],
+    dateRange: DashboardFunnelMetricsDateRange = "campaign",
     scope?: DashboardFunnelMetricsScope
   ): Promise<DashboardFunnelMetricStep[]> {
     const eventCounts = scope
-      ? await this.countScopedSequentialFunnelStepEvents(projectId, steps, scope)
-      : await this.countSequentialFunnelStepEvents(projectId, steps);
+      ? await this.countScopedSequentialFunnelStepEvents(projectId, steps, dateRange, scope)
+      : await this.countSequentialFunnelStepEvents(projectId, steps, dateRange);
 
     return steps.map((step) => ({
       step_order: step.stepOrder,
@@ -879,13 +889,16 @@ export class DashboardFunnelReader {
 
   private async countSequentialFunnelStepEvents(
     projectId: string,
-    steps: FunnelMetricInputStep[]
+    steps: FunnelMetricInputStep[],
+    dateRange: DashboardFunnelMetricsDateRange
   ): Promise<Map<number, number>> {
     if (steps.length === 0) {
       return new Map();
     }
 
     const queryParams: Record<string, string> = { projectId };
+    const rootDateRangeFilter = funnelDateRangeFilter(dateRange, "event_time");
+    const joinedDateRangeFilter = funnelDateRangeFilter(dateRange, "fse.event_time");
     const stepQueries = steps.map((step, index) => {
       const stepNumber = index + 1;
       const previousStepName = `step_${stepNumber - 1}_users`;
@@ -902,6 +915,7 @@ export class DashboardFunnelReader {
           FROM funnel_step_events
           WHERE project_id = {projectId:String}
             AND event_name = {${eventParamName}:String}
+            ${rootDateRangeFilter}
           GROUP BY user_id
         )`;
       }
@@ -916,6 +930,7 @@ export class DashboardFunnelReader {
             ON previous.user_id = fse.user_id
           WHERE fse.project_id = {projectId:String}
             AND fse.event_name = {${eventParamName}:String}
+            ${joinedDateRangeFilter}
             AND fse.event_time >= previous.reached_at
           GROUP BY fse.user_id
         )`;
@@ -946,6 +961,7 @@ export class DashboardFunnelReader {
   private async countScopedSequentialFunnelStepEvents(
     projectId: string,
     steps: FunnelMetricInputStep[],
+    dateRange: DashboardFunnelMetricsDateRange,
     scope: DashboardFunnelMetricsScope
   ): Promise<Map<number, number>> {
     if (steps.length === 0) {
@@ -954,6 +970,8 @@ export class DashboardFunnelReader {
 
     const scopeFilter = funnelMetricsScopeFilter(scope);
     const queryParams: Record<string, string> = { projectId, ...scopeFilter.queryParams };
+    const rootDateRangeFilter = funnelDateRangeFilter(dateRange, "event_time");
+    const joinedDateRangeFilter = funnelDateRangeFilter(dateRange, "fse.event_time");
     const stepQueries = steps.map((step, index) => {
       const stepNumber = index + 1;
       const previousStepName = `step_${stepNumber - 1}_sessions`;
@@ -971,6 +989,7 @@ export class DashboardFunnelReader {
           WHERE project_id = {projectId:String}
             AND event_name = {${eventParamName}:String}
             AND nullIf(session_id, '') IS NOT NULL
+            ${rootDateRangeFilter}
             ${scopeFilter.filterSql}
           GROUP BY session_id
         )`;
@@ -987,6 +1006,7 @@ export class DashboardFunnelReader {
           WHERE fse.project_id = {projectId:String}
             AND fse.event_name = {${eventParamName}:String}
             AND nullIf(fse.session_id, '') IS NOT NULL
+            ${joinedDateRangeFilter}
             AND fse.event_time >= previous.reached_at
           GROUP BY fse.session_id
         )`;
@@ -1012,6 +1032,22 @@ export class DashboardFunnelReader {
     const rows = await result.json<FunnelStepMetricRow>();
 
     return new Map(rows.map((row) => [countValue(row.step_order), countValue(row.event_count)]));
+  }
+}
+
+function funnelDateRangeFilter(
+  dateRange: DashboardFunnelMetricsDateRange,
+  column: "event_time" | "fse.event_time"
+) {
+  switch (dateRange) {
+    case "today":
+      return `AND ${column} >= toStartOfDay(now())`;
+    case "last-7-days":
+      return `AND ${column} >= now() - INTERVAL 7 DAY`;
+    case "last-30-days":
+      return `AND ${column} >= now() - INTERVAL 30 DAY`;
+    case "campaign":
+      return "";
   }
 }
 

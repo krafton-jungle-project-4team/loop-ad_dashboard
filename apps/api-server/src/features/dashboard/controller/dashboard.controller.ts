@@ -28,6 +28,7 @@ import {
   DashboardEventCatalogSchema,
   DashboardEvaluatePromotionRunResultSchema,
   DashboardFunnelListSchema,
+  DashboardFunnelMetricsDateRangeSchema,
   DashboardFunnelMetricsSchema,
   DashboardFunnelMetricsScopeSchema,
   DashboardFunnelPreviewRequestSchema,
@@ -502,12 +503,14 @@ export class DashboardController {
     @Query("scope_type") scopeType?: string,
     @Query("campaign_id") campaignId?: string,
     @Query("promotion_id") promotionId?: string,
-    @Query("segment_id") segmentId?: string
+    @Query("segment_id") segmentId?: string,
+    @Query("dateRange") dateRange?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
     const scope = parseFunnelMetricsScope({ campaignId, promotionId, scopeType, segmentId });
+    const parsedDateRange = DashboardFunnelMetricsDateRangeSchema.parse(dateRange ?? "last-7-days");
     return DashboardFunnelMetricsSchema.parse(
-      await this.dashboardQuery.funnelMetrics(requiredProjectId, funnelId, scope)
+      await this.dashboardQuery.funnelMetrics(requiredProjectId, funnelId, scope, parsedDateRange)
     );
   }
 

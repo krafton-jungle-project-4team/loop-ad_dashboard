@@ -72,9 +72,22 @@ export const DashboardFunnelMetricsScopeSchema = z.discriminatedUnion("scope_typ
 ]);
 export type DashboardFunnelMetricsScope = z.infer<typeof DashboardFunnelMetricsScopeSchema>;
 
+export const DashboardFunnelMetricsDateRangeSchema = z.enum([
+  "today",
+  "last-7-days",
+  "last-30-days",
+  "campaign"
+]);
+export type DashboardFunnelMetricsDateRange = z.infer<typeof DashboardFunnelMetricsDateRangeSchema>;
+
+export const DashboardFunnelMeasurementBasisSchema = z.enum(["unique_user", "session"]);
+export type DashboardFunnelMeasurementBasis = z.infer<typeof DashboardFunnelMeasurementBasisSchema>;
+
 export const DashboardFunnelMetricsSchema = z.object({
+  date_range: DashboardFunnelMetricsDateRangeSchema.default("last-7-days"),
   funnel_id: z.string(),
   funnel_name: z.string(),
+  measurement_basis: DashboardFunnelMeasurementBasisSchema.default("unique_user"),
   steps: z.array(DashboardFunnelMetricStepSchema)
 });
 export type DashboardFunnelMetrics = z.infer<typeof DashboardFunnelMetricsSchema>;

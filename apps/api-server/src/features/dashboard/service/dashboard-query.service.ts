@@ -31,6 +31,7 @@ import type {
   DashboardFunnel,
   DashboardFunnelList,
   DashboardFunnelMetrics,
+  DashboardFunnelMetricsDateRange,
   DashboardFunnelMetricsScope,
   DashboardFunnelPreview,
   DashboardFunnelPreviewRequest,
@@ -738,12 +739,18 @@ export class DashboardQueryService {
   async funnelMetrics(
     projectId: string,
     funnelId: string,
-    scope?: DashboardFunnelMetricsScope
+    scope?: DashboardFunnelMetricsScope,
+    dateRange: DashboardFunnelMetricsDateRange = "last-7-days"
   ): Promise<DashboardFunnelMetrics> {
     const startedAt = Date.now();
     log.assignContext({ funnelId, projectId });
-    log.info("started", { projectId, funnelId, scope });
-    const response = await this.funnelReader.getFunnelMetrics(projectId, funnelId, scope);
+    log.info("started", { projectId, funnelId, dateRange, scope });
+    const response = await this.funnelReader.getFunnelMetrics(
+      projectId,
+      funnelId,
+      scope,
+      dateRange
+    );
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;

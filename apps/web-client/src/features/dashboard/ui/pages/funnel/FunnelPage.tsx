@@ -64,6 +64,7 @@ import {
 import { formatStatusLabel } from "../../../model/dashboard-labels.js";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
 import { EmptyState } from "../../shared/EmptyState.js";
+import { DashboardDateRangeSelect } from "../../shared/DashboardDateRangeSelect.js";
 import {
   DETAIL_PANEL_COLLAPSED_HEIGHT,
   DETAIL_PANEL_HEADER_HEIGHT,
@@ -125,7 +126,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   const funnelMetrics = useQuery({
     enabled: Boolean(selectedFunnelId),
     queryFn: ({ signal }) => fetchDashboardFunnelMetrics(query, selectedFunnelId, signal),
-    queryKey: dashboardFunnelMetricsQueryKey(query.projectId, selectedFunnelId)
+    queryKey: dashboardFunnelMetricsQueryKey(query.projectId, selectedFunnelId, query.dateRange)
   });
   const createMutation = useMutation({
     mutationFn: () => createDashboardFunnel(query, createFunnelRequest(funnelName, steps)),
@@ -155,7 +156,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
         queryKey: dashboardFunnelDetailQueryKey(query.projectId, result.funnel_id)
       });
       await queryClient.invalidateQueries({
-        queryKey: dashboardFunnelMetricsQueryKey(query.projectId, result.funnel_id)
+        queryKey: dashboardFunnelMetricsQueryKey(query.projectId, result.funnel_id, query.dateRange)
       });
     }
   });
@@ -211,6 +212,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             <CardDescription>저장된 사용자 여정을 선택해 단계별 지표를 확인합니다.</CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
+            <DashboardDateRangeSelect value={query.dateRange} />
             <Button asChild variant="outline">
               <Link
                 params={{ projectId: query.projectId, tabPath: "campaigns" }}

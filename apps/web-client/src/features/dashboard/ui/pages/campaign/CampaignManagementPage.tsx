@@ -1,5 +1,6 @@
 import type { DashboardMain } from "@loopad/shared";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
+import { DashboardDateRangeSelect } from "../../shared/DashboardDateRangeSelect.js";
 import { WorkspacePageHeader, WorkspaceViewTabs } from "../../shared/WorkspaceViewTabs.js";
 import { ExperimentComponent } from "./promotion/experiment/ExperimentComponent.js";
 import { CampaignPageSections } from "./CampaignComponent.js";
@@ -21,6 +22,11 @@ export function CampaignManagementPage({
   return (
     <div className="grid gap-6">
       <WorkspacePageHeader
+        actions={
+          query.campaignView === "performance" ? (
+            <DashboardDateRangeSelect value={query.dateRange} />
+          ) : undefined
+        }
         description="캠페인을 생성·관리하고 목표, 성과, 하위 실험을 한 작업 공간에서 확인합니다."
         eyebrow="Campaign workspace"
         title="캠페인"

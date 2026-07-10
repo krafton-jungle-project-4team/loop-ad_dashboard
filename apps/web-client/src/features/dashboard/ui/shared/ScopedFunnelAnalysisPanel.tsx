@@ -235,7 +235,12 @@ function ScopedFunnelComparisonPanel({
   const metricQueries = useQueries({
     queries: funnels.map((funnel) => ({
       queryFn: ({ signal }) => fetchDashboardFunnelMetrics(query, funnel.funnel_id, signal, scope),
-      queryKey: dashboardFunnelMetricsQueryKey(query.projectId, funnel.funnel_id, scope)
+      queryKey: dashboardFunnelMetricsQueryKey(
+        query.projectId,
+        funnel.funnel_id,
+        query.dateRange,
+        scope
+      )
     }))
   });
   const metricItems = funnels.flatMap((funnel, index) => {
@@ -328,14 +333,17 @@ function ScopedFunnelComparisonChart({ items }: { items: FunnelMetricComparisonI
 }
 
 function ScopedFunnelComparisonTable({ items }: { items: FunnelMetricComparisonItem[] }) {
+  const measurementLabel =
+    items[0]?.metrics.measurement_basis === "session" ? "고유 세션" : "고유 사용자";
+
   return (
     <div className="min-w-0 overflow-hidden rounded-md border bg-background">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>사용자 여정</TableHead>
-            <TableHead className="text-right">1단계</TableHead>
-            <TableHead className="text-right">마지막 단계</TableHead>
+            <TableHead className="text-right">1단계 {measurementLabel}</TableHead>
+            <TableHead className="text-right">마지막 단계 {measurementLabel}</TableHead>
             <TableHead className="text-right">전환율</TableHead>
           </TableRow>
         </TableHeader>
