@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { ChevronRight, LayoutGrid } from "lucide-react";
 import { fetchDashboardProjects } from "../../api/dashboard-api.js";
 import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
 
@@ -17,16 +18,42 @@ export function ProjectSidebarBrand({ projectId }: { projectId: string }) {
   return (
     <Link
       aria-label="프로젝트 선택으로 돌아가기"
-      className="flex w-full items-center rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="group flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       title="프로젝트 선택"
       to="/"
     >
-      <div className="grid min-w-0 leading-tight">
+      <ProjectMark />
+      <div className="grid min-w-0 flex-1 leading-tight">
         <span className="truncate text-[17px] font-semibold tracking-tight text-foreground">
           {projectName}
         </span>
         <span className="truncate text-xs text-muted-foreground">{projectDescription}</span>
       </div>
+      <ChevronRight
+        aria-hidden="true"
+        className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+      />
     </Link>
+  );
+}
+
+export function ProjectReturnIconLink() {
+  return (
+    <Link
+      aria-label="프로젝트 선택으로 돌아가기"
+      className="group flex size-9 shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:hidden"
+      title="프로젝트 선택"
+      to="/"
+    >
+      <ProjectMark />
+    </Link>
+  );
+}
+
+function ProjectMark() {
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+      <LayoutGrid aria-hidden="true" className="size-[18px]" strokeWidth={2.25} />
+    </span>
   );
 }

@@ -49,7 +49,7 @@ import {
   dashboardPageQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
-import { ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
+import { ProjectReturnIconLink, ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 360;
@@ -103,6 +103,7 @@ export function DashboardShell({
       <SidebarInset className={isFullHeightTab ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
           <div className="flex h-full min-w-0 items-center gap-3">
+            <ProjectReturnIconLink />
             <SidebarTrigger className="-ml-1" />
             <div className="flex h-6 items-center">
               <Separator className="h-full" orientation="vertical" />
