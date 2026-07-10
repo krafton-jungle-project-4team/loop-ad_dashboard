@@ -1,7 +1,6 @@
 import type {
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
-  DashboardEvaluatePromotionRunResult,
   DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionSegmentSuggestion,
   DashboardSegmentDetail
@@ -312,9 +311,6 @@ export function PromotionTabWorkspace({
   confirmIsPending,
   decideIsPending,
   deleteConfirmedSegmentIsPending,
-  evaluatePromotionRunIsPending,
-  evaluatePromotionRunResult,
-  createNextLoopIsPending,
   launchExperimentError,
   launchExperimentIsError,
   launchExperimentIsPending,
@@ -322,11 +318,9 @@ export function PromotionTabWorkspace({
   onArchiveScopedSegment,
   onApproveContentCandidate,
   onConfirmSuggestions,
-  onCreateNextLoop,
   onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
-  onEvaluatePromotionRun,
   onEditConfirmedSegment,
   onLaunchExperiment,
   onRejectContentCandidate,
@@ -359,9 +353,6 @@ export function PromotionTabWorkspace({
   confirmIsPending: boolean;
   decideIsPending: boolean;
   deleteConfirmedSegmentIsPending: boolean;
-  evaluatePromotionRunIsPending: boolean;
-  evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
-  createNextLoopIsPending: boolean;
   launchExperimentError: Error | null;
   launchExperimentIsError: boolean;
   launchExperimentIsPending: boolean;
@@ -369,15 +360,9 @@ export function PromotionTabWorkspace({
   onArchiveScopedSegment: (segmentId: string) => void;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onConfirmSuggestions: () => void;
-  onCreateNextLoop: (
-    promotionRunId: string,
-    failedSegmentIds: string[],
-    failedAdExperimentIds: string[]
-  ) => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
-  onEvaluatePromotionRun: (promotionRunId: string) => void;
   onEditConfirmedSegment: (segmentId: string) => void;
   onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
@@ -497,17 +482,12 @@ export function PromotionTabWorkspace({
             <PromotionSegmentDetailTab
               approveContentCandidateIsPending={approveContentCandidateIsPending}
               detail={selectedSegmentDetail}
-              evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
-              evaluatePromotionRunResult={evaluatePromotionRunResult}
-              createNextLoopIsPending={createNextLoopIsPending}
               generationIsPending={promotionGenerationIsPending}
               isError={selectedSegmentDetailIsError}
               isLoading={selectedSegmentDetailIsLoading}
               launchExperimentError={launchExperimentError}
               launchExperimentIsError={launchExperimentIsError}
               onApproveContentCandidate={onApproveContentCandidate}
-              onCreateNextLoop={onCreateNextLoop}
-              onEvaluatePromotionRun={onEvaluatePromotionRun}
               onLaunchExperiment={onLaunchExperiment}
               onRejectContentCandidate={onRejectContentCandidate}
               onStartGeneration={onStartGeneration}
@@ -723,9 +703,6 @@ function PromotionCurrentSegmentsPanel({
 function PromotionSegmentDetailTab({
   approveContentCandidateIsPending,
   detail,
-  evaluatePromotionRunIsPending,
-  evaluatePromotionRunResult,
-  createNextLoopIsPending,
   generationIsPending,
   isError,
   isLoading,
@@ -734,8 +711,6 @@ function PromotionSegmentDetailTab({
   launchExperimentIsPending,
   launchExperimentResult,
   onApproveContentCandidate,
-  onCreateNextLoop,
-  onEvaluatePromotionRun,
   onLaunchExperiment,
   onRejectContentCandidate,
   onStartGeneration,
@@ -745,9 +720,6 @@ function PromotionSegmentDetailTab({
 }: {
   approveContentCandidateIsPending: boolean;
   detail: DashboardSegmentDetail | undefined;
-  evaluatePromotionRunIsPending: boolean;
-  evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
-  createNextLoopIsPending: boolean;
   generationIsPending: boolean;
   isError: boolean;
   isLoading: boolean;
@@ -756,12 +728,6 @@ function PromotionSegmentDetailTab({
   launchExperimentIsPending: boolean;
   launchExperimentResult: PromotionExperimentLaunchResult | null;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
-  onCreateNextLoop: (
-    promotionRunId: string,
-    failedSegmentIds: string[],
-    failedAdExperimentIds: string[]
-  ) => void;
-  onEvaluatePromotionRun: (promotionRunId: string) => void;
   onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
@@ -1004,14 +970,9 @@ function PromotionSegmentDetailTab({
 
       {view === "experiments" ? (
         <SegmentConnectedExperimentsCard
-          createNextLoopIsPending={createNextLoopIsPending}
           detail={detail}
-          evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
-          evaluatePromotionRunResult={evaluatePromotionRunResult}
           launchExperimentError={launchExperimentError}
           launchExperimentIsError={launchExperimentIsError}
-          onCreateNextLoop={onCreateNextLoop}
-          onEvaluatePromotionRun={onEvaluatePromotionRun}
           launchExperimentIsPending={launchExperimentIsPending}
           launchExperimentResult={launchExperimentResult}
           onLaunchExperiment={onLaunchExperiment}
@@ -1022,32 +983,18 @@ function PromotionSegmentDetailTab({
 }
 
 function SegmentConnectedExperimentsCard({
-  createNextLoopIsPending,
   detail,
-  evaluatePromotionRunIsPending,
-  evaluatePromotionRunResult,
   launchExperimentError,
   launchExperimentIsError,
   launchExperimentIsPending,
   launchExperimentResult,
-  onCreateNextLoop,
-  onEvaluatePromotionRun,
   onLaunchExperiment
 }: {
-  createNextLoopIsPending: boolean;
   detail: DashboardSegmentDetail;
-  evaluatePromotionRunIsPending: boolean;
-  evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
   launchExperimentError: Error | null;
   launchExperimentIsError: boolean;
   launchExperimentIsPending: boolean;
   launchExperimentResult: PromotionExperimentLaunchResult | null;
-  onCreateNextLoop: (
-    promotionRunId: string,
-    failedSegmentIds: string[],
-    failedAdExperimentIds: string[]
-  ) => void;
-  onEvaluatePromotionRun: (promotionRunId: string) => void;
   onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
 }) {
   const approvedContentCandidate = detail.content_candidates.find(
@@ -1065,35 +1012,14 @@ function SegmentConnectedExperimentsCard({
   const canLaunchExperiment =
     (!activePromotionRunId && Boolean(approvedContentCandidate)) ||
     activeRunExperiments.some((experiment) => canStartAdExperiment(experiment.status));
-  const failedSegmentIds = uniqueStringValues(
-    (
-      evaluatePromotionRunResult?.failed_segment_ids ??
-      detail.experiment_metrics
-        .filter((metric) => metric.status === "goal_not_met" && metric.segment_id)
-        .map((metric) => metric.segment_id)
-    ).filter(isPresentString)
-  );
-  const failedAdExperimentIds = uniqueStringValues(
-    (
-      evaluatePromotionRunResult?.failed_ad_experiment_ids ??
-      detail.experiment_metrics
-        .filter((metric) => metric.status === "goal_not_met" && metric.ad_experiment_id)
-        .map((metric) => metric.ad_experiment_id)
-    ).filter(isPresentString)
-  );
-  const canCreateNextLoop = Boolean(
-    activePromotionRunId &&
-    (evaluatePromotionRunResult?.next_loop_required ||
-      failedSegmentIds.length > 0 ||
-      failedAdExperimentIds.length > 0)
-  );
-
   return (
     <Card className="shadow-none">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="grid gap-1">
           <CardTitle className="text-base">연결된 광고 실험</CardTitle>
-          <CardDescription>실험 준비와 대상 배정을 한 번에 처리합니다.</CardDescription>
+          <CardDescription>
+            승인된 광고 소재로 실험을 시작합니다. 평가는 실험 관리에서 진행합니다.
+          </CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -1113,32 +1039,6 @@ function SegmentConnectedExperimentsCard({
               : isExperimentRunning
                 ? "실험 진행 중"
                 : "실험 시작"}
-          </Button>
-          <Button
-            disabled={!activePromotionRunId || evaluatePromotionRunIsPending}
-            onClick={() => {
-              if (activePromotionRunId) {
-                onEvaluatePromotionRun(activePromotionRunId);
-              }
-            }}
-            type="button"
-            variant="outline"
-          >
-            <BarChart3 className="mr-2 size-4" />
-            {evaluatePromotionRunIsPending ? "평가 중" : "성과 평가"}
-          </Button>
-          <Button
-            disabled={!canCreateNextLoop || createNextLoopIsPending}
-            onClick={() => {
-              if (activePromotionRunId) {
-                onCreateNextLoop(activePromotionRunId, failedSegmentIds, failedAdExperimentIds);
-              }
-            }}
-            type="button"
-            variant="outline"
-          >
-            <Plus className="mr-2 size-4" />
-            {createNextLoopIsPending ? "다음 루프 생성 중" : "다음 루프 생성"}
           </Button>
         </div>
       </CardHeader>
@@ -1236,14 +1136,6 @@ function PromotionProgressRow({ label, value }: { label: string; value: number }
 function experimentDisplayName(loopCount: number | null | undefined, index = 0) {
   const loopLabel = loopCount ? `${formatInteger(loopCount)}차` : `${formatInteger(index + 1)}번`;
   return `${loopLabel} 광고 실험`;
-}
-
-function uniqueStringValues(values: string[]) {
-  return Array.from(new Set(values));
-}
-
-function isPresentString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
 }
 
 function SummaryItem({ label, value }: { label: string; value: string }) {

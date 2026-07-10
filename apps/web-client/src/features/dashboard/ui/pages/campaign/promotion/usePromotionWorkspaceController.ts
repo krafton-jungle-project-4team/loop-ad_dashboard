@@ -6,7 +6,6 @@ import {
   approveDashboardContentCandidate,
   buildDashboardPromotionRunAssignments,
   confirmDashboardPromotionSegmentSuggestions,
-  createDashboardNextLoop,
   createDashboardPromotion,
   createDashboardPromotionRun,
   createDashboardPromotionScopedSegmentDefinition,
@@ -14,7 +13,6 @@ import {
   deleteDashboardPromotion,
   deleteDashboardPromotionSegment,
   dispatchDashboardPromotionRun,
-  evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
@@ -493,28 +491,6 @@ export function usePromotionWorkspaceController({
       });
     }
   });
-  const evaluatePromotionRunMutation = useMutation({
-    mutationFn: (promotionRunId: string) => evaluateDashboardPromotionRun(query, promotionRunId),
-    onSuccess: async () => invalidateSelectedSegment()
-  });
-  const createNextLoopMutation = useMutation({
-    mutationFn: ({
-      failedAdExperimentIds,
-      failedSegmentIds,
-      promotionRunId
-    }: {
-      failedAdExperimentIds: string[];
-      failedSegmentIds: string[];
-      promotionRunId: string;
-    }) =>
-      createDashboardNextLoop(query, promotionRunId, {
-        failed_ad_experiment_ids: failedAdExperimentIds,
-        failed_segment_ids: failedSegmentIds,
-        operator_instruction: null
-      }),
-    onSuccess: async () => invalidateSelectedSegment()
-  });
-
   async function invalidateSelectedSegment() {
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     await queryClient.invalidateQueries({
@@ -688,7 +664,6 @@ export function usePromotionWorkspaceController({
     archiveScopedSegmentMutation,
     campaignDetail,
     confirmSuggestionsMutation,
-    createNextLoopMutation,
     createPromotionMutation,
     createScopedSegmentMutation,
     decideSuggestionMutation,
@@ -696,7 +671,6 @@ export function usePromotionWorkspaceController({
     deletePromotionMutation,
     editingPromotionId,
     editingSegmentId,
-    evaluatePromotionRunMutation,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
     openPromotions,

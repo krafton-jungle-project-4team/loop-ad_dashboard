@@ -1,7 +1,9 @@
 import type { DashboardMain } from "@loopad/shared";
 import { Card, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createDashboardNextLoop,
+  evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
   fetchDashboardSegmentDetail
 } from "../../../../../api/dashboard-api.js";
@@ -21,6 +23,7 @@ export function ExperimentComponent({
   data: DashboardMain;
   query: DashboardQuery;
 }) {
+  const queryClient = useQueryClient();
   const selectedCampaign = data.campaigns.find(
     (campaign) => campaign.campaign_id === query.selectedCampaignId
   );
@@ -43,6 +46,41 @@ export function ExperimentComponent({
       selectedSegmentId
     )
   });
+  const evaluatePromotionRunMutation = useMutation({
+    mutationFn: (promotionRunId: string) => evaluateDashboardPromotionRun(query, promotionRunId),
+    onSuccess: async () => invalidateExperimentData()
+  });
+  const createNextLoopMutation = useMutation({
+    mutationFn: ({
+      failedAdExperimentIds,
+      failedSegmentIds,
+      promotionRunId
+    }: {
+      failedAdExperimentIds: string[];
+      failedSegmentIds: string[];
+      promotionRunId: string;
+    }) =>
+      createDashboardNextLoop(query, promotionRunId, {
+        failed_ad_experiment_ids: failedAdExperimentIds,
+        failed_segment_ids: failedSegmentIds,
+        operator_instruction: null
+      }),
+    onSuccess: async () => invalidateExperimentData()
+  });
+
+  async function invalidateExperimentData() {
+    await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    await queryClient.invalidateQueries({
+      queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+    });
+    await queryClient.invalidateQueries({
+      queryKey: dashboardSegmentDetailQueryKey(
+        query.projectId,
+        selectedPromotionId,
+        selectedSegmentId
+      )
+    });
+  }
 
   if (!selectedCampaign) {
     return <EmptyState message="실험을 확인할 캠페인이 없습니다." />;
@@ -66,8 +104,21 @@ export function ExperimentComponent({
         </Card>
       ) : (
         <ExperimentContent
+          createNextLoopIsPending={createNextLoopMutation.isPending}
           detail={detailQuery.data}
+          evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
+          evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
           isLoading={detailQuery.isFetching}
+          onCreateNextLoop={(promotionRunId, failedSegmentIds, failedAdExperimentIds) =>
+            createNextLoopMutation.mutate({
+              failedAdExperimentIds,
+              failedSegmentIds,
+              promotionRunId
+            })
+          }
+          onEvaluatePromotionRun={(promotionRunId) =>
+            evaluatePromotionRunMutation.mutate(promotionRunId)
+          }
           query={query}
           selectedSegmentDetail={segmentDetailQuery.data}
           selectedSegmentDetailIsError={segmentDetailQuery.isError}
