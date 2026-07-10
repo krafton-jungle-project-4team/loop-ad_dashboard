@@ -701,11 +701,81 @@ export type DashboardPromotionSegmentSuggestionSource = z.infer<
   typeof DashboardPromotionSegmentSuggestionSourceSchema
 >;
 
+export const DashboardPromotionSegmentSuggestionPerformanceEstimateSchema = z.object({
+  metric: z.string(),
+  label: z.string(),
+  value: RateSchema,
+  formatted: z.string(),
+  observed_value: RateSchema.optional(),
+  basis_label: z.string().optional(),
+  method: z.string().optional(),
+  prior_user_count: CountSchema.optional(),
+  calibration_status: z.enum(["not_backtested", "backtested"]).optional()
+});
+export type DashboardPromotionSegmentSuggestionPerformanceEstimate = z.infer<
+  typeof DashboardPromotionSegmentSuggestionPerformanceEstimateSchema
+>;
+
+export function normalizePromotionSegmentPerformanceEstimate(
+  value: unknown
+): DashboardPromotionSegmentSuggestionPerformanceEstimate | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const raw = value as Record<string, unknown>;
+  const metric = normalizedNonEmptyString(raw.metric);
+  const label = normalizedNonEmptyString(raw.label);
+  const estimatedValue = normalizedRate(raw.value);
+  if (!metric || !label || estimatedValue === null) {
+    return undefined;
+  }
+
+  const calibrationStatus = normalizedNonEmptyString(raw.calibration_status);
+  return {
+    metric,
+    label,
+    value: estimatedValue,
+    formatted: `${(estimatedValue * 100).toFixed(1)}%`,
+    observed_value: normalizedRate(raw.observed_value) ?? undefined,
+    basis_label: normalizedNonEmptyString(raw.basis_label) ?? undefined,
+    method: normalizedNonEmptyString(raw.method) ?? undefined,
+    prior_user_count: normalizedCount(raw.prior_user_count) ?? undefined,
+    calibration_status:
+      calibrationStatus === "not_backtested" || calibrationStatus === "backtested"
+        ? calibrationStatus
+        : undefined
+  };
+}
+
+function normalizedNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function normalizedRate(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : null;
+}
+
+function normalizedCount(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : null;
+}
+
 export const DashboardPromotionSegmentSuggestionDisplayCopySchema = z.object({
   title: z.string(),
+  rank_role: z.string().optional(),
   audience_summary: z.string(),
+  performance_estimate: DashboardPromotionSegmentSuggestionPerformanceEstimateSchema.optional(),
   signal_chips: z.array(z.string()),
   reason: z.string(),
+  difference_summary: z.string().optional(),
   action_hint: z.string()
 });
 export type DashboardPromotionSegmentSuggestionDisplayCopy = z.infer<
@@ -717,10 +787,13 @@ export const DashboardPromotionSegmentSuggestionReportSchema = z.object({
   source: z.string().optional(),
   title: z.string(),
   summary: z.string(),
+  promotion_interpretation: z.array(z.string()).optional(),
   why_recommended: z.array(z.string()),
   evidence: z.array(z.string()),
+  difference_from_other_ranks: z.array(z.string()).optional(),
   action_hint: z.string(),
-  caution: z.string()
+  caution: z.string(),
+  confidence_label: z.enum(["high", "medium", "low"]).optional()
 });
 export type DashboardPromotionSegmentSuggestionReport = z.infer<
   typeof DashboardPromotionSegmentSuggestionReportSchema

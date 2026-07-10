@@ -3,6 +3,7 @@ import {
   DashboardPromotionGoalBasisSchema,
   DashboardPromotionGoalMetricSchema,
   DashboardPromotionStatusSchema,
+  normalizePromotionSegmentPerformanceEstimate,
   type DashboardCampaignPromotion,
   type DashboardCampaignSegment,
   type DashboardCreatePromotionSegmentDefinitionRequest,
@@ -210,12 +211,18 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
   const signalChips = Array.isArray(raw.signal_chips)
     ? raw.signal_chips.map(nonEmptyText).filter((chip): chip is string => chip !== null)
     : [];
+  const performanceEstimate = normalizePromotionSegmentPerformanceEstimate(
+    raw.performance_estimate
+  );
 
   return {
     title,
+    rank_role: nonEmptyText(raw.rank_role) ?? undefined,
     audience_summary: audienceSummary,
+    performance_estimate: performanceEstimate,
     signal_chips: signalChips,
     reason,
+    difference_summary: nonEmptyText(raw.difference_summary) ?? undefined,
     action_hint: actionHint
   };
 }

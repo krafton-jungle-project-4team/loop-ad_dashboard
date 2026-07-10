@@ -300,7 +300,7 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsSegmentsTab ? (
           <TabsContent value="segments">
-            <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+            <div className="grid gap-4">
               <PromotionSegmentSuggestionPanel
                 confirmIsPending={confirmIsPending}
                 createScopedSegmentIsPending={scopedSegmentCreateIsPending}
@@ -1193,29 +1193,40 @@ function PromotionSegmentSuggestionPanel({
         ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 세그먼트를 불러오는 중입니다." /> : null}
         {suggestions.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {suggestions.map((suggestion) => {
               const isAccepted = suggestion.suggestion_status === "accepted";
               const isConfirmed = suggestion.suggestion_status === "confirmed";
               const isDismissed = suggestion.suggestion_status === "dismissed";
               const displayCopy = suggestion.display_copy;
+              const rankLabel = `Rank ${formatInteger(suggestion.suggested_rank)}`;
+              const rankRole = displayCopy?.rank_role;
+              const performanceEstimate = displayCopy?.performance_estimate;
               const fallbackSummary = segmentAudienceSummary(
                 suggestion.sample_size,
                 suggestion.sample_ratio
               );
               return (
                 <div
-                  className={`grid gap-3 rounded-md border p-4 ${
+                  className={`flex min-h-full flex-col gap-4 rounded-md border p-4 ${
                     isAccepted ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-white"
                   }`}
                   key={suggestion.suggestion_id}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="grid gap-1">
-                      <div className="text-xs font-semibold text-[#3927d9]">
-                        Rank {formatInteger(suggestion.suggested_rank)}
+                    <div className="grid min-w-0 gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[#3927d9]">
+                        <span>{rankLabel}</span>
+                        {rankRole ? (
+                          <Badge
+                            className="border-[#d7d3ff] bg-[#f7f6ff] text-[#3927d9]"
+                            variant="outline"
+                          >
+                            {rankRole}
+                          </Badge>
+                        ) : null}
                       </div>
-                      <h3 className="text-base font-semibold">
+                      <h3 className="text-lg font-semibold leading-7 text-foreground">
                         {displayCopy?.title ?? suggestion.segment_name}
                       </h3>
                       <p className="text-xs text-muted-foreground">
@@ -1228,8 +1239,34 @@ function PromotionSegmentSuggestionPanel({
                       {formatStatusLabel(suggestion.suggestion_status)}
                     </Badge>
                   </div>
-                  <div className="grid gap-2 text-sm text-muted-foreground">
-                    <div>{displayCopy?.audience_summary ?? fallbackSummary}</div>
+                  <div className="grid gap-3 text-sm text-muted-foreground">
+                    {performanceEstimate ? (
+                      <div className="grid gap-3 rounded-md border border-[#dfe5ff] bg-[#f7f8ff] p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                        <div className="grid gap-1">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-[#3927d9]">
+                            <span>{performanceEstimate.label}</span>
+                            {performanceEstimate.calibration_status === "not_backtested" ? (
+                              <Badge className="text-[10px]" variant="outline">
+                                백테스트 전
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <div className="text-2xl font-semibold tabular-nums text-foreground">
+                            {performanceEstimate.formatted}
+                          </div>
+                          {performanceEstimate.basis_label ? (
+                            <div className="text-[11px] leading-4 text-muted-foreground">
+                              {performanceEstimate.basis_label}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="text-xs leading-5 text-muted-foreground sm:text-right">
+                          {displayCopy?.audience_summary ?? fallbackSummary}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>{displayCopy?.audience_summary ?? fallbackSummary}</div>
+                    )}
                     {displayCopy?.signal_chips.length ? (
                       <div className="flex flex-wrap gap-1">
                         {displayCopy.signal_chips.map((chip) => (
@@ -1244,13 +1281,18 @@ function PromotionSegmentSuggestionPanel({
                         formatJsonObject(suggestion.reason_json) ||
                         "추천 사유가 비어 있습니다."}
                     </div>
+                    {displayCopy?.difference_summary ? (
+                      <div className="rounded-md border-l-2 border-[#3927d9] bg-[#f7f8ff] px-3 py-2 text-xs leading-5 text-foreground">
+                        {displayCopy.difference_summary}
+                      </div>
+                    ) : null}
                     {displayCopy?.action_hint ? (
-                      <div className="rounded-md bg-[#f7f8ff] px-3 py-2 text-xs leading-5 text-foreground">
+                      <div className="rounded-md bg-muted px-3 py-2 text-xs leading-5 text-muted-foreground">
                         {displayCopy.action_hint}
                       </div>
                     ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
                     {suggestion.ai_report ? (
                       <Button
                         onClick={() => setReportSuggestion(suggestion)}
@@ -1313,6 +1355,7 @@ function SegmentSuggestionReportDialog({
   suggestion: DashboardPromotionSegmentSuggestion | null;
 }) {
   const report = suggestion?.ai_report ?? null;
+  const rankRole = suggestion?.display_copy?.rank_role;
 
   return (
     <Dialog onOpenChange={onOpenChange} open={Boolean(report)}>
@@ -1323,6 +1366,7 @@ function SegmentSuggestionReportDialog({
               <Badge variant="secondary">
                 Rank {formatInteger(suggestion?.suggested_rank ?? 0)}
               </Badge>
+              {rankRole ? <Badge variant="outline">{rankRole}</Badge> : null}
               <Badge variant="outline">AI 추천 리포트</Badge>
             </div>
             <DialogTitle>{report.title}</DialogTitle>
@@ -1375,6 +1419,7 @@ function SegmentSuggestionReportContent({
 }) {
   const report = suggestion?.ai_report ?? null;
   const displayCopy = suggestion?.display_copy ?? null;
+  const performanceEstimate = displayCopy?.performance_estimate;
 
   if (!report) {
     return null;
@@ -1383,11 +1428,46 @@ function SegmentSuggestionReportContent({
   return (
     <div className="grid gap-4">
       <section className="grid gap-2 rounded-md border bg-[#f8f8ff] p-4">
-        <div className="text-sm font-medium text-foreground">{report.summary}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-sm font-medium text-foreground">{report.summary}</div>
+          {report.confidence_label ? (
+            <Badge className="text-[11px]" variant="secondary">
+              신뢰도 {formatConfidenceLabel(report.confidence_label)}
+            </Badge>
+          ) : null}
+        </div>
         <div className="text-sm text-muted-foreground">
           {displayCopy?.audience_summary ??
             segmentAudienceSummary(suggestion?.sample_size ?? 0, suggestion?.sample_ratio ?? 0)}
         </div>
+        {performanceEstimate ? (
+          <div className="grid w-fit gap-1 rounded-md border border-[#dfe5ff] bg-white px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-[#3927d9]">
+                {performanceEstimate.label}
+              </span>
+              <span className="text-base font-semibold tabular-nums text-foreground">
+                {performanceEstimate.formatted}
+              </span>
+              {performanceEstimate.calibration_status === "not_backtested" ? (
+                <Badge className="text-[10px]" variant="outline">
+                  백테스트 전 추정치
+                </Badge>
+              ) : null}
+            </div>
+            {performanceEstimate.basis_label ? (
+              <span className="text-[11px] text-muted-foreground">
+                {performanceEstimate.basis_label}
+              </span>
+            ) : null}
+            {performanceEstimate.observed_value !== undefined ? (
+              <span className="text-[11px] text-muted-foreground">
+                동일 관찰 구간 사용자 성과율{" "}
+                {formatPercentValue(performanceEstimate.observed_value)}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {displayCopy?.signal_chips.length ? (
           <div className="flex flex-wrap gap-1">
             {displayCopy.signal_chips.map((chip) => (
@@ -1398,8 +1478,10 @@ function SegmentSuggestionReportContent({
           </div>
         ) : null}
       </section>
-      <ReportSection items={report.why_recommended} title="왜 추천했나요" />
-      <ReportSection items={report.evidence} title="확인된 근거" />
+      <ReportSection items={report.promotion_interpretation} title="프로모션 해석" />
+      <ReportSection items={report.why_recommended} title="추천한 이유" />
+      <ReportSection items={report.evidence} title="확인된 행동 근거" />
+      <ReportSection items={report.difference_from_other_ranks} title="다른 Rank와의 차이" />
       <section className="grid gap-2 rounded-md border p-4">
         <h4 className="text-sm font-semibold">활용 방법</h4>
         <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
@@ -1412,7 +1494,11 @@ function SegmentSuggestionReportContent({
   );
 }
 
-function ReportSection({ items, title }: { items: string[]; title: string }) {
+function ReportSection({ items, title }: { items: string[] | undefined; title: string }) {
+  if (!items?.length) {
+    return null;
+  }
+
   return (
     <section className="grid gap-2 rounded-md border p-4">
       <h4 className="text-sm font-semibold">{title}</h4>
@@ -1426,6 +1512,16 @@ function ReportSection({ items, title }: { items: string[]; title: string }) {
       </ul>
     </section>
   );
+}
+
+function formatConfidenceLabel(value: "high" | "medium" | "low") {
+  if (value === "high") {
+    return "높음";
+  }
+  if (value === "medium") {
+    return "보통";
+  }
+  return "낮음";
 }
 
 function PromotionSegmentCreateDialog({

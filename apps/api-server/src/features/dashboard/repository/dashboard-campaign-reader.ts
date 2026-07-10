@@ -1,3 +1,4 @@
+import { normalizePromotionSegmentPerformanceEstimate } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
   DashboardArchivePromotionScopedSegmentDefinitionResult,
@@ -1078,9 +1079,7 @@ function jsonStringArray(value: unknown): string[] {
     : [];
 }
 
-function suggestionAiReport(
-  value: unknown
-): DashboardPromotionSegmentSuggestion["ai_report"] {
+function suggestionAiReport(value: unknown): DashboardPromotionSegmentSuggestion["ai_report"] {
   const report = jsonObject(value).ai_report;
   if (!report || typeof report !== "object" || Array.isArray(report)) {
     return null;
@@ -1093,6 +1092,9 @@ function suggestionAiReport(
   const caution = nonEmptyString(raw.caution);
   const whyRecommended = jsonStringArray(raw.why_recommended);
   const evidence = jsonStringArray(raw.evidence);
+  const promotionInterpretation = jsonStringArray(raw.promotion_interpretation);
+  const differenceFromOtherRanks = jsonStringArray(raw.difference_from_other_ranks);
+  const confidenceLabel = nonEmptyString(raw.confidence_label);
   if (
     !title ||
     !summary ||
@@ -1109,10 +1111,18 @@ function suggestionAiReport(
     source: nonEmptyString(raw.source) ?? undefined,
     title,
     summary,
+    promotion_interpretation: promotionInterpretation.length ? promotionInterpretation : undefined,
     why_recommended: whyRecommended,
     evidence,
+    difference_from_other_ranks: differenceFromOtherRanks.length
+      ? differenceFromOtherRanks
+      : undefined,
     action_hint: actionHint,
-    caution
+    caution,
+    confidence_label:
+      confidenceLabel === "high" || confidenceLabel === "medium" || confidenceLabel === "low"
+        ? confidenceLabel
+        : undefined
   };
 }
 
@@ -1136,12 +1146,18 @@ function suggestionDisplayCopy(
   const signalChips = Array.isArray(raw.signal_chips)
     ? raw.signal_chips.map(nonEmptyString).filter((chip): chip is string => chip !== null)
     : [];
+  const performanceEstimate = normalizePromotionSegmentPerformanceEstimate(
+    raw.performance_estimate
+  );
 
   return {
     title,
+    rank_role: nonEmptyString(raw.rank_role) ?? undefined,
     audience_summary: audienceSummary,
+    performance_estimate: performanceEstimate,
     signal_chips: signalChips,
     reason,
+    difference_summary: nonEmptyString(raw.difference_summary) ?? undefined,
     action_hint: actionHint
   };
 }
