@@ -143,7 +143,7 @@ export function PromotionManagementList({
                   <TableHead>목표</TableHead>
                   <TableHead className="text-right">세그먼트</TableHead>
                   <TableHead className="text-right">실험</TableHead>
-                  <TableHead className="w-24">
+                  <TableHead className="w-40">
                     <span className="sr-only">작업</span>
                   </TableHead>
                 </TableRow>
@@ -238,8 +238,9 @@ function PromotionRowActions({
   promotion: DashboardCampaignPromotion;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="col-span-full flex w-full flex-nowrap items-center justify-end gap-2">
       <Button
+        className="flex-1 md:flex-none"
         onClick={() => onEdit(promotion.promotion_id)}
         size="sm"
         type="button"
@@ -249,7 +250,7 @@ function PromotionRowActions({
       </Button>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button size="sm" type="button" variant="outline">
+          <Button className="flex-1 md:flex-none" size="sm" type="button" variant="outline">
             삭제
           </Button>
         </AlertDialogTrigger>
