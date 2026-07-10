@@ -20,6 +20,8 @@ import {
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Input } from "@loopad/ui/shadcn/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import {
   Table,
@@ -29,7 +31,17 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { BarChart3, CheckCircle2, ImageIcon, Plus, Target, Trash2, Users, X } from "lucide-react";
+import {
+  BarChart3,
+  CheckCircle2,
+  ImageIcon,
+  Plus,
+  Search,
+  Target,
+  Trash2,
+  Users,
+  X
+} from "lucide-react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import {
   formatActionLabel,
@@ -39,10 +51,7 @@ import {
   formatStatusLabel
 } from "../../../../../model/dashboard-labels.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
-import {
-  EntityWorkspaceEmptyState,
-  EntityWorkspaceTabs
-} from "../../../../shared/EntityWorkspace.js";
+import { EntityWorkspaceEmptyState } from "../../../../shared/EntityWorkspace.js";
 import {
   campaignSegmentDisplayCopy,
   canStartAdExperiment,
@@ -68,42 +77,204 @@ const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   "segment-detail": "세그먼트 맞춤 광고 생성"
 };
 
-export function PromotionChromeTabs({
+export function PromotionManagementList({
+  filter,
   onAdd,
-  onClosePromotion,
+  onEditPromotion,
+  onFilterChange,
   onSelectPromotion,
-  openPromotions,
-  selectedPromotionId
+  onStopPromotion,
+  openPromotions
 }: {
+  filter: string;
   onAdd: () => void;
-  onClosePromotion: (promotionId: string) => void;
+  onEditPromotion: (promotionId: string) => void;
+  onFilterChange: (value: string) => void;
   onSelectPromotion: (promotionId: string) => void;
+  onStopPromotion: (promotionId: string) => void;
   openPromotions: DashboardCampaignPromotion[];
-  selectedPromotionId: string;
 }) {
-  const promotionTabs = openPromotions.map((promotion) => ({
-    id: promotion.promotion_id,
-    label: promotion.marketing_theme,
-    promotion
-  }));
-
   return (
-    <EntityWorkspaceTabs
-      addLabel="프로모션 탭 추가"
-      items={promotionTabs}
-      onAdd={onAdd}
-      onClose={(item) => onClosePromotion(item.promotion.promotion_id)}
-      onSelect={(item) => onSelectPromotion(item.promotion.promotion_id)}
-      selectedItemId={selectedPromotionId}
-    />
+    <section className="grid gap-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="grid gap-1">
+          <h2 className="text-xl font-semibold tracking-tight">프로모션 관리</h2>
+          <p className="text-sm text-muted-foreground">
+            선택한 캠페인의 프로모션을 생성하고 운영 상태를 관리합니다.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <Field className="sm:w-72">
+            <FieldLabel className="sr-only" htmlFor="promotion-management-search">
+              프로모션 검색
+            </FieldLabel>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoComplete="off"
+                className="pl-9"
+                id="promotion-management-search"
+                name="promotionSearch"
+                onChange={(event) => onFilterChange(event.target.value)}
+                placeholder="프로모션 이름 또는 채널 검색…"
+                type="search"
+                value={filter}
+              />
+            </div>
+          </Field>
+          <Button onClick={onAdd} type="button">
+            <Plus data-icon="inline-start" />새 프로모션
+          </Button>
+        </div>
+      </div>
+      {openPromotions.length === 0 ? (
+        <EmptyState message="검색 조건에 맞는 프로모션이 없습니다." />
+      ) : (
+        <>
+          <div className="hidden overflow-hidden rounded-lg border md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>프로모션</TableHead>
+                  <TableHead>채널</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead>목표</TableHead>
+                  <TableHead className="text-right">세그먼트</TableHead>
+                  <TableHead className="text-right">실험</TableHead>
+                  <TableHead className="w-24">
+                    <span className="sr-only">작업</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {openPromotions.map((promotion) => (
+                  <TableRow key={promotion.promotion_id}>
+                    <TableCell className="max-w-[360px]">
+                      <button
+                        className="grid max-w-full gap-1 text-left"
+                        onClick={() => onSelectPromotion(promotion.promotion_id)}
+                        type="button"
+                      >
+                        <span className="truncate font-medium hover:text-primary">
+                          {promotion.marketing_theme}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {promotion.message_brief ?? "설명 미등록"}
+                        </span>
+                      </button>
+                    </TableCell>
+                    <TableCell>{formatChannelLabel(promotion.channel)}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(promotion.status)}>
+                        {formatStatusLabel(promotion.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {formatMetricLabel(promotion.goal_metric)} ·{" "}
+                      {formatGoalValue(promotion.goal_target_value)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(promotion.target_segment_count)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(promotion.ad_experiment_count)}
+                    </TableCell>
+                    <TableCell>
+                      <PromotionRowActions
+                        onEdit={onEditPromotion}
+                        onStop={onStopPromotion}
+                        promotion={promotion}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="grid gap-3 md:hidden">
+            {openPromotions.map((promotion) => (
+              <Card className="shadow-none" key={promotion.promotion_id}>
+                <CardHeader className="gap-3">
+                  <button
+                    className="grid gap-1 text-left"
+                    onClick={() => onSelectPromotion(promotion.promotion_id)}
+                    type="button"
+                  >
+                    <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
+                    <CardDescription>{formatChannelLabel(promotion.channel)}</CardDescription>
+                  </button>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                  <SummaryItem label="상태" value={formatStatusLabel(promotion.status)} />
+                  <SummaryItem
+                    label="세그먼트"
+                    value={formatInteger(promotion.target_segment_count)}
+                  />
+                  <SummaryItem label="실험" value={formatInteger(promotion.ad_experiment_count)} />
+                  <PromotionRowActions
+                    onEdit={onEditPromotion}
+                    onStop={onStopPromotion}
+                    promotion={promotion}
+                  />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function PromotionRowActions({
+  onEdit,
+  onStop,
+  promotion
+}: {
+  onEdit: (promotionId: string) => void;
+  onStop: (promotionId: string) => void;
+  promotion: DashboardCampaignPromotion;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        onClick={() => onEdit(promotion.promotion_id)}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        수정
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button size="sm" type="button" variant="outline">
+            중지
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>프로모션을 중지할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {promotion.marketing_theme} 프로모션과 연결된 신규 실행이 중단됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onStop(promotion.promotion_id)} variant="destructive">
+              프로모션 중지
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
 
 export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <EntityWorkspaceEmptyState
-      actionLabel="탭 추가"
-      description="새 프로모션을 생성하면 현재 캠페인의 프로모션 탭으로 열립니다. 진행 중인 캠페인의 상세 지표와 워크플로우를 한눈에 관리할 수 있습니다."
+      actionLabel="새 프로모션"
+      description="프로모션을 생성하면 현재 캠페인 하위에 추가되고 개요 화면으로 이동합니다."
       guideCards={[
         {
           icon: <Target className="size-5" />,

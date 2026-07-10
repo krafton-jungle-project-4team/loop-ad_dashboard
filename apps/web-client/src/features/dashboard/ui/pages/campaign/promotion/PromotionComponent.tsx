@@ -1,10 +1,11 @@
 import type { DashboardMain } from "@loopad/shared";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
+import { useState } from "react";
 import { EmptyState } from "../../../shared/EmptyState.js";
 import { EntityWorkspaceShell } from "../../../shared/EntityWorkspace.js";
-import { PromotionAddDialog } from "./components/PromotionDialogs.js";
+import { PromotionAddDialog, PromotionEditDialog } from "./components/PromotionDialogs.js";
 import {
-  PromotionChromeTabs,
+  PromotionManagementList,
   PromotionEmptyState,
   PromotionTabWorkspace
 } from "./components/PromotionWorkspaceContent.js";
@@ -21,6 +22,7 @@ export function PromotionWorkspace({
   query: DashboardQuery;
 }) {
   const controller = usePromotionWorkspaceController({ data, mode, query });
+  const [promotionFilter, setPromotionFilter] = useState("");
   const {
     approveContentCandidateMutation,
     archiveScopedSegmentMutation,
@@ -32,6 +34,7 @@ export function PromotionWorkspace({
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
+    editingPromotionId,
     evaluatePromotionRunMutation,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
@@ -48,33 +51,40 @@ export function PromotionWorkspace({
     selectedPromotionSegmentId,
     selectedPromotionSegments,
     setIsAddDialogOpen,
+    setEditingPromotionId,
     setWorkspaceTab,
     startGenerationMutation,
     startPromotionAnalysis,
     visibleTabs,
-    workspaceTab
+    workspaceTab,
+    updatePromotionMutation
   } = controller;
+  const isManagementView = mode === "promotion" && query.promotionView === "manage";
+  const filteredPromotions = openPromotions.filter((promotion) =>
+    `${promotion.marketing_theme} ${promotion.channel}`
+      .toLocaleLowerCase()
+      .includes(promotionFilter.trim().toLocaleLowerCase())
+  );
 
   return (
-    <EntityWorkspaceShell
-      chrome={
-        mode === "promotion" ? (
-          <PromotionChromeTabs
-            onAdd={() => setIsAddDialogOpen(true)}
-            onClosePromotion={(promotionId) => deletePromotionMutation.mutate(promotionId)}
-            onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
-            openPromotions={openPromotions}
-            selectedPromotionId={selectedOpenPromotion?.promotion_id ?? ""}
-          />
-        ) : null
-      }
-    >
+    <EntityWorkspaceShell>
       {!selectedCampaign ? <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." /> : null}
       {selectedCampaign && campaignDetail.isLoading ? (
         <EmptyState message="프로모션 데이터를 불러오는 중입니다." />
       ) : null}
       {campaignDetail.data ? (
         <>
+          {isManagementView && openPromotions.length > 0 ? (
+            <PromotionManagementList
+              filter={promotionFilter}
+              onAdd={() => setIsAddDialogOpen(true)}
+              onEditPromotion={setEditingPromotionId}
+              onFilterChange={setPromotionFilter}
+              onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
+              onStopPromotion={(promotionId) => deletePromotionMutation.mutate(promotionId)}
+              openPromotions={filteredPromotions}
+            />
+          ) : null}
           {openPromotions.length === 0 ? (
             mode === "promotion" ? (
               <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
@@ -88,7 +98,7 @@ export function PromotionWorkspace({
               />
             )
           ) : null}
-          {selectedOpenPromotion ? (
+          {selectedOpenPromotion && !isManagementView ? (
             <PromotionTabWorkspace
               approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
               archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
@@ -164,12 +174,34 @@ export function PromotionWorkspace({
             />
           ) : null}
           {mode === "promotion" ? (
-            <PromotionAddDialog
-              createIsPending={createPromotionMutation.isPending}
-              onCreate={(form) => createPromotionMutation.mutate(form)}
-              onOpenChange={setIsAddDialogOpen}
-              open={isAddDialogOpen}
-            />
+            <>
+              <PromotionAddDialog
+                createIsPending={createPromotionMutation.isPending}
+                onCreate={(form) => createPromotionMutation.mutate(form)}
+                onOpenChange={setIsAddDialogOpen}
+                open={isAddDialogOpen}
+              />
+              <PromotionEditDialog
+                isPending={updatePromotionMutation.isPending}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setEditingPromotionId(null);
+                  }
+                }}
+                onUpdate={(requestBody) => {
+                  if (editingPromotionId) {
+                    updatePromotionMutation.mutate({
+                      promotionId: editingPromotionId,
+                      requestBody
+                    });
+                  }
+                }}
+                open={Boolean(editingPromotionId)}
+                promotion={openPromotions.find(
+                  (promotion) => promotion.promotion_id === editingPromotionId
+                )}
+              />
+            </>
           ) : null}
         </>
       ) : null}

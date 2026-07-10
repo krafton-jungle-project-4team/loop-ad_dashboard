@@ -23,7 +23,8 @@ import {
   rejectDashboardContentCandidate,
   startDashboardPromotionAnalysis,
   startDashboardAdExperiment,
-  startDashboardPromotionGeneration
+  startDashboardPromotionGeneration,
+  updateDashboardPromotion
 } from "../../../../api/dashboard-api.js";
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import {
@@ -77,6 +78,7 @@ export function usePromotionWorkspaceController({
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingPromotionId, setEditingPromotionId] = useState<string | null>(null);
   const requestedSegmentTab: PromotionWorkspaceTab =
     query.segmentView === "manage" || query.segmentView === "recommendations"
       ? "segments"
@@ -152,6 +154,22 @@ export function usePromotionWorkspaceController({
           selectedSegmentId: ""
         });
       }
+    }
+  });
+  const updatePromotionMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody
+    }: {
+      promotionId: string;
+      requestBody: Parameters<typeof updateDashboardPromotion>[2];
+    }) => updateDashboardPromotion(query, promotionId, requestBody),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      setEditingPromotionId(null);
     }
   });
 
@@ -642,6 +660,7 @@ export function usePromotionWorkspaceController({
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
+    editingPromotionId,
     evaluatePromotionRunMutation,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
@@ -659,9 +678,11 @@ export function usePromotionWorkspaceController({
     selectedPromotionSegmentId,
     selectedPromotionSegments,
     setIsAddDialogOpen,
+    setEditingPromotionId,
     setWorkspaceTab,
     startGenerationMutation,
     startPromotionAnalysis,
+    updatePromotionMutation,
     visibleTabs,
     workspaceTab
   };

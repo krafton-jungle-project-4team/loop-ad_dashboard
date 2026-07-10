@@ -11,7 +11,11 @@ import {
 } from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useEffect, useState } from "react";
-import { formatBasisLabel, formatChannelLabel } from "../../../../../model/dashboard-labels.js";
+import {
+  formatBasisLabel,
+  formatChannelLabel,
+  formatStatusLabel
+} from "../../../../../model/dashboard-labels.js";
 import { DashboardFormDialog } from "../../../../shared/DashboardFormDialog.js";
 import {
   createEmptyPromotionFormState,
@@ -20,8 +24,100 @@ import {
   promotionChannelOptions,
   promotionGoalBasisOptions,
   promotionGoalMetricOptions,
+  promotionStatusOptions,
   type PromotionCreateFormState
 } from "../promotionUtils.js";
+
+export function PromotionEditDialog({
+  isPending,
+  onOpenChange,
+  onUpdate,
+  open,
+  promotion
+}: {
+  isPending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdate: (requestBody: DashboardUpdatePromotionRequest) => void;
+  open: boolean;
+  promotion: DashboardCampaignPromotion | undefined;
+}) {
+  const [marketingTheme, setMarketingTheme] = useState("");
+  const [messageBrief, setMessageBrief] = useState("");
+  const [status, setStatus] = useState("draft");
+
+  useEffect(() => {
+    if (open && promotion) {
+      setMarketingTheme(promotion.marketing_theme);
+      setMessageBrief(promotion.message_brief ?? "");
+      setStatus(promotion.status);
+    }
+  }, [open, promotion]);
+
+  return (
+    <DashboardFormDialog
+      description="프로모션 이름, 설명, 운영 상태를 수정합니다."
+      onOpenChange={onOpenChange}
+      open={open}
+      title="프로모션 수정"
+    >
+      <div className="grid gap-6 px-8 py-6">
+        <Field>
+          <FieldLabel htmlFor="promotion-edit-theme">프로모션 이름</FieldLabel>
+          <Input
+            autoComplete="off"
+            id="promotion-edit-theme"
+            name="promotionEditTheme"
+            onChange={(event) => setMarketingTheme(event.target.value)}
+            value={marketingTheme}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="promotion-edit-description">프로모션 설명</FieldLabel>
+          <Textarea
+            id="promotion-edit-description"
+            name="promotionEditDescription"
+            onChange={(event) => setMessageBrief(event.target.value)}
+            rows={5}
+            value={messageBrief}
+          />
+        </Field>
+        <Field>
+          <FieldLabel id="promotion-edit-status-label">상태</FieldLabel>
+          <Select onValueChange={setStatus} value={status}>
+            <SelectTrigger aria-labelledby="promotion-edit-status-label" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionStatusOptions.map((statusOption) => (
+                <SelectItem key={statusOption} value={statusOption}>
+                  {formatStatusLabel(statusOption)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <DialogFooter className="border-t pt-5">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
+            취소
+          </Button>
+          <Button
+            disabled={!promotion || !marketingTheme.trim() || isPending}
+            onClick={() =>
+              onUpdate({
+                marketing_theme: marketingTheme.trim(),
+                message_brief: messageBrief.trim() || null,
+                status: status as DashboardUpdatePromotionRequest["status"]
+              })
+            }
+            type="button"
+          >
+            {isPending ? "저장 중" : "변경사항 저장"}
+          </Button>
+        </DialogFooter>
+      </div>
+    </DashboardFormDialog>
+  );
+}
 
 export function PromotionAddDialog({
   createIsPending,
@@ -212,3 +308,4 @@ export function PromotionAddDialog({
     </DashboardFormDialog>
   );
 }
+import type { DashboardCampaignPromotion, DashboardUpdatePromotionRequest } from "@loopad/shared";
