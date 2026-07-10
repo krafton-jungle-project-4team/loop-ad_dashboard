@@ -29,17 +29,7 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import {
-  BarChart3,
-  CheckCircle2,
-  ImageIcon,
-  Plus,
-  Send,
-  Target,
-  Trash2,
-  Users,
-  X
-} from "lucide-react";
+import { BarChart3, CheckCircle2, ImageIcon, Plus, Target, Trash2, Users, X } from "lucide-react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import {
   formatActionLabel,
@@ -55,6 +45,7 @@ import {
 } from "../../../../shared/EntityWorkspace.js";
 import {
   campaignSegmentDisplayCopy,
+  canStartAdExperiment,
   formatGoalValue,
   formatJsonObject,
   formatPercentValue,
@@ -142,26 +133,21 @@ export function PromotionTabWorkspace({
   confirmIsPending,
   decideIsPending,
   deleteConfirmedSegmentIsPending,
-  dispatchPromotionRunIsPending,
-  createPromotionRunIsPending,
-  buildAssignmentsIsPending,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
   createNextLoopIsPending,
+  launchExperimentIsPending,
   onArchiveScopedSegment,
   onApproveContentCandidate,
-  onBuildAssignments,
   onConfirmSuggestions,
   onCreateNextLoop,
-  onCreatePromotionRun,
   onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
-  onDispatchPromotionRun,
   onEvaluatePromotionRun,
+  onLaunchExperiment,
   onRejectContentCandidate,
   onSelectSegment,
-  onStartAdExperiment,
   onStartAnalysis,
   onStartGeneration,
   onTabChange,
@@ -169,7 +155,6 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
-  startAdExperimentIsPending,
   scopedSegmentCreateIsPending,
   scopedSegments,
   scopedSegmentsIsLoading,
@@ -188,30 +173,25 @@ export function PromotionTabWorkspace({
   confirmIsPending: boolean;
   decideIsPending: boolean;
   deleteConfirmedSegmentIsPending: boolean;
-  dispatchPromotionRunIsPending: boolean;
-  createPromotionRunIsPending: boolean;
-  buildAssignmentsIsPending: boolean;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
   createNextLoopIsPending: boolean;
+  launchExperimentIsPending: boolean;
   onArchiveScopedSegment: (segmentId: string) => void;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
-  onBuildAssignments: (promotionRunId: string) => void;
   onConfirmSuggestions: () => void;
   onCreateNextLoop: (
     promotionRunId: string,
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onCreatePromotionRun: (promotionId: string, analysisId: string, generationId: string) => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
-  onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
+  onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
-  onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   onStartAnalysis: () => void;
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
@@ -219,7 +199,6 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
-  startAdExperimentIsPending: boolean;
   scopedSegmentCreateIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
   scopedSegmentsIsLoading: boolean;
@@ -321,9 +300,6 @@ export function PromotionTabWorkspace({
             <PromotionSegmentDetailTab
               approveContentCandidateIsPending={approveContentCandidateIsPending}
               detail={selectedSegmentDetail}
-              dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
-              createPromotionRunIsPending={createPromotionRunIsPending}
-              buildAssignmentsIsPending={buildAssignmentsIsPending}
               evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
               evaluatePromotionRunResult={evaluatePromotionRunResult}
               createNextLoopIsPending={createNextLoopIsPending}
@@ -331,18 +307,15 @@ export function PromotionTabWorkspace({
               isError={selectedSegmentDetailIsError}
               isLoading={selectedSegmentDetailIsLoading}
               onApproveContentCandidate={onApproveContentCandidate}
-              onBuildAssignments={onBuildAssignments}
               onCreateNextLoop={onCreateNextLoop}
-              onCreatePromotionRun={onCreatePromotionRun}
-              onDispatchPromotionRun={onDispatchPromotionRun}
               onEvaluatePromotionRun={onEvaluatePromotionRun}
+              onLaunchExperiment={onLaunchExperiment}
               onRejectContentCandidate={onRejectContentCandidate}
-              onStartAdExperiment={onStartAdExperiment}
               onStartGeneration={onStartGeneration}
               rejectContentCandidateIsPending={rejectContentCandidateIsPending}
               segmentSuggestion={selectedSegmentSuggestion}
               selectedSegmentId={selectedSegmentId}
-              startAdExperimentIsPending={startAdExperimentIsPending}
+              launchExperimentIsPending={launchExperimentIsPending}
             />
           </TabsContent>
         ) : null}
@@ -515,57 +488,45 @@ function PromotionCurrentSegmentsPanel({
 function PromotionSegmentDetailTab({
   approveContentCandidateIsPending,
   detail,
-  dispatchPromotionRunIsPending,
-  createPromotionRunIsPending,
-  buildAssignmentsIsPending,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
   createNextLoopIsPending,
   generationIsPending,
   isError,
   isLoading,
+  launchExperimentIsPending,
   onApproveContentCandidate,
-  onBuildAssignments,
   onCreateNextLoop,
-  onCreatePromotionRun,
-  onDispatchPromotionRun,
   onEvaluatePromotionRun,
+  onLaunchExperiment,
   onRejectContentCandidate,
-  onStartAdExperiment,
   onStartGeneration,
   rejectContentCandidateIsPending,
   segmentSuggestion,
-  selectedSegmentId,
-  startAdExperimentIsPending
+  selectedSegmentId
 }: {
   approveContentCandidateIsPending: boolean;
   detail: DashboardSegmentDetail | undefined;
-  dispatchPromotionRunIsPending: boolean;
-  createPromotionRunIsPending: boolean;
-  buildAssignmentsIsPending: boolean;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
   createNextLoopIsPending: boolean;
   generationIsPending: boolean;
   isError: boolean;
   isLoading: boolean;
+  launchExperimentIsPending: boolean;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
-  onBuildAssignments: (promotionRunId: string) => void;
   onCreateNextLoop: (
     promotionRunId: string,
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onCreatePromotionRun: (promotionId: string, analysisId: string, generationId: string) => void;
-  onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
+  onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
-  onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
   rejectContentCandidateIsPending: boolean;
   segmentSuggestion: DashboardPromotionSegmentSuggestion | null;
   selectedSegmentId: string;
-  startAdExperimentIsPending: boolean;
 }) {
   if (!selectedSegmentId) {
     return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
@@ -793,20 +754,14 @@ function PromotionSegmentDetailTab({
       </section>
 
       <SegmentConnectedExperimentsCard
-        buildAssignmentsIsPending={buildAssignmentsIsPending}
         createNextLoopIsPending={createNextLoopIsPending}
-        createPromotionRunIsPending={createPromotionRunIsPending}
         detail={detail}
-        dispatchPromotionRunIsPending={dispatchPromotionRunIsPending}
         evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
         evaluatePromotionRunResult={evaluatePromotionRunResult}
-        onBuildAssignments={onBuildAssignments}
         onCreateNextLoop={onCreateNextLoop}
-        onCreatePromotionRun={onCreatePromotionRun}
-        onDispatchPromotionRun={onDispatchPromotionRun}
         onEvaluatePromotionRun={onEvaluatePromotionRun}
-        onStartAdExperiment={onStartAdExperiment}
-        startAdExperimentIsPending={startAdExperimentIsPending}
+        launchExperimentIsPending={launchExperimentIsPending}
+        onLaunchExperiment={onLaunchExperiment}
       />
 
       <SegmentDetailReportCard suggestion={segmentSuggestion} />
@@ -815,44 +770,43 @@ function PromotionSegmentDetailTab({
 }
 
 function SegmentConnectedExperimentsCard({
-  buildAssignmentsIsPending,
   createNextLoopIsPending,
-  createPromotionRunIsPending,
   detail,
-  dispatchPromotionRunIsPending,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
-  onBuildAssignments,
+  launchExperimentIsPending,
   onCreateNextLoop,
-  onCreatePromotionRun,
-  onDispatchPromotionRun,
   onEvaluatePromotionRun,
-  onStartAdExperiment,
-  startAdExperimentIsPending
+  onLaunchExperiment
 }: {
-  buildAssignmentsIsPending: boolean;
   createNextLoopIsPending: boolean;
-  createPromotionRunIsPending: boolean;
   detail: DashboardSegmentDetail;
-  dispatchPromotionRunIsPending: boolean;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
-  onBuildAssignments: (promotionRunId: string) => void;
+  launchExperimentIsPending: boolean;
   onCreateNextLoop: (
     promotionRunId: string,
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onCreatePromotionRun: (promotionId: string, analysisId: string, generationId: string) => void;
-  onDispatchPromotionRun: (promotionRunId: string) => void;
   onEvaluatePromotionRun: (promotionRunId: string) => void;
-  onStartAdExperiment: (promotionId: string, adExperimentId: string) => void;
-  startAdExperimentIsPending: boolean;
+  onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
 }) {
   const approvedContentCandidate = detail.content_candidates.find(
     (candidate) => candidate.status === "approved"
   );
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
+  const activeRunExperiments = activePromotionRunId
+    ? detail.ad_experiments.filter(
+        (experiment) => experiment.promotion_run_id === activePromotionRunId
+      )
+    : [];
+  const isExperimentRunning =
+    activeRunExperiments.length > 0 &&
+    activeRunExperiments.every((experiment) => experiment.status === "running");
+  const canLaunchExperiment =
+    (!activePromotionRunId && Boolean(approvedContentCandidate)) ||
+    activeRunExperiments.some((experiment) => canStartAdExperiment(experiment.status));
   const failedSegmentIds = uniqueStringValues(
     (
       evaluatePromotionRunResult?.failed_segment_ids ??
@@ -881,42 +835,26 @@ function SegmentConnectedExperimentsCard({
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="grid gap-1">
           <CardTitle className="text-base">연결된 광고 실험</CardTitle>
-          <CardDescription>실험 시작 후 발송/노출 대상 assignment가 활성화됩니다.</CardDescription>
+          <CardDescription>실험 준비와 대상 배정을 한 번에 처리합니다.</CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
-            disabled={
-              createPromotionRunIsPending ||
-              !approvedContentCandidate ||
-              detail.ad_experiments.length > 0
-            }
+            disabled={launchExperimentIsPending || isExperimentRunning || !canLaunchExperiment}
             onClick={() => {
-              if (approvedContentCandidate) {
-                onCreatePromotionRun(
-                  detail.segment.promotion_id,
-                  approvedContentCandidate.analysis_id,
-                  approvedContentCandidate.generation_id
-                );
-              }
+              onLaunchExperiment(
+                detail.segment.promotion_id,
+                approvedContentCandidate?.analysis_id,
+                approvedContentCandidate?.generation_id
+              );
             }}
             type="button"
-            variant="outline"
           >
-            <Plus className="mr-2 size-4" />
-            {createPromotionRunIsPending ? "실험 생성 중" : "실험 생성"}
-          </Button>
-          <Button
-            disabled={!activePromotionRunId || buildAssignmentsIsPending}
-            onClick={() => {
-              if (activePromotionRunId) {
-                onBuildAssignments(activePromotionRunId);
-              }
-            }}
-            type="button"
-            variant="outline"
-          >
-            <Target className="mr-2 size-4" />
-            {buildAssignmentsIsPending ? "배정 생성 중" : "대상 배정 생성"}
+            <CheckCircle2 className="mr-2 size-4" />
+            {launchExperimentIsPending
+              ? "실험 준비 중"
+              : isExperimentRunning
+                ? "실험 진행 중"
+                : "실험 시작"}
           </Button>
           <Button
             disabled={!activePromotionRunId || evaluatePromotionRunIsPending}
@@ -957,14 +895,10 @@ function SegmentConnectedExperimentsCard({
                 <TableHead>루프</TableHead>
                 <TableHead>목표</TableHead>
                 <TableHead>상태</TableHead>
-                <TableHead className="text-right">액션</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {detail.ad_experiments.map((experiment, index) => {
-                const canDispatch =
-                  experiment.status === "running" &&
-                  (experiment.channel === "email" || experiment.channel === "sms");
                 const contentCandidate =
                   detail.content_candidates.find(
                     (candidate) => candidate.content_id === experiment.content_id
@@ -988,37 +922,6 @@ function SegmentConnectedExperimentsCard({
                       <Badge variant={statusBadgeVariant(experiment.status)}>
                         {formatStatusLabel(experiment.status)}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button
-                          disabled={
-                            startAdExperimentIsPending || !canStartAdExperiment(experiment.status)
-                          }
-                          onClick={() =>
-                            onStartAdExperiment(
-                              experiment.promotion_id,
-                              experiment.ad_experiment_id
-                            )
-                          }
-                          size="sm"
-                          type="button"
-                          variant={experiment.status === "running" ? "outline" : "default"}
-                        >
-                          <CheckCircle2 className="mr-2 size-4" />
-                          {experiment.status === "running" ? "실행 중" : "실험 시작"}
-                        </Button>
-                        <Button
-                          disabled={!canDispatch || dispatchPromotionRunIsPending}
-                          onClick={() => onDispatchPromotionRun(experiment.promotion_run_id)}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <Send className="mr-2 size-4" />
-                          {experiment.channel === "onsite_banner" ? "배너 제외" : "실행"}
-                        </Button>
-                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -1059,10 +962,6 @@ function PromotionProgressRow({ label, value }: { label: string; value: number }
 function experimentDisplayName(loopCount: number | null | undefined, index = 0) {
   const loopLabel = loopCount ? `${formatInteger(loopCount)}차` : `${formatInteger(index + 1)}번`;
   return `${loopLabel} 광고 실험`;
-}
-
-function canStartAdExperiment(status: string) {
-  return status === "created" || status === "ready" || status === "approved";
 }
 
 function uniqueStringValues(values: string[]) {

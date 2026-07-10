@@ -24,19 +24,17 @@ export function PromotionWorkspace({
   const {
     approveContentCandidateMutation,
     archiveScopedSegmentMutation,
-    buildPromotionRunAssignmentsMutation,
     campaignDetail,
     confirmSuggestionsMutation,
     createNextLoopMutation,
     createPromotionMutation,
-    createPromotionRunMutation,
     createScopedSegmentMutation,
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
-    dispatchPromotionRunMutation,
     evaluatePromotionRunMutation,
     isAddDialogOpen,
+    launchPromotionExperimentMutation,
     openPromotions,
     promotionAnalysisIsPending,
     rejectContentCandidateMutation,
@@ -51,7 +49,6 @@ export function PromotionWorkspace({
     selectedPromotionSegments,
     setIsAddDialogOpen,
     setWorkspaceTab,
-    startAdExperimentMutation,
     startGenerationMutation,
     startPromotionAnalysis,
     visibleTabs,
@@ -95,13 +92,10 @@ export function PromotionWorkspace({
             <PromotionTabWorkspace
               approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
               archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
-              buildAssignmentsIsPending={buildPromotionRunAssignmentsMutation.isPending}
               confirmIsPending={confirmSuggestionsMutation.isPending}
               createNextLoopIsPending={createNextLoopMutation.isPending}
-              createPromotionRunIsPending={createPromotionRunMutation.isPending}
               decideIsPending={decideSuggestionMutation.isPending}
               deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}
-              dispatchPromotionRunIsPending={dispatchPromotionRunMutation.isPending}
               evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
               evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
               onArchiveScopedSegment={(segmentId) =>
@@ -113,9 +107,6 @@ export function PromotionWorkspace({
               onApproveContentCandidate={(promotionId, segmentId, contentId) =>
                 approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
               }
-              onBuildAssignments={(promotionRunId) =>
-                buildPromotionRunAssignmentsMutation.mutate(promotionRunId)
-              }
               onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
               onCreateNextLoop={(promotionRunId, failedSegmentIds, failedAdExperimentIds) =>
                 createNextLoopMutation.mutate({
@@ -124,9 +115,6 @@ export function PromotionWorkspace({
                   promotionRunId
                 })
               }
-              onCreatePromotionRun={(promotionId, analysisId, generationId) =>
-                createPromotionRunMutation.mutate({ analysisId, generationId, promotionId })
-              }
               onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
               onDecideSuggestion={(suggestionId, status) =>
                 decideSuggestionMutation.mutate({ status, suggestionId })
@@ -134,19 +122,20 @@ export function PromotionWorkspace({
               onDeleteConfirmedSegment={(promotionId, segmentId) =>
                 deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
               }
-              onDispatchPromotionRun={(promotionRunId) =>
-                dispatchPromotionRunMutation.mutate(promotionRunId)
-              }
               onEvaluatePromotionRun={(promotionRunId) =>
                 evaluatePromotionRunMutation.mutate(promotionRunId)
+              }
+              onLaunchExperiment={(promotionId, analysisId, generationId) =>
+                launchPromotionExperimentMutation.mutate({
+                  analysisId,
+                  generationId,
+                  promotionId
+                })
               }
               onRejectContentCandidate={(promotionId, segmentId, contentId) =>
                 rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
               }
               onSelectSegment={selectSegment}
-              onStartAdExperiment={(promotionId, adExperimentId) =>
-                startAdExperimentMutation.mutate({ adExperimentId, promotionId })
-              }
               onStartAnalysis={startPromotionAnalysis}
               onStartGeneration={(analysisId) =>
                 startGenerationMutation.mutate({
@@ -167,7 +156,7 @@ export function PromotionWorkspace({
               selectedSegmentDetailIsError={segmentDetail.isError}
               selectedSegmentDetailIsLoading={segmentDetail.isLoading}
               selectedSegmentId={selectedPromotionSegmentId}
-              startAdExperimentIsPending={startAdExperimentMutation.isPending}
+              launchExperimentIsPending={launchPromotionExperimentMutation.isPending}
               suggestions={segmentSuggestions.data?.suggestions ?? []}
               suggestionsIsLoading={segmentSuggestions.isLoading}
               tab={workspaceTab}

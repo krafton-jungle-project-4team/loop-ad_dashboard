@@ -21,8 +21,8 @@ import {
   fetchDashboardPromotionSegmentSuggestions,
   fetchDashboardSegmentDetail,
   rejectDashboardContentCandidate,
-  startDashboardAdExperiment,
   startDashboardPromotionAnalysis,
+  startDashboardAdExperiment,
   startDashboardPromotionGeneration
 } from "../../../../api/dashboard-api.js";
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
@@ -51,6 +51,7 @@ import {
   type PromotionWorkspaceMode,
   type PromotionWorkspaceTab
 } from "./promotionUtils.js";
+import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
 
 const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
   promotion: ["overview"],
@@ -403,56 +404,50 @@ export function usePromotionWorkspaceController({
       });
     }
   });
-  const startAdExperimentMutation = useMutation({
-    mutationFn: ({
-      adExperimentId,
-      promotionId
-    }: {
-      adExperimentId: string;
-      promotionId: string;
-    }) => startDashboardAdExperiment(query, promotionId, adExperimentId),
-    onSuccess: async (experiment) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await queryClient.invalidateQueries({
-        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
-      });
-      await queryClient.invalidateQueries({
-        queryKey: dashboardSegmentDetailQueryKey(
-          query.projectId,
-          experiment.promotion_id,
-          experiment.segment_id
-        )
-      });
-    }
-  });
-  const createPromotionRunMutation = useMutation({
+  const launchPromotionExperimentMutation = useMutation({
     mutationFn: ({
       analysisId,
       generationId,
       promotionId
     }: {
-      analysisId: string;
-      generationId: string;
+      analysisId?: string;
+      generationId?: string;
       promotionId: string;
     }) =>
-      createDashboardPromotionRun(query, promotionId, {
-        analysis_id: analysisId,
-        generation_id: generationId,
-        loop_count: 1
-      }),
-    onSuccess: async (run) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await queryClient.invalidateQueries({
-        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
-      });
-      await queryClient.invalidateQueries({
-        queryKey: dashboardSegmentDetailQueryKey(
-          query.projectId,
-          run.promotion_id,
-          selectedPromotionSegmentId
-        )
-      });
-    }
+      launchPromotionExperiment(
+        {
+          existingExperiments:
+            campaignDetail.data?.ad_experiments.filter(
+              (experiment) => experiment.promotion_id === promotionId
+            ) ?? []
+        },
+        {
+          buildAssignments: (promotionRunId) =>
+            buildDashboardPromotionRunAssignments(query, promotionRunId),
+          createRun: async () => {
+            if (!analysisId || !generationId) {
+              throw new Error("승인된 광고 콘텐츠가 필요합니다.");
+            }
+            const run = await createDashboardPromotionRun(query, promotionId, {
+              analysis_id: analysisId,
+              generation_id: generationId,
+              loop_count: 1
+            });
+            return {
+              experiments: run.ad_experiments.map((experiment) => ({
+                adExperimentId: experiment.ad_experiment_id,
+                channel: experiment.channel,
+                status: experiment.status
+              })),
+              promotionRunId: run.promotion_run_id
+            };
+          },
+          dispatch: dispatchDashboardPromotionRun,
+          startExperiment: (adExperimentId) =>
+            startDashboardAdExperiment(query, promotionId, adExperimentId)
+        }
+      ),
+    onSettled: async () => invalidateSelectedSegment()
   });
   const rejectContentCandidateMutation = useMutation({
     mutationFn: ({
@@ -473,15 +468,6 @@ export function usePromotionWorkspaceController({
         )
       });
     }
-  });
-  const dispatchPromotionRunMutation = useMutation({
-    mutationFn: (promotionRunId: string) => dispatchDashboardPromotionRun(promotionRunId),
-    onSuccess: async () => invalidateSelectedSegment()
-  });
-  const buildPromotionRunAssignmentsMutation = useMutation({
-    mutationFn: (promotionRunId: string) =>
-      buildDashboardPromotionRunAssignments(query, promotionRunId),
-    onSuccess: async () => invalidateSelectedSegment()
   });
   const evaluatePromotionRunMutation = useMutation({
     mutationFn: (promotionRunId: string) => evaluateDashboardPromotionRun(query, promotionRunId),
@@ -638,19 +624,17 @@ export function usePromotionWorkspaceController({
     analysisProgress,
     approveContentCandidateMutation,
     archiveScopedSegmentMutation,
-    buildPromotionRunAssignmentsMutation,
     campaignDetail,
     confirmSuggestionsMutation,
     createNextLoopMutation,
     createPromotionMutation,
-    createPromotionRunMutation,
     createScopedSegmentMutation,
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
-    dispatchPromotionRunMutation,
     evaluatePromotionRunMutation,
     isAddDialogOpen,
+    launchPromotionExperimentMutation,
     openPromotions,
     promotionAnalysisIsPending:
       startAnalysisMutation.isPending || analysisProgress.data.status === "pending",
@@ -666,7 +650,6 @@ export function usePromotionWorkspaceController({
     selectedPromotionSegments,
     setIsAddDialogOpen,
     setWorkspaceTab,
-    startAdExperimentMutation,
     startGenerationMutation,
     startPromotionAnalysis,
     visibleTabs,

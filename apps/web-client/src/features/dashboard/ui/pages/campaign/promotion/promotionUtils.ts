@@ -41,6 +41,10 @@ export const defaultPromotionAnalysisProgress: PromotionAnalysisProgress = {
 };
 export const promotionAnalysisProgressCacheTimeMs = 1000 * 60 * 30;
 
+export function canStartAdExperiment(status: string) {
+  return status === "planned" || status === "approved";
+}
+
 export function uniquePromotionsById(
   promotions: DashboardCampaignPromotion[]
 ): DashboardCampaignPromotion[] {
