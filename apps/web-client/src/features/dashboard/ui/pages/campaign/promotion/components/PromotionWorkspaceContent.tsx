@@ -1218,7 +1218,10 @@ function PromotionSegmentSuggestionPanel({
                       <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[#3927d9]">
                         <span>{rankLabel}</span>
                         {rankRole ? (
-                          <Badge className="border-[#d7d3ff] bg-[#f7f6ff] text-[#3927d9]" variant="outline">
+                          <Badge
+                            className="border-[#d7d3ff] bg-[#f7f6ff] text-[#3927d9]"
+                            variant="outline"
+                          >
                             {rankRole}
                           </Badge>
                         ) : null}
@@ -1240,12 +1243,22 @@ function PromotionSegmentSuggestionPanel({
                     {performanceEstimate ? (
                       <div className="grid gap-3 rounded-md border border-[#dfe5ff] bg-[#f7f8ff] p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                         <div className="grid gap-1">
-                          <div className="text-xs font-medium text-[#3927d9]">
-                            {performanceEstimate.label}
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-[#3927d9]">
+                            <span>{performanceEstimate.label}</span>
+                            {performanceEstimate.calibration_status === "not_backtested" ? (
+                              <Badge className="text-[10px]" variant="outline">
+                                백테스트 전
+                              </Badge>
+                            ) : null}
                           </div>
                           <div className="text-2xl font-semibold tabular-nums text-foreground">
                             {performanceEstimate.formatted}
                           </div>
+                          {performanceEstimate.basis_label ? (
+                            <div className="text-[11px] leading-4 text-muted-foreground">
+                              {performanceEstimate.basis_label}
+                            </div>
+                          ) : null}
                         </div>
                         <div className="text-xs leading-5 text-muted-foreground sm:text-right">
                           {displayCopy?.audience_summary ?? fallbackSummary}
@@ -1428,13 +1441,31 @@ function SegmentSuggestionReportContent({
             segmentAudienceSummary(suggestion?.sample_size ?? 0, suggestion?.sample_ratio ?? 0)}
         </div>
         {performanceEstimate ? (
-          <div className="flex w-fit items-center gap-3 rounded-md border border-[#dfe5ff] bg-white px-3 py-2">
-            <span className="text-xs font-medium text-[#3927d9]">
-              {performanceEstimate.label}
-            </span>
-            <span className="text-base font-semibold tabular-nums text-foreground">
-              {performanceEstimate.formatted}
-            </span>
+          <div className="grid w-fit gap-1 rounded-md border border-[#dfe5ff] bg-white px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-[#3927d9]">
+                {performanceEstimate.label}
+              </span>
+              <span className="text-base font-semibold tabular-nums text-foreground">
+                {performanceEstimate.formatted}
+              </span>
+              {performanceEstimate.calibration_status === "not_backtested" ? (
+                <Badge className="text-[10px]" variant="outline">
+                  백테스트 전 추정치
+                </Badge>
+              ) : null}
+            </div>
+            {performanceEstimate.basis_label ? (
+              <span className="text-[11px] text-muted-foreground">
+                {performanceEstimate.basis_label}
+              </span>
+            ) : null}
+            {performanceEstimate.observed_value !== undefined ? (
+              <span className="text-[11px] text-muted-foreground">
+                동일 관찰 구간 사용자 성과율{" "}
+                {formatPercentValue(performanceEstimate.observed_value)}
+              </span>
+            ) : null}
           </div>
         ) : null}
         {displayCopy?.signal_chips.length ? (

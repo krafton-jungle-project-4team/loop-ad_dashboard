@@ -1,3 +1,4 @@
+import { normalizePromotionSegmentPerformanceEstimate } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
   DashboardArchivePromotionScopedSegmentDefinitionResult,
@@ -1078,9 +1079,7 @@ function jsonStringArray(value: unknown): string[] {
     : [];
 }
 
-function suggestionAiReport(
-  value: unknown
-): DashboardPromotionSegmentSuggestion["ai_report"] {
+function suggestionAiReport(value: unknown): DashboardPromotionSegmentSuggestion["ai_report"] {
   const report = jsonObject(value).ai_report;
   if (!report || typeof report !== "object" || Array.isArray(report)) {
     return null;
@@ -1112,9 +1111,7 @@ function suggestionAiReport(
     source: nonEmptyString(raw.source) ?? undefined,
     title,
     summary,
-    promotion_interpretation: promotionInterpretation.length
-      ? promotionInterpretation
-      : undefined,
+    promotion_interpretation: promotionInterpretation.length ? promotionInterpretation : undefined,
     why_recommended: whyRecommended,
     evidence,
     difference_from_other_ranks: differenceFromOtherRanks.length
@@ -1123,9 +1120,7 @@ function suggestionAiReport(
     action_hint: actionHint,
     caution,
     confidence_label:
-      confidenceLabel === "high" ||
-      confidenceLabel === "medium" ||
-      confidenceLabel === "low"
+      confidenceLabel === "high" || confidenceLabel === "medium" || confidenceLabel === "low"
         ? confidenceLabel
         : undefined
   };
@@ -1151,7 +1146,9 @@ function suggestionDisplayCopy(
   const signalChips = Array.isArray(raw.signal_chips)
     ? raw.signal_chips.map(nonEmptyString).filter((chip): chip is string => chip !== null)
     : [];
-  const performanceEstimate = suggestionPerformanceEstimate(raw.performance_estimate);
+  const performanceEstimate = normalizePromotionSegmentPerformanceEstimate(
+    raw.performance_estimate
+  );
 
   return {
     title,
@@ -1162,34 +1159,6 @@ function suggestionDisplayCopy(
     reason,
     difference_summary: nonEmptyString(raw.difference_summary) ?? undefined,
     action_hint: actionHint
-  };
-}
-
-function suggestionPerformanceEstimate(
-  value: unknown
-): NonNullable<DashboardPromotionSegmentSuggestion["display_copy"]>["performance_estimate"] {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  const raw = value as Record<string, unknown>;
-  const metric = nonEmptyString(raw.metric);
-  const label = nonEmptyString(raw.label);
-  const formatted = nonEmptyString(raw.formatted);
-  const rawValue = raw.value;
-  const estimatedValue =
-    typeof rawValue === "number" || typeof rawValue === "string"
-      ? nullableRate(rawValue)
-      : null;
-  if (!metric || !label || !formatted || estimatedValue === null) {
-    return undefined;
-  }
-
-  return {
-    metric,
-    label,
-    value: estimatedValue,
-    formatted
   };
 }
 
