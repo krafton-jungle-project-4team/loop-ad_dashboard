@@ -1,7 +1,7 @@
-import * as React from "react"
-import { RadioGroup as RadioGroupPrimitive } from "radix-ui"
+import * as React from "react";
+import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 
-import { cn } from "@loopad/ui/shadcn/utils"
+import { cn } from "@loopad/ui/shadcn/utils";
 
 function RadioGroup({
   className,
@@ -13,7 +13,7 @@ function RadioGroup({
       className={cn("grid w-full gap-2", className)}
       {...props}
     />
-  )
+  );
 }
 
 function RadioGroupItem({
@@ -36,7 +36,7 @@ function RadioGroupItem({
         <span className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-foreground" />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
-  )
+  );
 }
 
-export { RadioGroup, RadioGroupItem }
+export { RadioGroup, RadioGroupItem };
