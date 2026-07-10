@@ -97,13 +97,7 @@ export function PromotionWorkspace({
             mode === "promotion" ? (
               <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
             ) : (
-              <EmptyState
-                message={
-                  mode === "promotionMetrics"
-                    ? "통계를 확인할 프로모션을 먼저 선택해주세요."
-                    : "세그먼트를 관리할 프로모션을 먼저 선택해주세요."
-                }
-              />
+              <EmptyState message="세그먼트를 관리할 프로모션을 먼저 선택해주세요." />
             )
           ) : null}
           {openPromotions.length > 0 && !isManagementView && !selectedOpenPromotion ? (

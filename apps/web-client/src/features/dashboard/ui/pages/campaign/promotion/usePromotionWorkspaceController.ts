@@ -56,13 +56,11 @@ import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
 
 const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
   promotion: ["overview"],
-  promotionMetrics: ["overview"],
   segment: ["segments", "segment-detail"]
 };
 
 const defaultPromotionWorkspaceTabByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab> = {
   promotion: "overview",
-  promotionMetrics: "overview",
   segment: "segments"
 };
 

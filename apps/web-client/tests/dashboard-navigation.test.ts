@@ -4,6 +4,10 @@ import {
   dashboardNavigationGroups,
   getDashboardTabByPath
 } from "../src/features/dashboard/model/dashboard-navigation.js";
+import {
+  defaultDashboardSearchQuery,
+  normalizeDashboardQuery
+} from "../src/features/dashboard/model/dashboard-query.js";
 
 test("dashboard sidebar exposes flat overview, campaign operations, and tools groups", () => {
   assert.deepEqual(
@@ -29,4 +33,13 @@ test("dashboard keeps legacy paths available while exposing the experiment route
   assert.equal(getDashboardTabByPath("campaign-promotions"), "campaign-promotions");
   assert.equal(getDashboardTabByPath("promotion-metrics"), "promotion-metrics");
   assert.equal(getDashboardTabByPath("experiments"), "experiments");
+});
+
+test("legacy promotion performance view opens the promotion overview", () => {
+  const query = normalizeDashboardQuery(
+    { ...defaultDashboardSearchQuery, promotionView: "performance" },
+    "demo_project"
+  );
+
+  assert.equal(query.promotionView, "overview");
 });

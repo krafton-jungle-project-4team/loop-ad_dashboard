@@ -25,7 +25,7 @@ export const defaultPromotionLandingUrl =
   "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 export const onsiteBannerImagePollIntervalMs = 3000;
 export type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
-export type PromotionWorkspaceMode = "promotion" | "promotionMetrics" | "segment";
+export type PromotionWorkspaceMode = "promotion" | "segment";
 export type PromotionAnalysisProgress = {
   analysisId: string | null;
   errorMessage: string | null;
