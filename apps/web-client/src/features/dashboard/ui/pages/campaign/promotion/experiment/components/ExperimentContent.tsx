@@ -22,13 +22,15 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   formatChannelLabel,
   formatMetricLabel,
   formatStatusLabel
 } from "../../../../../../model/dashboard-labels.js";
 import { formatDateTime, formatInteger } from "../../../../../../model/dashboard-format.js";
+import { useDashboardQueryState } from "../../../../../../model/dashboard-query.js";
+import type { DashboardQuery } from "../../../../../../model/dashboard-types.js";
 import { EmptyState } from "../../../../../shared/EmptyState.js";
 import {
   buildExperimentRows,
@@ -48,6 +50,7 @@ import {
 export function ExperimentContent({
   detail,
   isLoading,
+  query,
   selectedSegmentDetail,
   selectedSegmentDetailIsError,
   selectedSegmentDetailIsLoading,
@@ -55,23 +58,38 @@ export function ExperimentContent({
 }: {
   detail: DashboardCampaignDetail | undefined;
   isLoading: boolean;
+  query: DashboardQuery;
   selectedSegmentDetail: DashboardSegmentDetail | undefined;
   selectedSegmentDetailIsError: boolean;
   selectedSegmentDetailIsLoading: boolean;
   selectedSegmentId: string;
 }) {
-  const [promotionFilter, setPromotionFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<(typeof experimentPageSizeOptions)[number]>(10);
+  const [, setDashboardQueryState] = useDashboardQueryState();
   const rows = useMemo(() => (detail ? buildExperimentRows(detail) : []), [detail]);
   const statusOptions = uniqueValues(rows.map((row) => row.experimentStatus));
+  const promotionFilter =
+    query.experimentPromotionFilter === "all" ||
+    detail?.promotions.some(
+      (promotion) => promotion.promotion_id === query.experimentPromotionFilter
+    )
+      ? query.experimentPromotionFilter
+      : "all";
+  const statusFilter =
+    query.experimentStatusFilter === "all" || statusOptions.includes(query.experimentStatusFilter)
+      ? query.experimentStatusFilter
+      : "all";
+  const pageSize = experimentPageSizeOptions.includes(
+    query.experimentPageSize as (typeof experimentPageSizeOptions)[number]
+  )
+    ? (query.experimentPageSize as (typeof experimentPageSizeOptions)[number])
+    : 10;
   const filteredRows = rows.filter(
     (row) =>
       (promotionFilter === "all" || row.promotion?.promotion_id === promotionFilter) &&
       (statusFilter === "all" || row.experimentStatus === statusFilter)
   );
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const page = Math.max(1, query.experimentPage);
   const safePage = Math.min(page, pageCount);
   const pageRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
   const nextLoopCount = rows.filter((row) => row.nextLoopRequired).length;
@@ -84,10 +102,38 @@ export function ExperimentContent({
   );
 
   useEffect(() => {
-    if (page > pageCount) {
-      setPage(pageCount);
+    const nextQuery: Partial<DashboardQuery> = {};
+
+    if (promotionFilter !== query.experimentPromotionFilter) {
+      nextQuery.experimentPromotionFilter = promotionFilter;
+      nextQuery.experimentPage = 1;
     }
-  }, [page, pageCount]);
+    if (statusFilter !== query.experimentStatusFilter) {
+      nextQuery.experimentStatusFilter = statusFilter;
+      nextQuery.experimentPage = 1;
+    }
+    if (pageSize !== query.experimentPageSize) {
+      nextQuery.experimentPageSize = pageSize;
+      nextQuery.experimentPage = 1;
+    }
+    if (!nextQuery.experimentPage && page !== safePage) {
+      nextQuery.experimentPage = safePage;
+    }
+
+    if (Object.keys(nextQuery).length > 0) {
+      void setDashboardQueryState(nextQuery);
+    }
+  }, [
+    page,
+    pageSize,
+    promotionFilter,
+    query.experimentPageSize,
+    query.experimentPromotionFilter,
+    query.experimentStatusFilter,
+    safePage,
+    setDashboardQueryState,
+    statusFilter
+  ]);
 
   if (!detail) {
     return (
@@ -130,15 +176,17 @@ export function ExperimentContent({
             </CardDescription>
           </div>
           <Field className="w-full md:w-56">
-            <FieldLabel>프로모션</FieldLabel>
+            <FieldLabel id="experiment-promotion-filter-label">프로모션</FieldLabel>
             <Select
               onValueChange={(value) => {
-                setPromotionFilter(value);
-                setPage(1);
+                void setDashboardQueryState({
+                  experimentPage: 1,
+                  experimentPromotionFilter: value
+                });
               }}
               value={promotionFilter}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-labelledby="experiment-promotion-filter-label" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -152,15 +200,17 @@ export function ExperimentContent({
             </Select>
           </Field>
           <Field className="w-full md:w-44">
-            <FieldLabel>실험 상태</FieldLabel>
+            <FieldLabel id="experiment-status-filter-label">실험 상태</FieldLabel>
             <Select
               onValueChange={(value) => {
-                setStatusFilter(value);
-                setPage(1);
+                void setDashboardQueryState({
+                  experimentPage: 1,
+                  experimentStatusFilter: value
+                });
               }}
               value={statusFilter}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-labelledby="experiment-status-filter-label" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -183,10 +233,14 @@ export function ExperimentContent({
             <div className="grid gap-4">
               <ExperimentTable rows={pageRows} />
               <ExperimentPagination
-                onPageChange={setPage}
+                onPageChange={(nextPage) => {
+                  void setDashboardQueryState({ experimentPage: nextPage });
+                }}
                 onPageSizeChange={(value) => {
-                  setPageSize(value);
-                  setPage(1);
+                  void setDashboardQueryState({
+                    experimentPage: 1,
+                    experimentPageSize: value
+                  });
                 }}
                 page={safePage}
                 pageCount={pageCount}
@@ -337,14 +391,16 @@ function ExperimentPagination({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Field className="w-28">
-          <FieldLabel className="sr-only">페이지당 표시 개수</FieldLabel>
+          <FieldLabel className="sr-only" id="experiment-page-size-label">
+            페이지당 표시 개수
+          </FieldLabel>
           <Select
             onValueChange={(value) =>
               onPageSizeChange(Number(value) as (typeof experimentPageSizeOptions)[number])
             }
             value={String(pageSize)}
           >
-            <SelectTrigger className="h-9 w-full">
+            <SelectTrigger aria-labelledby="experiment-page-size-label" className="h-9 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

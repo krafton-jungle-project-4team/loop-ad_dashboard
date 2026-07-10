@@ -3,9 +3,20 @@ import type {
   DashboardCampaignSegment,
   DashboardEvaluatePromotionRunResult,
   DashboardPromotionScopedSegmentDefinition,
-  DashboardSegmentDetail,
-  DashboardPromotionSegmentSuggestion
+  DashboardPromotionSegmentSuggestion,
+  DashboardSegmentDetail
 } from "@loopad/shared";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -423,15 +434,6 @@ function PromotionCurrentSegmentsPanel({
                 isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
               }`}
               key={`${segment.segment_id}:${segment.analysis_id}`}
-              onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onSelectSegment(promotion.promotion_id, segment.segment_id);
-                }
-              }}
-              role="button"
-              tabIndex={0}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -471,18 +473,47 @@ function PromotionCurrentSegmentsPanel({
                     {formatStatusLabel(segment.status)}
                   </Badge>
                   <Button
-                    aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
-                    disabled={deleteIsPending}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDeleteSegment(promotion.promotion_id, segment.segment_id);
-                    }}
-                    size="icon"
+                    aria-pressed={isSelected}
+                    onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
+                    size="sm"
                     type="button"
-                    variant="ghost"
+                    variant={isSelected ? "default" : "outline"}
                   >
-                    <Trash2 className="size-4" />
+                    {isSelected ? "열림" : "선택"}
                   </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
+                        disabled={deleteIsPending}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>확정 세그먼트를 삭제할까요?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {segment.segment_name} 세그먼트가 현재 프로모션에서 삭제됩니다. 이 작업은
+                          되돌릴 수 없습니다.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() =>
+                            onDeleteSegment(promotion.promotion_id, segment.segment_id)
+                          }
+                          variant="destructive"
+                        >
+                          삭제
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </div>
@@ -711,7 +742,11 @@ function PromotionSegmentDetailTab({
                         <img
                           alt={`${contentCandidateTitle(candidate)} 이미지`}
                           className="aspect-video w-full rounded-md border object-cover"
+                          decoding="async"
+                          height={675}
+                          loading="lazy"
                           src={candidate.image_url}
+                          width={1200}
                         />
                       ) : null}
                       <div className="grid gap-3 md:grid-cols-2">
@@ -1108,16 +1143,37 @@ function PromotionSegmentSuggestionPanel({
                       <Badge variant={statusBadgeVariant(segment.status)}>
                         {formatStatusLabel(segment.status)}
                       </Badge>
-                      <Button
-                        aria-label={`${segment.segment_name} 직접 추가 후보 삭제`}
-                        disabled={archiveScopedSegmentIsPending}
-                        onClick={() => onArchiveScopedSegment(segment.segment_id)}
-                        size="icon"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            aria-label={`${segment.segment_name} 직접 추가 후보 삭제`}
+                            disabled={archiveScopedSegmentIsPending}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>직접 추가 후보를 삭제할까요?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {segment.segment_name} 후보가 목록에서 삭제됩니다. 이 작업은 되돌릴 수
+                              없습니다.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>취소</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => onArchiveScopedSegment(segment.segment_id)}
+                              variant="destructive"
+                            >
+                              삭제
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                   <div className="grid gap-2 text-sm text-muted-foreground">
@@ -1409,7 +1465,9 @@ function PromotionSegmentCreateDialog({
           <Field>
             <FieldLabel htmlFor="promotion-segment-name">세그먼트 이름</FieldLabel>
             <Input
+              autoComplete="off"
               id="promotion-segment-name"
+              name="promotionSegmentName"
               onChange={(event) => setForm({ ...form, segmentName: event.target.value })}
               placeholder="VIP 장기 미구매 고객"
               value={form.segmentName}
@@ -1419,6 +1477,7 @@ function PromotionSegmentCreateDialog({
             <FieldLabel htmlFor="promotion-segment-natural-query">생성 이유/조건 설명</FieldLabel>
             <Textarea
               id="promotion-segment-natural-query"
+              name="promotionSegmentNaturalLanguageQuery"
               onChange={(event) => setForm({ ...form, naturalLanguageQuery: event.target.value })}
               placeholder="최근 30일 내 상세 조회는 했지만 예약 전환이 없는 고객"
               value={form.naturalLanguageQuery}
@@ -1429,6 +1488,7 @@ function PromotionSegmentCreateDialog({
             <Textarea
               className="font-mono text-xs"
               id="promotion-segment-rule-json"
+              name="promotionSegmentRuleJson"
               onChange={(event) => setForm({ ...form, ruleJsonText: event.target.value })}
               value={form.ruleJsonText}
             />
@@ -1438,7 +1498,9 @@ function PromotionSegmentCreateDialog({
               <FieldLabel htmlFor="promotion-segment-sample-size">샘플 수</FieldLabel>
               <Input
                 id="promotion-segment-sample-size"
+                inputMode="numeric"
                 min="0"
+                name="promotionSegmentSampleSize"
                 onChange={(event) => setForm({ ...form, sampleSize: event.target.value })}
                 type="number"
                 value={form.sampleSize}
@@ -1448,7 +1510,9 @@ function PromotionSegmentCreateDialog({
               <FieldLabel htmlFor="promotion-segment-eligible-size">모수</FieldLabel>
               <Input
                 id="promotion-segment-eligible-size"
+                inputMode="numeric"
                 min="0"
+                name="promotionSegmentEligibleSize"
                 onChange={(event) =>
                   setForm({ ...form, totalEligibleUserCount: event.target.value })
                 }
@@ -1460,7 +1524,9 @@ function PromotionSegmentCreateDialog({
               <FieldLabel htmlFor="promotion-segment-sample-ratio">샘플 비율</FieldLabel>
               <Input
                 id="promotion-segment-sample-ratio"
+                inputMode="decimal"
                 min="0"
+                name="promotionSegmentSampleRatio"
                 onChange={(event) => setForm({ ...form, sampleRatio: event.target.value })}
                 step="0.001"
                 type="number"

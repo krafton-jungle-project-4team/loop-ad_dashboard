@@ -65,7 +65,9 @@ export function PromotionAddDialog({
             <Field>
               <FieldLabel htmlFor="promotion-create-theme">프로모션 이름</FieldLabel>
               <Input
+                autoComplete="off"
                 id="promotion-create-theme"
+                name="promotionTheme"
                 onChange={(event) => setForm({ ...form, marketingTheme: event.target.value })}
                 placeholder="여름 블랙 프라이데이"
                 value={form.marketingTheme}
@@ -75,6 +77,7 @@ export function PromotionAddDialog({
               <FieldLabel htmlFor="promotion-create-message-brief">프로모션 설명</FieldLabel>
               <Textarea
                 id="promotion-create-message-brief"
+                name="promotionMessageBrief"
                 onChange={(event) => setForm({ ...form, messageBrief: event.target.value })}
                 placeholder="여름 휴가를 준비하는 20-30대 사용자를 대상으로 제주/오키나와 숙소 예약을 유도하는 여행 프로모션입니다. 인기 여행지, 조기 예약 할인, 후기 기반 추천을 강조합니다."
                 rows={4}
@@ -83,12 +86,15 @@ export function PromotionAddDialog({
             </Field>
             <div className="grid gap-4 md:grid-cols-2">
               <Field>
-                <FieldLabel>채널</FieldLabel>
+                <FieldLabel id="promotion-create-channel-label">채널</FieldLabel>
                 <Select
                   onValueChange={(value) => setForm({ ...form, channel: value })}
                   value={form.channel}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger
+                    aria-labelledby="promotion-create-channel-label"
+                    className="w-full"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -103,12 +109,15 @@ export function PromotionAddDialog({
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <Field>
-                <FieldLabel>목표 지표</FieldLabel>
+                <FieldLabel id="promotion-create-goal-metric-label">목표 지표</FieldLabel>
                 <Select
                   onValueChange={(value) => setForm({ ...form, goalMetric: value })}
                   value={form.goalMetric}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger
+                    aria-labelledby="promotion-create-goal-metric-label"
+                    className="w-full"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -124,7 +133,9 @@ export function PromotionAddDialog({
                 <FieldLabel htmlFor="promotion-create-goal">목표값</FieldLabel>
                 <Input
                   id="promotion-create-goal"
+                  inputMode="decimal"
                   min="0"
+                  name="promotionGoalTargetValue"
                   onChange={(event) => setForm({ ...form, goalTargetValue: event.target.value })}
                   step="0.001"
                   type="number"
@@ -132,12 +143,15 @@ export function PromotionAddDialog({
                 />
               </Field>
               <Field>
-                <FieldLabel>목표 기준</FieldLabel>
+                <FieldLabel id="promotion-create-goal-basis-label">목표 기준</FieldLabel>
                 <Select
                   onValueChange={(value) => setForm({ ...form, goalBasis: value })}
                   value={form.goalBasis}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger
+                    aria-labelledby="promotion-create-goal-basis-label"
+                    className="w-full"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -155,7 +169,9 @@ export function PromotionAddDialog({
                 <FieldLabel htmlFor="promotion-create-sample">최소 표본</FieldLabel>
                 <Input
                   id="promotion-create-sample"
+                  inputMode="numeric"
                   min="0"
+                  name="promotionMinSampleSize"
                   onChange={(event) => setForm({ ...form, minSampleSize: event.target.value })}
                   type="number"
                   value={form.minSampleSize}
@@ -165,7 +181,9 @@ export function PromotionAddDialog({
                 <FieldLabel htmlFor="promotion-create-loop">최대 루프</FieldLabel>
                 <Input
                   id="promotion-create-loop"
+                  inputMode="numeric"
                   min="1"
+                  name="promotionMaxLoopCount"
                   onChange={(event) => setForm({ ...form, maxLoopCount: event.target.value })}
                   type="number"
                   value={form.maxLoopCount}
@@ -175,7 +193,9 @@ export function PromotionAddDialog({
             <Field>
               <FieldLabel htmlFor="promotion-create-landing-url">랜딩 URL</FieldLabel>
               <Input
+                autoComplete="url"
                 id="promotion-create-landing-url"
+                name="promotionLandingUrl"
                 onChange={(event) => setForm({ ...form, landingUrl: event.target.value })}
                 placeholder={defaultPromotionLandingUrl}
                 type="url"

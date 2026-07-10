@@ -7,6 +7,17 @@ import type {
   DashboardMain
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -496,14 +507,30 @@ function CampaignEditForm({
         status={status}
       />
       <DialogFooter className="border-t pt-5">
-        <Button
-          disabled={isPending}
-          onClick={() => onDelete(campaign.campaign_id)}
-          type="button"
-          variant="outline"
-        >
-          {isPending ? "삭제 중" : "캠페인 삭제"}
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button disabled={isPending} type="button" variant="outline">
+              {isPending ? "삭제 중" : "캠페인 삭제"}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>캠페인을 삭제할까요?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {campaign.campaign_name} 캠페인이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>취소</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => onDelete(campaign.campaign_id)}
+                variant="destructive"
+              >
+                삭제
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <Button onClick={onCancel} type="button" variant="ghost">
           취소
         </Button>
@@ -561,7 +588,9 @@ function CampaignFormFields({
       <Field>
         <FieldLabel htmlFor="dashboard-campaign-name">캠페인 이름</FieldLabel>
         <Input
+          autoComplete="off"
           id="dashboard-campaign-name"
+          name="campaignName"
           onChange={(event) => onCampaignNameChange(event.target.value)}
           placeholder="여름 특가 캠페인"
           value={campaignName}
@@ -571,6 +600,7 @@ function CampaignFormFields({
         <FieldLabel htmlFor="dashboard-campaign-objective">목표</FieldLabel>
         <Textarea
           id="dashboard-campaign-objective"
+          name="campaignObjective"
           onChange={(event) => onObjectiveChange(event.target.value)}
           placeholder="기존 유저의 예약 전환 증가"
           value={objective}
@@ -578,9 +608,12 @@ function CampaignFormFields({
       </Field>
       <div className="grid gap-3 md:grid-cols-2">
         <Field>
-          <FieldLabel>주요 지표</FieldLabel>
+          <FieldLabel id="dashboard-campaign-primary-metric-label">주요 지표</FieldLabel>
           <Select onValueChange={onPrimaryMetricChange} value={primaryMetric}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger
+              aria-labelledby="dashboard-campaign-primary-metric-label"
+              className="w-full"
+            >
               <SelectValue placeholder="주요 지표 선택" />
             </SelectTrigger>
             <SelectContent>
@@ -598,7 +631,9 @@ function CampaignFormFields({
         <Field>
           <FieldLabel htmlFor="dashboard-campaign-start-date">시작일</FieldLabel>
           <Input
+            autoComplete="off"
             id="dashboard-campaign-start-date"
+            name="campaignStartDate"
             onChange={(event) => onStartDateChange(event.target.value)}
             type="date"
             value={startDate}
@@ -607,16 +642,18 @@ function CampaignFormFields({
         <Field>
           <FieldLabel htmlFor="dashboard-campaign-end-date">종료일</FieldLabel>
           <Input
+            autoComplete="off"
             id="dashboard-campaign-end-date"
+            name="campaignEndDate"
             onChange={(event) => onEndDateChange(event.target.value)}
             type="date"
             value={endDate}
           />
         </Field>
         <Field>
-          <FieldLabel>상태</FieldLabel>
+          <FieldLabel id="dashboard-campaign-status-label">상태</FieldLabel>
           <Select onValueChange={onStatusChange} value={status}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger aria-labelledby="dashboard-campaign-status-label" className="w-full">
               <SelectValue placeholder="상태 선택" />
             </SelectTrigger>
             <SelectContent>

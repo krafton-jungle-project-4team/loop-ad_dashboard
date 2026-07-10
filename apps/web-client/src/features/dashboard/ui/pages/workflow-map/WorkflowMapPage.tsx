@@ -59,14 +59,7 @@ import {
   Workflow,
   X
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentType,
-  type ReactNode
-} from "react";
+import { useCallback, useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import { fetchDashboardCampaignDetail } from "../../../api/dashboard-api.js";
 import {
   formatActionLabel,
@@ -210,7 +203,6 @@ const emptyGraph: CampaignFlowGraph = {
 
 export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const [, setDashboardQueryState] = useDashboardQueryState();
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
     data.campaigns[0];
@@ -226,14 +218,11 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
       void setDashboardQueryState({
         selectedCampaignId: selectedCampaign.campaign_id,
         selectedPromotionId: "",
-        selectedSegmentId: ""
+        selectedSegmentId: "",
+        selectedWorkflowNodeId: ""
       });
     }
   }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
-
-  useEffect(() => {
-    setSelectedNodeId(null);
-  }, [selectedCampaignId]);
 
   const graph = useMemo(
     () =>
@@ -242,16 +231,20 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
         : emptyGraph,
     [campaignDetail.data, query.projectId]
   );
-  const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId) ?? null;
-  const handleNodeClick = useCallback<NodeMouseHandler<CampaignFlowNode>>((_, node) => {
-    setSelectedNodeId(node.id);
-  }, []);
+  const selectedNode = graph.nodes.find((node) => node.id === query.selectedWorkflowNodeId) ?? null;
+  const handleNodeClick = useCallback<NodeMouseHandler<CampaignFlowNode>>(
+    (_, node) => {
+      void setDashboardQueryState({ selectedWorkflowNodeId: node.id });
+    },
+    [setDashboardQueryState]
+  );
   const handleCampaignChange = useCallback(
     (campaignId: string) => {
       void setDashboardQueryState({
         selectedCampaignId: campaignId,
         selectedPromotionId: "",
-        selectedSegmentId: ""
+        selectedSegmentId: "",
+        selectedWorkflowNodeId: ""
       });
     },
     [setDashboardQueryState]
@@ -301,7 +294,9 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
               nodesDraggable={false}
               nodeTypes={nodeTypes}
               onNodeClick={handleNodeClick}
-              onPaneClick={() => setSelectedNodeId(null)}
+              onPaneClick={() => {
+                void setDashboardQueryState({ selectedWorkflowNodeId: "" });
+              }}
               panOnScroll
               proOptions={{ hideAttribution: true }}
               selectNodesOnDrag={false}
@@ -336,7 +331,7 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
         node={selectedNode}
         onOpenChange={(open) => {
           if (!open) {
-            setSelectedNodeId(null);
+            void setDashboardQueryState({ selectedWorkflowNodeId: "" });
           }
         }}
       />
@@ -378,7 +373,10 @@ function CampaignFlowToolbar({
           onValueChange={onCampaignChange}
           value={selectedCampaignId || undefined}
         >
-          <SelectTrigger className="h-8 w-full min-w-0 text-xs sm:w-[280px]">
+          <SelectTrigger
+            aria-label="워크플로우 맵 캠페인"
+            className="h-8 w-full min-w-0 text-xs sm:w-[280px]"
+          >
             <SelectValue placeholder="캠페인 선택" />
           </SelectTrigger>
           <SelectContent>

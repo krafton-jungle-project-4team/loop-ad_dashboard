@@ -8,6 +8,16 @@ import {
 } from "@loopad/shared";
 import { Area, AreaChart, CartesianGrid, LabelList, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -32,6 +42,7 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useBlocker } from "@tanstack/react-router";
 import { ChevronDown, GripHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   useId,
@@ -69,6 +80,11 @@ type FunnelDraftStep = {
 
 type DraftDialogMode = "create" | "edit";
 
+type FunnelDraftSnapshot = {
+  funnelName: string;
+  steps: FunnelDraftStep[];
+};
+
 const DEFAULT_STEPS: FunnelDraftStep[] = [
   { step_name: "", event_name: "" },
   { step_name: "", event_name: "" }
@@ -88,6 +104,10 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   const [draftLoadError, setDraftLoadError] = useState<string | null>(null);
   const [funnelName, setFunnelName] = useState("");
   const [steps, setSteps] = useState(() => createDefaultSteps());
+  const draftBaselineRef = useRef<FunnelDraftSnapshot>(
+    createFunnelDraftSnapshot("", createDefaultSteps())
+  );
+  const [isDiscardDraftDialogOpen, setIsDiscardDraftDialogOpen] = useState(false);
   const [selectedFunnelId, setSelectedFunnelId] = useState("");
   const [detailPanelHeight, setDetailPanelHeight] = useState(() => getDetailPanelDefaultHeight());
   const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
@@ -121,6 +141,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
     mutationFn: () => createDashboardFunnel(query, createFunnelRequest(funnelName, steps)),
     onSuccess: async () => {
       resetDraft();
+      setDraftBaseline("", createDefaultSteps());
       setIsCreateDialogOpen(false);
       await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
     }
@@ -134,6 +155,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
     },
     onSuccess: async (result) => {
       resetDraft();
+      setDraftBaseline("", createDefaultSteps());
       setEditingFunnelId("");
       setDraftDialogMode("create");
       setIsCreateDialogOpen(false);
@@ -156,6 +178,20 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   });
   const isEditMode = draftDialogMode === "edit";
   const isDraftSaving = createMutation.isPending || updateMutation.isPending;
+  const hasDirtyDraft =
+    isCreateDialogOpen &&
+    !isDraftLoading &&
+    !isDraftSaving &&
+    !areFunnelDraftSnapshotsEqual(
+      createFunnelDraftSnapshot(funnelName, steps),
+      draftBaselineRef.current
+    );
+  const navigationBlocker = useBlocker({
+    disabled: !hasDirtyDraft,
+    enableBeforeUnload: hasDirtyDraft,
+    shouldBlockFn: () => true,
+    withResolver: true
+  });
   const draftMutationError = createMutation.error ?? updateMutation.error;
   const isEventCatalogEmpty = eventCatalog.isSuccess && eventOptions.length === 0;
   const canSave =
@@ -409,7 +445,9 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                   <FieldLabel htmlFor="funnel-name">사용자 여정 이름</FieldLabel>
                   <Input
                     disabled={isDraftLoading || isDraftSaving}
+                    autoComplete="off"
                     id="funnel-name"
+                    name="funnelName"
                     onChange={(event) => setFunnelName(event.target.value)}
                     value={funnelName}
                   />
@@ -487,7 +525,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
           <DialogFooter className="px-8 py-5">
             <Button
               disabled={isDraftSaving}
-              onClick={() => handleCreateDialogOpenChange(false)}
+              onClick={requestCloseDraftDialog}
               type="button"
               variant="ghost"
             >
@@ -499,6 +537,29 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelDiscardDraft();
+          }
+        }}
+        open={isDiscardDraftDialogOpen || navigationBlocker.status === "blocked"}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>작성 중인 변경사항을 버릴까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              저장하지 않은 사용자 여정 변경사항이 사라집니다. 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDiscardDraft}>계속 편집</AlertDialogCancel>
+            <AlertDialogAction onClick={discardDraftAndContinue} variant="destructive">
+              변경사항 버리기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
@@ -507,16 +568,48 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   }
 
   function handleCreateDialogOpenChange(isOpen: boolean) {
-    setIsCreateDialogOpen(isOpen);
     if (!isOpen) {
-      createMutation.reset();
-      updateMutation.reset();
-      setDraftDialogMode("create");
-      setDraftLoadError(null);
-      setEditingFunnelId("");
-      setIsDraftLoading(false);
-      resetDraft();
+      requestCloseDraftDialog();
+      return;
     }
+
+    setIsCreateDialogOpen(true);
+  }
+
+  function closeDraftDialogNow() {
+    setIsCreateDialogOpen(false);
+    createMutation.reset();
+    updateMutation.reset();
+    setDraftDialogMode("create");
+    setDraftLoadError(null);
+    setEditingFunnelId("");
+    setIsDraftLoading(false);
+    resetDraft();
+    setDraftBaseline("", createDefaultSteps());
+  }
+
+  function requestCloseDraftDialog() {
+    if (hasDirtyDraft) {
+      setIsDiscardDraftDialogOpen(true);
+      return;
+    }
+
+    closeDraftDialogNow();
+  }
+
+  function cancelDiscardDraft() {
+    setIsDiscardDraftDialogOpen(false);
+    navigationBlocker.reset?.();
+  }
+
+  function discardDraftAndContinue() {
+    setIsDiscardDraftDialogOpen(false);
+    if (navigationBlocker.status === "blocked") {
+      navigationBlocker.proceed?.();
+      return;
+    }
+
+    closeDraftDialogNow();
   }
 
   function openCreateDialog() {
@@ -527,6 +620,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
     setEditingFunnelId("");
     setIsDraftLoading(false);
     resetDraft();
+    setDraftBaseline("", createDefaultSteps());
     setIsCreateDialogOpen(true);
   }
 
@@ -622,8 +716,10 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
         queryFn: ({ signal }) => fetchDashboardFunnel(query, funnelId, signal),
         queryKey: dashboardFunnelDetailQueryKey(query.projectId, funnelId)
       });
+      const draftSteps = createDraftStepsFromFunnel(funnel);
       setFunnelName(funnel.funnel_name);
-      setSteps(createDraftStepsFromFunnel(funnel));
+      setSteps(draftSteps);
+      setDraftBaseline(funnel.funnel_name, draftSteps);
     } catch (error) {
       setDraftLoadError(mutationErrorMessage(error));
     } finally {
@@ -638,6 +734,10 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   function resetDraft() {
     setFunnelName("");
     setSteps(createDefaultSteps());
+  }
+
+  function setDraftBaseline(nextFunnelName: string, nextSteps: FunnelDraftStep[]) {
+    draftBaselineRef.current = createFunnelDraftSnapshot(nextFunnelName, nextSteps);
   }
 
   function saveFunnel() {
@@ -733,6 +833,34 @@ function FunnelMetricTable({ steps }: { steps: DashboardFunnelMetricStep[] }) {
 
 function createDefaultSteps(): FunnelDraftStep[] {
   return DEFAULT_STEPS.map((step) => ({ ...step }));
+}
+
+function createFunnelDraftSnapshot(
+  funnelName: string,
+  steps: FunnelDraftStep[]
+): FunnelDraftSnapshot {
+  return {
+    funnelName: funnelName.trim(),
+    steps: steps.map((step) => ({
+      event_name: step.event_name.trim(),
+      step_name: step.step_name.trim()
+    }))
+  };
+}
+
+function areFunnelDraftSnapshotsEqual(
+  left: FunnelDraftSnapshot,
+  right: FunnelDraftSnapshot
+): boolean {
+  if (left.funnelName !== right.funnelName || left.steps.length !== right.steps.length) {
+    return false;
+  }
+
+  return left.steps.every(
+    (step, index) =>
+      step.event_name === right.steps[index]?.event_name &&
+      step.step_name === right.steps[index]?.step_name
+  );
 }
 
 function createDraftStepsFromFunnel(funnel: DashboardFunnel): FunnelDraftStep[] {

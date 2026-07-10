@@ -63,16 +63,10 @@ export function CampaignPromotionTable({
               return (
                 <TableRow
                   aria-selected={selectedPromotionId === promotion.promotion_id}
-                  className="cursor-pointer"
+                  data-state={
+                    selectedPromotionId === promotion.promotion_id ? "selected" : undefined
+                  }
                   key={promotion.promotion_id}
-                  onClick={() => onSelectPromotion(promotion.promotion_id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onSelectPromotion(promotion.promotion_id);
-                    }
-                  }}
-                  tabIndex={0}
                 >
                   <TableCell>
                     <div className="flex min-w-[220px] flex-col gap-1">
@@ -123,11 +117,10 @@ export function CampaignPromotionTable({
                   </TableCell>
                   <TableCell>
                     <Button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onSelectPromotion(promotion.promotion_id);
-                      }}
+                      aria-pressed={selectedPromotionId === promotion.promotion_id}
+                      onClick={() => onSelectPromotion(promotion.promotion_id)}
                       size="sm"
+                      type="button"
                       variant={
                         selectedPromotionId === promotion.promotion_id ? "default" : "outline"
                       }
