@@ -384,32 +384,6 @@ function SegmentSuggestionReportDialog({
   );
 }
 
-export function SegmentDetailReportCard({
-  suggestion
-}: {
-  suggestion: DashboardPromotionSegmentSuggestion | null;
-}) {
-  const report = suggestion?.ai_report ?? null;
-
-  return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base">세그먼트 리포트</CardTitle>
-        <CardDescription>
-          AI가 정리한 고객군 성격, 추천 근거, 활용 방법을 확인합니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {report ? (
-          <SegmentSuggestionReportContent suggestion={suggestion} />
-        ) : (
-          <EmptyState message="이 세그먼트에 연결된 AI 추천 리포트가 없습니다." />
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 function SegmentSuggestionReportContent({
   suggestion
 }: {

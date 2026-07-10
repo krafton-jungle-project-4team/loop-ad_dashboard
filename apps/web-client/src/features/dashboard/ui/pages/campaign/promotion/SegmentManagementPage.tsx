@@ -5,7 +5,6 @@ import { PromotionWorkspace } from "./PromotionComponent.js";
 
 const segmentViews = [
   { label: "관리", value: "manage" },
-  { label: "개요", value: "overview" },
   { label: "AI 추천", value: "recommendations" },
   { label: "실험", value: "experiments" }
 ] as const;

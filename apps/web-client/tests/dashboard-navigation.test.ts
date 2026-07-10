@@ -44,11 +44,16 @@ test("legacy promotion performance view opens the promotion overview", () => {
   assert.equal(query.promotionView, "overview");
 });
 
-test("legacy segment creative view opens the segment experiment workspace", () => {
-  const query = normalizeDashboardQuery(
+test("legacy segment detail views open the segment experiment workspace", () => {
+  const creativeQuery = normalizeDashboardQuery(
     { ...defaultDashboardSearchQuery, segmentView: "creative" },
     "demo_project"
   );
+  const overviewQuery = normalizeDashboardQuery(
+    { ...defaultDashboardSearchQuery, segmentView: "overview" },
+    "demo_project"
+  );
 
-  assert.equal(query.segmentView, "experiments");
+  assert.equal(creativeQuery.segmentView, "experiments");
+  assert.equal(overviewQuery.segmentView, "experiments");
 });

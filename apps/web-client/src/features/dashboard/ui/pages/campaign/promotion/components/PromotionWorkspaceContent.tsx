@@ -53,7 +53,6 @@ import {
   formatStatusLabel
 } from "../../../../../model/dashboard-labels.js";
 import type { SegmentWorkspaceView } from "../../../../../model/dashboard-types.js";
-import { useDashboardQueryState } from "../../../../../model/dashboard-query.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import { EntityWorkspaceEmptyState } from "../../../../shared/EntityWorkspace.js";
 import {
@@ -72,10 +71,7 @@ import {
   type PromotionWorkspaceTab
 } from "../promotionUtils.js";
 import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow.js";
-import {
-  PromotionSegmentSuggestionPanel,
-  SegmentDetailReportCard
-} from "./PromotionSegmentSuggestions.js";
+import { PromotionSegmentSuggestionPanel } from "./PromotionSegmentSuggestions.js";
 
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   overview: "프로모션 개요",
@@ -408,8 +404,6 @@ export function PromotionTabWorkspace({
   visibleTabs: PromotionWorkspaceTab[];
 }) {
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
-  const selectedSegmentSuggestion =
-    suggestions.find((suggestion) => suggestion.segment_id === selectedSegmentId) ?? null;
   const showsOverviewTab = visibleTabs.includes("overview");
   const showsSegmentsTab = visibleTabs.includes("segments");
   const showsSegmentDetailTab = visibleTabs.includes("segment-detail");
@@ -517,7 +511,6 @@ export function PromotionTabWorkspace({
               onRejectContentCandidate={onRejectContentCandidate}
               onStartGeneration={onStartGeneration}
               rejectContentCandidateIsPending={rejectContentCandidateIsPending}
-              segmentSuggestion={selectedSegmentSuggestion}
               view={segmentView}
               selectedSegmentId={selectedSegmentId}
               launchExperimentIsPending={launchExperimentIsPending}
@@ -746,7 +739,6 @@ function PromotionSegmentDetailTab({
   onRejectContentCandidate,
   onStartGeneration,
   rejectContentCandidateIsPending,
-  segmentSuggestion,
   selectedSegmentId,
   view
 }: {
@@ -773,12 +765,9 @@ function PromotionSegmentDetailTab({
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
   rejectContentCandidateIsPending: boolean;
-  segmentSuggestion: DashboardPromotionSegmentSuggestion | null;
   selectedSegmentId: string;
   view: SegmentWorkspaceView;
 }) {
-  const [, setDashboardQueryState] = useDashboardQueryState();
-
   if (!selectedSegmentId) {
     return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
   }
@@ -1026,20 +1015,6 @@ function PromotionSegmentDetailTab({
           launchExperimentResult={launchExperimentResult}
           onLaunchExperiment={onLaunchExperiment}
         />
-      ) : null}
-
-      {view === "overview" ? (
-        <section className="grid gap-3">
-          <div className="flex justify-end">
-            <Button
-              onClick={() => void setDashboardQueryState({ segmentView: "creative" })}
-              type="button"
-            >
-              광고 소재 만들기
-            </Button>
-          </div>
-          <SegmentDetailReportCard suggestion={segmentSuggestion} />
-        </section>
       ) : null}
     </section>
   );

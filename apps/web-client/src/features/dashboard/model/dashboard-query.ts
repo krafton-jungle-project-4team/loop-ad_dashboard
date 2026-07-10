@@ -167,5 +167,5 @@ export function normalizePromotionWorkspaceView(
 export function normalizeSegmentWorkspaceView(
   view: DashboardQuery["segmentView"]
 ): DashboardQuery["segmentView"] {
-  return view === "creative" ? "experiments" : view;
+  return view === "creative" || view === "overview" ? "experiments" : view;
 }
