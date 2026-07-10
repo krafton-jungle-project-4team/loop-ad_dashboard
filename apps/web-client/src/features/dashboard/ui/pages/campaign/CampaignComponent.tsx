@@ -1,10 +1,12 @@
-import type {
-  DashboardAdExperiment,
-  DashboardCampaignDetail,
-  DashboardCampaignExperimentMetric,
-  DashboardCampaignSummary,
-  DashboardFunnelList,
-  DashboardMain
+import {
+  DashboardCampaignPrimaryMetricSchema,
+  DashboardCampaignStatusSchema,
+  type DashboardAdExperiment,
+  type DashboardCampaignDetail,
+  type DashboardCampaignExperimentMetric,
+  type DashboardCampaignSummary,
+  type DashboardFunnelList,
+  type DashboardMain
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
@@ -21,14 +23,7 @@ import {
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@loopad/ui/shadcn/dialog";
+import { DialogFooter } from "@loopad/ui/shadcn/dialog";
 import { Field, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
@@ -61,6 +56,7 @@ import type { DashboardQuery, DashboardTab } from "../../../model/dashboard-type
 import { CampaignPromotionTable } from "./promotion/components/CampaignPromotionTable.js";
 import { EmptyState } from "../../shared/EmptyState.js";
 import { ScopedFunnelAnalysisPanel } from "../../shared/ScopedFunnelAnalysisPanel.js";
+import { DashboardFormDialog } from "../../shared/DashboardFormDialog.js";
 import {
   EntityWorkspaceEmptyState,
   EntityWorkspaceMetricCard,
@@ -68,15 +64,9 @@ import {
   EntityWorkspaceTabs
 } from "../../shared/EntityWorkspace.js";
 
-const campaignPrimaryMetricOptions = [
-  "inflow_rate",
-  "booking_conversion_rate",
-  "funnel_step_rate",
-  "promotion_click_rate",
-  "goal_achievement_rate"
-] as const;
+const campaignPrimaryMetricOptions = DashboardCampaignPrimaryMetricSchema.options;
 
-const campaignStatusOptions = ["draft", "active", "paused", "completed", "stopped"] as const;
+const campaignStatusOptions = DashboardCampaignStatusSchema.options;
 type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
 type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
 type CampaignFormDialogState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
@@ -340,55 +330,52 @@ function CampaignFormDialog({
   const isCreateMode = mode === "create";
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto p-0 sm:max-w-3xl">
-        <DialogHeader className="border-b px-8 py-6">
-          <DialogTitle className="text-2xl font-semibold">
-            {isCreateMode ? "새 캠페인 추가" : "캠페인 수정"}
-          </DialogTitle>
-          <DialogDescription>
-            {isCreateMode
-              ? "새 캠페인을 생성하고 탭으로 엽니다."
-              : "선택한 캠페인의 이름, 목표, 기간, 상태를 수정합니다."}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 px-8 py-6">
-          {isCreateMode && createIsError ? (
-            <Alert variant="destructive">
-              <AlertTitle>캠페인을 생성하지 못했습니다</AlertTitle>
-              <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
-            </Alert>
-          ) : null}
-          {!isCreateMode && updateIsError ? (
-            <Alert variant="destructive">
-              <AlertTitle>캠페인을 수정하지 못했습니다</AlertTitle>
-              <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
-            </Alert>
-          ) : null}
-          {!isCreateMode && deleteIsError ? (
-            <Alert variant="destructive">
-              <AlertTitle>캠페인을 삭제하지 못했습니다</AlertTitle>
-              <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
-            </Alert>
-          ) : null}
-          {isCreateMode ? (
-            <CampaignCreateForm
-              isPending={createIsPending}
-              onCancel={() => onOpenChange(false)}
-              onSubmit={onCreate}
-            />
-          ) : (
-            <CampaignEditForm
-              campaign={campaign}
-              isPending={updateIsPending || deleteIsPending}
-              onCancel={() => onOpenChange(false)}
-              onDelete={onDelete}
-              onSubmit={onUpdate}
-            />
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <DashboardFormDialog
+      description={
+        isCreateMode
+          ? "새 캠페인을 생성하고 탭으로 엽니다."
+          : "선택한 캠페인의 이름, 목표, 기간, 상태를 수정합니다."
+      }
+      onOpenChange={onOpenChange}
+      open={open}
+      title={isCreateMode ? "새 캠페인 추가" : "캠페인 수정"}
+    >
+      <div className="grid gap-4 px-8 py-6">
+        {isCreateMode && createIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>캠페인을 생성하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {!isCreateMode && updateIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>캠페인을 수정하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {!isCreateMode && deleteIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>캠페인을 삭제하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
+          </Alert>
+        ) : null}
+        {isCreateMode ? (
+          <CampaignCreateForm
+            isPending={createIsPending}
+            onCancel={() => onOpenChange(false)}
+            onSubmit={onCreate}
+          />
+        ) : (
+          <CampaignEditForm
+            campaign={campaign}
+            isPending={updateIsPending || deleteIsPending}
+            onCancel={() => onOpenChange(false)}
+            onDelete={onDelete}
+            onSubmit={onUpdate}
+          />
+        )}
+      </div>
+    </DashboardFormDialog>
   );
 }
 
@@ -403,7 +390,6 @@ function CampaignCreateForm({
 }) {
   const [campaignName, setCampaignName] = useState("");
   const [objective, setObjective] = useState("");
-  const [primaryMetric, setPrimaryMetric] = useState<string>("none");
   const [status, setStatus] = useState<CreateCampaignInput["status"]>("draft");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -418,10 +404,8 @@ function CampaignCreateForm({
         onCampaignNameChange={setCampaignName}
         onEndDateChange={setEndDate}
         onObjectiveChange={setObjective}
-        onPrimaryMetricChange={setPrimaryMetric}
         onStartDateChange={setStartDate}
         onStatusChange={(nextStatus) => setStatus(nextStatus as CreateCampaignInput["status"])}
-        primaryMetric={primaryMetric}
         startDate={startDate}
         status={status}
       />
@@ -437,7 +421,6 @@ function CampaignCreateForm({
               campaign_name: campaignName.trim(),
               end_date: nullableDate(endDate),
               objective: nullableText(objective),
-              primary_metric: nullableMetric(primaryMetric),
               start_date: nullableDate(startDate),
               status
             })
@@ -499,10 +482,9 @@ function CampaignEditForm({
         onCampaignNameChange={setCampaignName}
         onEndDateChange={setEndDate}
         onObjectiveChange={setObjective}
-        onPrimaryMetricChange={setPrimaryMetric}
+        primaryMetricControl={{ onValueChange: setPrimaryMetric, value: primaryMetric }}
         onStartDateChange={setStartDate}
         onStatusChange={setStatus}
-        primaryMetric={primaryMetric}
         startDate={startDate}
         status={status}
       />
@@ -563,10 +545,9 @@ function CampaignFormFields({
   onCampaignNameChange,
   onEndDateChange,
   onObjectiveChange,
-  onPrimaryMetricChange,
   onStartDateChange,
   onStatusChange,
-  primaryMetric,
+  primaryMetricControl,
   startDate,
   status
 }: {
@@ -576,10 +557,9 @@ function CampaignFormFields({
   onCampaignNameChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onObjectiveChange: (value: string) => void;
-  onPrimaryMetricChange: (value: string) => void;
   onStartDateChange: (value: string) => void;
   onStatusChange: (value: string) => void;
-  primaryMetric: string;
+  primaryMetricControl?: { onValueChange: (value: string) => void; value: string };
   startDate: string;
   status: string;
 }) {
@@ -606,10 +586,13 @@ function CampaignFormFields({
           value={objective}
         />
       </Field>
-      <div className="grid gap-3 md:grid-cols-2">
+      {primaryMetricControl ? (
         <Field>
           <FieldLabel id="dashboard-campaign-primary-metric-label">주요 지표</FieldLabel>
-          <Select onValueChange={onPrimaryMetricChange} value={primaryMetric}>
+          <Select
+            onValueChange={primaryMetricControl.onValueChange}
+            value={primaryMetricControl.value}
+          >
             <SelectTrigger
               aria-labelledby="dashboard-campaign-primary-metric-label"
               className="w-full"
@@ -626,7 +609,7 @@ function CampaignFormFields({
             </SelectContent>
           </Select>
         </Field>
-      </div>
+      ) : null}
       <div className="grid gap-3 md:grid-cols-3">
         <Field>
           <FieldLabel htmlFor="dashboard-campaign-start-date">시작일</FieldLabel>
@@ -999,8 +982,8 @@ function nullableDate(value: string): string | null {
   return value.trim() ? value : null;
 }
 
-function nullableMetric(value: string): CreateCampaignInput["primary_metric"] {
-  return value === "none" ? null : (value as CreateCampaignInput["primary_metric"]);
+function nullableMetric(value: string): UpdateCampaignInput["primary_metric"] {
+  return value === "none" ? null : (value as UpdateCampaignInput["primary_metric"]);
 }
 
 function nullableText(value: string): string | null {

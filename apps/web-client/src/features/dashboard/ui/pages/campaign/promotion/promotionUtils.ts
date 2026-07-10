@@ -1,44 +1,27 @@
-import type {
-  DashboardCampaignPromotion,
-  DashboardCampaignSegment,
-  DashboardCreatePromotionSegmentDefinitionRequest,
-  DashboardCreatePromotionRequest,
-  DashboardPromotionSegmentSuggestion,
-  DashboardSegmentDetail
+import {
+  DashboardPromotionChannelSchema,
+  DashboardPromotionGoalBasisSchema,
+  DashboardPromotionGoalMetricSchema,
+  DashboardPromotionStatusSchema,
+  type DashboardCampaignPromotion,
+  type DashboardCampaignSegment,
+  type DashboardCreatePromotionSegmentDefinitionRequest,
+  type DashboardCreatePromotionRequest,
+  type DashboardPromotionSegmentSuggestion,
+  type DashboardSegmentDetail
 } from "@loopad/shared";
 import { formatInteger } from "../../../../model/dashboard-format.js";
 import { formatMetricLabel } from "../../../../model/dashboard-labels.js";
 
-export const promotionChannelOptions = ["email", "sms", "onsite_banner"] as const;
-export const promotionStatusOptions = [
-  "draft",
-  "analysis_ready",
-  "content_ready",
-  "approved",
-  "running",
-  "evaluating",
-  "partial_goal_met",
-  "goal_met",
-  "goal_not_met",
-  "stopped"
-] as const;
+export const promotionChannelOptions = DashboardPromotionChannelSchema.options;
+export const promotionStatusOptions = DashboardPromotionStatusSchema.options;
 
 export const promotionGoalMetricOptions = [
-  {
-    label: formatMetricLabel("inflow_rate"),
-    requestMetric: "inflow_rate",
-    value: "inflow_rate"
-  },
-  {
-    label: formatMetricLabel("booking_conversion_rate"),
-    requestMetric: "booking_conversion_rate",
-    value: "booking_conversion_rate"
-  },
-  {
-    label: formatMetricLabel("funnel_step_rate"),
-    requestMetric: "funnel_step_rate",
-    value: "funnel_step_rate"
-  },
+  ...DashboardPromotionGoalMetricSchema.options.map((metric) => ({
+    label: formatMetricLabel(metric),
+    requestMetric: metric,
+    value: metric
+  })),
   { label: "광고 클릭률", requestMetric: "inflow_rate", value: "ad_click_rate" },
   {
     label: "랜딩페이지 전환율",
@@ -61,7 +44,7 @@ export const promotionGoalMetricOptions = [
   requestMetric: DashboardCreatePromotionRequest["goal_metric"];
   value: string;
 }>;
-export const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
+export const promotionGoalBasisOptions = DashboardPromotionGoalBasisSchema.options;
 export const defaultPromotionLandingUrl =
   "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 export const onsiteBannerImagePollIntervalMs = 3000;
