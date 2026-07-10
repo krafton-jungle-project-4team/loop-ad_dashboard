@@ -14,7 +14,7 @@ import {
   Terminal,
   type LucideIcon
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const registryInstallCode = `# .npmrc
 @krafton-jungle-project-4team:registry=https://npm.pkg.github.com
@@ -531,12 +531,28 @@ function GuideStep({
 
 function CodeBlock({ code, language, title }: { code: string; language: string; title: string }) {
   const [copied, setCopied] = useState(false);
+  const resetCopiedTimeoutRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (resetCopiedTimeoutRef.current !== null) {
+        window.clearTimeout(resetCopiedTimeoutRef.current);
+      }
+    },
+    []
+  );
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(code);
+      if (resetCopiedTimeoutRef.current !== null) {
+        window.clearTimeout(resetCopiedTimeoutRef.current);
+      }
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      resetCopiedTimeoutRef.current = window.setTimeout(() => {
+        setCopied(false);
+        resetCopiedTimeoutRef.current = null;
+      }, 1600);
     } catch {
       setCopied(false);
     }

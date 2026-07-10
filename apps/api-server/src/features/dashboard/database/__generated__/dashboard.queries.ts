@@ -1942,7 +1942,7 @@ export interface IConfirmDashboardPromotionSegmentSuggestionsQuery {
   result: IConfirmDashboardPromotionSegmentSuggestionsResult;
 }
 
-const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"manualAnalysisId":true,"confirmedBy":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":697,"b":706},{"a":1312,"b":1321},{"a":2891,"b":2900}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":735,"b":746},{"a":1349,"b":1360},{"a":2929,"b":2940},{"a":3094,"b":3105}]},{"name":"manualAnalysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":818,"b":834}]},{"name":"confirmedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":2142,"b":2153}]}],"statement":"WITH accepted_suggestions AS (\n  SELECT\n    pss.analysis_id,\n    pss.project_id,\n    pss.campaign_id,\n    pss.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    pss.suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'suggestion_id', pss.suggestion_id,\n      'score', pss.score_json,\n      'reason', pss.reason_json,\n      'display_copy', pss.metadata_json->'display_copy',\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM promotion_segment_suggestions pss\n  JOIN segment_definitions sd\n    ON sd.segment_id = pss.segment_id\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.status = 'accepted'\n),\nmanual_segments AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    sd.project_id,\n    sd.campaign_id,\n    sd.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    NULL::varchar AS suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'query_preview_id', sd.query_preview_id,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM segment_definitions sd\n  WHERE sd.project_id = :projectId\n    AND sd.promotion_id = :promotionId\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n),\nconfirmed AS (\n  INSERT INTO promotion_target_segments (\n    analysis_id,\n    project_id,\n    campaign_id,\n    promotion_id,\n    segment_id,\n    segment_name,\n    rule_json,\n    profile_json,\n    content_brief_json,\n    data_evidence_json,\n    estimated_size,\n    priority,\n    status,\n    suggestion_id,\n    confirmed_by,\n    confirmed_at\n  )\n  SELECT\n    selected.analysis_id,\n    selected.project_id,\n    selected.campaign_id,\n    selected.promotion_id,\n    selected.segment_id,\n    selected.segment_name,\n    selected.rule_json,\n    selected.profile_json,\n    '{}'::jsonb,\n    selected.data_evidence_json,\n    selected.sample_size,\n    NULL,\n    'planned',\n    selected.suggestion_id,\n    :confirmedBy,\n    now()\n  FROM (\n    SELECT * FROM accepted_suggestions\n    UNION ALL\n    SELECT * FROM manual_segments\n  ) selected\n  ON CONFLICT (analysis_id, segment_id) DO UPDATE\n  SET\n    suggestion_id = EXCLUDED.suggestion_id,\n    confirmed_by = EXCLUDED.confirmed_by,\n    confirmed_at = EXCLUDED.confirmed_at,\n    status = CASE\n      WHEN promotion_target_segments.status = 'stopped' THEN 'planned'\n      ELSE promotion_target_segments.status\n    END\n  RETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", suggestion_id AS \"suggestionId\"\n),\nupdated AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND EXISTS (\n      SELECT 1\n      FROM confirmed c\n      WHERE c.\"suggestionId\" = pss.suggestion_id\n    )\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed                                      "};
+const confirmDashboardPromotionSegmentSuggestionsIR: any = {"params":[{"locs":[{"a":697,"b":706},{"a":1312,"b":1321},{"a":1676,"b":1685},{"a":3853,"b":3862}],"name":"projectId","required":false,"transform":{"type":"scalar"}},{"locs":[{"a":735,"b":746},{"a":1349,"b":1360},{"a":1714,"b":1725},{"a":3891,"b":3902},{"a":4056,"b":4067}],"name":"promotionId","required":false,"transform":{"type":"scalar"}},{"locs":[{"a":818,"b":834}],"name":"manualAnalysisId","required":false,"transform":{"type":"scalar"}},{"locs":[{"a":3096,"b":3107}],"name":"confirmedBy","required":false,"transform":{"type":"scalar"}}],"statement":"WITH accepted_suggestions AS (\n  SELECT\n    pss.analysis_id,\n    pss.project_id,\n    pss.campaign_id,\n    pss.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    pss.suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'suggestion_id', pss.suggestion_id,\n      'score', pss.score_json,\n      'reason', pss.reason_json,\n      'display_copy', pss.metadata_json->'display_copy',\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM promotion_segment_suggestions pss\n  JOIN segment_definitions sd\n    ON sd.segment_id = pss.segment_id\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.status = 'accepted'\n),\nmanual_segments AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    sd.project_id,\n    sd.campaign_id,\n    sd.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    NULL::varchar AS suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'query_preview_id', sd.query_preview_id,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM segment_definitions sd\n  WHERE sd.project_id = :projectId\n    AND sd.promotion_id = :promotionId\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n),\nselected_segments AS (\n  SELECT * FROM accepted_suggestions\n  UNION ALL\n  SELECT * FROM manual_segments\n),\nreset_unselected_approved AS (\n  UPDATE promotion_target_segments pts\n  SET status = 'planned'\n  WHERE pts.project_id = :projectId\n    AND pts.promotion_id = :promotionId\n    AND pts.status = 'approved'\n    AND EXISTS (\n      SELECT 1\n      FROM selected_segments selected\n      WHERE selected.project_id = pts.project_id\n        AND selected.campaign_id = pts.campaign_id\n        AND selected.promotion_id = pts.promotion_id\n        AND selected.analysis_id = pts.analysis_id\n    )\n    AND NOT EXISTS (\n      SELECT 1\n      FROM selected_segments selected\n      WHERE selected.project_id = pts.project_id\n        AND selected.campaign_id = pts.campaign_id\n        AND selected.promotion_id = pts.promotion_id\n        AND selected.analysis_id = pts.analysis_id\n        AND selected.segment_id = pts.segment_id\n    )\n  RETURNING pts.segment_id\n),\nconfirmed AS (\n  INSERT INTO promotion_target_segments (\n    analysis_id,\n    project_id,\n    campaign_id,\n    promotion_id,\n    segment_id,\n    segment_name,\n    rule_json,\n    profile_json,\n    content_brief_json,\n    data_evidence_json,\n    estimated_size,\n    priority,\n    status,\n    suggestion_id,\n    confirmed_by,\n    confirmed_at\n  )\n  SELECT\n    selected.analysis_id,\n    selected.project_id,\n    selected.campaign_id,\n    selected.promotion_id,\n    selected.segment_id,\n    selected.segment_name,\n    selected.rule_json,\n    selected.profile_json,\n    '{}'::jsonb,\n    selected.data_evidence_json,\n    selected.sample_size,\n    NULL,\n    'approved',\n    selected.suggestion_id,\n    :confirmedBy,\n    now()\n  FROM selected_segments selected,\n       (SELECT count(*) FROM reset_unselected_approved) dependency\n  ON CONFLICT (analysis_id, segment_id) DO UPDATE\n  SET\n    suggestion_id = EXCLUDED.suggestion_id,\n    confirmed_by = EXCLUDED.confirmed_by,\n    confirmed_at = EXCLUDED.confirmed_at,\n    status = CASE\n      WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'\n      ELSE promotion_target_segments.status\n    END\n  RETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", suggestion_id AS \"suggestionId\"\n),\nupdated AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND EXISTS (\n      SELECT 1\n      FROM confirmed c\n      WHERE c.\"suggestionId\" = pss.suggestion_id\n    )\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed","usedParamSet":{"confirmedBy":true,"manualAnalysisId":true,"projectId":true,"promotionId":true}};
 
 /**
  * Query generated from SQL:
@@ -1999,6 +1999,36 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"pro
  *     AND sd.source IN ('custom_chatkit', 'manual_rule')
  *     AND sd.status = 'active'
  * ),
+ * selected_segments AS (
+ *   SELECT * FROM accepted_suggestions
+ *   UNION ALL
+ *   SELECT * FROM manual_segments
+ * ),
+ * reset_unselected_approved AS (
+ *   UPDATE promotion_target_segments pts
+ *   SET status = 'planned'
+ *   WHERE pts.project_id = :projectId
+ *     AND pts.promotion_id = :promotionId
+ *     AND pts.status = 'approved'
+ *     AND EXISTS (
+ *       SELECT 1
+ *       FROM selected_segments selected
+ *       WHERE selected.project_id = pts.project_id
+ *         AND selected.campaign_id = pts.campaign_id
+ *         AND selected.promotion_id = pts.promotion_id
+ *         AND selected.analysis_id = pts.analysis_id
+ *     )
+ *     AND NOT EXISTS (
+ *       SELECT 1
+ *       FROM selected_segments selected
+ *       WHERE selected.project_id = pts.project_id
+ *         AND selected.campaign_id = pts.campaign_id
+ *         AND selected.promotion_id = pts.promotion_id
+ *         AND selected.analysis_id = pts.analysis_id
+ *         AND selected.segment_id = pts.segment_id
+ *     )
+ *   RETURNING pts.segment_id
+ * ),
  * confirmed AS (
  *   INSERT INTO promotion_target_segments (
  *     analysis_id,
@@ -2031,22 +2061,19 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"pro
  *     selected.data_evidence_json,
  *     selected.sample_size,
  *     NULL,
- *     'planned',
+ *     'approved',
  *     selected.suggestion_id,
  *     :confirmedBy,
  *     now()
- *   FROM (
- *     SELECT * FROM accepted_suggestions
- *     UNION ALL
- *     SELECT * FROM manual_segments
- *   ) selected
+ *   FROM selected_segments selected,
+ *        (SELECT count(*) FROM reset_unselected_approved) dependency
  *   ON CONFLICT (analysis_id, segment_id) DO UPDATE
  *   SET
  *     suggestion_id = EXCLUDED.suggestion_id,
  *     confirmed_by = EXCLUDED.confirmed_by,
  *     confirmed_at = EXCLUDED.confirmed_at,
  *     status = CASE
- *       WHEN promotion_target_segments.status = 'stopped' THEN 'planned'
+ *       WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'
  *       ELSE promotion_target_segments.status
  *     END
  *   RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", suggestion_id AS "suggestionId"
@@ -2068,7 +2095,7 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"pro
  * SELECT
  *   (:promotionId)::varchar AS "promotionId",
  *   COUNT(*)::int AS "confirmedSegmentCount"
- * FROM confirmed                                      
+ * FROM confirmed
  * ```
  */
 export const confirmDashboardPromotionSegmentSuggestions = new PreparedQuery<IConfirmDashboardPromotionSegmentSuggestionsParams,IConfirmDashboardPromotionSegmentSuggestionsResult>(confirmDashboardPromotionSegmentSuggestionsIR);

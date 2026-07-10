@@ -1,68 +1,27 @@
-import type {
-  DashboardCampaignPromotion,
-  DashboardCampaignSegment,
-  DashboardCreatePromotionSegmentDefinitionRequest,
-  DashboardCreatePromotionRequest,
-  DashboardPromotionSegmentSuggestion,
-  DashboardSegmentDetail
+import {
+  DashboardPromotionChannelSchema,
+  DashboardPromotionGoalBasisSchema,
+  DashboardPromotionGoalMetricSchema,
+  DashboardPromotionStatusSchema,
+  type DashboardCampaignPromotion,
+  type DashboardCampaignSegment,
+  type DashboardCreatePromotionSegmentDefinitionRequest,
+  type DashboardCreatePromotionRequest,
+  type DashboardPromotionSegmentSuggestion,
+  type DashboardSegmentDetail
 } from "@loopad/shared";
 import { formatInteger } from "../../../../model/dashboard-format.js";
 import { formatMetricLabel } from "../../../../model/dashboard-labels.js";
 
-export const promotionChannelOptions = ["email", "sms", "onsite_banner"] as const;
-export const promotionStatusOptions = [
-  "draft",
-  "analysis_ready",
-  "content_ready",
-  "approved",
-  "running",
-  "evaluating",
-  "partial_goal_met",
-  "goal_met",
-  "goal_not_met",
-  "stopped"
-] as const;
+export const promotionChannelOptions = DashboardPromotionChannelSchema.options;
+export const promotionStatusOptions = DashboardPromotionStatusSchema.options;
 
-export const promotionGoalMetricOptions = [
-  {
-    label: formatMetricLabel("inflow_rate"),
-    requestMetric: "inflow_rate",
-    value: "inflow_rate"
-  },
-  {
-    label: formatMetricLabel("booking_conversion_rate"),
-    requestMetric: "booking_conversion_rate",
-    value: "booking_conversion_rate"
-  },
-  {
-    label: formatMetricLabel("funnel_step_rate"),
-    requestMetric: "funnel_step_rate",
-    value: "funnel_step_rate"
-  },
-  { label: "광고 클릭률", requestMetric: "inflow_rate", value: "ad_click_rate" },
-  {
-    label: "랜딩페이지 전환율",
-    requestMetric: "booking_conversion_rate",
-    value: "landing_page_conversion_rate"
-  },
-  { label: "일일 활성 사용자수", requestMetric: "inflow_rate", value: "daily_active_users" },
-  {
-    label: "결제 직전 이탈율",
-    requestMetric: "funnel_step_rate",
-    value: "checkout_abandonment_rate"
-  },
-  {
-    label: "구매전환율",
-    requestMetric: "booking_conversion_rate",
-    value: "purchase_conversion_rate"
-  }
-] satisfies Array<{
-  label: string;
-  requestMetric: DashboardCreatePromotionRequest["goal_metric"];
-  value: string;
-}>;
-export const promotionGoalBasisOptions = ["promotion_average", "all_segments"] as const;
-export const defaultPromotionLandingUrl = "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
+export const promotionGoalMetricOptions = DashboardPromotionGoalMetricSchema.options.map(
+  (metric) => ({ label: formatMetricLabel(metric), value: metric })
+);
+export const promotionGoalBasisOptions = DashboardPromotionGoalBasisSchema.options;
+export const defaultPromotionLandingUrl =
+  "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 export const onsiteBannerImagePollIntervalMs = 3000;
 export type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 export type PromotionWorkspaceMode = "promotion" | "promotionMetrics" | "segment";
@@ -81,7 +40,6 @@ export const defaultPromotionAnalysisProgress: PromotionAnalysisProgress = {
 };
 export const promotionAnalysisProgressCacheTimeMs = 1000 * 60 * 30;
 
-
 export function uniquePromotionsById(
   promotions: DashboardCampaignPromotion[]
 ): DashboardCampaignPromotion[] {
@@ -94,11 +52,10 @@ export function uniquePromotionsById(
   return [...promotionMap.values()];
 }
 
-
 export type PromotionCreateFormState = {
   channel: string;
   goalBasis: string;
-  goalMetric: string;
+  goalMetric: DashboardCreatePromotionRequest["goal_metric"];
   goalTargetValue: string;
   landingUrl: string;
   marketingTheme: string;
@@ -127,7 +84,7 @@ export function promotionCreateFormToRequest(
   return {
     channel: form.channel as DashboardCreatePromotionRequest["channel"],
     goal_basis: form.goalBasis as DashboardCreatePromotionRequest["goal_basis"],
-    goal_metric: promotionGoalMetricToRequestMetric(form.goalMetric),
+    goal_metric: form.goalMetric,
     goal_target_value: nonnegativeNumber(form.goalTargetValue),
     landing_url: form.landingUrl.trim(),
     marketing_theme: form.marketingTheme.trim(),
@@ -136,15 +93,6 @@ export function promotionCreateFormToRequest(
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     status: "draft"
   };
-}
-
-export function promotionGoalMetricToRequestMetric(
-  metric: string
-): DashboardCreatePromotionRequest["goal_metric"] {
-  return (
-    promotionGoalMetricOptions.find((option) => option.value === metric)?.requestMetric ??
-    "inflow_rate"
-  );
 }
 
 export function isValidHttpUrl(value: string) {
@@ -198,7 +146,6 @@ export function promotionSegmentCreateFormToRequest(
   };
 }
 
-
 export function latestSegmentPerSegmentId(segments: DashboardCampaignSegment[]) {
   const latestSegments = new Map<string, DashboardCampaignSegment>();
   for (const segment of segments) {
@@ -240,7 +187,9 @@ export function formatPercentValue(value: number) {
 
 type SegmentDisplayCopy = NonNullable<DashboardPromotionSegmentSuggestion["display_copy"]>;
 
-export function campaignSegmentDisplayCopy(segment: DashboardCampaignSegment): SegmentDisplayCopy | null {
+export function campaignSegmentDisplayCopy(
+  segment: DashboardCampaignSegment
+): SegmentDisplayCopy | null {
   return normalizeSegmentDisplayCopy(segment.data_evidence_json.display_copy);
 }
 
@@ -311,11 +260,15 @@ export function nonEmptyText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-export function contentCandidateTitle(candidate: DashboardSegmentDetail["content_candidates"][number]) {
+export function contentCandidateTitle(
+  candidate: DashboardSegmentDetail["content_candidates"][number]
+) {
   return candidate.title ?? candidate.subject ?? candidate.message ?? candidate.content_id;
 }
 
-export function contentCandidateMessage(candidate: DashboardSegmentDetail["content_candidates"][number]) {
+export function contentCandidateMessage(
+  candidate: DashboardSegmentDetail["content_candidates"][number]
+) {
   return candidate.body ?? candidate.message ?? candidate.generation_prompt ?? "-";
 }
 

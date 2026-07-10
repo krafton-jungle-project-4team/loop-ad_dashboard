@@ -1,49 +1,6 @@
-import type {
-  DashboardCampaignPromotion,
-  DashboardCampaignDetail,
-  DashboardCampaignSegment,
-  DashboardCreatePromotionSegmentDefinitionRequest,
-  DashboardCreatePromotionRequest,
-  DashboardEvaluatePromotionRunResult,
-  DashboardMain,
-  DashboardPromotionScopedSegmentDefinition,
-  DashboardSegmentDetail,
-  DashboardPromotionSegmentSuggestion,
-  DashboardStartPromotionGenerationResult
-} from "@loopad/shared";
-import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button } from "@loopad/ui/shadcn/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@loopad/ui/shadcn/dialog";
-import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
-import { Input } from "@loopad/ui/shadcn/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@loopad/ui/shadcn/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@loopad/ui/shadcn/table";
-import { Textarea } from "@loopad/ui/shadcn/textarea";
+import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import {
   confirmDashboardPromotionSegmentSuggestions,
   archiveDashboardPromotionScopedSegmentDefinition,
@@ -68,14 +25,6 @@ import {
   startDashboardPromotionAnalysis,
   startDashboardPromotionGeneration
 } from "../../../../api/dashboard-api.js";
-import { formatInteger } from "../../../../model/dashboard-format.js";
-import {
-  formatActionLabel,
-  formatBasisLabel,
-  formatChannelLabel,
-  formatMetricLabel,
-  formatStatusLabel
-} from "../../../../model/dashboard-labels.js";
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
@@ -87,9 +36,14 @@ import {
 } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
+import { EntityWorkspaceShell } from "../../../shared/EntityWorkspace.js";
 
 import { PromotionAddDialog } from "./components/PromotionDialogs.js";
-import { PromotionChromeTabs, PromotionEmptyState, PromotionTabWorkspace } from "./components/PromotionWorkspaceContent.js";
+import {
+  PromotionChromeTabs,
+  PromotionEmptyState,
+  PromotionTabWorkspace
+} from "./components/PromotionWorkspaceContent.js";
 import {
   defaultPromotionAnalysisProgress,
   hasPendingOnsiteBannerImage,
@@ -310,23 +264,14 @@ export function PromotionWorkspace({
       query.projectId,
       selectedOpenPromotion?.promotion_id ?? "",
       selectedPromotionSegmentId
-    )
+    ),
+    refetchInterval: (segmentDetailQuery) =>
+      selectedOpenPromotion?.channel === "onsite_banner" &&
+      hasPendingOnsiteBannerImage(segmentDetailQuery.state.data)
+        ? onsiteBannerImagePollIntervalMs
+        : false,
+    refetchIntervalInBackground: false
   });
-  const isPollingOnsiteBannerImage = Boolean(
-    selectedOpenPromotion?.channel === "onsite_banner" &&
-    hasPendingOnsiteBannerImage(segmentDetail.data)
-  );
-  useEffect(() => {
-    if (!isPollingOnsiteBannerImage) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      void segmentDetail.refetch();
-    }, onsiteBannerImagePollIntervalMs);
-
-    return () => window.clearInterval(intervalId);
-  }, [isPollingOnsiteBannerImage, segmentDetail.refetch]);
   const segmentSuggestions = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
     queryFn: ({ signal }) =>
@@ -737,138 +682,137 @@ export function PromotionWorkspace({
     startAnalysisMutation.isPending || analysisProgress.data.status === "pending";
 
   return (
-    <section className="overflow-hidden rounded-[18px] bg-white shadow-none ring-1 ring-black/10">
-      {mode === "promotion" ? (
-        <PromotionChromeTabs
-          onAdd={() => setIsAddDialogOpen(true)}
-          onClosePromotion={closePromotion}
-          onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
-          openPromotions={openPromotions}
-          selectedPromotionId={selectedOpenPromotion?.promotion_id ?? ""}
-        />
+    <EntityWorkspaceShell
+      chrome={
+        mode === "promotion" ? (
+          <PromotionChromeTabs
+            onAdd={() => setIsAddDialogOpen(true)}
+            onClosePromotion={closePromotion}
+            onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
+            openPromotions={openPromotions}
+            selectedPromotionId={selectedOpenPromotion?.promotion_id ?? ""}
+          />
+        ) : null
+      }
+    >
+      {!selectedCampaign ? <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." /> : null}
+      {selectedCampaign && campaignDetail.isLoading ? (
+        <EmptyState message="프로모션 데이터를 불러오는 중입니다." />
       ) : null}
-      <div className="grid gap-6 px-6 py-6">
-        {!selectedCampaign ? (
-          <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." />
-        ) : null}
-        {selectedCampaign && campaignDetail.isLoading ? (
-          <EmptyState message="프로모션 데이터를 불러오는 중입니다." />
-        ) : null}
-        {campaignDetail.data ? (
-          <>
-            {openPromotions.length === 0 ? (
-              mode === "promotion" ? (
-                <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
-              ) : (
-                <EmptyState
-                  message={
-                    mode === "promotionMetrics"
-                      ? "통계를 확인할 프로모션을 먼저 선택해주세요."
-                      : "세그먼트를 관리할 프로모션을 먼저 선택해주세요."
-                  }
-                />
-              )
-            ) : null}
-            {selectedOpenPromotion ? (
-              <PromotionTabWorkspace
-                approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
-                confirmIsPending={confirmSuggestionsMutation.isPending}
-                decideIsPending={decideSuggestionMutation.isPending}
-                deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}
-                dispatchPromotionRunIsPending={dispatchPromotionRunMutation.isPending}
-                createPromotionRunIsPending={createPromotionRunMutation.isPending}
-                buildAssignmentsIsPending={buildPromotionRunAssignmentsMutation.isPending}
-                evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
-                evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
-                createNextLoopIsPending={createNextLoopMutation.isPending}
-                archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
-                onArchiveScopedSegment={(segmentId) => {
-                  if (!selectedOpenPromotion) {
-                    return;
-                  }
-                  archiveScopedSegmentMutation.mutate({
-                    promotionId: selectedOpenPromotion.promotion_id,
-                    segmentId
-                  });
-                }}
-                onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
-                onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
-                onDecideSuggestion={(suggestionId, status) =>
-                  decideSuggestionMutation.mutate({ status, suggestionId })
+      {campaignDetail.data ? (
+        <>
+          {openPromotions.length === 0 ? (
+            mode === "promotion" ? (
+              <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
+            ) : (
+              <EmptyState
+                message={
+                  mode === "promotionMetrics"
+                    ? "통계를 확인할 프로모션을 먼저 선택해주세요."
+                    : "세그먼트를 관리할 프로모션을 먼저 선택해주세요."
                 }
-                onDeleteConfirmedSegment={(promotionId, segmentId) =>
-                  deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
-                }
-                onApproveContentCandidate={(promotionId, segmentId, contentId) =>
-                  approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-                }
-                onCreatePromotionRun={(promotionId, analysisId, generationId) =>
-                  createPromotionRunMutation.mutate({ analysisId, generationId, promotionId })
-                }
-                onBuildAssignments={(promotionRunId) =>
-                  buildPromotionRunAssignmentsMutation.mutate(promotionRunId)
-                }
-                onEvaluatePromotionRun={(promotionRunId) =>
-                  evaluatePromotionRunMutation.mutate(promotionRunId)
-                }
-                onCreateNextLoop={(promotionRunId, failedSegmentIds, failedAdExperimentIds) =>
-                  createNextLoopMutation.mutate({
-                    failedAdExperimentIds,
-                    failedSegmentIds,
-                    promotionRunId
-                  })
-                }
-                onDispatchPromotionRun={(promotionRunId) =>
-                  dispatchPromotionRunMutation.mutate(promotionRunId)
-                }
-                onRejectContentCandidate={(promotionId, segmentId, contentId) =>
-                  rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
-                }
-                onStartAnalysis={startPromotionAnalysis}
-                onStartGeneration={(analysisId) => {
-                  if (!selectedOpenPromotion) {
-                    return;
-                  }
-                  startGenerationMutation.mutate({
-                    analysisId,
-                    promotionId: selectedOpenPromotion.promotion_id
-                  });
-                }}
-                onStartAdExperiment={(promotionId, adExperimentId) =>
-                  startAdExperimentMutation.mutate({ adExperimentId, promotionId })
-                }
-                onSelectSegment={selectSegment}
-                onTabChange={setWorkspaceTab}
-                promotion={selectedOpenPromotion}
-                promotionAnalysisIsPending={promotionAnalysisIsPending}
-                promotionGenerationIsPending={startGenerationMutation.isPending}
-                rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
-                startAdExperimentIsPending={startAdExperimentMutation.isPending}
-                segments={selectedPromotionSegments}
-                scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
-                scopedSegmentsIsLoading={scopedSegmentDefinitions.isLoading}
-                scopedSegmentCreateIsPending={createScopedSegmentMutation.isPending}
-                selectedSegmentDetail={segmentDetail.data}
-                selectedSegmentDetailIsError={segmentDetail.isError}
-                selectedSegmentDetailIsLoading={segmentDetail.isLoading}
-                selectedSegmentId={selectedPromotionSegmentId}
-                suggestions={segmentSuggestions.data?.suggestions ?? []}
-                suggestionsIsLoading={segmentSuggestions.isLoading}
-                tab={workspaceTab}
-                visibleTabs={visibleTabs}
               />
-            ) : null}
-            {mode === "promotion" ? (
-              <PromotionAddDialog
-                createIsPending={createPromotionMutation.isPending}
-                onCreate={(form) => createPromotionMutation.mutate(form)}
-                onOpenChange={setIsAddDialogOpen}
-                open={isAddDialogOpen}
-              />
-            ) : null}
-          </>
-        ) : null}
-      </div>
-    </section>
+            )
+          ) : null}
+          {selectedOpenPromotion ? (
+            <PromotionTabWorkspace
+              approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
+              confirmIsPending={confirmSuggestionsMutation.isPending}
+              decideIsPending={decideSuggestionMutation.isPending}
+              deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}
+              dispatchPromotionRunIsPending={dispatchPromotionRunMutation.isPending}
+              createPromotionRunIsPending={createPromotionRunMutation.isPending}
+              buildAssignmentsIsPending={buildPromotionRunAssignmentsMutation.isPending}
+              evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
+              evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
+              createNextLoopIsPending={createNextLoopMutation.isPending}
+              archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
+              onArchiveScopedSegment={(segmentId) => {
+                if (!selectedOpenPromotion) {
+                  return;
+                }
+                archiveScopedSegmentMutation.mutate({
+                  promotionId: selectedOpenPromotion.promotion_id,
+                  segmentId
+                });
+              }}
+              onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
+              onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
+              onDecideSuggestion={(suggestionId, status) =>
+                decideSuggestionMutation.mutate({ status, suggestionId })
+              }
+              onDeleteConfirmedSegment={(promotionId, segmentId) =>
+                deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
+              }
+              onApproveContentCandidate={(promotionId, segmentId, contentId) =>
+                approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+              }
+              onCreatePromotionRun={(promotionId, analysisId, generationId) =>
+                createPromotionRunMutation.mutate({ analysisId, generationId, promotionId })
+              }
+              onBuildAssignments={(promotionRunId) =>
+                buildPromotionRunAssignmentsMutation.mutate(promotionRunId)
+              }
+              onEvaluatePromotionRun={(promotionRunId) =>
+                evaluatePromotionRunMutation.mutate(promotionRunId)
+              }
+              onCreateNextLoop={(promotionRunId, failedSegmentIds, failedAdExperimentIds) =>
+                createNextLoopMutation.mutate({
+                  failedAdExperimentIds,
+                  failedSegmentIds,
+                  promotionRunId
+                })
+              }
+              onDispatchPromotionRun={(promotionRunId) =>
+                dispatchPromotionRunMutation.mutate(promotionRunId)
+              }
+              onRejectContentCandidate={(promotionId, segmentId, contentId) =>
+                rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+              }
+              onStartAnalysis={startPromotionAnalysis}
+              onStartGeneration={(analysisId) => {
+                if (!selectedOpenPromotion) {
+                  return;
+                }
+                startGenerationMutation.mutate({
+                  analysisId,
+                  promotionId: selectedOpenPromotion.promotion_id
+                });
+              }}
+              onStartAdExperiment={(promotionId, adExperimentId) =>
+                startAdExperimentMutation.mutate({ adExperimentId, promotionId })
+              }
+              onSelectSegment={selectSegment}
+              onTabChange={setWorkspaceTab}
+              promotion={selectedOpenPromotion}
+              promotionAnalysisIsPending={promotionAnalysisIsPending}
+              promotionGenerationIsPending={startGenerationMutation.isPending}
+              rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
+              startAdExperimentIsPending={startAdExperimentMutation.isPending}
+              segments={selectedPromotionSegments}
+              scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
+              scopedSegmentsIsLoading={scopedSegmentDefinitions.isLoading}
+              scopedSegmentCreateIsPending={createScopedSegmentMutation.isPending}
+              selectedSegmentDetail={segmentDetail.data}
+              selectedSegmentDetailIsError={segmentDetail.isError}
+              selectedSegmentDetailIsLoading={segmentDetail.isLoading}
+              selectedSegmentId={selectedPromotionSegmentId}
+              suggestions={segmentSuggestions.data?.suggestions ?? []}
+              suggestionsIsLoading={segmentSuggestions.isLoading}
+              tab={workspaceTab}
+              visibleTabs={visibleTabs}
+            />
+          ) : null}
+          {mode === "promotion" ? (
+            <PromotionAddDialog
+              createIsPending={createPromotionMutation.isPending}
+              onCreate={(form) => createPromotionMutation.mutate(form)}
+              onOpenChange={setIsAddDialogOpen}
+              open={isAddDialogOpen}
+            />
+          ) : null}
+        </>
+      ) : null}
+    </EntityWorkspaceShell>
   );
 }

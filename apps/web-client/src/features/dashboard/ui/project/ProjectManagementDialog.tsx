@@ -120,7 +120,9 @@ export function ProjectManagementDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>프로젝트 관리</DialogTitle>
-          <DialogDescription>대시보드에서 사용할 프로젝트를 생성하거나 삭제합니다.</DialogDescription>
+          <DialogDescription>
+            대시보드에서 사용할 프로젝트를 생성하거나 삭제합니다.
+          </DialogDescription>
         </DialogHeader>
 
         <form
@@ -133,9 +135,7 @@ export function ProjectManagementDialog({
               <Input
                 autoComplete="off"
                 id="project-name"
-                onChange={(event) =>
-                  handleProjectInputChange("project_name", event.target.value)
-                }
+                onChange={(event) => handleProjectInputChange("project_name", event.target.value)}
                 required
                 value={form.project_name}
               />
@@ -145,7 +145,7 @@ export function ProjectManagementDialog({
               <Input
                 autoComplete="off"
                 id="project-domain"
-                onChange={(event) => handleProjectInputChange("domain", event.target.value)}                
+                onChange={(event) => handleProjectInputChange("domain", event.target.value)}
                 required
                 value={form.domain}
               />

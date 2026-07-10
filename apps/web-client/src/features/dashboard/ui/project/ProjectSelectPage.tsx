@@ -1,7 +1,6 @@
 import type { DashboardProject } from "@loopad/shared";
 import { Avatar, AvatarFallback } from "@loopad/ui/shadcn/avatar";
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent } from "@loopad/ui/shadcn/card";
 import { Skeleton } from "@loopad/ui/shadcn/skeleton";
 import { cn } from "@loopad/ui/shadcn/utils";
@@ -95,10 +94,7 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
         <CardContent className="grid h-full gap-3 p-4 text-center">
           <Avatar className="mx-auto size-20 rounded-lg" size="lg">
             <AvatarFallback
-              className={cn(
-                "rounded-lg text-2xl font-semibold uppercase text-white",
-                accentClass
-              )}
+              className={cn("rounded-lg text-2xl font-semibold uppercase text-white", accentClass)}
             >
               {project.project_name.trim().charAt(0) || "P"}
             </AvatarFallback>
