@@ -24,7 +24,8 @@ import {
   startDashboardPromotionAnalysis,
   startDashboardAdExperiment,
   startDashboardPromotionGeneration,
-  updateDashboardPromotion
+  updateDashboardPromotion,
+  updateDashboardPromotionSegment
 } from "../../../../api/dashboard-api.js";
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import {
@@ -79,6 +80,7 @@ export function usePromotionWorkspaceController({
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPromotionId, setEditingPromotionId] = useState<string | null>(null);
+  const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const requestedSegmentTab: PromotionWorkspaceTab =
     query.segmentView === "manage" || query.segmentView === "recommendations"
       ? "segments"
@@ -230,7 +232,9 @@ export function usePromotionWorkspaceController({
     queryKey: dashboardPromotionDetailQueryKey(
       query.projectId,
       selectedOpenPromotion?.promotion_id ?? ""
-    )
+    ),
+    refetchInterval: (detailQuery) =>
+      shouldPollAnalysis(detailQuery.state.data?.analyses[0]?.status) ? 2500 : false
   });
   const latestAnalysisId = promotionDetail.data?.analyses[0]?.analysis_id ?? null;
   const selectedOpenPromotionId = selectedOpenPromotion?.promotion_id ?? "";
@@ -305,7 +309,13 @@ export function usePromotionWorkspaceController({
       query.projectId,
       selectedOpenPromotion?.promotion_id ?? "",
       activeAnalysisId
-    )
+    ),
+    refetchInterval: (suggestionQuery) =>
+      activeAnalysisId &&
+      (suggestionQuery.state.data?.suggestions.length ?? 0) === 0 &&
+      shouldPollAnalysis(promotionDetail.data?.analyses[0]?.status)
+        ? 2500
+        : false
   });
   const scopedSegmentDefinitions = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
@@ -580,6 +590,17 @@ export function usePromotionWorkspaceController({
           activeAnalysisId
         )
       });
+      const firstConfirmedSuggestion = segmentSuggestions.data?.suggestions.find(
+        (suggestion) =>
+          suggestion.suggestion_status === "accepted" ||
+          suggestion.suggestion_status === "confirmed"
+      );
+      if (firstConfirmedSuggestion) {
+        await setDashboardQueryState({
+          segmentView: "overview",
+          selectedSegmentId: firstConfirmedSuggestion.segment_id
+        });
+      }
     }
   });
   const deleteConfirmedSegmentMutation = useMutation({
@@ -614,6 +635,31 @@ export function usePromotionWorkspaceController({
       if (query.selectedSegmentId === result.segment_id) {
         await setDashboardQueryState({ selectedSegmentId: "" });
       }
+    }
+  });
+  const updateConfirmedSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody,
+      segmentId
+    }: {
+      promotionId: string;
+      requestBody: Parameters<typeof updateDashboardPromotionSegment>[3];
+      segmentId: string;
+    }) => updateDashboardPromotionSegment(query, promotionId, segmentId, requestBody),
+    onSuccess: async (segment) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          segment.promotion_id,
+          segment.segment_id
+        )
+      });
+      setEditingSegmentId(null);
     }
   });
   const archiveScopedSegmentMutation = useMutation({
@@ -661,6 +707,7 @@ export function usePromotionWorkspaceController({
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
     editingPromotionId,
+    editingSegmentId,
     evaluatePromotionRunMutation,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
@@ -679,11 +726,22 @@ export function usePromotionWorkspaceController({
     selectedPromotionSegments,
     setIsAddDialogOpen,
     setEditingPromotionId,
+    setEditingSegmentId,
     setWorkspaceTab,
     startGenerationMutation,
     startPromotionAnalysis,
     updatePromotionMutation,
+    updateConfirmedSegmentMutation,
     visibleTabs,
     workspaceTab
   };
+}
+
+function shouldPollAnalysis(status: string | undefined) {
+  return (
+    status === "requested" ||
+    status === "pending" ||
+    status === "processing" ||
+    status === "running"
+  );
 }

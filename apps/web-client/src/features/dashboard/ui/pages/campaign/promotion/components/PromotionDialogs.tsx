@@ -1,3 +1,11 @@
+import {
+  DashboardPromotionSegmentStatusSchema,
+  DashboardSegmentPrioritySchema,
+  type DashboardCampaignPromotion,
+  type DashboardCampaignSegment,
+  type DashboardUpdatePromotionRequest,
+  type DashboardUpdatePromotionSegmentRequest
+} from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
 import { DialogFooter } from "@loopad/ui/shadcn/dialog";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
@@ -107,6 +115,108 @@ export function PromotionEditDialog({
                 marketing_theme: marketingTheme.trim(),
                 message_brief: messageBrief.trim() || null,
                 status: status as DashboardUpdatePromotionRequest["status"]
+              })
+            }
+            type="button"
+          >
+            {isPending ? "저장 중" : "변경사항 저장"}
+          </Button>
+        </DialogFooter>
+      </div>
+    </DashboardFormDialog>
+  );
+}
+
+export function SegmentEditDialog({
+  isPending,
+  onOpenChange,
+  onUpdate,
+  open,
+  segment
+}: {
+  isPending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdate: (requestBody: DashboardUpdatePromotionSegmentRequest) => void;
+  open: boolean;
+  segment: DashboardCampaignSegment | undefined;
+}) {
+  const [segmentName, setSegmentName] = useState("");
+  const [priority, setPriority] = useState("none");
+  const [status, setStatus] = useState("planned");
+
+  useEffect(() => {
+    if (open && segment) {
+      setSegmentName(segment.segment_name);
+      setPriority(segment.priority ?? "none");
+      setStatus(segment.status);
+    }
+  }, [open, segment]);
+
+  return (
+    <DashboardFormDialog
+      description="확정된 세그먼트의 이름, 우선순위, 운영 상태를 수정합니다."
+      onOpenChange={onOpenChange}
+      open={open}
+      title="세그먼트 수정"
+    >
+      <div className="grid gap-6 px-8 py-6">
+        <Field>
+          <FieldLabel htmlFor="segment-edit-name">세그먼트 이름</FieldLabel>
+          <Input
+            autoComplete="off"
+            id="segment-edit-name"
+            name="segmentEditName"
+            onChange={(event) => setSegmentName(event.target.value)}
+            value={segmentName}
+          />
+        </Field>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field>
+            <FieldLabel id="segment-edit-priority-label">우선순위</FieldLabel>
+            <Select onValueChange={setPriority} value={priority}>
+              <SelectTrigger aria-labelledby="segment-edit-priority-label" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">미지정</SelectItem>
+                {DashboardSegmentPrioritySchema.options.map((priorityOption) => (
+                  <SelectItem key={priorityOption} value={priorityOption}>
+                    {formatStatusLabel(priorityOption)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel id="segment-edit-status-label">상태</FieldLabel>
+            <Select onValueChange={setStatus} value={status}>
+              <SelectTrigger aria-labelledby="segment-edit-status-label" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DashboardPromotionSegmentStatusSchema.options.map((statusOption) => (
+                  <SelectItem key={statusOption} value={statusOption}>
+                    {formatStatusLabel(statusOption)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        <DialogFooter className="border-t pt-5">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
+            취소
+          </Button>
+          <Button
+            disabled={!segment || !segmentName.trim() || isPending}
+            onClick={() =>
+              onUpdate({
+                priority:
+                  priority === "none"
+                    ? null
+                    : (priority as DashboardUpdatePromotionSegmentRequest["priority"]),
+                segment_name: segmentName.trim(),
+                status: status as DashboardUpdatePromotionSegmentRequest["status"]
               })
             }
             type="button"
@@ -308,4 +418,3 @@ export function PromotionAddDialog({
     </DashboardFormDialog>
   );
 }
-import type { DashboardCampaignPromotion, DashboardUpdatePromotionRequest } from "@loopad/shared";
