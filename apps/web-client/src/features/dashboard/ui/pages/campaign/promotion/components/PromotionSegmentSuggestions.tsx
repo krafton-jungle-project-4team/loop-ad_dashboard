@@ -106,7 +106,6 @@ export function PromotionSegmentSuggestionPanel({
             직접 추가
           </Button>
           <Button
-            className="bg-[#3927d9]"
             disabled={confirmableCount === 0 || confirmIsPending}
             onClick={onConfirmSuggestions}
             type="button"
@@ -128,12 +127,12 @@ export function PromotionSegmentSuggestionPanel({
             <div className="grid gap-3 md:grid-cols-2">
               {scopedSegments.map((segment) => (
                 <div
-                  className="grid gap-3 rounded-md border bg-[#f7fbff] p-4"
+                  className="grid gap-3 rounded-lg border bg-[#fafafc] p-4"
                   key={segment.segment_id}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="grid gap-1">
-                      <div className="text-xs font-semibold text-[#3927d9]">{segment.source}</div>
+                      <div className="text-xs font-semibold text-primary">{segment.source}</div>
                       <h3 className="text-base font-semibold">{segment.segment_name}</h3>
                     </div>
                     <div className="flex items-center gap-2">
@@ -206,17 +205,17 @@ export function PromotionSegmentSuggestionPanel({
               return (
                 <div
                   className={`flex min-h-full flex-col gap-4 rounded-md border p-4 ${
-                    isAccepted ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-white"
+                    isAccepted ? "border-primary bg-accent" : "bg-white"
                   }`}
                   key={suggestion.suggestion_id}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="grid min-w-0 gap-2">
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[#3927d9]">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-primary">
                         <span>{rankLabel}</span>
                         {rankRole ? (
                           <Badge
-                            className="border-[#d7d3ff] bg-[#f7f6ff] text-[#3927d9]"
+                            className="border-primary/20 bg-accent text-primary"
                             variant="outline"
                           >
                             {rankRole}
@@ -238,9 +237,9 @@ export function PromotionSegmentSuggestionPanel({
                   </div>
                   <div className="grid gap-3 text-sm text-muted-foreground">
                     {performanceEstimate ? (
-                      <div className="grid gap-3 rounded-md border border-[#dfe5ff] bg-[#f7f8ff] p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                      <div className="grid gap-3 rounded-lg border border-primary/15 bg-accent/50 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                         <div className="grid gap-1">
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-[#3927d9]">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-primary">
                             <span>{performanceEstimate.label}</span>
                             {performanceEstimate.calibration_status === "not_backtested" ? (
                               <Badge className="text-[10px]" variant="outline">
@@ -279,7 +278,7 @@ export function PromotionSegmentSuggestionPanel({
                         "추천 사유가 비어 있습니다."}
                     </div>
                     {displayCopy?.difference_summary ? (
-                      <div className="rounded-md border-l-2 border-[#3927d9] bg-[#f7f8ff] px-3 py-2 text-xs leading-5 text-foreground">
+                      <div className="rounded-lg border-l-2 border-primary bg-accent/50 px-3 py-2 text-xs leading-5 text-foreground">
                         {displayCopy.difference_summary}
                       </div>
                     ) : null}
@@ -426,7 +425,7 @@ function SegmentSuggestionReportContent({
 
   return (
     <div className="grid gap-4">
-      <section className="grid gap-2 rounded-md border bg-[#f8f8ff] p-4">
+      <section className="grid gap-2 rounded-lg border bg-[#fafafc] p-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-medium text-foreground">{report.summary}</div>
           {report.confidence_label ? (
@@ -440,11 +439,9 @@ function SegmentSuggestionReportContent({
             segmentAudienceSummary(suggestion?.sample_size ?? 0, suggestion?.sample_ratio ?? 0)}
         </div>
         {performanceEstimate ? (
-          <div className="grid w-fit gap-1 rounded-md border border-[#dfe5ff] bg-white px-3 py-2">
+          <div className="grid w-fit gap-1 rounded-lg border border-primary/15 bg-white px-3 py-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-[#3927d9]">
-                {performanceEstimate.label}
-              </span>
+              <span className="text-xs font-medium text-primary">{performanceEstimate.label}</span>
               <span className="text-base font-semibold tabular-nums text-foreground">
                 {performanceEstimate.formatted}
               </span>
@@ -504,7 +501,7 @@ function ReportSection({ items, title }: { items: string[] | undefined; title: s
       <ul className="grid gap-2 text-sm leading-6 text-muted-foreground">
         {items.map((item, index) => (
           <li className="flex gap-2" key={`${title}-${index}-${item}`}>
-            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#3927d9]" />
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
             <span>{item}</span>
           </li>
         ))}
@@ -629,7 +626,6 @@ function PromotionSegmentCreateDialog({
             취소
           </Button>
           <Button
-            className="bg-[#3927d9]"
             disabled={!canSubmit}
             onClick={() => {
               const ruleJson = parseJsonObject(form.ruleJsonText);

@@ -205,12 +205,7 @@ export function PromotionAddDialog({
         <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
           취소
         </Button>
-        <Button
-          className="bg-[#3927d9] px-8"
-          disabled={!canSubmit}
-          onClick={() => onCreate(form)}
-          type="button"
-        >
+        <Button className="px-8" disabled={!canSubmit} onClick={() => onCreate(form)} type="button">
           {createIsPending ? "생성 중" : "프로모션 생성"}
         </Button>
       </DialogFooter>

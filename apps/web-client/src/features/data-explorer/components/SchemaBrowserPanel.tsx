@@ -87,7 +87,7 @@ export function SchemaBrowserPanel({
   return (
     <aside className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-[#fafafc]">
       <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
-        <Database className="size-4 text-[#0066cc]" />
+        <Database className="size-4 text-primary" />
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
           데이터 소스
         </div>
@@ -124,7 +124,7 @@ export function SchemaBrowserPanel({
                     <div
                       className={cn(
                         "group flex min-h-7 min-w-0 items-center gap-1 rounded px-1 py-0.5",
-                        isSelected ? "bg-[#e8f2ff] text-[#0066cc]" : "hover:bg-white"
+                        isSelected ? "bg-accent text-primary" : "hover:bg-white"
                       )}
                     >
                       <Button
@@ -273,7 +273,7 @@ function FolderSection({
           className={cn("size-3 shrink-0 transition-none", isOpen ? "rotate-90" : "")}
         />
         {isOpen ? (
-          <FolderOpen className="size-3.5 shrink-0 text-[#0066cc]" />
+          <FolderOpen className="size-3.5 shrink-0 text-primary" />
         ) : (
           <Folder className="size-3.5 shrink-0 text-slate-500" />
         )}

@@ -294,7 +294,7 @@ export function SdkPage() {
               <TabsTrigger value="npm">npm 패키지</TabsTrigger>
               <TabsTrigger value="script">script tag</TabsTrigger>
             </TabsList>
-            <Badge className="bg-[#0972d3] text-white">latest 기준</Badge>
+            <Badge>latest 기준</Badge>
           </div>
           <TabsContent className="grid gap-4" value="npm">
             <GuideStep
@@ -376,7 +376,7 @@ function PageHeader() {
 
 function GuideSummary() {
   return (
-    <Card className="rounded-lg bg-white shadow-none ring-1 ring-black/10">
+    <Card className="bg-white shadow-none">
       <CardHeader>
         <CardTitle className="text-[20px] font-semibold tracking-tight text-[#1d1d1f]">
           목표
@@ -387,8 +387,8 @@ function GuideSummary() {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <Alert className="border-[#0972d3]/30 bg-[#f2f8ff]">
-          <Code2 className="text-[#0972d3]" />
+        <Alert className="border-primary/20 bg-accent/60">
+          <Code2 className="text-primary" />
           <AlertTitle>필수 흐름</AlertTitle>
           <AlertDescription>
             수집 SDK를 시작하고, 로그인 후 identity를 설정한 뒤, 광고 SDK의 render 결과와 콜백을
@@ -407,7 +407,7 @@ function GuideSummary() {
 
 function PrerequisitesPanel() {
   return (
-    <Card className="rounded-lg bg-white shadow-none ring-1 ring-black/10">
+    <Card className="bg-white shadow-none">
       <CardHeader>
         <CardTitle className="text-base font-semibold text-[#1d1d1f]">준비물</CardTitle>
         <CardDescription>코드에 넣기 전에 프로젝트에서 준비할 값입니다.</CardDescription>
@@ -431,7 +431,7 @@ function PrerequisitesPanel() {
 
 function VerifyPanel() {
   return (
-    <Card className="rounded-lg bg-white shadow-none ring-1 ring-black/10">
+    <Card className="bg-white shadow-none">
       <CardHeader>
         <CardTitle className="text-base font-semibold text-[#1d1d1f]">검증</CardTitle>
         <CardDescription>배포 전 브라우저에서 확인할 최소 항목입니다.</CardDescription>
@@ -440,7 +440,7 @@ function VerifyPanel() {
         <ul className="grid gap-2">
           {checklistItems.map((item) => (
             <li className="flex gap-2 text-sm leading-6 text-muted-foreground" key={item}>
-              <Check className="mt-1 size-4 shrink-0 text-[#0972d3]" />
+              <Check className="mt-1 size-4 shrink-0 text-primary" />
               <span>{item}</span>
             </li>
           ))}
@@ -452,7 +452,7 @@ function VerifyPanel() {
 
 function TroubleshootingPanel() {
   return (
-    <Card className="rounded-lg bg-white shadow-none ring-1 ring-black/10">
+    <Card className="bg-white shadow-none">
       <CardHeader>
         <CardTitle className="text-base font-semibold text-[#1d1d1f]">문제 해결</CardTitle>
         <CardDescription>대부분의 연동 오류는 아래 세 가지에서 시작합니다.</CardDescription>
@@ -486,7 +486,7 @@ function SectionHeading({
 }) {
   return (
     <div className="grid gap-1">
-      <span className="text-xs font-semibold uppercase tracking-normal text-[#0972d3]">
+      <span className="text-xs font-semibold uppercase tracking-normal text-primary">
         {eyebrow}
       </span>
       <h2 className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">{title}</h2>
@@ -509,15 +509,15 @@ function GuideStep({
   title: string;
 }) {
   return (
-    <Card className="rounded-lg bg-white shadow-none ring-1 ring-black/10">
+    <Card className="bg-white shadow-none">
       <CardHeader className="gap-3">
         <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0972d3] text-sm font-semibold text-white">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
             {number}
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <Icon className="size-4 text-[#0972d3]" />
+              <Icon className="size-4 text-primary" />
               <CardTitle className="text-base font-semibold text-[#1d1d1f]">{title}</CardTitle>
             </div>
             <CardDescription className="mt-1 leading-6">{body}</CardDescription>
@@ -586,7 +586,7 @@ function CodeBlock({ code, language, title }: { code: string; language: string; 
 
 function SummaryMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 rounded-lg border border-black/10 bg-[#f8fafc] p-3">
+    <div className="grid gap-1 rounded-lg border border-black/10 bg-[#fafafc] p-3">
       <span className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
         {label}
       </span>

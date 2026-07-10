@@ -22,9 +22,9 @@ export function Section({
   description?: string;
 }) {
   return (
-    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+    <Card className="w-full min-w-0 bg-white py-5 shadow-none">
       <CardHeader className="gap-1.5 px-5">
-        <CardTitle className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
+        <CardTitle className="text-[17px] font-semibold tracking-tight text-foreground">
           {title}
         </CardTitle>
         {description ? (

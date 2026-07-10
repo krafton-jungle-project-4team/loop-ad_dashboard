@@ -282,8 +282,8 @@ function CampaignManagementWorkspace({
     <section className="grid gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
-          <div className="text-sm font-medium text-[#3927d9]">캠페인 보기</div>
-          <h2 className="text-3xl font-semibold tracking-tight text-[#102033]">
+          <div className="text-sm font-medium text-primary">캠페인 보기</div>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground">
             {campaign.campaign_name}
           </h2>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -409,7 +409,7 @@ function CampaignDetailPanel({
   const description = campaignDetailPanelDescription(tab);
 
   return (
-    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+    <Card className="w-full min-w-0 bg-white py-5 shadow-none">
       <CardHeader className="gap-1.5 px-5">
         <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
           {title}

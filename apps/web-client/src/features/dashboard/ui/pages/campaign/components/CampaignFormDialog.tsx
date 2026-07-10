@@ -159,7 +159,7 @@ function CampaignCreateForm({
           취소
         </Button>
         <Button
-          className="bg-[#3927d9] px-8"
+          className="px-8"
           disabled={!canSubmit}
           onClick={() =>
             onSubmit({
@@ -253,7 +253,7 @@ function CampaignEditForm({
           취소
         </Button>
         <Button
-          className="bg-[#3927d9] px-8"
+          className="px-8"
           disabled={!canSubmit}
           onClick={() =>
             onSubmit(campaign.campaign_id, {

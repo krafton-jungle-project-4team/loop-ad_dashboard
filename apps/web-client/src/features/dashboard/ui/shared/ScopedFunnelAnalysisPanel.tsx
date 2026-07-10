@@ -43,7 +43,13 @@ type FunnelComparisonChartRow = {
   step_label: string;
 } & Record<string, number | string | null>;
 
-const FUNNEL_CHART_COLORS = ["#1a73e8", "#16a7b7", "#f29900", "#7c3aed", "#d93025"] as const;
+const FUNNEL_CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)"
+] as const;
 
 export function ScopedFunnelAnalysisPanel({
   error,
@@ -127,7 +133,7 @@ export function ScopedFunnelAnalysisPanel({
         type="button"
       >
         <div className="min-w-0">
-          <span className="text-base font-semibold text-[#1d1d1f]">{title}</span>
+          <span className="text-base font-semibold text-foreground">{title}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="text-sm text-muted-foreground">{isOpen ? "닫기" : "열기"}</span>
@@ -143,7 +149,7 @@ export function ScopedFunnelAnalysisPanel({
         <div className="grid gap-4 border-t p-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="grid gap-1">
-              <div className="text-sm font-medium text-[#1d1d1f]">비교 사용자 여정</div>
+              <div className="text-sm font-medium text-foreground">비교 사용자 여정</div>
             </div>
             {funnels.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">

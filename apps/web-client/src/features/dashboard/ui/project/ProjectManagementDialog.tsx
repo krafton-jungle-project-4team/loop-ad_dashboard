@@ -168,7 +168,7 @@ export function ProjectManagementDialog({
 
         <div className="grid gap-2">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-[#1d1d1f]">프로젝트 목록</h3>
+            <h3 className="text-sm font-semibold text-foreground">프로젝트 목록</h3>
             {projectsQuery.isFetching ? (
               <span className="text-xs text-muted-foreground">불러오는 중</span>
             ) : null}
@@ -196,11 +196,11 @@ export function ProjectManagementDialog({
                     >
                       <div className="min-w-0">
                         <div className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-sm font-semibold text-[#1d1d1f]">
+                          <span className="truncate text-sm font-semibold text-foreground">
                             {project.project_name}
                           </span>
                           {isCurrentProject ? (
-                            <span className="rounded-full bg-[#0066cc]/10 px-2 py-0.5 text-xs font-semibold text-[#0066cc]">
+                            <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-primary">
                               현재
                             </span>
                           ) : null}

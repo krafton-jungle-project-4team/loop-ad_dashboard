@@ -112,8 +112,8 @@ export function DashboardShell({
         <main
           className={
             isCanvasTab
-              ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-[#f5f5f7]"
-              : "min-h-0 min-w-0 flex-1 overflow-auto bg-[#f5f5f7]"
+              ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
+              : "min-h-0 min-w-0 flex-1 overflow-auto bg-background"
           }
         >
           <div
@@ -180,7 +180,7 @@ function DashboardNavigationLinkItem({
         asChild
         className={cn(
           "rounded-full text-sidebar-foreground/80",
-          isActive && "font-bold text-[#111111]"
+          isActive && "font-semibold text-primary"
         )}
         isActive={isActive}
         tooltip={item.label}
@@ -190,7 +190,7 @@ function DashboardNavigationLinkItem({
           search={(current) => current}
           to="/dashboard/$projectId/$tabPath"
         >
-          <span className={cn(isActive && "font-bold text-[#111111]")}>{item.label}</span>
+          <span className={cn(isActive && "font-semibold text-primary")}>{item.label}</span>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -215,12 +215,12 @@ function DashboardNavigationFolderItem({
           <SidebarMenuButton
             className={cn(
               "rounded-full text-sidebar-foreground/80",
-              isBranchActive && "font-bold text-[#111111]"
+              isBranchActive && "font-semibold text-primary"
             )}
             isActive={isBranchActive}
             tooltip={item.label}
           >
-            <span className={cn(isBranchActive && "font-bold text-[#111111]")}>{item.label}</span>
+            <span className={cn(isBranchActive && "font-semibold text-primary")}>{item.label}</span>
             <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
@@ -289,7 +289,7 @@ function DashboardNavigationSubLinkItem({
         asChild
         className={cn(
           "relative w-full transition-colors [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1 [&>span:last-child]:whitespace-nowrap",
-          isExactActive && "font-bold text-[#111111]"
+          isExactActive && "font-semibold text-primary"
         )}
         isActive={isExactActive}
       >
@@ -298,7 +298,7 @@ function DashboardNavigationSubLinkItem({
           search={(current) => current}
           to="/dashboard/$projectId/$tabPath"
         >
-          <span className={cn(isExactActive && "font-bold text-[#111111]")}>{item.label}</span>
+          <span className={cn(isExactActive && "font-semibold text-primary")}>{item.label}</span>
         </Link>
       </SidebarMenuSubButton>
     </SidebarMenuSubItem>
@@ -324,12 +324,12 @@ function DashboardNavigationSubFolderItem({
         <CollapsibleTrigger asChild>
           <SidebarMenuSubButton
             asChild
-            className={cn("transition-colors", isBranchActive && "font-bold text-[#111111]")}
+            className={cn("transition-colors", isBranchActive && "font-semibold text-primary")}
             isActive={isBranchActive}
           >
             <button type="button">
               <span
-                className={cn("whitespace-nowrap", isBranchActive && "font-bold text-[#111111]")}
+                className={cn("whitespace-nowrap", isBranchActive && "font-semibold text-primary")}
               >
                 {item.label}
               </span>
@@ -375,7 +375,7 @@ function DashboardHeaderContext({
 
   if (!contextDepth) {
     return (
-      <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-[#1d1d1f]">
+      <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
         {getDashboardTabLabel(activeTab)}
       </div>
     );
@@ -520,10 +520,10 @@ function DashboardContextSelect({
   widthClassName: string;
 }) {
   return (
-    <Select disabled={disabled} onValueChange={onValueChange} value={value}>
+    <Select disabled={disabled} onValueChange={onValueChange} value={value ?? ""}>
       <SelectTrigger
         className={cn(
-          "h-9 min-w-0 rounded-full border-black/10 bg-white px-3 text-sm font-medium text-[#1d1d1f] shadow-none",
+          "h-9 min-w-0 rounded-full border-black/10 bg-white px-3 text-sm font-medium text-foreground shadow-none",
           widthClassName
         )}
       >

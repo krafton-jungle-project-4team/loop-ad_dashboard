@@ -202,7 +202,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
 
   return (
     <div className="grid min-h-full grid-rows-[auto_1fr] gap-6">
-      <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+      <Card className="w-full min-w-0 bg-white py-5 shadow-none">
         <CardHeader className="flex flex-col gap-3 px-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid gap-1.5">
             <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
@@ -328,7 +328,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             aria-valuenow={
               isDetailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_HEIGHT : detailPanelHeight
             }
-            className="absolute left-1/2 top-1 flex h-6 w-16 -translate-x-1/2 cursor-row-resize items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40"
+            className="absolute left-1/2 top-1 flex h-6 w-16 -translate-x-1/2 cursor-row-resize items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             onKeyDown={handleDetailPanelResizeKeyDown}
             onPointerDown={startDetailPanelResize}
             role="separator"

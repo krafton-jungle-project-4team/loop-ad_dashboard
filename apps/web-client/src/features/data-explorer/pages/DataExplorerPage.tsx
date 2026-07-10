@@ -183,7 +183,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
               />
             </ResizablePanel>
             <ResizableHandle
-              className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
+              className="bg-black/10 transition-colors hover:bg-primary/30"
               withHandle
             />
           </>
@@ -238,7 +238,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
               </ResizablePanel>
 
               <ResizableHandle
-                className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
+                className="bg-black/10 transition-colors hover:bg-primary/30"
                 withHandle
               />
 
@@ -297,7 +297,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
         {isAssistantPanelOpen ? (
           <>
             <ResizableHandle
-              className="bg-black/10 transition-colors hover:bg-[#0066cc]/30"
+              className="bg-black/10 transition-colors hover:bg-primary/30"
               withHandle
             />
             <ResizablePanel
@@ -308,7 +308,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
             >
               <aside className="h-full min-h-0 min-w-0 overflow-hidden bg-white">
                 <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
-                  <Bot className="size-4 text-[#0066cc]" />
+                  <Bot className="size-4 text-primary" />
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                     AI 어시스턴트
                   </div>

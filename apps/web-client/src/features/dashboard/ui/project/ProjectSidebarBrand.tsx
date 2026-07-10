@@ -17,12 +17,12 @@ export function ProjectSidebarBrand({ projectId }: { projectId: string }) {
   return (
     <Link
       aria-label="프로젝트 선택으로 돌아가기"
-      className="flex w-full items-center rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40"
+      className="flex w-full items-center rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       title="프로젝트 선택"
       to="/"
     >
       <div className="grid min-w-0 leading-tight">
-        <span className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
+        <span className="truncate text-[17px] font-semibold tracking-tight text-foreground">
           {projectName}
         </span>
         <span className="truncate text-xs text-muted-foreground">{projectDescription}</span>

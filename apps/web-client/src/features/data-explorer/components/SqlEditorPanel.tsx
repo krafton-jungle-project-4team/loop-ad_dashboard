@@ -29,16 +29,10 @@ export function SqlEditorPanel({
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           {leftToolbar}
-          <h2 className="truncate text-sm font-semibold text-[#1d1d1f]">SQL 편집기</h2>
+          <h2 className="truncate text-sm font-semibold text-foreground">SQL 편집기</h2>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            className="bg-[#0066cc] text-white hover:bg-[#0057ad]"
-            disabled={runDisabled}
-            onClick={onRun}
-            size="sm"
-            type="button"
-          >
+          <Button disabled={runDisabled} onClick={onRun} size="sm" type="button">
             {isRunning ? <Loader2 className="animate-spin" /> : <Play />}
             실행
           </Button>

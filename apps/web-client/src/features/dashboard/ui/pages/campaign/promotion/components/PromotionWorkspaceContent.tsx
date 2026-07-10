@@ -222,8 +222,8 @@ export function PromotionTabWorkspace({
     <section className="grid gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
-          <div className="text-sm font-medium text-[#3927d9]">프로모션 보기</div>
-          <h2 className="text-3xl font-semibold tracking-tight text-[#102033]">
+          <div className="text-sm font-medium text-primary">프로모션 보기</div>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground">
             {promotion.marketing_theme}
           </h2>
           <p className="text-sm text-muted-foreground">{formatChannelLabel(promotion.channel)}</p>
@@ -392,7 +392,7 @@ function PromotionCurrentSegmentsPanel({
           return (
             <div
               className={`rounded-md border p-3 text-left transition ${
-                isSelected ? "border-[#3927d9] bg-[#f2f0ff]" : "bg-background hover:bg-muted/30"
+                isSelected ? "border-primary bg-accent" : "bg-background hover:bg-muted/30"
               }`}
               key={`${segment.segment_id}:${segment.analysis_id}`}
             >
@@ -938,9 +938,9 @@ function SegmentConnectedExperimentsCard({
 
 function PromotionMetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid min-h-28 content-between rounded-md border bg-[#f2f6ff] p-5">
+    <div className="grid min-h-28 content-between rounded-lg border bg-[#f5f5f7] p-5">
       <div className="text-sm font-medium text-muted-foreground">{label}</div>
-      <div className="truncate text-2xl font-semibold text-[#102033]">{value}</div>
+      <div className="truncate text-2xl font-semibold text-foreground">{value}</div>
     </div>
   );
 }
@@ -952,8 +952,8 @@ function PromotionProgressRow({ label, value }: { label: string; value: number }
         <span className="font-medium">{label}</span>
         <span className="tabular-nums">{formatInteger(value)}%</span>
       </div>
-      <div className="h-3 overflow-hidden rounded-sm bg-[#e8eefc]">
-        <div className="h-full bg-[#3927d9]" style={{ width: `${Math.max(value, 4)}%` }} />
+      <div className="h-3 overflow-hidden rounded-full bg-[#e8e8ed]">
+        <div className="h-full bg-primary" style={{ width: `${Math.max(value, 4)}%` }} />
       </div>
     </div>
   );

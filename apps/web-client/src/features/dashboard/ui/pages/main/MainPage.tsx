@@ -29,9 +29,9 @@ export function MainPage({ data }: { data: DashboardMain; query: DashboardQuery 
   const summary = createMainSummary(data.campaigns);
 
   return (
-    <Card className="w-full min-w-0 rounded-lg bg-white py-4 shadow-none ring-1 ring-black/10">
+    <Card className="w-full min-w-0 bg-white py-4 shadow-none">
       <CardHeader className="gap-1.5 px-4">
-        <CardTitle className="text-lg font-semibold tracking-tight text-[#1d1d1f]">
+        <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
           메인 대시보드
         </CardTitle>
         <CardDescription className="text-sm">
@@ -124,9 +124,9 @@ export function MainPage({ data }: { data: DashboardMain; query: DashboardQuery 
 
 function MainSummaryCard({ label, note, value }: { label: string; note: string; value: string }) {
   return (
-    <div className="grid min-h-[104px] gap-2 rounded-md border border-black/10 bg-[#f5f5f7] p-3.5">
+    <div className="grid min-h-[104px] gap-2 rounded-lg border border-black/10 bg-muted p-3.5">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-xl font-semibold tracking-tight text-[#1d1d1f]">{value}</span>
+      <span className="text-xl font-semibold tracking-tight text-foreground">{value}</span>
       <span className="text-xs leading-5 text-muted-foreground">{note}</span>
     </div>
   );
@@ -140,7 +140,7 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
     <section className="grid gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-1">
-          <h3 className="text-base font-semibold tracking-tight text-[#1d1d1f]">실시간 지표</h3>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">실시간 지표</h3>
         </div>
         <Badge variant="outline">전체 캠페인 합산</Badge>
       </div>
@@ -152,14 +152,14 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
               <div
                 className={
                   index === 0
-                    ? "grid min-h-28 content-between bg-[#eaf2ff] p-4"
+                    ? "grid min-h-28 content-between bg-accent p-4"
                     : "grid min-h-28 content-between border-t p-4 md:border-l md:border-t-0"
                 }
                 key={kpi.label}
               >
                 <div className="grid gap-1">
                   <div className="text-sm font-medium text-muted-foreground">{kpi.label}</div>
-                  <div className="text-2xl font-semibold tabular-nums text-[#202124]">
+                  <div className="text-2xl font-semibold tabular-nums text-foreground">
                     {kpi.value}
                   </div>
                 </div>
@@ -170,18 +170,18 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
 
           <div className="grid gap-3 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium text-[#202124]">시간대별 이벤트 추이</div>
+              <div className="text-sm font-medium text-foreground">시간대별 이벤트 추이</div>
             </div>
             {trendData.length > 0 ? (
               <ChartContainer
                 className="h-[260px] min-h-0 w-full aspect-auto"
                 config={{
                   event_count: {
-                    color: "#1a73e8",
+                    color: "var(--chart-1)",
                     label: "이벤트 수"
                   },
                   unique_user_count: {
-                    color: "#16a7b7",
+                    color: "var(--chart-2)",
                     label: "유니크 유저"
                   }
                 }}
@@ -275,7 +275,7 @@ function MainRealtimeActivityCard({
         <div className="flex items-start justify-between gap-3">
           <div className="grid gap-1">
             <div className="text-sm font-medium text-muted-foreground">최근 5분 이벤트</div>
-            <div className="text-4xl font-semibold tabular-nums text-[#202124]">
+            <div className="text-4xl font-semibold tabular-nums text-foreground">
               {formatInteger(metrics.recent_5m_event_count)}
             </div>
           </div>
@@ -293,7 +293,7 @@ function MainRealtimeActivityCard({
           {recentBars.length > 0 ? (
             recentBars.map((item) => (
               <div
-                className="min-h-1 flex-1 rounded-t-sm bg-[#1a73e8]"
+                className="min-h-1 flex-1 rounded-t-sm bg-primary"
                 key={item.time_bucket}
                 style={{ height: `${Math.max((item.event_count / maxEventCount) * 100, 6)}%` }}
                 title={`${item.label}: ${formatInteger(item.event_count)}`}
@@ -340,7 +340,7 @@ function MainAnalyticsRankCard({
   return (
     <div className="grid content-start gap-3 rounded-lg border bg-background p-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-base font-semibold text-[#202124]">{title}</h4>
+        <h4 className="text-base font-semibold text-foreground">{title}</h4>
         <span className="text-xs text-muted-foreground">수집 기준</span>
       </div>
       {visibleItems.length > 0 ? (
@@ -349,15 +349,15 @@ function MainAnalyticsRankCard({
             <div className="grid gap-1.5" key={item.key}>
               <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
                 <div className="min-w-0">
-                  <div className="truncate font-medium text-[#3c4043]">{item.label}</div>
+                  <div className="truncate font-medium text-foreground/85">{item.label}</div>
                 </div>
-                <div className="shrink-0 tabular-nums text-[#3c4043]">
+                <div className="shrink-0 tabular-nums text-foreground/85">
                   {formatInteger(item.value)}
                 </div>
               </div>
               <div className="h-1 bg-muted">
                 <div
-                  className="h-full bg-[#1a73e8]"
+                  className="h-full bg-primary"
                   style={{ width: `${Math.max((item.value / maxValue) * 100, 4)}%` }}
                 />
               </div>
@@ -533,7 +533,7 @@ function MainMetricLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 border-t pt-3 text-sm">
       <span className="min-w-0 truncate text-muted-foreground">{label}</span>
-      <span className="shrink-0 tabular-nums text-[#3c4043]">{value}</span>
+      <span className="shrink-0 tabular-nums text-foreground/85">{value}</span>
     </div>
   );
 }
