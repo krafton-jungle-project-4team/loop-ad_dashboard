@@ -85,7 +85,7 @@ export function PromotionSegmentSuggestionPanel({
     <Card className="h-full shadow-none">
       <CardHeader className="grid gap-4">
         <div className="grid gap-1">
-          <CardTitle>추천 세그먼트 후보</CardTitle>
+          <CardTitle>세그먼트 생성</CardTitle>
           <CardDescription>
             AI가 제안한 후보와 직접 추가한 후보를 확인합니다. 확정 시 최종 타겟 세그먼트로
             저장됩니다.

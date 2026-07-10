@@ -75,7 +75,7 @@ import { PromotionSegmentSuggestionPanel } from "./PromotionSegmentSuggestions.j
 
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   overview: "프로모션 개요",
-  segments: "세그먼트 추천/확정",
+  segments: "세그먼트 생성",
   "segment-detail": "세그먼트 맞춤 광고 생성"
 };
 
@@ -571,7 +571,7 @@ function PromotionOverviewTab({
                 })}
                 to="/dashboard/$projectId/$tabPath"
               >
-                AI 추천 요청
+                세그먼트 생성
               </Link>
             </Button>
           </div>
