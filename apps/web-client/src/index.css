@@ -41,37 +41,37 @@
 }
 
 :root {
-  --background: #f5f5f7;
-  --foreground: #1d1d1f;
+  --background: #f4f6f8;
+  --foreground: #172033;
   --card: #ffffff;
-  --card-foreground: #1d1d1f;
+  --card-foreground: #172033;
   --popover: #ffffff;
-  --popover-foreground: #1d1d1f;
-  --primary: #0066cc;
+  --popover-foreground: #172033;
+  --primary: #1d4ed8;
   --primary-foreground: #ffffff;
-  --secondary: #f5f5f7;
-  --secondary-foreground: #1d1d1f;
-  --muted: #f5f5f7;
-  --muted-foreground: #6e6e73;
-  --accent: #e8f2ff;
-  --accent-foreground: #0066cc;
-  --destructive: #d70015;
-  --border: #e0e0e0;
-  --input: #d2d2d7;
-  --ring: #0071e3;
-  --chart-1: #0066cc;
-  --chart-2: #2997ff;
-  --chart-3: #5e5ce6;
-  --chart-4: #34c759;
-  --chart-5: #ff9f0a;
-  --sidebar: #fafafc;
-  --sidebar-foreground: #1d1d1f;
-  --sidebar-primary: #0066cc;
+  --secondary: #eef2f7;
+  --secondary-foreground: #172033;
+  --muted: #eef2f7;
+  --muted-foreground: #667085;
+  --accent: #eaf2ff;
+  --accent-foreground: #1d4ed8;
+  --destructive: #dc2626;
+  --border: #d9dee7;
+  --input: #c8d0dc;
+  --ring: #1d4ed8;
+  --chart-1: #1d4ed8;
+  --chart-2: #06b6d4;
+  --chart-3: #6366f1;
+  --chart-4: #16a34a;
+  --chart-5: #f59e0b;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #172033;
+  --sidebar-primary: #1d4ed8;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e8f2ff;
-  --sidebar-accent-foreground: #0066cc;
-  --sidebar-border: #e0e0e0;
-  --sidebar-ring: #0071e3;
+  --sidebar-accent: #eaf2ff;
+  --sidebar-accent-foreground: #1d4ed8;
+  --sidebar-border: #d9dee7;
+  --sidebar-ring: #1d4ed8;
   --radius: 0.6875rem;
 }
 
@@ -86,7 +86,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family:
-    "SF Pro Text",
+    Inter,
+    ui-sans-serif,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -103,8 +104,8 @@ h4,
 h5,
 h6 {
   font-family:
-    "SF Pro Display",
-    "SF Pro Text",
+    Inter,
+    ui-sans-serif,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -125,6 +126,6 @@ textarea {
 }
 
 ::selection {
-  background: #cce4ff;
-  color: #1d1d1f;
+  background: #cfe1ff;
+  color: #172033;
 }
