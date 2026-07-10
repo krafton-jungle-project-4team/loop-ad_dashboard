@@ -585,7 +585,7 @@ export function usePromotionWorkspaceController({
       );
       if (firstConfirmedSuggestion) {
         await setDashboardQueryState({
-          segmentView: "overview",
+          segmentView: "experiments",
           selectedSegmentId: firstConfirmedSuggestion.segment_id
         });
       }
@@ -674,7 +674,7 @@ export function usePromotionWorkspaceController({
   const selectSegment = (promotionId: string, segmentId: string) => {
     setWorkspaceTab("segment-detail");
     void setDashboardQueryState({
-      segmentView: "overview",
+      segmentView: "experiments",
       selectedCampaignId,
       selectedPromotionId: promotionId,
       selectedSegmentId: segmentId
