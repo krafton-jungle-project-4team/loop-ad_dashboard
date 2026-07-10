@@ -59,14 +59,7 @@ import {
   Workflow,
   X
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentType,
-  type ReactNode
-} from "react";
+import { useCallback, useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import { fetchDashboardCampaignDetail } from "../../../api/dashboard-api.js";
 import {
   formatActionLabel,
@@ -83,9 +76,7 @@ type FlowNodeKind = "campaign" | "promotion" | "evaluation" | "retryQueue";
 type FlowPathTone = "normal" | "warning" | "insufficient";
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost" | "link";
 
-type DetailTabPath =
-  | "campaign-metrics"
-  | "campaign-promotions";
+type DetailTabPath = "campaign-metrics" | "campaign-promotions";
 
 type DetailAction = {
   projectId: string;
@@ -210,15 +201,8 @@ const emptyGraph: CampaignFlowGraph = {
   nodes: []
 };
 
-export function WorkflowMapPage({
-  data,
-  query
-}: {
-  data: DashboardMain;
-  query: DashboardQuery;
-}) {
+export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const [, setDashboardQueryState] = useDashboardQueryState();
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const selectedCampaign =
     data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
     data.campaigns[0];
@@ -234,14 +218,11 @@ export function WorkflowMapPage({
       void setDashboardQueryState({
         selectedCampaignId: selectedCampaign.campaign_id,
         selectedPromotionId: "",
-        selectedSegmentId: ""
+        selectedSegmentId: "",
+        selectedWorkflowNodeId: ""
       });
     }
   }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
-
-  useEffect(() => {
-    setSelectedNodeId(null);
-  }, [selectedCampaignId]);
 
   const graph = useMemo(
     () =>
@@ -250,16 +231,20 @@ export function WorkflowMapPage({
         : emptyGraph,
     [campaignDetail.data, query.projectId]
   );
-  const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId) ?? null;
-  const handleNodeClick = useCallback<NodeMouseHandler<CampaignFlowNode>>((_, node) => {
-    setSelectedNodeId(node.id);
-  }, []);
+  const selectedNode = graph.nodes.find((node) => node.id === query.selectedWorkflowNodeId) ?? null;
+  const handleNodeClick = useCallback<NodeMouseHandler<CampaignFlowNode>>(
+    (_, node) => {
+      void setDashboardQueryState({ selectedWorkflowNodeId: node.id });
+    },
+    [setDashboardQueryState]
+  );
   const handleCampaignChange = useCallback(
     (campaignId: string) => {
       void setDashboardQueryState({
         selectedCampaignId: campaignId,
         selectedPromotionId: "",
-        selectedSegmentId: ""
+        selectedSegmentId: "",
+        selectedWorkflowNodeId: ""
       });
     },
     [setDashboardQueryState]
@@ -309,7 +294,9 @@ export function WorkflowMapPage({
               nodesDraggable={false}
               nodeTypes={nodeTypes}
               onNodeClick={handleNodeClick}
-              onPaneClick={() => setSelectedNodeId(null)}
+              onPaneClick={() => {
+                void setDashboardQueryState({ selectedWorkflowNodeId: "" });
+              }}
               panOnScroll
               proOptions={{ hideAttribution: true }}
               selectNodesOnDrag={false}
@@ -344,7 +331,7 @@ export function WorkflowMapPage({
         node={selectedNode}
         onOpenChange={(open) => {
           if (!open) {
-            setSelectedNodeId(null);
+            void setDashboardQueryState({ selectedWorkflowNodeId: "" });
           }
         }}
       />
@@ -386,7 +373,10 @@ function CampaignFlowToolbar({
           onValueChange={onCampaignChange}
           value={selectedCampaignId || undefined}
         >
-          <SelectTrigger className="h-8 w-full min-w-0 text-xs sm:w-[280px]">
+          <SelectTrigger
+            aria-label="워크플로우 맵 캠페인"
+            className="h-8 w-full min-w-0 text-xs sm:w-[280px]"
+          >
             <SelectValue placeholder="캠페인 선택" />
           </SelectTrigger>
           <SelectContent>
@@ -462,12 +452,7 @@ function LegendItem({ label, tone }: { label: string; tone: FlowPathTone }) {
 }
 
 function PipelineStageStrip() {
-  const stages = [
-    "캠페인",
-    "프로모션 실행",
-    "수집 및 평가",
-    "재시도 대기열"
-  ];
+  const stages = ["캠페인", "프로모션 실행", "수집 및 평가", "재시도 대기열"];
 
   return (
     <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
@@ -693,7 +678,10 @@ function RetryQueueList({ flows }: { flows: PromotionFlowSummary[] }) {
               {flow.promotion.marketing_theme}
             </span>
             <span className="font-semibold tabular-nums text-amber-900">
-              L{formatInteger(Math.min(flow.promotion.current_loop_count + 1, flow.promotion.max_loop_count))}
+              L
+              {formatInteger(
+                Math.min(flow.promotion.current_loop_count + 1, flow.promotion.max_loop_count)
+              )}
             </span>
           </div>
           <div className="grid gap-1 sm:grid-cols-2">
@@ -733,9 +721,7 @@ function CompactFact({
       )}
     >
       <span className="truncate">{label}</span>
-      <span className="truncate text-right font-semibold tabular-nums text-[#1d1d1f]">
-        {value}
-      </span>
+      <span className="truncate text-right font-semibold tabular-nums text-[#1d1d1f]">{value}</span>
     </div>
   );
 }
@@ -821,8 +807,7 @@ function NodeSummaryGrid({ items }: { items: FlowSummaryItem[] }) {
           className={cn(
             "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs",
             item.tone === "warning" && "text-amber-900",
-            item.tone === "insufficient" &&
-              "text-amber-900"
+            item.tone === "insufficient" && "text-amber-900"
           )}
           key={item.label}
         >
@@ -926,9 +911,7 @@ function NodeMetricsDrawer({
                     title="재시도 후보 · 목표 달성률 낮은 순"
                   />
                   <SegmentSummaryList segments={data.segments ?? []} />
-                  <ExperimentMetricList
-                    metrics={(data.metrics ?? []).filter(isRetryMetric)}
-                  />
+                  <ExperimentMetricList metrics={(data.metrics ?? []).filter(isRetryMetric)} />
                 </>
               ) : null}
               {data.kind === "campaign" ? <CampaignNodeDetail campaign={data.campaign} /> : null}
@@ -1046,9 +1029,7 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
 
   return (
     <div className="grid gap-2">
-      <div className="text-sm font-semibold text-[#1d1d1f]">
-        세그먼트 · 목표 달성률 낮은 순
-      </div>
+      <div className="text-sm font-semibold text-[#1d1d1f]">세그먼트 · 목표 달성률 낮은 순</div>
       {sortedSegments.map((segment) => (
         <DetailAnchor
           action={segment.action}
@@ -1094,9 +1075,7 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
 
   return (
     <div className="grid gap-2">
-      <div className="text-sm font-semibold text-[#1d1d1f]">
-        실험 지표 · 목표 달성률 낮은 순
-      </div>
+      <div className="text-sm font-semibold text-[#1d1d1f]">실험 지표 · 목표 달성률 낮은 순</div>
       {sortedMetrics.map((metric) => (
         <div
           className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-2 text-sm"
@@ -1112,7 +1091,9 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
           <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-5">
             <MetricLine
               label="달성률"
-              value={formatOptionalGoalAchievement(goalAchievementRate(metric.actual_value, metric.target_value))}
+              value={formatOptionalGoalAchievement(
+                goalAchievementRate(metric.actual_value, metric.target_value)
+              )}
             />
             <MetricLine label="실제값" value={formatMetricValue(metric.actual_value)} />
             <MetricLine label="목표값" value={formatMetricValue(metric.target_value)} />

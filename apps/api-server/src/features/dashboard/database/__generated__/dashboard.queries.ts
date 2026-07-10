@@ -1999,6 +1999,36 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"params":[{"locs":[{
  *     AND sd.source IN ('custom_chatkit', 'manual_rule')
  *     AND sd.status = 'active'
  * ),
+ * selected_segments AS (
+ *   SELECT * FROM accepted_suggestions
+ *   UNION ALL
+ *   SELECT * FROM manual_segments
+ * ),
+ * reset_unselected_approved AS (
+ *   UPDATE promotion_target_segments pts
+ *   SET status = 'planned'
+ *   WHERE pts.project_id = :projectId
+ *     AND pts.promotion_id = :promotionId
+ *     AND pts.status = 'approved'
+ *     AND EXISTS (
+ *       SELECT 1
+ *       FROM selected_segments selected
+ *       WHERE selected.project_id = pts.project_id
+ *         AND selected.campaign_id = pts.campaign_id
+ *         AND selected.promotion_id = pts.promotion_id
+ *         AND selected.analysis_id = pts.analysis_id
+ *     )
+ *     AND NOT EXISTS (
+ *       SELECT 1
+ *       FROM selected_segments selected
+ *       WHERE selected.project_id = pts.project_id
+ *         AND selected.campaign_id = pts.campaign_id
+ *         AND selected.promotion_id = pts.promotion_id
+ *         AND selected.analysis_id = pts.analysis_id
+ *         AND selected.segment_id = pts.segment_id
+ *     )
+ *   RETURNING pts.segment_id
+ * ),
  * confirmed AS (
  *   INSERT INTO promotion_target_segments (
  *     analysis_id,
@@ -2031,22 +2061,19 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"params":[{"locs":[{
  *     selected.data_evidence_json,
  *     selected.sample_size,
  *     NULL,
- *     'planned',
+ *     'approved',
  *     selected.suggestion_id,
  *     :confirmedBy,
  *     now()
- *   FROM (
- *     SELECT * FROM accepted_suggestions
- *     UNION ALL
- *     SELECT * FROM manual_segments
- *   ) selected
+ *   FROM selected_segments selected,
+ *        (SELECT count(*) FROM reset_unselected_approved) dependency
  *   ON CONFLICT (analysis_id, segment_id) DO UPDATE
  *   SET
  *     suggestion_id = EXCLUDED.suggestion_id,
  *     confirmed_by = EXCLUDED.confirmed_by,
  *     confirmed_at = EXCLUDED.confirmed_at,
  *     status = CASE
- *       WHEN promotion_target_segments.status = 'stopped' THEN 'planned'
+ *       WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'
  *       ELSE promotion_target_segments.status
  *     END
  *   RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", suggestion_id AS "suggestionId"
@@ -2068,7 +2095,7 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"params":[{"locs":[{
  * SELECT
  *   (:promotionId)::varchar AS "promotionId",
  *   COUNT(*)::int AS "confirmedSegmentCount"
- * FROM confirmed                                      
+ * FROM confirmed
  * ```
  */
 export const confirmDashboardPromotionSegmentSuggestions = new PreparedQuery<IConfirmDashboardPromotionSegmentSuggestionsParams,IConfirmDashboardPromotionSegmentSuggestionsResult>(confirmDashboardPromotionSegmentSuggestionsIR);

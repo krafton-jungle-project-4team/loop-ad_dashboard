@@ -1,5 +1,6 @@
 import {
   parseAsBoolean,
+  parseAsInteger,
   parseAsString,
   parseAsStringLiteral,
   throttle,
@@ -51,11 +52,16 @@ export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   dateRange: "last-7-days",
   excludeBotTraffic: true,
   excludeInternalTraffic: true,
+  experimentPage: 1,
+  experimentPageSize: 10,
+  experimentPromotionFilter: "all",
+  experimentStatusFilter: "all",
   filter: "",
   selectedCampaignId: "",
   selectedCustomerId: "cg-low-mobile",
   selectedPromotionId: "",
   selectedSegmentId: "",
+  selectedWorkflowNodeId: "",
   sort: "conversion-asc",
   userScope: "all"
 };
@@ -76,11 +82,22 @@ export const dashboardQueryParsers = {
   excludeInternalTraffic: parseAsBoolean.withDefault(
     defaultDashboardSearchQuery.excludeInternalTraffic
   ),
+  experimentPage: parseAsInteger.withDefault(defaultDashboardSearchQuery.experimentPage),
+  experimentPageSize: parseAsInteger.withDefault(defaultDashboardSearchQuery.experimentPageSize),
+  experimentPromotionFilter: parseAsString.withDefault(
+    defaultDashboardSearchQuery.experimentPromotionFilter
+  ),
+  experimentStatusFilter: parseAsString.withDefault(
+    defaultDashboardSearchQuery.experimentStatusFilter
+  ),
   filter: parseAsString.withDefault(defaultDashboardSearchQuery.filter),
   selectedCampaignId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCampaignId),
   selectedCustomerId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCustomerId),
   selectedPromotionId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedPromotionId),
   selectedSegmentId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedSegmentId),
+  selectedWorkflowNodeId: parseAsString.withDefault(
+    defaultDashboardSearchQuery.selectedWorkflowNodeId
+  ),
   sort: parseAsStringLiteral(dashboardSortOptions.map((item) => item.value)).withDefault(
     defaultDashboardSearchQuery.sort
   ),
@@ -105,10 +122,15 @@ export function normalizeDashboardQuery(
   return {
     ...query,
     filter: query.filter.trim(),
+    experimentPage: Math.max(1, Math.trunc(query.experimentPage)),
+    experimentPageSize: Math.max(1, Math.trunc(query.experimentPageSize)),
+    experimentPromotionFilter: query.experimentPromotionFilter.trim(),
+    experimentStatusFilter: query.experimentStatusFilter.trim(),
     projectId: projectId.trim(),
     selectedCampaignId: query.selectedCampaignId.trim(),
     selectedCustomerId: query.selectedCustomerId.trim(),
     selectedPromotionId: query.selectedPromotionId.trim(),
-    selectedSegmentId: query.selectedSegmentId.trim()
+    selectedSegmentId: query.selectedSegmentId.trim(),
+    selectedWorkflowNodeId: query.selectedWorkflowNodeId.trim()
   };
 }

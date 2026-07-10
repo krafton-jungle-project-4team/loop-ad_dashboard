@@ -56,6 +56,11 @@ export type DashboardQuery = {
   selectedCampaignId: string;
   selectedPromotionId: string;
   selectedSegmentId: string;
+  selectedWorkflowNodeId: string;
+  experimentPromotionFilter: string;
+  experimentStatusFilter: string;
+  experimentPage: number;
+  experimentPageSize: number;
   sort: DashboardSort;
   filter: string;
 };

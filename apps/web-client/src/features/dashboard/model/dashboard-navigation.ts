@@ -52,7 +52,7 @@ export const dashboardTabs = [
   },
   {
     value: "campaign-metrics",
-    label: "캠페인 성과",
+    label: "캠페인 통계",
     icon: Activity,
     pathSegment: "campaign-metrics"
   },
@@ -122,17 +122,17 @@ export const dashboardNavigationTree: DashboardNavTreeItem[] = [
         type: "link"
       },
       {
+        label: "캠페인 통계",
+        value: "campaign-metrics",
+        pathSegment: "campaign-metrics",
+        icon: Activity,
+        type: "link"
+      },
+      {
         label: "캠페인 개요",
         value: "campaign-detail",
         pathSegment: "campaign-detail",
         icon: LayoutDashboard,
-        type: "link"
-      },
-      {
-        label: "캠페인 성과",
-        value: "campaign-metrics",
-        pathSegment: "campaign-metrics",
-        icon: Activity,
         type: "link"
       },
       {

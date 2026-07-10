@@ -1,9 +1,5 @@
 import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from "@loopad/ui/shadcn/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@loopad/ui/shadcn/collapsible";
 import { Separator } from "@loopad/ui/shadcn/separator";
 import {
   Select,
@@ -222,15 +218,14 @@ function DashboardNavigationFolderItem({
           <SidebarMenuButton
             className={cn(
               "rounded-full text-sidebar-foreground/80",
-              isBranchActive && "font-bold text-[#111111] [&>svg]:stroke-[2.5] [&>svg]:text-[#111111]"
+              isBranchActive &&
+                "font-bold text-[#111111] [&>svg]:stroke-[2.5] [&>svg]:text-[#111111]"
             )}
             isActive={isBranchActive}
             tooltip={item.label}
           >
             {Icon ? <Icon /> : null}
-            <span className={cn(isBranchActive && "font-bold text-[#111111]")}>
-              {item.label}
-            </span>
+            <span className={cn(isBranchActive && "font-bold text-[#111111]")}>{item.label}</span>
             <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
@@ -339,13 +334,16 @@ function DashboardNavigationSubFolderItem({
             asChild
             className={cn(
               "transition-colors",
-              isBranchActive && "font-bold text-[#111111] [&>svg]:stroke-[2.5] [&>svg]:text-[#111111]"
+              isBranchActive &&
+                "font-bold text-[#111111] [&>svg]:stroke-[2.5] [&>svg]:text-[#111111]"
             )}
             isActive={isBranchActive}
           >
             <button type="button">
               {Icon ? <Icon /> : null}
-              <span className={cn("whitespace-nowrap", isBranchActive && "font-bold text-[#111111]")}>
+              <span
+                className={cn("whitespace-nowrap", isBranchActive && "font-bold text-[#111111]")}
+              >
                 {item.label}
               </span>
               <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
@@ -418,8 +416,7 @@ function DashboardSelectionContext({
   });
   const campaigns = mainQuery.data?.campaigns ?? [];
   const selectedCampaign =
-    campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
-    campaigns[0];
+    campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ?? campaigns[0];
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const needsPromotionContext = depth === "promotion" || depth === "segment";
   const campaignDetailQuery = useQuery({
@@ -434,7 +431,9 @@ function DashboardSelectionContext({
   );
   const selectedPromotionId = selectedPromotion?.promotion_id ?? "";
   const segments = getPromotionSegments(campaignDetail, selectedPromotionId);
-  const selectedSegment = segments.find((segment) => segment.segment_id === query.selectedSegmentId);
+  const selectedSegment = segments.find(
+    (segment) => segment.segment_id === query.selectedSegmentId
+  );
 
   return (
     <div className="flex min-w-0 items-center gap-2 overflow-hidden">
