@@ -1245,11 +1245,6 @@ function PromotionSegmentSuggestionPanel({
                         <div className="grid gap-1">
                           <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-[#3927d9]">
                             <span>{performanceEstimate.label}</span>
-                            {performanceEstimate.calibration_status === "not_backtested" ? (
-                              <Badge className="text-[10px]" variant="outline">
-                                백테스트 전
-                              </Badge>
-                            ) : null}
                           </div>
                           <div className="text-2xl font-semibold tabular-nums text-foreground">
                             {performanceEstimate.formatted}
@@ -1449,11 +1444,6 @@ function SegmentSuggestionReportContent({
               <span className="text-base font-semibold tabular-nums text-foreground">
                 {performanceEstimate.formatted}
               </span>
-              {performanceEstimate.calibration_status === "not_backtested" ? (
-                <Badge className="text-[10px]" variant="outline">
-                  백테스트 전 추정치
-                </Badge>
-              ) : null}
             </div>
             {performanceEstimate.basis_label ? (
               <span className="text-[11px] text-muted-foreground">
