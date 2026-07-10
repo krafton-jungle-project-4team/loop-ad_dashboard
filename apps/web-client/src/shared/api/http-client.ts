@@ -2,35 +2,77 @@ import { createApiSuccessResponseSchema } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../../features/dashboard/model/dashboard-config.js";
 
-type HttpMethod = "GET" | "POST";
+type HttpMethod = "DELETE" | "GET" | "PATCH" | "POST";
+
+type ApiSearchParamValue = boolean | number | string | null | undefined;
+
+export type ApiRequestOptions = {
+  body?: unknown;
+  errorMessage?: (response: Response) => Promise<string> | string;
+  method: HttpMethod;
+  searchParams?: Record<string, ApiSearchParamValue> | URLSearchParams;
+  signal?: AbortSignal;
+};
 
 export function apiGet<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
-  return request(path, schema, { method: "GET", signal });
+  return apiRequest(path, schema, { method: "GET", signal });
 }
 
 export function apiPost<T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> {
-  return request(path, schema, { body, method: "POST" });
+  return apiRequest(path, schema, { body, method: "POST" });
 }
 
-async function request<T>(
+export function apiPatch<T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> {
+  return apiRequest(path, schema, { body, method: "PATCH" });
+}
+
+export function apiDelete<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+  return apiRequest(path, schema, { method: "DELETE" });
+}
+
+export async function apiRequest<T>(
   path: string,
   schema: z.ZodType<T>,
-  init: { body?: unknown; method: HttpMethod; signal?: AbortSignal }
+  options: ApiRequestOptions
 ): Promise<T> {
   const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
+  appendSearchParams(url, options.searchParams);
+  const hasBody = options.body !== undefined;
   const response = await fetch(url, {
-    body: init.body ? JSON.stringify(init.body) : undefined,
+    body: hasBody ? JSON.stringify(options.body) : undefined,
     headers: {
       Accept: "application/json",
-      ...(init.body ? { "Content-Type": "application/json" } : {})
+      ...(hasBody ? { "Content-Type": "application/json" } : {})
     },
-    method: init.method,
-    signal: init.signal
+    method: options.method,
+    signal: options.signal
   });
 
   if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
+    const message = options.errorMessage
+      ? await options.errorMessage(response)
+      : `API 요청 실패: ${response.status}`;
+    throw new Error(message);
   }
 
   return createApiSuccessResponseSchema(schema).parse(await response.json()).data;
+}
+
+function appendSearchParams(url: URL, searchParams: ApiRequestOptions["searchParams"]) {
+  if (!searchParams) {
+    return;
+  }
+
+  if (searchParams instanceof URLSearchParams) {
+    for (const [key, value] of searchParams) {
+      url.searchParams.set(key, value);
+    }
+    return;
+  }
+
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value !== null && value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
 }
