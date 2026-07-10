@@ -42,7 +42,7 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useBlocker } from "@tanstack/react-router";
+import { Link, useBlocker } from "@tanstack/react-router";
 import { ChevronDown, GripHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useId, useMemo, useRef, useState } from "react";
 import {
@@ -210,10 +210,25 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             </CardTitle>
             <CardDescription>저장된 사용자 여정을 선택해 단계별 지표를 확인합니다.</CardDescription>
           </div>
-          <Button onClick={openCreateDialog} type="button">
-            <Plus data-icon="inline-start" />
-            사용자 여정 생성
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button asChild variant="outline">
+              <Link
+                params={{ projectId: query.projectId, tabPath: "campaigns" }}
+                search={(current) => ({
+                  ...current,
+                  campaignView: "manage",
+                  createCampaign: true
+                })}
+                to="/dashboard/$projectId/$tabPath"
+              >
+                <Plus data-icon="inline-start" />새 캠페인
+              </Link>
+            </Button>
+            <Button onClick={openCreateDialog} type="button">
+              <Plus data-icon="inline-start" />
+              사용자 여정 생성
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="px-5">
           {deleteMutation.isError ? (

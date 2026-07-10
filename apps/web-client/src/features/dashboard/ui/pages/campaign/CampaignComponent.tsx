@@ -137,6 +137,21 @@ export function CampaignPageSections({
   });
 
   useEffect(() => {
+    if (!query.createCampaign || tab !== "campaigns") {
+      return;
+    }
+
+    createCampaignMutation.reset();
+    setCampaignFormDialog({ mode: "create" });
+    void setDashboardQueryState(
+      { createCampaign: false },
+      {
+        history: "replace"
+      }
+    );
+  }, [createCampaignMutation, query.createCampaign, setDashboardQueryState, tab]);
+
+  useEffect(() => {
     if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
       void setDashboardQueryState({
         selectedCampaignId: selectedCampaign.campaign_id,
