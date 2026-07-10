@@ -137,7 +137,6 @@ function CampaignCreateForm({
   const [campaignName, setCampaignName] = useState("");
   const [objective, setObjective] = useState("");
   const [primaryMetric, setPrimaryMetric] = useState<string>("none");
-  const [status, setStatus] = useState<CreateCampaignInput["status"]>("draft");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const canSubmit = Boolean(campaignName.trim()) && !isPending;
@@ -152,10 +151,8 @@ function CampaignCreateForm({
         onEndDateChange={setEndDate}
         onObjectiveChange={setObjective}
         onStartDateChange={setStartDate}
-        onStatusChange={(nextStatus) => setStatus(nextStatus as CreateCampaignInput["status"])}
         primaryMetricControl={{ onValueChange: setPrimaryMetric, value: primaryMetric }}
         startDate={startDate}
-        status={status}
       />
       <DialogFooter className="border-t pt-5">
         <Button onClick={onCancel} type="button" variant="ghost">
@@ -171,7 +168,7 @@ function CampaignCreateForm({
               objective: nullableText(objective),
               primary_metric: nullableMetric(primaryMetric),
               start_date: nullableDate(startDate),
-              status
+              status: "draft"
             })
           }
           type="button"
@@ -223,10 +220,9 @@ function CampaignEditForm({
         onEndDateChange={setEndDate}
         onObjectiveChange={setObjective}
         onStartDateChange={setStartDate}
-        onStatusChange={setStatus}
         primaryMetricControl={{ onValueChange: setPrimaryMetric, value: primaryMetric }}
         startDate={startDate}
-        status={status}
+        statusControl={{ onValueChange: setStatus, value: status }}
       />
       <DialogFooter className="border-t pt-5">
         <AlertDialog>
@@ -286,10 +282,9 @@ function CampaignFormFields({
   onEndDateChange,
   onObjectiveChange,
   onStartDateChange,
-  onStatusChange,
   primaryMetricControl,
   startDate,
-  status
+  statusControl
 }: {
   campaignName: string;
   endDate: string;
@@ -298,10 +293,9 @@ function CampaignFormFields({
   onEndDateChange: (value: string) => void;
   onObjectiveChange: (value: string) => void;
   onStartDateChange: (value: string) => void;
-  onStatusChange: (value: string) => void;
   primaryMetricControl?: { onValueChange: (value: string) => void; value: string };
   startDate: string;
-  status: string;
+  statusControl?: { onValueChange: (value: string) => void; value: string };
 }) {
   return (
     <FieldGroup>
@@ -350,7 +344,7 @@ function CampaignFormFields({
           </Select>
         </Field>
       ) : null}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className={`grid gap-3 ${statusControl ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
         <Field>
           <FieldLabel htmlFor="dashboard-campaign-start-date">시작일</FieldLabel>
           <Input
@@ -373,21 +367,23 @@ function CampaignFormFields({
             value={endDate}
           />
         </Field>
-        <Field>
-          <FieldLabel id="dashboard-campaign-status-label">상태</FieldLabel>
-          <Select onValueChange={onStatusChange} value={status}>
-            <SelectTrigger aria-labelledby="dashboard-campaign-status-label" className="w-full">
-              <SelectValue placeholder="상태 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {campaignStatusOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {formatStatusLabel(option)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        {statusControl ? (
+          <Field>
+            <FieldLabel id="dashboard-campaign-status-label">상태</FieldLabel>
+            <Select onValueChange={statusControl.onValueChange} value={statusControl.value}>
+              <SelectTrigger aria-labelledby="dashboard-campaign-status-label" className="w-full">
+                <SelectValue placeholder="상태 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {campaignStatusOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {formatStatusLabel(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        ) : null}
       </div>
     </FieldGroup>
   );
