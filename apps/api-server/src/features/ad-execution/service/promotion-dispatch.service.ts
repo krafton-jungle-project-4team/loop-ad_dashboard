@@ -3,21 +3,13 @@ import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
 import type { DispatchJobSummary, PromotionRunDispatchResponse } from "@loopad/shared";
-import { z, ZodError } from "zod";
 import { env } from "../../../infra/env/env.js";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
-import {
-  EmailSender,
-  type DispatchSendResult,
-  type EmailSendInput,
-  SmsSender,
-  type SmsSendInput
-} from "../adapters/dispatch-sender.js";
+import { EmailSender, type DispatchSendResult, SmsSender } from "../adapters/dispatch-sender.js";
 import { HtmlArtifactReader } from "../adapters/artifact-reader.js";
 import {
   AdExecutionDomain,
-  creativeArtifact,
   toAttribution,
   type ActiveAdServingAssignmentEntity,
   type DispatchAttemptSnapshot,
@@ -27,39 +19,25 @@ import {
 } from "../domain/index.js";
 import { AdExecutionReader, AdExecutionWriter, RecipientDirectory } from "../repository/index.js";
 import { requirePromotionLandingUrl } from "./landing-url.guard.js";
+import {
+  getDispatchErrorCode,
+  PromotionChannelExecutor,
+  requireValidEmailContact,
+  requireValidSmsContact
+} from "./promotion-channel-executor.js";
 
 const LOCAL_DASHBOARD_PUBLIC_BASE_URL = "http://localhost:8080";
 const DEV_DASHBOARD_PUBLIC_BASE_URL = "https://dashboard.api.dev.loop-ad.org";
-const requiredContentTextSchema = z.string().min(1);
-const emailAddressSchema = z.string().trim().email();
-const e164PhoneNumberSchema = z
-  .string()
-  .trim()
-  .regex(/^\+[1-9]\d{1,14}$/);
-const emailContentSchema = z.object({
-  subject: requiredContentTextSchema,
-  preheader: z.string().nullable(),
-  body: requiredContentTextSchema,
-  cta: z.string().nullable()
-});
-const smsContentSchema = z.object({
-  message: requiredContentTextSchema
-});
-
 interface DispatchContext {
   promotionRun: PromotionRunEntity;
   channel: DispatchChannel;
 }
 
-type DispatchFailureCode =
-  | "ARTIFACT_FAILED"
-  | "ARTIFACT_NOT_READY"
-  | "CONTENT_INVALID"
-  | "RECIPIENT_CONTACT_INVALID";
-
 /** 프로모션 외부 발행 요청을 저장된 assignment 기반으로 처리합니다. */
 @Injectable()
 export class PromotionDispatchService {
+  private readonly channelExecutor: PromotionChannelExecutor;
+
   constructor(
     @Inject(AdExecutionReader)
     private readonly reader: AdExecutionReader,
@@ -73,7 +51,13 @@ export class PromotionDispatchService {
     private readonly smsSender: SmsSender,
     @Inject(HtmlArtifactReader)
     private readonly artifactReader: HtmlArtifactReader
-  ) {}
+  ) {
+    this.channelExecutor = new PromotionChannelExecutor(
+      this.emailSender,
+      this.smsSender,
+      this.artifactReader
+    );
+  }
 
   /** promotion_run_id 기준으로 Email/SMS 발송을 실행합니다. */
   @LogContextScope()
@@ -292,13 +276,13 @@ export class PromotionDispatchService {
       redirectId = await this.createRedirectLink(assignment);
       const targetUrl = redirectUrl(redirectId);
       const openPixelUrl = openPixelUrlFor(assignment, redirectId);
-      const sendResult = await this.sendToResolvedContact(
-        channel,
+      const sendResult = await this.channelExecutor.send({
         assignment,
-        targetUrl,
+        channel,
         contact,
-        openPixelUrl
-      );
+        openPixelUrl,
+        targetUrl
+      });
       const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
 
       log.info("assignment_sent", { assignment, contact, targetUrl, sendResult, attempt });
@@ -334,70 +318,6 @@ export class PromotionDispatchService {
       default:
         return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
     }
-  }
-
-  private async sendToResolvedContact(
-    channel: DispatchChannel,
-    assignment: ActiveAdServingAssignmentEntity,
-    targetUrl: string,
-    contact: string,
-    openPixelUrl: string
-  ): Promise<DispatchSendResult> {
-    switch (channel) {
-      case "email": {
-        const input = await this.toEmailSendInput(assignment, targetUrl, contact, openPixelUrl);
-        log.info("send_input_prepared", { channel, assignment, input });
-        return this.emailSender.sendEmail(input);
-      }
-      case "sms": {
-        const input = toSmsSendInput(assignment, targetUrl, contact);
-        log.info("send_input_prepared", { channel, assignment, input });
-        return this.smsSender.sendSms(input);
-      }
-      default:
-        return throwUnsupportedDispatchChannel(assignment.promotionRunId, channel);
-    }
-  }
-
-  private async toEmailSendInput(
-    assignment: ActiveAdServingAssignmentEntity,
-    targetUrl: string,
-    recipient: string,
-    openPixelUrl: string
-  ): Promise<EmailSendInput> {
-    const content = emailContentSchema.parse(assignment);
-    const artifact = creativeArtifact(assignment);
-
-    if (!artifact || artifact.creative_format !== "email_html") {
-      return throwDispatchFailure("CONTENT_INVALID");
-    }
-    if (artifact.artifact_status === "pending") {
-      return throwDispatchFailure("ARTIFACT_NOT_READY");
-    }
-    if (artifact.artifact_status === "failed") {
-      return throwDispatchFailure("ARTIFACT_FAILED");
-    }
-    if (artifact.artifact_status !== "published" || !artifact.public_url) {
-      return throwDispatchFailure("CONTENT_INVALID");
-    }
-
-    const template = await this.artifactReader.readHtml(artifact);
-    const htmlBody = fillEmailPlaceholders(template, {
-      openPixelUrl,
-      redirectUrl: targetUrl
-    });
-    const textBody = [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
-      .filter(Boolean)
-      .join("\n\n");
-
-    return {
-      recipient,
-      subject: content.subject,
-      htmlBody,
-      textBody,
-      redirectUrl: targetUrl,
-      openPixelUrl
-    };
   }
 
   @Transactional()
@@ -457,38 +377,10 @@ export class PromotionDispatchService {
   }
 
   private providerNameFor(channel: DispatchChannel, promotionRunId: string) {
-    switch (channel) {
-      case "email": {
-        const provider = this.emailSender.providerName;
-        log.info("provider_selected", { channel, promotionRunId, provider });
-        return provider;
-      }
-      case "sms": {
-        const provider = this.smsSender.providerName;
-        log.info("provider_selected", { channel, promotionRunId, provider });
-        return provider;
-      }
-      default:
-        return throwUnsupportedDispatchChannel(promotionRunId, channel);
-    }
+    const provider = this.channelExecutor.providerNameFor(channel, promotionRunId);
+    log.info("provider_selected", { channel, promotionRunId, provider });
+    return provider;
   }
-}
-
-function toSmsSendInput(
-  assignment: ActiveAdServingAssignmentEntity,
-  targetUrl: string,
-  recipient: string
-): SmsSendInput {
-  const content = smsContentSchema.parse(assignment);
-  const body = content.message.includes("{{redirect_url}}")
-    ? content.message.replaceAll("{{redirect_url}}", targetUrl)
-    : [content.message, targetUrl].join(" ");
-
-  return {
-    recipient,
-    body,
-    redirectUrl: targetUrl
-  };
 }
 
 function toSentAttempt(
@@ -530,10 +422,6 @@ function toStoredDispatchJobStatus(
   return status === "completed" ? "completed" : "failed";
 }
 
-function ctaLine(cta: string | null, targetUrl: string) {
-  return cta ? `${cta}: ${targetUrl}` : targetUrl;
-}
-
 function redirectUrl(redirectId: string) {
   return `${dashboardPublicBaseUrl()}/r/${encodeURIComponent(redirectId)}`;
 }
@@ -559,14 +447,6 @@ function daysFromNow(days: number) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() + days);
   return date;
-}
-
-function getDispatchErrorCode(error: unknown) {
-  if (error instanceof DispatchFailureError) {
-    return error.code;
-  }
-
-  return error instanceof ZodError ? "CONTENT_INVALID" : "PROVIDER_SEND_FAILED";
 }
 
 function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentEntity[]) {
@@ -600,51 +480,4 @@ function assignmentsForDemoRecipients(
 
 function throwUnsupportedDispatchChannel(promotionRunId: string, channel: never): never {
   throw adExecutionErrors.unsupportedDispatchChannel(promotionRunId, String(channel));
-}
-
-function requireValidEmailContact(value: string): string {
-  const result = emailAddressSchema.safeParse(value);
-
-  if (!result.success) {
-    return throwDispatchFailure("RECIPIENT_CONTACT_INVALID");
-  }
-
-  return result.data;
-}
-
-function requireValidSmsContact(value: string): string {
-  const result = e164PhoneNumberSchema.safeParse(value);
-
-  if (!result.success) {
-    return throwDispatchFailure("RECIPIENT_CONTACT_INVALID");
-  }
-
-  return result.data;
-}
-
-function throwDispatchFailure(code: DispatchFailureCode): never {
-  throw new DispatchFailureError(code);
-}
-
-class DispatchFailureError extends Error {
-  override readonly name = "DispatchFailureError";
-
-  constructor(readonly code: DispatchFailureCode) {
-    super(code);
-  }
-}
-
-function fillEmailPlaceholders(
-  template: string,
-  replacements: { redirectUrl: string; openPixelUrl: string }
-) {
-  const htmlBody = template
-    .replaceAll("{{redirect_url}}", replacements.redirectUrl)
-    .replaceAll("{{open_pixel_url}}", replacements.openPixelUrl);
-
-  if (htmlBody.includes("{{redirect_url}}") || htmlBody.includes("{{open_pixel_url}}")) {
-    return throwDispatchFailure("CONTENT_INVALID");
-  }
-
-  return htmlBody;
 }

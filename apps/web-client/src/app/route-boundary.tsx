@@ -1,5 +1,9 @@
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import type { ErrorComponentProps, ErrorRouteComponent, RouteComponent } from "@tanstack/react-router";
+import type {
+  ErrorComponentProps,
+  ErrorRouteComponent,
+  RouteComponent
+} from "@tanstack/react-router";
 import { createElement } from "react";
 import { RouteErrorFallback } from "./route-error.js";
 

@@ -118,450 +118,171 @@ const DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT = 10_000;
 
 @Injectable()
 export class DashboardDecisionClient {
-  async startPromotionAnalysis(request: {
+  startPromotionAnalysis(request: {
     campaignId: string;
     projectId: string;
     promotionId: string;
     request: DashboardStartPromotionAnalysisRequest;
   }): Promise<DashboardStartPromotionAnalysisResult> {
-    const url = new URL(
-      `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/analysis`,
-      env.decision.apiBaseUrl
-    );
-    const startedAt = Date.now();
-    const provider = "decision-api";
-    const endpoint = url.pathname;
-    log.info("provider_request_prepared", { endpoint, provider, request });
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        body: JSON.stringify({
-          project_id: request.projectId,
-          campaign_id: request.campaignId,
-          promotion_id: request.promotionId,
-          operator_instruction: request.request.operator_instruction ?? null
-        }),
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
-        },
-        method: "POST"
-      });
-    } catch (error) {
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        err: error,
-        provider,
-        request
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    if (!response.ok) {
-      const error = await readDecisionError(response);
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    const body: unknown = await response.json();
-    const parsed = decisionPromotionAnalysisResponseSchema.safeParse(body);
-    if (!parsed.success) {
-      log.warn("provider_response_invalid", {
-        body,
-        endpoint,
-        err: parsed.error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(parsed.error);
-    }
-
-    log.info("provider_request_completed", {
-      durationMs: durationMs(startedAt),
-      endpoint,
-      provider,
-      result: parsed.data,
-      statusCode: response.status
+    return requestDecisionApi({
+      body: {
+        project_id: request.projectId,
+        campaign_id: request.campaignId,
+        promotion_id: request.promotionId,
+        operator_instruction: request.request.operator_instruction ?? null
+      },
+      path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/analysis`,
+      request,
+      schema: decisionPromotionAnalysisResponseSchema
     });
-    return parsed.data;
   }
 
-  async startPromotionGeneration(request: {
+  startPromotionGeneration(request: {
     campaignId: string;
     projectId: string;
     promotionId: string;
     request: DashboardStartPromotionGenerationRequest;
   }): Promise<DashboardStartPromotionGenerationResult> {
-    const url = new URL(
-      `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/generation`,
-      env.decision.apiBaseUrl
-    );
-    const startedAt = Date.now();
-    const provider = "decision-api";
-    const endpoint = url.pathname;
-    log.info("provider_request_prepared", { endpoint, provider, request });
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        body: JSON.stringify({
-          project_id: request.projectId,
-          campaign_id: request.campaignId,
-          promotion_id: request.promotionId,
-          analysis_id: request.request.analysis_id,
-          content_option_count: request.request.content_option_count ?? 3,
-          operator_instruction: request.request.operator_instruction ?? null
-        }),
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
-        },
-        method: "POST"
-      });
-    } catch (error) {
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        err: error,
-        provider,
-        request
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    if (!response.ok) {
-      const error = await readDecisionError(response);
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    const body: unknown = await response.json();
-    const parsed = decisionPromotionGenerationResponseSchema.safeParse(body);
-    if (!parsed.success) {
-      log.warn("provider_response_invalid", {
-        body,
-        endpoint,
-        err: parsed.error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(parsed.error);
-    }
-
-    log.info("provider_request_completed", {
-      durationMs: durationMs(startedAt),
-      endpoint,
-      provider,
-      result: parsed.data,
-      statusCode: response.status
+    return requestDecisionApi({
+      body: {
+        project_id: request.projectId,
+        campaign_id: request.campaignId,
+        promotion_id: request.promotionId,
+        analysis_id: request.request.analysis_id,
+        content_option_count: request.request.content_option_count ?? 3,
+        operator_instruction: request.request.operator_instruction ?? null
+      },
+      path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/generation`,
+      request,
+      schema: decisionPromotionGenerationResponseSchema
     });
-    return parsed.data;
   }
 
-  async createPromotionRun(request: {
+  createPromotionRun(request: {
     promotionId: string;
     request: DashboardCreatePromotionRunRequest;
   }): Promise<DashboardCreatePromotionRunResult> {
-    const url = new URL(
-      `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/runs`,
-      env.decision.apiBaseUrl
-    );
-    const startedAt = Date.now();
-    const provider = "decision-api";
-    const endpoint = url.pathname;
-    log.info("provider_request_prepared", { endpoint, provider, request });
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        body: JSON.stringify({
-          analysis_id: request.request.analysis_id,
-          generation_id: request.request.generation_id,
-          loop_count: request.request.loop_count
-        }),
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
-        },
-        method: "POST"
-      });
-    } catch (error) {
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        err: error,
-        provider,
-        request
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    if (!response.ok) {
-      const error = await readDecisionError(response);
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    const body: unknown = await response.json();
-    const parsed = decisionPromotionRunResponseSchema.safeParse(body);
-    if (!parsed.success) {
-      log.warn("provider_response_invalid", {
-        body,
-        endpoint,
-        err: parsed.error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(parsed.error);
-    }
-
-    log.info("provider_request_completed", {
-      durationMs: durationMs(startedAt),
-      endpoint,
-      provider,
-      result: parsed.data,
-      statusCode: response.status
+    return requestDecisionApi({
+      body: {
+        analysis_id: request.request.analysis_id,
+        generation_id: request.request.generation_id,
+        loop_count: request.request.loop_count
+      },
+      path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/runs`,
+      request,
+      schema: decisionPromotionRunResponseSchema
     });
-    return parsed.data;
   }
 
-  async buildPromotionRunSegmentAssignments(request: {
+  buildPromotionRunSegmentAssignments(request: {
     projectId: string;
     promotionRunId: string;
   }): Promise<DashboardBuildPromotionRunAssignmentsResult> {
-    const url = new URL(
-      `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/segment-assignments/build`,
-      env.decision.apiBaseUrl
-    );
-    const startedAt = Date.now();
-    const provider = "decision-api";
-    const endpoint = url.pathname;
-    log.info("provider_request_prepared", { endpoint, provider, request });
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        body: JSON.stringify({
-          eligible_user_limit: DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT
-        }),
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
-        },
-        method: "POST"
-      });
-    } catch (error) {
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        err: error,
-        provider,
-        request
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    if (!response.ok) {
-      const error = await readDecisionError(response);
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    const body: unknown = await response.json();
-    const parsed = decisionSegmentAssignmentBuildResponseSchema.safeParse(body);
-    if (!parsed.success) {
-      log.warn("provider_response_invalid", {
-        body,
-        endpoint,
-        err: parsed.error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(parsed.error);
-    }
-
-    log.info("provider_request_completed", {
-      durationMs: durationMs(startedAt),
-      endpoint,
-      provider,
-      result: parsed.data,
-      statusCode: response.status
+    return requestDecisionApi({
+      body: {
+        eligible_user_limit: DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT
+      },
+      path: `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/segment-assignments/build`,
+      request,
+      schema: decisionSegmentAssignmentBuildResponseSchema
     });
-    return parsed.data;
   }
 
-  async evaluatePromotionRun(request: {
+  evaluatePromotionRun(request: {
     promotionRunId: string;
   }): Promise<DashboardEvaluatePromotionRunResult> {
-    const url = new URL(
-      `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/evaluate`,
-      env.decision.apiBaseUrl
-    );
-    const startedAt = Date.now();
-    const provider = "decision-api";
-    const endpoint = url.pathname;
-    log.info("provider_request_prepared", { endpoint, provider, request });
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        body: JSON.stringify({}),
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
-        },
-        method: "POST"
-      });
-    } catch (error) {
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        err: error,
-        provider,
-        request
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    if (!response.ok) {
-      const error = await readDecisionError(response);
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    const body: unknown = await response.json();
-    const parsed = decisionPromotionRunEvaluateResponseSchema.safeParse(body);
-    if (!parsed.success) {
-      log.warn("provider_response_invalid", {
-        body,
-        endpoint,
-        err: parsed.error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(parsed.error);
-    }
-
-    log.info("provider_request_completed", {
-      durationMs: durationMs(startedAt),
-      endpoint,
-      provider,
-      result: parsed.data,
-      statusCode: response.status
+    return requestDecisionApi({
+      body: {},
+      path: `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/evaluate`,
+      request,
+      schema: decisionPromotionRunEvaluateResponseSchema
     });
-    return parsed.data;
   }
 
-  async createNextLoop(request: {
+  createNextLoop(request: {
     promotionRunId: string;
     request: DashboardCreateNextLoopRequest;
   }): Promise<DashboardCreateNextLoopResult> {
-    const url = new URL(
-      `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/next-loop`,
-      env.decision.apiBaseUrl
-    );
-    const startedAt = Date.now();
-    const provider = "decision-api";
-    const endpoint = url.pathname;
-    log.info("provider_request_prepared", { endpoint, provider, request });
+    return requestDecisionApi({
+      body: {
+        failed_segment_ids: request.request.failed_segment_ids,
+        failed_ad_experiment_ids: request.request.failed_ad_experiment_ids,
+        operator_instruction: request.request.operator_instruction ?? null
+      },
+      path: `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/next-loop`,
+      request,
+      schema: decisionNextLoopResponseSchema
+    });
+  }
+}
 
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        body: JSON.stringify({
-          failed_segment_ids: request.request.failed_segment_ids,
-          failed_ad_experiment_ids: request.request.failed_ad_experiment_ids,
-          operator_instruction: request.request.operator_instruction ?? null
-        }),
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
-        },
-        method: "POST"
-      });
-    } catch (error) {
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        err: error,
-        provider,
-        request
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
+async function requestDecisionApi<T>(input: {
+  body: unknown;
+  path: string;
+  request: unknown;
+  schema: z.ZodType<T>;
+}): Promise<T> {
+  const url = new URL(input.path, env.decision.apiBaseUrl);
+  const startedAt = Date.now();
+  const provider = "decision-api";
+  const endpoint = url.pathname;
+  log.info("provider_request_prepared", { endpoint, provider, request: input.request });
 
-    if (!response.ok) {
-      const error = await readDecisionError(response);
-      log.warn("provider_request_failed", {
-        durationMs: durationMs(startedAt),
-        endpoint,
-        error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(error);
-    }
-
-    const body: unknown = await response.json();
-    const parsed = decisionNextLoopResponseSchema.safeParse(body);
-    if (!parsed.success) {
-      log.warn("provider_response_invalid", {
-        body,
-        endpoint,
-        err: parsed.error,
-        provider,
-        statusCode: response.status
-      });
-      throw dashboardErrors.decisionRequestFailed(parsed.error);
-    }
-
-    log.info("provider_request_completed", {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      body: JSON.stringify(input.body),
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
+      },
+      method: "POST"
+    });
+  } catch (error) {
+    log.warn("provider_request_failed", {
       durationMs: durationMs(startedAt),
       endpoint,
+      err: error,
       provider,
-      result: parsed.data,
+      request: input.request
+    });
+    throw dashboardErrors.decisionRequestFailed(error);
+  }
+
+  if (!response.ok) {
+    const error = await readDecisionError(response);
+    log.warn("provider_request_failed", {
+      durationMs: durationMs(startedAt),
+      endpoint,
+      error,
+      provider,
       statusCode: response.status
     });
-    return parsed.data;
+    throw dashboardErrors.decisionRequestFailed(error);
   }
+
+  const body: unknown = await response.json();
+  const parsed = input.schema.safeParse(body);
+  if (!parsed.success) {
+    log.warn("provider_response_invalid", {
+      body,
+      endpoint,
+      err: parsed.error,
+      provider,
+      statusCode: response.status
+    });
+    throw dashboardErrors.decisionRequestFailed(parsed.error);
+  }
+
+  log.info("provider_request_completed", {
+    durationMs: durationMs(startedAt),
+    endpoint,
+    provider,
+    result: parsed.data,
+    statusCode: response.status
+  });
+  return parsed.data;
 }
 
 async function readDecisionError(response: Response) {

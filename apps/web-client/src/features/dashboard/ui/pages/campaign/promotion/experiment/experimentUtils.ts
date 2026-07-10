@@ -361,10 +361,6 @@ export function pickJsonNumber(value: Record<string, unknown>, keys: string[]) {
   return null;
 }
 
-export function canStartAdExperiment(status: string) {
-  return status === "planned" || status === "approved";
-}
-
 export function formatGoalValue(value: number | null) {
   if (value === null) {
     return "-";

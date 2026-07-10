@@ -3,7 +3,10 @@ import { createFileRoute, Navigate, useParams } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { createRouteBoundaryOptions } from "../app/route-boundary.js";
 import { getDashboardTabByPath } from "../features/dashboard/model/dashboard-navigation.js";
-import { normalizeDashboardQuery, useDashboardQueryState } from "../features/dashboard/model/dashboard-query.js";
+import {
+  normalizeDashboardQuery,
+  useDashboardQueryState
+} from "../features/dashboard/model/dashboard-query.js";
 import type { DashboardQuery, DashboardTab } from "../features/dashboard/model/dashboard-types.js";
 import { useSuspenseDashboardResources } from "../features/dashboard/model/use-dashboard-resources.js";
 import { DashboardPanelRenderer } from "../features/dashboard/ui/DashboardRenderer.js";
@@ -72,13 +75,7 @@ function DashboardProjectContent({ projectId, tab }: { projectId: string; tab: D
   return <DashboardResourcePanel query={query} tab={tab} />;
 }
 
-function DashboardResourcePanel({
-  query,
-  tab
-}: {
-  query: DashboardQuery;
-  tab: DashboardTab;
-}) {
+function DashboardResourcePanel({ query, tab }: { query: DashboardQuery; tab: DashboardTab }) {
   const { data } = useSuspenseDashboardResources(tab, query);
 
   return <DashboardPanelRenderer query={query} resource={data} />;

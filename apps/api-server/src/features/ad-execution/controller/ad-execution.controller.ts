@@ -32,6 +32,8 @@ export class AdExecutionController {
   async resolveBanner(@Query() query: unknown) {
     const request = BannerResolveQuerySchema.parse(query);
 
-    return BannerResolveResponseSchema.parse(await this.bannerResolveService.resolveBanner(request));
+    return BannerResolveResponseSchema.parse(
+      await this.bannerResolveService.resolveBanner(request)
+    );
   }
 }

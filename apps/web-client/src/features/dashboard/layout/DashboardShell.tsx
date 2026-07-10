@@ -52,7 +52,7 @@ import {
   dashboardCampaignDetailQueryKey,
   dashboardPageQueryKey
 } from "../model/dashboard-query-keys.js";
-import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
+import type { DashboardTab } from "../model/dashboard-types.js";
 import { ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
