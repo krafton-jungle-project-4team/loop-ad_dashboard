@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { DashboardFunnelEventNameSchema } from "@loopad/shared";
 import type {
   DashboardBannerResponse,
@@ -29,28 +28,15 @@ import { Inject, Injectable } from "@nestjs/common";
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import {
-  deleteFunnelDefinition,
-  deleteFunnelSteps,
-  getActiveFunnelById,
   getDashboardCampaignDeliveryStatus,
   getDashboardPromotionDeliveryStatus,
   getDashboardSegmentDeliveryStatus,
-  insertFunnelDefinition,
-  insertFunnelStep,
-  listActiveFunnels,
-  listActiveFunnelStepsByFunnelId,
-  updateFunnelDefinition,
   listDashboardPromotionSegmentDeliverySummaries,
-  type IGetActiveFunnelByIdResult,
   type IGetDashboardCampaignDeliveryStatusResult,
   type IGetDashboardPromotionDeliveryStatusResult,
-  type IGetDashboardSegmentDeliveryStatusResult,
-  type IInsertFunnelDefinitionResult,
-  type IInsertFunnelStepResult,
-  type IListActiveFunnelsResult,
-  type IListActiveFunnelStepsResult,
-  type IUpdateFunnelDefinitionResult
+  type IGetDashboardSegmentDeliveryStatusResult
 } from "../database/__generated__/dashboard.queries.js";
+import { DashboardFunnelDefinitionRepository } from "./dashboard-funnel-definition-repository.js";
 
 type EventCatalogRow = {
   event_name: string;
@@ -139,12 +125,16 @@ type RealtimeWindowMetrics = {
 
 @Injectable()
 export class DashboardFunnelReader {
+  private readonly definitionRepository: DashboardFunnelDefinitionRepository;
+
   constructor(
     @InjectTransaction()
     private readonly db: Transaction<PgTypedTransactionalAdapter>,
     @Inject(CLICKHOUSE_CLIENT)
     private readonly clickhouse: ClickHouseClient
-  ) {}
+  ) {
+    this.definitionRepository = new DashboardFunnelDefinitionRepository(this.db);
+  }
 
   async listEventCatalog(projectId: string): Promise<DashboardEventCatalogItem[]> {
     const result = await this.clickhouse.query({
@@ -173,18 +163,11 @@ export class DashboardFunnelReader {
   }
 
   async listFunnels(projectId: string): Promise<DashboardFunnelSummary[]> {
-    const funnels = await this.db.query(listActiveFunnels, { projectId }).multiple();
-
-    return funnels.map(toFunnelSummary);
+    return this.definitionRepository.list(projectId);
   }
 
   async getFunnel(projectId: string, funnelId: string): Promise<DashboardFunnel> {
-    const [funnel, steps] = await Promise.all([
-      this.db.query(getActiveFunnelById, { funnelId, projectId }).single(),
-      this.db.query(listActiveFunnelStepsByFunnelId, { funnelId, projectId }).multiple()
-    ]);
-
-    return toFunnel(funnel, steps);
+    return this.definitionRepository.get(projectId, funnelId);
   }
 
   async getFunnelMetrics(
@@ -192,19 +175,8 @@ export class DashboardFunnelReader {
     funnelId: string,
     scope?: DashboardFunnelMetricsScope
   ): Promise<DashboardFunnelMetrics> {
-    const [funnel, steps] = await Promise.all([
-      this.db.query(getActiveFunnelById, { funnelId, projectId }).single(),
-      this.db.query(listActiveFunnelStepsByFunnelId, { funnelId, projectId }).multiple()
-    ]);
-    const metricSteps = await this.buildFunnelMetricSteps(
-      projectId,
-      steps.map((step) => ({
-        eventName: step.eventName,
-        stepName: step.stepName,
-        stepOrder: step.stepOrder
-      })),
-      scope
-    );
+    const funnel = await this.definitionRepository.getMetricDefinition(projectId, funnelId);
+    const metricSteps = await this.buildFunnelMetricSteps(projectId, funnel.steps, scope);
 
     return {
       funnel_id: funnel.funnelId,
@@ -414,30 +386,7 @@ export class DashboardFunnelReader {
     projectId: string,
     request: DashboardCreateFunnelRequest
   ): Promise<DashboardFunnel> {
-    const funnelId = `funnel_${randomUUID()}`;
-    const funnel = await this.db
-      .query(insertFunnelDefinition, {
-        funnelId,
-        projectId,
-        funnelName: request.funnel_name
-      })
-      .single();
-
-    const steps: IInsertFunnelStepResult[] = [];
-    for (const [index, step] of request.steps.entries()) {
-      steps.push(
-        await this.db
-          .query(insertFunnelStep, {
-            funnelId,
-            stepOrder: index + 1,
-            stepName: step.step_name,
-            eventName: step.event_name
-          })
-          .single()
-      );
-    }
-
-    return toFunnel(funnel, steps);
+    return this.definitionRepository.create(projectId, request);
   }
 
   async updateFunnel(
@@ -445,40 +394,11 @@ export class DashboardFunnelReader {
     funnelId: string,
     request: DashboardUpdateFunnelRequest
   ): Promise<DashboardFunnel> {
-    const funnel = await this.db
-      .query(updateFunnelDefinition, {
-        funnelId,
-        projectId,
-        funnelName: request.funnel_name
-      })
-      .single();
-    await this.db.query(deleteFunnelSteps, { funnelId, projectId }).multiple();
-
-    const steps: IInsertFunnelStepResult[] = [];
-    for (const [index, step] of request.steps.entries()) {
-      steps.push(
-        await this.db
-          .query(insertFunnelStep, {
-            funnelId,
-            stepOrder: index + 1,
-            stepName: step.step_name,
-            eventName: step.event_name
-          })
-          .single()
-      );
-    }
-
-    return toFunnel(funnel, steps);
+    return this.definitionRepository.update(projectId, funnelId, request);
   }
 
   async deleteFunnel(projectId: string, funnelId: string): Promise<DashboardDeleteFunnelResult> {
-    await this.db.query(deleteFunnelSteps, { funnelId, projectId }).multiple();
-    const deleted = await this.db.query(deleteFunnelDefinition, { funnelId, projectId }).single();
-
-    return {
-      funnel_id: deleted.funnelId,
-      deleted: true
-    };
+    return this.definitionRepository.delete(projectId, funnelId);
   }
 
   private async countRealtimeEvents({
@@ -1121,43 +1041,6 @@ function funnelMetricsScopeFilter(scope: DashboardFunnelMetricsScope): FunnelMet
       };
     }
   }
-}
-
-function toFunnel(
-  funnel:
-    | IGetActiveFunnelByIdResult
-    | IInsertFunnelDefinitionResult
-    | IListActiveFunnelsResult
-    | IUpdateFunnelDefinitionResult,
-  steps: Array<IInsertFunnelStepResult | IListActiveFunnelStepsResult>
-): DashboardFunnel {
-  return {
-    funnel_id: funnel.funnelId,
-    funnel_name: funnel.funnelName,
-    domain_type: funnel.domainType,
-    status: funnel.status,
-    steps: steps
-      .filter((step) => step.funnelId === funnel.funnelId)
-      .map((step) => ({
-        step_order: step.stepOrder,
-        step_name: step.stepName,
-        event_name: DashboardFunnelEventNameSchema.parse(step.eventName)
-      })),
-    created_at: funnel.createdAt.toISOString(),
-    updated_at: funnel.updatedAt.toISOString()
-  };
-}
-
-function toFunnelSummary(funnel: IListActiveFunnelsResult): DashboardFunnelSummary {
-  return {
-    funnel_id: funnel.funnelId,
-    funnel_name: funnel.funnelName,
-    domain_type: funnel.domainType,
-    status: funnel.status,
-    step_count: countValue(funnel.stepCount),
-    created_at: funnel.createdAt.toISOString(),
-    updated_at: funnel.updatedAt.toISOString()
-  };
 }
 
 function countValue(value: number | string | null): number {
