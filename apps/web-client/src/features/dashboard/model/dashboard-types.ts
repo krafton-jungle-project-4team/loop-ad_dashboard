@@ -70,6 +70,7 @@ export type DashboardPageResource =
 export type DashboardQuery = {
   projectId: string;
   createCampaign: boolean;
+  createPromotion: boolean;
   dateRange: DashboardDateRange;
   excludeInternalTraffic: boolean;
   excludeBotTraffic: boolean;

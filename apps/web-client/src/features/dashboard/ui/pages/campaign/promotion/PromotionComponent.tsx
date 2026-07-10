@@ -118,6 +118,7 @@ export function PromotionWorkspace({
           {selectedOpenPromotion && !isManagementView ? (
             <PromotionTabWorkspace
               approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
+              campaignId={selectedCampaign?.campaign_id ?? ""}
               archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
               confirmIsPending={confirmSuggestionsMutation.isPending}
               createNextLoopIsPending={createNextLoopMutation.isPending}
@@ -173,6 +174,7 @@ export function PromotionWorkspace({
               }
               onTabChange={setWorkspaceTab}
               promotion={selectedOpenPromotion}
+              projectId={query.projectId}
               promotionAnalysisIsPending={promotionAnalysisIsPending}
               promotionGenerationIsPending={promotionGenerationIsPending}
               rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}

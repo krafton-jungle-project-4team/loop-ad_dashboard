@@ -55,6 +55,7 @@ export type DashboardSearchQuery = Omit<DashboardQuery, "projectId">;
 export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   conversionEvent: "booking_complete",
   createCampaign: false,
+  createPromotion: false,
   dateRange: "last-7-days",
   excludeBotTraffic: true,
   excludeInternalTraffic: true,
@@ -85,6 +86,7 @@ export const dashboardQueryParsers = {
     dashboardConversionEventOptions.map((item) => item.value)
   ).withDefault(defaultDashboardSearchQuery.conversionEvent),
   createCampaign: parseAsBoolean.withDefault(defaultDashboardSearchQuery.createCampaign),
+  createPromotion: parseAsBoolean.withDefault(defaultDashboardSearchQuery.createPromotion),
   dateRange: parseAsStringLiteral(dashboardDateRangeOptions.map((item) => item.value)).withDefault(
     defaultDashboardSearchQuery.dateRange
   ),

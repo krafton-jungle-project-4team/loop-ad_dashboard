@@ -165,6 +165,33 @@ export function usePromotionWorkspaceController({
   });
 
   useEffect(() => {
+    if (
+      !query.createPromotion ||
+      mode !== "promotion" ||
+      query.promotionView !== "manage" ||
+      !selectedCampaign
+    ) {
+      return;
+    }
+
+    createPromotionMutation.reset();
+    setIsAddDialogOpen(true);
+    void setDashboardQueryState(
+      { createPromotion: false },
+      {
+        history: "replace"
+      }
+    );
+  }, [
+    createPromotionMutation,
+    mode,
+    query.createPromotion,
+    query.promotionView,
+    selectedCampaign,
+    setDashboardQueryState
+  ]);
+
+  useEffect(() => {
     if (query.selectedCampaignId && !selectedCampaign) {
       void setDashboardQueryState(
         {

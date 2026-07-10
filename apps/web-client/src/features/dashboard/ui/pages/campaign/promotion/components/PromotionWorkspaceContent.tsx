@@ -24,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loop
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
+import { Link } from "@tanstack/react-router";
 import {
   Table,
   TableBody,
@@ -52,6 +53,7 @@ import {
   formatStatusLabel
 } from "../../../../../model/dashboard-labels.js";
 import type { SegmentWorkspaceView } from "../../../../../model/dashboard-types.js";
+import { useDashboardQueryState } from "../../../../../model/dashboard-query.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import { EntityWorkspaceEmptyState } from "../../../../shared/EntityWorkspace.js";
 import {
@@ -135,7 +137,7 @@ export function PromotionManagementList({
         <EmptyState message="검색 조건에 맞는 프로모션이 없습니다." />
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-lg border md:block">
+          <div className="hidden overflow-x-auto rounded-lg border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -305,6 +307,7 @@ export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
 export function PromotionTabWorkspace({
   archiveScopedSegmentIsPending,
   approveContentCandidateIsPending,
+  campaignId,
   confirmIsPending,
   decideIsPending,
   deleteConfirmedSegmentIsPending,
@@ -331,6 +334,7 @@ export function PromotionTabWorkspace({
   onStartGeneration,
   onTabChange,
   promotion,
+  projectId,
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
@@ -350,6 +354,7 @@ export function PromotionTabWorkspace({
 }: {
   archiveScopedSegmentIsPending: boolean;
   approveContentCandidateIsPending: boolean;
+  campaignId: string;
   confirmIsPending: boolean;
   decideIsPending: boolean;
   deleteConfirmedSegmentIsPending: boolean;
@@ -380,6 +385,7 @@ export function PromotionTabWorkspace({
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
+  projectId: string;
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -447,7 +453,11 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsOverviewTab ? (
           <TabsContent value="overview">
-            <PromotionOverviewTab promotion={promotion} />
+            <PromotionOverviewTab
+              campaignId={campaignId}
+              promotion={promotion}
+              projectId={projectId}
+            />
           </TabsContent>
         ) : null}
         {showsSegmentsTab ? (
@@ -516,7 +526,15 @@ export function PromotionTabWorkspace({
   );
 }
 
-function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromotion }) {
+function PromotionOverviewTab({
+  campaignId,
+  promotion,
+  projectId
+}: {
+  campaignId: string;
+  promotion: DashboardCampaignPromotion;
+  projectId: string;
+}) {
   return (
     <div className="grid gap-4">
       <Card className="shadow-none">
@@ -541,6 +559,23 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
             <SummaryItem label="목표 기준" value={formatBasisLabel(promotion.goal_basis)} />
             <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
             <SummaryItem label="다음 액션" value={formatActionLabel(promotion.next_action)} />
+          </div>
+          <div className="flex justify-end">
+            <Button asChild>
+              <Link
+                params={{ projectId, tabPath: "segments" }}
+                search={(current) => ({
+                  ...current,
+                  segmentView: "recommendations",
+                  selectedCampaignId: campaignId,
+                  selectedPromotionId: promotion.promotion_id,
+                  selectedSegmentId: ""
+                })}
+                to="/dashboard/$projectId/$tabPath"
+              >
+                AI 추천 요청
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -738,6 +773,8 @@ function PromotionSegmentDetailTab({
   selectedSegmentId: string;
   view: SegmentWorkspaceView;
 }) {
+  const [, setDashboardQueryState] = useDashboardQueryState();
+
   if (!selectedSegmentId) {
     return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
   }
@@ -802,21 +839,33 @@ function PromotionSegmentDetailTab({
                 Decision 생성 결과로 저장된 콘텐츠 후보를 세그먼트 기준으로 조회합니다.
               </p>
             </div>
-            <Button
-              disabled={
-                generationIsPending || !detail.segment.analysis_id || hasGeneratedContentCandidates
-              }
-              onClick={() => onStartGeneration(detail.segment.analysis_id)}
-              type="button"
-              variant="outline"
-            >
-              <ImageIcon className="mr-2 size-4" />
-              {generationIsPending
-                ? "생성 요청 중"
-                : hasGeneratedContentCandidates
-                  ? "생성 완료"
-                  : "광고 생성 요청"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {approvedContentCandidate ? (
+                <Button
+                  onClick={() => void setDashboardQueryState({ segmentView: "experiments" })}
+                  type="button"
+                >
+                  실험 준비하기
+                </Button>
+              ) : null}
+              <Button
+                disabled={
+                  generationIsPending ||
+                  !detail.segment.analysis_id ||
+                  hasGeneratedContentCandidates
+                }
+                onClick={() => onStartGeneration(detail.segment.analysis_id)}
+                type="button"
+                variant="outline"
+              >
+                <ImageIcon className="mr-2 size-4" />
+                {generationIsPending
+                  ? "생성 요청 중"
+                  : hasGeneratedContentCandidates
+                    ? "생성 완료"
+                    : "광고 생성 요청"}
+              </Button>
+            </div>
           </div>
           <div className="grid gap-3">
             {detail.content_candidates.length > 0 ? (
@@ -983,7 +1032,19 @@ function PromotionSegmentDetailTab({
         />
       ) : null}
 
-      {view === "overview" ? <SegmentDetailReportCard suggestion={segmentSuggestion} /> : null}
+      {view === "overview" ? (
+        <section className="grid gap-3">
+          <div className="flex justify-end">
+            <Button
+              onClick={() => void setDashboardQueryState({ segmentView: "creative" })}
+              type="button"
+            >
+              광고 소재 만들기
+            </Button>
+          </div>
+          <SegmentDetailReportCard suggestion={segmentSuggestion} />
+        </section>
+      ) : null}
     </section>
   );
 }

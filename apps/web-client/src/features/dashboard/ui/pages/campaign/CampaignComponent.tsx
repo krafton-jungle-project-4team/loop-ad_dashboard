@@ -29,6 +29,7 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { BarChart3, FolderOpen, MoreHorizontal, Pencil, Plus, Search, Target } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -366,7 +367,7 @@ function CampaignManagementList({
 }) {
   return (
     <>
-      <div className="hidden overflow-hidden rounded-lg border md:block">
+      <div className="hidden overflow-x-auto rounded-lg border md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -598,6 +599,24 @@ function CampaignTabContent({
       return (
         <>
           <CampaignSummary detail={detail} />
+          <div className="flex justify-end">
+            <Button asChild>
+              <Link
+                params={{ projectId: query.projectId, tabPath: "promotions" }}
+                search={(current) => ({
+                  ...current,
+                  createPromotion: true,
+                  promotionView: "manage",
+                  selectedCampaignId: detail.campaign.campaign_id,
+                  selectedPromotionId: "",
+                  selectedSegmentId: ""
+                })}
+                to="/dashboard/$projectId/$tabPath"
+              >
+                <Plus data-icon="inline-start" />새 프로모션
+              </Link>
+            </Button>
+          </div>
           <CampaignPromotionTable
             onSelectPromotion={onSelectPromotion}
             promotions={detail.promotions}

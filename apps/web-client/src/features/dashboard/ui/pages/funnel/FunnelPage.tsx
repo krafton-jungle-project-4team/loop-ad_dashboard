@@ -241,7 +241,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             </Alert>
           ) : null}
           {data.funnels.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border border-black/10">
+            <div className="overflow-x-auto rounded-lg border border-black/10">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
