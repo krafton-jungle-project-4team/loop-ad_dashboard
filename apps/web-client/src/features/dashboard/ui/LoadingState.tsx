@@ -1,16 +1,28 @@
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Card, CardContent, CardHeader } from "@loopad/ui/shadcn/card";
 import { Skeleton } from "@loopad/ui/shadcn/skeleton";
+import { Spinner } from "@loopad/ui/shadcn/spinner";
 import type { DashboardTab } from "../model/dashboard-types.js";
 
 export function LoadingState({ tab }: { tab: DashboardTab }) {
+  let skeleton = <MainSkeleton />;
+
   if (tab === "dataExplorer") {
-    return <DataExplorerSkeleton />;
-  }
-  if (tab === "campaign-flow-map") {
-    return <CampaignFlowMapSkeleton />;
+    skeleton = <DataExplorerSkeleton />;
+  } else if (tab === "campaign-flow-map") {
+    skeleton = <CampaignFlowMapSkeleton />;
   }
 
-  return <MainSkeleton />;
+  return (
+    <div aria-busy="true" className="grid gap-6">
+      <Alert aria-live="polite" role="status">
+        <Spinner aria-hidden="true" className="size-5" />
+        <AlertTitle>페이지를 불러오는 중입니다</AlertTitle>
+        <AlertDescription>최신 대시보드 데이터를 준비하고 있습니다.</AlertDescription>
+      </Alert>
+      {skeleton}
+    </div>
+  );
 }
 
 function CampaignFlowMapSkeleton() {

@@ -34,6 +34,8 @@ export function createRouteBoundaryOptions({
 
   return {
     errorComponent,
+    pendingMinMs: 300,
+    pendingMs: 0,
     pendingComponent,
     wrapInSuspense: true as const
   };
