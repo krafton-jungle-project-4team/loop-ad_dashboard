@@ -1,8 +1,7 @@
 ---
 name: loopad-log-tracer
-description: ap-northeast-2의 AWS CloudWatch 로그로 LoopAd dev ECS 서비스 동작을 조사한다. 사용자가 요청 ID, API 경로, 버그 증상, 의심 데이터 식별자, 상태 코드, 에러 문구, 시간대를 기반으로 LoopAd dashboard-api, decision-api, event-collector 문제를 디버깅해 달라고 요청하거나 aws login 후 LoopAd AWS 로그 검색을 요청할 때 사용한다.
+description: "서울 리전 AWS CloudWatch 로그로 LoopAd 개발 ECS 서비스 동작을 조사한다. 요청 ID, API 경로, 오류 증상, 데이터 식별자, 상태 코드, 시간대를 바탕으로 dashboard-api, decision-api, event-collector 문제를 디버깅할 때 사용한다."
 ---
-
 # LoopAd 로그 추적기
 
 ## 개요
