@@ -6,6 +6,7 @@ import type {
   DashboardPromotionSegmentSuggestion,
   DashboardSegmentDetail
 } from "@loopad/shared";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,9 +65,11 @@ import {
   statusBadgeVariant,
   contentCandidateMessage,
   contentCandidateTitle,
+  mutationErrorMessage,
   type PromotionSegmentCreateFormState,
   type PromotionWorkspaceTab
 } from "../promotionUtils.js";
+import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow.js";
 import {
   PromotionSegmentSuggestionPanel,
   SegmentDetailReportCard
@@ -308,7 +311,10 @@ export function PromotionTabWorkspace({
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
   createNextLoopIsPending,
+  launchExperimentError,
+  launchExperimentIsError,
   launchExperimentIsPending,
+  launchExperimentResult,
   onArchiveScopedSegment,
   onApproveContentCandidate,
   onConfirmSuggestions,
@@ -350,7 +356,10 @@ export function PromotionTabWorkspace({
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
   createNextLoopIsPending: boolean;
+  launchExperimentError: Error | null;
+  launchExperimentIsError: boolean;
   launchExperimentIsPending: boolean;
+  launchExperimentResult: PromotionExperimentLaunchResult | null;
   onArchiveScopedSegment: (segmentId: string) => void;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onConfirmSuggestions: () => void;
@@ -485,6 +494,8 @@ export function PromotionTabWorkspace({
               generationIsPending={promotionGenerationIsPending}
               isError={selectedSegmentDetailIsError}
               isLoading={selectedSegmentDetailIsLoading}
+              launchExperimentError={launchExperimentError}
+              launchExperimentIsError={launchExperimentIsError}
               onApproveContentCandidate={onApproveContentCandidate}
               onCreateNextLoop={onCreateNextLoop}
               onEvaluatePromotionRun={onEvaluatePromotionRun}
@@ -496,6 +507,7 @@ export function PromotionTabWorkspace({
               view={segmentView}
               selectedSegmentId={selectedSegmentId}
               launchExperimentIsPending={launchExperimentIsPending}
+              launchExperimentResult={launchExperimentResult}
             />
           </TabsContent>
         ) : null}
@@ -684,7 +696,10 @@ function PromotionSegmentDetailTab({
   generationIsPending,
   isError,
   isLoading,
+  launchExperimentError,
+  launchExperimentIsError,
   launchExperimentIsPending,
+  launchExperimentResult,
   onApproveContentCandidate,
   onCreateNextLoop,
   onEvaluatePromotionRun,
@@ -704,7 +719,10 @@ function PromotionSegmentDetailTab({
   generationIsPending: boolean;
   isError: boolean;
   isLoading: boolean;
+  launchExperimentError: Error | null;
+  launchExperimentIsError: boolean;
   launchExperimentIsPending: boolean;
+  launchExperimentResult: PromotionExperimentLaunchResult | null;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onCreateNextLoop: (
     promotionRunId: string,
@@ -955,9 +973,12 @@ function PromotionSegmentDetailTab({
           detail={detail}
           evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
           evaluatePromotionRunResult={evaluatePromotionRunResult}
+          launchExperimentError={launchExperimentError}
+          launchExperimentIsError={launchExperimentIsError}
           onCreateNextLoop={onCreateNextLoop}
           onEvaluatePromotionRun={onEvaluatePromotionRun}
           launchExperimentIsPending={launchExperimentIsPending}
+          launchExperimentResult={launchExperimentResult}
           onLaunchExperiment={onLaunchExperiment}
         />
       ) : null}
@@ -972,7 +993,10 @@ function SegmentConnectedExperimentsCard({
   detail,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
+  launchExperimentError,
+  launchExperimentIsError,
   launchExperimentIsPending,
+  launchExperimentResult,
   onCreateNextLoop,
   onEvaluatePromotionRun,
   onLaunchExperiment
@@ -981,7 +1005,10 @@ function SegmentConnectedExperimentsCard({
   detail: DashboardSegmentDetail;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
+  launchExperimentError: Error | null;
+  launchExperimentIsError: boolean;
   launchExperimentIsPending: boolean;
+  launchExperimentResult: PromotionExperimentLaunchResult | null;
   onCreateNextLoop: (
     promotionRunId: string,
     failedSegmentIds: string[],
@@ -1083,6 +1110,22 @@ function SegmentConnectedExperimentsCard({
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
+        {launchExperimentResult && launchExperimentResult.failedExperimentIds.length > 0 ? (
+          <Alert>
+            <AlertTitle>일부 실험만 시작됐습니다</AlertTitle>
+            <AlertDescription>
+              {formatInteger(launchExperimentResult.startedExperimentIds.length)}개는 시작했고,{" "}
+              {formatInteger(launchExperimentResult.failedExperimentIds.length)}개는 실패했습니다.
+              실험 시작을 다시 누르면 실패한 항목만 재시도합니다.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {launchExperimentIsError ? (
+          <Alert variant="destructive">
+            <AlertTitle>실험을 시작하지 못했습니다</AlertTitle>
+            <AlertDescription>{mutationErrorMessage(launchExperimentError)}</AlertDescription>
+          </Alert>
+        ) : null}
         {detail.ad_experiments.length > 0 ? (
           <Table>
             <TableHeader>

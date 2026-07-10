@@ -17,6 +17,13 @@ export type PromotionExperimentOperations = {
   startExperiment: (adExperimentId: string) => Promise<unknown>;
 };
 
+export type PromotionExperimentLaunchResult = {
+  dispatched: boolean;
+  failedExperimentIds: string[];
+  promotionRunId: string;
+  startedExperimentIds: string[];
+};
+
 export async function launchPromotionExperiment(
   input: { existingExperiments: DashboardAdExperiment[] },
   operations: PromotionExperimentOperations
@@ -43,20 +50,36 @@ export async function launchPromotionExperiment(
   const startableExperiments = run.experiments.filter((experiment) =>
     canStartAdExperiment(experiment.status)
   );
-  await Promise.all(
+  const startResults = await Promise.allSettled(
     startableExperiments.map((experiment) => operations.startExperiment(experiment.adExperimentId))
   );
+  const startedExperimentIds: string[] = [];
+  const failedExperimentIds: string[] = [];
+
+  startResults.forEach((result, index) => {
+    const experiment = startableExperiments[index];
+    if (!experiment) {
+      return;
+    }
+    if (result.status === "fulfilled") {
+      startedExperimentIds.push(experiment.adExperimentId);
+      return;
+    }
+    failedExperimentIds.push(experiment.adExperimentId);
+  });
 
   const shouldDispatch = run.experiments.some(
     (experiment) => experiment.channel === "email" || experiment.channel === "sms"
   );
-  if (shouldDispatch) {
+  const canDispatch = shouldDispatch && startedExperimentIds.length > 0;
+  if (canDispatch) {
     await operations.dispatch(run.promotionRunId);
   }
 
   return {
-    dispatched: shouldDispatch,
+    dispatched: canDispatch,
+    failedExperimentIds,
     promotionRunId: run.promotionRunId,
-    startedExperimentIds: startableExperiments.map((experiment) => experiment.adExperimentId)
-  };
+    startedExperimentIds
+  } satisfies PromotionExperimentLaunchResult;
 }

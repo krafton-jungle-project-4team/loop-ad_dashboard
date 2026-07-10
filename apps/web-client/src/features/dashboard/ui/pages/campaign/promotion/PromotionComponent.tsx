@@ -185,6 +185,9 @@ export function PromotionWorkspace({
               selectedSegmentDetailIsLoading={segmentDetail.isLoading}
               selectedSegmentId={selectedPromotionSegmentId}
               launchExperimentIsPending={launchPromotionExperimentMutation.isPending}
+              launchExperimentError={launchPromotionExperimentMutation.error}
+              launchExperimentIsError={launchPromotionExperimentMutation.isError}
+              launchExperimentResult={launchPromotionExperimentMutation.data ?? null}
               suggestions={segmentSuggestions.data?.suggestions ?? []}
               suggestionsIsLoading={segmentSuggestions.isLoading}
               tab={workspaceTab}
