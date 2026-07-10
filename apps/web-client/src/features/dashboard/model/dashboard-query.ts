@@ -149,6 +149,7 @@ export function normalizeDashboardQuery(
     experimentStatusFilter: query.experimentStatusFilter.trim(),
     projectId: projectId.trim(),
     promotionView: normalizePromotionWorkspaceView(query.promotionView),
+    segmentView: normalizeSegmentWorkspaceView(query.segmentView),
     selectedCampaignId: query.selectedCampaignId.trim(),
     selectedCustomerId: query.selectedCustomerId.trim(),
     selectedPromotionId: query.selectedPromotionId.trim(),
@@ -161,4 +162,10 @@ export function normalizePromotionWorkspaceView(
   view: DashboardQuery["promotionView"]
 ): DashboardQuery["promotionView"] {
   return view === "performance" ? "overview" : view;
+}
+
+export function normalizeSegmentWorkspaceView(
+  view: DashboardQuery["segmentView"]
+): DashboardQuery["segmentView"] {
+  return view === "creative" ? "experiments" : view;
 }

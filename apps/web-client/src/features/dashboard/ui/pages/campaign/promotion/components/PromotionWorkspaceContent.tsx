@@ -834,7 +834,7 @@ function PromotionSegmentDetailTab({
         </CardContent>
       </Card>
 
-      {view === "creative" ? (
+      {view === "experiments" ? (
         <section className="grid gap-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="grid gap-1">
@@ -844,14 +844,6 @@ function PromotionSegmentDetailTab({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {approvedContentCandidate ? (
-                <Button
-                  onClick={() => void setDashboardQueryState({ segmentView: "experiments" })}
-                  type="button"
-                >
-                  실험 준비하기
-                </Button>
-              ) : null}
               <Button
                 disabled={
                   generationIsPending ||
