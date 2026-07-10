@@ -4,7 +4,8 @@ import { DashboardCampaignPromotionSchema, DashboardPromotionSummarySchema } fro
 import {
   DashboardAdExperimentSchema,
   DashboardCampaignExperimentMetricSchema,
-  DashboardContentCandidateSchema
+  DashboardContentCandidateSchema,
+  DashboardStartPromotionGenerationResultSchema
 } from "./promotion-run.js";
 import {
   DashboardCampaignRealtimeMetricsSchema,
@@ -50,6 +51,7 @@ export type DashboardPromotionAnalysis = z.infer<typeof DashboardPromotionAnalys
 export const DashboardPromotionDetailSchema = z.object({
   promotion: DashboardPromotionSummarySchema,
   analyses: z.array(DashboardPromotionAnalysisSchema),
+  generation: DashboardStartPromotionGenerationResultSchema.nullable().default(null),
   segments: z.array(DashboardCampaignSegmentSchema),
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
   realtime_metrics: DashboardPromotionRealtimeMetricsSchema,

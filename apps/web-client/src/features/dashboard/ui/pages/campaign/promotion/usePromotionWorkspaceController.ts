@@ -210,7 +210,10 @@ export function usePromotionWorkspaceController({
       selectedOpenPromotion?.promotion_id ?? ""
     ),
     refetchInterval: (detailQuery) =>
-      shouldPollAnalysis(detailQuery.state.data?.analyses[0]?.status) ? 2500 : false
+      shouldPollAsyncStatus(detailQuery.state.data?.analyses[0]?.status) ||
+      shouldPollAsyncStatus(detailQuery.state.data?.generation?.status)
+        ? 2500
+        : false
   });
   const latestAnalysisId = promotionDetail.data?.analyses[0]?.analysis_id ?? null;
   const selectedOpenPromotionId = selectedOpenPromotion?.promotion_id ?? "";
@@ -249,8 +252,9 @@ export function usePromotionWorkspaceController({
       selectedPromotionSegmentId
     ),
     refetchInterval: (segmentDetailQuery) =>
-      selectedOpenPromotion?.channel === "onsite_banner" &&
-      hasPendingOnsiteBannerImage(segmentDetailQuery.state.data)
+      shouldPollAsyncStatus(promotionDetail.data?.generation?.status) ||
+      (selectedOpenPromotion?.channel === "onsite_banner" &&
+        hasPendingOnsiteBannerImage(segmentDetailQuery.state.data))
         ? onsiteBannerImagePollIntervalMs
         : false,
     refetchIntervalInBackground: false
@@ -272,7 +276,7 @@ export function usePromotionWorkspaceController({
     refetchInterval: (suggestionQuery) =>
       activeAnalysisId &&
       (suggestionQuery.state.data?.suggestions.length ?? 0) === 0 &&
-      shouldPollAnalysis(promotionDetail.data?.analyses[0]?.status)
+      shouldPollAsyncStatus(promotionDetail.data?.analyses[0]?.status)
         ? 2500
         : false
   });
@@ -673,6 +677,9 @@ export function usePromotionWorkspaceController({
     openPromotions,
     promotionAnalysisIsPending:
       startAnalysisMutation.isPending || analysisProgress.data.status === "pending",
+    promotionGenerationIsPending:
+      startGenerationMutation.isPending ||
+      shouldPollAsyncStatus(promotionDetail.data?.generation?.status),
     rejectContentCandidateMutation,
     scopedSegmentDefinitions,
     segmentDetail,
@@ -696,8 +703,9 @@ export function usePromotionWorkspaceController({
   };
 }
 
-function shouldPollAnalysis(status: string | undefined) {
+function shouldPollAsyncStatus(status: string | undefined) {
   return (
+    status === "queued" ||
     status === "requested" ||
     status === "pending" ||
     status === "processing" ||

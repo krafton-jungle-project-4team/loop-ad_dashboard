@@ -45,6 +45,7 @@ export function PromotionWorkspace({
     launchPromotionExperimentMutation,
     openPromotions,
     promotionAnalysisIsPending,
+    promotionGenerationIsPending,
     rejectContentCandidateMutation,
     scopedSegmentDefinitions,
     segmentDetail,
@@ -173,7 +174,7 @@ export function PromotionWorkspace({
               onTabChange={setWorkspaceTab}
               promotion={selectedOpenPromotion}
               promotionAnalysisIsPending={promotionAnalysisIsPending}
-              promotionGenerationIsPending={startGenerationMutation.isPending}
+              promotionGenerationIsPending={promotionGenerationIsPending}
               rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
               scopedSegmentCreateIsPending={createScopedSegmentMutation.isPending}
               scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
