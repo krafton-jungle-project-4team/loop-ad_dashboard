@@ -91,7 +91,7 @@ export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
       { label: "캠페인", value: "campaigns", pathSegment: "campaigns", type: "link" },
       { label: "프로모션", value: "promotions", pathSegment: "promotions", type: "link" },
       { label: "세그먼트", value: "segments", pathSegment: "segments", type: "link" },
-      { label: "실험", value: "experiments", pathSegment: "experiments", type: "link" }
+      { label: "실험 관리", value: "experiments", pathSegment: "experiments", type: "link" }
     ]
   },
   {

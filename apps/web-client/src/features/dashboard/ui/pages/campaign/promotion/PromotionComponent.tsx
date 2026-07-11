@@ -32,7 +32,6 @@ export function PromotionWorkspace({
     archiveScopedSegmentMutation,
     campaignDetail,
     confirmSuggestionsMutation,
-    createNextLoopMutation,
     createPromotionMutation,
     createScopedSegmentMutation,
     decideSuggestionMutation,
@@ -40,7 +39,6 @@ export function PromotionWorkspace({
     deletePromotionMutation,
     editingPromotionId,
     editingSegmentId,
-    evaluatePromotionRunMutation,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
     openPromotions,
@@ -89,7 +87,7 @@ export function PromotionWorkspace({
               onEditPromotion={setEditingPromotionId}
               onFilterChange={setPromotionFilter}
               onSelectPromotion={(promotionId) => selectPromotion(promotionId)}
-              onStopPromotion={(promotionId) => deletePromotionMutation.mutate(promotionId)}
+              onDeletePromotion={(promotionId) => deletePromotionMutation.mutate(promotionId)}
               openPromotions={filteredPromotions}
             />
           ) : null}
@@ -97,13 +95,7 @@ export function PromotionWorkspace({
             mode === "promotion" ? (
               <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
             ) : (
-              <EmptyState
-                message={
-                  mode === "promotionMetrics"
-                    ? "통계를 확인할 프로모션을 먼저 선택해주세요."
-                    : "세그먼트를 관리할 프로모션을 먼저 선택해주세요."
-                }
-              />
+              <EmptyState message="세그먼트를 관리할 프로모션을 먼저 선택해주세요." />
             )
           ) : null}
           {openPromotions.length > 0 && !isManagementView && !selectedOpenPromotion ? (
@@ -121,11 +113,8 @@ export function PromotionWorkspace({
               campaignId={selectedCampaign?.campaign_id ?? ""}
               archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
               confirmIsPending={confirmSuggestionsMutation.isPending}
-              createNextLoopIsPending={createNextLoopMutation.isPending}
               decideIsPending={decideSuggestionMutation.isPending}
               deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}
-              evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
-              evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
               onArchiveScopedSegment={(segmentId) =>
                 archiveScopedSegmentMutation.mutate({
                   promotionId: selectedOpenPromotion.promotion_id,
@@ -136,22 +125,12 @@ export function PromotionWorkspace({
                 approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
               }
               onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
-              onCreateNextLoop={(promotionRunId, failedSegmentIds, failedAdExperimentIds) =>
-                createNextLoopMutation.mutate({
-                  failedAdExperimentIds,
-                  failedSegmentIds,
-                  promotionRunId
-                })
-              }
               onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
               onDecideSuggestion={(suggestionId, status) =>
                 decideSuggestionMutation.mutate({ status, suggestionId })
               }
               onDeleteConfirmedSegment={(promotionId, segmentId) =>
                 deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
-              }
-              onEvaluatePromotionRun={(promotionRunId) =>
-                evaluatePromotionRunMutation.mutate(promotionRunId)
               }
               onEditConfirmedSegment={setEditingSegmentId}
               onLaunchExperiment={(promotionId, analysisId, generationId) =>

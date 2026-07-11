@@ -94,10 +94,6 @@ export function ProjectManagementDialog({
   }
 
   function handleDeleteProject(project: DashboardProject) {
-    if (projects.length <= 1) {
-      return;
-    }
-
     if (pendingDeleteProjectId === project.project_id) {
       deleteProjectMutation.mutate(project.project_id);
       return;
@@ -187,7 +183,6 @@ export function ProjectManagementDialog({
                     deleteProjectMutation.isPending &&
                     deleteProjectMutation.variables === project.project_id;
                   const isPendingDelete = pendingDeleteProjectId === project.project_id;
-                  const deleteDisabled = projects.length <= 1 || isDeleting;
 
                   return (
                     <div
@@ -222,7 +217,7 @@ export function ProjectManagementDialog({
                         </Button>
                         <Button
                           aria-label={`${project.project_name} 삭제`}
-                          disabled={deleteDisabled}
+                          disabled={isDeleting}
                           onClick={() => handleDeleteProject(project)}
                           size={isPendingDelete ? "sm" : "icon-sm"}
                           type="button"

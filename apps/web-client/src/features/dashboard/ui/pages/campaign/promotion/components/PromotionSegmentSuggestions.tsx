@@ -85,7 +85,7 @@ export function PromotionSegmentSuggestionPanel({
     <Card className="h-full shadow-none">
       <CardHeader className="grid gap-4">
         <div className="grid gap-1">
-          <CardTitle>추천 세그먼트 후보</CardTitle>
+          <CardTitle>세그먼트 생성</CardTitle>
           <CardDescription>
             AI가 제안한 후보와 직접 추가한 후보를 확인합니다. 확정 시 최종 타겟 세그먼트로
             저장됩니다.
@@ -381,32 +381,6 @@ function SegmentSuggestionReportDialog({
         </DialogContent>
       ) : null}
     </Dialog>
-  );
-}
-
-export function SegmentDetailReportCard({
-  suggestion
-}: {
-  suggestion: DashboardPromotionSegmentSuggestion | null;
-}) {
-  const report = suggestion?.ai_report ?? null;
-
-  return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base">세그먼트 리포트</CardTitle>
-        <CardDescription>
-          AI가 정리한 고객군 성격, 추천 근거, 활용 방법을 확인합니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {report ? (
-          <SegmentSuggestionReportContent suggestion={suggestion} />
-        ) : (
-          <EmptyState message="이 세그먼트에 연결된 AI 추천 리포트가 없습니다." />
-        )}
-      </CardContent>
-    </Card>
   );
 }
 

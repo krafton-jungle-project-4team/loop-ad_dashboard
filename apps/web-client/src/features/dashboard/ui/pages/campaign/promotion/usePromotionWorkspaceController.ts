@@ -6,7 +6,6 @@ import {
   approveDashboardContentCandidate,
   buildDashboardPromotionRunAssignments,
   confirmDashboardPromotionSegmentSuggestions,
-  createDashboardNextLoop,
   createDashboardPromotion,
   createDashboardPromotionRun,
   createDashboardPromotionScopedSegmentDefinition,
@@ -14,7 +13,6 @@ import {
   deleteDashboardPromotion,
   deleteDashboardPromotionSegment,
   dispatchDashboardPromotionRun,
-  evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
   fetchDashboardPromotionDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
@@ -56,13 +54,11 @@ import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
 
 const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
   promotion: ["overview"],
-  promotionMetrics: ["overview"],
   segment: ["segments", "segment-detail"]
 };
 
 const defaultPromotionWorkspaceTabByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab> = {
   promotion: "overview",
-  promotionMetrics: "overview",
   segment: "segments"
 };
 
@@ -495,28 +491,6 @@ export function usePromotionWorkspaceController({
       });
     }
   });
-  const evaluatePromotionRunMutation = useMutation({
-    mutationFn: (promotionRunId: string) => evaluateDashboardPromotionRun(query, promotionRunId),
-    onSuccess: async () => invalidateSelectedSegment()
-  });
-  const createNextLoopMutation = useMutation({
-    mutationFn: ({
-      failedAdExperimentIds,
-      failedSegmentIds,
-      promotionRunId
-    }: {
-      failedAdExperimentIds: string[];
-      failedSegmentIds: string[];
-      promotionRunId: string;
-    }) =>
-      createDashboardNextLoop(query, promotionRunId, {
-        failed_ad_experiment_ids: failedAdExperimentIds,
-        failed_segment_ids: failedSegmentIds,
-        operator_instruction: null
-      }),
-    onSuccess: async () => invalidateSelectedSegment()
-  });
-
   async function invalidateSelectedSegment() {
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     await queryClient.invalidateQueries({
@@ -587,7 +561,7 @@ export function usePromotionWorkspaceController({
       );
       if (firstConfirmedSuggestion) {
         await setDashboardQueryState({
-          segmentView: "overview",
+          segmentView: "experiments",
           selectedSegmentId: firstConfirmedSuggestion.segment_id
         });
       }
@@ -676,7 +650,7 @@ export function usePromotionWorkspaceController({
   const selectSegment = (promotionId: string, segmentId: string) => {
     setWorkspaceTab("segment-detail");
     void setDashboardQueryState({
-      segmentView: "overview",
+      segmentView: "experiments",
       selectedCampaignId,
       selectedPromotionId: promotionId,
       selectedSegmentId: segmentId
@@ -690,7 +664,6 @@ export function usePromotionWorkspaceController({
     archiveScopedSegmentMutation,
     campaignDetail,
     confirmSuggestionsMutation,
-    createNextLoopMutation,
     createPromotionMutation,
     createScopedSegmentMutation,
     decideSuggestionMutation,
@@ -698,7 +671,6 @@ export function usePromotionWorkspaceController({
     deletePromotionMutation,
     editingPromotionId,
     editingSegmentId,
-    evaluatePromotionRunMutation,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
     openPromotions,

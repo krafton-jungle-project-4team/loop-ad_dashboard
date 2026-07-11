@@ -5,8 +5,7 @@ import { PromotionWorkspace } from "./PromotionComponent.js";
 
 const promotionViews = [
   { label: "관리", value: "manage" },
-  { label: "개요", value: "overview" },
-  { label: "성과", value: "performance" }
+  { label: "개요", value: "overview" }
 ] as const;
 
 export function PromotionManagementPage({
@@ -29,11 +28,7 @@ export function PromotionManagementPage({
         queryKey="promotionView"
         value={query.promotionView}
       />
-      <PromotionWorkspace
-        data={data}
-        mode={query.promotionView === "performance" ? "promotionMetrics" : "promotion"}
-        query={query}
-      />
+      <PromotionWorkspace data={data} query={query} />
     </div>
   );
 }
