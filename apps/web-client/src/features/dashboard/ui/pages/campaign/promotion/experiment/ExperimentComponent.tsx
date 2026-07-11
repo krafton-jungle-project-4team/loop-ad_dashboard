@@ -1,4 +1,3 @@
-import type { DashboardMain } from "@loopad/shared";
 import { Card, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,7 +21,7 @@ type NextLoopInput = {
   promotionRunId: string;
 };
 
-export function ExperimentComponent({ query }: { data: DashboardMain; query: DashboardQuery }) {
+export function ExperimentComponent({ query }: { query: DashboardQuery }) {
   const queryClient = useQueryClient();
   const experimentsQuery = useQuery({
     queryFn: ({ signal }) => fetchDashboardProjectExperiments(query.projectId, signal),

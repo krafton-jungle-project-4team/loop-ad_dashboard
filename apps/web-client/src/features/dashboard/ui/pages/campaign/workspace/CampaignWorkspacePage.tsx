@@ -37,8 +37,10 @@ import {
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import { dashboardCampaignDetailQueryKey } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
+import { DashboardDateRangeSelect } from "../../../shared/DashboardDateRangeSelect.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
 import { WorkspacePageHeader, WorkspaceViewTabs } from "../../../shared/WorkspaceViewTabs.js";
+import { CampaignPageSections } from "../CampaignComponent.js";
 import { CampaignFormDialog } from "../components/CampaignFormDialog.js";
 import { PromotionWorkspace } from "../promotion/PromotionComponent.js";
 import {
@@ -71,6 +73,12 @@ type PromotionCard = CampaignWorkspaceEntityCard & {
   kind: "promotion";
   promotion: DashboardCampaignPromotion;
 };
+
+const campaignViews = [
+  { label: "워크스페이스", value: "manage" },
+  { label: "개요", value: "overview" },
+  { label: "성과", value: "performance" }
+] as const;
 
 const segmentViews = [
   { label: "세그먼트 관리", value: "manage" },
@@ -126,7 +134,7 @@ export function CampaignWorkspacePage({
     onSuccess: async (campaign) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await setDashboardQueryState({
-        campaignView: "overview",
+        campaignView: "manage",
         promotionView: "manage",
         segmentView: "manage",
         selectedAdExperimentId: "",
@@ -177,6 +185,7 @@ export function CampaignWorkspacePage({
     onSuccess: async (promotion) => {
       await invalidateCampaignWorkspace(queryClient, query, selectedCampaignId);
       await setDashboardQueryState({
+        campaignView: "manage",
         promotionView: "overview",
         segmentView: "recommendations",
         selectedAdExperimentId: "",
@@ -356,7 +365,7 @@ export function CampaignWorkspacePage({
             items={campaignCards}
             onSelect={(card) => {
               void setDashboardQueryState({
-                campaignView: "overview",
+                campaignView: "manage",
                 promotionView: "manage",
                 segmentView: "manage",
                 selectedAdExperimentId: "",
@@ -369,7 +378,29 @@ export function CampaignWorkspacePage({
         </section>
       ) : null}
 
-      {selectedCampaign && campaignDetail.isError ? (
+      {selectedCampaign ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <WorkspaceViewTabs
+            ariaLabel="캠페인 작업 탭"
+            items={campaignViews}
+            queryKey="campaignView"
+            value={query.campaignView}
+          />
+          {query.campaignView === "performance" ? (
+            <DashboardDateRangeSelect value={query.dateRange} />
+          ) : null}
+        </div>
+      ) : null}
+
+      {selectedCampaign && query.campaignView === "performance" ? (
+        <CampaignPageSections data={data} query={query} tab="campaign-metrics" />
+      ) : null}
+
+      {selectedCampaign && query.campaignView === "overview" ? (
+        <CampaignPageSections data={data} query={query} tab="campaign-detail" />
+      ) : null}
+
+      {selectedCampaign && query.campaignView === "manage" && campaignDetail.isError ? (
         <Alert variant="destructive">
           <AlertTitle>캠페인 데이터를 불러오지 못했습니다</AlertTitle>
           <AlertDescription>
@@ -377,11 +408,11 @@ export function CampaignWorkspacePage({
           </AlertDescription>
         </Alert>
       ) : null}
-      {selectedCampaign && campaignDetail.isLoading ? (
+      {selectedCampaign && query.campaignView === "manage" && campaignDetail.isLoading ? (
         <EmptyState message="캠페인 데이터를 불러오는 중입니다." />
       ) : null}
 
-      {selectedCampaign && campaignDetail.data ? (
+      {selectedCampaign && query.campaignView === "manage" && campaignDetail.data ? (
         <>
           <SelectionSummary
             action={

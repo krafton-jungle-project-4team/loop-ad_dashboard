@@ -13,8 +13,10 @@ const DETAIL_PANEL_DEFAULT_HEIGHT_RATIO = 0.5;
 const DETAIL_PANEL_MIN_HEIGHT = 260;
 const DETAIL_PANEL_RESIZE_STEP = 40;
 
-export function useFunnelDetailPanelResize() {
-  const [detailPanelHeight, setDetailPanelHeight] = useState(() => getDetailPanelDefaultHeight());
+export function useFunnelDetailPanelResize(bottomOffset = 0) {
+  const [detailPanelHeight, setDetailPanelHeight] = useState(() =>
+    getDetailPanelDefaultHeight(bottomOffset)
+  );
   const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
 
@@ -24,6 +26,10 @@ export function useFunnelDetailPanelResize() {
     },
     []
   );
+
+  useEffect(() => {
+    setDetailPanelHeight((current) => clampDetailPanelHeight(current, bottomOffset));
+  }, [bottomOffset]);
 
   function handleDetailPanelResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key === "ArrowUp") {
@@ -49,19 +55,21 @@ export function useFunnelDetailPanelResize() {
     if (event.key === "Home") {
       event.preventDefault();
       setIsDetailPanelCollapsed(false);
-      setDetailPanelHeight(DETAIL_PANEL_MIN_HEIGHT);
+      setDetailPanelHeight(
+        Math.min(DETAIL_PANEL_MIN_HEIGHT, getDetailPanelMaxHeight(bottomOffset))
+      );
       return;
     }
     if (event.key === "End") {
       event.preventDefault();
       setIsDetailPanelCollapsed(false);
-      setDetailPanelHeight(getDetailPanelMaxHeight());
+      setDetailPanelHeight(getDetailPanelMaxHeight(bottomOffset));
     }
   }
 
   function resizeDetailPanelBy(delta: number) {
     setIsDetailPanelCollapsed(false);
-    setDetailPanelHeight((current) => clampDetailPanelHeight(current + delta));
+    setDetailPanelHeight((current) => clampDetailPanelHeight(current + delta, bottomOffset));
   }
 
   function startDetailPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
@@ -71,7 +79,7 @@ export function useFunnelDetailPanelResize() {
 
     const startY = event.clientY;
     const startHeight = isDetailPanelCollapsed
-      ? Math.max(detailPanelHeight, getDetailPanelDefaultHeight())
+      ? Math.max(detailPanelHeight, getDetailPanelDefaultHeight(bottomOffset))
       : detailPanelHeight;
     const previousUserSelect = document.body.style.userSelect;
     const previousCursor = document.body.style.cursor;
@@ -80,7 +88,7 @@ export function useFunnelDetailPanelResize() {
 
     function handlePointerMove(pointerEvent: PointerEvent) {
       const nextHeight = startHeight + startY - pointerEvent.clientY;
-      setDetailPanelHeight(clampDetailPanelHeight(nextHeight));
+      setDetailPanelHeight(clampDetailPanelHeight(nextHeight, bottomOffset));
     }
 
     function cleanup() {
@@ -100,6 +108,7 @@ export function useFunnelDetailPanelResize() {
 
   return {
     detailPanelHeight,
+    detailPanelMaxHeight: getDetailPanelMaxHeight(bottomOffset),
     handleDetailPanelResizeKeyDown,
     isDetailPanelCollapsed,
     setIsDetailPanelCollapsed,
@@ -107,22 +116,37 @@ export function useFunnelDetailPanelResize() {
   };
 }
 
-export function getDetailPanelMaxHeight(): number {
+export function getDetailPanelMaxHeight(bottomOffset = 0): number {
   if (typeof window === "undefined") {
     return DETAIL_PANEL_MIN_HEIGHT;
   }
 
-  return Math.max(DETAIL_PANEL_MIN_HEIGHT, Math.round(window.innerHeight * 0.78));
+  const responsiveBottomOffset = window.matchMedia("(max-width: 767px)").matches ? bottomOffset : 0;
+
+  return calculateDetailPanelMaxHeight(window.innerHeight, responsiveBottomOffset);
 }
 
-function clampDetailPanelHeight(value: number): number {
-  return Math.min(Math.max(value, DETAIL_PANEL_MIN_HEIGHT), getDetailPanelMaxHeight());
+export function calculateDetailPanelMaxHeight(viewportHeight: number, bottomOffset = 0): number {
+  return Math.max(
+    DETAIL_PANEL_COLLAPSED_HEIGHT,
+    Math.round(viewportHeight * 0.78) - Math.max(0, bottomOffset)
+  );
 }
 
-function getDetailPanelDefaultHeight(): number {
+function clampDetailPanelHeight(value: number, bottomOffset: number): number {
+  const maxHeight = getDetailPanelMaxHeight(bottomOffset);
+  const minHeight = Math.min(DETAIL_PANEL_MIN_HEIGHT, maxHeight);
+
+  return Math.min(Math.max(value, minHeight), maxHeight);
+}
+
+function getDetailPanelDefaultHeight(bottomOffset: number): number {
   if (typeof window === "undefined") {
     return DETAIL_PANEL_MIN_HEIGHT;
   }
 
-  return clampDetailPanelHeight(Math.round(window.innerHeight * DETAIL_PANEL_DEFAULT_HEIGHT_RATIO));
+  return clampDetailPanelHeight(
+    Math.round(window.innerHeight * DETAIL_PANEL_DEFAULT_HEIGHT_RATIO),
+    bottomOffset
+  );
 }

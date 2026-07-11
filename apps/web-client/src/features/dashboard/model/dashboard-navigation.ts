@@ -1,4 +1,4 @@
-import type { DashboardTab } from "./dashboard-types.js";
+import type { CampaignWorkspaceView, DashboardTab } from "./dashboard-types.js";
 
 export type DashboardNavItem = {
   label: string;
@@ -114,6 +114,18 @@ const legacyDashboardPaths: Record<string, string> = {
 
 export function getCanonicalDashboardPath(path: string): string {
   return legacyDashboardPaths[path] ?? path;
+}
+
+export function getLegacyDashboardViewPatch(path: string): {
+  campaignView?: CampaignWorkspaceView;
+} {
+  if (path === "campaign-detail") {
+    return { campaignView: "overview" };
+  }
+  if (path === "campaign-metrics") {
+    return { campaignView: "performance" };
+  }
+  return {};
 }
 
 export function getDashboardTabByPath(path: string): DashboardTab | null {

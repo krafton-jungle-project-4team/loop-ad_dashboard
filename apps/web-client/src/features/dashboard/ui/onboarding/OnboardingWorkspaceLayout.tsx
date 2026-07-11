@@ -2,8 +2,9 @@ import { Button } from "@loopad/ui/shadcn/button";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useDashboardQueryState } from "../../model/dashboard-query.js";
+import { DASHBOARD_MOBILE_ACTION_OFFSET_PX } from "../../model/project-onboarding.js";
 import type { DashboardTab } from "../../model/dashboard-types.js";
 import { OnboardingStepper, type OnboardingStep } from "./OnboardingStepper.js";
 import { useProjectOnboarding } from "./ProjectOnboardingProvider.js";
@@ -141,6 +142,7 @@ export function OnboardingWorkspaceLayout({
         break;
       case "promotion":
         await setDashboardQueryState({
+          campaignView: "manage",
           segmentView: "manage",
           selectedAdExperimentId: "",
           selectedPromotionId: "",
@@ -149,6 +151,7 @@ export function OnboardingWorkspaceLayout({
         break;
       case "segment":
         await setDashboardQueryState({
+          campaignView: "manage",
           segmentView: "recommendations",
           selectedAdExperimentId: "",
           selectedSegmentId: ""
@@ -156,7 +159,10 @@ export function OnboardingWorkspaceLayout({
         break;
       case "creative":
       case "experiment":
-        await setDashboardQueryState({ segmentView: "experiments" });
+        await setDashboardQueryState({
+          campaignView: "manage",
+          segmentView: "experiments"
+        });
         break;
     }
 
@@ -164,7 +170,19 @@ export function OnboardingWorkspaceLayout({
   };
 
   return (
-    <div className="grid min-h-0 w-full gap-6 md:grid-cols-[18rem_minmax(0,1fr)] md:items-start">
+    <div
+      className={cn(
+        "grid min-h-0 w-full gap-6 md:grid-cols-[18rem_minmax(0,1fr)] md:items-start",
+        action && "pb-20 md:pb-0"
+      )}
+      style={
+        action
+          ? ({
+              "--dashboard-mobile-action-offset": `calc(${DASHBOARD_MOBILE_ACTION_OFFSET_PX}px + env(safe-area-inset-bottom))`
+            } as CSSProperties)
+          : undefined
+      }
+    >
       <OnboardingStepper
         campaignSteps={campaignSteps}
         onStepSelect={(step) => void handleStepSelect(step)}

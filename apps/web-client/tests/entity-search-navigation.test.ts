@@ -9,7 +9,7 @@ test("entity search results retain only the ancestors required by their hierarch
   const segment = result({ entity_type: "segment" });
 
   assert.deepEqual(entitySearchResultToDashboardPatch(campaign), {
-    campaignView: "overview",
+    campaignView: "manage",
     createCampaign: false,
     createPromotion: false,
     promotionView: "manage",

@@ -18,7 +18,7 @@ export function entitySearchResultToDashboardPatch(
   result: DashboardEntitySearchResult
 ): EntitySearchNavigationPatch {
   return {
-    campaignView: "overview",
+    campaignView: "manage",
     createCampaign: false,
     createPromotion: false,
     promotionView: "manage",

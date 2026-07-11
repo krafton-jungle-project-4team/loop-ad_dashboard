@@ -1,6 +1,8 @@
 import type { ProjectOnboardingStage } from "./project-setup-progress.js";
 import { dashboardTabValues, type DashboardTab } from "./dashboard-types.js";
 
+export const DASHBOARD_MOBILE_ACTION_OFFSET_PX = 136;
+
 export type ProjectOnboardingStepState = "complete" | "current" | "locked";
 
 export type ProjectOnboardingStep = {

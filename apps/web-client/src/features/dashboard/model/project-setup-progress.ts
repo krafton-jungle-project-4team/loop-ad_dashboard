@@ -6,14 +6,15 @@ export type ProjectSetupProgress = {
   funnelCompletedAt: string | null;
 };
 
-export type ProjectSetupProgressStorage = Pick<
-  Storage,
-  "getItem" | "setItem" | "removeItem"
->;
+export type ProjectSetupProgressStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export type ProjectSetupProgressOptions = {
   now?: () => string;
   storage?: ProjectSetupProgressStorage | null;
+};
+
+export type CompleteProjectSetupProgressOptions = ProjectSetupProgressOptions & {
+  currentProgress?: ProjectSetupProgress | null;
 };
 
 export type InitializeProjectSetupProgressOptions = ProjectSetupProgressOptions & {
@@ -115,11 +116,13 @@ export function initializeProjectSetupProgress(
 
 export function completeProjectSdkSetup(
   projectId: string,
-  options: ProjectSetupProgressOptions = {}
+  options: CompleteProjectSetupProgressOptions = {}
 ): ProjectSetupProgress {
   const completedAt = getCurrentTimestamp(options.now);
   const current =
-    readProjectSetupProgress(projectId, options.storage) ?? createEmptyProgress(completedAt);
+    options.currentProgress ??
+    readProjectSetupProgress(projectId, options.storage) ??
+    createEmptyProgress(completedAt);
 
   if (current.sdkCompletedAt !== null) {
     return current;
@@ -135,11 +138,13 @@ export function completeProjectSdkSetup(
 
 export function completeProjectFunnelSetup(
   projectId: string,
-  options: ProjectSetupProgressOptions = {}
+  options: CompleteProjectSetupProgressOptions = {}
 ): ProjectSetupProgress {
   const completedAt = getCurrentTimestamp(options.now);
   const current =
-    readProjectSetupProgress(projectId, options.storage) ?? createEmptyProgress(completedAt);
+    options.currentProgress ??
+    readProjectSetupProgress(projectId, options.storage) ??
+    createEmptyProgress(completedAt);
 
   if (current.sdkCompletedAt === null || current.funnelCompletedAt !== null) {
     persistProjectSetupProgress(projectId, current, options.storage);
@@ -253,10 +258,7 @@ function persistProjectSetupProgress(
   }
 
   try {
-    resolvedStorage.setItem(
-      getProjectSetupProgressStorageKey(projectId),
-      JSON.stringify(progress)
-    );
+    resolvedStorage.setItem(getProjectSetupProgressStorageKey(projectId), JSON.stringify(progress));
   } catch {
     // Browser storage can be unavailable or full. Callers still receive the in-memory value.
   }

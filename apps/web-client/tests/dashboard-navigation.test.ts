@@ -3,7 +3,8 @@ import test from "node:test";
 import {
   dashboardNavigationGroups,
   getCanonicalDashboardPath,
-  getDashboardTabByPath
+  getDashboardTabByPath,
+  getLegacyDashboardViewPatch
 } from "../src/features/dashboard/model/dashboard-navigation.js";
 import {
   defaultDashboardSearchQuery,
@@ -40,6 +41,12 @@ test("dashboard keeps legacy paths available while exposing the experiment route
   assert.equal(getDashboardTabByPath("main"), "main");
   assert.equal(getCanonicalDashboardPath("main"), "statistics");
   assert.equal(getCanonicalDashboardPath("segments"), "campaigns");
+  assert.deepEqual(getLegacyDashboardViewPatch("campaign-detail"), {
+    campaignView: "overview"
+  });
+  assert.deepEqual(getLegacyDashboardViewPatch("campaign-metrics"), {
+    campaignView: "performance"
+  });
 });
 
 test("legacy promotion performance view opens the promotion overview", () => {

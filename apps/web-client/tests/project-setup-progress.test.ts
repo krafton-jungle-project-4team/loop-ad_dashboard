@@ -202,19 +202,33 @@ test("storage failures do not escape setup progress helpers", () => {
       storage: unavailableStorage
     })
   );
+  const initialized = initializeProjectSetupProgress("project-1", {
+    now: () => INITIALIZED_AT,
+    storage: unavailableStorage
+  });
+  const sdkCompleted = completeProjectSdkSetup("project-1", {
+    currentProgress: initialized,
+    now: () => SDK_COMPLETED_AT,
+    storage: unavailableStorage
+  });
+  const funnelCompleted = completeProjectFunnelSetup("project-1", {
+    currentProgress: sdkCompleted,
+    now: () => FUNNEL_COMPLETED_AT,
+    storage: unavailableStorage
+  });
+
+  assert.equal(funnelCompleted.sdkCompletedAt, SDK_COMPLETED_AT);
+  assert.equal(funnelCompleted.funnelCompletedAt, FUNNEL_COMPLETED_AT);
   assert.doesNotThrow(() => clearProjectSetupProgress("project-1", unavailableStorage));
 });
 
 test("top-level onboarding resolver covers SDK, funnel, campaign, and complete stages", () => {
-  assert.deepEqual(
-    resolveProjectOnboardingStage({ progress: null }),
-    {
-      isDashboardUnlocked: false,
-      isInitialSetupComplete: false,
-      requiredPathSegment: "sdk",
-      stage: "sdk"
-    }
-  );
+  assert.deepEqual(resolveProjectOnboardingStage({ progress: null }), {
+    isDashboardUnlocked: false,
+    isInitialSetupComplete: false,
+    requiredPathSegment: "sdk",
+    stage: "sdk"
+  });
 
   assert.deepEqual(
     resolveProjectOnboardingStage({

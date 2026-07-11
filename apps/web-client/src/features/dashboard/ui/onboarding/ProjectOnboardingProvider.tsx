@@ -15,7 +15,11 @@ import {
   fetchDashboardPageResource,
   fetchDashboardSegmentDetail
 } from "../../api/dashboard-api.js";
-import { normalizeDashboardQuery, useDashboardQueryState } from "../../model/dashboard-query.js";
+import {
+  defaultDashboardSearchQuery,
+  normalizeDashboardQuery,
+  useDashboardQueryState
+} from "../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardFunnelListQueryKey,
@@ -77,6 +81,10 @@ export function ProjectOnboardingProvider({
     () => normalizeDashboardQuery(queryState, projectId),
     [projectId, queryState]
   );
+  const onboardingQuery = useMemo(
+    () => normalizeDashboardQuery(defaultDashboardSearchQuery, projectId),
+    [projectId]
+  );
   const storedProgress = useMemo(() => readProjectSetupProgress(projectId), [projectId]);
   const [progressSnapshot, setProgressSnapshot] = useState<ProjectProgressSnapshot | null>(() =>
     storedProgress === null ? null : { progress: storedProgress, projectId }
@@ -85,13 +93,13 @@ export function ProjectOnboardingProvider({
     progressSnapshot?.projectId === projectId ? progressSnapshot.progress : storedProgress;
 
   const mainQuery = useQuery({
-    queryFn: ({ signal }) => fetchDashboardPageResource("main", query, signal),
-    queryKey: dashboardPageQueryKey("main", query),
+    queryFn: ({ signal }) => fetchDashboardPageResource("main", onboardingQuery, signal),
+    queryKey: dashboardPageQueryKey("main", onboardingQuery),
     select: (resource): DashboardMain => resource.data as DashboardMain
   });
   const funnelListQuery = useQuery({
     enabled: progress === null,
-    queryFn: ({ signal }) => fetchDashboardFunnelList(query, signal),
+    queryFn: ({ signal }) => fetchDashboardFunnelList(onboardingQuery, signal),
     queryKey: dashboardFunnelListQueryKey(query.projectId)
   });
   const mainData = mainQuery.data;
@@ -178,13 +186,13 @@ export function ProjectOnboardingProvider({
     ]
   );
   const completeSdk = useCallback(() => {
-    const nextProgress = completeProjectSdkSetup(projectId);
+    const nextProgress = completeProjectSdkSetup(projectId, { currentProgress: progress });
     setProgressSnapshot({ progress: nextProgress, projectId });
-  }, [projectId]);
+  }, [progress, projectId]);
   const completeFunnel = useCallback(() => {
-    const nextProgress = completeProjectFunnelSetup(projectId);
+    const nextProgress = completeProjectFunnelSetup(projectId, { currentProgress: progress });
     setProgressSnapshot({ progress: nextProgress, projectId });
-  }, [projectId]);
+  }, [progress, projectId]);
   const isTabAllowed = useCallback((tab: DashboardTab) => allowedTabs.has(tab), [allowedTabs]);
   const requiredPath = stageResolution.requiredPathSegment
     ? `/dashboard/${encodeURIComponent(projectId)}/${stageResolution.requiredPathSegment}`

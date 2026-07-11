@@ -151,6 +151,10 @@ export function ProjectExperimentWorkspace({
   );
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
     const nextQuery: Partial<DashboardQuery> = {};
     const normalizedCampaignId = filters.campaignId === "all" ? "" : filters.campaignId;
 
@@ -187,6 +191,7 @@ export function ProjectExperimentWorkspace({
     filters.campaignId,
     filters.promotionId,
     filters.status,
+    isLoading,
     pageSize,
     pagination.page,
     query.experimentPage,

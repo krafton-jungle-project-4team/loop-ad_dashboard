@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { createRouteBoundaryOptions } from "../app/route-boundary.js";
 import {
   getCanonicalDashboardPath,
+  getLegacyDashboardViewPatch,
   getDashboardTabByPath
 } from "../features/dashboard/model/dashboard-navigation.js";
 import {
@@ -14,6 +15,7 @@ import type { DashboardQuery, DashboardTab } from "../features/dashboard/model/d
 import { useSuspenseDashboardResources } from "../features/dashboard/model/use-dashboard-resources.js";
 import { DashboardPanelRenderer } from "../features/dashboard/ui/DashboardRenderer.js";
 import { LoadingState } from "../features/dashboard/ui/LoadingState.js";
+import { ExperimentComponent } from "../features/dashboard/ui/pages/campaign/promotion/experiment/ExperimentComponent.js";
 import { DataExplorerDashboardPage } from "../features/dashboard/ui/pages/data-explorer/DataExplorerDashboardPage.js";
 import { SdkPage } from "../features/dashboard/ui/pages/sdk/SdkPage.js";
 
@@ -47,7 +49,10 @@ function DashboardProjectRoute() {
       <Navigate
         params={{ projectId, tabPath: canonicalPath }}
         replace
-        search={(current) => current}
+        search={(current) => ({
+          ...current,
+          ...getLegacyDashboardViewPatch(tabPath)
+        })}
         to="/dashboard/$projectId/$tabPath"
       />
     );
@@ -85,6 +90,10 @@ function DashboardProjectContent({ projectId, tab }: { projectId: string; tab: D
 
   if (tab === "sdk") {
     return <SdkPage />;
+  }
+
+  if (tab === "experiments") {
+    return <ExperimentComponent query={query} />;
   }
 
   return <DashboardResourcePanel query={query} tab={tab} />;

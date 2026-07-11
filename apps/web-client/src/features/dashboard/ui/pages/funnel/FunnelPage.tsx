@@ -63,13 +63,14 @@ import {
   dashboardTabQueryKey
 } from "../../../model/dashboard-query-keys.js";
 import { formatStatusLabel } from "../../../model/dashboard-labels.js";
+import { DASHBOARD_MOBILE_ACTION_OFFSET_PX } from "../../../model/project-onboarding.js";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
+import { useProjectOnboarding } from "../../onboarding/ProjectOnboardingProvider.js";
 import { EmptyState } from "../../shared/EmptyState.js";
 import { DashboardDateRangeSelect } from "../../shared/DashboardDateRangeSelect.js";
 import {
   DETAIL_PANEL_COLLAPSED_HEIGHT,
   DETAIL_PANEL_HEADER_HEIGHT,
-  getDetailPanelMaxHeight,
   useFunnelDetailPanelResize
 } from "./useFunnelDetailPanelResize.js";
 
@@ -92,6 +93,7 @@ const DEFAULT_STEPS: FunnelDraftStep[] = [
 
 export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: DashboardQuery }) {
   const queryClient = useQueryClient();
+  const { stage } = useProjectOnboarding();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [draftDialogMode, setDraftDialogMode] = useState<DraftDialogMode>("create");
   const [editingFunnelId, setEditingFunnelId] = useState("");
@@ -106,11 +108,14 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   const [selectedFunnelId, setSelectedFunnelId] = useState("");
   const {
     detailPanelHeight,
+    detailPanelMaxHeight,
     handleDetailPanelResizeKeyDown,
     isDetailPanelCollapsed,
     setIsDetailPanelCollapsed,
     startDetailPanelResize
-  } = useFunnelDetailPanelResize();
+  } = useFunnelDetailPanelResize(
+    stage === "funnel" || stage === "campaign" ? DASHBOARD_MOBILE_ACTION_OFFSET_PX : 0
+  );
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
     queryKey: dashboardEventCatalogQueryKey(query.projectId)
@@ -336,7 +341,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
       </Card>
 
       <section
-        className="sticky bottom-0 z-10 grid self-end overflow-hidden rounded-t-2xl border border-black/10 bg-white shadow-[0_-18px_40px_rgba(15,23,42,0.14)]"
+        className="sticky bottom-[var(--dashboard-mobile-action-offset,0px)] z-10 grid self-end overflow-hidden rounded-t-2xl border border-black/10 bg-white shadow-[0_-18px_40px_rgba(15,23,42,0.14)] md:bottom-0"
         data-testid="funnel-detail-panel"
         style={{
           gridTemplateRows: `${DETAIL_PANEL_HEADER_HEIGHT}px minmax(0, 1fr)`,
@@ -347,7 +352,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
           <div
             aria-label="상세 패널 높이 조절"
             aria-orientation="horizontal"
-            aria-valuemax={getDetailPanelMaxHeight()}
+            aria-valuemax={detailPanelMaxHeight}
             aria-valuemin={DETAIL_PANEL_COLLAPSED_HEIGHT}
             aria-valuenow={
               isDetailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_HEIGHT : detailPanelHeight

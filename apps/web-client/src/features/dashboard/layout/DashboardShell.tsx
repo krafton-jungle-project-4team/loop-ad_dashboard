@@ -74,7 +74,7 @@ export function DashboardShell({
   projectId: string;
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
-  const { isDashboardUnlocked, isTabAllowed } = useProjectOnboarding();
+  const { isDashboardUnlocked, isLoading, isTabAllowed } = useProjectOnboarding();
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
   const isFunnelTab = activeTab === "funnels";
   const isFullHeightTab = isCanvasTab || isFunnelTab;
@@ -120,6 +120,10 @@ export function DashboardShell({
             </div>
             {isDashboardUnlocked ? (
               <DashboardGlobalSearch projectId={projectId} />
+            ) : isLoading ? (
+              <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                {getDashboardTabLabel(activeTab)}
+              </div>
             ) : (
               <DashboardHeaderContext activeTab={activeTab} projectId={projectId} />
             )}
