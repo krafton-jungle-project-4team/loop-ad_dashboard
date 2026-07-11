@@ -10,9 +10,27 @@ import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@loopad/ui/shadcn/dropdown-menu";
+import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@loopad/ui/shadcn/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, FolderOpen, Pencil, Target } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { BarChart3, FolderOpen, MoreHorizontal, Pencil, Plus, Search, Target } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   createDashboardCampaign,
@@ -33,12 +51,7 @@ import { CampaignPromotionTable } from "./promotion/components/CampaignPromotion
 import { CampaignFormDialog } from "./components/CampaignFormDialog.js";
 import { EmptyState } from "../../shared/EmptyState.js";
 import { ScopedFunnelAnalysisPanel } from "../../shared/ScopedFunnelAnalysisPanel.js";
-import {
-  EntityWorkspaceEmptyState,
-  EntityWorkspaceMetricCard,
-  EntityWorkspaceShell,
-  EntityWorkspaceTabs
-} from "../../shared/EntityWorkspace.js";
+import { EntityWorkspaceEmptyState, EntityWorkspaceShell } from "../../shared/EntityWorkspace.js";
 
 type CampaignFormDialogState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
 
@@ -56,9 +69,10 @@ export function CampaignPageSections({
   const selectedPromotionId = query.selectedPromotionId;
   const showsCampaignDetail = tab !== "campaigns";
   const [campaignFormDialog, setCampaignFormDialog] = useState<CampaignFormDialogState>(null);
-  const selectedCampaign =
-    data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
-    data.campaigns[0];
+  const [campaignFilter, setCampaignFilter] = useState("");
+  const selectedCampaign = data.campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const editingCampaign =
     campaignFormDialog?.mode === "edit"
@@ -80,6 +94,7 @@ export function CampaignPageSections({
     onSuccess: async (campaign) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await setDashboardQueryState({
+        campaignView: "overview",
         selectedCampaignId: campaign.campaign_id,
         selectedPromotionId: "",
         selectedSegmentId: ""
@@ -98,6 +113,7 @@ export function CampaignPageSections({
     onSuccess: async (campaign) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await setDashboardQueryState({
+        campaignView: "overview",
         selectedCampaignId: campaign.campaign_id,
         selectedPromotionId: "",
         selectedSegmentId: ""
@@ -111,6 +127,7 @@ export function CampaignPageSections({
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       if (query.selectedCampaignId === result.campaign_id) {
         await setDashboardQueryState({
+          campaignView: "manage",
           selectedCampaignId: "",
           selectedPromotionId: "",
           selectedSegmentId: ""
@@ -121,13 +138,33 @@ export function CampaignPageSections({
   });
 
   useEffect(() => {
-    if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
-      void setDashboardQueryState({
-        selectedCampaignId: selectedCampaign.campaign_id,
+    if (!query.createCampaign || tab !== "campaigns") {
+      return;
+    }
+
+    createCampaignMutation.reset();
+    setCampaignFormDialog({ mode: "create" });
+    void setDashboardQueryState(
+      { createCampaign: false },
+      {
+        history: "replace"
+      }
+    );
+  }, [createCampaignMutation, query.createCampaign, setDashboardQueryState, tab]);
+
+  useEffect(() => {
+    if (!query.selectedCampaignId || selectedCampaign) {
+      return;
+    }
+
+    void setDashboardQueryState(
+      {
+        selectedCampaignId: "",
         selectedPromotionId: "",
         selectedSegmentId: ""
-      });
-    }
+      },
+      { history: "replace" }
+    );
   }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
 
   useEffect(() => {
@@ -139,12 +176,16 @@ export function CampaignPageSections({
       (promotion) => promotion.promotion_id === selectedPromotionId
     );
     if (!hasSelectedPromotion) {
-      void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+      void setDashboardQueryState(
+        { selectedPromotionId: "", selectedSegmentId: "" },
+        { history: "replace" }
+      );
     }
   }, [campaignDetail.data, selectedPromotionId, setDashboardQueryState]);
 
   const selectCampaign = (campaignId: string) => {
     void setDashboardQueryState({
+      campaignView: "overview",
       selectedCampaignId: campaignId,
       selectedPromotionId: "",
       selectedSegmentId: ""
@@ -167,22 +208,19 @@ export function CampaignPageSections({
     <div className="grid gap-6">
       {tab === "campaigns" ? (
         <>
-          <EntityWorkspaceShell
-            chrome={
-              <EntityWorkspaceTabs
-                addLabel="캠페인 탭 추가"
-                items={campaignWorkspaceTabs(data.campaigns)}
-                onAdd={openCampaignCreateDialog}
-                onClose={(item) => deleteCampaignMutation.mutate(item.campaign.campaign_id)}
-                onSelect={(item) => selectCampaign(item.campaign.campaign_id)}
-                selectedItemId={selectedCampaignId}
-              />
-            }
-          >
-            {data.campaigns.length > 0 && selectedCampaign ? (
+          <EntityWorkspaceShell>
+            {data.campaigns.length > 0 ? (
               <CampaignManagementWorkspace
-                campaign={selectedCampaign}
+                campaigns={data.campaigns.filter((campaign) =>
+                  `${campaign.campaign_name} ${campaign.objective ?? ""}`
+                    .toLocaleLowerCase()
+                    .includes(campaignFilter.trim().toLocaleLowerCase())
+                )}
+                filter={campaignFilter}
+                onCreate={openCampaignCreateDialog}
                 onEdit={openCampaignEditDialog}
+                onFilterChange={setCampaignFilter}
+                onSelect={selectCampaign}
               />
             ) : (
               <EntityWorkspaceEmptyState
@@ -263,15 +301,161 @@ export function CampaignPageSections({
   );
 }
 
-function campaignWorkspaceTabs(campaigns: DashboardCampaignSummary[]) {
-  return campaigns.map((campaign) => ({
-    campaign,
-    id: campaign.campaign_id,
-    label: campaign.campaign_name
-  }));
+function CampaignManagementWorkspace({
+  campaigns,
+  filter,
+  onCreate,
+  onEdit,
+  onFilterChange,
+  onSelect
+}: {
+  campaigns: DashboardCampaignSummary[];
+  filter: string;
+  onCreate: () => void;
+  onEdit: (campaignId: string) => void;
+  onFilterChange: (value: string) => void;
+  onSelect: (campaignId: string) => void;
+}) {
+  return (
+    <section className="grid gap-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="grid gap-1">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">캠페인 관리</h2>
+          <p className="text-sm text-muted-foreground">캠페인을 검색하고 생성·수정·삭제합니다.</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <Field className="sm:w-72">
+            <FieldLabel className="sr-only" htmlFor="campaign-management-search">
+              캠페인 검색
+            </FieldLabel>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoComplete="off"
+                className="pl-9"
+                id="campaign-management-search"
+                name="campaignSearch"
+                onChange={(event) => onFilterChange(event.target.value)}
+                placeholder="캠페인 이름 또는 목표 검색…"
+                type="search"
+                value={filter}
+              />
+            </div>
+          </Field>
+          <Button onClick={onCreate} type="button">
+            <Plus data-icon="inline-start" />새 캠페인
+          </Button>
+        </div>
+      </div>
+      {campaigns.length === 0 ? (
+        <EmptyState message="검색 조건에 맞는 캠페인이 없습니다." />
+      ) : (
+        <CampaignManagementList campaigns={campaigns} onEdit={onEdit} onSelect={onSelect} />
+      )}
+    </section>
+  );
 }
 
-function CampaignManagementWorkspace({
+function CampaignManagementList({
+  campaigns,
+  onEdit,
+  onSelect
+}: {
+  campaigns: DashboardCampaignSummary[];
+  onEdit: (campaignId: string) => void;
+  onSelect: (campaignId: string) => void;
+}) {
+  return (
+    <>
+      <div className="hidden overflow-x-auto rounded-lg border md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>캠페인</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>기간</TableHead>
+              <TableHead>주요 지표</TableHead>
+              <TableHead className="text-right">프로모션</TableHead>
+              <TableHead className="text-right">세그먼트</TableHead>
+              <TableHead className="text-right">실험</TableHead>
+              <TableHead className="w-12">
+                <span className="sr-only">작업</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {campaigns.map((campaign) => (
+              <TableRow key={campaign.campaign_id}>
+                <TableCell className="max-w-[320px]">
+                  <button
+                    className="grid max-w-full gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => onSelect(campaign.campaign_id)}
+                    type="button"
+                  >
+                    <span className="truncate font-medium text-foreground hover:text-primary">
+                      {campaign.campaign_name}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {campaign.objective ?? "목표 미등록"}
+                    </span>
+                  </button>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={statusBadgeVariant(campaign.status)}>
+                    {formatStatusLabel(campaign.status)}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatPeriod(campaign)}</TableCell>
+                <TableCell>{formatMetricLabel(campaign.primary_metric)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatInteger(campaign.promotion_count)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatInteger(campaign.segment_count)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatInteger(campaign.ad_experiment_count)}
+                </TableCell>
+                <TableCell>
+                  <CampaignRowMenu campaign={campaign} onEdit={onEdit} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="grid gap-3 md:hidden">
+        {campaigns.map((campaign) => (
+          <Card className="shadow-none" key={campaign.campaign_id}>
+            <CardHeader className="gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <button
+                  className="grid min-w-0 gap-1 text-left"
+                  onClick={() => onSelect(campaign.campaign_id)}
+                  type="button"
+                >
+                  <CardTitle className="truncate text-base">{campaign.campaign_name}</CardTitle>
+                  <CardDescription className="line-clamp-2">
+                    {campaign.objective ?? "목표 미등록"}
+                  </CardDescription>
+                </button>
+                <CampaignRowMenu campaign={campaign} onEdit={onEdit} />
+              </div>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-3 text-sm">
+              <SummaryItem label="상태" value={formatStatusLabel(campaign.status)} />
+              <SummaryItem label="기간" value={formatPeriod(campaign)} />
+              <SummaryItem label="프로모션" value={formatInteger(campaign.promotion_count)} />
+              <SummaryItem label="세그먼트" value={formatInteger(campaign.segment_count)} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function CampaignRowMenu({
   campaign,
   onEdit
 }: {
@@ -279,100 +463,26 @@ function CampaignManagementWorkspace({
   onEdit: (campaignId: string) => void;
 }) {
   return (
-    <section className="grid gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <div className="text-sm font-medium text-[#3927d9]">캠페인 보기</div>
-          <h2 className="text-3xl font-semibold tracking-tight text-[#102033]">
-            {campaign.campaign_name}
-          </h2>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            {campaign.objective ?? "목표 미등록"}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Badge variant={statusBadgeVariant(campaign.status)}>
-            {formatStatusLabel(campaign.status)}
-          </Badge>
-          <Button onClick={() => onEdit(campaign.campaign_id)} type="button" variant="outline">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          aria-label={`${campaign.campaign_name} 작업`}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => onEdit(campaign.campaign_id)}>
             <Pencil data-icon="inline-start" />
-            수정
-          </Button>
-        </div>
-      </div>
-      <div className="grid gap-4 md:grid-cols-5">
-        <EntityWorkspaceMetricCard label="기간" value={formatPeriod(campaign)} />
-        <EntityWorkspaceMetricCard
-          label="주요 지표"
-          value={formatMetricLabel(campaign.primary_metric)}
-        />
-        <EntityWorkspaceMetricCard
-          label="프로모션"
-          value={formatInteger(campaign.promotion_count)}
-        />
-        <EntityWorkspaceMetricCard label="세그먼트" value={formatInteger(campaign.segment_count)} />
-        <EntityWorkspaceMetricCard
-          label="실험"
-          value={formatInteger(campaign.ad_experiment_count)}
-        />
-      </div>
-      <CampaignJourneyEfficiencyCard campaign={campaign} />
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle className="text-base">캠페인 운영 요약</CardTitle>
-          <CardDescription>
-            선택한 캠페인의 목표 달성률과 최근 변경 정보를 확인합니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <SummaryItem
-            label="최근 목표 달성률"
-            value={
-              campaign.latest_goal_achievement_rate === null
-                ? "-"
-                : formatPercent(campaign.latest_goal_achievement_rate)
-            }
-          />
-          <SummaryItem label="업데이트" value={campaign.updated_at} />
-          <SummaryItem label="상태" value={formatStatusLabel(campaign.status)} />
-        </CardContent>
-      </Card>
-    </section>
-  );
-}
-
-function CampaignJourneyEfficiencyCard({ campaign }: { campaign: DashboardCampaignSummary }) {
-  const achievementProgress = Math.min((campaign.latest_goal_achievement_rate ?? 0) * 100, 100);
-  const periodProgress = campaignPeriodProgress(campaign);
-
-  return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <CardTitle>캠페인 사용자 여정 효율</CardTitle>
-        <CardDescription>현재 캠페인 목표와 기간 진행 상태를 기준으로 확인합니다.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <CampaignProgressRow label="목표 달성" value={achievementProgress} />
-        <CampaignProgressRow label="기간 진행" value={periodProgress} />
-        <div className="grid gap-3 md:grid-cols-3">
-          <SummaryItem label="목표 지표" value={formatMetricLabel(campaign.primary_metric)} />
-          <SummaryItem label="프로모션" value={formatInteger(campaign.promotion_count)} />
-          <SummaryItem label="다음 상태" value={formatStatusLabel(campaign.status)} />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function CampaignProgressRow({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="grid gap-2">
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="font-medium text-[#1d1d1f]">{label}</span>
-        <span className="tabular-nums">{formatPercent(value / 100)}</span>
-      </div>
-      <Progress value={value} />
-    </div>
+            수정 및 삭제
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -409,7 +519,7 @@ function CampaignDetailPanel({
   const description = campaignDetailPanelDescription(tab);
 
   return (
-    <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+    <Card className="w-full min-w-0 bg-white py-5 shadow-none">
       <CardHeader className="gap-1.5 px-5">
         <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
           {title}
@@ -489,6 +599,24 @@ function CampaignTabContent({
       return (
         <>
           <CampaignSummary detail={detail} />
+          <div className="flex justify-end">
+            <Button asChild>
+              <Link
+                params={{ projectId: query.projectId, tabPath: "promotions" }}
+                search={(current) => ({
+                  ...current,
+                  createPromotion: true,
+                  promotionView: "manage",
+                  selectedCampaignId: detail.campaign.campaign_id,
+                  selectedPromotionId: "",
+                  selectedSegmentId: ""
+                })}
+                to="/dashboard/$projectId/$tabPath"
+              >
+                <Plus data-icon="inline-start" />새 프로모션
+              </Link>
+            </Button>
+          </div>
           <CampaignPromotionTable
             onSelectPromotion={onSelectPromotion}
             promotions={detail.promotions}
@@ -707,20 +835,4 @@ function formatPeriod(campaign: DashboardCampaignSummary) {
     return "-";
   }
   return `${campaign.start_date ?? "미정"} ~ ${campaign.end_date ?? "미정"}`;
-}
-
-function campaignPeriodProgress(campaign: DashboardCampaignSummary) {
-  if (!campaign.start_date || !campaign.end_date) {
-    return 0;
-  }
-
-  const startTime = new Date(`${campaign.start_date}T00:00:00`).getTime();
-  const endTime = new Date(`${campaign.end_date}T23:59:59`).getTime();
-  const now = Date.now();
-
-  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
-    return 0;
-  }
-
-  return Math.min(Math.max(((now - startTime) / (endTime - startTime)) * 100, 0), 100);
 }

@@ -65,9 +65,10 @@ export function dashboardFunnelListQueryKey(projectId: string) {
 export function dashboardFunnelMetricsQueryKey(
   projectId: string,
   funnelId: string,
+  dateRange: DashboardQuery["dateRange"],
   scope?: DashboardFunnelMetricsScope | null
 ) {
-  return ["dashboard", "funnel-metrics", projectId, funnelId, scope ?? null] as const;
+  return ["dashboard", "funnel-metrics", projectId, funnelId, dateRange, scope ?? null] as const;
 }
 
 export function dashboardFunnelDetailQueryKey(projectId: string, funnelId: string) {

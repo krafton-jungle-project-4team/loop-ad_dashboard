@@ -15,6 +15,8 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
+import { Link } from "@tanstack/react-router";
+import { Sparkles } from "lucide-react";
 import { formatInteger, formatPercent } from "../../../model/dashboard-format.js";
 import {
   formatActionLabel,
@@ -25,108 +27,121 @@ import {
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
 import { EmptyState } from "../../shared/EmptyState.js";
 
-export function MainPage({ data }: { data: DashboardMain; query: DashboardQuery }) {
+export function MainPage({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const summary = createMainSummary(data.campaigns);
 
   return (
-    <Card className="w-full min-w-0 rounded-lg bg-white py-4 shadow-none ring-1 ring-black/10">
-      <CardHeader className="gap-1.5 px-4">
-        <CardTitle className="text-lg font-semibold tracking-tight text-[#1d1d1f]">
-          메인 대시보드
-        </CardTitle>
-        <CardDescription className="text-sm">
-          프로젝트의 운영 현황과 캠페인 목록을 확인합니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 px-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <MainSummaryCard
-            label="전체 캠페인"
-            note={`활성 ${formatInteger(summary.activeCampaigns)}개`}
-            value={formatInteger(summary.totalCampaigns)}
-          />
-          <MainSummaryCard
-            label="초안 캠페인"
-            note="아직 시작 전"
-            value={formatInteger(summary.draftCampaigns)}
-          />
-          <MainSummaryCard
-            label="종료/중지 캠페인"
-            note="완료 또는 중지"
-            value={formatInteger(summary.closedCampaigns)}
-          />
-          <MainSummaryCard
-            label="전체 프로모션"
-            note={`캠페인당 평균 ${formatDecimal(summary.averagePromotionsPerCampaign)}개`}
-            value={formatInteger(summary.totalPromotions)}
-          />
-          <MainSummaryCard
-            label="확정 세그먼트"
-            note={`프로모션당 평균 ${formatDecimal(summary.averageSegmentsPerPromotion)}개`}
-            value={formatInteger(summary.totalSegments)}
-          />
-          <MainSummaryCard
-            label="광고 실험"
-            note="생성된 실험 수"
-            value={formatInteger(summary.totalAdExperiments)}
-          />
-          <MainSummaryCard
-            label="평균 목표 달성률"
-            note={`${formatInteger(summary.measuredCampaigns)}개 캠페인 기준`}
-            value={summary.averageGoalRate === null ? "-" : formatPercent(summary.averageGoalRate)}
-          />
-          <MainSummaryCard
-            label="목표 달성 캠페인"
-            note="최근 목표 달성률 100% 이상"
-            value={formatInteger(summary.goalMetCampaigns)}
-          />
-          <MainSummaryCard
-            label="조치 필요 캠페인"
-            note="다음 액션이 남은 항목"
-            value={formatInteger(summary.actionRequiredCampaigns)}
-          />
-          <MainSummaryCard
-            label="최신 업데이트"
-            note="가장 최근 변경"
-            value={formatCompactDate(summary.latestUpdatedAt)}
-          />
-        </div>
+    <div className="grid gap-6">
+      <Card className="w-full min-w-0 overflow-hidden bg-white py-0 shadow-none">
+        <CardHeader className="border-b bg-gradient-to-br from-primary/[0.08] via-white to-white px-5 py-6 md:px-6">
+          <div className="grid gap-1.5">
+            <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
+              운영 현황
+            </CardTitle>
+            <CardDescription className="text-sm">
+              사용자 행동을 확인하고 캠페인 작업으로 자연스럽게 이어가세요.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-5 px-5 py-5 md:px-6">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MainSummaryCard
+              accent
+              label="활성 캠페인"
+              note={`전체 ${formatInteger(summary.totalCampaigns)}개 중 운영 중`}
+              value={formatInteger(summary.activeCampaigns)}
+            />
+            <MainSummaryCard
+              label="전체 프로모션"
+              note="캠페인 하위 프로모션"
+              value={formatInteger(summary.totalPromotions)}
+            />
+            <MainSummaryCard
+              label="확정 세그먼트"
+              note="실행 가능한 대상 그룹"
+              value={formatInteger(summary.totalSegments)}
+            />
+            <MainSummaryCard
+              label="조치 필요 캠페인"
+              note={`실험 ${formatInteger(summary.totalAdExperiments)}개 운영 기준`}
+              value={formatInteger(summary.actionRequiredCampaigns)}
+            />
+          </div>
 
-        <MainRealtimeAnalytics metrics={data.realtime_metrics} />
+          <MainRealtimeAnalytics metrics={data.realtime_metrics} />
 
-        {data.campaigns.length > 0 ? (
-          <Table className="text-sm">
-            <TableHeader>
-              <TableRow>
-                <TableHead>캠페인</TableHead>
-                <TableHead>상태</TableHead>
-                <TableHead>기간</TableHead>
-                <TableHead className="text-right">프로모션</TableHead>
-                <TableHead className="text-right">세그먼트</TableHead>
-                <TableHead className="text-right">실험</TableHead>
-                <TableHead className="text-right">최근 목표 달성률</TableHead>
-                <TableHead>다음 액션</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.campaigns.map((campaign) => (
-                <CampaignListRow campaign={campaign} key={campaign.campaign_id} />
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <EmptyState message="등록된 캠페인이 없습니다." />
-        )}
-      </CardContent>
-    </Card>
+          <section className="grid gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="grid gap-1">
+                <h2 className="text-base font-semibold tracking-tight text-foreground">
+                  캠페인 작업 목록
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  이름을 선택하면 해당 캠페인의 개요로 이동합니다.
+                </p>
+              </div>
+              <Badge variant="outline">
+                <Sparkles data-icon="inline-start" />
+                다음 액션 {formatInteger(summary.actionRequiredCampaigns)}개
+              </Badge>
+            </div>
+            {data.campaigns.length > 0 ? (
+              <div className="overflow-x-auto rounded-lg border">
+                <Table className="min-w-[920px] text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>캠페인</TableHead>
+                      <TableHead>상태</TableHead>
+                      <TableHead>기간</TableHead>
+                      <TableHead className="text-right">프로모션</TableHead>
+                      <TableHead className="text-right">세그먼트</TableHead>
+                      <TableHead className="text-right">실험</TableHead>
+                      <TableHead className="text-right">최근 목표 달성률</TableHead>
+                      <TableHead>다음 액션</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.campaigns.map((campaign) => (
+                      <CampaignListRow
+                        campaign={campaign}
+                        key={campaign.campaign_id}
+                        projectId={query.projectId}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <EmptyState message="등록된 캠페인이 없습니다. 캠페인 관리에서 첫 캠페인을 만들어보세요." />
+            )}
+          </section>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
-function MainSummaryCard({ label, note, value }: { label: string; note: string; value: string }) {
+function MainSummaryCard({
+  accent = false,
+  label,
+  note,
+  value
+}: {
+  accent?: boolean;
+  label: string;
+  note: string;
+  value: string;
+}) {
   return (
-    <div className="grid min-h-[104px] gap-2 rounded-md border border-black/10 bg-[#f5f5f7] p-3.5">
+    <div
+      className={
+        accent
+          ? "grid min-h-[112px] gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] p-4"
+          : "grid min-h-[112px] gap-2 rounded-lg border bg-muted/50 p-4"
+      }
+    >
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-xl font-semibold tracking-tight text-[#1d1d1f]">{value}</span>
+      <span className="text-xl font-semibold tracking-tight text-foreground">{value}</span>
       <span className="text-xs leading-5 text-muted-foreground">{note}</span>
     </div>
   );
@@ -140,7 +155,7 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
     <section className="grid gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-1">
-          <h3 className="text-base font-semibold tracking-tight text-[#1d1d1f]">실시간 지표</h3>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">실시간 지표</h3>
         </div>
         <Badge variant="outline">전체 캠페인 합산</Badge>
       </div>
@@ -152,14 +167,14 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
               <div
                 className={
                   index === 0
-                    ? "grid min-h-28 content-between bg-[#eaf2ff] p-4"
+                    ? "grid min-h-28 content-between bg-accent p-4"
                     : "grid min-h-28 content-between border-t p-4 md:border-l md:border-t-0"
                 }
                 key={kpi.label}
               >
                 <div className="grid gap-1">
                   <div className="text-sm font-medium text-muted-foreground">{kpi.label}</div>
-                  <div className="text-2xl font-semibold tabular-nums text-[#202124]">
+                  <div className="text-2xl font-semibold tabular-nums text-foreground">
                     {kpi.value}
                   </div>
                 </div>
@@ -170,18 +185,18 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
 
           <div className="grid gap-3 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium text-[#202124]">시간대별 이벤트 추이</div>
+              <div className="text-sm font-medium text-foreground">시간대별 이벤트 추이</div>
             </div>
             {trendData.length > 0 ? (
               <ChartContainer
                 className="h-[260px] min-h-0 w-full aspect-auto"
                 config={{
                   event_count: {
-                    color: "#1a73e8",
+                    color: "var(--chart-1)",
                     label: "이벤트 수"
                   },
                   unique_user_count: {
-                    color: "#16a7b7",
+                    color: "var(--chart-2)",
                     label: "유니크 유저"
                   }
                 }}
@@ -275,7 +290,7 @@ function MainRealtimeActivityCard({
         <div className="flex items-start justify-between gap-3">
           <div className="grid gap-1">
             <div className="text-sm font-medium text-muted-foreground">최근 5분 이벤트</div>
-            <div className="text-4xl font-semibold tabular-nums text-[#202124]">
+            <div className="text-4xl font-semibold tabular-nums text-foreground">
               {formatInteger(metrics.recent_5m_event_count)}
             </div>
           </div>
@@ -293,7 +308,7 @@ function MainRealtimeActivityCard({
           {recentBars.length > 0 ? (
             recentBars.map((item) => (
               <div
-                className="min-h-1 flex-1 rounded-t-sm bg-[#1a73e8]"
+                className="min-h-1 flex-1 rounded-t-sm bg-primary"
                 key={item.time_bucket}
                 style={{ height: `${Math.max((item.event_count / maxEventCount) * 100, 6)}%` }}
                 title={`${item.label}: ${formatInteger(item.event_count)}`}
@@ -340,7 +355,7 @@ function MainAnalyticsRankCard({
   return (
     <div className="grid content-start gap-3 rounded-lg border bg-background p-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-base font-semibold text-[#202124]">{title}</h4>
+        <h4 className="text-base font-semibold text-foreground">{title}</h4>
         <span className="text-xs text-muted-foreground">수집 기준</span>
       </div>
       {visibleItems.length > 0 ? (
@@ -349,15 +364,15 @@ function MainAnalyticsRankCard({
             <div className="grid gap-1.5" key={item.key}>
               <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
                 <div className="min-w-0">
-                  <div className="truncate font-medium text-[#3c4043]">{item.label}</div>
+                  <div className="truncate font-medium text-foreground/85">{item.label}</div>
                 </div>
-                <div className="shrink-0 tabular-nums text-[#3c4043]">
+                <div className="shrink-0 tabular-nums text-foreground/85">
                   {formatInteger(item.value)}
                 </div>
               </div>
               <div className="h-1 bg-muted">
                 <div
-                  className="h-full bg-[#1a73e8]"
+                  className="h-full bg-primary"
                   style={{ width: `${Math.max((item.value / maxValue) * 100, 4)}%` }}
                 />
               </div>
@@ -371,12 +386,31 @@ function MainAnalyticsRankCard({
   );
 }
 
-function CampaignListRow({ campaign }: { campaign: DashboardCampaignSummary }) {
+function CampaignListRow({
+  campaign,
+  projectId
+}: {
+  campaign: DashboardCampaignSummary;
+  projectId: string;
+}) {
   return (
     <TableRow>
       <TableCell>
         <div className="flex min-w-[200px] flex-col gap-1">
-          <span className="font-medium text-foreground">{campaign.campaign_name}</span>
+          <Link
+            className="w-fit font-medium text-foreground underline-offset-4 hover:text-primary hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            params={{ projectId, tabPath: "campaigns" }}
+            search={(current) => ({
+              ...current,
+              campaignView: "overview",
+              selectedCampaignId: campaign.campaign_id,
+              selectedPromotionId: "",
+              selectedSegmentId: ""
+            })}
+            to="/dashboard/$projectId/$tabPath"
+          >
+            {campaign.campaign_name}
+          </Link>
           {campaign.objective ? (
             <span className="line-clamp-2 text-sm text-muted-foreground">{campaign.objective}</span>
           ) : null}
@@ -533,7 +567,7 @@ function MainMetricLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 border-t pt-3 text-sm">
       <span className="min-w-0 truncate text-muted-foreground">{label}</span>
-      <span className="shrink-0 tabular-nums text-[#3c4043]">{value}</span>
+      <span className="shrink-0 tabular-nums text-foreground/85">{value}</span>
     </div>
   );
 }
@@ -559,27 +593,6 @@ const EVENT_DISPLAY_NAMES: Record<string, string> = {
   promotion_click: "프로모션 클릭",
   promotion_impression: "프로모션 노출"
 };
-
-function formatDecimal(value: number) {
-  return new Intl.NumberFormat("ko-KR", {
-    maximumFractionDigits: 1,
-    minimumFractionDigits: value > 0 && value < 1 ? 1 : 0
-  }).format(value);
-}
-
-function formatCompactDate(value: string | null) {
-  if (!value) {
-    return "-";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-  return new Intl.DateTimeFormat("ko-KR", {
-    dateStyle: "short",
-    timeZone: "Asia/Seoul"
-  }).format(date);
-}
 
 function formatPeriod(campaign: DashboardCampaignSummary) {
   if (!campaign.start_date && !campaign.end_date) {

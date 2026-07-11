@@ -673,7 +673,9 @@ export class DashboardCampaignReader {
   async getPromotionDetail(
     projectId: string,
     promotionId: string
-  ): Promise<Omit<DashboardPromotionDetail, "realtime_metrics" | "segment_realtime_summaries">> {
+  ): Promise<
+    Omit<DashboardPromotionDetail, "generation" | "realtime_metrics" | "segment_realtime_summaries">
+  > {
     const [promotion, analyses, segments, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardPromotionSummary, { projectId, promotionId }).single(),
       this.db.query(listDashboardPromotionAnalyses, { projectId, promotionId }).multiple(),

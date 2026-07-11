@@ -1,5 +1,5 @@
 import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@loopad/ui/shadcn/collapsible";
+import { Button } from "@loopad/ui/shadcn/button";
 import { Separator } from "@loopad/ui/shadcn/separator";
 import {
   Select,
@@ -19,17 +19,15 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger
+  SidebarTrigger,
+  useSidebar
 } from "@loopad/ui/shadcn/sidebar";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -41,10 +39,8 @@ import {
 } from "react";
 import { fetchDashboardCampaignDetail, fetchDashboardPageResource } from "../api/dashboard-api.js";
 import {
-  dashboardNavigationTree,
+  dashboardNavigationGroups,
   getDashboardTabLabel,
-  type DashboardNavTreeFolderItem,
-  type DashboardNavTreeItem,
   type DashboardNavTreeLinkItem
 } from "../model/dashboard-navigation.js";
 import { normalizeDashboardQuery, useDashboardQueryState } from "../model/dashboard-query.js";
@@ -53,7 +49,7 @@ import {
   dashboardPageQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
-import { ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
+import { ProjectReturnIconLink, ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 360;
@@ -87,12 +83,18 @@ export function DashboardShell({
           <ProjectSidebarBrand projectId={projectId} />
         </SidebarHeader>
         <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>분석 화면</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <DashboardNavigation activeTab={activeTab} projectId={projectId} />
-            </SidebarGroupContent>
-          </SidebarGroup>
+          {dashboardNavigationGroups.map((group) => (
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <DashboardNavigation
+                  activeTab={activeTab}
+                  items={group.items}
+                  projectId={projectId}
+                />
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
         </SidebarContent>
         <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
         <SidebarRail />
@@ -101,6 +103,7 @@ export function DashboardShell({
       <SidebarInset className={isFullHeightTab ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
           <div className="flex h-full min-w-0 items-center gap-3">
+            <ProjectReturnIconLink />
             <SidebarTrigger className="-ml-1" />
             <div className="flex h-6 items-center">
               <Separator className="h-full" orientation="vertical" />
@@ -112,8 +115,8 @@ export function DashboardShell({
         <main
           className={
             isCanvasTab
-              ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-[#f5f5f7]"
-              : "min-h-0 min-w-0 flex-1 overflow-auto bg-[#f5f5f7]"
+              ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background pb-20 md:pb-0"
+              : "min-h-0 min-w-0 flex-1 overflow-auto bg-background pb-20 md:pb-0"
           }
         >
           <div
@@ -128,37 +131,127 @@ export function DashboardShell({
             {children}
           </div>
         </main>
+        <MobileBottomNavigation activeTab={activeTab} projectId={projectId} />
       </SidebarInset>
     </SidebarProvider>
   );
 }
 
-function DashboardNavigation({
+function MobileBottomNavigation({
   activeTab,
   projectId
 }: {
   activeTab: DashboardTab;
   projectId: string;
 }) {
+  const { toggleSidebar } = useSidebar();
+  const campaignIsActive = [
+    "campaigns",
+    "campaign-detail",
+    "campaign-metrics",
+    "promotions",
+    "campaign-promotions",
+    "promotion-metrics",
+    "segments",
+    "experiments"
+  ].includes(activeTab);
+
+  return (
+    <nav
+      aria-label="모바일 주요 메뉴"
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
+    >
+      <MobileNavigationLink
+        active={activeTab === "main"}
+        icon={<Home aria-hidden="true" />}
+        label="메인"
+        pathSegment="main"
+        projectId={projectId}
+      />
+      <MobileNavigationLink
+        active={activeTab === "funnels"}
+        icon={<Route aria-hidden="true" />}
+        label="여정"
+        pathSegment="funnels"
+        projectId={projectId}
+      />
+      <MobileNavigationLink
+        active={campaignIsActive}
+        icon={<Megaphone aria-hidden="true" />}
+        label="캠페인"
+        pathSegment="campaigns"
+        projectId={projectId}
+      />
+      <Button
+        aria-label="전체 메뉴 열기"
+        className="h-16 rounded-none text-xs text-muted-foreground"
+        onClick={toggleSidebar}
+        type="button"
+        variant="ghost"
+      >
+        <span className="grid place-items-center gap-1">
+          <MoreHorizontal aria-hidden="true" className="size-5" />
+          더보기
+        </span>
+      </Button>
+    </nav>
+  );
+}
+
+function MobileNavigationLink({
+  active,
+  icon,
+  label,
+  pathSegment,
+  projectId
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  pathSegment: string;
+  projectId: string;
+}) {
+  return (
+    <Button
+      asChild
+      className={cn(
+        "h-16 rounded-none text-xs text-muted-foreground",
+        active && "bg-primary/[0.06] text-primary"
+      )}
+      variant="ghost"
+    >
+      <Link
+        aria-current={active ? "page" : undefined}
+        params={{ projectId, tabPath: pathSegment }}
+        search={(current) => current}
+        to="/dashboard/$projectId/$tabPath"
+      >
+        <span className="grid place-items-center gap-1 [&_svg]:size-5">{icon}</span>
+        <span>{label}</span>
+      </Link>
+    </Button>
+  );
+}
+
+function DashboardNavigation({
+  activeTab,
+  items,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  items: DashboardNavTreeLinkItem[];
+  projectId: string;
+}) {
   return (
     <SidebarMenu>
-      {dashboardNavigationTree.map((item) =>
-        item.type === "folder" ? (
-          <DashboardNavigationFolderItem
-            activeTab={activeTab}
-            item={item}
-            key={getNavigationItemKey(item)}
-            projectId={projectId}
-          />
-        ) : (
-          <DashboardNavigationLinkItem
-            activeTab={activeTab}
-            item={item}
-            key={getNavigationItemKey(item)}
-            projectId={projectId}
-          />
-        )
-      )}
+      {items.map((item) => (
+        <DashboardNavigationLinkItem
+          activeTab={activeTab}
+          item={item}
+          key={item.pathSegment}
+          projectId={projectId}
+        />
+      ))}
     </SidebarMenu>
   );
 }
@@ -172,7 +265,7 @@ function DashboardNavigationLinkItem({
   item: DashboardNavTreeLinkItem;
   projectId: string;
 }) {
-  const isActive = activeTab === item.value;
+  const isActive = isSidebarNavigationItemActive(item.value, activeTab);
 
   return (
     <SidebarMenuItem>
@@ -180,7 +273,7 @@ function DashboardNavigationLinkItem({
         asChild
         className={cn(
           "rounded-full text-sidebar-foreground/80",
-          isActive && "font-bold text-[#111111]"
+          isActive && "font-semibold text-primary"
         )}
         isActive={isActive}
         tooltip={item.label}
@@ -190,176 +283,22 @@ function DashboardNavigationLinkItem({
           search={(current) => current}
           to="/dashboard/$projectId/$tabPath"
         >
-          <span className={cn(isActive && "font-bold text-[#111111]")}>{item.label}</span>
+          <span className={cn(isActive && "font-semibold text-primary")}>{item.label}</span>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
 }
 
-function DashboardNavigationFolderItem({
-  activeTab,
-  item,
-  projectId
-}: {
-  activeTab: DashboardTab;
-  item: DashboardNavTreeFolderItem;
-  projectId: string;
-}) {
-  const isBranchActive = isNavigationItemActive(item, activeTab);
-
-  return (
-    <Collapsible asChild className="group/collapsible" defaultOpen={isBranchActive}>
-      <SidebarMenuItem>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton
-            className={cn(
-              "rounded-full text-sidebar-foreground/80",
-              isBranchActive && "font-bold text-[#111111]"
-            )}
-            isActive={isBranchActive}
-            tooltip={item.label}
-          >
-            <span className={cn(isBranchActive && "font-bold text-[#111111]")}>{item.label}</span>
-            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <DashboardNavigationSubItems
-            activeTab={activeTab}
-            depth={0}
-            items={item.children}
-            projectId={projectId}
-          />
-        </CollapsibleContent>
-      </SidebarMenuItem>
-    </Collapsible>
-  );
-}
-
-function DashboardNavigationSubItems({
-  activeTab,
-  depth,
-  items,
-  projectId
-}: {
-  activeTab: DashboardTab;
-  depth: number;
-  items: DashboardNavTreeItem[];
-  projectId: string;
-}) {
-  return (
-    <SidebarMenuSub className={cn("mr-0 pr-0", depth > 0 && "ml-3 pl-3")}>
-      {items.map((item) =>
-        item.type === "folder" ? (
-          <DashboardNavigationSubFolderItem
-            activeTab={activeTab}
-            depth={depth}
-            item={item}
-            key={getNavigationItemKey(item)}
-            projectId={projectId}
-          />
-        ) : (
-          <DashboardNavigationSubLinkItem
-            activeTab={activeTab}
-            item={item}
-            key={getNavigationItemKey(item)}
-            projectId={projectId}
-          />
-        )
-      )}
-    </SidebarMenuSub>
-  );
-}
-
-function DashboardNavigationSubLinkItem({
-  activeTab,
-  item,
-  projectId
-}: {
-  activeTab: DashboardTab;
-  item: DashboardNavTreeLinkItem;
-  projectId: string;
-}) {
-  const isExactActive = activeTab === item.value;
-
-  return (
-    <SidebarMenuSubItem>
-      <SidebarMenuSubButton
-        asChild
-        className={cn(
-          "relative w-full transition-colors [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1 [&>span:last-child]:whitespace-nowrap",
-          isExactActive && "font-bold text-[#111111]"
-        )}
-        isActive={isExactActive}
-      >
-        <Link
-          params={{ projectId, tabPath: item.pathSegment }}
-          search={(current) => current}
-          to="/dashboard/$projectId/$tabPath"
-        >
-          <span className={cn(isExactActive && "font-bold text-[#111111]")}>{item.label}</span>
-        </Link>
-      </SidebarMenuSubButton>
-    </SidebarMenuSubItem>
-  );
-}
-
-function DashboardNavigationSubFolderItem({
-  activeTab,
-  depth,
-  item,
-  projectId
-}: {
-  activeTab: DashboardTab;
-  depth: number;
-  item: DashboardNavTreeFolderItem;
-  projectId: string;
-}) {
-  const isBranchActive = isNavigationItemActive(item, activeTab);
-
-  return (
-    <Collapsible asChild className="group/collapsible" defaultOpen={isBranchActive}>
-      <SidebarMenuSubItem>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuSubButton
-            asChild
-            className={cn("transition-colors", isBranchActive && "font-bold text-[#111111]")}
-            isActive={isBranchActive}
-          >
-            <button type="button">
-              <span
-                className={cn("whitespace-nowrap", isBranchActive && "font-bold text-[#111111]")}
-              >
-                {item.label}
-              </span>
-              <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-            </button>
-          </SidebarMenuSubButton>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <DashboardNavigationSubItems
-            activeTab={activeTab}
-            depth={depth + 1}
-            items={item.children}
-            projectId={projectId}
-          />
-        </CollapsibleContent>
-      </SidebarMenuSubItem>
-    </Collapsible>
-  );
-}
-
-function isNavigationItemActive(item: DashboardNavTreeItem, activeTab: DashboardTab): boolean {
-  if (item.type === "link") {
-    return item.value === activeTab;
+function isSidebarNavigationItemActive(itemTab: DashboardTab, activeTab: DashboardTab) {
+  switch (itemTab) {
+    case "campaigns":
+      return ["campaigns", "campaign-detail", "campaign-metrics"].includes(activeTab);
+    case "promotions":
+      return ["promotions", "campaign-promotions", "promotion-metrics"].includes(activeTab);
+    default:
+      return itemTab === activeTab;
   }
-
-  return item.children.some((child) => isNavigationItemActive(child, activeTab));
-}
-
-function getNavigationItemKey(item: DashboardNavTreeItem): string {
-  return item.type === "link" ? item.pathSegment : item.label;
 }
 
 type DashboardContextDepth = "campaign" | "promotion" | "segment";
@@ -375,7 +314,7 @@ function DashboardHeaderContext({
 
   if (!contextDepth) {
     return (
-      <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-[#1d1d1f]">
+      <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
         {getDashboardTabLabel(activeTab)}
       </div>
     );
@@ -402,8 +341,9 @@ function DashboardSelectionContext({
     select: (resource): DashboardMain => resource.data as DashboardMain
   });
   const campaigns = mainQuery.data?.campaigns ?? [];
-  const selectedCampaign =
-    campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ?? campaigns[0];
+  const selectedCampaign = campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const needsPromotionContext = depth === "promotion" || depth === "segment";
   const campaignDetailQuery = useQuery({
@@ -520,10 +460,10 @@ function DashboardContextSelect({
   widthClassName: string;
 }) {
   return (
-    <Select disabled={disabled} onValueChange={onValueChange} value={value}>
+    <Select disabled={disabled} onValueChange={onValueChange} value={value ?? ""}>
       <SelectTrigger
         className={cn(
-          "h-9 min-w-0 rounded-full border-black/10 bg-white px-3 text-sm font-medium text-[#1d1d1f] shadow-none",
+          "h-9 min-w-0 rounded-full border-black/10 bg-white px-3 text-sm font-medium text-foreground shadow-none",
           widthClassName
         )}
       >
@@ -543,6 +483,7 @@ function getDashboardContextDepth(tab: DashboardTab): DashboardContextDepth | nu
     case "campaign-flow-map":
       return "campaign";
     case "campaign-promotions":
+    case "promotions":
     case "promotion-metrics":
       return "promotion";
     case "segments":

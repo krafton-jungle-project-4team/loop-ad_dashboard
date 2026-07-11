@@ -15,7 +15,7 @@ export function LoadingState({ tab }: { tab: DashboardTab }) {
 
 function CampaignFlowMapSkeleton() {
   return (
-    <div className="flex h-full min-h-[calc(100svh-3.5rem)] min-w-0 flex-col bg-[#f5f5f7]">
+    <div className="flex h-full min-h-[calc(100svh-3.5rem)] min-w-0 flex-col bg-background">
       <div className="flex shrink-0 flex-col gap-3 border-b border-black/10 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6">
         <div className="flex items-center gap-3">
           <Skeleton className="size-8 rounded-md" />

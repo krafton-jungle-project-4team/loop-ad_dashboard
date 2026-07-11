@@ -42,97 +42,99 @@ export function CampaignPromotionTable({
         </div>
       </div>
       {promotions.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>프로모션</TableHead>
-              <TableHead>대상 세그먼트</TableHead>
-              <TableHead>목표</TableHead>
-              <TableHead className="text-right">루프</TableHead>
-              <TableHead className="text-right">실험</TableHead>
-              <TableHead>상태</TableHead>
-              <TableHead>다음 액션</TableHead>
-              <TableHead>상세</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {promotions.map((promotion) => {
-              const promotionSegments = segments.filter(
-                (segment) => segment.promotion_id === promotion.promotion_id
-              );
-              return (
-                <TableRow
-                  aria-selected={selectedPromotionId === promotion.promotion_id}
-                  data-state={
-                    selectedPromotionId === promotion.promotion_id ? "selected" : undefined
-                  }
-                  key={promotion.promotion_id}
-                >
-                  <TableCell>
-                    <div className="flex min-w-[220px] flex-col gap-1">
-                      <span className="font-medium">{promotion.marketing_theme}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatChannelLabel(promotion.channel)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex min-w-[240px] flex-wrap gap-1.5">
-                      {promotionSegments.slice(0, 3).map((segment) => (
-                        <Badge key={segment.segment_id} variant="outline">
-                          {segment.segment_name}
-                        </Badge>
-                      ))}
-                      {promotionSegments.length > 3 ? (
-                        <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
-                      ) : null}
-                      {promotionSegments.length === 0 ? (
-                        <span className="text-sm text-muted-foreground">세그먼트 없음</span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="grid min-w-[160px] gap-1">
-                      <span className="text-sm">{formatMetricLabel(promotion.goal_metric)}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatGoalValue(promotion.goal_target_value)} ·{" "}
-                        {formatBasisLabel(promotion.goal_basis)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatInteger(promotion.current_loop_count)} /{" "}
-                    {formatInteger(promotion.max_loop_count)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatInteger(promotion.ad_experiment_count)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusBadgeVariant(promotion.status)}>
-                      {formatStatusLabel(promotion.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{formatActionLabel(promotion.next_action)}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      aria-pressed={selectedPromotionId === promotion.promotion_id}
-                      onClick={() => onSelectPromotion(promotion.promotion_id)}
-                      size="sm"
-                      type="button"
-                      variant={
-                        selectedPromotionId === promotion.promotion_id ? "default" : "outline"
-                      }
-                    >
-                      {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>프로모션</TableHead>
+                <TableHead>대상 세그먼트</TableHead>
+                <TableHead>목표</TableHead>
+                <TableHead className="text-right">루프</TableHead>
+                <TableHead className="text-right">실험</TableHead>
+                <TableHead>상태</TableHead>
+                <TableHead>다음 액션</TableHead>
+                <TableHead>상세</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {promotions.map((promotion) => {
+                const promotionSegments = segments.filter(
+                  (segment) => segment.promotion_id === promotion.promotion_id
+                );
+                return (
+                  <TableRow
+                    aria-selected={selectedPromotionId === promotion.promotion_id}
+                    data-state={
+                      selectedPromotionId === promotion.promotion_id ? "selected" : undefined
+                    }
+                    key={promotion.promotion_id}
+                  >
+                    <TableCell>
+                      <div className="flex min-w-[220px] flex-col gap-1">
+                        <span className="font-medium">{promotion.marketing_theme}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatChannelLabel(promotion.channel)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex min-w-[240px] flex-wrap gap-1.5">
+                        {promotionSegments.slice(0, 3).map((segment) => (
+                          <Badge key={segment.segment_id} variant="outline">
+                            {segment.segment_name}
+                          </Badge>
+                        ))}
+                        {promotionSegments.length > 3 ? (
+                          <Badge variant="secondary">+{promotionSegments.length - 3}</Badge>
+                        ) : null}
+                        {promotionSegments.length === 0 ? (
+                          <span className="text-sm text-muted-foreground">세그먼트 없음</span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="grid min-w-[160px] gap-1">
+                        <span className="text-sm">{formatMetricLabel(promotion.goal_metric)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatGoalValue(promotion.goal_target_value)} ·{" "}
+                          {formatBasisLabel(promotion.goal_basis)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(promotion.current_loop_count)} /{" "}
+                      {formatInteger(promotion.max_loop_count)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInteger(promotion.ad_experiment_count)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(promotion.status)}>
+                        {formatStatusLabel(promotion.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{formatActionLabel(promotion.next_action)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        aria-pressed={selectedPromotionId === promotion.promotion_id}
+                        onClick={() => onSelectPromotion(promotion.promotion_id)}
+                        size="sm"
+                        type="button"
+                        variant={
+                          selectedPromotionId === promotion.promotion_id ? "default" : "outline"
+                        }
+                      >
+                        {selectedPromotionId === promotion.promotion_id ? "열림" : "상세"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
         <EmptyState message="등록된 프로모션이 없습니다." />
       )}

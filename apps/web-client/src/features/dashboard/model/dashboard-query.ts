@@ -13,6 +13,11 @@ import type {
   DashboardSort,
   DashboardUserScope
 } from "./dashboard-types.js";
+import {
+  campaignWorkspaceViewValues,
+  promotionWorkspaceViewValues,
+  segmentWorkspaceViewValues
+} from "./dashboard-types.js";
 
 export const dashboardDateRangeOptions = [
   { label: "오늘", value: "today" },
@@ -49,11 +54,16 @@ export type DashboardSearchQuery = Omit<DashboardQuery, "projectId">;
 
 export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   conversionEvent: "booking_complete",
+  createCampaign: false,
+  createPromotion: false,
   dateRange: "last-7-days",
   excludeBotTraffic: true,
   excludeInternalTraffic: true,
   experimentPage: 1,
   experimentPageSize: 10,
+  campaignView: "manage",
+  promotionView: "manage",
+  segmentView: "manage",
   experimentPromotionFilter: "all",
   experimentStatusFilter: "all",
   filter: "",
@@ -75,6 +85,8 @@ export const dashboardQueryParsers = {
   conversionEvent: parseAsStringLiteral(
     dashboardConversionEventOptions.map((item) => item.value)
   ).withDefault(defaultDashboardSearchQuery.conversionEvent),
+  createCampaign: parseAsBoolean.withDefault(defaultDashboardSearchQuery.createCampaign),
+  createPromotion: parseAsBoolean.withDefault(defaultDashboardSearchQuery.createPromotion),
   dateRange: parseAsStringLiteral(dashboardDateRangeOptions.map((item) => item.value)).withDefault(
     defaultDashboardSearchQuery.dateRange
   ),
@@ -84,6 +96,15 @@ export const dashboardQueryParsers = {
   ),
   experimentPage: parseAsInteger.withDefault(defaultDashboardSearchQuery.experimentPage),
   experimentPageSize: parseAsInteger.withDefault(defaultDashboardSearchQuery.experimentPageSize),
+  campaignView: parseAsStringLiteral(campaignWorkspaceViewValues).withDefault(
+    defaultDashboardSearchQuery.campaignView
+  ),
+  promotionView: parseAsStringLiteral(promotionWorkspaceViewValues).withDefault(
+    defaultDashboardSearchQuery.promotionView
+  ),
+  segmentView: parseAsStringLiteral(segmentWorkspaceViewValues).withDefault(
+    defaultDashboardSearchQuery.segmentView
+  ),
   experimentPromotionFilter: parseAsString.withDefault(
     defaultDashboardSearchQuery.experimentPromotionFilter
   ),

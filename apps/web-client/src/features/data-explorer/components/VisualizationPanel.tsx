@@ -35,7 +35,7 @@ export function VisualizationPanel({ result }: { result: DataExplorerQueryRunRes
               <Line
                 dataKey={yColumn}
                 isAnimationActive={false}
-                stroke="#0066cc"
+                stroke="var(--chart-1)"
                 strokeWidth={2}
                 type="monotone"
               />
@@ -48,7 +48,7 @@ export function VisualizationPanel({ result }: { result: DataExplorerQueryRunRes
               <Tooltip />
               <Bar
                 dataKey={yColumn}
-                fill="#0066cc"
+                fill="var(--chart-1)"
                 isAnimationActive={false}
                 radius={[4, 4, 0, 0]}
               />
@@ -59,7 +59,7 @@ export function VisualizationPanel({ result }: { result: DataExplorerQueryRunRes
               <XAxis dataKey={spec.x.column} name={spec.x.column} tickLine={false} />
               <YAxis dataKey={yColumn} name={yColumn} tickLine={false} width={48} />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-              <Scatter data={result.rows} fill="#0066cc" isAnimationActive={false} />
+              <Scatter data={result.rows} fill="var(--chart-1)" isAnimationActive={false} />
             </ScatterChart>
           )}
         </ResponsiveContainer>

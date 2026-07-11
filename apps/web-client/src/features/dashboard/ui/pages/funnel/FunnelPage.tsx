@@ -16,7 +16,8 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
+  AlertDialogTrigger
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
@@ -64,6 +65,7 @@ import {
 import { formatStatusLabel } from "../../../model/dashboard-labels.js";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
 import { EmptyState } from "../../shared/EmptyState.js";
+import { DashboardDateRangeSelect } from "../../shared/DashboardDateRangeSelect.js";
 import {
   DETAIL_PANEL_COLLAPSED_HEIGHT,
   DETAIL_PANEL_HEADER_HEIGHT,
@@ -125,7 +127,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   const funnelMetrics = useQuery({
     enabled: Boolean(selectedFunnelId),
     queryFn: ({ signal }) => fetchDashboardFunnelMetrics(query, selectedFunnelId, signal),
-    queryKey: dashboardFunnelMetricsQueryKey(query.projectId, selectedFunnelId)
+    queryKey: dashboardFunnelMetricsQueryKey(query.projectId, selectedFunnelId, query.dateRange)
   });
   const createMutation = useMutation({
     mutationFn: () => createDashboardFunnel(query, createFunnelRequest(funnelName, steps)),
@@ -155,7 +157,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
         queryKey: dashboardFunnelDetailQueryKey(query.projectId, result.funnel_id)
       });
       await queryClient.invalidateQueries({
-        queryKey: dashboardFunnelMetricsQueryKey(query.projectId, result.funnel_id)
+        queryKey: dashboardFunnelMetricsQueryKey(query.projectId, result.funnel_id, query.dateRange)
       });
     }
   });
@@ -202,7 +204,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
 
   return (
     <div className="grid min-h-full grid-rows-[auto_1fr] gap-6">
-      <Card className="w-full min-w-0 rounded-[18px] bg-white py-5 shadow-none ring-1 ring-black/10">
+      <Card className="w-full min-w-0 bg-white py-5 shadow-none">
         <CardHeader className="flex flex-col gap-3 px-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid gap-1.5">
             <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
@@ -210,10 +212,13 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             </CardTitle>
             <CardDescription>저장된 사용자 여정을 선택해 단계별 지표를 확인합니다.</CardDescription>
           </div>
-          <Button onClick={openCreateDialog} type="button">
-            <Plus data-icon="inline-start" />
-            사용자 여정 생성
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <DashboardDateRangeSelect value={query.dateRange} />
+            <Button onClick={openCreateDialog} type="button">
+              <Plus data-icon="inline-start" />
+              사용자 여정 생성
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="px-5">
           {deleteMutation.isError ? (
@@ -223,7 +228,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             </Alert>
           ) : null}
           {data.funnels.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border border-black/10">
+            <div className="overflow-x-auto rounded-lg border border-black/10">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
@@ -285,19 +290,38 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                             <Pencil data-icon="inline-start" />
                             수정
                           </Button>
-                          <Button
-                            disabled={deleteMutation.isPending}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              deleteMutation.mutate(funnel.funnel_id);
-                            }}
-                            size="icon"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Trash2 data-icon="inline-start" />
-                            <span className="sr-only">사용자 여정 삭제</span>
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                disabled={deleteMutation.isPending}
+                                onClick={(event) => event.stopPropagation()}
+                                size="icon"
+                                type="button"
+                                variant="outline"
+                              >
+                                <Trash2 data-icon="inline-start" />
+                                <span className="sr-only">사용자 여정 삭제</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>사용자 여정을 삭제할까요?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {funnel.funnel_name} 사용자 여정이 삭제됩니다. 이 작업은 되돌릴 수
+                                  없습니다.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>취소</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(funnel.funnel_id)}
+                                  variant="destructive"
+                                >
+                                  삭제
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -328,7 +352,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             aria-valuenow={
               isDetailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_HEIGHT : detailPanelHeight
             }
-            className="absolute left-1/2 top-1 flex h-6 w-16 -translate-x-1/2 cursor-row-resize items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40"
+            className="absolute left-1/2 top-1 flex h-6 w-16 -translate-x-1/2 cursor-row-resize items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             onKeyDown={handleDetailPanelResizeKeyDown}
             onPointerDown={startDetailPanelResize}
             role="separator"

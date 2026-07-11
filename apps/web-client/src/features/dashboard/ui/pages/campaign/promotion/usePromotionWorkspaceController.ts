@@ -23,7 +23,9 @@ import {
   rejectDashboardContentCandidate,
   startDashboardPromotionAnalysis,
   startDashboardAdExperiment,
-  startDashboardPromotionGeneration
+  startDashboardPromotionGeneration,
+  updateDashboardPromotion,
+  updateDashboardPromotionSegment
 } from "../../../../api/dashboard-api.js";
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import {
@@ -38,7 +40,6 @@ import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import {
   defaultPromotionAnalysisProgress,
   hasPendingOnsiteBannerImage,
-  latestSegmentPerSegmentId,
   mutationErrorMessage,
   onsiteBannerImagePollIntervalMs,
   promotionAnalysisProgressCacheTimeMs,
@@ -77,13 +78,20 @@ export function usePromotionWorkspaceController({
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const visibleTabs = promotionWorkspaceTabsByMode[mode];
+  const [editingPromotionId, setEditingPromotionId] = useState<string | null>(null);
+  const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
+  const requestedSegmentTab: PromotionWorkspaceTab =
+    query.segmentView === "manage" || query.segmentView === "recommendations"
+      ? "segments"
+      : "segment-detail";
+  const visibleTabs =
+    mode === "segment" ? [requestedSegmentTab] : promotionWorkspaceTabsByMode[mode];
   const [workspaceTab, setWorkspaceTab] = useState<PromotionWorkspaceTab>(
-    defaultPromotionWorkspaceTabByMode[mode]
+    mode === "segment" ? requestedSegmentTab : defaultPromotionWorkspaceTabByMode[mode]
   );
-  const selectedCampaign =
-    data.campaigns.find((campaign) => campaign.campaign_id === query.selectedCampaignId) ??
-    data.campaigns[0];
+  const selectedCampaign = data.campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
   const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
   const selectedPromotionId = query.selectedPromotionId;
   const campaignDetail = useQuery({
@@ -92,9 +100,9 @@ export function usePromotionWorkspaceController({
     queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
   });
   const openPromotions = uniquePromotionsById(campaignDetail.data?.promotions ?? []);
-  const selectedOpenPromotion =
-    openPromotions.find((promotion) => promotion.promotion_id === selectedPromotionId) ??
-    openPromotions[0];
+  const selectedOpenPromotion = openPromotions.find(
+    (promotion) => promotion.promotion_id === selectedPromotionId
+  );
   const selectedPromotionSegments =
     campaignDetail.data?.segments.filter(
       (segment) => segment.promotion_id === selectedOpenPromotion?.promotion_id
@@ -114,6 +122,7 @@ export function usePromotionWorkspaceController({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
       });
       void setDashboardQueryState({
+        promotionView: "overview",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
         selectedSegmentId: ""
@@ -124,46 +133,84 @@ export function usePromotionWorkspaceController({
   const deletePromotionMutation = useMutation({
     mutationFn: (promotionId: string) => deleteDashboardPromotion(query, promotionId),
     onSuccess: async (result) => {
-      const deletedIndex = openPromotions.findIndex(
-        (promotion) => promotion.promotion_id === result.promotion_id
-      );
-      const remainingPromotions = openPromotions.filter(
-        (promotion) => promotion.promotion_id !== result.promotion_id
-      );
-      const nextSelectedPromotion =
-        selectedPromotionId === result.promotion_id
-          ? (remainingPromotions[deletedIndex] ?? remainingPromotions[deletedIndex - 1])
-          : undefined;
-
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
       });
       if (selectedPromotionId === result.promotion_id) {
         await setDashboardQueryState({
+          promotionView: "manage",
           selectedCampaignId,
-          selectedPromotionId: nextSelectedPromotion?.promotion_id ?? "",
+          selectedPromotionId: "",
           selectedSegmentId: ""
         });
       }
     }
   });
+  const updatePromotionMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody
+    }: {
+      promotionId: string;
+      requestBody: Parameters<typeof updateDashboardPromotion>[2];
+    }) => updateDashboardPromotion(query, promotionId, requestBody),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      setEditingPromotionId(null);
+    }
+  });
 
   useEffect(() => {
-    if (selectedCampaign && query.selectedCampaignId !== selectedCampaign.campaign_id) {
-      void setDashboardQueryState({
-        selectedCampaignId: selectedCampaign.campaign_id,
-        selectedPromotionId: "",
-        selectedSegmentId: ""
-      });
+    if (
+      !query.createPromotion ||
+      mode !== "promotion" ||
+      query.promotionView !== "manage" ||
+      !selectedCampaign
+    ) {
+      return;
+    }
+
+    createPromotionMutation.reset();
+    setIsAddDialogOpen(true);
+    void setDashboardQueryState(
+      { createPromotion: false },
+      {
+        history: "replace"
+      }
+    );
+  }, [
+    createPromotionMutation,
+    mode,
+    query.createPromotion,
+    query.promotionView,
+    selectedCampaign,
+    setDashboardQueryState
+  ]);
+
+  useEffect(() => {
+    if (query.selectedCampaignId && !selectedCampaign) {
+      void setDashboardQueryState(
+        {
+          selectedCampaignId: "",
+          selectedPromotionId: "",
+          selectedSegmentId: ""
+        },
+        { history: "replace" }
+      );
     }
   }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
 
   useEffect(() => {
-    if (!visibleTabs.includes(workspaceTab)) {
-      setWorkspaceTab(defaultPromotionWorkspaceTabByMode[mode]);
+    const nextWorkspaceTab =
+      mode === "segment" ? requestedSegmentTab : defaultPromotionWorkspaceTabByMode[mode];
+    if (!visibleTabs.includes(workspaceTab) || workspaceTab !== nextWorkspaceTab) {
+      setWorkspaceTab(nextWorkspaceTab);
     }
-  }, [mode, visibleTabs, workspaceTab]);
+  }, [mode, requestedSegmentTab, visibleTabs, workspaceTab]);
 
   useEffect(() => {
     if (!campaignDetail.data || !selectedPromotionId) {
@@ -174,28 +221,12 @@ export function usePromotionWorkspaceController({
       (promotion) => promotion.promotion_id === selectedPromotionId
     );
     if (!hasSelectedPromotion) {
-      void setDashboardQueryState({ selectedPromotionId: "", selectedSegmentId: "" });
+      void setDashboardQueryState(
+        { selectedPromotionId: "", selectedSegmentId: "" },
+        { history: "replace" }
+      );
     }
   }, [campaignDetail.data, selectedPromotionId, setDashboardQueryState]);
-
-  useEffect(() => {
-    if (
-      !campaignDetail.data ||
-      selectedPromotionId ||
-      campaignDetail.data.promotions.length === 0
-    ) {
-      return;
-    }
-
-    const firstPromotion = campaignDetail.data.promotions[0];
-    if (firstPromotion) {
-      void setDashboardQueryState({
-        selectedCampaignId,
-        selectedPromotionId: firstPromotion.promotion_id,
-        selectedSegmentId: ""
-      });
-    }
-  }, [campaignDetail.data, selectedCampaignId, selectedPromotionId, setDashboardQueryState]);
 
   const promotionDetail = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
@@ -204,7 +235,12 @@ export function usePromotionWorkspaceController({
     queryKey: dashboardPromotionDetailQueryKey(
       query.projectId,
       selectedOpenPromotion?.promotion_id ?? ""
-    )
+    ),
+    refetchInterval: (detailQuery) =>
+      shouldPollAsyncStatus(detailQuery.state.data?.analyses[0]?.status) ||
+      shouldPollAsyncStatus(detailQuery.state.data?.generation?.status)
+        ? 2500
+        : false
   });
   const latestAnalysisId = promotionDetail.data?.analyses[0]?.analysis_id ?? null;
   const selectedOpenPromotionId = selectedOpenPromotion?.promotion_id ?? "";
@@ -224,26 +260,9 @@ export function usePromotionWorkspaceController({
 
   useEffect(() => {
     if (query.selectedSegmentId && !selectedPromotionSegmentId) {
-      void setDashboardQueryState({ selectedSegmentId: "" });
+      void setDashboardQueryState({ selectedSegmentId: "" }, { history: "replace" });
     }
   }, [query.selectedSegmentId, selectedPromotionSegmentId, setDashboardQueryState]);
-
-  useEffect(() => {
-    if (
-      selectedOpenPromotion?.promotion_id &&
-      !query.selectedSegmentId &&
-      selectedPromotionSegments.length > 0
-    ) {
-      void setDashboardQueryState({
-        selectedSegmentId: latestSegmentPerSegmentId(selectedPromotionSegments)[0]?.segment_id ?? ""
-      });
-    }
-  }, [
-    query.selectedSegmentId,
-    selectedOpenPromotion?.promotion_id,
-    selectedPromotionSegments,
-    setDashboardQueryState
-  ]);
 
   const segmentDetail = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id && selectedPromotionSegmentId),
@@ -260,8 +279,9 @@ export function usePromotionWorkspaceController({
       selectedPromotionSegmentId
     ),
     refetchInterval: (segmentDetailQuery) =>
-      selectedOpenPromotion?.channel === "onsite_banner" &&
-      hasPendingOnsiteBannerImage(segmentDetailQuery.state.data)
+      shouldPollAsyncStatus(promotionDetail.data?.generation?.status) ||
+      (selectedOpenPromotion?.channel === "onsite_banner" &&
+        hasPendingOnsiteBannerImage(segmentDetailQuery.state.data))
         ? onsiteBannerImagePollIntervalMs
         : false,
     refetchIntervalInBackground: false
@@ -279,7 +299,13 @@ export function usePromotionWorkspaceController({
       query.projectId,
       selectedOpenPromotion?.promotion_id ?? "",
       activeAnalysisId
-    )
+    ),
+    refetchInterval: (suggestionQuery) =>
+      activeAnalysisId &&
+      (suggestionQuery.state.data?.suggestions.length ?? 0) === 0 &&
+      shouldPollAsyncStatus(promotionDetail.data?.analyses[0]?.status)
+        ? 2500
+        : false
   });
   const scopedSegmentDefinitions = useQuery({
     enabled: Boolean(selectedOpenPromotion?.promotion_id),
@@ -554,6 +580,17 @@ export function usePromotionWorkspaceController({
           activeAnalysisId
         )
       });
+      const firstConfirmedSuggestion = segmentSuggestions.data?.suggestions.find(
+        (suggestion) =>
+          suggestion.suggestion_status === "accepted" ||
+          suggestion.suggestion_status === "confirmed"
+      );
+      if (firstConfirmedSuggestion) {
+        await setDashboardQueryState({
+          segmentView: "overview",
+          selectedSegmentId: firstConfirmedSuggestion.segment_id
+        });
+      }
     }
   });
   const deleteConfirmedSegmentMutation = useMutation({
@@ -586,8 +623,33 @@ export function usePromotionWorkspaceController({
         )
       });
       if (query.selectedSegmentId === result.segment_id) {
-        await setDashboardQueryState({ selectedSegmentId: "" });
+        await setDashboardQueryState({ segmentView: "manage", selectedSegmentId: "" });
       }
+    }
+  });
+  const updateConfirmedSegmentMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody,
+      segmentId
+    }: {
+      promotionId: string;
+      requestBody: Parameters<typeof updateDashboardPromotionSegment>[3];
+      segmentId: string;
+    }) => updateDashboardPromotionSegment(query, promotionId, segmentId, requestBody),
+    onSuccess: async (segment) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          segment.promotion_id,
+          segment.segment_id
+        )
+      });
+      setEditingSegmentId(null);
     }
   });
   const archiveScopedSegmentMutation = useMutation({
@@ -605,6 +667,7 @@ export function usePromotionWorkspaceController({
 
   const selectPromotion = (promotionId: string, segmentId = "") => {
     void setDashboardQueryState({
+      promotionView: "overview",
       selectedCampaignId,
       selectedPromotionId: promotionId,
       selectedSegmentId: segmentId
@@ -613,6 +676,7 @@ export function usePromotionWorkspaceController({
   const selectSegment = (promotionId: string, segmentId: string) => {
     setWorkspaceTab("segment-detail");
     void setDashboardQueryState({
+      segmentView: "overview",
       selectedCampaignId,
       selectedPromotionId: promotionId,
       selectedSegmentId: segmentId
@@ -632,12 +696,17 @@ export function usePromotionWorkspaceController({
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
+    editingPromotionId,
+    editingSegmentId,
     evaluatePromotionRunMutation,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
     openPromotions,
     promotionAnalysisIsPending:
       startAnalysisMutation.isPending || analysisProgress.data.status === "pending",
+    promotionGenerationIsPending:
+      startGenerationMutation.isPending ||
+      shouldPollAsyncStatus(promotionDetail.data?.generation?.status),
     rejectContentCandidateMutation,
     scopedSegmentDefinitions,
     segmentDetail,
@@ -649,10 +718,24 @@ export function usePromotionWorkspaceController({
     selectedPromotionSegmentId,
     selectedPromotionSegments,
     setIsAddDialogOpen,
+    setEditingPromotionId,
+    setEditingSegmentId,
     setWorkspaceTab,
     startGenerationMutation,
     startPromotionAnalysis,
+    updatePromotionMutation,
+    updateConfirmedSegmentMutation,
     visibleTabs,
     workspaceTab
   };
+}
+
+function shouldPollAsyncStatus(status: string | undefined) {
+  return (
+    status === "queued" ||
+    status === "requested" ||
+    status === "pending" ||
+    status === "processing" ||
+    status === "running"
+  );
 }

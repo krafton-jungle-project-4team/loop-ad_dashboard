@@ -1,5 +1,13 @@
+import {
+  DashboardPromotionSegmentStatusSchema,
+  DashboardSegmentPrioritySchema,
+  type DashboardCampaignPromotion,
+  type DashboardCampaignSegment,
+  type DashboardUpdatePromotionRequest,
+  type DashboardUpdatePromotionSegmentRequest
+} from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
-import { DialogFooter } from "@loopad/ui/shadcn/dialog";
+import { DialogClose, DialogFooter } from "@loopad/ui/shadcn/dialog";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import {
@@ -11,7 +19,11 @@ import {
 } from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useEffect, useState } from "react";
-import { formatBasisLabel, formatChannelLabel } from "../../../../../model/dashboard-labels.js";
+import {
+  formatBasisLabel,
+  formatChannelLabel,
+  formatStatusLabel
+} from "../../../../../model/dashboard-labels.js";
 import { DashboardFormDialog } from "../../../../shared/DashboardFormDialog.js";
 import {
   createEmptyPromotionFormState,
@@ -20,8 +32,222 @@ import {
   promotionChannelOptions,
   promotionGoalBasisOptions,
   promotionGoalMetricOptions,
+  promotionStatusOptions,
   type PromotionCreateFormState
 } from "../promotionUtils.js";
+
+export function PromotionEditDialog({
+  isPending,
+  onOpenChange,
+  onUpdate,
+  open,
+  promotion
+}: {
+  isPending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdate: (requestBody: DashboardUpdatePromotionRequest) => void;
+  open: boolean;
+  promotion: DashboardCampaignPromotion | undefined;
+}) {
+  const [marketingTheme, setMarketingTheme] = useState("");
+  const [messageBrief, setMessageBrief] = useState("");
+  const [status, setStatus] = useState("draft");
+
+  useEffect(() => {
+    if (open && promotion) {
+      setMarketingTheme(promotion.marketing_theme);
+      setMessageBrief(promotion.message_brief ?? "");
+      setStatus(promotion.status);
+    }
+  }, [open, promotion]);
+  const isDirty = Boolean(
+    promotion &&
+    (marketingTheme !== promotion.marketing_theme ||
+      messageBrief !== (promotion.message_brief ?? "") ||
+      status !== promotion.status)
+  );
+
+  return (
+    <DashboardFormDialog
+      description="프로모션 이름, 설명, 운영 상태를 수정합니다."
+      dirty={isDirty}
+      onOpenChange={onOpenChange}
+      open={open}
+      title="프로모션 수정"
+      width="promotion"
+    >
+      <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
+        <Field>
+          <FieldLabel htmlFor="promotion-edit-theme">프로모션 이름</FieldLabel>
+          <Input
+            autoComplete="off"
+            id="promotion-edit-theme"
+            name="promotionEditTheme"
+            onChange={(event) => setMarketingTheme(event.target.value)}
+            value={marketingTheme}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="promotion-edit-description">프로모션 설명</FieldLabel>
+          <Textarea
+            id="promotion-edit-description"
+            name="promotionEditDescription"
+            onChange={(event) => setMessageBrief(event.target.value)}
+            rows={5}
+            value={messageBrief}
+          />
+        </Field>
+        <Field>
+          <FieldLabel id="promotion-edit-status-label">상태</FieldLabel>
+          <Select onValueChange={setStatus} value={status}>
+            <SelectTrigger aria-labelledby="promotion-edit-status-label" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionStatusOptions.map((statusOption) => (
+                <SelectItem key={statusOption} value={statusOption}>
+                  {formatStatusLabel(statusOption)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <DialogFooter className="border-t pt-5">
+          <DialogClose asChild>
+            <Button type="button" variant="ghost">
+              취소
+            </Button>
+          </DialogClose>
+          <Button
+            disabled={!promotion || !marketingTheme.trim() || isPending}
+            onClick={() =>
+              onUpdate({
+                marketing_theme: marketingTheme.trim(),
+                message_brief: messageBrief.trim() || null,
+                status: status as DashboardUpdatePromotionRequest["status"]
+              })
+            }
+            type="button"
+          >
+            {isPending ? "저장 중" : "변경사항 저장"}
+          </Button>
+        </DialogFooter>
+      </div>
+    </DashboardFormDialog>
+  );
+}
+
+export function SegmentEditDialog({
+  isPending,
+  onOpenChange,
+  onUpdate,
+  open,
+  segment
+}: {
+  isPending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdate: (requestBody: DashboardUpdatePromotionSegmentRequest) => void;
+  open: boolean;
+  segment: DashboardCampaignSegment | undefined;
+}) {
+  const [segmentName, setSegmentName] = useState("");
+  const [priority, setPriority] = useState("none");
+  const [status, setStatus] = useState("planned");
+
+  useEffect(() => {
+    if (open && segment) {
+      setSegmentName(segment.segment_name);
+      setPriority(segment.priority ?? "none");
+      setStatus(segment.status);
+    }
+  }, [open, segment]);
+  const isDirty = Boolean(
+    segment &&
+    (segmentName !== segment.segment_name ||
+      priority !== (segment.priority ?? "none") ||
+      status !== segment.status)
+  );
+
+  return (
+    <DashboardFormDialog
+      description="확정된 세그먼트의 이름, 우선순위, 운영 상태를 수정합니다."
+      dirty={isDirty}
+      onOpenChange={onOpenChange}
+      open={open}
+      title="세그먼트 수정"
+      width="segment"
+    >
+      <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
+        <Field>
+          <FieldLabel htmlFor="segment-edit-name">세그먼트 이름</FieldLabel>
+          <Input
+            autoComplete="off"
+            id="segment-edit-name"
+            name="segmentEditName"
+            onChange={(event) => setSegmentName(event.target.value)}
+            value={segmentName}
+          />
+        </Field>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field>
+            <FieldLabel id="segment-edit-priority-label">우선순위</FieldLabel>
+            <Select onValueChange={setPriority} value={priority}>
+              <SelectTrigger aria-labelledby="segment-edit-priority-label" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">미지정</SelectItem>
+                {DashboardSegmentPrioritySchema.options.map((priorityOption) => (
+                  <SelectItem key={priorityOption} value={priorityOption}>
+                    {formatStatusLabel(priorityOption)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel id="segment-edit-status-label">상태</FieldLabel>
+            <Select onValueChange={setStatus} value={status}>
+              <SelectTrigger aria-labelledby="segment-edit-status-label" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DashboardPromotionSegmentStatusSchema.options.map((statusOption) => (
+                  <SelectItem key={statusOption} value={statusOption}>
+                    {formatStatusLabel(statusOption)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        <DialogFooter className="border-t pt-5">
+          <DialogClose asChild>
+            <Button type="button" variant="ghost">
+              취소
+            </Button>
+          </DialogClose>
+          <Button
+            disabled={!segment || !segmentName.trim() || isPending}
+            onClick={() =>
+              onUpdate({
+                priority:
+                  priority === "none"
+                    ? null
+                    : (priority as DashboardUpdatePromotionSegmentRequest["priority"]),
+                segment_name: segmentName.trim(),
+                status: status as DashboardUpdatePromotionSegmentRequest["status"]
+              })
+            }
+            type="button"
+          >
+            {isPending ? "저장 중" : "변경사항 저장"}
+          </Button>
+        </DialogFooter>
+      </div>
+    </DashboardFormDialog>
+  );
+}
 
 export function PromotionAddDialog({
   createIsPending,
@@ -44,15 +270,18 @@ export function PromotionAddDialog({
 
   const canSubmit =
     Boolean(form.marketingTheme.trim()) && isValidHttpUrl(form.landingUrl) && !createIsPending;
+  const isDirty = JSON.stringify(form) !== JSON.stringify(createEmptyPromotionFormState());
 
   return (
     <DashboardFormDialog
       description="선택된 캠페인 하위에 새 프로모션을 생성하고 탭으로 엽니다."
+      dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
       title="새 프로모션 추가"
+      width="promotion"
     >
-      <div className="grid gap-6 px-8 py-6">
+      <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
         <div className="grid gap-4">
           <Field>
             <FieldLabel htmlFor="promotion-create-theme">프로모션 이름</FieldLabel>
@@ -201,16 +430,13 @@ export function PromotionAddDialog({
           </Field>
         </div>
       </div>
-      <DialogFooter className="px-8 py-5">
-        <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
-          취소
-        </Button>
-        <Button
-          className="bg-[#3927d9] px-8"
-          disabled={!canSubmit}
-          onClick={() => onCreate(form)}
-          type="button"
-        >
+      <DialogFooter className="px-5 py-5 sm:px-8">
+        <DialogClose asChild>
+          <Button type="button" variant="ghost">
+            취소
+          </Button>
+        </DialogClose>
+        <Button className="px-8" disabled={!canSubmit} onClick={() => onCreate(form)} type="button">
           {createIsPending ? "생성 중" : "프로모션 생성"}
         </Button>
       </DialogFooter>

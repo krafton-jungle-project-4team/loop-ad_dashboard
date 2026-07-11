@@ -25,6 +25,7 @@ export function DashboardPanelRenderer({
     case "campaign-flow-map":
       return <WorkflowMapPage data={resource.data} query={query} />;
     case "campaign-promotions":
+    case "promotions":
       return <PromotionManagementPage data={resource.data} query={query} />;
     case "promotion-metrics":
       return <PromotionMetricsPage data={resource.data} query={query} />;

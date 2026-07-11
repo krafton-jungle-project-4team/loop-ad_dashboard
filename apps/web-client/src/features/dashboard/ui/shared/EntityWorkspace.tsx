@@ -21,7 +21,7 @@ export function EntityWorkspaceShell({
   chrome?: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-[18px] bg-white shadow-none ring-1 ring-black/10">
+    <section className="overflow-hidden rounded-[18px] border border-black/10 bg-white">
       {chrome}
       <div className="grid gap-6 px-6 py-6">{children}</div>
     </section>
@@ -46,7 +46,7 @@ export function EntityWorkspaceTabs<Item extends EntityWorkspaceTabItem>({
   selectedItemId: string;
 }) {
   return (
-    <div className="flex min-h-14 items-end gap-1 border-b bg-[#edf3ff] px-5 pt-3">
+    <div className="flex min-h-14 items-end gap-1 border-b bg-[#f5f5f7] px-5 pt-3">
       <Button
         aria-label={addLabel}
         className="mb-0 h-11 w-14 rounded-b-none rounded-t-md border-b-0 bg-white text-[#1d1d1f] shadow-none hover:bg-white"
@@ -64,7 +64,7 @@ export function EntityWorkspaceTabs<Item extends EntityWorkspaceTabItem>({
           <button
             className={`mb-0 flex h-11 max-w-[260px] items-center gap-2 rounded-b-none rounded-t-md border px-3 text-left text-sm ${
               isSelected
-                ? "border-b-white bg-white font-semibold text-[#2f24d9]"
+                ? "border-b-white bg-white font-semibold text-primary"
                 : "border-transparent bg-transparent text-muted-foreground hover:bg-white/60"
             }`}
             key={item.id}
@@ -109,11 +109,11 @@ export function EntityWorkspaceEmptyState({
     <section className="grid min-h-[620px] content-between gap-8">
       <div className="grid place-items-center gap-6 pt-14 text-center">
         <div className="grid max-w-xl gap-3">
-          <h2 className="text-2xl font-semibold tracking-tight text-[#102033]">{title}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
           <p className="text-sm leading-7 text-muted-foreground">{description}</p>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
-          <Button className="gap-2 bg-[#3927d9] px-8" onClick={onAction} type="button">
+          <Button className="gap-2 px-8" onClick={onAction} type="button">
             <Plus className="size-4" />
             {actionLabel}
           </Button>
@@ -121,10 +121,10 @@ export function EntityWorkspaceEmptyState({
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {guideCards.map((card) => (
-          <div className="grid gap-4 rounded-md border bg-[#f2f6ff] p-6" key={card.title}>
-            <div className="text-[#3927d9]">{card.icon}</div>
+          <div className="grid gap-4 rounded-lg border bg-[#fafafc] p-6" key={card.title}>
+            <div className="text-primary">{card.icon}</div>
             <div className="grid gap-2">
-              <h3 className="text-sm font-semibold text-[#1d1d1f]">{card.title}</h3>
+              <h3 className="text-sm font-semibold text-foreground">{card.title}</h3>
               <p className="text-sm leading-6 text-muted-foreground">{card.value}</p>
             </div>
           </div>
@@ -136,9 +136,9 @@ export function EntityWorkspaceEmptyState({
 
 export function EntityWorkspaceMetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border bg-[#f6f6f7] p-4">
+    <div className="rounded-lg border bg-[#f5f5f7] p-4">
       <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="mt-2 text-xl font-semibold text-[#1d1d1f]">{value}</div>
+      <div className="mt-2 text-xl font-semibold text-foreground">{value}</div>
     </div>
   );
 }

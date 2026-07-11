@@ -158,7 +158,7 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
   const nextLoopCandidateCount = campaignDetail.data ? graph.nextLoopCandidateCount : 0;
 
   return (
-    <div className="flex h-full min-h-[calc(100svh-3.5rem)] min-w-0 flex-col bg-[#f5f5f7]">
+    <div className="flex h-full min-h-[calc(100svh-3.5rem)] min-w-0 flex-col bg-background">
       <CampaignFlowToolbar
         campaigns={data.campaigns}
         nextLoopCandidateCount={nextLoopCandidateCount}
@@ -187,7 +187,7 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
         {campaignDetail.data ? (
           <>
             <ReactFlow
-              className="bg-[#f7f8fa]"
+              className="bg-[#f5f5f7]"
               defaultViewport={{ x: 18, y: 42, zoom: 0.52 }}
               edges={graph.edges}
               edgeTypes={edgeTypes}
@@ -205,16 +205,16 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
               proOptions={{ hideAttribution: true }}
               selectNodesOnDrag={false}
             >
-              <Background color="#d8dde6" gap={22} size={1} variant={BackgroundVariant.Dots} />
+              <Background color="#d2d2d7" gap={22} size={1} variant={BackgroundVariant.Dots} />
               <Panel
-                className="pointer-events-none rounded-md border border-black/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur"
+                className="pointer-events-none rounded-lg border border-black/10 bg-white/90 px-3 py-2 backdrop-blur"
                 position="top-left"
               >
                 <PipelineStageStrip />
               </Panel>
               <Controls position="bottom-left" />
               <MiniMap
-                className="hidden rounded-md border border-black/10 bg-white/95 shadow-sm md:block"
+                className="hidden rounded-lg border border-black/10 bg-white/95 md:block"
                 maskColor="rgba(247, 248, 250, 0.66)"
                 nodeColor={(node) => miniMapNodeColor(node as CampaignFlowNode)}
                 nodeStrokeWidth={2}
@@ -224,7 +224,7 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
               />
             </ReactFlow>
             {campaignDetail.data.promotions.length === 0 ? (
-              <div className="pointer-events-none absolute left-1/2 top-6 w-[min(360px,calc(100%-2rem))] -translate-x-1/2 rounded-md border border-dashed border-black/15 bg-white/90 px-4 py-3 text-center text-sm text-muted-foreground shadow-sm">
+              <div className="pointer-events-none absolute left-1/2 top-6 w-[min(360px,calc(100%-2rem))] -translate-x-1/2 rounded-lg border border-dashed border-black/15 bg-white/90 px-4 py-3 text-center text-sm text-muted-foreground">
                 연결된 프로모션이 없습니다.
               </div>
             ) : null}
@@ -261,7 +261,7 @@ function CampaignFlowToolbar({
   return (
     <div className="flex shrink-0 flex-col gap-3 border-b border-black/10 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[#1f6feb]/20 bg-[#f0f6ff] text-[#0969da]">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-accent text-primary">
           <Workflow size={17} />
         </div>
         <div className="min-w-0">
@@ -373,7 +373,7 @@ function PipelineStageStrip() {
 function CanvasNotice({ message, title }: { message: string; title: string }) {
   return (
     <div className="absolute inset-0 grid place-items-center p-4">
-      <div className="w-[min(420px,100%)] rounded-md border border-dashed border-black/15 bg-white px-5 py-6 text-center shadow-sm">
+      <div className="w-[min(420px,100%)] rounded-lg border border-dashed border-black/15 bg-white px-5 py-6 text-center">
         <div className="text-sm font-semibold text-[#1d1d1f]">{title}</div>
         <div className="mt-1 text-sm text-muted-foreground">{message}</div>
       </div>
@@ -421,7 +421,7 @@ function CampaignNode(props: NodeProps) {
     >
       <NodeSummaryGrid items={data.summary} />
       <Handle
-        className="!size-2 !border-white !bg-[#64748b]"
+        className="!size-2 !border-white !bg-muted-foreground"
         position={Position.Right}
         type="source"
       />
@@ -450,12 +450,12 @@ function PromotionNode(props: NodeProps) {
         </div>
       ) : null}
       <Handle
-        className="!size-2 !border-white !bg-[#64748b]"
+        className="!size-2 !border-white !bg-muted-foreground"
         position={Position.Left}
         type="target"
       />
       <Handle
-        className="!size-2 !border-white !bg-[#64748b]"
+        className="!size-2 !border-white !bg-muted-foreground"
         position={Position.Right}
         type="source"
       />
@@ -1170,7 +1170,7 @@ function nodeKindIcon(kind: FlowNodeKind) {
 function nodeKindIconClassName(kind: FlowNodeKind) {
   switch (kind) {
     case "campaign":
-      return "border-[#0969da]/20 bg-[#f0f6ff] text-[#0969da]";
+      return "border-primary/20 bg-accent text-primary";
     case "promotion":
       return "border-zinc-300 bg-white text-zinc-700";
     case "evaluation":
@@ -1204,7 +1204,7 @@ function nodeToneClassName(tone: FlowPathTone) {
 
 function miniMapNodeColor(node: CampaignFlowNode) {
   if (node.data.kind === "campaign") {
-    return "#0969da";
+    return "var(--chart-1)";
   }
   if (node.data.kind === "evaluation") {
     return "#0f766e";

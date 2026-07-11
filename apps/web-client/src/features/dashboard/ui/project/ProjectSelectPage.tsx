@@ -12,7 +12,7 @@ import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
 import { ProjectManagementDialog } from "./ProjectManagementDialog.js";
 
 const PROJECT_ACCENT_CLASSES = [
-  "bg-[#0066cc]",
+  "bg-primary",
   "bg-[#34c759]",
   "bg-[#ff9f0a]",
   "bg-[#af52de]",
@@ -28,10 +28,10 @@ export function ProjectSelectPage() {
   const projects = projectsQuery.data?.projects ?? [];
 
   return (
-    <main className="min-h-svh bg-[#f5f5f7] text-[#1d1d1f]">
+    <main className="min-h-svh bg-background text-foreground">
       <div className="mx-auto flex min-h-svh w-full max-w-6xl flex-col px-5 py-6 sm:px-8">
         <header className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-full bg-[#0066cc] text-white">
+          <div className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <Gauge size={20} />
           </div>
           <div className="grid leading-tight">
@@ -65,10 +65,10 @@ export function ProjectSelectPage() {
             <ProjectManagementDialog
               trigger={
                 <button
-                  className="group flex min-h-44 items-center justify-center rounded-lg border border-dashed border-black/20 bg-white/70 p-4 text-center transition hover:border-[#0066cc]/50 hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40"
+                  className="group flex min-h-44 items-center justify-center rounded-[18px] border border-dashed border-black/20 bg-white/70 p-4 text-center transition-colors hover:border-primary/50 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   type="button"
                 >
-                  <span className="flex size-20 items-center justify-center rounded-lg bg-black/5 text-muted-foreground transition group-hover:bg-[#0066cc]/10 group-hover:text-[#0066cc]">
+                  <span className="flex size-20 items-center justify-center rounded-lg bg-black/5 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-primary">
                     <Plus size={34} />
                   </span>
                 </button>
@@ -86,11 +86,11 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
 
   return (
     <Link
-      className="group block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/40"
+      className="group block rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       params={{ projectId: project.project_id, tabPath: "main" }}
       to="/dashboard/$projectId/$tabPath"
     >
-      <Card className="min-h-44 rounded-lg bg-white p-0 transition group-hover:-translate-y-0.5 group-hover:shadow-md">
+      <Card className="min-h-44 bg-white p-0 transition-colors group-hover:border-primary/35">
         <CardContent className="grid h-full gap-3 p-4 text-center">
           <Avatar className="mx-auto size-20 rounded-lg" size="lg">
             <AvatarFallback
@@ -106,10 +106,7 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
             <span className="truncate text-xs text-muted-foreground">{project.domain}</span>
           </div>
           <div className="flex justify-center">
-            <Badge
-              className="bg-[#0066cc]/10 text-[#0066cc] hover:bg-[#0066cc]/10"
-              variant="secondary"
-            >
+            <Badge className="bg-accent text-primary hover:bg-accent" variant="secondary">
               {project.status === "active" ? "활성" : "비활성"}
             </Badge>
           </div>
@@ -121,7 +118,7 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
 
 function ProjectCardSkeletons() {
   return Array.from({ length: 4 }, (_, index) => (
-    <Card className="min-h-44 rounded-lg bg-white p-0" key={index}>
+    <Card className="min-h-44 bg-white p-0" key={index}>
       <CardContent className="grid gap-3 p-4">
         <Skeleton className="mx-auto size-20 rounded-lg" />
         <Skeleton className="mx-auto h-5 w-24" />

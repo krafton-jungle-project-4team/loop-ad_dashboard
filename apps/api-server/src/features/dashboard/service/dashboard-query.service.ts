@@ -31,6 +31,7 @@ import type {
   DashboardFunnel,
   DashboardFunnelList,
   DashboardFunnelMetrics,
+  DashboardFunnelMetricsDateRange,
   DashboardFunnelMetricsScope,
   DashboardFunnelPreview,
   DashboardFunnelPreviewRequest,
@@ -662,14 +663,19 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
     log.info("started", { projectId, promotionId });
-    const [detail, realtimeMetrics, segmentRealtimeSummaries] = await Promise.all([
-      this.campaignReader.getPromotionDetail(projectId, promotionId),
+    const detail = await this.campaignReader.getPromotionDetail(projectId, promotionId);
+    const latestAnalysisId = detail.analyses[0]?.analysis_id;
+    const [realtimeMetrics, segmentRealtimeSummaries, generation] = await Promise.all([
       this.funnelReader.getPromotionRealtimeMetrics(projectId, promotionId),
-      this.funnelReader.getPromotionSegmentRealtimeSummaries(projectId, promotionId)
+      this.funnelReader.getPromotionSegmentRealtimeSummaries(projectId, promotionId),
+      latestAnalysisId
+        ? this.campaignReader.getPromotionGenerationResult(projectId, promotionId, latestAnalysisId)
+        : Promise.resolve(undefined)
     ]);
 
     const response = {
       ...detail,
+      generation: generation ?? null,
       realtime_metrics: realtimeMetrics,
       segment_realtime_summaries: segmentRealtimeSummaries
     };
@@ -738,12 +744,18 @@ export class DashboardQueryService {
   async funnelMetrics(
     projectId: string,
     funnelId: string,
-    scope?: DashboardFunnelMetricsScope
+    scope?: DashboardFunnelMetricsScope,
+    dateRange: DashboardFunnelMetricsDateRange = "last-7-days"
   ): Promise<DashboardFunnelMetrics> {
     const startedAt = Date.now();
     log.assignContext({ funnelId, projectId });
-    log.info("started", { projectId, funnelId, scope });
-    const response = await this.funnelReader.getFunnelMetrics(projectId, funnelId, scope);
+    log.info("started", { projectId, funnelId, dateRange, scope });
+    const response = await this.funnelReader.getFunnelMetrics(
+      projectId,
+      funnelId,
+      scope,
+      dateRange
+    );
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
