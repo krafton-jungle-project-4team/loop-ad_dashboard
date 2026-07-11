@@ -7,16 +7,20 @@ import {
   type DashboardMain
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@loopad/ui/shadcn/dropdown-menu";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
@@ -30,7 +34,7 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { BarChart3, FolderOpen, MoreHorizontal, Pencil, Plus, Search, Target } from "lucide-react";
+import { BarChart3, FolderOpen, Pencil, Plus, Search, Target, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   createDashboardCampaign,
@@ -200,7 +204,6 @@ export function CampaignPageSections({
   const openCampaignEditDialog = (campaignId: string) => {
     updateCampaignMutation.reset();
     deleteCampaignMutation.reset();
-    selectCampaign(campaignId);
     setCampaignFormDialog({ campaignId, mode: "edit" });
   };
 
@@ -218,9 +221,13 @@ export function CampaignPageSections({
                 )}
                 filter={campaignFilter}
                 onCreate={openCampaignCreateDialog}
+                onDelete={(campaignId) => deleteCampaignMutation.mutate(campaignId)}
                 onEdit={openCampaignEditDialog}
                 onFilterChange={setCampaignFilter}
                 onSelect={selectCampaign}
+                deleteError={deleteCampaignMutation.error}
+                deleteIsError={deleteCampaignMutation.isError}
+                deleteIsPending={deleteCampaignMutation.isPending}
               />
             ) : (
               <EntityWorkspaceEmptyState
@@ -303,15 +310,23 @@ export function CampaignPageSections({
 
 function CampaignManagementWorkspace({
   campaigns,
+  deleteError,
+  deleteIsError,
+  deleteIsPending,
   filter,
   onCreate,
+  onDelete,
   onEdit,
   onFilterChange,
   onSelect
 }: {
   campaigns: DashboardCampaignSummary[];
+  deleteError: unknown;
+  deleteIsError: boolean;
+  deleteIsPending: boolean;
   filter: string;
   onCreate: () => void;
+  onDelete: (campaignId: string) => void;
   onEdit: (campaignId: string) => void;
   onFilterChange: (value: string) => void;
   onSelect: (campaignId: string) => void;
@@ -347,10 +362,22 @@ function CampaignManagementWorkspace({
           </Button>
         </div>
       </div>
+      {deleteIsError ? (
+        <Alert variant="destructive">
+          <AlertTitle>캠페인을 삭제하지 못했습니다</AlertTitle>
+          <AlertDescription>{campaignMutationErrorMessage(deleteError)}</AlertDescription>
+        </Alert>
+      ) : null}
       {campaigns.length === 0 ? (
         <EmptyState message="검색 조건에 맞는 캠페인이 없습니다." />
       ) : (
-        <CampaignManagementList campaigns={campaigns} onEdit={onEdit} onSelect={onSelect} />
+        <CampaignManagementList
+          campaigns={campaigns}
+          deleteIsPending={deleteIsPending}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onSelect={onSelect}
+        />
       )}
     </section>
   );
@@ -358,10 +385,14 @@ function CampaignManagementWorkspace({
 
 function CampaignManagementList({
   campaigns,
+  deleteIsPending,
+  onDelete,
   onEdit,
   onSelect
 }: {
   campaigns: DashboardCampaignSummary[];
+  deleteIsPending: boolean;
+  onDelete: (campaignId: string) => void;
   onEdit: (campaignId: string) => void;
   onSelect: (campaignId: string) => void;
 }) {
@@ -378,9 +409,7 @@ function CampaignManagementList({
               <TableHead className="text-right">프로모션</TableHead>
               <TableHead className="text-right">세그먼트</TableHead>
               <TableHead className="text-right">실험</TableHead>
-              <TableHead className="w-12">
-                <span className="sr-only">작업</span>
-              </TableHead>
+              <TableHead className="w-[184px] text-right">작업</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -417,7 +446,12 @@ function CampaignManagementList({
                   {formatInteger(campaign.ad_experiment_count)}
                 </TableCell>
                 <TableCell>
-                  <CampaignRowMenu campaign={campaign} onEdit={onEdit} />
+                  <CampaignRowActions
+                    campaign={campaign}
+                    deleteIsPending={deleteIsPending}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -439,7 +473,12 @@ function CampaignManagementList({
                     {campaign.objective ?? "목표 미등록"}
                   </CardDescription>
                 </button>
-                <CampaignRowMenu campaign={campaign} onEdit={onEdit} />
+                <CampaignRowActions
+                  campaign={campaign}
+                  deleteIsPending={deleteIsPending}
+                  onDelete={onDelete}
+                  onEdit={onEdit}
+                />
               </div>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -455,35 +494,56 @@ function CampaignManagementList({
   );
 }
 
-function CampaignRowMenu({
+function CampaignRowActions({
   campaign,
+  deleteIsPending,
+  onDelete,
   onEdit
 }: {
   campaign: DashboardCampaignSummary;
+  deleteIsPending: boolean;
+  onDelete: (campaignId: string) => void;
   onEdit: (campaignId: string) => void;
 }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          aria-label={`${campaign.campaign_name} 작업`}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => onEdit(campaign.campaign_id)}>
-            <Pencil data-icon="inline-start" />
-            수정 및 삭제
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex shrink-0 items-center justify-end gap-2">
+      <Button
+        onClick={() => onEdit(campaign.campaign_id)}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        <Pencil data-icon="inline-start" />
+        수정
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button disabled={deleteIsPending} size="sm" type="button" variant="destructive">
+            <Trash2 data-icon="inline-start" />
+            삭제
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>캠페인을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {campaign.campaign_name} 캠페인이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onDelete(campaign.campaign_id)} variant="destructive">
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
+}
+
+function campaignMutationErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "잠시 후 다시 시도해주세요.";
 }
 
 function CampaignDetailPanel({
