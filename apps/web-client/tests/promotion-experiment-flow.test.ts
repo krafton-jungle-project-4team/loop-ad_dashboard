@@ -115,3 +115,23 @@ test("experiment launch keeps successful starts and reports only failed experime
     "dispatch:run-partial"
   ]);
 });
+
+test("experiment launch keeps started experiments when dispatch fails", async () => {
+  const operations: PromotionExperimentOperations = {
+    buildAssignments: async () => undefined,
+    createRun: async () => ({
+      experiments: [{ adExperimentId: "experiment-1", channel: "email", status: "planned" }],
+      promotionRunId: "run-1"
+    }),
+    dispatch: async () => {
+      throw new Error("dispatch failed");
+    },
+    startExperiment: async () => undefined
+  };
+
+  const result = await launchPromotionExperiment({ existingExperiments: [] }, operations);
+
+  assert.deepEqual(result.startedExperimentIds, ["experiment-1"]);
+  assert.equal(result.dispatched, false);
+  assert.equal(result.dispatchFailed, true);
+});

@@ -2,10 +2,13 @@ import type { DashboardMain } from "@loopad/shared";
 import { Card, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  buildDashboardPromotionRunAssignments,
   createDashboardNextLoop,
+  dispatchDashboardPromotionRun,
   evaluateDashboardPromotionRun,
   fetchDashboardCampaignDetail,
-  fetchDashboardSegmentDetail
+  fetchDashboardSegmentDetail,
+  startDashboardAdExperiment
 } from "../../../../../api/dashboard-api.js";
 import {
   dashboardCampaignDetailQueryKey,
@@ -13,6 +16,7 @@ import {
 } from "../../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
+import { launchPromotionExperiment } from "../promotionExperimentFlow.js";
 import { ExperimentContent } from "./components/ExperimentContent.js";
 import { selectExperimentSegment, toErrorMessage } from "./experimentUtils.js";
 
@@ -60,12 +64,35 @@ export function ExperimentComponent({
       failedSegmentIds: string[];
       promotionRunId: string;
     }) =>
-      createDashboardNextLoop(query, promotionRunId, {
-        failed_ad_experiment_ids: failedAdExperimentIds,
-        failed_segment_ids: failedSegmentIds,
-        operator_instruction: null
-      }),
-    onSuccess: async () => invalidateExperimentData()
+      launchPromotionExperiment(
+        { existingExperiments: [] },
+        {
+          buildAssignments: (nextPromotionRunId) =>
+            buildDashboardPromotionRunAssignments(query, nextPromotionRunId),
+          createRun: async () => {
+            const nextLoop = await createDashboardNextLoop(query, promotionRunId, {
+              failed_ad_experiment_ids: failedAdExperimentIds,
+              failed_segment_ids: failedSegmentIds,
+              operator_instruction: null
+            });
+            if (!nextLoop.next_promotion_run_id) {
+              throw new Error("다음 루프에 포함할 실패 대상이 없습니다.");
+            }
+            return {
+              experiments: nextLoop.next_ad_experiments.map((experiment) => ({
+                adExperimentId: experiment.ad_experiment_id,
+                channel: experiment.channel,
+                status: experiment.status
+              })),
+              promotionRunId: nextLoop.next_promotion_run_id
+            };
+          },
+          dispatch: dispatchDashboardPromotionRun,
+          startExperiment: (adExperimentId) =>
+            startDashboardAdExperiment(query, selectedPromotionId, adExperimentId)
+        }
+      ),
+    onSettled: async () => invalidateExperimentData()
   });
 
   async function invalidateExperimentData() {
@@ -104,7 +131,10 @@ export function ExperimentComponent({
         </Card>
       ) : (
         <ExperimentContent
+          createNextLoopError={createNextLoopMutation.error}
+          createNextLoopIsError={createNextLoopMutation.isError}
           createNextLoopIsPending={createNextLoopMutation.isPending}
+          createNextLoopResult={createNextLoopMutation.data ?? null}
           detail={detailQuery.data}
           evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
           evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}

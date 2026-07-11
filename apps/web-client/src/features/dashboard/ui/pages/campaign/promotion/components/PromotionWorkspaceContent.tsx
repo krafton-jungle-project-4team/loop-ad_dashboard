@@ -1043,6 +1043,14 @@ function SegmentConnectedExperimentsCard({
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
+        {launchExperimentResult?.dispatchFailed ? (
+          <Alert variant="destructive">
+            <AlertTitle>실험은 시작했지만 발송하지 못했습니다</AlertTitle>
+            <AlertDescription>
+              시작된 실험은 유지됩니다. 실험 관리에서 발송 상태를 확인해주세요.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {launchExperimentResult && launchExperimentResult.failedExperimentIds.length > 0 ? (
           <Alert>
             <AlertTitle>일부 실험만 시작됐습니다</AlertTitle>

@@ -19,6 +19,7 @@ export type PromotionExperimentOperations = {
 
 export type PromotionExperimentLaunchResult = {
   dispatched: boolean;
+  dispatchFailed: boolean;
   failedExperimentIds: string[];
   promotionRunId: string;
   startedExperimentIds: string[];
@@ -72,12 +73,18 @@ export async function launchPromotionExperiment(
     (experiment) => experiment.channel === "email" || experiment.channel === "sms"
   );
   const canDispatch = shouldDispatch && startedExperimentIds.length > 0;
+  let dispatchFailed = false;
   if (canDispatch) {
-    await operations.dispatch(run.promotionRunId);
+    try {
+      await operations.dispatch(run.promotionRunId);
+    } catch {
+      dispatchFailed = true;
+    }
   }
 
   return {
-    dispatched: canDispatch,
+    dispatched: canDispatch && !dispatchFailed,
+    dispatchFailed,
     failedExperimentIds,
     promotionRunId: run.promotionRunId,
     startedExperimentIds
