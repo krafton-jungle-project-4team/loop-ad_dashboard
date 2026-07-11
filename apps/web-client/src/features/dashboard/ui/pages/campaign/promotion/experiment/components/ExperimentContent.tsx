@@ -4,6 +4,18 @@ import type {
   DashboardEvaluatePromotionRunResult,
   DashboardSegmentDetail
 } from "@loopad/shared";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -33,6 +45,7 @@ import {
 import { formatDateTime, formatInteger } from "../../../../../../model/dashboard-format.js";
 import { useDashboardQueryState } from "../../../../../../model/dashboard-query.js";
 import type { DashboardQuery } from "../../../../../../model/dashboard-types.js";
+import type { PromotionExperimentLaunchResult } from "../../promotionExperimentFlow.js";
 import { EmptyState } from "../../../../../shared/EmptyState.js";
 import {
   buildExperimentRows,
@@ -45,12 +58,16 @@ import {
   formatGoalValue,
   insufficientReason,
   statusBadgeVariant,
+  toErrorMessage,
   uniqueValues,
   type ExperimentRow
 } from "../experimentUtils.js";
 
 export function ExperimentContent({
+  createNextLoopError,
+  createNextLoopIsError,
   createNextLoopIsPending,
+  createNextLoopResult,
   detail,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
@@ -63,7 +80,10 @@ export function ExperimentContent({
   selectedSegmentDetailIsLoading,
   selectedSegmentId
 }: {
+  createNextLoopError: unknown;
+  createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
+  createNextLoopResult: PromotionExperimentLaunchResult | null;
   detail: DashboardCampaignDetail | undefined;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
@@ -176,7 +196,10 @@ export function ExperimentContent({
       </div>
 
       <ExperimentSegmentPanel
+        createNextLoopError={createNextLoopError}
+        createNextLoopIsError={createNextLoopIsError}
         createNextLoopIsPending={createNextLoopIsPending}
+        createNextLoopResult={createNextLoopResult}
         detail={selectedSegmentDetail}
         evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
         evaluatePromotionRunResult={evaluatePromotionRunResult}
@@ -277,7 +300,10 @@ export function ExperimentContent({
 }
 
 function ExperimentSegmentPanel({
+  createNextLoopError,
+  createNextLoopIsError,
   createNextLoopIsPending,
+  createNextLoopResult,
   detail,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
@@ -288,7 +314,10 @@ function ExperimentSegmentPanel({
   selectedSegmentId,
   segments
 }: {
+  createNextLoopError: unknown;
+  createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
+  createNextLoopResult: PromotionExperimentLaunchResult | null;
   detail: DashboardSegmentDetail | undefined;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
@@ -309,7 +338,10 @@ function ExperimentSegmentPanel({
   return (
     <section className="grid gap-4">
       <SelectedSegmentExperimentCards
+        createNextLoopError={createNextLoopError}
+        createNextLoopIsError={createNextLoopIsError}
         createNextLoopIsPending={createNextLoopIsPending}
+        createNextLoopResult={createNextLoopResult}
         detail={detail}
         evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
         evaluatePromotionRunResult={evaluatePromotionRunResult}
@@ -324,7 +356,10 @@ function ExperimentSegmentPanel({
 }
 
 function SelectedSegmentExperimentCards({
+  createNextLoopError,
+  createNextLoopIsError,
   createNextLoopIsPending,
+  createNextLoopResult,
   detail,
   evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
@@ -334,7 +369,10 @@ function SelectedSegmentExperimentCards({
   onEvaluatePromotionRun,
   selectedSegmentId
 }: {
+  createNextLoopError: unknown;
+  createNextLoopIsError: boolean;
   createNextLoopIsPending: boolean;
+  createNextLoopResult: PromotionExperimentLaunchResult | null;
   detail: DashboardSegmentDetail | undefined;
   evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
@@ -359,6 +397,13 @@ function SelectedSegmentExperimentCards({
   }
 
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
+  const currentCreateNextLoopResult = createNextLoopResult
+    ? detail.ad_experiments.some(
+        (experiment) => experiment.promotion_run_id === createNextLoopResult.promotionRunId
+      )
+      ? createNextLoopResult
+      : null
+    : null;
   const currentEvaluationResult =
     evaluatePromotionRunResult?.promotion_run_id === activePromotionRunId
       ? evaluatePromotionRunResult
@@ -410,21 +455,70 @@ function SelectedSegmentExperimentCards({
               <BarChart3 data-icon="inline-start" />
               {evaluatePromotionRunIsPending ? "평가 중" : "성과 평가"}
             </Button>
-            <Button
-              disabled={!canCreateNextLoop || createNextLoopIsPending}
-              onClick={() => {
-                if (activePromotionRunId) {
-                  onCreateNextLoop(activePromotionRunId, failedSegmentIds, failedAdExperimentIds);
-                }
-              }}
-              type="button"
-            >
-              <Plus data-icon="inline-start" />
-              {createNextLoopIsPending ? "다음 루프 생성 중" : "다음 루프 생성"}
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button disabled={!canCreateNextLoop || createNextLoopIsPending} type="button">
+                  <Plus data-icon="inline-start" />
+                  {createNextLoopIsPending ? "다음 루프 생성 및 시작 중" : "다음 루프 생성 및 시작"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>다음 루프를 생성하고 바로 시작할까요?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    실패한 세그먼트를 다시 분석해 광고 소재와 실험을 만들고, 사용자 배정과 채널
+                    실행까지 이어서 처리합니다.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>취소</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      if (activePromotionRunId) {
+                        onCreateNextLoop(
+                          activePromotionRunId,
+                          failedSegmentIds,
+                          failedAdExperimentIds
+                        );
+                      }
+                    }}
+                  >
+                    생성 및 시작
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-4">
+          {currentCreateNextLoopResult ? (
+            <Alert>
+              <AlertTitle>
+                {currentCreateNextLoopResult.dispatchFailed
+                  ? "다음 루프는 시작했지만 발송하지 못했습니다"
+                  : currentCreateNextLoopResult.failedExperimentIds.length > 0
+                    ? "다음 루프의 일부 실험만 시작됐습니다"
+                    : "다음 루프를 생성하고 시작했습니다"}
+              </AlertTitle>
+              <AlertDescription>
+                {formatInteger(currentCreateNextLoopResult.startedExperimentIds.length)}개 실험을
+                시작했습니다.
+                {currentCreateNextLoopResult.dispatchFailed
+                  ? " 시작된 실험은 유지됩니다. 발송 상태를 확인해주세요."
+                  : currentCreateNextLoopResult.failedExperimentIds.length > 0
+                    ? ` ${formatInteger(currentCreateNextLoopResult.failedExperimentIds.length)}개 실험은 시작하지 못했습니다.`
+                    : currentCreateNextLoopResult.dispatched
+                      ? " 사용자 배정과 발송도 완료했습니다."
+                      : " 사용자 배정을 완료했습니다."}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {createNextLoopIsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>다음 루프를 시작하지 못했습니다</AlertTitle>
+              <AlertDescription>{toErrorMessage(createNextLoopError)}</AlertDescription>
+            </Alert>
+          ) : null}
           {detail.experiment_metrics.length > 0 ? (
             <Table>
               <TableHeader>
