@@ -2,6 +2,7 @@ import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
+  analyzeDashboardPromotionSegments,
   archiveDashboardPromotionScopedSegmentDefinition,
   approveDashboardContentCandidate,
   buildDashboardPromotionRunAssignments,
@@ -51,6 +52,7 @@ import {
   type PromotionWorkspaceTab
 } from "./promotionUtils.js";
 import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
+import { confirmAndAnalyzePromotionSegments } from "./promotionSegmentConfirmationFlow.js";
 
 const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
   promotion: ["overview"],
@@ -536,12 +538,28 @@ export function usePromotionWorkspaceController({
     }
   });
   const confirmSuggestionsMutation = useMutation({
-    mutationFn: () =>
-      confirmDashboardPromotionSegmentSuggestions(
-        query,
-        selectedOpenPromotion?.promotion_id ?? "",
-        {}
-      ),
+    mutationFn: () => {
+      const promotionId = selectedOpenPromotion?.promotion_id ?? "";
+      const segmentIds = [
+        ...(segmentSuggestions.data?.suggestions
+          .filter(
+            (suggestion) =>
+              suggestion.suggestion_status === "accepted" ||
+              suggestion.suggestion_status === "confirmed"
+          )
+          .map((suggestion) => suggestion.segment_id) ?? []),
+        ...(scopedSegmentDefinitions.data?.segments.map((segment) => segment.segment_id) ?? [])
+      ];
+
+      return confirmAndAnalyzePromotionSegments(segmentIds, {
+        analyze: (confirmedSegmentIds) =>
+          analyzeDashboardPromotionSegments(query, promotionId, {
+            operator_instruction: null,
+            segment_ids: confirmedSegmentIds
+          }),
+        confirm: () => confirmDashboardPromotionSegmentSuggestions(query, promotionId, {})
+      });
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({

@@ -1,4 +1,5 @@
 import {
+  DashboardAnalyzePromotionSegmentsRequestSchema,
   DashboardCreatePromotionRequestSchema,
   DashboardDeletePromotionResultSchema,
   DashboardPromotionAnalysisResultSchema,
@@ -9,6 +10,7 @@ import {
   DashboardStartPromotionGenerationResultSchema,
   DashboardUpdatePromotionRequestSchema,
   type DashboardCreatePromotionRequest,
+  type DashboardAnalyzePromotionSegmentsRequest,
   type DashboardDeletePromotionResult,
   type DashboardPromotionAnalysisResult,
   type DashboardPromotionDetail,
@@ -21,7 +23,10 @@ import {
 import { apiRequest } from "../../../shared/api/http-client.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { fetchDashboardResource } from "./dashboard-resource-api.js";
-import { promotionSegmentRecommendationPath } from "./promotion-api-paths.js";
+import {
+  promotionAnalysisPath,
+  promotionSegmentRecommendationPath
+} from "./promotion-api-paths.js";
 import { projectSearchParams, readDashboardApiErrorMessage } from "./dashboard-request.js";
 
 const PROMOTIONS_PATH = "/dashboard/v1/promotions";
@@ -100,6 +105,19 @@ export function recommendDashboardPromotionSegments(
       searchParams: projectSearchParams(query.projectId)
     }
   );
+}
+
+export function analyzeDashboardPromotionSegments(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardAnalyzePromotionSegmentsRequest
+): Promise<DashboardPromotionAnalysisResult> {
+  return apiRequest(promotionAnalysisPath(promotionId), DashboardPromotionAnalysisResultSchema, {
+    body: DashboardAnalyzePromotionSegmentsRequestSchema.parse(requestBody),
+    errorMessage: readDashboardApiErrorMessage,
+    method: "POST",
+    searchParams: projectSearchParams(query.projectId)
+  });
 }
 
 export function startDashboardPromotionGeneration(
