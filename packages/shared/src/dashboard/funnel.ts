@@ -74,7 +74,7 @@ export type DashboardFunnelMetricsScope = z.infer<typeof DashboardFunnelMetricsS
 
 export const DashboardFunnelMetricsDateRangeSchema = z.enum([
   "today",
-  "last-7-days",
+  "last-14-days",
   "last-30-days",
   "campaign"
 ]);
@@ -84,7 +84,7 @@ export const DashboardFunnelMeasurementBasisSchema = z.enum(["unique_user", "ses
 export type DashboardFunnelMeasurementBasis = z.infer<typeof DashboardFunnelMeasurementBasisSchema>;
 
 export const DashboardFunnelMetricsSchema = z.object({
-  date_range: DashboardFunnelMetricsDateRangeSchema.default("last-7-days"),
+  date_range: DashboardFunnelMetricsDateRangeSchema.default("last-14-days"),
   funnel_id: z.string(),
   funnel_name: z.string(),
   measurement_basis: DashboardFunnelMeasurementBasisSchema.default("unique_user"),

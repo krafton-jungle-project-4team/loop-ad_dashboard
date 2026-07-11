@@ -21,7 +21,7 @@ import {
 
 export const dashboardDateRangeOptions = [
   { label: "오늘", value: "today" },
-  { label: "최근 7일", value: "last-7-days" },
+  { label: "최근 14일", value: "last-14-days" },
   { label: "최근 30일", value: "last-30-days" },
   { label: "전체 기간", value: "campaign" }
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardDateRange }>;
@@ -56,7 +56,7 @@ export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   conversionEvent: "booking_complete",
   createCampaign: false,
   createPromotion: false,
-  dateRange: "last-7-days",
+  dateRange: "last-14-days",
   excludeBotTraffic: true,
   excludeInternalTraffic: true,
   experimentPage: 1,

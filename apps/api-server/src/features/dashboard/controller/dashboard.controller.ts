@@ -508,7 +508,9 @@ export class DashboardController {
   ) {
     const requiredProjectId = requireProjectId(projectId);
     const scope = parseFunnelMetricsScope({ campaignId, promotionId, scopeType, segmentId });
-    const parsedDateRange = DashboardFunnelMetricsDateRangeSchema.parse(dateRange ?? "last-7-days");
+    const parsedDateRange = DashboardFunnelMetricsDateRangeSchema.parse(
+      dateRange ?? "last-14-days"
+    );
     return DashboardFunnelMetricsSchema.parse(
       await this.dashboardQuery.funnelMetrics(requiredProjectId, funnelId, scope, parsedDateRange)
     );
@@ -525,12 +527,16 @@ export class DashboardController {
   @Post("funnels/preview")
   async previewFunnelMetrics(
     @Query("project_id") projectId: string | undefined,
-    @Body() body: unknown
+    @Body() body: unknown,
+    @Query("dateRange") dateRange?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardFunnelPreviewRequestSchema.parse(body);
+    const parsedDateRange = DashboardFunnelMetricsDateRangeSchema.parse(
+      dateRange ?? "last-14-days"
+    );
     return DashboardFunnelPreviewSchema.parse(
-      await this.dashboardQuery.previewFunnelMetrics(requiredProjectId, request)
+      await this.dashboardQuery.previewFunnelMetrics(requiredProjectId, request, parsedDateRange)
     );
   }
 

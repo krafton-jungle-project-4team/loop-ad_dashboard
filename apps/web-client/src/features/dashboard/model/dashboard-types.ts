@@ -18,7 +18,7 @@ export const dashboardTabValues = [
 
 export type DashboardTab = (typeof dashboardTabValues)[number];
 
-export type DashboardDateRange = "today" | "last-7-days" | "last-30-days" | "campaign";
+export type DashboardDateRange = "today" | "last-14-days" | "last-30-days" | "campaign";
 
 export type DashboardSort =
   | "conversion-asc"

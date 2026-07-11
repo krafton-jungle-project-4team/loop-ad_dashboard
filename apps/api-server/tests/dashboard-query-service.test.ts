@@ -272,8 +272,8 @@ test("dashboard funnel preview delegates selected events to the funnel reader", 
     emptyCampaignReader(),
     {
       ...emptyFunnelReader(),
-      previewFunnelMetrics: async (projectId, request) => {
-        reads.push({ projectId, request });
+      previewFunnelMetrics: async (projectId, request, dateRange) => {
+        reads.push({ projectId, request, dateRange });
         return {
           steps: request.steps.map((step, index) => ({
             step_order: index + 1,
@@ -288,14 +288,19 @@ test("dashboard funnel preview delegates selected events to the funnel reader", 
     emptyDecisionClient()
   );
 
-  const preview = await service.previewFunnelMetrics("hotel-client-a", {
-    steps: [
-      { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
-      { step_name: "예약 완료", event_name: "booking_complete" }
-    ]
-  });
+  const preview = await service.previewFunnelMetrics(
+    "hotel-client-a",
+    {
+      steps: [
+        { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
+        { step_name: "예약 완료", event_name: "booking_complete" }
+      ]
+    },
+    "last-14-days"
+  );
 
   assert.equal(reads.length, 1);
+  assert.equal((reads[0] as { dateRange: string }).dateRange, "last-14-days");
   assert.equal(preview.steps[0]?.event_count, 42);
   assert.equal(preview.steps[1]?.step_order, 2);
 });

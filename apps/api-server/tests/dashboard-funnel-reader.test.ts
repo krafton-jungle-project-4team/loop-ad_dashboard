@@ -163,14 +163,19 @@ test("dashboard funnel reader preview maps sequential step counts", async () => 
     fakeClickhouse as unknown as ConstructorParameters<typeof DashboardFunnelReader>[1]
   );
 
-  const preview = await reader.previewFunnelMetrics("hotel-client-a", {
-    steps: [
-      { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
-      { step_name: "예약 완료", event_name: "booking_complete" }
-    ]
-  });
+  const preview = await reader.previewFunnelMetrics(
+    "hotel-client-a",
+    {
+      steps: [
+        { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
+        { step_name: "예약 완료", event_name: "booking_complete" }
+      ]
+    },
+    "last-14-days"
+  );
 
   assert.match(queries[0]?.query ?? "", /WITH/);
+  assert.match(queries[0]?.query ?? "", /event_time >= now\(\) - INTERVAL 14 DAY/);
   assert.match(queries[0]?.query ?? "", /step_1_users/);
   assert.match(queries[0]?.query ?? "", /INNER JOIN step_1_users previous/);
   assert.deepEqual(queries[0]?.query_params, {
