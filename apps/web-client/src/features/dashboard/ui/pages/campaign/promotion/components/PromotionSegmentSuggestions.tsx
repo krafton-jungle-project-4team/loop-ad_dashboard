@@ -51,7 +51,7 @@ export function PromotionSegmentSuggestionPanel({
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
-  onStartAnalysis,
+  onRecommendSegments,
   promotionAnalysisIsPending,
   scopedSegments,
   scopedSegmentsIsLoading,
@@ -66,7 +66,7 @@ export function PromotionSegmentSuggestionPanel({
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
-  onStartAnalysis: () => void;
+  onRecommendSegments: () => void;
   promotionAnalysisIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
   scopedSegmentsIsLoading: boolean;
@@ -94,12 +94,12 @@ export function PromotionSegmentSuggestionPanel({
         <div className="flex flex-wrap items-center gap-2">
           <Button
             disabled={promotionAnalysisIsPending}
-            onClick={onStartAnalysis}
+            onClick={onRecommendSegments}
             type="button"
             variant="outline"
           >
             <BarChart3 className="mr-2 size-4" />
-            {promotionAnalysisIsPending ? "분석 요청 중" : "AI 추천 요청"}
+            {promotionAnalysisIsPending ? "추천 생성 중" : "AI 추천 요청"}
           </Button>
           <Button onClick={() => setIsCreateDialogOpen(true)} type="button" variant="outline">
             <Plus className="mr-2 size-4" />

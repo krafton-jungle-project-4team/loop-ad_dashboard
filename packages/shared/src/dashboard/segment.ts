@@ -260,20 +260,34 @@ export type DashboardConfirmSegmentSuggestionsResult = z.infer<
   typeof DashboardConfirmSegmentSuggestionsResultSchema
 >;
 
-export const DashboardStartPromotionAnalysisRequestSchema = z.object({
+export const DashboardRecommendPromotionSegmentsRequestSchema = z.object({
   operator_instruction: z.string().nullable().optional()
 });
-export type DashboardStartPromotionAnalysisRequest = z.infer<
-  typeof DashboardStartPromotionAnalysisRequestSchema
+export type DashboardRecommendPromotionSegmentsRequest = z.infer<
+  typeof DashboardRecommendPromotionSegmentsRequestSchema
 >;
 
-export const DashboardStartPromotionAnalysisResultSchema = z.object({
+export const DashboardPromotionAnalysisResultSchema = z.object({
   analysis_id: z.string(),
   promotion_id: z.string(),
   status: z.string()
 });
-export type DashboardStartPromotionAnalysisResult = z.infer<
-  typeof DashboardStartPromotionAnalysisResultSchema
+export type DashboardPromotionAnalysisResult = z.infer<
+  typeof DashboardPromotionAnalysisResultSchema
+>;
+
+export const DashboardAnalyzePromotionSegmentsRequestSchema = z.object({
+  segment_ids: z
+    .array(z.string().trim().min(1))
+    .min(1)
+    .refine(
+      (segmentIds) => new Set(segmentIds).size === segmentIds.length,
+      "segment_ids must not contain duplicates"
+    ),
+  operator_instruction: z.string().nullable().optional()
+});
+export type DashboardAnalyzePromotionSegmentsRequest = z.infer<
+  typeof DashboardAnalyzePromotionSegmentsRequestSchema
 >;
 
 export const DashboardPromotionScopedSegmentSourceSchema = z.enum([

@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardArchivePromotionScopedSegmentDefinitionResult,
+  DashboardAnalyzePromotionSegmentsRequest,
   DashboardApproveContentCandidateResult,
   DashboardApproveContentCandidateRequest,
   DashboardBuildPromotionRunAssignmentsResult,
@@ -40,6 +41,7 @@ import type {
   DashboardProject,
   DashboardProjectList,
   DashboardPromotionDetail,
+  DashboardPromotionAnalysisResult,
   DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionScopedSegmentDefinitionList,
   DashboardPromotionSegmentSuggestion,
@@ -52,8 +54,7 @@ import type {
   DashboardSegmentDetail,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
-  DashboardStartPromotionAnalysisRequest,
-  DashboardStartPromotionAnalysisResult,
+  DashboardRecommendPromotionSegmentsRequest,
   DashboardStartAdExperimentResult,
   DashboardStartPromotionGenerationRequest,
   DashboardStartPromotionGenerationResult,
@@ -312,18 +313,41 @@ export class DashboardQueryService {
   }
 
   @LogContextScope()
-  async startPromotionAnalysis(
+  async recommendPromotionSegments(
     projectId: string,
     promotionId: string,
-    request: DashboardStartPromotionAnalysisRequest
-  ): Promise<DashboardStartPromotionAnalysisResult> {
+    request: DashboardRecommendPromotionSegmentsRequest
+  ): Promise<DashboardPromotionAnalysisResult> {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
     log.info("started", { projectId, promotionId, request });
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     log.assignContext({ campaignId: promotion.campaign_id });
     log.info("promotion_loaded", { promotion });
-    const response = await this.decisionClient.startPromotionAnalysis({
+    const response = await this.decisionClient.recommendPromotionSegments({
+      campaignId: promotion.campaign_id,
+      projectId,
+      promotionId,
+      request
+    });
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  @LogContextScope()
+  async analyzePromotionSegments(
+    projectId: string,
+    promotionId: string,
+    request: DashboardAnalyzePromotionSegmentsRequest
+  ): Promise<DashboardPromotionAnalysisResult> {
+    const startedAt = Date.now();
+    log.assignContext({ projectId, promotionId });
+    log.info("started", { projectId, promotionId, request });
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    log.assignContext({ campaignId: promotion.campaign_id });
+    log.info("promotion_loaded", { promotion });
+    const response = await this.decisionClient.analyzePromotionSegments({
       campaignId: promotion.campaign_id,
       projectId,
       promotionId,

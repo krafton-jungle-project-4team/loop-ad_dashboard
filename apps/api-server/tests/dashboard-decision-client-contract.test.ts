@@ -8,14 +8,14 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-test("decision client preserves promotion analysis request contract", async () => {
+test("decision client preserves segment recommendation request contract", async () => {
   const { client, requests } = await createClientWithResponse({
     analysis_id: "analysis-1",
     promotion_id: "promotion/1",
     status: "completed"
   });
 
-  const result = await client.startPromotionAnalysis({
+  const result = await client.recommendPromotionSegments({
     campaignId: "campaign-1",
     projectId: "project-1",
     promotionId: "promotion/1",
@@ -28,12 +28,42 @@ test("decision client preserves promotion analysis request contract", async () =
     status: "completed"
   });
   assertDecisionRequest(requests[0], {
-    path: "/decision/v1/promotions/promotion%2F1/analysis",
+    path: "/decision/v1/promotions/promotion%2F1/segment-suggestions/recommend",
     body: {
       project_id: "project-1",
       campaign_id: "campaign-1",
       promotion_id: "promotion/1",
       operator_instruction: null
+    }
+  });
+});
+
+test("decision client preserves explicit segment analysis request contract", async () => {
+  const { client, requests } = await createClientWithResponse({
+    analysis_id: "analysis-2",
+    promotion_id: "promotion/1",
+    status: "completed"
+  });
+
+  const result = await client.analyzePromotionSegments({
+    campaignId: "campaign-1",
+    projectId: "project-1",
+    promotionId: "promotion/1",
+    request: {
+      segment_ids: ["segment-1"],
+      operator_instruction: "실패 원인을 다시 분석"
+    }
+  });
+
+  assert.equal(result.analysis_id, "analysis-2");
+  assertDecisionRequest(requests[0], {
+    path: "/decision/v1/promotions/promotion%2F1/analyses",
+    body: {
+      project_id: "project-1",
+      campaign_id: "campaign-1",
+      promotion_id: "promotion/1",
+      segment_ids: ["segment-1"],
+      operator_instruction: "실패 원인을 다시 분석"
     }
   });
 });

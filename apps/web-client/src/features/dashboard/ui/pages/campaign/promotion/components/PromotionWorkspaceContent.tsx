@@ -325,7 +325,7 @@ export function PromotionTabWorkspace({
   onLaunchExperiment,
   onRejectContentCandidate,
   onSelectSegment,
-  onStartAnalysis,
+  onRecommendSegments,
   onStartGeneration,
   onTabChange,
   promotion,
@@ -367,7 +367,7 @@ export function PromotionTabWorkspace({
   onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
-  onStartAnalysis: () => void;
+  onRecommendSegments: () => void;
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
@@ -457,7 +457,7 @@ export function PromotionTabWorkspace({
                   onConfirmSuggestions={onConfirmSuggestions}
                   onCreateScopedSegment={onCreateScopedSegment}
                   onDecideSuggestion={onDecideSuggestion}
-                  onStartAnalysis={onStartAnalysis}
+                  onRecommendSegments={onRecommendSegments}
                   promotionAnalysisIsPending={promotionAnalysisIsPending}
                   scopedSegments={scopedSegments}
                   scopedSegmentsIsLoading={scopedSegmentsIsLoading}
