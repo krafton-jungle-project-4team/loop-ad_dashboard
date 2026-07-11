@@ -1,5 +1,6 @@
 export * from "./campaign.js";
 export * from "./dashboard-detail.js";
+export * from "./entity-search.js";
 export * from "./funnel.js";
 export * from "./project.js";
 export * from "./promotion.js";
