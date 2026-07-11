@@ -148,6 +148,7 @@ export function normalizeDashboardQuery(
     experimentPromotionFilter: query.experimentPromotionFilter.trim(),
     experimentStatusFilter: query.experimentStatusFilter.trim(),
     projectId: projectId.trim(),
+    campaignView: normalizeCampaignWorkspaceView(query.campaignView),
     promotionView: normalizePromotionWorkspaceView(query.promotionView),
     segmentView: normalizeSegmentWorkspaceView(query.segmentView),
     selectedCampaignId: query.selectedCampaignId.trim(),
@@ -156,6 +157,12 @@ export function normalizeDashboardQuery(
     selectedSegmentId: query.selectedSegmentId.trim(),
     selectedWorkflowNodeId: query.selectedWorkflowNodeId.trim()
   };
+}
+
+export function normalizeCampaignWorkspaceView(
+  view: DashboardQuery["campaignView"]
+): DashboardQuery["campaignView"] {
+  return view === "experiments" ? "overview" : view;
 }
 
 export function normalizePromotionWorkspaceView(
