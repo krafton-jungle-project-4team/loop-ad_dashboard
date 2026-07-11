@@ -1,19 +1,19 @@
 import {
   DashboardCreatePromotionRequestSchema,
   DashboardDeletePromotionResultSchema,
+  DashboardPromotionAnalysisResultSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionSummarySchema,
-  DashboardStartPromotionAnalysisRequestSchema,
-  DashboardStartPromotionAnalysisResultSchema,
+  DashboardRecommendPromotionSegmentsRequestSchema,
   DashboardStartPromotionGenerationRequestSchema,
   DashboardStartPromotionGenerationResultSchema,
   DashboardUpdatePromotionRequestSchema,
   type DashboardCreatePromotionRequest,
   type DashboardDeletePromotionResult,
+  type DashboardPromotionAnalysisResult,
   type DashboardPromotionDetail,
   type DashboardPromotionSummary,
-  type DashboardStartPromotionAnalysisRequest,
-  type DashboardStartPromotionAnalysisResult,
+  type DashboardRecommendPromotionSegmentsRequest,
   type DashboardStartPromotionGenerationRequest,
   type DashboardStartPromotionGenerationResult,
   type DashboardUpdatePromotionRequest
@@ -21,6 +21,7 @@ import {
 import { apiRequest } from "../../../shared/api/http-client.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { fetchDashboardResource } from "./dashboard-resource-api.js";
+import { promotionSegmentRecommendationPath } from "./promotion-api-paths.js";
 import { projectSearchParams, readDashboardApiErrorMessage } from "./dashboard-request.js";
 
 const PROMOTIONS_PATH = "/dashboard/v1/promotions";
@@ -84,16 +85,16 @@ export function deleteDashboardPromotion(
   );
 }
 
-export function startDashboardPromotionAnalysis(
+export function recommendDashboardPromotionSegments(
   query: DashboardQuery,
   promotionId: string,
-  requestBody: DashboardStartPromotionAnalysisRequest
-): Promise<DashboardStartPromotionAnalysisResult> {
+  requestBody: DashboardRecommendPromotionSegmentsRequest
+): Promise<DashboardPromotionAnalysisResult> {
   return apiRequest(
-    `${PROMOTIONS_PATH}/${encodeURIComponent(promotionId)}/segment-suggestions/analyze`,
-    DashboardStartPromotionAnalysisResultSchema,
+    promotionSegmentRecommendationPath(promotionId),
+    DashboardPromotionAnalysisResultSchema,
     {
-      body: DashboardStartPromotionAnalysisRequestSchema.parse(requestBody),
+      body: DashboardRecommendPromotionSegmentsRequestSchema.parse(requestBody),
       errorMessage: readDashboardApiErrorMessage,
       method: "POST",
       searchParams: projectSearchParams(query.projectId)

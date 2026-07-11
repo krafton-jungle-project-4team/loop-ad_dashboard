@@ -45,6 +45,7 @@ export function PromotionWorkspace({
     promotionAnalysisIsPending,
     promotionGenerationIsPending,
     rejectContentCandidateMutation,
+    recommendPromotionSegments,
     scopedSegmentDefinitions,
     segmentDetail,
     segmentSuggestions,
@@ -59,7 +60,6 @@ export function PromotionWorkspace({
     setEditingSegmentId,
     setWorkspaceTab,
     startGenerationMutation,
-    startPromotionAnalysis,
     visibleTabs,
     workspaceTab,
     updatePromotionMutation,
@@ -144,7 +144,7 @@ export function PromotionWorkspace({
                 rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
               }
               onSelectSegment={selectSegment}
-              onStartAnalysis={startPromotionAnalysis}
+              onRecommendSegments={recommendPromotionSegments}
               onStartGeneration={(analysisId) =>
                 startGenerationMutation.mutate({
                   analysisId,

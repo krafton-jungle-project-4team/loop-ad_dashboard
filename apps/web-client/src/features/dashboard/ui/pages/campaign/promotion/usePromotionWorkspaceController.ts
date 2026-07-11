@@ -19,7 +19,7 @@ import {
   fetchDashboardPromotionSegmentSuggestions,
   fetchDashboardSegmentDetail,
   rejectDashboardContentCandidate,
-  startDashboardPromotionAnalysis,
+  recommendDashboardPromotionSegments,
   startDashboardAdExperiment,
   startDashboardPromotionGeneration,
   updateDashboardPromotion,
@@ -332,12 +332,12 @@ export function usePromotionWorkspaceController({
       });
     }
   });
-  const startAnalysisMutation = useMutation({
+  const recommendSegmentsMutation = useMutation({
     mutationFn: (promotionId: string) =>
-      startDashboardPromotionAnalysis(query, promotionId, { operator_instruction: null })
+      recommendDashboardPromotionSegments(query, promotionId, { operator_instruction: null })
   });
 
-  const startPromotionAnalysis = () => {
+  const recommendPromotionSegments = () => {
     if (!selectedOpenPromotionId) {
       return;
     }
@@ -352,7 +352,7 @@ export function usePromotionWorkspaceController({
       status: "pending"
     });
 
-    void startAnalysisMutation
+    void recommendSegmentsMutation
       .mutateAsync(promotionId)
       .then(async (analysis) => {
         queryClient.setQueryData<PromotionAnalysisProgress>(progressKey, {
@@ -675,7 +675,7 @@ export function usePromotionWorkspaceController({
     launchPromotionExperimentMutation,
     openPromotions,
     promotionAnalysisIsPending:
-      startAnalysisMutation.isPending || analysisProgress.data.status === "pending",
+      recommendSegmentsMutation.isPending || analysisProgress.data.status === "pending",
     promotionGenerationIsPending:
       startGenerationMutation.isPending ||
       shouldPollAsyncStatus(promotionDetail.data?.generation?.status),
@@ -694,7 +694,7 @@ export function usePromotionWorkspaceController({
     setEditingSegmentId,
     setWorkspaceTab,
     startGenerationMutation,
-    startPromotionAnalysis,
+    recommendPromotionSegments,
     updatePromotionMutation,
     updateConfirmedSegmentMutation,
     visibleTabs,
