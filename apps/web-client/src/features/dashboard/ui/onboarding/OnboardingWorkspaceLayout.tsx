@@ -133,6 +133,7 @@ export function OnboardingWorkspaceLayout({
         await setDashboardQueryState({
           campaignView: "manage",
           segmentView: "manage",
+          selectedAdExperimentId: "",
           selectedCampaignId: "",
           selectedPromotionId: "",
           selectedSegmentId: ""
@@ -141,6 +142,7 @@ export function OnboardingWorkspaceLayout({
       case "promotion":
         await setDashboardQueryState({
           segmentView: "manage",
+          selectedAdExperimentId: "",
           selectedPromotionId: "",
           selectedSegmentId: ""
         });
@@ -148,6 +150,7 @@ export function OnboardingWorkspaceLayout({
       case "segment":
         await setDashboardQueryState({
           segmentView: "recommendations",
+          selectedAdExperimentId: "",
           selectedSegmentId: ""
         });
         break;

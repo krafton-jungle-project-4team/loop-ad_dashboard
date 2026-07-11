@@ -80,6 +80,7 @@ export type DashboardQuery = {
   selectedCampaignId: string;
   selectedPromotionId: string;
   selectedSegmentId: string;
+  selectedAdExperimentId: string;
   selectedWorkflowNodeId: string;
   experimentPromotionFilter: string;
   experimentStatusFilter: string;

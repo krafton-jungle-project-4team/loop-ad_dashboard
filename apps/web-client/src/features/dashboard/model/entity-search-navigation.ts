@@ -8,6 +8,7 @@ export type EntitySearchNavigationPatch = Pick<
   | "createPromotion"
   | "promotionView"
   | "segmentView"
+  | "selectedAdExperimentId"
   | "selectedCampaignId"
   | "selectedPromotionId"
   | "selectedSegmentId"
@@ -22,6 +23,7 @@ export function entitySearchResultToDashboardPatch(
     createPromotion: false,
     promotionView: "manage",
     segmentView: result.entity_type === "segment" ? "experiments" : "manage",
+    selectedAdExperimentId: "",
     selectedCampaignId: result.campaign_id,
     selectedPromotionId: result.promotion_id ?? "",
     selectedSegmentId: result.segment_id ?? ""

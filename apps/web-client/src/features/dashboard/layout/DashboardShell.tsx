@@ -493,6 +493,7 @@ function DashboardSelectionContext({
         label="캠페인"
         onValueChange={(campaignId) => {
           void setDashboardQueryState({
+            selectedAdExperimentId: "",
             selectedCampaignId: campaignId,
             selectedPromotionId: "",
             selectedSegmentId: ""
@@ -518,6 +519,7 @@ function DashboardSelectionContext({
             label="프로모션"
             onValueChange={(promotionId) => {
               void setDashboardQueryState({
+                selectedAdExperimentId: "",
                 selectedCampaignId,
                 selectedPromotionId: promotionId,
                 selectedSegmentId: ""
@@ -545,6 +547,7 @@ function DashboardSelectionContext({
             label="세그먼트"
             onValueChange={(segmentId) => {
               void setDashboardQueryState({
+                selectedAdExperimentId: "",
                 selectedCampaignId,
                 selectedPromotionId,
                 selectedSegmentId: segmentId

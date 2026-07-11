@@ -68,6 +68,7 @@ export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   experimentStatusFilter: "all",
   filter: "",
   selectedCampaignId: "",
+  selectedAdExperimentId: "",
   selectedCustomerId: "cg-low-mobile",
   selectedPromotionId: "",
   selectedSegmentId: "",
@@ -113,6 +114,9 @@ export const dashboardQueryParsers = {
   ),
   filter: parseAsString.withDefault(defaultDashboardSearchQuery.filter),
   selectedCampaignId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCampaignId),
+  selectedAdExperimentId: parseAsString.withDefault(
+    defaultDashboardSearchQuery.selectedAdExperimentId
+  ),
   selectedCustomerId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedCustomerId),
   selectedPromotionId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedPromotionId),
   selectedSegmentId: parseAsString.withDefault(defaultDashboardSearchQuery.selectedSegmentId),
@@ -152,6 +156,7 @@ export function normalizeDashboardQuery(
     promotionView: normalizePromotionWorkspaceView(query.promotionView),
     segmentView: normalizeSegmentWorkspaceView(query.segmentView),
     selectedCampaignId: query.selectedCampaignId.trim(),
+    selectedAdExperimentId: query.selectedAdExperimentId.trim(),
     selectedCustomerId: query.selectedCustomerId.trim(),
     selectedPromotionId: query.selectedPromotionId.trim(),
     selectedSegmentId: query.selectedSegmentId.trim(),

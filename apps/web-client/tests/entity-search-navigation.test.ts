@@ -14,6 +14,7 @@ test("entity search results retain only the ancestors required by their hierarch
     createPromotion: false,
     promotionView: "manage",
     segmentView: "manage",
+    selectedAdExperimentId: "",
     selectedCampaignId: "campaign-1",
     selectedPromotionId: "",
     selectedSegmentId: ""

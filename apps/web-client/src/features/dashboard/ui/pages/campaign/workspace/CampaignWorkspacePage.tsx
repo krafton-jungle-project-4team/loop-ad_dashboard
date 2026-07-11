@@ -129,6 +129,7 @@ export function CampaignWorkspacePage({
         campaignView: "overview",
         promotionView: "manage",
         segmentView: "manage",
+        selectedAdExperimentId: "",
         selectedCampaignId: campaign.campaign_id,
         selectedPromotionId: "",
         selectedSegmentId: ""
@@ -161,6 +162,7 @@ export function CampaignWorkspacePage({
           campaignView: "manage",
           promotionView: "manage",
           segmentView: "manage",
+          selectedAdExperimentId: "",
           selectedCampaignId: "",
           selectedPromotionId: "",
           selectedSegmentId: ""
@@ -177,6 +179,7 @@ export function CampaignWorkspacePage({
       await setDashboardQueryState({
         promotionView: "overview",
         segmentView: "recommendations",
+        selectedAdExperimentId: "",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
         selectedSegmentId: ""
@@ -205,6 +208,7 @@ export function CampaignWorkspacePage({
         await setDashboardQueryState({
           promotionView: "manage",
           segmentView: "manage",
+          selectedAdExperimentId: "",
           selectedPromotionId: "",
           selectedSegmentId: ""
         });
@@ -240,6 +244,7 @@ export function CampaignWorkspacePage({
 
     void setDashboardQueryState(
       {
+        selectedAdExperimentId: "",
         selectedCampaignId: "",
         selectedPromotionId: "",
         selectedSegmentId: ""
@@ -254,7 +259,7 @@ export function CampaignWorkspacePage({
     }
 
     void setDashboardQueryState(
-      { selectedPromotionId: "", selectedSegmentId: "" },
+      { selectedAdExperimentId: "", selectedPromotionId: "", selectedSegmentId: "" },
       { history: "replace" }
     );
   }, [campaignDetail.data, query.selectedPromotionId, selectedPromotion, setDashboardQueryState]);
@@ -279,6 +284,7 @@ export function CampaignWorkspacePage({
             void setDashboardQueryState({
               promotionView: "manage",
               segmentView: "manage",
+              selectedAdExperimentId: "",
               selectedPromotionId: "",
               selectedSegmentId: ""
             });
@@ -287,6 +293,7 @@ export function CampaignWorkspacePage({
           if (item.kind === "promotion") {
             void setDashboardQueryState({
               segmentView: "manage",
+              selectedAdExperimentId: "",
               selectedSegmentId: ""
             });
           }
@@ -298,6 +305,7 @@ export function CampaignWorkspacePage({
                   campaignView: "manage",
                   promotionView: "manage",
                   segmentView: "manage",
+                  selectedAdExperimentId: "",
                   selectedCampaignId: "",
                   selectedPromotionId: "",
                   selectedSegmentId: ""
@@ -351,6 +359,7 @@ export function CampaignWorkspacePage({
                 campaignView: "overview",
                 promotionView: "manage",
                 segmentView: "manage",
+                selectedAdExperimentId: "",
                 selectedCampaignId: card.id,
                 selectedPromotionId: "",
                 selectedSegmentId: ""
@@ -465,6 +474,7 @@ export function CampaignWorkspacePage({
                 void setDashboardQueryState({
                   promotionView: "overview",
                   segmentView: "recommendations",
+                  selectedAdExperimentId: "",
                   selectedCampaignId,
                   selectedPromotionId: card.id,
                   selectedSegmentId: ""
