@@ -32,7 +32,9 @@ import {
   promotionChannelOptions,
   promotionGoalBasisOptions,
   promotionGoalMetricOptions,
+  promotionFormToUpdateRequest,
   promotionStatusOptions,
+  promotionToFormState,
   type PromotionCreateFormState
 } from "../promotionUtils.js";
 
@@ -49,27 +51,28 @@ export function PromotionEditDialog({
   open: boolean;
   promotion: DashboardCampaignPromotion | undefined;
 }) {
-  const [marketingTheme, setMarketingTheme] = useState("");
-  const [messageBrief, setMessageBrief] = useState("");
+  const [form, setForm] = useState<PromotionCreateFormState>(createEmptyPromotionFormState());
   const [status, setStatus] = useState("draft");
 
   useEffect(() => {
     if (open && promotion) {
-      setMarketingTheme(promotion.marketing_theme);
-      setMessageBrief(promotion.message_brief ?? "");
+      setForm(promotionToFormState(promotion));
       setStatus(promotion.status);
     }
   }, [open, promotion]);
   const isDirty = Boolean(
     promotion &&
-    (marketingTheme !== promotion.marketing_theme ||
-      messageBrief !== (promotion.message_brief ?? "") ||
+    (JSON.stringify(form) !== JSON.stringify(promotionToFormState(promotion)) ||
       status !== promotion.status)
   );
+  const canSubmit =
+    Boolean(promotion && form.marketingTheme.trim()) &&
+    isValidHttpUrl(form.landingUrl) &&
+    !isPending;
 
   return (
     <DashboardFormDialog
-      description="프로모션 이름, 설명, 운영 상태를 수정합니다."
+      description="프로모션 생성 시 입력한 운영 조건과 상태를 수정합니다."
       dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
@@ -77,26 +80,7 @@ export function PromotionEditDialog({
       width="promotion"
     >
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
-        <Field>
-          <FieldLabel htmlFor="promotion-edit-theme">프로모션 이름</FieldLabel>
-          <Input
-            autoComplete="off"
-            id="promotion-edit-theme"
-            name="promotionEditTheme"
-            onChange={(event) => setMarketingTheme(event.target.value)}
-            value={marketingTheme}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="promotion-edit-description">프로모션 설명</FieldLabel>
-          <Textarea
-            id="promotion-edit-description"
-            name="promotionEditDescription"
-            onChange={(event) => setMessageBrief(event.target.value)}
-            rows={5}
-            value={messageBrief}
-          />
-        </Field>
+        <PromotionFormFields form={form} idPrefix="promotion-edit" onChange={setForm} />
         <Field>
           <FieldLabel id="promotion-edit-status-label">상태</FieldLabel>
           <Select onValueChange={setStatus} value={status}>
@@ -119,13 +103,14 @@ export function PromotionEditDialog({
             </Button>
           </DialogClose>
           <Button
-            disabled={!promotion || !marketingTheme.trim() || isPending}
+            disabled={!canSubmit}
             onClick={() =>
-              onUpdate({
-                marketing_theme: marketingTheme.trim(),
-                message_brief: messageBrief.trim() || null,
-                status: status as DashboardUpdatePromotionRequest["status"]
-              })
+              onUpdate(
+                promotionFormToUpdateRequest(
+                  form,
+                  status as DashboardUpdatePromotionRequest["status"]
+                )
+              )
             }
             type="button"
           >
@@ -282,153 +267,7 @@ export function PromotionAddDialog({
       width="promotion"
     >
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
-        <div className="grid gap-4">
-          <Field>
-            <FieldLabel htmlFor="promotion-create-theme">프로모션 이름</FieldLabel>
-            <Input
-              autoComplete="off"
-              id="promotion-create-theme"
-              name="promotionTheme"
-              onChange={(event) => setForm({ ...form, marketingTheme: event.target.value })}
-              placeholder="여름 블랙 프라이데이"
-              value={form.marketingTheme}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="promotion-create-message-brief">프로모션 설명</FieldLabel>
-            <Textarea
-              id="promotion-create-message-brief"
-              name="promotionMessageBrief"
-              onChange={(event) => setForm({ ...form, messageBrief: event.target.value })}
-              placeholder="여름 휴가를 준비하는 20-30대 사용자를 대상으로 제주/오키나와 숙소 예약을 유도하는 여행 프로모션입니다. 인기 여행지, 조기 예약 할인, 후기 기반 추천을 강조합니다."
-              rows={4}
-              value={form.messageBrief}
-            />
-          </Field>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field>
-              <FieldLabel id="promotion-create-channel-label">채널</FieldLabel>
-              <Select
-                onValueChange={(value) => setForm({ ...form, channel: value })}
-                value={form.channel}
-              >
-                <SelectTrigger aria-labelledby="promotion-create-channel-label" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {promotionChannelOptions.map((channel) => (
-                    <SelectItem key={channel} value={channel}>
-                      {formatChannelLabel(channel)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field>
-              <FieldLabel id="promotion-create-goal-metric-label">목표 지표</FieldLabel>
-              <Select
-                onValueChange={(value) =>
-                  setForm({
-                    ...form,
-                    goalMetric: value as PromotionCreateFormState["goalMetric"]
-                  })
-                }
-                value={form.goalMetric}
-              >
-                <SelectTrigger
-                  aria-labelledby="promotion-create-goal-metric-label"
-                  className="w-full"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {promotionGoalMetricOptions.map((metric) => (
-                    <SelectItem key={metric.value} value={metric.value}>
-                      {metric.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="promotion-create-goal">목표값</FieldLabel>
-              <Input
-                id="promotion-create-goal"
-                inputMode="decimal"
-                min="0"
-                name="promotionGoalTargetValue"
-                onChange={(event) => setForm({ ...form, goalTargetValue: event.target.value })}
-                step="0.001"
-                type="number"
-                value={form.goalTargetValue}
-              />
-            </Field>
-            <Field>
-              <FieldLabel id="promotion-create-goal-basis-label">목표 기준</FieldLabel>
-              <Select
-                onValueChange={(value) => setForm({ ...form, goalBasis: value })}
-                value={form.goalBasis}
-              >
-                <SelectTrigger
-                  aria-labelledby="promotion-create-goal-basis-label"
-                  className="w-full"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {promotionGoalBasisOptions.map((basis) => (
-                    <SelectItem key={basis} value={basis}>
-                      {formatBasisLabel(basis)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="promotion-create-sample">최소 표본</FieldLabel>
-              <Input
-                id="promotion-create-sample"
-                inputMode="numeric"
-                min="0"
-                name="promotionMinSampleSize"
-                onChange={(event) => setForm({ ...form, minSampleSize: event.target.value })}
-                type="number"
-                value={form.minSampleSize}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="promotion-create-loop">최대 루프</FieldLabel>
-              <Input
-                id="promotion-create-loop"
-                inputMode="numeric"
-                min="1"
-                name="promotionMaxLoopCount"
-                onChange={(event) => setForm({ ...form, maxLoopCount: event.target.value })}
-                type="number"
-                value={form.maxLoopCount}
-              />
-            </Field>
-          </div>
-          <Field>
-            <FieldLabel htmlFor="promotion-create-landing-url">랜딩 URL</FieldLabel>
-            <Input
-              autoComplete="url"
-              id="promotion-create-landing-url"
-              name="promotionLandingUrl"
-              onChange={(event) => setForm({ ...form, landingUrl: event.target.value })}
-              placeholder={defaultPromotionLandingUrl}
-              type="url"
-              value={form.landingUrl}
-            />
-            <p className="text-xs text-muted-foreground">
-              발송 링크와 리다이렉트 목적지로 사용할 실제 URL입니다.
-            </p>
-          </Field>
-        </div>
+        <PromotionFormFields form={form} idPrefix="promotion-create" onChange={setForm} />
       </div>
       <DialogFooter className="px-5 py-5 sm:px-8">
         <DialogClose asChild>
@@ -441,5 +280,159 @@ export function PromotionAddDialog({
         </Button>
       </DialogFooter>
     </DashboardFormDialog>
+  );
+}
+
+function PromotionFormFields({
+  form,
+  idPrefix,
+  onChange
+}: {
+  form: PromotionCreateFormState;
+  idPrefix: string;
+  onChange: (form: PromotionCreateFormState) => void;
+}) {
+  return (
+    <div className="grid gap-4">
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-theme`}>프로모션 이름</FieldLabel>
+        <Input
+          autoComplete="off"
+          id={`${idPrefix}-theme`}
+          name={`${idPrefix}Theme`}
+          onChange={(event) => onChange({ ...form, marketingTheme: event.target.value })}
+          placeholder="여름 블랙 프라이데이"
+          value={form.marketingTheme}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-message-brief`}>프로모션 설명</FieldLabel>
+        <Textarea
+          id={`${idPrefix}-message-brief`}
+          name={`${idPrefix}MessageBrief`}
+          onChange={(event) => onChange({ ...form, messageBrief: event.target.value })}
+          placeholder="여름 휴가를 준비하는 20-30대 사용자를 대상으로 제주/오키나와 숙소 예약을 유도하는 여행 프로모션입니다. 인기 여행지, 조기 예약 할인, 후기 기반 추천을 강조합니다."
+          rows={4}
+          value={form.messageBrief}
+        />
+      </Field>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel id={`${idPrefix}-channel-label`}>채널</FieldLabel>
+          <Select
+            onValueChange={(value) => onChange({ ...form, channel: value })}
+            value={form.channel}
+          >
+            <SelectTrigger aria-labelledby={`${idPrefix}-channel-label`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionChannelOptions.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {formatChannelLabel(channel)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Field>
+          <FieldLabel id={`${idPrefix}-goal-metric-label`}>목표 지표</FieldLabel>
+          <Select
+            onValueChange={(value) =>
+              onChange({
+                ...form,
+                goalMetric: value as PromotionCreateFormState["goalMetric"]
+              })
+            }
+            value={form.goalMetric}
+          >
+            <SelectTrigger aria-labelledby={`${idPrefix}-goal-metric-label`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionGoalMetricOptions.map((metric) => (
+                <SelectItem key={metric.value} value={metric.value}>
+                  {metric.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-goal`}>목표값</FieldLabel>
+          <Input
+            id={`${idPrefix}-goal`}
+            inputMode="decimal"
+            min="0"
+            name={`${idPrefix}GoalTargetValue`}
+            onChange={(event) => onChange({ ...form, goalTargetValue: event.target.value })}
+            step="0.001"
+            type="number"
+            value={form.goalTargetValue}
+          />
+        </Field>
+        <Field>
+          <FieldLabel id={`${idPrefix}-goal-basis-label`}>목표 기준</FieldLabel>
+          <Select
+            onValueChange={(value) => onChange({ ...form, goalBasis: value })}
+            value={form.goalBasis}
+          >
+            <SelectTrigger aria-labelledby={`${idPrefix}-goal-basis-label`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {promotionGoalBasisOptions.map((basis) => (
+                <SelectItem key={basis} value={basis}>
+                  {formatBasisLabel(basis)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-sample`}>최소 표본</FieldLabel>
+          <Input
+            id={`${idPrefix}-sample`}
+            inputMode="numeric"
+            min="0"
+            name={`${idPrefix}MinSampleSize`}
+            onChange={(event) => onChange({ ...form, minSampleSize: event.target.value })}
+            type="number"
+            value={form.minSampleSize}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-loop`}>최대 루프</FieldLabel>
+          <Input
+            id={`${idPrefix}-loop`}
+            inputMode="numeric"
+            min="1"
+            name={`${idPrefix}MaxLoopCount`}
+            onChange={(event) => onChange({ ...form, maxLoopCount: event.target.value })}
+            type="number"
+            value={form.maxLoopCount}
+          />
+        </Field>
+      </div>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-landing-url`}>랜딩 URL</FieldLabel>
+        <Input
+          autoComplete="url"
+          id={`${idPrefix}-landing-url`}
+          name={`${idPrefix}LandingUrl`}
+          onChange={(event) => onChange({ ...form, landingUrl: event.target.value })}
+          placeholder={defaultPromotionLandingUrl}
+          type="url"
+          value={form.landingUrl}
+        />
+        <p className="text-xs text-muted-foreground">
+          발송 링크와 리다이렉트 목적지로 사용할 실제 URL입니다.
+        </p>
+      </Field>
+    </div>
   );
 }

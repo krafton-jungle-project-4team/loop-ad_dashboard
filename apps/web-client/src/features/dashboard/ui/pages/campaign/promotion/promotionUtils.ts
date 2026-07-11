@@ -8,6 +8,7 @@ import {
   type DashboardCampaignSegment,
   type DashboardCreatePromotionSegmentDefinitionRequest,
   type DashboardCreatePromotionRequest,
+  type DashboardUpdatePromotionRequest,
   type DashboardPromotionSegmentSuggestion,
   type DashboardSegmentDetail
 } from "@loopad/shared";
@@ -83,6 +84,22 @@ export function createEmptyPromotionFormState(): PromotionCreateFormState {
   };
 }
 
+export function promotionToFormState(
+  promotion: DashboardCampaignPromotion
+): PromotionCreateFormState {
+  return {
+    channel: promotion.channel,
+    goalBasis: promotion.goal_basis,
+    goalMetric: promotion.goal_metric as PromotionCreateFormState["goalMetric"],
+    goalTargetValue: String(promotion.goal_target_value),
+    landingUrl: promotion.landing_url ?? "",
+    marketingTheme: promotion.marketing_theme,
+    maxLoopCount: String(promotion.max_loop_count),
+    messageBrief: promotion.message_brief ?? "",
+    minSampleSize: String(promotion.min_sample_size)
+  };
+}
+
 export function promotionCreateFormToRequest(
   form: PromotionCreateFormState
 ): DashboardCreatePromotionRequest {
@@ -97,6 +114,16 @@ export function promotionCreateFormToRequest(
     message_brief: form.messageBrief.trim() || null,
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     status: "draft"
+  };
+}
+
+export function promotionFormToUpdateRequest(
+  form: PromotionCreateFormState,
+  status: DashboardUpdatePromotionRequest["status"]
+): DashboardUpdatePromotionRequest {
+  return {
+    ...promotionCreateFormToRequest(form),
+    status
   };
 }
 

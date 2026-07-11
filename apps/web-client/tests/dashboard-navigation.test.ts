@@ -6,6 +6,7 @@ import {
 } from "../src/features/dashboard/model/dashboard-navigation.js";
 import {
   defaultDashboardSearchQuery,
+  normalizeCampaignWorkspaceView,
   normalizeDashboardQuery
 } from "../src/features/dashboard/model/dashboard-query.js";
 
@@ -42,6 +43,10 @@ test("legacy promotion performance view opens the promotion overview", () => {
   );
 
   assert.equal(query.promotionView, "overview");
+});
+
+test("legacy campaign experiment view opens the campaign overview", () => {
+  assert.equal(normalizeCampaignWorkspaceView("experiments"), "overview");
 });
 
 test("legacy segment detail views open the segment experiment workspace", () => {
