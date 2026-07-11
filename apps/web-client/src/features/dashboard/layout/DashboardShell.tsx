@@ -85,7 +85,7 @@ export function DashboardShell({
         <SidebarContent>
           {dashboardNavigationGroups.map((group) => (
             <SidebarGroup key={group.label}>
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
               <SidebarGroupContent>
                 <DashboardNavigation
                   activeTab={activeTab}
@@ -162,24 +162,24 @@ function MobileBottomNavigation({
       className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
     >
       <MobileNavigationLink
-        active={activeTab === "main"}
-        icon={<Home aria-hidden="true" />}
-        label="메인"
-        pathSegment="main"
-        projectId={projectId}
-      />
-      <MobileNavigationLink
-        active={activeTab === "funnels"}
-        icon={<Route aria-hidden="true" />}
-        label="여정"
-        pathSegment="funnels"
-        projectId={projectId}
-      />
-      <MobileNavigationLink
         active={campaignIsActive}
         icon={<Megaphone aria-hidden="true" />}
         label="캠페인"
         pathSegment="campaigns"
+        projectId={projectId}
+      />
+      <MobileNavigationLink
+        active={activeTab === "experiments"}
+        icon={<Route aria-hidden="true" />}
+        label="실험"
+        pathSegment="experiments"
+        projectId={projectId}
+      />
+      <MobileNavigationLink
+        active={activeTab === "main"}
+        icon={<Home aria-hidden="true" />}
+        label="통계"
+        pathSegment="statistics"
         projectId={projectId}
       />
       <Button

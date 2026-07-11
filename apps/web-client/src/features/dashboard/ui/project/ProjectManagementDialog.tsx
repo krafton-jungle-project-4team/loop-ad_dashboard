@@ -59,8 +59,8 @@ export function ProjectManagementDialog({
       setPendingDeleteProjectId(null);
       setOpen(false);
       void navigate({
-        params: { projectId: project.project_id, tabPath: "main" },
-        to: "/dashboard/$projectId/$tabPath"
+        params: { projectId: project.project_id },
+        to: "/dashboard/$projectId"
       });
     }
   });
@@ -209,8 +209,8 @@ export function ProjectManagementDialog({
                           variant={isCurrentProject ? "secondary" : "outline"}
                         >
                           <Link
-                            params={{ projectId: project.project_id, tabPath: "main" }}
-                            to="/dashboard/$projectId/$tabPath"
+                            params={{ projectId: project.project_id }}
+                            to="/dashboard/$projectId"
                           >
                             열기
                           </Link>

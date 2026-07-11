@@ -2,7 +2,10 @@ import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { createFileRoute, Navigate, useParams } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { createRouteBoundaryOptions } from "../app/route-boundary.js";
-import { getDashboardTabByPath } from "../features/dashboard/model/dashboard-navigation.js";
+import {
+  getCanonicalDashboardPath,
+  getDashboardTabByPath
+} from "../features/dashboard/model/dashboard-navigation.js";
 import {
   normalizeDashboardQuery,
   useDashboardQueryState
@@ -26,13 +29,25 @@ export const Route = createFileRoute("/dashboard/$projectId/$tabPath")({
 
 function DashboardProjectRoute() {
   const { projectId, tabPath } = Route.useParams();
+  const canonicalPath = getCanonicalDashboardPath(tabPath);
   const tab = getDashboardTabByPath(tabPath);
 
   if (!tab) {
     return (
       <Navigate
-        params={{ projectId, tabPath: "main" }}
+        params={{ projectId, tabPath: "campaigns" }}
         replace
+        to="/dashboard/$projectId/$tabPath"
+      />
+    );
+  }
+
+  if (canonicalPath !== tabPath) {
+    return (
+      <Navigate
+        params={{ projectId, tabPath: canonicalPath }}
+        replace
+        search={(current) => current}
         to="/dashboard/$projectId/$tabPath"
       />
     );
@@ -43,7 +58,7 @@ function DashboardProjectRoute() {
 
 function DashboardRoutePending() {
   const params = useParams({ strict: false }) as { tabPath?: string };
-  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "main";
+  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "campaigns";
 
   return <LoadingState tab={tab} />;
 }

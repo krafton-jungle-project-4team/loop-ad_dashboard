@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   dashboardNavigationGroups,
+  getCanonicalDashboardPath,
   getDashboardTabByPath
 } from "../src/features/dashboard/model/dashboard-navigation.js";
 import {
@@ -10,16 +11,17 @@ import {
   normalizeDashboardQuery
 } from "../src/features/dashboard/model/dashboard-query.js";
 
-test("dashboard sidebar exposes flat overview, campaign operations, and tools groups", () => {
+test("dashboard sidebar exposes the product-led flat navigation order", () => {
   assert.deepEqual(
     dashboardNavigationGroups.map((group) => ({
       items: group.items.map((item) => item.label),
       label: group.label
     })),
     [
-      { items: ["메인", "사용자 여정"], label: "개요" },
-      { items: ["캠페인", "프로모션", "세그먼트", "실험 관리"], label: "캠페인 운영" },
-      { items: ["데이터 탐색기", "워크플로우", "SDK 연동"], label: "도구" }
+      {
+        items: ["캠페인", "실험", "통계", "사용자 여정", "워크플로우", "데이터 탐색기", "SDK 연동"],
+        label: ""
+      }
     ]
   );
   assert.equal(
@@ -29,11 +31,15 @@ test("dashboard sidebar exposes flat overview, campaign operations, and tools gr
 });
 
 test("dashboard keeps legacy paths available while exposing the experiment route", () => {
-  assert.equal(getDashboardTabByPath("campaign-detail"), "campaign-detail");
-  assert.equal(getDashboardTabByPath("campaign-metrics"), "campaign-metrics");
-  assert.equal(getDashboardTabByPath("campaign-promotions"), "campaign-promotions");
-  assert.equal(getDashboardTabByPath("promotion-metrics"), "promotion-metrics");
+  assert.equal(getDashboardTabByPath("campaign-detail"), "campaigns");
+  assert.equal(getDashboardTabByPath("campaign-metrics"), "campaigns");
+  assert.equal(getDashboardTabByPath("campaign-promotions"), "campaigns");
+  assert.equal(getDashboardTabByPath("promotion-metrics"), "campaigns");
   assert.equal(getDashboardTabByPath("experiments"), "experiments");
+  assert.equal(getDashboardTabByPath("statistics"), "main");
+  assert.equal(getDashboardTabByPath("main"), "main");
+  assert.equal(getCanonicalDashboardPath("main"), "statistics");
+  assert.equal(getCanonicalDashboardPath("segments"), "campaigns");
 });
 
 test("legacy promotion performance view opens the promotion overview", () => {

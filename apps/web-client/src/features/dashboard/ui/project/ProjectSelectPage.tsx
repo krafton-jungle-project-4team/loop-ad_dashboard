@@ -87,8 +87,8 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
   return (
     <Link
       className="group block rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-      params={{ projectId: project.project_id, tabPath: "main" }}
-      to="/dashboard/$projectId/$tabPath"
+      params={{ projectId: project.project_id }}
+      to="/dashboard/$projectId"
     >
       <Card className="min-h-44 bg-white p-0 transition-colors group-hover:border-primary/35">
         <CardContent className="grid h-full gap-3 p-4 text-center">

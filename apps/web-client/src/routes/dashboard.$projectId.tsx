@@ -8,7 +8,7 @@ export const Route = createFileRoute("/dashboard/$projectId")({
 
 function DashboardProjectLayout() {
   const params = useParams({ strict: false }) as { projectId: string; tabPath?: string };
-  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "main";
+  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "campaigns";
 
   return (
     <DashboardShell activeTab={tab} projectId={params.projectId}>
