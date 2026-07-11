@@ -41,6 +41,7 @@ import {
   DashboardNextLoopAnalysisSchema,
   DashboardProjectListSchema,
   DashboardProjectSchema,
+  DashboardProjectExperimentListSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionAnalysisResultSchema,
   DashboardPromotionScopedSegmentDefinitionListSchema,
@@ -67,7 +68,11 @@ import {
 } from "@loopad/shared";
 import type { DashboardFunnelMetricsScope } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
-import { DashboardEntitySearchService, DashboardQueryService } from "../service/index.js";
+import {
+  DashboardEntitySearchService,
+  DashboardProjectExperimentsService,
+  DashboardQueryService
+} from "../service/index.js";
 
 @Controller("dashboard/v1")
 export class DashboardController {
@@ -75,7 +80,9 @@ export class DashboardController {
     @Inject(DashboardQueryService)
     private readonly dashboardQuery: DashboardQueryService,
     @Inject(DashboardEntitySearchService)
-    private readonly entitySearch?: DashboardEntitySearchService
+    private readonly entitySearch?: DashboardEntitySearchService,
+    @Inject(DashboardProjectExperimentsService)
+    private readonly projectExperiments?: DashboardProjectExperimentsService
   ) {}
 
   @Get("projects")
@@ -119,6 +126,18 @@ export class DashboardController {
 
     return DashboardEntitySearchResponseSchema.parse(
       await this.entitySearch.search(request.project_id, request.q, request.entity_type)
+    );
+  }
+
+  @Get("experiments")
+  async experiments(@Query("project_id") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    if (!this.projectExperiments) {
+      throw new Error("DashboardProjectExperimentsService is not available.");
+    }
+
+    return DashboardProjectExperimentListSchema.parse(
+      await this.projectExperiments.list(requiredProjectId)
     );
   }
 

@@ -14,6 +14,7 @@ export const DashboardCampaignSummarySchema = z.object({
   promotion_count: CountSchema,
   segment_count: CountSchema,
   ad_experiment_count: CountSchema,
+  running_ad_experiment_count: CountSchema.default(0),
   latest_goal_achievement_rate: RateSchema.nullable(),
   next_action: z.string(),
   updated_at: z.string()

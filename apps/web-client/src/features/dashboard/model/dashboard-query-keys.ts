@@ -13,6 +13,10 @@ export function dashboardProjectsQueryKey() {
   return ["dashboard", "projects"] as const;
 }
 
+export function dashboardProjectExperimentsQueryKey(projectId: string) {
+  return ["dashboard", "project-experiments", projectId] as const;
+}
+
 export function dashboardEventCatalogQueryKey(projectId: string) {
   return ["dashboard", "event-catalog", projectId] as const;
 }

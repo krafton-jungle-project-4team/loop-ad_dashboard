@@ -57,7 +57,8 @@ export function toProject(
 }
 
 export function toCampaignSummary(
-  row: IGetDashboardCampaignSummaryResult | IListDashboardCampaignSummariesResult
+  row: IGetDashboardCampaignSummaryResult | IListDashboardCampaignSummariesResult,
+  runningAdExperimentCount = 0
 ): DashboardCampaignSummary {
   return {
     campaign_id: row.campaignId,
@@ -72,6 +73,7 @@ export function toCampaignSummary(
     promotion_count: countValue(row.promotionCount),
     segment_count: countValue(row.segmentCount),
     ad_experiment_count: countValue(row.adExperimentCount),
+    running_ad_experiment_count: countValue(runningAdExperimentCount),
     latest_goal_achievement_rate: nullableRate(row.latestGoalAchievementRate),
     next_action: row.nextAction ?? "monitor",
     updated_at: row.updatedAt.toISOString()

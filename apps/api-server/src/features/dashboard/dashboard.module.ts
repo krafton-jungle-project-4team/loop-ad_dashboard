@@ -5,10 +5,15 @@ import {
   DashboardCampaignReader,
   DashboardEntitySearchReader,
   DashboardFunnelReader,
+  DashboardProjectExperimentsReader,
   DashboardSegmentQueryRepository
 } from "./repository/index.js";
 import { DashboardDecisionClient } from "./provider/index.js";
-import { DashboardEntitySearchService, DashboardQueryService } from "./service/index.js";
+import {
+  DashboardEntitySearchService,
+  DashboardProjectExperimentsService,
+  DashboardQueryService
+} from "./service/index.js";
 
 @Module({
   imports: [DatabaseModule],
@@ -16,10 +21,12 @@ import { DashboardEntitySearchService, DashboardQueryService } from "./service/i
   providers: [
     DashboardQueryService,
     DashboardEntitySearchService,
+    DashboardProjectExperimentsService,
     DashboardDecisionClient,
     DashboardCampaignReader,
     DashboardEntitySearchReader,
     DashboardFunnelReader,
+    DashboardProjectExperimentsReader,
     DashboardSegmentQueryRepository
   ]
 })
