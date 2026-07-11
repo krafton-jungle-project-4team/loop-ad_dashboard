@@ -2,6 +2,7 @@
 name: loopad-log-tracer
 description: "서울 리전 AWS CloudWatch 로그로 LoopAd 개발 ECS 서비스 동작을 조사한다. 요청 ID, API 경로, 오류 증상, 데이터 식별자, 상태 코드, 시간대를 바탕으로 dashboard-api, decision-api, event-collector 문제를 디버깅할 때 사용한다."
 ---
+
 # LoopAd 로그 추적기
 
 ## 개요
