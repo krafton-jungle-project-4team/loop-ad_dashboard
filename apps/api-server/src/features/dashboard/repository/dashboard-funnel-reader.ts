@@ -175,7 +175,7 @@ export class DashboardFunnelReader {
     projectId: string,
     funnelId: string,
     scope?: DashboardFunnelMetricsScope,
-    dateRange: DashboardFunnelMetricsDateRange = "last-7-days"
+    dateRange: DashboardFunnelMetricsDateRange = "last-14-days"
   ): Promise<DashboardFunnelMetrics> {
     const funnel = await this.definitionRepository.getMetricDefinition(projectId, funnelId);
     const metricSteps = await this.buildFunnelMetricSteps(
@@ -196,7 +196,8 @@ export class DashboardFunnelReader {
 
   async previewFunnelMetrics(
     projectId: string,
-    request: DashboardFunnelPreviewRequest
+    request: DashboardFunnelPreviewRequest,
+    dateRange: DashboardFunnelMetricsDateRange = "last-14-days"
   ): Promise<DashboardFunnelPreview> {
     return {
       steps: await this.buildFunnelMetricSteps(
@@ -205,7 +206,8 @@ export class DashboardFunnelReader {
           eventName: step.event_name,
           stepName: step.step_name,
           stepOrder: index + 1
-        }))
+        })),
+        dateRange
       )
     };
   }
@@ -1042,8 +1044,8 @@ function funnelDateRangeFilter(
   switch (dateRange) {
     case "today":
       return `AND ${column} >= toStartOfDay(now())`;
-    case "last-7-days":
-      return `AND ${column} >= now() - INTERVAL 7 DAY`;
+    case "last-14-days":
+      return `AND ${column} >= now() - INTERVAL 14 DAY`;
     case "last-30-days":
       return `AND ${column} >= now() - INTERVAL 30 DAY`;
     case "campaign":

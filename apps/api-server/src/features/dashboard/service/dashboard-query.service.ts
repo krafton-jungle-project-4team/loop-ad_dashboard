@@ -745,7 +745,7 @@ export class DashboardQueryService {
     projectId: string,
     funnelId: string,
     scope?: DashboardFunnelMetricsScope,
-    dateRange: DashboardFunnelMetricsDateRange = "last-7-days"
+    dateRange: DashboardFunnelMetricsDateRange = "last-14-days"
   ): Promise<DashboardFunnelMetrics> {
     const startedAt = Date.now();
     log.assignContext({ funnelId, projectId });
@@ -764,12 +764,13 @@ export class DashboardQueryService {
   @LogContextScope()
   async previewFunnelMetrics(
     projectId: string,
-    request: DashboardFunnelPreviewRequest
+    request: DashboardFunnelPreviewRequest,
+    dateRange: DashboardFunnelMetricsDateRange = "last-14-days"
   ): Promise<DashboardFunnelPreview> {
     const startedAt = Date.now();
     log.assignContext({ projectId });
-    log.info("started", { projectId, request });
-    const response = await this.funnelReader.previewFunnelMetrics(projectId, request);
+    log.info("started", { projectId, request, dateRange });
+    const response = await this.funnelReader.previewFunnelMetrics(projectId, request, dateRange);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;

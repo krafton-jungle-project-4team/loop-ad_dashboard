@@ -6,14 +6,7 @@ import {
   type DashboardFunnelMetricStep,
   type DashboardFunnelPreviewRequest
 } from "@loopad/shared";
-import {
-  Layer,
-  Rectangle,
-  Sankey,
-  type SankeyLinkProps,
-  type SankeyNodeProps,
-  useChartWidth
-} from "@loopad/ui/charts";
+import { CartesianGrid, LabelList, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
   AlertDialog,
@@ -79,7 +72,6 @@ import {
   getDetailPanelMaxHeight,
   useFunnelDetailPanelResize
 } from "./useFunnelDetailPanelResize.js";
-import { buildFunnelSankeyData, type FunnelSankeyNode } from "./funnelSankey.js";
 
 type FunnelDraftStep = {
   step_name: string;
@@ -130,7 +122,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   const funnelPreview = useQuery({
     enabled: Boolean(previewRequest),
     queryFn: ({ signal }) => previewDashboardFunnelMetrics(query, previewRequest!, signal),
-    queryKey: dashboardFunnelPreviewQueryKey(query.projectId, previewEventNames)
+    queryKey: dashboardFunnelPreviewQueryKey(query.projectId, previewEventNames, query.dateRange)
   });
   const funnelMetrics = useQuery({
     enabled: Boolean(selectedFunnelId),
@@ -714,129 +706,59 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
 }
 
 function FunnelMetricChart({ steps }: { steps: DashboardFunnelMetricStep[] }) {
-  const data = buildFunnelSankeyData(steps);
-
-  if (steps.length === 0 || steps.every((step) => step.event_count === 0)) {
+  if (steps.length === 0) {
     return <EmptyState message="표시할 사용자 흐름 데이터가 없습니다." />;
   }
 
   return (
     <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
       <ChartContainer
-        aria-label="단계별 사용자 도달과 이탈 흐름"
+        aria-label="단계별 사용자 도달 수"
         className="h-[260px] min-w-[560px]"
         config={{
-          completion: { color: "var(--chart-2)", label: "여정 완료" },
-          dropoff: { color: "var(--chart-3)", label: "이탈" },
-          throughput: { color: "var(--chart-1)", label: "다음 단계 도달" }
+          event_count: { color: "var(--chart-1)", label: "도달 수" }
         }}
         role="img"
       >
-        <Sankey
-          align="left"
-          data={data}
-          link={FunnelSankeyLink}
-          margin={{ bottom: 24, left: 20, right: 132, top: 24 }}
-          node={FunnelSankeyNode}
-          nodePadding={28}
-          nodeWidth={14}
-          sort={false}
-          verticalAlign="top"
-        >
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                formatter={(value) => (
-                  <div className="flex min-w-32 items-center justify-between gap-4">
-                    <span className="text-muted-foreground">이동 사용자</span>
-                    <span className="font-mono font-medium tabular-nums text-foreground">
-                      {Number(value).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                hideIndicator
-                hideLabel
-              />
-            }
+        <LineChart data={steps} margin={{ bottom: 18, left: 8, right: 30, top: 38 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            axisLine={false}
+            dataKey="step_name"
+            interval={0}
+            tickLine={false}
+            tickMargin={12}
           />
-        </Sankey>
+          <YAxis
+            allowDecimals={false}
+            axisLine={false}
+            domain={[0, "auto"]}
+            tickLine={false}
+            tickMargin={10}
+            width={48}
+          />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Line
+            activeDot={{ r: 6 }}
+            dataKey="event_count"
+            dot={{ fill: "var(--color-event_count)", r: 4, strokeWidth: 2 }}
+            isAnimationActive={false}
+            stroke="var(--color-event_count)"
+            strokeWidth={3}
+            type="linear"
+          >
+            <LabelList
+              className="fill-foreground text-xs font-medium"
+              dataKey="event_count"
+              formatter={(value) => Number(value ?? 0).toLocaleString()}
+              offset={12}
+              position="top"
+            />
+          </Line>
+        </LineChart>
       </ChartContainer>
     </div>
   );
-}
-
-function FunnelSankeyNode({ height, payload, width, x, y }: SankeyNodeProps) {
-  const chartWidth = useChartWidth();
-  const node = payload as typeof payload & FunnelSankeyNode;
-  const isEmpty = node.count === 0;
-  const fill =
-    node.kind === "dropoff"
-      ? "var(--color-dropoff)"
-      : node.kind === "completion"
-        ? "var(--color-completion)"
-        : "var(--color-throughput)";
-  const nodeHeight = isEmpty ? 8 : Math.max(height, 4);
-  const nodeY = isEmpty ? 8 : y;
-  const labelX = x + width + 8;
-  const labelY = nodeY + nodeHeight / 2;
-
-  return (
-    <Layer>
-      <title>{`${node.name}: ${node.count.toLocaleString()}명`}</title>
-      <Rectangle
-        fill={fill}
-        fillOpacity={isEmpty ? 0.12 : node.kind === "dropoff" ? 0.58 : 0.92}
-        height={nodeHeight}
-        radius={[4, 4, 4, 4]}
-        stroke={isEmpty ? fill : undefined}
-        strokeDasharray={isEmpty ? "3 2" : undefined}
-        width={width}
-        x={x}
-        y={nodeY}
-      />
-      <text fill="var(--foreground)" fontSize={12} fontWeight={600} x={labelX} y={labelY - 3}>
-        {truncateSankeyLabel(node.name, chartWidth)}
-      </text>
-      <text fill="var(--muted-foreground)" fontSize={11} x={labelX} y={labelY + 13}>
-        {node.count.toLocaleString()}명
-      </text>
-    </Layer>
-  );
-}
-
-function FunnelSankeyLink({
-  linkWidth,
-  payload,
-  sourceControlX,
-  sourceX,
-  sourceY,
-  targetControlX,
-  targetX,
-  targetY
-}: SankeyLinkProps) {
-  const isEmpty = payload.value === 0;
-  const emptyNodeCenterY = 12;
-  const renderedSourceY = payload.source.value === 0 ? emptyNodeCenterY : sourceY;
-  const renderedTargetY = payload.target.value === 0 ? emptyNodeCenterY : targetY;
-
-  return (
-    <path
-      d={`M${sourceX},${renderedSourceY} C${sourceControlX},${renderedSourceY} ${targetControlX},${renderedTargetY} ${targetX},${renderedTargetY}`}
-      fill="none"
-      stroke="var(--color-throughput)"
-      strokeDasharray={isEmpty ? "5 5" : undefined}
-      strokeLinecap="round"
-      strokeOpacity={isEmpty ? 0.45 : 0.24}
-      strokeWidth={isEmpty ? 1.5 : Math.max(linkWidth, 1.5)}
-    >
-      <title>{`${payload.source.name} → ${payload.target.name}: ${payload.value.toLocaleString()}명`}</title>
-    </path>
-  );
-}
-
-function truncateSankeyLabel(label: string, chartWidth: number | undefined) {
-  const maxLength = chartWidth && chartWidth < 760 ? 10 : 16;
-  return label.length > maxLength ? `${label.slice(0, maxLength)}…` : label;
 }
 
 function FunnelMetricTable({ steps }: { steps: DashboardFunnelMetricStep[] }) {

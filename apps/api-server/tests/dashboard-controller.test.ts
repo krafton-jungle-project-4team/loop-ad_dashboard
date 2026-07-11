@@ -261,8 +261,8 @@ test("dashboard controller parses funnel preview body before delegating", async 
   const writes: unknown[] = [];
   const controller = new DashboardController({
     ...emptyDashboardQuery(),
-    previewFunnelMetrics: async (projectId, request) => {
-      writes.push({ projectId, request });
+    previewFunnelMetrics: async (projectId, request, dateRange) => {
+      writes.push({ projectId, request, dateRange });
       return {
         steps: request.steps.map((step, index) => ({
           step_order: index + 1,
@@ -274,14 +274,19 @@ test("dashboard controller parses funnel preview body before delegating", async 
     }
   } as unknown as DashboardQueryService);
 
-  const response = await controller.previewFunnelMetrics("hotel-client-a", {
-    steps: [
-      { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
-      { step_name: "예약 완료", event_name: "booking_complete" }
-    ]
-  });
+  const response = await controller.previewFunnelMetrics(
+    "hotel-client-a",
+    {
+      steps: [
+        { step_name: "숙소 상세 조회", event_name: "hotel_detail_view" },
+        { step_name: "예약 완료", event_name: "booking_complete" }
+      ]
+    },
+    "last-30-days"
+  );
 
   assert.equal(writes.length, 1);
+  assert.equal((writes[0] as { dateRange: string }).dateRange, "last-30-days");
   assert.equal(response.steps[0]?.event_count, 20);
   assert.equal(response.steps[1]?.event_name, "booking_complete");
 });

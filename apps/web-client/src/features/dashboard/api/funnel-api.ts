@@ -115,10 +115,13 @@ export function previewDashboardFunnelMetrics(
   requestBody: DashboardFunnelPreviewRequest,
   signal: AbortSignal
 ): Promise<DashboardFunnelPreview> {
+  const searchParams = projectSearchParams(query.projectId);
+  searchParams.set("dateRange", query.dateRange);
+
   return apiRequest(`${FUNNELS_PATH}/preview`, DashboardFunnelPreviewSchema, {
     body: DashboardFunnelPreviewRequestSchema.parse(requestBody),
     method: "POST",
-    searchParams: projectSearchParams(query.projectId),
+    searchParams,
     signal
   });
 }

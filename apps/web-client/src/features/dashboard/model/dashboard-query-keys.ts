@@ -75,6 +75,10 @@ export function dashboardFunnelDetailQueryKey(projectId: string, funnelId: strin
   return ["dashboard", "funnel-detail", projectId, funnelId] as const;
 }
 
-export function dashboardFunnelPreviewQueryKey(projectId: string, eventNames: string[]) {
-  return ["dashboard", "funnel-preview", projectId, eventNames] as const;
+export function dashboardFunnelPreviewQueryKey(
+  projectId: string,
+  eventNames: string[],
+  dateRange: DashboardQuery["dateRange"]
+) {
+  return ["dashboard", "funnel-preview", projectId, eventNames, dateRange] as const;
 }
