@@ -6,7 +6,7 @@ import { PromotionWorkspace } from "./PromotionComponent.js";
 const segmentViews = [
   { label: "관리", value: "manage" },
   { label: "세그먼트 생성", value: "recommendations" },
-  { label: "실험", value: "experiments" }
+  { label: "실험 생성", value: "experiments" }
 ] as const;
 
 export function SegmentManagementPage({

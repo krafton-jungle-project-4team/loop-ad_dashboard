@@ -6,7 +6,7 @@ import {
   type DashboardFunnelMetricStep,
   type DashboardFunnelPreviewRequest
 } from "@loopad/shared";
-import { Area, AreaChart, CartesianGrid, LabelList, XAxis, YAxis } from "@loopad/ui/charts";
+import { Layer, Rectangle, Sankey, type SankeyNodeProps, useChartWidth } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
   AlertDialog,
@@ -45,7 +45,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { ChevronDown, GripHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { useId, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   createDashboardFunnel,
   deleteDashboardFunnel,
@@ -72,6 +72,7 @@ import {
   getDetailPanelMaxHeight,
   useFunnelDetailPanelResize
 } from "./useFunnelDetailPanelResize.js";
+import { buildFunnelSankeyData, type FunnelSankeyNode } from "./funnelSankey.js";
 
 type FunnelDraftStep = {
   step_name: string;
@@ -409,18 +410,18 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
       </section>
 
       <Dialog onOpenChange={handleCreateDialogOpenChange} open={isCreateDialogOpen}>
-        <DialogContent className="w-[min(96vw,1180px)] max-w-none overflow-visible p-0">
-          <DialogHeader className="border-b px-8 py-6">
-            <DialogTitle className="text-2xl font-semibold">
+        <DialogContent className="grid max-h-[calc(100svh-2rem)] w-[calc(100%-2rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden overscroll-contain p-0 sm:w-[min(96vw,1180px)] sm:max-w-[min(96vw,1180px)]">
+          <DialogHeader className="min-w-0 border-b px-4 py-5 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:py-6 lg:pr-14">
+            <DialogTitle className="text-xl font-semibold text-pretty sm:text-2xl">
               {isEditMode ? "사용자 여정 수정" : "새 사용자 여정 생성"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="break-words text-pretty">
               {isEditMode
                 ? "저장된 사용자 여정 이름과 단계 순서를 변경합니다."
                 : "수집된 이벤트를 순서대로 선택하면 단계별 전환 수가 미리 계산됩니다."}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-6 px-8 py-6 lg:grid-cols-[minmax(320px,0.85fr)_minmax(480px,1.15fr)]">
+          <div className="grid min-h-0 min-w-0 gap-6 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:px-8 lg:py-6">
             {isDraftLoading ? (
               <Alert className="lg:col-span-2">
                 <AlertTitle>사용자 여정 정보를 불러오는 중입니다</AlertTitle>
@@ -453,7 +454,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                 <AlertDescription>{mutationErrorMessage(draftMutationError)}</AlertDescription>
               </Alert>
             ) : null}
-            <div className="grid content-start gap-5">
+            <div className="grid min-w-0 content-start gap-5">
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="funnel-name">사용자 여정 이름</FieldLabel>
@@ -516,7 +517,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                 </Button>
               </div>
             </div>
-            <section className="grid content-start gap-3 border-t pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <section className="grid min-w-0 content-start gap-3 border-t pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
               <div className="grid gap-1">
                 <h3 className="text-base font-semibold text-foreground">단계별 전환 미리보기</h3>
                 <p className="text-sm text-muted-foreground">
@@ -536,7 +537,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
               )}
             </section>
           </div>
-          <DialogFooter className="px-8 py-5">
+          <DialogFooter className="mx-0 mb-0 shrink-0 rounded-none px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
             <Button
               disabled={isDraftSaving}
               onClick={requestCloseDraftDialog}
@@ -706,47 +707,94 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
 }
 
 function FunnelMetricChart({ steps }: { steps: DashboardFunnelMetricStep[] }) {
-  const gradientId = `${useId().replace(/:/g, "")}-funnel-event-count`;
+  const data = buildFunnelSankeyData(steps);
+
+  if (steps.length === 0 || steps.every((step) => step.event_count === 0)) {
+    return <EmptyState message="표시할 사용자 흐름 데이터가 없습니다." />;
+  }
 
   return (
-    <ChartContainer
-      className="h-[260px] w-full"
-      config={{
-        event_count: {
-          color: "var(--chart-1)",
-          label: "도달 수"
-        }
-      }}
-    >
-      <AreaChart data={steps} margin={{ bottom: 16, left: 10, right: 28, top: 40 }}>
-        <defs>
-          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="5%" stopColor="var(--color-event_count)" stopOpacity={0.32} />
-            <stop offset="95%" stopColor="var(--color-event_count)" stopOpacity={0.04} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} />
-        <XAxis dataKey="step_name" tickLine={false} tickMargin={14} axisLine={false} />
-        <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={12} width={56} />
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <Area
-          dataKey="event_count"
-          fill={`url(#${gradientId})`}
-          stroke="var(--color-event_count)"
-          strokeWidth={2}
-          type="monotone"
+    <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
+      <ChartContainer
+        aria-label="단계별 사용자 도달과 이탈 흐름"
+        className="h-[260px] min-w-[560px]"
+        config={{
+          completion: { color: "var(--chart-2)", label: "여정 완료" },
+          dropoff: { color: "var(--chart-3)", label: "이탈" },
+          throughput: { color: "var(--chart-1)", label: "다음 단계 도달" }
+        }}
+        role="img"
+      >
+        <Sankey
+          align="left"
+          data={data}
+          link={{ stroke: "var(--color-throughput)", strokeOpacity: 0.24 }}
+          margin={{ bottom: 24, left: 20, right: 132, top: 24 }}
+          node={FunnelSankeyNode}
+          nodePadding={28}
+          nodeWidth={14}
+          sort={false}
+          verticalAlign="top"
         >
-          <LabelList
-            className="fill-foreground text-xs font-medium"
-            dataKey="event_count"
-            formatter={formatMetricLabel}
-            offset={12}
-            position="top"
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                formatter={(value) => (
+                  <div className="flex min-w-32 items-center justify-between gap-4">
+                    <span className="text-muted-foreground">이동 사용자</span>
+                    <span className="font-mono font-medium tabular-nums text-foreground">
+                      {Number(value).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                hideIndicator
+                hideLabel
+              />
+            }
           />
-        </Area>
-      </AreaChart>
-    </ChartContainer>
+        </Sankey>
+      </ChartContainer>
+    </div>
   );
+}
+
+function FunnelSankeyNode({ height, payload, width, x, y }: SankeyNodeProps) {
+  const chartWidth = useChartWidth();
+  const node = payload as typeof payload & FunnelSankeyNode;
+  const fill =
+    node.kind === "dropoff"
+      ? "var(--color-dropoff)"
+      : node.kind === "completion"
+        ? "var(--color-completion)"
+        : "var(--color-throughput)";
+  const labelX = x + width + 8;
+  const labelY = y + Math.max(height, 4) / 2;
+
+  return (
+    <Layer>
+      <title>{`${node.name}: ${node.count.toLocaleString()}명`}</title>
+      <Rectangle
+        fill={fill}
+        fillOpacity={node.kind === "dropoff" ? 0.58 : 0.92}
+        height={Math.max(height, 4)}
+        radius={[4, 4, 4, 4]}
+        width={width}
+        x={x}
+        y={y}
+      />
+      <text fill="var(--foreground)" fontSize={12} fontWeight={600} x={labelX} y={labelY - 3}>
+        {truncateSankeyLabel(node.name, chartWidth)}
+      </text>
+      <text fill="var(--muted-foreground)" fontSize={11} x={labelX} y={labelY + 13}>
+        {node.count.toLocaleString()}명
+      </text>
+    </Layer>
+  );
+}
+
+function truncateSankeyLabel(label: string, chartWidth: number | undefined) {
+  const maxLength = chartWidth && chartWidth < 760 ? 10 : 16;
+  return label.length > maxLength ? `${label.slice(0, maxLength)}…` : label;
 }
 
 function FunnelMetricTable({ steps }: { steps: DashboardFunnelMetricStep[] }) {
@@ -884,8 +932,4 @@ function formatDateTime(value: string): string {
 
 function mutationErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "API 요청 실패";
-}
-
-function formatMetricLabel(value: unknown): string {
-  return typeof value === "number" ? value.toLocaleString() : String(value ?? "");
 }

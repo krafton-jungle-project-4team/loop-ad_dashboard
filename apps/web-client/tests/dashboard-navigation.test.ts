@@ -17,7 +17,7 @@ test("dashboard sidebar exposes flat overview, campaign operations, and tools gr
     })),
     [
       { items: ["메인", "사용자 여정"], label: "개요" },
-      { items: ["캠페인", "프로모션", "세그먼트", "실험"], label: "캠페인 운영" },
+      { items: ["캠페인", "프로모션", "세그먼트", "실험 관리"], label: "캠페인 운영" },
       { items: ["데이터 탐색기", "워크플로우", "SDK 연동"], label: "도구" }
     ]
   );
