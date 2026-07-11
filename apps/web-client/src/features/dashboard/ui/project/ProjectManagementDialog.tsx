@@ -22,6 +22,10 @@ import {
   fetchDashboardProjects
 } from "../../api/dashboard-api.js";
 import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
+import {
+  clearProjectSetupProgress,
+  initializeProjectSetupProgress
+} from "../../model/project-setup-progress.js";
 
 type ProjectFormState = {
   domain: string;
@@ -55,18 +59,20 @@ export function ProjectManagementDialog({
     mutationFn: createDashboardProject,
     onSuccess: async (project) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      initializeProjectSetupProgress(project.project_id);
       setForm(emptyProjectForm);
       setPendingDeleteProjectId(null);
       setOpen(false);
       void navigate({
-        params: { projectId: project.project_id },
-        to: "/dashboard/$projectId"
+        params: { projectId: project.project_id, tabPath: "sdk" },
+        to: "/dashboard/$projectId/$tabPath"
       });
     }
   });
   const deleteProjectMutation = useMutation({
     mutationFn: deleteDashboardProject,
     onSuccess: async (_result, deletedProjectId) => {
+      clearProjectSetupProgress(deletedProjectId);
       const projectList = await fetchDashboardProjects();
       queryClient.setQueryData(dashboardProjectsQueryKey(), projectList);
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });

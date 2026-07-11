@@ -27,7 +27,7 @@ import {
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
+import { ChevronRight, Code2, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -49,6 +49,8 @@ import {
   dashboardPageQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
+import { OnboardingWorkspaceLayout } from "../ui/onboarding/OnboardingWorkspaceLayout.js";
+import { useProjectOnboarding } from "../ui/onboarding/ProjectOnboardingProvider.js";
 import { ProjectReturnIconLink, ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
@@ -66,6 +68,7 @@ export function DashboardShell({
   projectId: string;
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
+  const { isDashboardUnlocked, isTabAllowed } = useProjectOnboarding();
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
   const isFunnelTab = activeTab === "funnels";
   const isFullHeightTab = isCanvasTab || isFunnelTab;
@@ -89,6 +92,7 @@ export function DashboardShell({
               <SidebarGroupContent>
                 <DashboardNavigation
                   activeTab={activeTab}
+                  isTabAllowed={isTabAllowed}
                   items={group.items}
                   projectId={projectId}
                 />
@@ -128,10 +132,15 @@ export function DashboardShell({
                   : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
             }
           >
-            {children}
+            <OnboardingWorkspaceLayout activeTab={activeTab}>{children}</OnboardingWorkspaceLayout>
           </div>
         </main>
-        <MobileBottomNavigation activeTab={activeTab} projectId={projectId} />
+        <MobileBottomNavigation
+          activeTab={activeTab}
+          isDashboardUnlocked={isDashboardUnlocked}
+          isTabAllowed={isTabAllowed}
+          projectId={projectId}
+        />
       </SidebarInset>
     </SidebarProvider>
   );
@@ -139,9 +148,13 @@ export function DashboardShell({
 
 function MobileBottomNavigation({
   activeTab,
+  isDashboardUnlocked,
+  isTabAllowed,
   projectId
 }: {
   activeTab: DashboardTab;
+  isDashboardUnlocked: boolean;
+  isTabAllowed: (tab: DashboardTab) => boolean;
   projectId: string;
 }) {
   const { toggleSidebar } = useSidebar();
@@ -152,36 +165,73 @@ function MobileBottomNavigation({
     "promotions",
     "campaign-promotions",
     "promotion-metrics",
-    "segments",
-    "experiments"
+    "segments"
   ].includes(activeTab);
+
+  const primaryItems = isDashboardUnlocked
+    ? [
+        {
+          active: campaignIsActive,
+          allowed: true,
+          icon: <Megaphone aria-hidden="true" />,
+          label: "캠페인",
+          pathSegment: "campaigns"
+        },
+        {
+          active: activeTab === "experiments",
+          allowed: true,
+          icon: <Route aria-hidden="true" />,
+          label: "실험",
+          pathSegment: "experiments"
+        },
+        {
+          active: activeTab === "main",
+          allowed: true,
+          icon: <Home aria-hidden="true" />,
+          label: "통계",
+          pathSegment: "statistics"
+        }
+      ]
+    : [
+        {
+          active: activeTab === "sdk",
+          allowed: isTabAllowed("sdk"),
+          icon: <Code2 aria-hidden="true" />,
+          label: "SDK 연동",
+          pathSegment: "sdk"
+        },
+        {
+          active: activeTab === "funnels",
+          allowed: isTabAllowed("funnels"),
+          icon: <Route aria-hidden="true" />,
+          label: "사용자 여정",
+          pathSegment: "funnels"
+        },
+        {
+          active: activeTab === "campaigns",
+          allowed: isTabAllowed("campaigns"),
+          icon: <Megaphone aria-hidden="true" />,
+          label: "캠페인",
+          pathSegment: "campaigns"
+        }
+      ];
 
   return (
     <nav
       aria-label="모바일 주요 메뉴"
       className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
     >
-      <MobileNavigationLink
-        active={campaignIsActive}
-        icon={<Megaphone aria-hidden="true" />}
-        label="캠페인"
-        pathSegment="campaigns"
-        projectId={projectId}
-      />
-      <MobileNavigationLink
-        active={activeTab === "experiments"}
-        icon={<Route aria-hidden="true" />}
-        label="실험"
-        pathSegment="experiments"
-        projectId={projectId}
-      />
-      <MobileNavigationLink
-        active={activeTab === "main"}
-        icon={<Home aria-hidden="true" />}
-        label="통계"
-        pathSegment="statistics"
-        projectId={projectId}
-      />
+      {primaryItems.map((item) => (
+        <MobileNavigationLink
+          active={item.active}
+          allowed={item.allowed}
+          icon={item.icon}
+          key={item.pathSegment}
+          label={item.label}
+          pathSegment={item.pathSegment}
+          projectId={projectId}
+        />
+      ))}
       <Button
         aria-label="전체 메뉴 열기"
         className="h-16 rounded-none text-xs text-muted-foreground"
@@ -200,17 +250,40 @@ function MobileBottomNavigation({
 
 function MobileNavigationLink({
   active,
+  allowed,
   icon,
   label,
   pathSegment,
   projectId
 }: {
   active: boolean;
+  allowed: boolean;
   icon: ReactNode;
   label: string;
   pathSegment: string;
   projectId: string;
 }) {
+  const content = (
+    <>
+      <span className="grid place-items-center gap-1 [&_svg]:size-5">{icon}</span>
+      <span>{label}</span>
+    </>
+  );
+
+  if (!allowed) {
+    return (
+      <Button
+        aria-label={`${label} (아직 사용할 수 없음)`}
+        className="h-16 rounded-none text-xs text-muted-foreground"
+        disabled
+        type="button"
+        variant="ghost"
+      >
+        {content}
+      </Button>
+    );
+  }
+
   return (
     <Button
       asChild
@@ -226,8 +299,7 @@ function MobileNavigationLink({
         search={(current) => current}
         to="/dashboard/$projectId/$tabPath"
       >
-        <span className="grid place-items-center gap-1 [&_svg]:size-5">{icon}</span>
-        <span>{label}</span>
+        {content}
       </Link>
     </Button>
   );
@@ -235,10 +307,12 @@ function MobileNavigationLink({
 
 function DashboardNavigation({
   activeTab,
+  isTabAllowed,
   items,
   projectId
 }: {
   activeTab: DashboardTab;
+  isTabAllowed: (tab: DashboardTab) => boolean;
   items: DashboardNavTreeLinkItem[];
   projectId: string;
 }) {
@@ -247,6 +321,7 @@ function DashboardNavigation({
       {items.map((item) => (
         <DashboardNavigationLinkItem
           activeTab={activeTab}
+          isAllowed={isTabAllowed(item.value)}
           item={item}
           key={item.pathSegment}
           projectId={projectId}
@@ -258,14 +333,31 @@ function DashboardNavigation({
 
 function DashboardNavigationLinkItem({
   activeTab,
+  isAllowed,
   item,
   projectId
 }: {
   activeTab: DashboardTab;
+  isAllowed: boolean;
   item: DashboardNavTreeLinkItem;
   projectId: string;
 }) {
   const isActive = isSidebarNavigationItemActive(item.value, activeTab);
+
+  if (!isAllowed) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          aria-label={`${item.label} (아직 사용할 수 없음)`}
+          className="rounded-full text-sidebar-foreground/45"
+          disabled
+          tooltip={item.label}
+        >
+          <span>{item.label}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
 
   return (
     <SidebarMenuItem>
