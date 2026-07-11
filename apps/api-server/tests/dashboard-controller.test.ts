@@ -478,14 +478,14 @@ test("dashboard controller archives promotion scoped segment definition by promo
   assert.equal(response.status, "archived");
 });
 
-test("dashboard controller parses promotion analysis request before delegating", async () => {
+test("dashboard controller parses segment recommendation request before delegating", async () => {
   setRequiredEnv();
   const { DashboardController } =
     await import("../src/features/dashboard/controller/dashboard.controller.js");
   const writes: unknown[] = [];
   const controller = new DashboardController({
     ...emptyDashboardQuery(),
-    startPromotionAnalysis: async (projectId, promotionId, request) => {
+    recommendPromotionSegments: async (projectId, promotionId, request) => {
       writes.push({ projectId, promotionId, request });
       return {
         analysis_id: "analysis_promo_email_001",
@@ -495,10 +495,13 @@ test("dashboard controller parses promotion analysis request before delegating",
     }
   } as unknown as DashboardQueryService);
 
-  const response = await controller.startPromotionAnalysis("promo_email_001", "hotel-client-a", {
-    focus_segment_ids: null,
-    operator_instruction: "전환 가능성이 높은 세그먼트 추천"
-  });
+  const response = await controller.recommendPromotionSegments(
+    "promo_email_001",
+    "hotel-client-a",
+    {
+      operator_instruction: "전환 가능성이 높은 세그먼트 추천"
+    }
+  );
 
   assert.deepEqual(writes, [
     {
@@ -511,6 +514,45 @@ test("dashboard controller parses promotion analysis request before delegating",
   ]);
   assert.equal(response.analysis_id, "analysis_promo_email_001");
   assert.equal(response.status, "queued");
+});
+
+test("dashboard controller requires segment ids for explicit analysis", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    analyzePromotionSegments: async (projectId, promotionId, request) => {
+      writes.push({ projectId, promotionId, request });
+      return {
+        analysis_id: "analysis_promo_email_002",
+        promotion_id: promotionId,
+        status: "completed"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.analyzePromotionSegments("promo_email_001", "hotel-client-a", {
+    segment_ids: ["seg_failed_001"],
+    operator_instruction: null
+  });
+
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001",
+      request: {
+        segment_ids: ["seg_failed_001"],
+        operator_instruction: null
+      }
+    }
+  ]);
+  assert.equal(response.analysis_id, "analysis_promo_email_002");
+  await assert.rejects(
+    controller.analyzePromotionSegments("promo_email_001", "hotel-client-a", {}),
+    /segment_ids/
+  );
 });
 
 test("dashboard controller parses promotion generation request before delegating", async () => {
@@ -763,8 +805,11 @@ function emptyDashboardQuery(): DashboardQueryService {
     saveSegment: async () => {
       throw new Error("Unexpected saveSegment call.");
     },
-    startPromotionAnalysis: async () => {
-      throw new Error("Unexpected startPromotionAnalysis call.");
+    recommendPromotionSegments: async () => {
+      throw new Error("Unexpected recommendPromotionSegments call.");
+    },
+    analyzePromotionSegments: async () => {
+      throw new Error("Unexpected analyzePromotionSegments call.");
     },
     startPromotionGeneration: async () => {
       throw new Error("Unexpected startPromotionGeneration call.");

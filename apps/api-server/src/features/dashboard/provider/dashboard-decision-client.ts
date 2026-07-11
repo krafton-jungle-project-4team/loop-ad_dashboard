@@ -2,13 +2,14 @@ import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 import type {
   DashboardBuildPromotionRunAssignmentsResult,
+  DashboardAnalyzePromotionSegmentsRequest,
   DashboardCreateNextLoopRequest,
   DashboardCreateNextLoopResult,
   DashboardCreatePromotionRunRequest,
   DashboardCreatePromotionRunResult,
   DashboardEvaluatePromotionRunResult,
-  DashboardStartPromotionAnalysisRequest,
-  DashboardStartPromotionAnalysisResult,
+  DashboardPromotionAnalysisResult,
+  DashboardRecommendPromotionSegmentsRequest,
   DashboardStartPromotionGenerationRequest,
   DashboardStartPromotionGenerationResult
 } from "@loopad/shared";
@@ -118,12 +119,12 @@ const DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT = 10_000;
 
 @Injectable()
 export class DashboardDecisionClient {
-  startPromotionAnalysis(request: {
+  recommendPromotionSegments(request: {
     campaignId: string;
     projectId: string;
     promotionId: string;
-    request: DashboardStartPromotionAnalysisRequest;
-  }): Promise<DashboardStartPromotionAnalysisResult> {
+    request: DashboardRecommendPromotionSegmentsRequest;
+  }): Promise<DashboardPromotionAnalysisResult> {
     return requestDecisionApi({
       body: {
         project_id: request.projectId,
@@ -131,7 +132,27 @@ export class DashboardDecisionClient {
         promotion_id: request.promotionId,
         operator_instruction: request.request.operator_instruction ?? null
       },
-      path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/analysis`,
+      path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/segment-suggestions/recommend`,
+      request,
+      schema: decisionPromotionAnalysisResponseSchema
+    });
+  }
+
+  analyzePromotionSegments(request: {
+    campaignId: string;
+    projectId: string;
+    promotionId: string;
+    request: DashboardAnalyzePromotionSegmentsRequest;
+  }): Promise<DashboardPromotionAnalysisResult> {
+    return requestDecisionApi({
+      body: {
+        project_id: request.projectId,
+        campaign_id: request.campaignId,
+        promotion_id: request.promotionId,
+        segment_ids: request.request.segment_ids,
+        operator_instruction: request.request.operator_instruction ?? null
+      },
+      path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/analyses`,
       request,
       schema: decisionPromotionAnalysisResponseSchema
     });

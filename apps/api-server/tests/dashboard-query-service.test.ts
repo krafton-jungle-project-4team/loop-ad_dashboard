@@ -420,18 +420,26 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
     emptyFunnelReader(),
     emptySegmentQueryRepository(),
     {
-      startPromotionAnalysis: async (request) => {
+      recommendPromotionSegments: async (request) => {
         calls.push({ kind: "decision", request });
         return {
           analysis_id: "analysis_promo_email_001",
           promotion_id: request.promotionId,
           status: "queued"
         };
+      },
+      analyzePromotionSegments: async (request) => {
+        calls.push({ kind: "decision-analysis", request });
+        return {
+          analysis_id: "analysis_promo_email_002",
+          promotion_id: request.promotionId,
+          status: "completed"
+        };
       }
     } as unknown as DashboardDecisionClient
   );
 
-  const response = await service.startPromotionAnalysis("hotel-client-a", "promo_email_001", {
+  const response = await service.recommendPromotionSegments("hotel-client-a", "promo_email_001", {
     operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
   });
 
@@ -450,6 +458,37 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
         promotionId: "promo_email_001",
         request: {
           operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
+        }
+      }
+    }
+  ]);
+
+  calls.length = 0;
+  const analysisResponse = await service.analyzePromotionSegments(
+    "hotel-client-a",
+    "promo_email_001",
+    {
+      segment_ids: ["seg_failed_001"],
+      operator_instruction: null
+    }
+  );
+
+  assert.equal(analysisResponse.analysis_id, "analysis_promo_email_002");
+  assert.deepEqual(calls, [
+    {
+      kind: "read-promotion",
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001"
+    },
+    {
+      kind: "decision-analysis",
+      request: {
+        campaignId: "camp_summer_2026",
+        projectId: "hotel-client-a",
+        promotionId: "promo_email_001",
+        request: {
+          segment_ids: ["seg_failed_001"],
+          operator_instruction: null
         }
       }
     }
@@ -627,6 +666,46 @@ test("dashboard promotion generation retries when existing result is failed", as
   ]);
 });
 
+test("dashboard confirms accepted suggestions in DB without calling analysis", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const transactionHost = installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      confirmPromotionSegmentSuggestions: async (projectId, promotionId, request) => {
+        writes.push({ projectId, promotionId, request });
+        return {
+          promotion_id: promotionId,
+          confirmed_segment_count: 2,
+          status: "confirmed"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const result = await service.confirmPromotionSegmentSuggestions(
+    "hotel-client-a",
+    "promo_banner_001",
+    { confirmed_by: "operator-1" }
+  );
+
+  assert.equal(transactionHost.calls.length, 1);
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001",
+      request: { confirmed_by: "operator-1" }
+    }
+  ]);
+  assert.equal(result.confirmed_segment_count, 2);
+});
+
 test("dashboard reject content candidate runs inside transaction host", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -752,8 +831,11 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
 
 function emptyDecisionClient(): DashboardDecisionClient {
   return {
-    startPromotionAnalysis: async () => {
-      throw new Error("Unexpected startPromotionAnalysis call.");
+    recommendPromotionSegments: async () => {
+      throw new Error("Unexpected recommendPromotionSegments call.");
+    },
+    analyzePromotionSegments: async () => {
+      throw new Error("Unexpected analyzePromotionSegments call.");
     },
     startPromotionGeneration: async () => {
       throw new Error("Unexpected startPromotionGeneration call.");

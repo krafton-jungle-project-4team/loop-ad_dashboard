@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
   DashboardArchivePromotionScopedSegmentDefinitionResultSchema,
+  DashboardAnalyzePromotionSegmentsRequestSchema,
   DashboardApproveContentCandidateRequestSchema,
   DashboardApproveContentCandidateResultSchema,
   DashboardAttachSegmentRequestSchema,
@@ -39,6 +40,7 @@ import {
   DashboardProjectListSchema,
   DashboardProjectSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionAnalysisResultSchema,
   DashboardPromotionScopedSegmentDefinitionListSchema,
   DashboardPromotionScopedSegmentDefinitionSchema,
   DashboardPromotionSegmentSuggestionListSchema,
@@ -51,8 +53,7 @@ import {
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
-  DashboardStartPromotionAnalysisRequestSchema,
-  DashboardStartPromotionAnalysisResultSchema,
+  DashboardRecommendPromotionSegmentsRequestSchema,
   DashboardStartAdExperimentResultSchema,
   DashboardStartPromotionGenerationRequestSchema,
   DashboardStartPromotionGenerationResultSchema,
@@ -376,16 +377,29 @@ export class DashboardController {
     );
   }
 
-  @Post("promotions/:promotion_id/segment-suggestions/analyze")
-  async startPromotionAnalysis(
+  @Post("promotions/:promotion_id/segment-suggestions/recommend")
+  async recommendPromotionSegments(
     @Param("promotion_id") promotionId: string,
     @Query("project_id") projectId: string | undefined,
     @Body() body: unknown
   ) {
     const requiredProjectId = requireProjectId(projectId);
-    const request = DashboardStartPromotionAnalysisRequestSchema.parse(body ?? {});
-    return DashboardStartPromotionAnalysisResultSchema.parse(
-      await this.dashboardQuery.startPromotionAnalysis(requiredProjectId, promotionId, request)
+    const request = DashboardRecommendPromotionSegmentsRequestSchema.parse(body ?? {});
+    return DashboardPromotionAnalysisResultSchema.parse(
+      await this.dashboardQuery.recommendPromotionSegments(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Post("promotions/:promotion_id/analyses")
+  async analyzePromotionSegments(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardAnalyzePromotionSegmentsRequestSchema.parse(body ?? {});
+    return DashboardPromotionAnalysisResultSchema.parse(
+      await this.dashboardQuery.analyzePromotionSegments(requiredProjectId, promotionId, request)
     );
   }
 
