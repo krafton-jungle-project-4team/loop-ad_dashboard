@@ -1,0 +1,701 @@
+import type {
+  DashboardCampaignPromotion,
+  DashboardCampaignSummary,
+  DashboardMain,
+  DashboardUpdatePromotionRequest
+} from "@loopad/shared";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@loopad/ui/shadcn/alert-dialog";
+import { Button } from "@loopad/ui/shadcn/button";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import {
+  createDashboardCampaign,
+  createDashboardPromotion,
+  deleteDashboardCampaign,
+  deleteDashboardPromotion,
+  fetchDashboardCampaignDetail,
+  updateDashboardCampaign,
+  updateDashboardPromotion
+} from "../../../../api/dashboard-api.js";
+import { formatInteger, formatPercent } from "../../../../model/dashboard-format.js";
+import {
+  formatActionLabel,
+  formatChannelLabel,
+  formatMetricLabel,
+  formatStatusLabel
+} from "../../../../model/dashboard-labels.js";
+import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
+import { dashboardCampaignDetailQueryKey } from "../../../../model/dashboard-query-keys.js";
+import type { DashboardQuery } from "../../../../model/dashboard-types.js";
+import { EmptyState } from "../../../shared/EmptyState.js";
+import { WorkspacePageHeader, WorkspaceViewTabs } from "../../../shared/WorkspaceViewTabs.js";
+import { CampaignFormDialog } from "../components/CampaignFormDialog.js";
+import { PromotionWorkspace } from "../promotion/PromotionComponent.js";
+import {
+  PromotionAddDialog,
+  PromotionEditDialog
+} from "../promotion/components/PromotionDialogs.js";
+import {
+  mutationErrorMessage,
+  promotionCreateFormToRequest,
+  statusBadgeVariant,
+  uniquePromotionsById,
+  type PromotionCreateFormState
+} from "../promotion/promotionUtils.js";
+import { EntityCardGrid } from "./EntityCardGrid.js";
+import { HierarchyBreadcrumbs } from "./HierarchyBreadcrumbs.js";
+import { SelectionSummary } from "./SelectionSummary.js";
+import type {
+  CampaignWorkspaceEntityCard,
+  CampaignWorkspaceHierarchyItem
+} from "./campaign-workspace-types.js";
+
+type CampaignFormDialogState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
+
+type CampaignCard = CampaignWorkspaceEntityCard & {
+  campaign: DashboardCampaignSummary;
+  kind: "campaign";
+};
+
+type PromotionCard = CampaignWorkspaceEntityCard & {
+  kind: "promotion";
+  promotion: DashboardCampaignPromotion;
+};
+
+const segmentViews = [
+  { label: "세그먼트 관리", value: "manage" },
+  { label: "세그먼트 생성", value: "recommendations" },
+  { label: "광고 소재 · 실험", value: "experiments" }
+] as const;
+
+export function CampaignWorkspacePage({
+  data,
+  query
+}: {
+  data: DashboardMain;
+  query: DashboardQuery;
+}) {
+  const queryClient = useQueryClient();
+  const [, setDashboardQueryState] = useDashboardQueryState();
+  const [campaignFormDialog, setCampaignFormDialog] = useState<CampaignFormDialogState>(null);
+  const [isPromotionAddDialogOpen, setIsPromotionAddDialogOpen] = useState(false);
+  const [editingPromotionId, setEditingPromotionId] = useState<string | null>(null);
+  const [deletingPromotionId, setDeletingPromotionId] = useState<string | null>(null);
+  const selectedCampaign = data.campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
+  const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
+  const campaignDetail = useQuery({
+    enabled: Boolean(selectedCampaignId),
+    queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
+    queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+  });
+  const promotions = uniquePromotionsById(campaignDetail.data?.promotions ?? []);
+  const selectedPromotion = promotions.find(
+    (promotion) => promotion.promotion_id === query.selectedPromotionId
+  );
+  const selectedSegment = campaignDetail.data?.segments.find(
+    (segment) =>
+      segment.promotion_id === selectedPromotion?.promotion_id &&
+      segment.segment_id === query.selectedSegmentId
+  );
+  const editingCampaign =
+    campaignFormDialog?.mode === "edit"
+      ? data.campaigns.find((campaign) => campaign.campaign_id === campaignFormDialog.campaignId)
+      : undefined;
+  const editingPromotion = promotions.find(
+    (promotion) => promotion.promotion_id === editingPromotionId
+  );
+  const deletingPromotion = promotions.find(
+    (promotion) => promotion.promotion_id === deletingPromotionId
+  );
+
+  const createCampaignMutation = useMutation({
+    mutationFn: (requestBody: Parameters<typeof createDashboardCampaign>[1]) =>
+      createDashboardCampaign(query, requestBody),
+    onSuccess: async (campaign) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await setDashboardQueryState({
+        campaignView: "overview",
+        promotionView: "manage",
+        segmentView: "manage",
+        selectedCampaignId: campaign.campaign_id,
+        selectedPromotionId: "",
+        selectedSegmentId: ""
+      });
+      setCampaignFormDialog(null);
+    }
+  });
+  const updateCampaignMutation = useMutation({
+    mutationFn: ({
+      campaignId,
+      requestBody
+    }: {
+      campaignId: string;
+      requestBody: Parameters<typeof updateDashboardCampaign>[2];
+    }) => updateDashboardCampaign(query, campaignId, requestBody),
+    onSuccess: async (campaign) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, campaign.campaign_id)
+      });
+      setCampaignFormDialog(null);
+    }
+  });
+  const deleteCampaignMutation = useMutation({
+    mutationFn: (campaignId: string) => deleteDashboardCampaign(query, campaignId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (query.selectedCampaignId === result.campaign_id) {
+        await setDashboardQueryState({
+          campaignView: "manage",
+          promotionView: "manage",
+          segmentView: "manage",
+          selectedCampaignId: "",
+          selectedPromotionId: "",
+          selectedSegmentId: ""
+        });
+      }
+      setCampaignFormDialog(null);
+    }
+  });
+  const createPromotionMutation = useMutation({
+    mutationFn: (form: PromotionCreateFormState) =>
+      createDashboardPromotion(query, selectedCampaignId, promotionCreateFormToRequest(form)),
+    onSuccess: async (promotion) => {
+      await invalidateCampaignWorkspace(queryClient, query, selectedCampaignId);
+      await setDashboardQueryState({
+        promotionView: "overview",
+        segmentView: "recommendations",
+        selectedCampaignId,
+        selectedPromotionId: promotion.promotion_id,
+        selectedSegmentId: ""
+      });
+      setIsPromotionAddDialogOpen(false);
+    }
+  });
+  const updatePromotionMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      requestBody
+    }: {
+      promotionId: string;
+      requestBody: DashboardUpdatePromotionRequest;
+    }) => updateDashboardPromotion(query, promotionId, requestBody),
+    onSuccess: async () => {
+      await invalidateCampaignWorkspace(queryClient, query, selectedCampaignId);
+      setEditingPromotionId(null);
+    }
+  });
+  const deletePromotionMutation = useMutation({
+    mutationFn: (promotionId: string) => deleteDashboardPromotion(query, promotionId),
+    onSuccess: async (result) => {
+      await invalidateCampaignWorkspace(queryClient, query, selectedCampaignId);
+      if (query.selectedPromotionId === result.promotion_id) {
+        await setDashboardQueryState({
+          promotionView: "manage",
+          segmentView: "manage",
+          selectedPromotionId: "",
+          selectedSegmentId: ""
+        });
+      }
+      setDeletingPromotionId(null);
+    }
+  });
+
+  useEffect(() => {
+    if (!query.createCampaign) {
+      return;
+    }
+
+    createCampaignMutation.reset();
+    setCampaignFormDialog({ mode: "create" });
+    void setDashboardQueryState({ createCampaign: false }, { history: "replace" });
+  }, [createCampaignMutation, query.createCampaign, setDashboardQueryState]);
+
+  useEffect(() => {
+    if (!query.createPromotion || !selectedCampaign) {
+      return;
+    }
+
+    createPromotionMutation.reset();
+    setIsPromotionAddDialogOpen(true);
+    void setDashboardQueryState({ createPromotion: false }, { history: "replace" });
+  }, [createPromotionMutation, query.createPromotion, selectedCampaign, setDashboardQueryState]);
+
+  useEffect(() => {
+    if (!query.selectedCampaignId || selectedCampaign) {
+      return;
+    }
+
+    void setDashboardQueryState(
+      {
+        selectedCampaignId: "",
+        selectedPromotionId: "",
+        selectedSegmentId: ""
+      },
+      { history: "replace" }
+    );
+  }, [query.selectedCampaignId, selectedCampaign, setDashboardQueryState]);
+
+  useEffect(() => {
+    if (!campaignDetail.data || !query.selectedPromotionId || selectedPromotion) {
+      return;
+    }
+
+    void setDashboardQueryState(
+      { selectedPromotionId: "", selectedSegmentId: "" },
+      { history: "replace" }
+    );
+  }, [campaignDetail.data, query.selectedPromotionId, selectedPromotion, setDashboardQueryState]);
+
+  const campaignCards = data.campaigns.map(toCampaignCard);
+  const promotionCards = promotions.map(toPromotionCard);
+  const hierarchyItems = buildHierarchyItems(selectedCampaign, selectedPromotion, selectedSegment);
+  const promotionMutationError =
+    createPromotionMutation.error ?? updatePromotionMutation.error ?? deletePromotionMutation.error;
+
+  return (
+    <div className="grid gap-6">
+      <WorkspacePageHeader
+        description="캠페인을 선택하고 프로모션, 세그먼트, 광고 소재와 실험까지 한 흐름에서 운영합니다."
+        eyebrow="Campaign workspace"
+        title="캠페인"
+      />
+      <HierarchyBreadcrumbs
+        items={hierarchyItems}
+        onItemSelect={(item) => {
+          if (item.kind === "campaign") {
+            void setDashboardQueryState({
+              promotionView: "manage",
+              segmentView: "manage",
+              selectedPromotionId: "",
+              selectedSegmentId: ""
+            });
+            return;
+          }
+          if (item.kind === "promotion") {
+            void setDashboardQueryState({
+              segmentView: "manage",
+              selectedSegmentId: ""
+            });
+          }
+        }}
+        onRootSelect={
+          selectedCampaign
+            ? () => {
+                void setDashboardQueryState({
+                  campaignView: "manage",
+                  promotionView: "manage",
+                  segmentView: "manage",
+                  selectedCampaignId: "",
+                  selectedPromotionId: "",
+                  selectedSegmentId: ""
+                });
+              }
+            : undefined
+        }
+      />
+
+      {promotionMutationError ? (
+        <Alert variant="destructive">
+          <AlertTitle>프로모션 작업을 완료하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(promotionMutationError)}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {!selectedCampaign ? (
+        <section className="grid gap-5">
+          <div className="grid gap-1">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              캠페인을 선택해주세요
+            </h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              캠페인 카드를 열면 하위 프로모션과 운영 성과를 이어서 확인할 수 있습니다.
+            </p>
+          </div>
+          <EntityCardGrid
+            actions={(card) => [
+              {
+                id: "edit",
+                label: "캠페인 수정",
+                onSelect: () => {
+                  updateCampaignMutation.reset();
+                  deleteCampaignMutation.reset();
+                  setCampaignFormDialog({ campaignId: card.id, mode: "edit" });
+                }
+              }
+            ]}
+            addAction={{
+              description: "새 캠페인을 만들고 프로모션 설정을 시작합니다.",
+              label: "새 캠페인",
+              onSelect: () => {
+                createCampaignMutation.reset();
+                setCampaignFormDialog({ mode: "create" });
+              }
+            }}
+            ariaLabel="캠페인 목록"
+            items={campaignCards}
+            onSelect={(card) => {
+              void setDashboardQueryState({
+                campaignView: "overview",
+                promotionView: "manage",
+                segmentView: "manage",
+                selectedCampaignId: card.id,
+                selectedPromotionId: "",
+                selectedSegmentId: ""
+              });
+            }}
+          />
+        </section>
+      ) : null}
+
+      {selectedCampaign && campaignDetail.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>캠페인 데이터를 불러오지 못했습니다</AlertTitle>
+          <AlertDescription>
+            {campaignDetail.error?.message ?? "API 요청에 실패했습니다."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {selectedCampaign && campaignDetail.isLoading ? (
+        <EmptyState message="캠페인 데이터를 불러오는 중입니다." />
+      ) : null}
+
+      {selectedCampaign && campaignDetail.data ? (
+        <>
+          <SelectionSummary
+            action={
+              <Button
+                onClick={() => {
+                  updateCampaignMutation.reset();
+                  deleteCampaignMutation.reset();
+                  setCampaignFormDialog({
+                    campaignId: selectedCampaign.campaign_id,
+                    mode: "edit"
+                  });
+                }}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                캠페인 수정
+              </Button>
+            }
+            metrics={campaignSummaryMetrics(
+              selectedCampaign,
+              campaignDetail.data.realtime_metrics.total_event_count
+            )}
+            selection={{
+              description: selectedCampaign.objective ?? "목표가 아직 등록되지 않았습니다.",
+              details: [
+                {
+                  id: "period",
+                  label: "운영 기간",
+                  value: formatCampaignPeriod(selectedCampaign)
+                },
+                {
+                  id: "metric",
+                  label: "주요 지표",
+                  value: formatMetricLabel(selectedCampaign.primary_metric)
+                },
+                {
+                  id: "next-action",
+                  label: "다음 작업",
+                  value: formatActionLabel(selectedCampaign.next_action)
+                }
+              ],
+              kind: "campaign",
+              status: {
+                label: formatStatusLabel(selectedCampaign.status),
+                variant: statusBadgeVariant(selectedCampaign.status)
+              },
+              title: selectedCampaign.campaign_name
+            }}
+          />
+
+          <section className="grid gap-5">
+            <div className="grid gap-1">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">프로모션</h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
+              </p>
+            </div>
+            <EntityCardGrid
+              actions={(card) => [
+                {
+                  id: "edit",
+                  label: "프로모션 수정",
+                  onSelect: () => {
+                    updatePromotionMutation.reset();
+                    setEditingPromotionId(card.id);
+                  }
+                },
+                {
+                  id: "delete",
+                  label: "프로모션 삭제",
+                  onSelect: () => {
+                    deletePromotionMutation.reset();
+                    setDeletingPromotionId(card.id);
+                  },
+                  tone: "destructive"
+                }
+              ]}
+              addAction={{
+                description: "현재 캠페인 아래에 새 프로모션을 추가합니다.",
+                label: "새 프로모션",
+                onSelect: () => {
+                  createPromotionMutation.reset();
+                  setIsPromotionAddDialogOpen(true);
+                }
+              }}
+              ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
+              items={promotionCards}
+              onSelect={(card) => {
+                void setDashboardQueryState({
+                  promotionView: "overview",
+                  segmentView: "recommendations",
+                  selectedCampaignId,
+                  selectedPromotionId: card.id,
+                  selectedSegmentId: ""
+                });
+              }}
+              selectedId={selectedPromotion?.promotion_id}
+            />
+          </section>
+
+          {selectedPromotion ? (
+            <section className="grid gap-5 border-t pt-6">
+              <div className="grid gap-1">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                  {selectedPromotion.marketing_theme} 운영
+                </h2>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  기존 세그먼트 추천·분석, 광고 소재 생성·승인, 실험 실행 흐름을 사용합니다.
+                </p>
+              </div>
+              <WorkspaceViewTabs
+                ariaLabel="프로모션 하위 작업 탭"
+                items={segmentViews}
+                queryKey="segmentView"
+                value={query.segmentView}
+              />
+              <PromotionWorkspace data={data} mode="segment" query={query} />
+            </section>
+          ) : null}
+        </>
+      ) : null}
+
+      <CampaignFormDialog
+        campaign={editingCampaign}
+        createError={createCampaignMutation.error}
+        createIsError={createCampaignMutation.isError}
+        createIsPending={createCampaignMutation.isPending}
+        deleteError={deleteCampaignMutation.error}
+        deleteIsError={deleteCampaignMutation.isError}
+        deleteIsPending={deleteCampaignMutation.isPending}
+        mode={campaignFormDialog?.mode ?? "create"}
+        onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
+        onDelete={(campaignId) => deleteCampaignMutation.mutate(campaignId)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCampaignFormDialog(null);
+          }
+        }}
+        onUpdate={(campaignId, requestBody) =>
+          updateCampaignMutation.mutate({ campaignId, requestBody })
+        }
+        open={Boolean(campaignFormDialog)}
+        updateError={updateCampaignMutation.error}
+        updateIsError={updateCampaignMutation.isError}
+        updateIsPending={updateCampaignMutation.isPending}
+      />
+      <PromotionAddDialog
+        createIsPending={createPromotionMutation.isPending}
+        onCreate={(form) => createPromotionMutation.mutate(form)}
+        onOpenChange={setIsPromotionAddDialogOpen}
+        open={isPromotionAddDialogOpen}
+      />
+      <PromotionEditDialog
+        isPending={updatePromotionMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingPromotionId(null);
+          }
+        }}
+        onUpdate={(requestBody) => {
+          if (editingPromotionId) {
+            updatePromotionMutation.mutate({
+              promotionId: editingPromotionId,
+              requestBody
+            });
+          }
+        }}
+        open={Boolean(editingPromotionId)}
+        promotion={editingPromotion}
+      />
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeletingPromotionId(null);
+          }
+        }}
+        open={Boolean(deletingPromotionId)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>프로모션을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingPromotion?.marketing_theme ?? "선택한 프로모션"}이 목록에서 제거됩니다.
+              연결된 세그먼트, 광고 소재, 실행과 실험도 중지 또는 보관되며 이 작업은 되돌릴 수
+              없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!deletingPromotionId || deletePromotionMutation.isPending}
+              onClick={() => {
+                if (deletingPromotionId) {
+                  deletePromotionMutation.mutate(deletingPromotionId);
+                }
+              }}
+              variant="destructive"
+            >
+              {deletePromotionMutation.isPending ? "삭제 중" : "프로모션 삭제"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function toCampaignCard(campaign: DashboardCampaignSummary): CampaignCard {
+  return {
+    campaign,
+    description: campaign.objective ?? "목표 미등록",
+    id: campaign.campaign_id,
+    kind: "campaign",
+    metrics: [
+      { id: "promotions", label: "프로모션", value: formatInteger(campaign.promotion_count) },
+      { id: "segments", label: "세그먼트", value: formatInteger(campaign.segment_count) },
+      {
+        id: "experiments",
+        label: "광고 실험",
+        value: formatInteger(campaign.ad_experiment_count)
+      },
+      {
+        id: "achievement",
+        label: "목표 달성률",
+        value:
+          campaign.latest_goal_achievement_rate === null
+            ? "-"
+            : formatPercent(campaign.latest_goal_achievement_rate)
+      }
+    ],
+    status: {
+      label: formatStatusLabel(campaign.status),
+      variant: statusBadgeVariant(campaign.status)
+    },
+    title: campaign.campaign_name
+  };
+}
+
+function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
+  return {
+    description: promotion.message_brief ?? formatChannelLabel(promotion.channel),
+    id: promotion.promotion_id,
+    kind: "promotion",
+    metrics: [
+      { id: "channel", label: "채널", value: formatChannelLabel(promotion.channel) },
+      {
+        id: "goal",
+        label: "목표 지표",
+        value: formatMetricLabel(promotion.goal_metric)
+      },
+      {
+        id: "segments",
+        label: "세그먼트",
+        value: formatInteger(promotion.target_segment_count)
+      },
+      {
+        id: "experiments",
+        label: "광고 실험",
+        value: formatInteger(promotion.ad_experiment_count)
+      }
+    ],
+    promotion,
+    status: {
+      label: formatStatusLabel(promotion.status),
+      variant: statusBadgeVariant(promotion.status)
+    },
+    title: promotion.marketing_theme
+  };
+}
+
+function campaignSummaryMetrics(campaign: DashboardCampaignSummary, realtimeEventCount: number) {
+  return [
+    { id: "promotions", label: "프로모션", value: formatInteger(campaign.promotion_count) },
+    { id: "segments", label: "세그먼트", value: formatInteger(campaign.segment_count) },
+    {
+      id: "experiments",
+      label: "광고 실험",
+      value: formatInteger(campaign.ad_experiment_count)
+    },
+    { id: "events", label: "실시간 이벤트", value: formatInteger(realtimeEventCount) }
+  ];
+}
+
+function buildHierarchyItems(
+  campaign: DashboardCampaignSummary | undefined,
+  promotion: DashboardCampaignPromotion | undefined,
+  segment: { segment_id: string; segment_name: string } | undefined
+): CampaignWorkspaceHierarchyItem[] {
+  if (!campaign) {
+    return [];
+  }
+
+  const items: CampaignWorkspaceHierarchyItem[] = [
+    { id: campaign.campaign_id, kind: "campaign", label: campaign.campaign_name }
+  ];
+  if (promotion) {
+    items.push({
+      id: promotion.promotion_id,
+      kind: "promotion",
+      label: promotion.marketing_theme
+    });
+  }
+  if (segment) {
+    items.push({ id: segment.segment_id, kind: "segment", label: segment.segment_name });
+  }
+  return items;
+}
+
+function formatCampaignPeriod(campaign: DashboardCampaignSummary) {
+  if (!campaign.start_date && !campaign.end_date) {
+    return "미정";
+  }
+  return `${campaign.start_date ?? "미정"} ~ ${campaign.end_date ?? "미정"}`;
+}
+
+async function invalidateCampaignWorkspace(
+  queryClient: ReturnType<typeof useQueryClient>,
+  query: DashboardQuery,
+  campaignId: string
+) {
+  await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  await queryClient.invalidateQueries({
+    queryKey: dashboardCampaignDetailQueryKey(query.projectId, campaignId)
+  });
+}
