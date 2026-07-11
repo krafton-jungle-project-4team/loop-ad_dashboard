@@ -6,7 +6,14 @@ import {
   type DashboardFunnelMetricStep,
   type DashboardFunnelPreviewRequest
 } from "@loopad/shared";
-import { Layer, Rectangle, Sankey, type SankeyNodeProps, useChartWidth } from "@loopad/ui/charts";
+import {
+  Layer,
+  Rectangle,
+  Sankey,
+  type SankeyLinkProps,
+  type SankeyNodeProps,
+  useChartWidth
+} from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
   AlertDialog,
@@ -728,7 +735,7 @@ function FunnelMetricChart({ steps }: { steps: DashboardFunnelMetricStep[] }) {
         <Sankey
           align="left"
           data={data}
-          link={{ stroke: "var(--color-throughput)", strokeOpacity: 0.24 }}
+          link={FunnelSankeyLink}
           margin={{ bottom: 24, left: 20, right: 132, top: 24 }}
           node={FunnelSankeyNode}
           nodePadding={28}
@@ -761,26 +768,31 @@ function FunnelMetricChart({ steps }: { steps: DashboardFunnelMetricStep[] }) {
 function FunnelSankeyNode({ height, payload, width, x, y }: SankeyNodeProps) {
   const chartWidth = useChartWidth();
   const node = payload as typeof payload & FunnelSankeyNode;
+  const isEmpty = node.count === 0;
   const fill =
     node.kind === "dropoff"
       ? "var(--color-dropoff)"
       : node.kind === "completion"
         ? "var(--color-completion)"
         : "var(--color-throughput)";
+  const nodeHeight = isEmpty ? 8 : Math.max(height, 4);
+  const nodeY = isEmpty ? 8 : y;
   const labelX = x + width + 8;
-  const labelY = y + Math.max(height, 4) / 2;
+  const labelY = nodeY + nodeHeight / 2;
 
   return (
     <Layer>
       <title>{`${node.name}: ${node.count.toLocaleString()}명`}</title>
       <Rectangle
         fill={fill}
-        fillOpacity={node.kind === "dropoff" ? 0.58 : 0.92}
-        height={Math.max(height, 4)}
+        fillOpacity={isEmpty ? 0.12 : node.kind === "dropoff" ? 0.58 : 0.92}
+        height={nodeHeight}
         radius={[4, 4, 4, 4]}
+        stroke={isEmpty ? fill : undefined}
+        strokeDasharray={isEmpty ? "3 2" : undefined}
         width={width}
         x={x}
-        y={y}
+        y={nodeY}
       />
       <text fill="var(--foreground)" fontSize={12} fontWeight={600} x={labelX} y={labelY - 3}>
         {truncateSankeyLabel(node.name, chartWidth)}
@@ -789,6 +801,36 @@ function FunnelSankeyNode({ height, payload, width, x, y }: SankeyNodeProps) {
         {node.count.toLocaleString()}명
       </text>
     </Layer>
+  );
+}
+
+function FunnelSankeyLink({
+  linkWidth,
+  payload,
+  sourceControlX,
+  sourceX,
+  sourceY,
+  targetControlX,
+  targetX,
+  targetY
+}: SankeyLinkProps) {
+  const isEmpty = payload.value === 0;
+  const emptyNodeCenterY = 12;
+  const renderedSourceY = payload.source.value === 0 ? emptyNodeCenterY : sourceY;
+  const renderedTargetY = payload.target.value === 0 ? emptyNodeCenterY : targetY;
+
+  return (
+    <path
+      d={`M${sourceX},${renderedSourceY} C${sourceControlX},${renderedSourceY} ${targetControlX},${renderedTargetY} ${targetX},${renderedTargetY}`}
+      fill="none"
+      stroke="var(--color-throughput)"
+      strokeDasharray={isEmpty ? "5 5" : undefined}
+      strokeLinecap="round"
+      strokeOpacity={isEmpty ? 0.45 : 0.24}
+      strokeWidth={isEmpty ? 1.5 : Math.max(linkWidth, 1.5)}
+    >
+      <title>{`${payload.source.name} → ${payload.target.name}: ${payload.value.toLocaleString()}명`}</title>
+    </path>
   );
 }
 
