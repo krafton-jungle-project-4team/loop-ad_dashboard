@@ -9,11 +9,18 @@ import {
   useState,
   type PropsWithChildren
 } from "react";
-import { fetchDashboardFunnelList, fetchDashboardPageResource } from "../../api/dashboard-api.js";
+import {
+  fetchDashboardCampaignDetail,
+  fetchDashboardFunnelList,
+  fetchDashboardPageResource,
+  fetchDashboardSegmentDetail
+} from "../../api/dashboard-api.js";
 import { normalizeDashboardQuery, useDashboardQueryState } from "../../model/dashboard-query.js";
 import {
+  dashboardCampaignDetailQueryKey,
   dashboardFunnelListQueryKey,
-  dashboardPageQueryKey
+  dashboardPageQueryKey,
+  dashboardSegmentDetailQueryKey
 } from "../../model/dashboard-query-keys.js";
 import {
   completeProjectFunnelSetup,
@@ -113,14 +120,62 @@ export function ProjectOnboardingProvider({
     progress,
     runningExperimentCount
   });
+  const selectedCampaign = mainData?.campaigns.find(
+    (campaign) => campaign.campaign_id === query.selectedCampaignId
+  );
+  const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
+  const campaignDetailQuery = useQuery({
+    enabled: stageResolution.stage === "campaign" && Boolean(selectedCampaignId),
+    queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
+    queryKey: dashboardCampaignDetailQueryKey(projectId, selectedCampaignId)
+  });
+  const selectedPromotion = campaignDetailQuery.data?.promotions.find(
+    (promotion) => promotion.promotion_id === query.selectedPromotionId
+  );
+  const selectedPromotionId = selectedPromotion?.promotion_id ?? "";
+  const selectedSegment = campaignDetailQuery.data?.segments.find(
+    (segment) =>
+      segment.promotion_id === selectedPromotionId && segment.segment_id === query.selectedSegmentId
+  );
+  const selectedSegmentId = selectedSegment?.segment_id ?? "";
+  const segmentDetailQuery = useQuery({
+    enabled:
+      stageResolution.stage === "campaign" &&
+      Boolean(selectedPromotionId) &&
+      Boolean(selectedSegmentId),
+    queryFn: ({ signal }) =>
+      fetchDashboardSegmentDetail(query, selectedPromotionId, selectedSegmentId, signal),
+    queryKey: dashboardSegmentDetailQueryKey(projectId, selectedPromotionId, selectedSegmentId)
+  });
+  const hasAnalyzedSegment =
+    Boolean(selectedSegment?.analysis_id.trim()) && selectedSegment?.status !== "stopped";
+  const hasApprovedCreative =
+    segmentDetailQuery.data?.content_candidates.some((candidate) =>
+      ["active", "approved"].includes(candidate.status)
+    ) ?? false;
   const allowedTabs = allowedDashboardTabs(stageResolution.stage);
   const setupSteps = useMemo(
     () => createSetupOnboardingSteps(stageResolution.stage),
     [stageResolution.stage]
   );
   const campaignSteps = useMemo(
-    () => createCampaignOnboardingSteps(stageResolution.stage),
-    [stageResolution.stage]
+    () =>
+      createCampaignOnboardingSteps({
+        hasAnalyzedSegment,
+        hasApprovedCreative,
+        hasCampaign: Boolean(selectedCampaign),
+        hasPromotion: Boolean(selectedPromotion),
+        hasRunningExperiment: runningExperimentCount > 0,
+        stage: stageResolution.stage
+      }),
+    [
+      hasAnalyzedSegment,
+      hasApprovedCreative,
+      runningExperimentCount,
+      selectedCampaign,
+      selectedPromotion,
+      stageResolution.stage
+    ]
   );
   const completeSdk = useCallback(() => {
     const nextProgress = completeProjectSdkSetup(projectId);
@@ -140,7 +195,11 @@ export function ProjectOnboardingProvider({
       campaignSteps,
       completeFunnel,
       completeSdk,
-      error: mainQuery.error ?? funnelListQuery.error,
+      error:
+        mainQuery.error ??
+        funnelListQuery.error ??
+        campaignDetailQuery.error ??
+        segmentDetailQuery.error,
       isDashboardUnlocked: stageResolution.isDashboardUnlocked,
       isInitialSetupComplete: stageResolution.isInitialSetupComplete,
       isLoading:
@@ -161,6 +220,7 @@ export function ProjectOnboardingProvider({
     [
       allowedTabs,
       campaignSteps,
+      campaignDetailQuery.error,
       completeFunnel,
       completeSdk,
       funnelListQuery.error,
@@ -175,6 +235,7 @@ export function ProjectOnboardingProvider({
       query,
       requiredPath,
       runningExperimentCount,
+      segmentDetailQuery.error,
       setupSteps,
       stageResolution.isDashboardUnlocked,
       stageResolution.isInitialSetupComplete,

@@ -36,18 +36,88 @@ test("setup steps mark only the next required initial setup step as current", ()
 });
 
 test("campaign steps open at campaign creation and complete after the first running experiment", () => {
-  const campaignSteps = createCampaignOnboardingSteps("campaign");
-  assert.equal(campaignSteps[0]?.state, "current");
+  const emptyProgress = {
+    hasAnalyzedSegment: false,
+    hasApprovedCreative: false,
+    hasCampaign: false,
+    hasPromotion: false,
+    hasRunningExperiment: false,
+    stage: "campaign" as const
+  };
+
+  assert.deepEqual(states(createCampaignOnboardingSteps(emptyProgress)), [
+    "current",
+    "locked",
+    "locked",
+    "locked",
+    "locked"
+  ]);
+  assert.deepEqual(states(createCampaignOnboardingSteps({ ...emptyProgress, hasCampaign: true })), [
+    "complete",
+    "current",
+    "locked",
+    "locked",
+    "locked"
+  ]);
+  assert.deepEqual(
+    states(
+      createCampaignOnboardingSteps({
+        ...emptyProgress,
+        hasCampaign: true,
+        hasPromotion: true
+      })
+    ),
+    ["complete", "complete", "current", "locked", "locked"]
+  );
+  assert.deepEqual(
+    states(
+      createCampaignOnboardingSteps({
+        ...emptyProgress,
+        hasAnalyzedSegment: true,
+        hasCampaign: true,
+        hasPromotion: true
+      })
+    ),
+    ["complete", "complete", "complete", "current", "locked"]
+  );
+
+  const approvedButNotRunning = {
+    ...emptyProgress,
+    hasAnalyzedSegment: true,
+    hasApprovedCreative: true,
+    hasCampaign: true,
+    hasPromotion: true
+  };
+  assert.deepEqual(states(createCampaignOnboardingSteps(approvedButNotRunning)), [
+    "complete",
+    "complete",
+    "complete",
+    "complete",
+    "current"
+  ]);
+  assert.deepEqual(
+    states(
+      createCampaignOnboardingSteps({
+        ...approvedButNotRunning,
+        hasRunningExperiment: true
+      })
+    ),
+    ["complete", "complete", "complete", "complete", "complete"]
+  );
   assert.equal(
-    campaignSteps.slice(1).every((step) => step.state === "locked"),
+    createCampaignOnboardingSteps({ ...emptyProgress, stage: "sdk" }).every(
+      (step) => step.state === "locked"
+    ),
     true
   );
   assert.equal(
-    createCampaignOnboardingSteps("sdk").every((step) => step.state === "locked"),
-    true
-  );
-  assert.equal(
-    createCampaignOnboardingSteps("complete").every((step) => step.state === "complete"),
+    createCampaignOnboardingSteps({ ...emptyProgress, stage: "complete" }).every(
+      (step) => step.state === "complete"
+    ),
     true
   );
 });
+
+function states(steps: ReturnType<typeof createCampaignOnboardingSteps>) {
+  return steps.map((step) => step.state);
+}

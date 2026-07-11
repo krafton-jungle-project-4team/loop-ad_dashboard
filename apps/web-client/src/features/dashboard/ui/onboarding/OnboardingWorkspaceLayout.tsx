@@ -2,7 +2,8 @@ import { Button } from "@loopad/ui/shadcn/button";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useDashboardQueryState } from "../../model/dashboard-query.js";
 import type { DashboardTab } from "../../model/dashboard-types.js";
 import { OnboardingStepper, type OnboardingStep } from "./OnboardingStepper.js";
 import { useProjectOnboarding } from "./ProjectOnboardingProvider.js";
@@ -21,6 +22,10 @@ export function OnboardingWorkspaceLayout({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
+  const [, setDashboardQueryState] = useDashboardQueryState();
+  const hasObservedResolvedStage = useRef(false);
+  const previousDashboardUnlocked = useRef(false);
+  const [showExperimentCta, setShowExperimentCta] = useState(false);
   const {
     campaignSteps,
     completeFunnel,
@@ -33,18 +38,69 @@ export function OnboardingWorkspaceLayout({
     stage
   } = useProjectOnboarding();
 
-  if (isDashboardUnlocked || isLoading) {
-    return children;
-  }
-
-  const action = getOnboardingAction(activeTab, stage);
-
   const navigateTo = (tabPath: string) =>
     navigate({
       params: { projectId, tabPath },
       search: (current) => current,
       to: "/dashboard/$projectId/$tabPath"
     });
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    if (!hasObservedResolvedStage.current) {
+      hasObservedResolvedStage.current = true;
+      previousDashboardUnlocked.current = isDashboardUnlocked;
+      return;
+    }
+
+    if (!previousDashboardUnlocked.current && isDashboardUnlocked) {
+      setShowExperimentCta(true);
+    }
+    if (!isDashboardUnlocked) {
+      setShowExperimentCta(false);
+    }
+    previousDashboardUnlocked.current = isDashboardUnlocked;
+  }, [isDashboardUnlocked, isLoading]);
+
+  if (isLoading) {
+    return children;
+  }
+
+  if (isDashboardUnlocked) {
+    if (!showExperimentCta || activeTab !== "campaigns") {
+      return children;
+    }
+
+    return (
+      <div className="grid min-w-0 gap-6">
+        <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/[0.05] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-foreground">첫 실험이 실행 중입니다</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              시작 가이드가 완료되어 모든 메뉴를 사용할 수 있습니다.
+            </p>
+          </div>
+          <Button
+            className="shrink-0"
+            onClick={() => {
+              setShowExperimentCta(false);
+              void navigateTo("experiments");
+            }}
+            type="button"
+          >
+            실험 보기
+            <ArrowRight data-icon="inline-end" />
+          </Button>
+        </div>
+        {children}
+      </div>
+    );
+  }
+
+  const action = getOnboardingAction(activeTab, stage);
 
   const handleAction = () => {
     if (!action || !requiredPathSegment) {
@@ -66,18 +122,49 @@ export function OnboardingWorkspaceLayout({
     void navigateTo(requiredPathSegment);
   };
 
-  const handleStepSelect = (step: OnboardingStep) => {
+  const handleStepSelect = async (step: OnboardingStep) => {
     const pathSegment = getStepPathSegment(step.id);
-    if (pathSegment) {
-      void navigateTo(pathSegment);
+    if (!pathSegment) {
+      return;
     }
+
+    switch (step.id) {
+      case "campaign":
+        await setDashboardQueryState({
+          campaignView: "manage",
+          segmentView: "manage",
+          selectedCampaignId: "",
+          selectedPromotionId: "",
+          selectedSegmentId: ""
+        });
+        break;
+      case "promotion":
+        await setDashboardQueryState({
+          segmentView: "manage",
+          selectedPromotionId: "",
+          selectedSegmentId: ""
+        });
+        break;
+      case "segment":
+        await setDashboardQueryState({
+          segmentView: "recommendations",
+          selectedSegmentId: ""
+        });
+        break;
+      case "creative":
+      case "experiment":
+        await setDashboardQueryState({ segmentView: "experiments" });
+        break;
+    }
+
+    await navigateTo(pathSegment);
   };
 
   return (
     <div className="grid min-h-0 w-full gap-6 md:grid-cols-[18rem_minmax(0,1fr)] md:items-start">
       <OnboardingStepper
         campaignSteps={campaignSteps}
-        onStepSelect={handleStepSelect}
+        onStepSelect={(step) => void handleStepSelect(step)}
         setupSteps={setupSteps}
       />
 

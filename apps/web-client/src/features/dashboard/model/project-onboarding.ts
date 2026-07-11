@@ -10,6 +10,15 @@ export type ProjectOnboardingStep = {
   state: ProjectOnboardingStepState;
 };
 
+export type CampaignOnboardingProgress = {
+  hasAnalyzedSegment: boolean;
+  hasApprovedCreative: boolean;
+  hasCampaign: boolean;
+  hasPromotion: boolean;
+  hasRunningExperiment: boolean;
+  stage: ProjectOnboardingStage;
+};
+
 const SDK_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk"]);
 const FUNNEL_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk", "funnels"]);
 const CAMPAIGN_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk", "funnels", "campaigns"]);
@@ -48,42 +57,62 @@ export function createSetupOnboardingSteps(
 }
 
 export function createCampaignOnboardingSteps(
-  stage: ProjectOnboardingStage
+  progress: CampaignOnboardingProgress
 ): ReadonlyArray<ProjectOnboardingStep> {
-  const campaignState =
-    stage === "complete" ? "complete" : stage === "campaign" ? "current" : "locked";
-  const remainingState = stage === "complete" ? "complete" : "locked";
-
-  return [
+  const steps = [
     {
       description: "첫 캠페인의 목표와 기간을 설정합니다.",
       id: "campaign",
-      label: "캠페인 생성",
-      state: campaignState
+      label: "캠페인 생성"
     },
     {
       description: "캠페인에서 실행할 프로모션을 만듭니다.",
       id: "promotion",
-      label: "프로모션 생성",
-      state: remainingState
+      label: "프로모션 생성"
     },
     {
       description: "프로모션의 대상 세그먼트를 확정합니다.",
       id: "segment",
-      label: "세그먼트 생성",
-      state: remainingState
+      label: "세그먼트 생성"
     },
     {
       description: "광고 소재를 생성하고 승인합니다.",
       id: "creative",
-      label: "광고 소재 승인",
-      state: remainingState
+      label: "광고 소재 승인"
     },
     {
       description: "대상을 배정하고 첫 실험을 실행합니다.",
       id: "experiment",
-      label: "실험 실행",
-      state: remainingState
+      label: "실험 실행"
     }
+  ] as const;
+
+  if (progress.stage === "complete") {
+    return steps.map((step) => ({ ...step, state: "complete" }));
+  }
+
+  if (progress.stage !== "campaign") {
+    return steps.map((step) => ({ ...step, state: "locked" }));
+  }
+
+  const completed = [
+    progress.hasCampaign,
+    progress.hasCampaign && progress.hasPromotion,
+    progress.hasCampaign && progress.hasPromotion && progress.hasAnalyzedSegment,
+    progress.hasCampaign &&
+      progress.hasPromotion &&
+      progress.hasAnalyzedSegment &&
+      progress.hasApprovedCreative,
+    progress.hasCampaign &&
+      progress.hasPromotion &&
+      progress.hasAnalyzedSegment &&
+      progress.hasApprovedCreative &&
+      progress.hasRunningExperiment
   ];
+  const currentIndex = completed.findIndex((isComplete) => !isComplete);
+
+  return steps.map((step, index) => ({
+    ...step,
+    state: completed[index] === true ? "complete" : index === currentIndex ? "current" : "locked"
+  }));
 }
