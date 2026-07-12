@@ -20,7 +20,7 @@ test("dashboard sidebar exposes the product-led flat navigation order", () => {
     })),
     [
       {
-        items: ["캠페인", "실험", "통계", "사용자 여정", "워크플로우", "데이터 탐색기", "SDK 연동"],
+        items: ["캠페인", "실험", "통계", "워크플로우", "데이터 탐색기", "SDK 연동"],
         label: ""
       }
     ]
@@ -39,6 +39,8 @@ test("dashboard keeps legacy paths available while exposing the experiment route
   assert.equal(getDashboardTabByPath("experiments"), "experiments");
   assert.equal(getDashboardTabByPath("statistics"), "main");
   assert.equal(getDashboardTabByPath("main"), "main");
+  assert.equal(getDashboardTabByPath("funnels"), "main");
+  assert.equal(getCanonicalDashboardPath("funnels"), "statistics");
   assert.equal(getCanonicalDashboardPath("main"), "statistics");
   assert.equal(getCanonicalDashboardPath("segments"), "campaigns");
   assert.deepEqual(getLegacyDashboardViewPatch("campaign-detail"), {
@@ -46,6 +48,9 @@ test("dashboard keeps legacy paths available while exposing the experiment route
   });
   assert.deepEqual(getLegacyDashboardViewPatch("campaign-metrics"), {
     campaignView: "performance"
+  });
+  assert.deepEqual(getLegacyDashboardViewPatch("funnels"), {
+    statisticsView: "user-paths"
   });
 });
 

@@ -1,16 +1,11 @@
 import { Button } from "@loopad/ui/shadcn/button";
-import { ArrowRight, Code2, Megaphone, Route, Sparkles } from "lucide-react";
+import { ArrowRight, Code2, Megaphone, Sparkles } from "lucide-react";
 
 const welcomeMilestones = [
   {
     description: "프로젝트에 데이터를 연결할 준비를 합니다.",
     icon: Code2,
     label: "SDK 연동"
-  },
-  {
-    description: "수집한 이벤트가 이어지는 흐름을 확인합니다.",
-    icon: Route,
-    label: "사용자 여정 확인"
   },
   {
     description: "캠페인을 만들고 첫 실험 실행까지 이어갑니다.",
@@ -49,7 +44,7 @@ export function ProjectWelcomeScreen({
           </p>
         </div>
 
-        <ol className="mt-8 grid gap-3 md:grid-cols-3">
+        <ol className="mt-8 grid gap-3 md:grid-cols-2">
           {welcomeMilestones.map((milestone, index) => {
             const Icon = milestone.icon;
 

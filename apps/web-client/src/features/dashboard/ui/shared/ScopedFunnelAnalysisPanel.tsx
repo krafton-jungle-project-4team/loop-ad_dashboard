@@ -149,14 +149,14 @@ export function ScopedFunnelAnalysisPanel({
         <div className="grid gap-4 border-t p-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="grid gap-1">
-              <div className="text-sm font-medium text-foreground">비교 사용자 여정</div>
+              <div className="text-sm font-medium text-foreground">비교 사용자 경로</div>
             </div>
             {funnels.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">
                 {selectedFunnelIds.map((funnelId, index) => (
                   <div className="flex items-center gap-1" key={`${index}-${funnelId}`}>
                     <NativeSelect
-                      aria-label={`비교 사용자 여정 ${index + 1}`}
+                      aria-label={`비교 사용자 경로 ${index + 1}`}
                       className="w-[220px]"
                       onChange={(event) => updateFunnelSlot(index, event.target.value)}
                       size="sm"
@@ -177,7 +177,7 @@ export function ScopedFunnelAnalysisPanel({
                     </NativeSelect>
                     {selectedFunnelIds.length > 1 ? (
                       <Button
-                        aria-label="비교 사용자 여정 제거"
+                        aria-label="비교 사용자 경로 제거"
                         onClick={() => removeFunnelSlot(index)}
                         size="icon"
                         type="button"
@@ -204,19 +204,19 @@ export function ScopedFunnelAnalysisPanel({
 
           {isError ? (
             <Alert variant="destructive">
-              <AlertTitle>사용자 여정 목록을 불러오지 못했습니다</AlertTitle>
+              <AlertTitle>사용자 경로 목록을 불러오지 못했습니다</AlertTitle>
               <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
             </Alert>
           ) : null}
-          {isLoading ? <EmptyState message="사용자 여정 목록을 불러오는 중입니다." /> : null}
+          {isLoading ? <EmptyState message="사용자 경로 목록을 불러오는 중입니다." /> : null}
           {!isLoading && funnels.length === 0 ? (
-            <EmptyState message="등록된 사용자 여정이 없습니다." />
+            <EmptyState message="등록된 사용자 경로가 없습니다." />
           ) : null}
 
           {selectedFunnels.length > 0 ? (
             <ScopedFunnelComparisonPanel funnels={selectedFunnels} query={query} scope={scope} />
           ) : !isLoading && funnels.length > 0 ? (
-            <EmptyState message="표시할 사용자 여정을 선택해주세요." />
+            <EmptyState message="표시할 사용자 경로를 선택해주세요." />
           ) : null}
         </div>
       ) : null}
@@ -267,11 +267,11 @@ function ScopedFunnelComparisonPanel({
     <div className="grid gap-4 rounded-md border bg-muted/10 p-4">
       {firstError ? (
         <Alert variant="destructive">
-          <AlertTitle>사용자 여정 지표를 불러오지 못했습니다</AlertTitle>
+          <AlertTitle>사용자 경로 지표를 불러오지 못했습니다</AlertTitle>
           <AlertDescription>{mutationErrorMessage(firstError)}</AlertDescription>
         </Alert>
       ) : null}
-      {isInitialLoading ? <EmptyState message="사용자 여정 지표를 불러오는 중입니다." /> : null}
+      {isInitialLoading ? <EmptyState message="사용자 경로 지표를 불러오는 중입니다." /> : null}
       {metricItems.length > 0 ? (
         <div className="grid gap-4">
           <ScopedFunnelComparisonChart items={metricItems} />
@@ -342,7 +342,7 @@ function ScopedFunnelComparisonTable({ items }: { items: FunnelMetricComparisonI
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>사용자 여정</TableHead>
+            <TableHead>사용자 경로</TableHead>
             <TableHead className="text-right">1단계 {measurementLabel}</TableHead>
             <TableHead className="text-right">마지막 단계 {measurementLabel}</TableHead>
             <TableHead className="text-right">전환율</TableHead>

@@ -10,7 +10,7 @@ import { dashboardTabValues } from "../src/features/dashboard/model/dashboard-ty
 test("allowed dashboard tabs expand with the top-level onboarding stage", () => {
   assert.deepEqual([...allowedDashboardTabs("welcome")], ["sdk"]);
   assert.deepEqual([...allowedDashboardTabs("sdk")], ["sdk"]);
-  assert.deepEqual([...allowedDashboardTabs("campaign")], ["sdk", "funnels", "campaigns"]);
+  assert.deepEqual([...allowedDashboardTabs("campaign")], ["sdk", "campaigns"]);
   assert.deepEqual([...allowedDashboardTabs("complete")], [...dashboardTabValues]);
 });
 

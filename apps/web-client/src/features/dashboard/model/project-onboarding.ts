@@ -22,7 +22,7 @@ export type CampaignOnboardingProgress = {
 };
 
 const SDK_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk"]);
-const CAMPAIGN_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk", "funnels", "campaigns"]);
+const CAMPAIGN_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk", "campaigns"]);
 const COMPLETE_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(dashboardTabValues);
 
 export function allowedDashboardTabs(stage: ProjectOnboardingStage): ReadonlySet<DashboardTab> {

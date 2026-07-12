@@ -517,7 +517,7 @@ function PromotionOverviewTab({
     <div className="grid gap-4">
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle>프로모션 사용자 여정 효율</CardTitle>
+          <CardTitle>프로모션 사용자 경로 효율</CardTitle>
           <CardDescription>현재 프로모션 목표와 루프 상태를 기준으로 확인합니다.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">

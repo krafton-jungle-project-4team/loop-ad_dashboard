@@ -76,8 +76,7 @@ export function DashboardShell({
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
   const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
-  const isFunnelTab = activeTab === "funnels";
-  const isFullHeightTab = isCanvasTab || isFunnelTab;
+  const isFullHeightTab = isCanvasTab;
   const constrainToViewport = isFullHeightTab || !isDashboardUnlocked;
 
   return (
@@ -146,9 +145,7 @@ export function DashboardShell({
             className={
               isCanvasTab
                 ? "h-full min-h-0 w-full"
-                : isFunnelTab
-                  ? "grid h-full min-h-0 w-full px-4 pt-6 md:px-8 lg:pt-8"
-                  : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
+                : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
             }
           >
             <OnboardingWorkspaceLayout activeTab={activeTab}>{children}</OnboardingWorkspaceLayout>
@@ -244,13 +241,6 @@ function MobileBottomNavigation({
           pathSegment: "sdk"
         },
         {
-          active: activeTab === "funnels",
-          allowed: isTabAllowed("funnels"),
-          icon: <Route aria-hidden="true" />,
-          label: "사용자 여정",
-          pathSegment: "funnels"
-        },
-        {
           active: activeTab === "campaigns",
           allowed: isTabAllowed("campaigns"),
           icon: <Megaphone aria-hidden="true" />,
@@ -262,7 +252,10 @@ function MobileBottomNavigation({
   return (
     <nav
       aria-label="모바일 주요 메뉴"
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-40 grid border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden",
+        isDashboardUnlocked ? "grid-cols-4" : "grid-cols-3"
+      )}
     >
       {primaryItems.map((item) => (
         <MobileNavigationLink

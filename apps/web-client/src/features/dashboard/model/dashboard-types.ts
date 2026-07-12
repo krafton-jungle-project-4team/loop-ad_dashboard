@@ -28,6 +28,9 @@ export type DashboardSort =
 
 export type DashboardUserScope = "all" | "active" | "new" | "returning" | "at-risk";
 
+export const statisticsViewValues = ["overview", "user-paths"] as const;
+export type StatisticsView = (typeof statisticsViewValues)[number];
+
 export type DashboardConversionEvent =
   | "booking_complete"
   | "booking_start"
@@ -89,6 +92,7 @@ export type DashboardQuery = {
   campaignView: CampaignWorkspaceView;
   promotionView: PromotionWorkspaceView;
   segmentView: SegmentWorkspaceView;
+  statisticsView: StatisticsView;
   sort: DashboardSort;
   filter: string;
 };
