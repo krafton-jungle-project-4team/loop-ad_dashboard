@@ -89,7 +89,7 @@ function DashboardProjectContent({ projectId, tab }: { projectId: string; tab: D
   }
 
   if (tab === "sdk") {
-    return <SdkPage />;
+    return <SdkPage projectId={query.projectId} />;
   }
 
   if (tab === "experiments") {

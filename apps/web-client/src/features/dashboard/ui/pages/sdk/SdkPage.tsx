@@ -15,6 +15,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { TrackingPlanWorkspace } from "./TrackingPlanWorkspace.js";
 
 const registryInstallCode = `# .npmrc
 @krafton-jungle-project-4team:registry=https://npm.pkg.github.com
@@ -272,7 +273,11 @@ const prerequisites = [
   }
 ];
 
-export function SdkPage() {
+export function SdkPage({ projectId }: { projectId: string }) {
+  return <TrackingPlanWorkspace projectId={projectId} legacyGuide={<LegacySdkGuide />} />;
+}
+
+function LegacySdkGuide() {
   return (
     <div className="grid gap-6">
       <PageHeader />

@@ -8,3 +8,4 @@ export * from "./promotion.js";
 export * from "./promotion-run.js";
 export * from "./realtime.js";
 export * from "./segment.js";
+export * from "./tracking-plan.js";

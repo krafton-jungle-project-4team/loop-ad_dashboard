@@ -5,6 +5,7 @@ import { AdExecutionModule } from "./features/ad-execution/index.js";
 import { DataExplorerModule } from "./features/data-explorer/index.js";
 import { DashboardModule } from "./features/dashboard/index.js";
 import { HealthModule } from "./features/health/index.js";
+import { TrackingPlanModule } from "./features/tracking-plan/index.js";
 import { DatabaseModule, PgTypedTransactionalAdapter } from "./infra/database/index.js";
 
 @Module({
@@ -26,6 +27,7 @@ import { DatabaseModule, PgTypedTransactionalAdapter } from "./infra/database/in
     AdExecutionModule,
     DataExplorerModule,
     DashboardModule,
+    TrackingPlanModule,
     HealthModule
   ]
 })

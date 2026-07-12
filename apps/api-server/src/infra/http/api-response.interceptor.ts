@@ -29,12 +29,22 @@ export class ApiResponseInterceptor<TData> implements NestInterceptor<
 
     setRequestIdHeader(response, requestId);
 
-    if (isRedirectRoute(request) || isChatKitRoute(request)) {
+    if (
+      isRedirectRoute(request) ||
+      isChatKitRoute(request) ||
+      isPublicSdkConnectionRoute(request)
+    ) {
       return next.handle() as Observable<ReturnType<typeof createApiSuccess<TData>>>;
     }
 
     return next.handle().pipe(map((data) => createApiSuccess(requestId, data)));
   }
+}
+
+function isPublicSdkConnectionRoute(request: RequestWithRequestId) {
+  const routeRequest = request as RequestWithRequestId & { originalUrl?: string; url?: string };
+  const path = routeRequest.originalUrl ?? routeRequest.url;
+  return typeof path === "string" && path.startsWith("/api/public/v1/sdk/connections/");
 }
 
 function isRedirectRoute(request: RequestWithRequestId) {
