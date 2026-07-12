@@ -28,6 +28,7 @@ const COMPLETE_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(dashboardTabValue
 
 export function allowedDashboardTabs(stage: ProjectOnboardingStage): ReadonlySet<DashboardTab> {
   switch (stage) {
+    case "welcome":
     case "sdk":
       return SDK_STAGE_TABS;
     case "funnel":
@@ -47,13 +48,18 @@ export function createSetupOnboardingSteps(
       description: "프로젝트에서 사용할 SDK를 연결합니다.",
       id: "sdk",
       label: "SDK 연동",
-      state: stage === "sdk" ? "current" : "complete"
+      state: stage === "welcome" ? "locked" : stage === "sdk" ? "current" : "complete"
     },
     {
       description: "사용자 여정과 전환 흐름을 확인합니다.",
       id: "funnel",
       label: "퍼널 확인",
-      state: stage === "sdk" ? "locked" : stage === "funnel" ? "current" : "complete"
+      state:
+        stage === "welcome" || stage === "sdk"
+          ? "locked"
+          : stage === "funnel"
+            ? "current"
+            : "complete"
     }
   ];
 }

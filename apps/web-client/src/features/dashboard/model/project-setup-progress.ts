@@ -2,6 +2,7 @@ export const PROJECT_SETUP_PROGRESS_STORAGE_KEY_PREFIX = "loopad.dashboard.setup
 
 export type ProjectSetupProgress = {
   initializedAt: string;
+  guideStartedAt: string | null;
   sdkCompletedAt: string | null;
   funnelCompletedAt: string | null;
 };
@@ -21,7 +22,7 @@ export type InitializeProjectSetupProgressOptions = ProjectSetupProgressOptions 
   initialSetupCompleted?: boolean;
 };
 
-export type ProjectOnboardingStage = "sdk" | "funnel" | "campaign" | "complete";
+export type ProjectOnboardingStage = "welcome" | "sdk" | "funnel" | "campaign" | "complete";
 
 export type ProjectOnboardingPathSegment = "sdk" | "funnels" | "campaigns";
 
@@ -53,13 +54,18 @@ export function parseProjectSetupProgress(serialized: string | null): ProjectSet
     }
 
     const initializedAt = parseTimestamp(value.initializedAt);
+    const guideStartedAt = Object.hasOwn(value, "guideStartedAt")
+      ? parseOptionalTimestamp(value.guideStartedAt)
+      : initializedAt;
     const sdkCompletedAt = parseOptionalTimestamp(value.sdkCompletedAt);
     const funnelCompletedAt = parseOptionalTimestamp(value.funnelCompletedAt);
 
     if (
       initializedAt === null ||
+      guideStartedAt === undefined ||
       sdkCompletedAt === undefined ||
       funnelCompletedAt === undefined ||
+      (sdkCompletedAt !== null && guideStartedAt === null) ||
       (funnelCompletedAt !== null && sdkCompletedAt === null)
     ) {
       return null;
@@ -67,6 +73,7 @@ export function parseProjectSetupProgress(serialized: string | null): ProjectSet
 
     return {
       funnelCompletedAt,
+      guideStartedAt,
       initializedAt,
       sdkCompletedAt
     };
@@ -106,12 +113,35 @@ export function initializeProjectSetupProgress(
   const initialSetupCompleted = options.initialSetupCompleted === true;
   const progress: ProjectSetupProgress = {
     funnelCompletedAt: initialSetupCompleted ? initializedAt : null,
+    guideStartedAt: initialSetupCompleted ? initializedAt : null,
     initializedAt,
     sdkCompletedAt: initialSetupCompleted ? initializedAt : null
   };
 
   persistProjectSetupProgress(projectId, progress, options.storage);
   return progress;
+}
+
+export function startProjectSetupGuide(
+  projectId: string,
+  options: CompleteProjectSetupProgressOptions = {}
+): ProjectSetupProgress {
+  const startedAt = getCurrentTimestamp(options.now);
+  const current =
+    options.currentProgress ??
+    readProjectSetupProgress(projectId, options.storage) ??
+    createEmptyProgress(startedAt);
+
+  if (current.guideStartedAt !== null) {
+    return current;
+  }
+
+  const next: ProjectSetupProgress = {
+    ...current,
+    guideStartedAt: startedAt
+  };
+  persistProjectSetupProgress(projectId, next, options.storage);
+  return next;
 }
 
 export function completeProjectSdkSetup(
@@ -130,6 +160,7 @@ export function completeProjectSdkSetup(
 
   const next: ProjectSetupProgress = {
     ...current,
+    guideStartedAt: current.guideStartedAt ?? completedAt,
     sdkCompletedAt: completedAt
   };
   persistProjectSetupProgress(projectId, next, options.storage);
@@ -189,6 +220,15 @@ export function resolveProjectOnboardingStage({
   }
 
   if (progress?.sdkCompletedAt == null) {
+    if (progress?.guideStartedAt == null) {
+      return {
+        isDashboardUnlocked: false,
+        isInitialSetupComplete: false,
+        requiredPathSegment: "sdk",
+        stage: "welcome"
+      };
+    }
+
     return {
       isDashboardUnlocked: false,
       isInitialSetupComplete: false,
@@ -217,6 +257,7 @@ export function resolveProjectOnboardingStage({
 function createEmptyProgress(initializedAt: string): ProjectSetupProgress {
   return {
     funnelCompletedAt: null,
+    guideStartedAt: null,
     initializedAt,
     sdkCompletedAt: null
   };

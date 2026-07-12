@@ -8,6 +8,7 @@ import { DASHBOARD_MOBILE_ACTION_OFFSET_PX } from "../../model/project-onboardin
 import type { DashboardTab } from "../../model/dashboard-types.js";
 import { OnboardingStepper, type OnboardingStep } from "./OnboardingStepper.js";
 import { useProjectOnboarding } from "./ProjectOnboardingProvider.js";
+import { ProjectWelcomeScreen } from "./ProjectWelcomeScreen.js";
 
 type OnboardingAction = {
   description: string;
@@ -36,6 +37,7 @@ export function OnboardingWorkspaceLayout({
     projectId,
     requiredPathSegment,
     setupSteps,
+    startGuide,
     stage
   } = useProjectOnboarding();
 
@@ -68,6 +70,10 @@ export function OnboardingWorkspaceLayout({
 
   if (isLoading) {
     return children;
+  }
+
+  if (stage === "welcome") {
+    return <ProjectWelcomeScreen onStart={startGuide} />;
   }
 
   if (isDashboardUnlocked) {
@@ -224,7 +230,7 @@ export function OnboardingWorkspaceLayout({
 
 function getOnboardingAction(
   activeTab: DashboardTab,
-  stage: "sdk" | "funnel" | "campaign" | "complete"
+  stage: "welcome" | "sdk" | "funnel" | "campaign" | "complete"
 ): OnboardingAction | null {
   if (activeTab === "sdk" && stage === "sdk") {
     return {

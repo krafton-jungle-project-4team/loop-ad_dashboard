@@ -74,7 +74,7 @@ export function DashboardShell({
   projectId: string;
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
-  const { isDashboardUnlocked, isLoading, isTabAllowed } = useProjectOnboarding();
+  const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
   const isFunnelTab = activeTab === "funnels";
   const isFullHeightTab = isCanvasTab || isFunnelTab;
@@ -124,6 +124,10 @@ export function DashboardShell({
               <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
                 {getDashboardTabLabel(activeTab)}
               </div>
+            ) : stage === "welcome" ? (
+              <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                프로젝트 시작
+              </div>
             ) : (
               <DashboardHeaderContext activeTab={activeTab} projectId={projectId} />
             )}
@@ -149,12 +153,14 @@ export function DashboardShell({
             <OnboardingWorkspaceLayout activeTab={activeTab}>{children}</OnboardingWorkspaceLayout>
           </div>
         </main>
-        <MobileBottomNavigation
-          activeTab={activeTab}
-          isDashboardUnlocked={isDashboardUnlocked}
-          isTabAllowed={isTabAllowed}
-          projectId={projectId}
-        />
+        {stage === "welcome" ? null : (
+          <MobileBottomNavigation
+            activeTab={activeTab}
+            isDashboardUnlocked={isDashboardUnlocked}
+            isTabAllowed={isTabAllowed}
+            projectId={projectId}
+          />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

@@ -9,10 +9,12 @@ import {
   parseProjectSetupProgress,
   readProjectSetupProgress,
   resolveProjectOnboardingStage,
+  startProjectSetupGuide,
   type ProjectSetupProgressStorage
 } from "../src/features/dashboard/model/project-setup-progress.js";
 
 const INITIALIZED_AT = "2026-07-12T00:00:00.000Z";
+const GUIDE_STARTED_AT = "2026-07-12T00:00:30.000Z";
 const SDK_COMPLETED_AT = "2026-07-12T00:01:00.000Z";
 const FUNNEL_COMPLETED_AT = "2026-07-12T00:02:00.000Z";
 
@@ -50,6 +52,7 @@ test("project setup progress parser accepts valid state and rejects corrupt stat
     ),
     {
       funnelCompletedAt: null,
+      guideStartedAt: INITIALIZED_AT,
       initializedAt: INITIALIZED_AT,
       sdkCompletedAt: SDK_COMPLETED_AT
     }
@@ -60,6 +63,12 @@ test("project setup progress parser accepts valid state and rejects corrupt stat
     "not-json",
     JSON.stringify([]),
     JSON.stringify({ initializedAt: INITIALIZED_AT }),
+    JSON.stringify({
+      funnelCompletedAt: null,
+      guideStartedAt: null,
+      initializedAt: INITIALIZED_AT,
+      sdkCompletedAt: SDK_COMPLETED_AT
+    }),
     JSON.stringify({
       funnelCompletedAt: FUNNEL_COMPLETED_AT,
       initializedAt: INITIALIZED_AT,
@@ -86,6 +95,7 @@ test("initialization creates new setup state without replacing valid progress", 
 
   assert.deepEqual(initial, {
     funnelCompletedAt: null,
+    guideStartedAt: null,
     initializedAt: INITIALIZED_AT,
     sdkCompletedAt: null
   });
@@ -109,9 +119,32 @@ test("legacy initialization can mark SDK and funnel setup as already complete", 
 
   assert.deepEqual(progress, {
     funnelCompletedAt: INITIALIZED_AT,
+    guideStartedAt: INITIALIZED_AT,
     initializedAt: INITIALIZED_AT,
     sdkCompletedAt: INITIALIZED_AT
   });
+});
+
+test("starting the guide is persisted, idempotent, and leaves setup incomplete", () => {
+  const storage = new MemoryStorage();
+  initializeProjectSetupProgress("project-1", {
+    now: () => INITIALIZED_AT,
+    storage
+  });
+
+  const started = startProjectSetupGuide("project-1", {
+    now: () => GUIDE_STARTED_AT,
+    storage
+  });
+  const repeated = startProjectSetupGuide("project-1", {
+    now: () => SDK_COMPLETED_AT,
+    storage
+  });
+
+  assert.equal(started.guideStartedAt, GUIDE_STARTED_AT);
+  assert.equal(started.sdkCompletedAt, null);
+  assert.deepEqual(repeated, started);
+  assert.deepEqual(readProjectSetupProgress("project-1", storage), started);
 });
 
 test("SDK completion is persisted and idempotent", () => {
@@ -131,6 +164,7 @@ test("SDK completion is persisted and idempotent", () => {
   });
 
   assert.equal(completed.sdkCompletedAt, SDK_COMPLETED_AT);
+  assert.equal(completed.guideStartedAt, SDK_COMPLETED_AT);
   assert.deepEqual(repeated, completed);
   assert.deepEqual(readProjectSetupProgress("project-1", storage), completed);
 });
@@ -197,6 +231,12 @@ test("storage failures do not escape setup progress helpers", () => {
     })
   );
   assert.doesNotThrow(() =>
+    startProjectSetupGuide("project-1", {
+      now: () => GUIDE_STARTED_AT,
+      storage: unavailableStorage
+    })
+  );
+  assert.doesNotThrow(() =>
     completeProjectSdkSetup("project-1", {
       now: () => SDK_COMPLETED_AT,
       storage: unavailableStorage
@@ -222,18 +262,36 @@ test("storage failures do not escape setup progress helpers", () => {
   assert.doesNotThrow(() => clearProjectSetupProgress("project-1", unavailableStorage));
 });
 
-test("top-level onboarding resolver covers SDK, funnel, campaign, and complete stages", () => {
+test("top-level onboarding resolver covers welcome, SDK, funnel, campaign, and complete stages", () => {
   assert.deepEqual(resolveProjectOnboardingStage({ progress: null }), {
     isDashboardUnlocked: false,
     isInitialSetupComplete: false,
     requiredPathSegment: "sdk",
-    stage: "sdk"
+    stage: "welcome"
   });
 
   assert.deepEqual(
     resolveProjectOnboardingStage({
       progress: {
         funnelCompletedAt: null,
+        guideStartedAt: GUIDE_STARTED_AT,
+        initializedAt: INITIALIZED_AT,
+        sdkCompletedAt: null
+      }
+    }),
+    {
+      isDashboardUnlocked: false,
+      isInitialSetupComplete: false,
+      requiredPathSegment: "sdk",
+      stage: "sdk"
+    }
+  );
+
+  assert.deepEqual(
+    resolveProjectOnboardingStage({
+      progress: {
+        funnelCompletedAt: null,
+        guideStartedAt: GUIDE_STARTED_AT,
         initializedAt: INITIALIZED_AT,
         sdkCompletedAt: SDK_COMPLETED_AT
       }
@@ -250,6 +308,7 @@ test("top-level onboarding resolver covers SDK, funnel, campaign, and complete s
     resolveProjectOnboardingStage({
       progress: {
         funnelCompletedAt: FUNNEL_COMPLETED_AT,
+        guideStartedAt: GUIDE_STARTED_AT,
         initializedAt: INITIALIZED_AT,
         sdkCompletedAt: SDK_COMPLETED_AT
       },

@@ -8,6 +8,7 @@ import {
 import { dashboardTabValues } from "../src/features/dashboard/model/dashboard-types.js";
 
 test("allowed dashboard tabs expand with the top-level onboarding stage", () => {
+  assert.deepEqual([...allowedDashboardTabs("welcome")], ["sdk"]);
   assert.deepEqual([...allowedDashboardTabs("sdk")], ["sdk"]);
   assert.deepEqual([...allowedDashboardTabs("funnel")], ["sdk", "funnels"]);
   assert.deepEqual([...allowedDashboardTabs("campaign")], ["sdk", "funnels", "campaigns"]);
@@ -15,6 +16,10 @@ test("allowed dashboard tabs expand with the top-level onboarding stage", () => 
 });
 
 test("setup steps mark only the next required initial setup step as current", () => {
+  assert.equal(
+    createSetupOnboardingSteps("welcome").every((step) => step.state === "locked"),
+    true
+  );
   assert.deepEqual(
     createSetupOnboardingSteps("sdk").map(({ id, state }) => ({ id, state })),
     [
