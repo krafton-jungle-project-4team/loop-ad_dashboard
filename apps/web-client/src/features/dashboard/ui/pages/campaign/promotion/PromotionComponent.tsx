@@ -41,6 +41,7 @@ export function PromotionWorkspace({
     editingSegmentId,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
+    openSegmentCreation,
     openPromotions,
     promotionAnalysisIsPending,
     promotionGenerationIsPending,
@@ -125,6 +126,7 @@ export function PromotionWorkspace({
                 approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
               }
               onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
+              onCreateSegment={openSegmentCreation}
               onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
               onDecideSuggestion={(suggestionId, status) =>
                 decideSuggestionMutation.mutate({ status, suggestionId })

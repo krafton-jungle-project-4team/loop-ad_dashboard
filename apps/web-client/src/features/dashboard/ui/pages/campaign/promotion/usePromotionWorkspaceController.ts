@@ -687,6 +687,14 @@ export function usePromotionWorkspaceController({
       selectedSegmentId: segmentId
     });
   };
+  const openSegmentCreation = () => {
+    setWorkspaceTab("segments");
+    void setDashboardQueryState({
+      segmentView: "recommendations",
+      selectedAdExperimentId: "",
+      selectedSegmentId: ""
+    });
+  };
 
   return {
     activeAnalysisId,
@@ -704,6 +712,7 @@ export function usePromotionWorkspaceController({
     editingSegmentId,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
+    openSegmentCreation,
     openPromotions,
     promotionAnalysisIsPending:
       recommendSegmentsMutation.isPending || analysisProgress.data.status === "pending",

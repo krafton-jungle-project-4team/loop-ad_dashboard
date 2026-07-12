@@ -39,7 +39,7 @@ import { dashboardCampaignDetailQueryKey } from "../../../../model/dashboard-que
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { DashboardDateRangeSelect } from "../../../shared/DashboardDateRangeSelect.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
-import { WorkspacePageHeader, WorkspaceViewTabs } from "../../../shared/WorkspaceViewTabs.js";
+import { WorkspacePageHeader } from "../../../shared/WorkspaceViewTabs.js";
 import { CampaignPageSections } from "../CampaignComponent.js";
 import { CampaignFormDialog } from "../components/CampaignFormDialog.js";
 import { PromotionWorkspace } from "../promotion/PromotionComponent.js";
@@ -73,18 +73,6 @@ type PromotionCard = CampaignWorkspaceEntityCard & {
   kind: "promotion";
   promotion: DashboardCampaignPromotion;
 };
-
-const campaignViews = [
-  { label: "워크스페이스", value: "manage" },
-  { label: "개요", value: "overview" },
-  { label: "성과", value: "performance" }
-] as const;
-
-const segmentViews = [
-  { label: "세그먼트 관리", value: "manage" },
-  { label: "세그먼트 생성", value: "recommendations" },
-  { label: "광고 소재 · 실험", value: "experiments" }
-] as const;
 
 export function CampaignWorkspacePage({
   data,
@@ -189,7 +177,7 @@ export function CampaignWorkspacePage({
         campaignView: "manage",
         createPromotion: false,
         promotionView: "overview",
-        segmentView: "recommendations",
+        segmentView: "manage",
         selectedAdExperimentId: "",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
@@ -257,9 +245,40 @@ export function CampaignWorkspacePage({
 
   const campaignCards = data.campaigns.map(toCampaignCard);
   const promotionCards = promotions.map(toPromotionCard);
-  const hierarchyItems = buildHierarchyItems(selectedCampaign, selectedPromotion, selectedSegment);
+  const hierarchyItems = buildHierarchyItems(
+    selectedCampaign,
+    selectedPromotion,
+    selectedSegment,
+    query.segmentView
+  );
   const promotionMutationError =
     createPromotionMutation.error ?? updatePromotionMutation.error ?? deletePromotionMutation.error;
+  const openCampaignView = (campaignId: string, campaignView: DashboardQuery["campaignView"]) => {
+    void setDashboardQueryState({
+      campaignView,
+      promotionView: "manage",
+      segmentView: "manage",
+      selectedAdExperimentId: "",
+      selectedCampaignId: campaignId,
+      selectedPromotionId: "",
+      selectedSegmentId: ""
+    });
+  };
+  const openPromotionView = (
+    promotionId: string,
+    view: "overview" | "segments" | "segment-creation"
+  ) => {
+    const opensPromotionOverview = view === "overview";
+    void setDashboardQueryState({
+      campaignView: "manage",
+      promotionView: opensPromotionOverview ? "overview" : "manage",
+      segmentView: view === "segment-creation" ? "recommendations" : "manage",
+      selectedAdExperimentId: "",
+      selectedCampaignId,
+      selectedPromotionId: promotionId,
+      selectedSegmentId: ""
+    });
+  };
 
   return (
     <div className="grid gap-6">
@@ -335,6 +354,23 @@ export function CampaignWorkspacePage({
                 }
               }
             ]}
+            entryActions={(card) => [
+              {
+                id: "workspace",
+                label: "워크스페이스",
+                onSelect: () => openCampaignView(card.id, "manage")
+              },
+              {
+                id: "overview",
+                label: "개요",
+                onSelect: () => openCampaignView(card.id, "overview")
+              },
+              {
+                id: "performance",
+                label: "성과",
+                onSelect: () => openCampaignView(card.id, "performance")
+              }
+            ]}
             addAction={{
               description: "새 캠페인을 만들고 프로모션 설정을 시작합니다.",
               label: "새 캠페인",
@@ -345,40 +381,21 @@ export function CampaignWorkspacePage({
             }}
             ariaLabel="캠페인 목록"
             items={campaignCards}
-            onSelect={(card) => {
-              void setDashboardQueryState({
-                campaignView: "manage",
-                promotionView: "manage",
-                segmentView: "manage",
-                selectedAdExperimentId: "",
-                selectedCampaignId: card.id,
-                selectedPromotionId: "",
-                selectedSegmentId: ""
-              });
-            }}
           />
         </section>
       ) : null}
 
-      {selectedCampaign ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <WorkspaceViewTabs
-            ariaLabel="캠페인 작업 탭"
-            items={campaignViews}
-            queryKey="campaignView"
-            value={query.campaignView}
-          />
-          {query.campaignView === "performance" ? (
-            <DashboardDateRangeSelect value={query.dateRange} />
-          ) : null}
+      {selectedCampaign && !selectedPromotion && query.campaignView === "performance" ? (
+        <div className="flex justify-end">
+          <DashboardDateRangeSelect value={query.dateRange} />
         </div>
       ) : null}
 
-      {selectedCampaign && query.campaignView === "performance" ? (
+      {selectedCampaign && !selectedPromotion && query.campaignView === "performance" ? (
         <CampaignPageSections data={data} query={query} tab="campaign-metrics" />
       ) : null}
 
-      {selectedCampaign && query.campaignView === "overview" ? (
+      {selectedCampaign && !selectedPromotion && query.campaignView === "overview" ? (
         <CampaignPageSections data={data} query={query} tab="campaign-detail" />
       ) : null}
 
@@ -394,7 +411,10 @@ export function CampaignWorkspacePage({
         <EmptyState message="캠페인 데이터를 불러오는 중입니다." />
       ) : null}
 
-      {selectedCampaign && query.campaignView === "manage" && campaignDetail.data ? (
+      {selectedCampaign &&
+      !selectedPromotion &&
+      query.campaignView === "manage" &&
+      campaignDetail.data ? (
         <>
           <SelectionSummary
             action={
@@ -482,41 +502,39 @@ export function CampaignWorkspacePage({
                 }
               }}
               ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
+              entryActions={(card) => [
+                {
+                  id: "overview",
+                  label: "개요",
+                  onSelect: () => openPromotionView(card.id, "overview")
+                },
+                {
+                  id: "segments",
+                  label: "세그먼트 관리",
+                  onSelect: () => openPromotionView(card.id, "segments")
+                },
+                {
+                  id: "segment-creation",
+                  label: "세그먼트 생성",
+                  onSelect: () => openPromotionView(card.id, "segment-creation")
+                }
+              ]}
               items={promotionCards}
-              onSelect={(card) => {
-                void setDashboardQueryState({
-                  promotionView: "overview",
-                  segmentView: "recommendations",
-                  selectedAdExperimentId: "",
-                  selectedCampaignId,
-                  selectedPromotionId: card.id,
-                  selectedSegmentId: ""
-                });
-              }}
-              selectedId={selectedPromotion?.promotion_id}
             />
           </section>
-
-          {selectedPromotion ? (
-            <section className="grid gap-5 border-t pt-6">
-              <div className="grid gap-1">
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                  {selectedPromotion.marketing_theme} 운영
-                </h2>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  기존 세그먼트 추천·분석, 광고 소재 생성·승인, 실험 실행 흐름을 사용합니다.
-                </p>
-              </div>
-              <WorkspaceViewTabs
-                ariaLabel="프로모션 하위 작업 탭"
-                items={segmentViews}
-                queryKey="segmentView"
-                value={query.segmentView}
-              />
-              <PromotionWorkspace data={data} mode="segment" query={query} />
-            </section>
-          ) : null}
         </>
+      ) : null}
+
+      {selectedCampaign && selectedPromotion && campaignDetail.data ? (
+        <PromotionWorkspace
+          data={data}
+          mode={
+            query.promotionView === "overview" && query.segmentView === "manage"
+              ? "promotion"
+              : "segment"
+          }
+          query={query}
+        />
       ) : null}
 
       <CampaignFormDialog
@@ -691,7 +709,8 @@ function campaignSummaryMetrics(campaign: DashboardCampaignSummary, realtimeEven
 function buildHierarchyItems(
   campaign: DashboardCampaignSummary | undefined,
   promotion: DashboardCampaignPromotion | undefined,
-  segment: { segment_id: string; segment_name: string } | undefined
+  segment: { segment_id: string; segment_name: string } | undefined,
+  segmentView: DashboardQuery["segmentView"]
 ): CampaignWorkspaceHierarchyItem[] {
   if (!campaign) {
     return [];
@@ -709,6 +728,8 @@ function buildHierarchyItems(
   }
   if (segment) {
     items.push({ id: segment.segment_id, kind: "segment", label: segment.segment_name });
+  } else if (promotion && segmentView === "recommendations") {
+    items.push({ id: "segment-creation", kind: "segment", label: "세그먼트 생성" });
   }
   return items;
 }
