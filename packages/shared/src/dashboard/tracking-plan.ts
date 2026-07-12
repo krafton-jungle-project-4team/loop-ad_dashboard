@@ -96,11 +96,6 @@ export type TrackingPlanEventInput = z.infer<typeof TrackingPlanEventInputSchema
 export const TrackingPlanEventUpdateSchema = TrackingPlanEventInputSchema.omit({ eventName: true });
 export type TrackingPlanEventUpdate = z.infer<typeof TrackingPlanEventUpdateSchema>;
 
-export const TrackingPlanCreateRequestSchema = z.object({
-  name: z.string().trim().min(1).max(255).default("Default Tracking Plan")
-});
-export type TrackingPlanCreateRequest = z.infer<typeof TrackingPlanCreateRequestSchema>;
-
 export const SdkAllowedOriginSchema = z
   .string()
   .trim()
@@ -109,6 +104,12 @@ export const SdkAllowedOriginSchema = z
     const url = new URL(value);
     return (url.protocol === "https:" || url.protocol === "http:") && url.origin === value;
   }, "must be an exact HTTP(S) origin without a path");
+
+export const TrackingPlanCreateRequestSchema = z.object({
+  name: z.string().trim().min(1).max(255).default("Default Tracking Plan"),
+  allowedOrigins: z.array(SdkAllowedOriginSchema).max(20).optional()
+});
+export type TrackingPlanCreateRequest = z.infer<typeof TrackingPlanCreateRequestSchema>;
 
 export const SdkSettingsUpdateSchema = z.object({
   allowedOrigins: z

@@ -67,7 +67,11 @@ export class TrackingPlanRepository {
     return this.hydratePlan(plan, executor);
   }
 
-  async create(projectId: string, name: string): Promise<TrackingPlan> {
+  async create(
+    projectId: string,
+    name: string,
+    allowedOrigins: string[] = []
+  ): Promise<TrackingPlan> {
     return this.transaction(async (client) => {
       const project = await client.query<{ project_id: string }>(
         "SELECT project_id FROM projects WHERE project_id = $1 AND status = 'active' FOR UPDATE",
@@ -84,12 +88,23 @@ export class TrackingPlanRepository {
          VALUES ($1, $2, $3, 'draft')`,
         [trackingPlanId, projectId, name]
       );
-      await client.query(
-        `INSERT INTO project_sdk_settings (project_id, allowed_origins_json, status)
-         VALUES ($1, '[]'::jsonb, 'active')
-         ON CONFLICT (project_id) DO NOTHING`,
-        [projectId]
-      );
+      if (allowedOrigins.length > 0) {
+        await client.query(
+          `INSERT INTO project_sdk_settings (project_id, allowed_origins_json, status)
+           VALUES ($1, $2::jsonb, 'active')
+           ON CONFLICT (project_id) DO UPDATE
+           SET allowed_origins_json = EXCLUDED.allowed_origins_json,
+               status = 'active', updated_at = now()`,
+          [projectId, JSON.stringify(allowedOrigins)]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO project_sdk_settings (project_id, allowed_origins_json, status)
+           VALUES ($1, '[]'::jsonb, 'active')
+           ON CONFLICT (project_id) DO NOTHING`,
+          [projectId]
+        );
+      }
       for (const eventName of STANDARD_EVENT_NAMES) {
         await client.query(
           `INSERT INTO tracking_plan_events

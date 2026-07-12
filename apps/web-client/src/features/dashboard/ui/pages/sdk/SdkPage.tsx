@@ -9,8 +9,6 @@ import {
   Code2,
   FileCode2,
   PackageCheck,
-  PlayCircle,
-  ShieldCheck,
   Terminal,
   type LucideIcon
 } from "lucide-react";
@@ -19,97 +17,8 @@ import { TrackingPlanWorkspace } from "./TrackingPlanWorkspace.js";
 
 const registryInstallCode = `# .npmrc
 @krafton-jungle-project-4team:registry=https://npm.pkg.github.com
-# GitHub Packages 접근 권한이 필요한 환경이면 아래 토큰을 함께 설정합니다.
-# //npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}
 
-npm install \
-  @krafton-jungle-project-4team/loop-ad_event_sdk@latest \
-  @krafton-jungle-project-4team/loop-ad_advertisement_sdk@latest`;
-
-const collectionSdkCode = String.raw`// src/lib/loop-ad-events.ts
-import {
-  init as initLoopAdEvents,
-  type LoopAdEventSdkClient,
-  type TrackFields
-} from "@krafton-jungle-project-4team/loop-ad_event_sdk";
-
-const loopAdConfig = {
-  projectId: import.meta.env.VITE_LOOP_AD_PROJECT_ID,
-  writeKey: import.meta.env.VITE_LOOP_AD_WRITE_KEY
-};
-
-let eventClient: LoopAdEventSdkClient | null = null;
-
-export function startLoopAdCollection(): LoopAdEventSdkClient {
-  eventClient ??= initLoopAdEvents({
-    projectId: loopAdConfig.projectId,
-    writeKey: loopAdConfig.writeKey,
-    autoTrackPageViews: true,
-    collectDomEvents: true,
-    context: {
-      device: detectDevice()
-    }
-  });
-
-  return eventClient;
-}
-
-export function identifyLoopAdUser(identity: {
-  userId: string;
-  sessionId: string;
-}): void {
-  startLoopAdCollection().setIdentity(identity, {
-    device: detectDevice()
-  });
-}
-
-export function trackLoopAdEvent(eventName: string, fields?: TrackFields): void {
-  startLoopAdCollection().track(eventName, fields);
-}
-
-export function clearLoopAdIdentity(): void {
-  eventClient?.clearIdentity();
-}
-
-function detectDevice(): "mobile" | "desktop" {
-  return window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop";
-}`;
-
-const authHookCode = String.raw`// 앱 시작 또는 auth/session layer
-import {
-  clearLoopAdIdentity,
-  identifyLoopAdUser,
-  startLoopAdCollection,
-  trackLoopAdEvent
-} from "./loop-ad-events";
-
-startLoopAdCollection();
-
-auth.onSignedIn((user, session) => {
-  identifyLoopAdUser({
-    userId: user.id,
-    sessionId: session.id
-  });
-});
-
-auth.onSignedOut(() => {
-  clearLoopAdIdentity();
-});
-
-trackLoopAdEvent("product_detail_view", {
-  properties: {
-    product_id: "product_123",
-    category: "outerwear"
-  }
-});`;
-
-const domAttributeCode = String.raw`<button
-  data-loopad-event="promotion_click"
-  data-loopad-placement-id="HOME_TOP_BANNER"
-  data-loopad-prop-button-label="hero_cta"
->
-  프로모션 보기
-</button>`;
+npm install @krafton-jungle-project-4team/loop-ad_advertisement_sdk@latest`;
 
 const advertisementSdkCode = String.raw`// src/lib/loop-ad-ads.ts
 import {
@@ -125,8 +34,11 @@ const loopAdConfig = {
   promotionRunId: import.meta.env.VITE_LOOP_AD_PROMOTION_RUN_ID
 };
 
-export async function renderHomeTopBanner(user: { id: string }): Promise<void> {
-  const eventClient = startLoopAdCollection();
+export async function renderHomeTopBanner(user: { id: string; sessionId: string }): Promise<void> {
+  const eventClient = await startLoopAdCollection({
+    userId: user.id,
+    sessionId: user.sessionId
+  });
   const ads = initLoopAdAds({
     apiBaseUrl: loopAdConfig.apiBaseUrl,
     projectId: loopAdConfig.projectId,
@@ -192,21 +104,9 @@ const placementMarkupCode = String.raw`<section aria-label="추천 프로모션"
 
 const scriptTagCode = String.raw`<div id="loopad-home-top-banner"></div>
 
-<script src="https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js"></script>
 <script src="https://krafton-jungle-project-4team.github.io/loop-ad_advertisement_sdk/loop-ad-advertisement-sdk.iife.js"></script>
 <script>
-  const eventSdk = LoopAdEventSDK.init({
-    projectId: "your-project-id",
-    writeKey: "your-public-write-key",
-    autoTrackPageViews: true,
-    collectDomEvents: true
-  });
-
-  eventSdk.setIdentity({
-    userId: currentUser.id,
-    sessionId: currentSession.id
-  });
-
+  // 이벤트 수집 문서의 client를 window.loopAdEventClient에 연결한 뒤 사용합니다.
   const ads = LoopAdAdvertisementSDK.init({
     apiBaseUrl: window.LOOP_AD_API_BASE_URL,
     projectId: "your-project-id",
@@ -218,10 +118,10 @@ const scriptTagCode = String.raw`<div id="loopad-home-top-banner"></div>
     placementId: "HOME_TOP_BANNER",
     targetId: "loopad-home-top-banner",
     onImpression(decision) {
-      eventSdk.track("promotion_impression", toPromotionFields(decision));
+      window.loopAdEventClient?.track("promotion_impression", toPromotionFields(decision));
     },
     onClick(decision) {
-      eventSdk.track("promotion_click", toPromotionFields(decision));
+      window.loopAdEventClient?.track("promotion_click", toPromotionFields(decision));
     }
   });
 
@@ -244,20 +144,15 @@ const scriptTagCode = String.raw`<div id="loopad-home-top-banner"></div>
 </script>`;
 
 const checklistItems = [
-  "로그인 직후 setIdentity()가 userId와 sessionId를 함께 받습니다.",
-  "track()에 서비스 이벤트명과 필요한 properties만 넘깁니다.",
+  "광고 지면의 targetId element가 렌더링 전에 존재합니다.",
   "ads.render() 결과가 empty이면 직접 fallback UI를 보여줍니다.",
-  "filled 광고의 노출과 클릭은 onImpression, onClick 콜백에서 처리합니다."
+  "filled 광고의 노출과 클릭은 onImpression, onClick 콜백에서 수집 SDK로 전달합니다."
 ];
 
 const prerequisites = [
   {
     label: "프로젝트 ID",
     value: "Dashboard에서 만든 서비스 식별자"
-  },
-  {
-    label: "쓰기 키",
-    value: "브라우저 SDK에 전달할 public write key"
   },
   {
     label: "Promotion run ID",
@@ -274,10 +169,12 @@ const prerequisites = [
 ];
 
 export function SdkPage({ projectId }: { projectId: string }) {
-  return <TrackingPlanWorkspace projectId={projectId} legacyGuide={<LegacySdkGuide />} />;
+  return (
+    <TrackingPlanWorkspace advertisementGuide={<AdvertisementSdkGuide />} projectId={projectId} />
+  );
 }
 
-function LegacySdkGuide() {
+function AdvertisementSdkGuide() {
   return (
     <div className="grid gap-6">
       <PageHeader />
@@ -290,8 +187,8 @@ function LegacySdkGuide() {
       <section className="grid gap-4">
         <SectionHeading
           eyebrow="Procedure"
-          title="SDK 연동 절차"
-          description="일반적인 웹 프론트엔드 프로젝트에서 두 SDK를 함께 연결하는 순서입니다."
+          title="광고 SDK 연동 절차"
+          description="광고 지면을 만들고 decision과 노출·클릭 콜백을 연결하는 순서입니다."
         />
         <Tabs defaultValue="npm">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -303,7 +200,7 @@ function LegacySdkGuide() {
           </div>
           <TabsContent className="grid gap-4" value="npm">
             <GuideStep
-              body="GitHub Packages registry를 프로젝트에 연결하고 두 SDK를 최신 버전으로 설치합니다."
+              body="공개 npm 패키지로 배포된 광고 SDK를 설치합니다."
               icon={PackageCheck}
               number="1"
               title="패키지를 설치합니다"
@@ -311,26 +208,9 @@ function LegacySdkGuide() {
               <CodeBlock code={registryInstallCode} language="bash" title=".npmrc / terminal" />
             </GuideStep>
             <GuideStep
-              body="수집 SDK는 앱 부팅 시 먼저 시작해도 됩니다. 단, userId와 sessionId가 준비되기 전 이벤트는 전송되지 않습니다."
-              icon={ShieldCheck}
-              number="2"
-              title="수집 SDK를 초기화합니다"
-            >
-              <CodeBlock code={collectionSdkCode} language="ts" title="loop-ad-events.ts" />
-            </GuideStep>
-            <GuideStep
-              body="인증 계층에서 identity를 주입하고, 서비스 도메인 이벤트는 track()으로 수집합니다."
-              icon={PlayCircle}
-              number="3"
-              title="로그인 세션과 이벤트를 연결합니다"
-            >
-              <CodeBlock code={authHookCode} language="ts" title="auth integration" />
-              <CodeBlock code={domAttributeCode} language="html" title="DOM attribute tracking" />
-            </GuideStep>
-            <GuideStep
-              body="광고 SDK는 decision 요청과 DOM 렌더링을 담당합니다. 노출/클릭 지표는 콜백에서 수집 SDK로 넘깁니다."
+              body="광고 SDK는 decision 요청과 DOM 렌더링을 담당합니다. 이벤트 수집 문서를 먼저 적용한 뒤 노출·클릭 콜백을 수집 SDK로 넘깁니다."
               icon={FileCode2}
-              number="4"
+              number="2"
               title="광고 SDK를 렌더링 지면에 붙입니다"
             >
               <CodeBlock code={placementMarkupCode} language="html" title="ad placement" />
@@ -363,16 +243,15 @@ function PageHeader() {
     <div className="grid gap-4 border-b border-black/10 pb-6">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">How-to guide</Badge>
-        <Badge variant="secondary">수집 SDK</Badge>
         <Badge variant="secondary">광고 SDK</Badge>
       </div>
       <div className="grid gap-2">
         <h1 className="text-[28px] font-semibold tracking-tight text-[#1d1d1f] md:text-[34px]">
-          SDK 연동 가이드
+          광고 SDK 연동 가이드
         </h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
-          일반 웹 프로젝트에 SDK를 붙일 때 필요한 코드만 정리했습니다. 프로젝트 값, 사용자 세션,
-          광고 지면 이름만 실제 값으로 바꾸면 됩니다.
+          일반 웹 프로젝트에 광고 지면을 붙이는 절차입니다. 프로젝트 값, 사용자 세션, 광고 지면
+          이름만 실제 값으로 바꾸면 됩니다.
         </p>
       </div>
     </div>
@@ -387,8 +266,8 @@ function GuideSummary() {
           목표
         </CardTitle>
         <CardDescription className="leading-6">
-          수집 SDK는 사용자 행동 이벤트를 기록하고, 광고 SDK는 지정한 영역에 광고를 렌더링합니다. 앱
-          코드는 로그인 세션 연결, 광고 응답 처리, 노출/클릭 콜백만 담당하면 됩니다.
+          광고 SDK는 지정한 영역에 광고를 렌더링합니다. 앱 코드는 광고 응답 처리와 노출·클릭 콜백
+          연결만 담당하면 됩니다.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -396,12 +275,11 @@ function GuideSummary() {
           <Code2 className="text-primary" />
           <AlertTitle>필수 흐름</AlertTitle>
           <AlertDescription>
-            수집 SDK를 시작하고, 로그인 후 identity를 설정한 뒤, 광고 SDK의 render 결과와 콜백을
-            처리합니다.
+            이벤트 수집 가이드를 먼저 적용한 뒤 광고 SDK의 render 결과와 콜백을 처리합니다.
           </AlertDescription>
         </Alert>
         <div className="grid gap-2 sm:grid-cols-3">
-          <SummaryMetric label="수집" value="init + setIdentity + track" />
+          <SummaryMetric label="지면" value="placementId + targetId" />
           <SummaryMetric label="광고" value="render + decision 처리" />
           <SummaryMetric label="콜백" value="impression / click" />
         </div>
@@ -463,10 +341,6 @@ function TroubleshootingPanel() {
         <CardDescription>대부분의 연동 오류는 아래 세 가지에서 시작합니다.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <TroubleshootingItem
-          title="이벤트가 보이지 않음"
-          body="setIdentity()가 호출되기 전이면 이벤트가 기록되지 않습니다. userId와 sessionId가 모두 있는지 먼저 확인합니다."
-        />
         <TroubleshootingItem
           title="광고 영역이 비어 있음"
           body="targetId element가 실제 DOM에 있는지 확인하고, decision.status가 empty이면 fallback UI를 직접 보여줍니다."
