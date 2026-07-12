@@ -23,7 +23,7 @@ export class TrackingPlanService {
     return this.repository.get(projectId);
   }
   create(projectId: string, request: TrackingPlanCreateRequest) {
-    return this.repository.create(projectId, request.name);
+    return this.repository.create(projectId, request.name, request.allowedOrigins);
   }
   addEvent(projectId: string, event: TrackingPlanEventInput) {
     return this.repository.addEvent(projectId, event);

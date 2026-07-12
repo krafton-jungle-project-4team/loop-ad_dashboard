@@ -70,6 +70,30 @@ test("public connection requires an exact allowed Origin", async () => {
   assert.equal(connection.revision, 1);
 });
 
+test("tracking plan creation forwards the requested allowed Origins", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  let received: [string, string, string[] | undefined] | null = null;
+  const repository = {
+    create: async (projectId: string, name: string, allowedOrigins?: string[]) => {
+      received = [projectId, name, allowedOrigins];
+      return {};
+    }
+  } as unknown as TrackingPlanRepository;
+  const service = new TrackingPlanService(repository);
+
+  await service.create("demo-shoppingmall", {
+    name: "Default Tracking Plan",
+    allowedOrigins: ["https://demo-shoppingmall.dev.loop-ad.org"]
+  });
+
+  assert.deepEqual(received, [
+    "demo-shoppingmall",
+    "Default Tracking Plan",
+    ["https://demo-shoppingmall.dev.loop-ad.org"]
+  ]);
+});
+
 function fakePublishDatabase(failSettingsUpdate = false) {
   const queries: string[] = [];
   let revision = 0;

@@ -27,12 +27,14 @@ type PropertyDraft = {
   required: boolean;
 };
 
+const DEFAULT_DEMO_ORIGIN = "https://demo-shoppingmall.dev.loop-ad.org";
+
 export function TrackingPlanWorkspace({
   projectId,
-  legacyGuide
+  advertisementGuide
 }: {
   projectId: string;
-  legacyGuide: ReactNode;
+  advertisementGuide: ReactNode;
 }) {
   const [plan, setPlan] = useState<TrackingPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,12 @@ export function TrackingPlanWorkspace({
         <CardContent>
           <Button
             onClick={() =>
-              void run(() => createTrackingPlan(projectId, { name: "Default Tracking Plan" }))
+              void run(() =>
+                createTrackingPlan(projectId, {
+                  name: "Default Tracking Plan",
+                  allowedOrigins: [DEFAULT_DEMO_ORIGIN]
+                })
+              )
             }
           >
             기본 Tracking Plan 생성
@@ -112,8 +119,7 @@ export function TrackingPlanWorkspace({
         <TabsList className="flex h-auto flex-wrap">
           <TabsTrigger value="design">이벤트 설계</TabsTrigger>
           <TabsTrigger value="connection">SDK 연결</TabsTrigger>
-          <TabsTrigger value="developer">개발자 가이드</TabsTrigger>
-          <TabsTrigger value="legacy">기존 연동 가이드</TabsTrigger>
+          <TabsTrigger value="guide">개발자 가이드</TabsTrigger>
         </TabsList>
         <TabsContent value="design">
           <EventDesigner plan={plan} run={run} />
@@ -126,10 +132,9 @@ export function TrackingPlanWorkspace({
             setValidation={setValidation}
           />
         </TabsContent>
-        <TabsContent value="developer">
-          <DeveloperGuide plan={plan} />
+        <TabsContent value="guide">
+          <DeveloperGuide advertisementGuide={advertisementGuide} plan={plan} />
         </TabsContent>
-        <TabsContent value="legacy">{legacyGuide}</TabsContent>
       </Tabs>
     </div>
   );
@@ -400,24 +405,224 @@ function ConnectionPanel({
   );
 }
 
-function DeveloperGuide({ plan }: { plan: TrackingPlan }) {
+function DeveloperGuide({
+  advertisementGuide,
+  plan
+}: {
+  advertisementGuide: ReactNode;
+  plan: TrackingPlan;
+}) {
+  return (
+    <Tabs defaultValue="collection">
+      <TabsList>
+        <TabsTrigger value="collection">이벤트 수집</TabsTrigger>
+        <TabsTrigger value="advertisement">광고 연동</TabsTrigger>
+      </TabsList>
+      <TabsContent value="collection">
+        <CollectionGuide plan={plan} />
+      </TabsContent>
+      <TabsContent value="advertisement">{advertisementGuide}</TabsContent>
+    </Tabs>
+  );
+}
+
+function CollectionGuide({ plan }: { plan: TrackingPlan }) {
+  const [selectedEventName, setSelectedEventName] = useState(plan.events[0]?.eventName ?? "");
+  const selectedEvent =
+    plan.events.find((event) => event.eventName === selectedEventName) ?? plan.events[0] ?? null;
   const connectionUrl = `https://dashboard.api.dev.loop-ad.org/api/public/v1/sdk/connections/${plan.sdkKey}`;
-  const code = `const sdk = await LoopAdEventSDK.init({\n  connectionUrl: "${connectionUrl}",\n  debug: import.meta.env.DEV\n});\n\nsdk.setIdentity({ userId: user.id, sessionId: session.id });\nsdk.track("page_view");`;
+  const installCode = `# .npmrc
+@krafton-jungle-project-4team:registry=https://npm.pkg.github.com
+
+npm install @krafton-jungle-project-4team/loop-ad_event_sdk`;
+  const initCode = `// src/lib/loop-ad-events.ts
+import {
+  init,
+  type LoopAdEventSdkClient
+} from "@krafton-jungle-project-4team/loop-ad_event_sdk";
+
+let clientPromise: Promise<LoopAdEventSdkClient> | null = null;
+
+export function startLoopAdCollection(identity: {
+  userId: string;
+  sessionId: string;
+}) {
+  clientPromise ??= init({
+    connectionUrl: "${connectionUrl}",
+    debug: import.meta.env.DEV
+  });
+
+  return clientPromise.then((client) => {
+    client.setIdentity(identity);
+    return client;
+  });
+}`;
+
+  return (
+    <article className="grid gap-5">
+      <header className="grid gap-2 border-b pb-5">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">How-to guide</Badge>
+          <Badge variant="secondary">{plan.status}</Badge>
+          <Badge variant="secondary">revision {plan.currentRevision}</Badge>
+          <Badge variant="secondary">이벤트 {plan.events.length}개</Badge>
+        </div>
+        <h2 className="text-2xl font-semibold">이벤트 수집 SDK 연동</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
+          현재 편집 중인 Tracking Plan의 Origin, 이벤트명, 필수 속성, 타입을 기준으로 생성된
+          가이드입니다. 게시 후 SDK runtime에 적용됩니다.
+        </p>
+      </header>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <GuideSection
+          description="공개 npm 패키지를 설치합니다. 브라우저 사용자는 GitHub Packages에 직접 접근하지 않습니다."
+          title="1. 수집 SDK 설치"
+        >
+          <GuideCode code={installCode} />
+        </GuideSection>
+        <GuideSection
+          description="아래 Origin에서만 connection과 schema를 조회할 수 있습니다. 변경 후 Tracking Plan을 게시하세요."
+          title="2. 허용 Origin 확인"
+        >
+          <div className="grid gap-2">
+            {plan.allowedOrigins.length > 0 ? (
+              plan.allowedOrigins.map((origin) => (
+                <code className="break-all rounded-md border p-2 text-xs" key={origin}>
+                  {origin}
+                </code>
+              ))
+            ) : (
+              <p className="text-sm text-destructive">등록된 Origin이 없습니다.</p>
+            )}
+          </div>
+        </GuideSection>
+      </div>
+
+      <GuideSection
+        description="connection fetch가 실패하면 init도 실패합니다. 앱 초기화 단계에서 오류를 처리하세요."
+        title="3. Tracking Plan 연결"
+      >
+        <GuideCode code={initCode} />
+      </GuideSection>
+
+      <GuideSection
+        description="이벤트를 선택하면 현재 규약의 속성과 전송 예제가 함께 바뀝니다. 규약에 없는 이벤트나 타입이 맞지 않는 값은 전송되지 않습니다."
+        title="4. 규약에 맞춰 이벤트 전송"
+      >
+        {selectedEvent ? (
+          <div className="grid gap-4">
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">이벤트</span>
+              <select
+                className="h-10 rounded-md border px-3"
+                value={selectedEvent.eventName}
+                onChange={(event) => setSelectedEventName(event.target.value)}
+              >
+                {plan.events.map((event) => (
+                  <option key={event.eventName} value={event.eventName}>
+                    {event.eventName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-sm text-muted-foreground">
+              {selectedEvent.description || "등록된 설명이 없습니다."}
+            </p>
+            <PropertyContract event={selectedEvent} />
+            <GuideCode code={trackCode(selectedEvent)} />
+          </div>
+        ) : (
+          <p className="text-sm text-destructive">Tracking Plan에 등록된 이벤트가 없습니다.</p>
+        )}
+      </GuideSection>
+    </article>
+  );
+}
+
+function GuideSection({
+  children,
+  description,
+  title
+}: {
+  children: ReactNode;
+  description: string;
+  title: string;
+}) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">최소 연결 예제</CardTitle>
-        <CardDescription>
-          connection fetch 실패는 init 실패로 처리하고 호출부에서 명시적으로 대응하세요.
-        </CardDescription>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription className="leading-6">{description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <pre className="overflow-auto rounded-md bg-slate-950 p-4 text-sm text-slate-100">
-          <code>{code}</code>
-        </pre>
-      </CardContent>
+      <CardContent>{children}</CardContent>
     </Card>
   );
+}
+
+function GuideCode({ code }: { code: string }) {
+  return (
+    <pre className="overflow-auto rounded-md bg-slate-950 p-4 text-sm leading-6 text-slate-100">
+      <code>{code}</code>
+    </pre>
+  );
+}
+
+function PropertyContract({ event }: { event: TrackingPlanEvent }) {
+  const required = new Set(event.propertiesSchema.required ?? []);
+  const properties = Object.entries(event.propertiesSchema.properties ?? {});
+  if (properties.length === 0) {
+    return <p className="text-sm text-muted-foreground">추가 속성 없음</p>;
+  }
+  return (
+    <div className="overflow-hidden rounded-md border">
+      {properties.map(([name, schema]) => (
+        <div
+          className="grid grid-cols-[minmax(0,1fr)_100px_60px] gap-3 border-b px-3 py-2 text-sm last:border-b-0"
+          key={name}
+        >
+          <code className="break-all">{name}</code>
+          <span>{schema.type}</span>
+          <span>{required.has(name) ? "필수" : "선택"}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function trackCode(event: TrackingPlanEvent) {
+  const properties = Object.fromEntries(
+    Object.entries(event.propertiesSchema.properties ?? {}).map(([name, schema]) => [
+      name,
+      exampleValue(name, schema)
+    ])
+  );
+  if (Object.keys(properties).length === 0) {
+    return `const client = await startLoopAdCollection({\n  userId: user.id,\n  sessionId: session.id\n});\nclient.track("${event.eventName}");`;
+  }
+  return `const client = await startLoopAdCollection({\n  userId: user.id,\n  sessionId: session.id\n});\nclient.track("${event.eventName}", {\n  properties: ${JSON.stringify(properties, null, 2).replace(/\n/g, "\n  ")}\n});`;
+}
+
+function exampleValue(name: string, schema: TrackingPlanJsonSchema): unknown {
+  switch (schema.type) {
+    case "string":
+      return `${name}_value`;
+    case "number":
+      return 1.5;
+    case "integer":
+      return 1;
+    case "boolean":
+      return true;
+    case "array":
+      return [schema.items ? exampleValue(`${name}_item`, schema.items) : "value"];
+    case "object":
+      return Object.fromEntries(
+        Object.entries(schema.properties ?? {}).map(([childName, childSchema]) => [
+          childName,
+          exampleValue(childName, childSchema)
+        ])
+      );
+  }
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
