@@ -78,6 +78,7 @@ export function DashboardShell({
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
   const isFunnelTab = activeTab === "funnels";
   const isFullHeightTab = isCanvasTab || isFunnelTab;
+  const constrainToViewport = isFullHeightTab || !isDashboardUnlocked;
 
   return (
     <SidebarProvider
@@ -110,7 +111,7 @@ export function DashboardShell({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className={isFullHeightTab ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
+      <SidebarInset className={constrainToViewport ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
           <div className="flex h-full min-w-0 flex-1 items-center gap-3">
             <ProjectReturnIconLink />

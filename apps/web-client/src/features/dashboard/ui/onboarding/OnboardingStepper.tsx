@@ -3,6 +3,7 @@ import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Check, LockKeyhole } from "lucide-react";
+import type { ReactNode } from "react";
 import type {
   ProjectOnboardingStep,
   ProjectOnboardingStepState
@@ -15,6 +16,7 @@ export type OnboardingStepperProps = {
   ariaLabel?: string;
   campaignSteps: ReadonlyArray<OnboardingStep>;
   className?: string;
+  desktopFooter?: ReactNode;
   onStepSelect?: (step: OnboardingStep) => void;
   setupSteps: ReadonlyArray<OnboardingStep>;
 };
@@ -29,6 +31,7 @@ export function OnboardingStepper({
   ariaLabel = "프로젝트 시작 가이드",
   campaignSteps,
   className,
+  desktopFooter,
   onStepSelect,
   setupSteps
 }: OnboardingStepperProps) {
@@ -46,7 +49,12 @@ export function OnboardingStepper({
   const progressValue = steps.length === 0 ? 0 : (completedCount / steps.length) * 100;
 
   return (
-    <div className={cn("w-full md:w-72", className)}>
+    <div
+      className={cn(
+        "w-full md:sticky md:top-6 md:max-h-[calc(100svh-7rem)] md:self-start md:w-72",
+        className
+      )}
+    >
       <MobileOnboardingSummary
         ariaLabel={ariaLabel}
         campaignStepCount={campaignSteps.length}
@@ -59,7 +67,7 @@ export function OnboardingStepper({
 
       <nav
         aria-label={ariaLabel}
-        className="hidden rounded-2xl border bg-card p-4 shadow-sm md:sticky md:top-20 md:block md:self-start"
+        className="hidden rounded-2xl border bg-card p-4 shadow-sm md:block md:max-h-[calc(100svh-7rem)] md:overflow-y-auto md:overscroll-contain"
       >
         <header className="flex flex-col gap-2 px-2 pb-4">
           <div className="flex items-center justify-between gap-3">
@@ -97,6 +105,12 @@ export function OnboardingStepper({
             </section>
           ))}
         </div>
+
+        {desktopFooter ? (
+          <footer className="sticky bottom-0 -mx-4 -mb-4 mt-4 border-t bg-card px-4 py-4 shadow-[0_-10px_24px_rgba(15,23,42,0.06)]">
+            {desktopFooter}
+          </footer>
+        ) : null}
       </nav>
     </div>
   );

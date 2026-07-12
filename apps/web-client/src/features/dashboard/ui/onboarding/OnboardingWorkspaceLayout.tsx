@@ -201,24 +201,25 @@ export function OnboardingWorkspaceLayout({
     >
       <OnboardingStepper
         campaignSteps={campaignSteps}
+        desktopFooter={
+          action ? (
+            <div className="grid gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">{action.label}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.description}</p>
+              </div>
+              <Button className="w-full" onClick={handleAction} type="button">
+                {action.label}
+                <ArrowRight aria-hidden="true" data-icon="inline-end" />
+              </Button>
+            </div>
+          ) : undefined
+        }
         onStepSelect={(step) => void handleStepSelect(step)}
         setupSteps={setupSteps}
       />
 
       <section className={cn("min-w-0", activeTab === "funnels" && "min-h-full")}>
-        {action ? (
-          <div className="mb-6 hidden items-center justify-between gap-4 rounded-2xl border bg-card px-5 py-4 shadow-sm md:flex">
-            <div className="min-w-0">
-              <p className="font-semibold text-foreground">{action.label}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{action.description}</p>
-            </div>
-            <Button className="shrink-0" onClick={handleAction} type="button">
-              {action.label}
-              <ArrowRight data-icon="inline-end" />
-            </Button>
-          </div>
-        ) : null}
-
         {children}
       </section>
 
