@@ -200,7 +200,6 @@ function MobileBottomNavigation({
   const { toggleSidebar } = useSidebar();
   const campaignIsActive = [
     "campaigns",
-    "campaign-detail",
     "campaign-metrics",
     "promotions",
     "campaign-promotions",
@@ -421,7 +420,7 @@ function DashboardNavigationLinkItem({
 function isSidebarNavigationItemActive(itemTab: DashboardTab, activeTab: DashboardTab) {
   switch (itemTab) {
     case "campaigns":
-      return ["campaigns", "campaign-detail", "campaign-metrics"].includes(activeTab);
+      return ["campaigns", "campaign-metrics"].includes(activeTab);
     case "promotions":
       return ["promotions", "campaign-promotions", "promotion-metrics"].includes(activeTab);
     default:
@@ -609,7 +608,6 @@ function DashboardContextSelect({
 function getDashboardContextDepth(tab: DashboardTab): DashboardContextDepth | null {
   switch (tab) {
     case "campaigns":
-    case "campaign-detail":
     case "campaign-metrics":
     case "campaign-flow-map":
       return "campaign";

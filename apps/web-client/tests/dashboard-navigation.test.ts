@@ -44,7 +44,7 @@ test("dashboard keeps legacy paths available while exposing the experiment route
   assert.equal(getCanonicalDashboardPath("main"), "statistics");
   assert.equal(getCanonicalDashboardPath("segments"), "campaigns");
   assert.deepEqual(getLegacyDashboardViewPatch("campaign-detail"), {
-    campaignView: "overview"
+    campaignView: "manage"
   });
   assert.deepEqual(getLegacyDashboardViewPatch("campaign-metrics"), {
     campaignView: "performance"
@@ -63,8 +63,9 @@ test("legacy promotion performance view opens the promotion overview", () => {
   assert.equal(query.promotionView, "overview");
 });
 
-test("legacy campaign experiment view opens the campaign overview", () => {
-  assert.equal(normalizeCampaignWorkspaceView("experiments"), "overview");
+test("legacy campaign detail views open campaign management", () => {
+  assert.equal(normalizeCampaignWorkspaceView("overview"), "manage");
+  assert.equal(normalizeCampaignWorkspaceView("experiments"), "manage");
 });
 
 test("legacy segment detail views open the segment experiment workspace", () => {

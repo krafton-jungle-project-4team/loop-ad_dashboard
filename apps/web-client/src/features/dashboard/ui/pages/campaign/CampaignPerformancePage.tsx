@@ -1,6 +1,6 @@
 import type { DashboardMain } from "@loopad/shared";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
-import { CampaignPageSections } from "./CampaignComponent.js";
+import { CampaignPerformanceSections } from "./CampaignPerformanceSections.js";
 
 export function CampaignPerformancePage({
   data,
@@ -9,5 +9,5 @@ export function CampaignPerformancePage({
   data: DashboardMain;
   query: DashboardQuery;
 }) {
-  return <CampaignPageSections data={data} query={query} tab="campaign-metrics" />;
+  return <CampaignPerformanceSections data={data} query={query} />;
 }

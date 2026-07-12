@@ -5,17 +5,6 @@ import {
   isCampaignDateRangeValid
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "@loopad/ui/shadcn/alert-dialog";
 import { Button } from "@loopad/ui/shadcn/button";
 import { DialogFooter } from "@loopad/ui/shadcn/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
@@ -46,12 +35,8 @@ export function CampaignFormDialog({
   mode,
   onCreate,
   onOpenChange,
-  onDelete,
   onUpdate,
   open,
-  deleteError,
-  deleteIsError,
-  deleteIsPending,
   updateError,
   updateIsError,
   updateIsPending
@@ -63,12 +48,8 @@ export function CampaignFormDialog({
   mode: "create" | "edit";
   onCreate: (requestBody: CreateCampaignInput) => void;
   onOpenChange: (isOpen: boolean) => void;
-  onDelete: (campaignId: string) => void;
   onUpdate: (campaignId: string, requestBody: UpdateCampaignInput) => void;
   open: boolean;
-  deleteError: Error | null;
-  deleteIsError: boolean;
-  deleteIsPending: boolean;
   updateError: Error | null;
   updateIsError: boolean;
   updateIsPending: boolean;
@@ -99,20 +80,13 @@ export function CampaignFormDialog({
             <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
           </Alert>
         ) : null}
-        {!isCreateMode && deleteIsError ? (
-          <Alert variant="destructive">
-            <AlertTitle>캠페인을 삭제하지 못했습니다</AlertTitle>
-            <AlertDescription>{mutationErrorMessage(deleteError)}</AlertDescription>
-          </Alert>
-        ) : null}
         {isCreateMode ? (
           <CampaignCreateForm isPending={createIsPending} onSubmit={onCreate} />
         ) : (
           <CampaignEditForm
             campaign={campaign}
-            isPending={updateIsPending || deleteIsPending}
+            isPending={updateIsPending}
             key={campaign?.campaign_id ?? "missing-campaign"}
-            onDelete={onDelete}
             onSubmit={onUpdate}
           />
         )}
@@ -182,12 +156,10 @@ function CampaignCreateForm({
 function CampaignEditForm({
   campaign,
   isPending,
-  onDelete,
   onSubmit
 }: {
   campaign: DashboardCampaignSummary | undefined;
   isPending: boolean;
-  onDelete: (campaignId: string) => void;
   onSubmit: (campaignId: string, requestBody: UpdateCampaignInput) => void;
 }) {
   const [campaignName, setCampaignName] = useState(campaign?.campaign_name ?? "");
@@ -196,7 +168,7 @@ function CampaignEditForm({
   const [status, setStatus] = useState<string>(campaign?.status ?? "draft");
   const [startDate, setStartDate] = useState(campaign?.start_date ?? "");
   const [endDate, setEndDate] = useState(campaign?.end_date ?? "");
-  const requestClose = useDashboardFormDraft(
+  useDashboardFormDraft(
     Boolean(
       campaign &&
       (campaignName !== campaign.campaign_name ||
@@ -235,33 +207,6 @@ function CampaignEditForm({
         statusControl={{ onValueChange: setStatus, value: status }}
       />
       <DialogFooter className="border-t pt-5">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button disabled={isPending} type="button" variant="outline">
-              {isPending ? "삭제 중" : "캠페인 삭제"}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>캠페인을 삭제할까요?</AlertDialogTitle>
-              <AlertDialogDescription>
-                {campaign.campaign_name} 캠페인이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>취소</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => onDelete(campaign.campaign_id)}
-                variant="destructive"
-              >
-                삭제
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        <Button onClick={requestClose} type="button" variant="ghost">
-          취소
-        </Button>
         <Button
           className="px-8"
           disabled={!canSubmit}

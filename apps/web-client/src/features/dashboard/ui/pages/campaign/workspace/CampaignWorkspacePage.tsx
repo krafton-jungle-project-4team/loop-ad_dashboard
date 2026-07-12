@@ -37,7 +37,7 @@ import { dashboardCampaignDetailQueryKey } from "../../../../model/dashboard-que
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { DashboardDateRangeSelect } from "../../../shared/DashboardDateRangeSelect.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
-import { CampaignPageSections } from "../CampaignComponent.js";
+import { CampaignPerformanceSections } from "../CampaignPerformanceSections.js";
 import { CampaignFormDialog } from "../components/CampaignFormDialog.js";
 import { PromotionWorkspace } from "../promotion/PromotionComponent.js";
 import {
@@ -80,6 +80,7 @@ export function CampaignWorkspacePage({
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [campaignFormDialog, setCampaignFormDialog] = useState<CampaignFormDialogState>(null);
+  const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
   const [isPromotionAddDialogOpen, setIsPromotionAddDialogOpen] = useState(false);
   const [editingPromotionId, setEditingPromotionId] = useState<string | null>(null);
   const [deletingPromotionId, setDeletingPromotionId] = useState<string | null>(null);
@@ -105,6 +106,9 @@ export function CampaignWorkspacePage({
     campaignFormDialog?.mode === "edit"
       ? data.campaigns.find((campaign) => campaign.campaign_id === campaignFormDialog.campaignId)
       : undefined;
+  const deletingCampaign = data.campaigns.find(
+    (campaign) => campaign.campaign_id === deletingCampaignId
+  );
   const editingPromotion = promotions.find(
     (promotion) => promotion.promotion_id === editingPromotionId
   );
@@ -162,6 +166,7 @@ export function CampaignWorkspacePage({
         });
       }
       setCampaignFormDialog(null);
+      setDeletingCampaignId(null);
     }
   });
   const createPromotionMutation = useMutation({
@@ -323,6 +328,13 @@ export function CampaignWorkspacePage({
         </Alert>
       ) : null}
 
+      {deleteCampaignMutation.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>캠페인을 삭제하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(deleteCampaignMutation.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+
       {!selectedCampaign ? (
         <section className="grid gap-5">
           <div className="grid gap-1">
@@ -343,6 +355,15 @@ export function CampaignWorkspacePage({
                   deleteCampaignMutation.reset();
                   setCampaignFormDialog({ campaignId: card.id, mode: "edit" });
                 }
+              },
+              {
+                id: "delete",
+                label: "캠페인 삭제",
+                onSelect: () => {
+                  deleteCampaignMutation.reset();
+                  setDeletingCampaignId(card.id);
+                },
+                tone: "destructive"
               }
             ]}
             entryActions={(card) => [
@@ -350,11 +371,6 @@ export function CampaignWorkspacePage({
                 id: "workspace",
                 label: "관리",
                 onSelect: () => openCampaignView(card.id, "manage")
-              },
-              {
-                id: "overview",
-                label: "개요",
-                onSelect: () => openCampaignView(card.id, "overview")
               },
               {
                 id: "performance",
@@ -383,11 +399,7 @@ export function CampaignWorkspacePage({
       ) : null}
 
       {selectedCampaign && !selectedPromotion && query.campaignView === "performance" ? (
-        <CampaignPageSections data={data} query={query} tab="campaign-metrics" />
-      ) : null}
-
-      {selectedCampaign && !selectedPromotion && query.campaignView === "overview" ? (
-        <CampaignPageSections data={data} query={query} tab="campaign-detail" />
+        <CampaignPerformanceSections data={data} query={query} />
       ) : null}
 
       {selectedCampaign && query.campaignView === "manage" && campaignDetail.isError ? (
@@ -481,12 +493,8 @@ export function CampaignWorkspacePage({
         createError={createCampaignMutation.error}
         createIsError={createCampaignMutation.isError}
         createIsPending={createCampaignMutation.isPending}
-        deleteError={deleteCampaignMutation.error}
-        deleteIsError={deleteCampaignMutation.isError}
-        deleteIsPending={deleteCampaignMutation.isPending}
         mode={campaignFormDialog?.mode ?? "create"}
         onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
-        onDelete={(campaignId) => deleteCampaignMutation.mutate(campaignId)}
         onOpenChange={(open) => {
           if (!open) {
             setCampaignFormDialog(null);
@@ -503,6 +511,38 @@ export function CampaignWorkspacePage({
         updateIsError={updateCampaignMutation.isError}
         updateIsPending={updateCampaignMutation.isPending}
       />
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open && !deleteCampaignMutation.isPending) {
+            setDeletingCampaignId(null);
+          }
+        }}
+        open={Boolean(deletingCampaign)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>캠페인을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingCampaign?.campaign_name} 캠페인이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteCampaignMutation.isPending}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteCampaignMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deletingCampaign) {
+                  deleteCampaignMutation.mutate(deletingCampaign.campaign_id);
+                }
+              }}
+              variant="destructive"
+            >
+              {deleteCampaignMutation.isPending ? "삭제 중" : "캠페인 삭제"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <PromotionAddDialog
         createIsPending={createPromotionMutation.isPending}
         onCreate={(form) => createPromotionMutation.mutate(form)}

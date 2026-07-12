@@ -35,11 +35,6 @@ export const dashboardTabs = [
   },
   { value: "campaigns", label: "캠페인 관리", pathSegment: "campaigns" },
   {
-    value: "campaign-detail",
-    label: "캠페인 개요",
-    pathSegment: "campaign-detail"
-  },
-  {
     value: "campaign-metrics",
     label: "캠페인 통계",
     pathSegment: "campaign-metrics"
@@ -121,7 +116,7 @@ export function getLegacyDashboardViewPatch(path: string): {
   statisticsView?: "overview" | "user-paths";
 } {
   if (path === "campaign-detail") {
-    return { campaignView: "overview" };
+    return { campaignView: "manage" };
   }
   if (path === "campaign-metrics") {
     return { campaignView: "performance" };

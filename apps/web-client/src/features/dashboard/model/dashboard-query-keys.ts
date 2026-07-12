@@ -30,7 +30,7 @@ export function dashboardEntitySearchQueryKey(
 }
 
 export function dashboardCampaignDetailQueryKey(projectId: string, campaignId: string) {
-  return ["dashboard", "campaign-detail", projectId, campaignId] as const;
+  return ["dashboard", "campaign", projectId, campaignId] as const;
 }
 
 export function dashboardPromotionDetailQueryKey(projectId: string, promotionId: string) {

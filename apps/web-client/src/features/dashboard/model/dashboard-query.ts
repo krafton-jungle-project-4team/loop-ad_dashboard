@@ -172,7 +172,7 @@ export function normalizeDashboardQuery(
 export function normalizeCampaignWorkspaceView(
   view: DashboardQuery["campaignView"]
 ): DashboardQuery["campaignView"] {
-  return view === "experiments" ? "overview" : view;
+  return view === "overview" || view === "experiments" ? "manage" : view;
 }
 
 export function normalizePromotionWorkspaceView(

@@ -156,7 +156,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
                 <Button
                   className={cn(
                     "h-auto min-h-9 min-w-0 whitespace-normal px-2 py-2 text-xs",
-                    index === 0 && entryActions.length > 1 && "col-span-2"
+                    index === 0 && entryActions.length === 3 && "col-span-2"
                   )}
                   disabled={action.disabled}
                   key={action.id}

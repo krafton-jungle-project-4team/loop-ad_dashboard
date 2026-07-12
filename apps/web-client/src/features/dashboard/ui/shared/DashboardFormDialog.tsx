@@ -1,5 +1,6 @@
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -15,6 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@loopad/ui/shadcn/alert-dialog";
+import { Button } from "@loopad/ui/shadcn/button";
+import { XIcon } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -91,10 +94,22 @@ export function DashboardFormDialog({
                 : "h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] w-[calc(100%-1rem)] overflow-y-auto p-0 sm:h-auto sm:max-h-[90svh] sm:max-w-[720px] [&_[data-slot=dialog-footer]]:sticky [&_[data-slot=dialog-footer]]:bottom-0 [&_[data-slot=dialog-footer]]:z-10"
           }
           onPointerDownOutside={(event) => event.preventDefault()}
+          showCloseButton={false}
         >
-          <DialogHeader className="sticky top-0 z-10 border-b bg-background px-5 py-5 sm:px-8 sm:py-6">
+          <DialogHeader className="relative sticky top-0 z-10 border-b bg-background px-5 py-5 pr-14 sm:px-8 sm:py-6 sm:pr-16">
             <DialogTitle className="text-2xl font-semibold">{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
+            <DialogClose asChild>
+              <Button
+                aria-label="취소"
+                className="absolute right-5 top-5 sm:right-8 sm:top-6"
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                <XIcon />
+              </Button>
+            </DialogClose>
           </DialogHeader>
           {children}
         </DialogContent>
