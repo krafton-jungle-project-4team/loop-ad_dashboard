@@ -13,7 +13,7 @@ import {
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
@@ -209,18 +209,6 @@ export function ProjectManagementDialog({
                         <p className="truncate text-xs text-muted-foreground">{project.domain}</p>
                       </div>
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant={isCurrentProject ? "secondary" : "outline"}
-                        >
-                          <Link
-                            params={{ projectId: project.project_id }}
-                            to="/dashboard/$projectId"
-                          >
-                            열기
-                          </Link>
-                        </Button>
                         <Button
                           aria-label={`${project.project_name} 삭제`}
                           disabled={isDeleting}
