@@ -85,7 +85,7 @@ export function PromotionSegmentSuggestionPanel({
     <Card className="h-full shadow-none">
       <CardHeader className="grid gap-4">
         <div className="grid gap-1">
-          <CardTitle>세그먼트 생성</CardTitle>
+          <CardTitle>세그먼트 후보</CardTitle>
           <CardDescription>
             AI가 제안한 후보와 직접 추가한 후보를 확인합니다. 확정 시 최종 타겟 세그먼트로
             저장됩니다.
@@ -124,7 +124,7 @@ export function PromotionSegmentSuggestionPanel({
               <h3 className="text-sm font-semibold">직접 추가 세그먼트 후보</h3>
               <Badge variant="secondary">{formatInteger(scopedSegments.length)}</Badge>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 2xl:grid-cols-2">
               {scopedSegments.map((segment) => (
                 <div
                   className="grid gap-3 rounded-lg border bg-[#fafafc] p-4"
@@ -189,7 +189,7 @@ export function PromotionSegmentSuggestionPanel({
         ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 세그먼트를 불러오는 중입니다." /> : null}
         {suggestions.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 2xl:grid-cols-2">
             {suggestions.map((suggestion) => {
               const isAccepted = suggestion.suggestion_status === "accepted";
               const isConfirmed = suggestion.suggestion_status === "confirmed";

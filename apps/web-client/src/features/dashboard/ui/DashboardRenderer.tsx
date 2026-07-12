@@ -29,7 +29,7 @@ export function DashboardPanelRenderer({
       return (
         <PromotionManagementPage
           data={resource.data}
-          query={{ ...query, promotionView: "overview" }}
+          query={{ ...query, promotionView: "performance" }}
         />
       );
     case "segments":

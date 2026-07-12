@@ -9,7 +9,8 @@ import {
 import {
   defaultDashboardSearchQuery,
   normalizeCampaignWorkspaceView,
-  normalizeDashboardQuery
+  normalizeDashboardQuery,
+  normalizePromotionWorkspaceView
 } from "../src/features/dashboard/model/dashboard-query.js";
 
 test("dashboard sidebar exposes the product-led flat navigation order", () => {
@@ -54,13 +55,14 @@ test("dashboard keeps legacy paths available while exposing the experiment route
   });
 });
 
-test("legacy promotion performance view opens the promotion overview", () => {
+test("legacy promotion overview opens the promotion performance view", () => {
   const query = normalizeDashboardQuery(
-    { ...defaultDashboardSearchQuery, promotionView: "performance" },
+    { ...defaultDashboardSearchQuery, promotionView: "overview" },
     "demo_project"
   );
 
-  assert.equal(query.promotionView, "overview");
+  assert.equal(query.promotionView, "performance");
+  assert.equal(normalizePromotionWorkspaceView("performance"), "performance");
 });
 
 test("legacy campaign detail views open campaign management", () => {

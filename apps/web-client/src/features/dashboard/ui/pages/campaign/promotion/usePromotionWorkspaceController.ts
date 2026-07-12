@@ -119,7 +119,7 @@ export function usePromotionWorkspaceController({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
       });
       void setDashboardQueryState({
-        promotionView: "overview",
+        promotionView: "performance",
         selectedAdExperimentId: "",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
@@ -575,7 +575,7 @@ export function usePromotionWorkspaceController({
       );
       if (firstConfirmedSegmentId) {
         await setDashboardQueryState({
-          segmentView: "experiments",
+          segmentView: "manage",
           selectedAdExperimentId: "",
           selectedSegmentId: firstConfirmedSegmentId
         });
@@ -660,7 +660,7 @@ export function usePromotionWorkspaceController({
 
   const selectPromotion = (promotionId: string, segmentId = "") => {
     void setDashboardQueryState({
-      promotionView: "overview",
+      promotionView: "performance",
       selectedAdExperimentId: "",
       selectedCampaignId,
       selectedPromotionId: promotionId,
@@ -677,15 +677,6 @@ export function usePromotionWorkspaceController({
       selectedSegmentId: segmentId
     });
   };
-  const openSegmentCreation = () => {
-    setWorkspaceTab("segments");
-    void setDashboardQueryState({
-      segmentView: "recommendations",
-      selectedAdExperimentId: "",
-      selectedSegmentId: ""
-    });
-  };
-
   return {
     activeAnalysisId,
     analysisProgress,
@@ -702,7 +693,6 @@ export function usePromotionWorkspaceController({
     editingSegmentId,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
-    openSegmentCreation,
     openPromotions,
     promotionAnalysisIsPending:
       recommendSegmentsMutation.isPending || analysisProgress.data.status === "pending",

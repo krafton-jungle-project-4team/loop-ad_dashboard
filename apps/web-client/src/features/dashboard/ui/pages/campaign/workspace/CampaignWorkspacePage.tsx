@@ -177,7 +177,7 @@ export function CampaignWorkspacePage({
       await setDashboardQueryState({
         campaignView: "manage",
         createPromotion: false,
-        promotionView: "overview",
+        promotionView: "performance",
         segmentView: "manage",
         selectedAdExperimentId: "",
         selectedCampaignId,
@@ -246,12 +246,7 @@ export function CampaignWorkspacePage({
 
   const campaignCards = data.campaigns.map(toCampaignCard);
   const promotionCards = promotions.map(toPromotionCard);
-  const hierarchyItems = buildHierarchyItems(
-    selectedCampaign,
-    selectedPromotion,
-    selectedSegment,
-    query.segmentView
-  );
+  const hierarchyItems = buildHierarchyItems(selectedCampaign, selectedPromotion, selectedSegment);
   const promotionMutationError =
     createPromotionMutation.error ?? updatePromotionMutation.error ?? deletePromotionMutation.error;
   const openCampaignView = (campaignId: string, campaignView: DashboardQuery["campaignView"]) => {
@@ -265,15 +260,11 @@ export function CampaignWorkspacePage({
       selectedSegmentId: ""
     });
   };
-  const openPromotionView = (
-    promotionId: string,
-    view: "overview" | "segments" | "segment-creation"
-  ) => {
-    const opensPromotionOverview = view === "overview";
+  const openPromotionView = (promotionId: string, view: "manage" | "performance") => {
     void setDashboardQueryState({
       campaignView: "manage",
-      promotionView: opensPromotionOverview ? "overview" : "manage",
-      segmentView: view === "segment-creation" ? "recommendations" : "manage",
+      promotionView: view,
+      segmentView: "manage",
       selectedAdExperimentId: "",
       selectedCampaignId,
       selectedPromotionId: promotionId,
@@ -456,19 +447,14 @@ export function CampaignWorkspacePage({
             ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
             entryActions={(card) => [
               {
-                id: "overview",
-                label: "개요",
-                onSelect: () => openPromotionView(card.id, "overview")
+                id: "manage",
+                label: "관리",
+                onSelect: () => openPromotionView(card.id, "manage")
               },
               {
-                id: "segments",
-                label: "세그먼트 관리",
-                onSelect: () => openPromotionView(card.id, "segments")
-              },
-              {
-                id: "segment-creation",
-                label: "세그먼트 생성",
-                onSelect: () => openPromotionView(card.id, "segment-creation")
+                id: "performance",
+                label: "성과",
+                onSelect: () => openPromotionView(card.id, "performance")
               }
             ]}
             items={promotionCards}
@@ -479,11 +465,7 @@ export function CampaignWorkspacePage({
       {selectedCampaign && selectedPromotion && campaignDetail.data ? (
         <PromotionWorkspace
           data={data}
-          mode={
-            query.promotionView === "overview" && query.segmentView === "manage"
-              ? "promotion"
-              : "segment"
-          }
+          mode={query.promotionView === "performance" ? "promotion" : "segment"}
           query={query}
         />
       ) : null}
@@ -675,8 +657,7 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
 function buildHierarchyItems(
   campaign: DashboardCampaignSummary | undefined,
   promotion: DashboardCampaignPromotion | undefined,
-  segment: { segment_id: string; segment_name: string } | undefined,
-  segmentView: DashboardQuery["segmentView"]
+  segment: { segment_id: string; segment_name: string } | undefined
 ): CampaignWorkspaceHierarchyItem[] {
   if (!campaign) {
     return [];
@@ -694,8 +675,6 @@ function buildHierarchyItems(
   }
   if (segment) {
     items.push({ id: segment.segment_id, kind: "segment", label: segment.segment_name });
-  } else if (promotion && segmentView === "recommendations") {
-    items.push({ id: "segment-creation", kind: "segment", label: "세그먼트 생성" });
   }
   return items;
 }

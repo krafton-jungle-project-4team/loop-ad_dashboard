@@ -23,7 +23,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loop
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
-import { Link } from "@tanstack/react-router";
 import {
   Table,
   TableBody,
@@ -73,8 +72,8 @@ import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow
 import { PromotionSegmentSuggestionPanel } from "./PromotionSegmentSuggestions.js";
 
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
-  overview: "프로모션 개요",
-  segments: "세그먼트 생성",
+  overview: "프로모션 성과",
+  segments: "세그먼트 관리",
   "segment-detail": "세그먼트 맞춤 광고 생성"
 };
 
@@ -307,7 +306,6 @@ export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
 export function PromotionTabWorkspace({
   archiveScopedSegmentIsPending,
   approveContentCandidateIsPending,
-  campaignId,
   confirmIsPending,
   decideIsPending,
   deleteConfirmedSegmentIsPending,
@@ -318,7 +316,6 @@ export function PromotionTabWorkspace({
   onArchiveScopedSegment,
   onApproveContentCandidate,
   onConfirmSuggestions,
-  onCreateSegment,
   onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
@@ -330,7 +327,6 @@ export function PromotionTabWorkspace({
   onStartGeneration,
   onTabChange,
   promotion,
-  projectId,
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
@@ -350,7 +346,6 @@ export function PromotionTabWorkspace({
 }: {
   archiveScopedSegmentIsPending: boolean;
   approveContentCandidateIsPending: boolean;
-  campaignId: string;
   confirmIsPending: boolean;
   decideIsPending: boolean;
   deleteConfirmedSegmentIsPending: boolean;
@@ -361,7 +356,6 @@ export function PromotionTabWorkspace({
   onArchiveScopedSegment: (segmentId: string) => void;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onConfirmSuggestions: () => void;
-  onCreateSegment: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
@@ -373,7 +367,6 @@ export function PromotionTabWorkspace({
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
-  projectId: string;
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -395,7 +388,7 @@ export function PromotionTabWorkspace({
   const showsOverviewTab = visibleTabs.includes("overview");
   const showsSegmentsTab = visibleTabs.includes("segments");
   const showsSegmentDetailTab = visibleTabs.includes("segment-detail");
-  const showsPromotionSummary = showsOverviewTab || segmentView === "manage";
+  const showsPromotionSummary = showsOverviewTab;
   return (
     <section className="grid gap-5">
       {showsPromotionSummary ? (
@@ -455,46 +448,37 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsOverviewTab ? (
           <TabsContent value="overview">
-            <PromotionOverviewTab
-              campaignId={campaignId}
-              promotion={promotion}
-              projectId={projectId}
-            />
+            <PromotionOverviewTab promotion={promotion} />
           </TabsContent>
         ) : null}
         {showsSegmentsTab ? (
           <TabsContent value="segments">
-            <div className="grid gap-4">
-              {segmentView === "recommendations" ? (
-                <PromotionSegmentSuggestionPanel
-                  confirmIsPending={confirmIsPending}
-                  createScopedSegmentIsPending={scopedSegmentCreateIsPending}
-                  decideIsPending={decideIsPending}
-                  archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
-                  onArchiveScopedSegment={onArchiveScopedSegment}
-                  onConfirmSuggestions={onConfirmSuggestions}
-                  onCreateScopedSegment={onCreateScopedSegment}
-                  onDecideSuggestion={onDecideSuggestion}
-                  onRecommendSegments={onRecommendSegments}
-                  promotionAnalysisIsPending={promotionAnalysisIsPending}
-                  scopedSegments={scopedSegments}
-                  scopedSegmentsIsLoading={scopedSegmentsIsLoading}
-                  suggestions={suggestions}
-                  suggestionsIsLoading={suggestionsIsLoading}
-                />
-              ) : null}
-              {segmentView === "manage" ? (
-                <PromotionCurrentSegmentsPanel
-                  deleteIsPending={deleteConfirmedSegmentIsPending}
-                  onCreateSegment={onCreateSegment}
-                  onDeleteSegment={onDeleteConfirmedSegment}
-                  onEditSegment={onEditConfirmedSegment}
-                  onSelectSegment={onSelectSegment}
-                  promotion={promotion}
-                  segments={activeSegments}
-                  selectedSegmentId={selectedSegmentId}
-                />
-              ) : null}
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              <PromotionSegmentSuggestionPanel
+                confirmIsPending={confirmIsPending}
+                createScopedSegmentIsPending={scopedSegmentCreateIsPending}
+                decideIsPending={decideIsPending}
+                archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+                onArchiveScopedSegment={onArchiveScopedSegment}
+                onConfirmSuggestions={onConfirmSuggestions}
+                onCreateScopedSegment={onCreateScopedSegment}
+                onDecideSuggestion={onDecideSuggestion}
+                onRecommendSegments={onRecommendSegments}
+                promotionAnalysisIsPending={promotionAnalysisIsPending}
+                scopedSegments={scopedSegments}
+                scopedSegmentsIsLoading={scopedSegmentsIsLoading}
+                suggestions={suggestions}
+                suggestionsIsLoading={suggestionsIsLoading}
+              />
+              <PromotionCurrentSegmentsPanel
+                deleteIsPending={deleteConfirmedSegmentIsPending}
+                onDeleteSegment={onDeleteConfirmedSegment}
+                onEditSegment={onEditConfirmedSegment}
+                onSelectSegment={onSelectSegment}
+                promotion={promotion}
+                segments={activeSegments}
+                selectedSegmentId={selectedSegmentId}
+              />
             </div>
           </TabsContent>
         ) : null}
@@ -525,15 +509,7 @@ export function PromotionTabWorkspace({
   );
 }
 
-function PromotionOverviewTab({
-  campaignId,
-  promotion,
-  projectId
-}: {
-  campaignId: string;
-  promotion: DashboardCampaignPromotion;
-  projectId: string;
-}) {
+function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromotion }) {
   return (
     <div className="grid gap-4">
       <Card className="shadow-none">
@@ -559,23 +535,6 @@ function PromotionOverviewTab({
             <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
             <SummaryItem label="다음 액션" value={formatActionLabel(promotion.next_action)} />
           </div>
-          <div className="flex justify-end">
-            <Button asChild>
-              <Link
-                params={{ projectId, tabPath: "segments" }}
-                search={(current) => ({
-                  ...current,
-                  segmentView: "recommendations",
-                  selectedCampaignId: campaignId,
-                  selectedPromotionId: promotion.promotion_id,
-                  selectedSegmentId: ""
-                })}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                세그먼트 생성
-              </Link>
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>
@@ -584,7 +543,6 @@ function PromotionOverviewTab({
 
 function PromotionCurrentSegmentsPanel({
   deleteIsPending,
-  onCreateSegment,
   onDeleteSegment,
   onEditSegment,
   onSelectSegment,
@@ -593,7 +551,6 @@ function PromotionCurrentSegmentsPanel({
   selectedSegmentId
 }: {
   deleteIsPending: boolean;
-  onCreateSegment: () => void;
   onDeleteSegment: (promotionId: string, segmentId: string) => void;
   onEditSegment: (segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
@@ -610,10 +567,6 @@ function PromotionCurrentSegmentsPanel({
           <CardTitle className="text-base">확정 세그먼트</CardTitle>
           <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
         </div>
-        <Button onClick={onCreateSegment} type="button">
-          <Plus data-icon="inline-start" />
-          세그먼트 생성
-        </Button>
       </CardHeader>
       <CardContent className="grid gap-2">
         {visibleSegments.map((segment) => {

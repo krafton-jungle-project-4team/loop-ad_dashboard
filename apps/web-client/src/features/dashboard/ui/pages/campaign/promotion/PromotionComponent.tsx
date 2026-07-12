@@ -41,7 +41,6 @@ export function PromotionWorkspace({
     editingSegmentId,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
-    openSegmentCreation,
     openPromotions,
     promotionAnalysisIsPending,
     promotionGenerationIsPending,
@@ -111,7 +110,6 @@ export function PromotionWorkspace({
           {selectedOpenPromotion && !isManagementView ? (
             <PromotionTabWorkspace
               approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
-              campaignId={selectedCampaign?.campaign_id ?? ""}
               archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
               confirmIsPending={confirmSuggestionsMutation.isPending}
               decideIsPending={decideSuggestionMutation.isPending}
@@ -126,7 +124,6 @@ export function PromotionWorkspace({
                 approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
               }
               onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
-              onCreateSegment={openSegmentCreation}
               onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
               onDecideSuggestion={(suggestionId, status) =>
                 decideSuggestionMutation.mutate({ status, suggestionId })
@@ -155,7 +152,6 @@ export function PromotionWorkspace({
               }
               onTabChange={setWorkspaceTab}
               promotion={selectedOpenPromotion}
-              projectId={query.projectId}
               promotionAnalysisIsPending={promotionAnalysisIsPending}
               promotionGenerationIsPending={promotionGenerationIsPending}
               rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
