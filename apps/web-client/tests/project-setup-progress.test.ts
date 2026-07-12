@@ -311,7 +311,7 @@ test("top-level onboarding resolver covers welcome, SDK, campaign, and complete 
   assert.deepEqual(
     resolveProjectOnboardingStage({
       progress: null,
-      runningExperimentCount: 1
+      startedExperimentCount: 1
     }),
     {
       isDashboardUnlocked: true,

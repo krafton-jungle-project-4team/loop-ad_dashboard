@@ -35,7 +35,7 @@ export function OnboardingWorkspaceLayout({
     isLoading,
     projectId,
     requiredPathSegment,
-    runningExperimentCount,
+    startedExperimentCount,
     setupSteps,
     skipGuide,
     startGuide,
@@ -60,14 +60,14 @@ export function OnboardingWorkspaceLayout({
       return;
     }
 
-    if (!previousDashboardUnlocked.current && isDashboardUnlocked && runningExperimentCount > 0) {
+    if (!previousDashboardUnlocked.current && isDashboardUnlocked && startedExperimentCount > 0) {
       setShowExperimentCta(true);
     }
     if (!isDashboardUnlocked) {
       setShowExperimentCta(false);
     }
     previousDashboardUnlocked.current = isDashboardUnlocked;
-  }, [isDashboardUnlocked, isLoading, runningExperimentCount]);
+  }, [isDashboardUnlocked, isLoading, startedExperimentCount]);
 
   if (isLoading) {
     return children;

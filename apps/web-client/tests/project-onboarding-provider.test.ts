@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   allowedDashboardTabs,
+  countStartedExperiments,
   createCampaignOnboardingSteps,
   createSetupOnboardingSteps
 } from "../src/features/dashboard/model/project-onboarding.js";
@@ -29,13 +30,13 @@ test("setup guide tracks only SDK before campaign onboarding", () => {
   );
 });
 
-test("campaign steps open at campaign creation and complete after the first running experiment", () => {
+test("campaign steps open at campaign creation and complete after the first started experiment", () => {
   const emptyProgress = {
     hasAnalyzedSegment: false,
     hasApprovedCreative: false,
     hasCampaign: false,
     hasPromotion: false,
-    hasRunningExperiment: false,
+    hasStartedExperiment: false,
     stage: "campaign" as const
   };
 
@@ -93,7 +94,7 @@ test("campaign steps open at campaign creation and complete after the first runn
     states(
       createCampaignOnboardingSteps({
         ...approvedButNotRunning,
-        hasRunningExperiment: true
+        hasStartedExperiment: true
       })
     ),
     ["complete", "complete", "complete", "complete", "complete"]
@@ -109,6 +110,16 @@ test("campaign steps open at campaign creation and complete after the first runn
       (step) => step.state === "complete"
     ),
     true
+  );
+});
+
+test("evaluated experiments remain started after leaving the running state", () => {
+  assert.equal(
+    countStartedExperiments([
+      { started_at: "2026-07-12T11:22:17.113Z" },
+      { started_at: null }
+    ]),
+    1
   );
 });
 

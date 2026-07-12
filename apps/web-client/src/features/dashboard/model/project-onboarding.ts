@@ -17,7 +17,7 @@ export type CampaignOnboardingProgress = {
   hasApprovedCreative: boolean;
   hasCampaign: boolean;
   hasPromotion: boolean;
-  hasRunningExperiment: boolean;
+  hasStartedExperiment: boolean;
   stage: ProjectOnboardingStage;
 };
 
@@ -35,6 +35,12 @@ export function allowedDashboardTabs(stage: ProjectOnboardingStage): ReadonlySet
     case "complete":
       return COMPLETE_STAGE_TABS;
   }
+}
+
+export function countStartedExperiments(
+  experiments: ReadonlyArray<{ started_at: string | null }>
+): number {
+  return experiments.filter((experiment) => experiment.started_at !== null).length;
 }
 
 export function createSetupOnboardingSteps(
@@ -101,7 +107,7 @@ export function createCampaignOnboardingSteps(
       progress.hasPromotion &&
       progress.hasAnalyzedSegment &&
       progress.hasApprovedCreative &&
-      progress.hasRunningExperiment
+      progress.hasStartedExperiment
   ];
   const currentIndex = completed.findIndex((isComplete) => !isComplete);
 

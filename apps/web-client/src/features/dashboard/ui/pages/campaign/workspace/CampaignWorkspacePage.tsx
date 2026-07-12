@@ -15,7 +15,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@loopad/ui/shadcn/alert-dialog";
-import { Button } from "@loopad/ui/shadcn/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
@@ -29,7 +28,6 @@ import {
 } from "../../../../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../../../../model/dashboard-format.js";
 import {
-  formatActionLabel,
   formatChannelLabel,
   formatMetricLabel,
   formatStatusLabel
@@ -39,7 +37,6 @@ import { dashboardCampaignDetailQueryKey } from "../../../../model/dashboard-que
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { DashboardDateRangeSelect } from "../../../shared/DashboardDateRangeSelect.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
-import { WorkspacePageHeader } from "../../../shared/WorkspaceViewTabs.js";
 import { CampaignPageSections } from "../CampaignComponent.js";
 import { CampaignFormDialog } from "../components/CampaignFormDialog.js";
 import { PromotionWorkspace } from "../promotion/PromotionComponent.js";
@@ -56,7 +53,6 @@ import {
 } from "../promotion/promotionUtils.js";
 import { EntityCardGrid } from "./EntityCardGrid.js";
 import { HierarchyBreadcrumbs } from "./HierarchyBreadcrumbs.js";
-import { SelectionSummary } from "./SelectionSummary.js";
 import type {
   CampaignWorkspaceEntityCard,
   CampaignWorkspaceHierarchyItem
@@ -282,11 +278,6 @@ export function CampaignWorkspacePage({
 
   return (
     <div className="grid gap-6">
-      <WorkspacePageHeader
-        description="캠페인을 선택하고 프로모션, 세그먼트, 광고 소재와 실험까지 한 흐름에서 운영합니다."
-        eyebrow="Campaign workspace"
-        title="캠페인"
-      />
       <HierarchyBreadcrumbs
         items={hierarchyItems}
         onItemSelect={(item) => {
@@ -357,7 +348,7 @@ export function CampaignWorkspacePage({
             entryActions={(card) => [
               {
                 id: "workspace",
-                label: "워크스페이스",
+                label: "관리",
                 onSelect: () => openCampaignView(card.id, "manage")
               },
               {
@@ -415,114 +406,62 @@ export function CampaignWorkspacePage({
       !selectedPromotion &&
       query.campaignView === "manage" &&
       campaignDetail.data ? (
-        <>
-          <SelectionSummary
-            action={
-              <Button
-                onClick={() => {
-                  updateCampaignMutation.reset();
-                  deleteCampaignMutation.reset();
-                  setCampaignFormDialog({
-                    campaignId: selectedCampaign.campaign_id,
-                    mode: "edit"
-                  });
-                }}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                캠페인 수정
-              </Button>
-            }
-            metrics={campaignSummaryMetrics(
-              selectedCampaign,
-              campaignDetail.data.realtime_metrics.total_event_count
-            )}
-            selection={{
-              description: selectedCampaign.objective ?? "목표가 아직 등록되지 않았습니다.",
-              details: [
-                {
-                  id: "period",
-                  label: "운영 기간",
-                  value: formatCampaignPeriod(selectedCampaign)
-                },
-                {
-                  id: "metric",
-                  label: "주요 지표",
-                  value: formatMetricLabel(selectedCampaign.primary_metric)
-                },
-                {
-                  id: "next-action",
-                  label: "다음 작업",
-                  value: formatActionLabel(selectedCampaign.next_action)
-                }
-              ],
-              kind: "campaign",
-              status: {
-                label: formatStatusLabel(selectedCampaign.status),
-                variant: statusBadgeVariant(selectedCampaign.status)
-              },
-              title: selectedCampaign.campaign_name
-            }}
-          />
-
-          <section className="grid gap-5">
-            <div className="grid gap-1">
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">프로모션</h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
-              </p>
-            </div>
-            <EntityCardGrid
-              actions={(card) => [
-                {
-                  id: "edit",
-                  label: "프로모션 수정",
-                  onSelect: () => {
-                    updatePromotionMutation.reset();
-                    setEditingPromotionId(card.id);
-                  }
-                },
-                {
-                  id: "delete",
-                  label: "프로모션 삭제",
-                  onSelect: () => {
-                    deletePromotionMutation.reset();
-                    setDeletingPromotionId(card.id);
-                  },
-                  tone: "destructive"
-                }
-              ]}
-              addAction={{
-                description: "현재 캠페인 아래에 새 프로모션을 추가합니다.",
-                label: "새 프로모션",
+        <section className="grid gap-5">
+          <div className="grid gap-1">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">프로모션</h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
+            </p>
+          </div>
+          <EntityCardGrid
+            actions={(card) => [
+              {
+                id: "edit",
+                label: "프로모션 수정",
                 onSelect: () => {
-                  createPromotionMutation.reset();
-                  setIsPromotionAddDialogOpen(true);
+                  updatePromotionMutation.reset();
+                  setEditingPromotionId(card.id);
                 }
-              }}
-              ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
-              entryActions={(card) => [
-                {
-                  id: "overview",
-                  label: "개요",
-                  onSelect: () => openPromotionView(card.id, "overview")
+              },
+              {
+                id: "delete",
+                label: "프로모션 삭제",
+                onSelect: () => {
+                  deletePromotionMutation.reset();
+                  setDeletingPromotionId(card.id);
                 },
-                {
-                  id: "segments",
-                  label: "세그먼트 관리",
-                  onSelect: () => openPromotionView(card.id, "segments")
-                },
-                {
-                  id: "segment-creation",
-                  label: "세그먼트 생성",
-                  onSelect: () => openPromotionView(card.id, "segment-creation")
-                }
-              ]}
-              items={promotionCards}
-            />
-          </section>
-        </>
+                tone: "destructive"
+              }
+            ]}
+            addAction={{
+              description: "현재 캠페인 아래에 새 프로모션을 추가합니다.",
+              label: "새 프로모션",
+              onSelect: () => {
+                createPromotionMutation.reset();
+                setIsPromotionAddDialogOpen(true);
+              }
+            }}
+            ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
+            entryActions={(card) => [
+              {
+                id: "overview",
+                label: "개요",
+                onSelect: () => openPromotionView(card.id, "overview")
+              },
+              {
+                id: "segments",
+                label: "세그먼트 관리",
+                onSelect: () => openPromotionView(card.id, "segments")
+              },
+              {
+                id: "segment-creation",
+                label: "세그먼트 생성",
+                onSelect: () => openPromotionView(card.id, "segment-creation")
+              }
+            ]}
+            items={promotionCards}
+          />
+        </section>
       ) : null}
 
       {selectedCampaign && selectedPromotion && campaignDetail.data ? (
@@ -693,19 +632,6 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
   };
 }
 
-function campaignSummaryMetrics(campaign: DashboardCampaignSummary, realtimeEventCount: number) {
-  return [
-    { id: "promotions", label: "프로모션", value: formatInteger(campaign.promotion_count) },
-    { id: "segments", label: "세그먼트", value: formatInteger(campaign.segment_count) },
-    {
-      id: "experiments",
-      label: "광고 실험",
-      value: formatInteger(campaign.ad_experiment_count)
-    },
-    { id: "events", label: "실시간 이벤트", value: formatInteger(realtimeEventCount) }
-  ];
-}
-
 function buildHierarchyItems(
   campaign: DashboardCampaignSummary | undefined,
   promotion: DashboardCampaignPromotion | undefined,
@@ -732,13 +658,6 @@ function buildHierarchyItems(
     items.push({ id: "segment-creation", kind: "segment", label: "세그먼트 생성" });
   }
   return items;
-}
-
-function formatCampaignPeriod(campaign: DashboardCampaignSummary) {
-  if (!campaign.start_date && !campaign.end_date) {
-    return "미정";
-  }
-  return `${campaign.start_date ?? "미정"} ~ ${campaign.end_date ?? "미정"}`;
 }
 
 async function invalidateCampaignWorkspace(

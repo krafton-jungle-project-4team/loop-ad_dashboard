@@ -760,6 +760,8 @@ VALUES (
   'dashboard_manual_segment_attach',
   'completed'
 )
+ON CONFLICT (analysis_id) DO UPDATE
+SET status = 'completed'
 RETURNING analysis_id AS "analysisId";
 
 /* 목적: 저장된 세그먼트를 프로모션 타겟 세그먼트로 연결합니다. */
@@ -1055,7 +1057,7 @@ JOIN segment_definitions sd
 /* @name ConfirmDashboardPromotionSegmentSuggestions */
 WITH accepted_suggestions AS (
   SELECT
-    pss.analysis_id,
+    (:manualAnalysisId)::varchar AS analysis_id,
     pss.project_id,
     pss.campaign_id,
     pss.promotion_id,
