@@ -130,6 +130,24 @@ Dashboard FE
 
 ## Dashboard 페이지별 데이터 흐름
 
+### SDK Tracking Plan API
+
+관리 API는 `/api/dashboard/v1/projects/:projectId/tracking-plan` 아래에서 plan 생성·조회,
+draft event CRUD, validation, publish를 제공하고 `/sdk-settings`에서 허용 Origin을
+저장합니다. publish는 immutable `tracking_plan_revisions` insert와
+`project_sdk_settings` active revision 변경을 하나의 PostgreSQL transaction으로
+처리합니다.
+
+공개 SDK endpoint는 다음과 같습니다.
+
+- `GET /api/public/v1/sdk/connections/:sdkKey`
+- `GET /api/public/v1/sdk/connections/:sdkKey/schema`
+
+두 endpoint는 프로젝트 allowlist와 정확히 일치하는 `Origin` header가 없으면 `403`을
+반환합니다. connection 응답은 API 공통 wrapper 없이 SDK runtime contract JSON을 직접
+반환합니다. `sdkKey`와 Origin은 공개·조작 가능한 값이므로 인증 수단이 아니며, 이번
+데모 범위에서는 별도 browser secret이나 CSRF key를 추가하지 않습니다.
+
 1. 메인 대시보드
 
 프론트:

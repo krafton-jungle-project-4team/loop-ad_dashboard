@@ -5,6 +5,7 @@ import { createCorsOriginResolver, isAllowedLoopAdOrigin } from "../src/infra/ht
 test("allows loop-ad.org and loop-ad.org subdomains only", () => {
   assert.equal(isAllowedLoopAdOrigin("https://loop-ad.org"), true);
   assert.equal(isAllowedLoopAdOrigin("https://dashboard.dev.loop-ad.org"), true);
+  assert.equal(isAllowedLoopAdOrigin("https://demo-shoppingmall.dev.loop-ad.org"), true);
   assert.equal(isAllowedLoopAdOrigin("https://shop.loop-ad.org"), true);
   assert.equal(isAllowedLoopAdOrigin("http://loop-ad.org"), false);
   assert.equal(isAllowedLoopAdOrigin("https://localhost:5173"), false);
