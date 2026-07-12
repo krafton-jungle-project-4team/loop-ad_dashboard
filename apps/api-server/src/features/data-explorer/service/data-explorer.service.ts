@@ -92,6 +92,7 @@ export class DataExplorerService {
 
     try {
       const result = await this.clickHouseEvents.executeReadOnlyQuery({
+        projectId: input.project_id,
         sqlText: validation.normalized_sql,
         rowLimit: bounds.rowLimit,
         timeoutMs: bounds.timeoutMs

@@ -25,7 +25,8 @@ export type DataExplorerObjectDetailQuery = z.infer<typeof DataExplorerObjectDet
 export const DataExplorerObjectSummarySchema = DataExplorerObjectRefSchema.extend({
   engine: z.string().nullable(),
   column_count: z.number().int().nonnegative(),
-  row_count_estimate: z.number().int().nonnegative().nullable()
+  row_count_estimate: z.number().int().nonnegative().nullable(),
+  project_scoped: z.boolean().optional()
 });
 export type DataExplorerObjectSummary = z.infer<typeof DataExplorerObjectSummarySchema>;
 
