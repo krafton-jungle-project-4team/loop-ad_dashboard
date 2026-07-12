@@ -109,6 +109,10 @@ import {
   type Json
 } from "../database/__generated__/dashboard.queries.js";
 import { listDashboardRunningAdExperimentCounts } from "../database/__generated__/project-experiments.queries.js";
+import {
+  backfillDashboardPromotionRunMinSampleSize,
+  normalizeDashboardPromotionRunLegacyGoalNearEvaluations
+} from "../database/__generated__/promotion-run-compatibility.queries.js";
 
 @Injectable()
 export class DashboardCampaignReader {
@@ -154,6 +158,21 @@ export class DashboardCampaignReader {
     ]);
 
     return rows.map((row) => toCampaignSummary(row, runningCounts.get(row.campaignId)));
+  }
+
+  async preparePromotionRunEvaluationCompatibility(
+    projectId: string,
+    promotionRunId: string
+  ): Promise<void> {
+    await this.db
+      .query(backfillDashboardPromotionRunMinSampleSize, { projectId, promotionRunId })
+      .multiple();
+    await this.db
+      .query(normalizeDashboardPromotionRunLegacyGoalNearEvaluations, {
+        projectId,
+        promotionRunId
+      })
+      .multiple();
   }
 
   async createCampaign(
