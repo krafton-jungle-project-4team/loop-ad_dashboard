@@ -36,7 +36,9 @@ export function OnboardingWorkspaceLayout({
     isLoading,
     projectId,
     requiredPathSegment,
+    runningExperimentCount,
     setupSteps,
+    skipGuide,
     startGuide,
     stage
   } = useProjectOnboarding();
@@ -59,21 +61,29 @@ export function OnboardingWorkspaceLayout({
       return;
     }
 
-    if (!previousDashboardUnlocked.current && isDashboardUnlocked) {
+    if (!previousDashboardUnlocked.current && isDashboardUnlocked && runningExperimentCount > 0) {
       setShowExperimentCta(true);
     }
     if (!isDashboardUnlocked) {
       setShowExperimentCta(false);
     }
     previousDashboardUnlocked.current = isDashboardUnlocked;
-  }, [isDashboardUnlocked, isLoading]);
+  }, [isDashboardUnlocked, isLoading, runningExperimentCount]);
 
   if (isLoading) {
     return children;
   }
 
   if (stage === "welcome") {
-    return <ProjectWelcomeScreen onStart={startGuide} />;
+    return (
+      <ProjectWelcomeScreen
+        onSkip={() => {
+          skipGuide();
+          void navigateTo("campaigns");
+        }}
+        onStart={startGuide}
+      />
+    );
   }
 
   if (isDashboardUnlocked) {

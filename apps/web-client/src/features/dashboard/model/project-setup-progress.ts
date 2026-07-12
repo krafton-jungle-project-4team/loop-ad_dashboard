@@ -3,6 +3,7 @@ export const PROJECT_SETUP_PROGRESS_STORAGE_KEY_PREFIX = "loopad.dashboard.setup
 export type ProjectSetupProgress = {
   initializedAt: string;
   guideStartedAt: string | null;
+  onboardingSkippedAt: string | null;
   sdkCompletedAt: string | null;
   funnelCompletedAt: string | null;
 };
@@ -57,12 +58,16 @@ export function parseProjectSetupProgress(serialized: string | null): ProjectSet
     const guideStartedAt = Object.hasOwn(value, "guideStartedAt")
       ? parseOptionalTimestamp(value.guideStartedAt)
       : initializedAt;
+    const onboardingSkippedAt = Object.hasOwn(value, "onboardingSkippedAt")
+      ? parseOptionalTimestamp(value.onboardingSkippedAt)
+      : null;
     const sdkCompletedAt = parseOptionalTimestamp(value.sdkCompletedAt);
     const funnelCompletedAt = parseOptionalTimestamp(value.funnelCompletedAt);
 
     if (
       initializedAt === null ||
       guideStartedAt === undefined ||
+      onboardingSkippedAt === undefined ||
       sdkCompletedAt === undefined ||
       funnelCompletedAt === undefined ||
       (sdkCompletedAt !== null && guideStartedAt === null) ||
@@ -75,6 +80,7 @@ export function parseProjectSetupProgress(serialized: string | null): ProjectSet
       funnelCompletedAt,
       guideStartedAt,
       initializedAt,
+      onboardingSkippedAt,
       sdkCompletedAt
     };
   } catch {
@@ -115,11 +121,34 @@ export function initializeProjectSetupProgress(
     funnelCompletedAt: initialSetupCompleted ? initializedAt : null,
     guideStartedAt: initialSetupCompleted ? initializedAt : null,
     initializedAt,
+    onboardingSkippedAt: null,
     sdkCompletedAt: initialSetupCompleted ? initializedAt : null
   };
 
   persistProjectSetupProgress(projectId, progress, options.storage);
   return progress;
+}
+
+export function skipProjectOnboarding(
+  projectId: string,
+  options: CompleteProjectSetupProgressOptions = {}
+): ProjectSetupProgress {
+  const skippedAt = getCurrentTimestamp(options.now);
+  const current =
+    options.currentProgress ??
+    readProjectSetupProgress(projectId, options.storage) ??
+    createEmptyProgress(skippedAt);
+
+  if (current.onboardingSkippedAt !== null) {
+    return current;
+  }
+
+  const next: ProjectSetupProgress = {
+    ...current,
+    onboardingSkippedAt: skippedAt
+  };
+  persistProjectSetupProgress(projectId, next, options.storage);
+  return next;
 }
 
 export function startProjectSetupGuide(
@@ -210,7 +239,7 @@ export function resolveProjectOnboardingStage({
   progress,
   runningExperimentCount = 0
 }: ProjectOnboardingStageInput): ProjectOnboardingStageResolution {
-  if (runningExperimentCount > 0) {
+  if (runningExperimentCount > 0 || progress?.onboardingSkippedAt != null) {
     return {
       isDashboardUnlocked: true,
       isInitialSetupComplete: true,
@@ -259,6 +288,7 @@ function createEmptyProgress(initializedAt: string): ProjectSetupProgress {
     funnelCompletedAt: null,
     guideStartedAt: null,
     initializedAt,
+    onboardingSkippedAt: null,
     sdkCompletedAt: null
   };
 }

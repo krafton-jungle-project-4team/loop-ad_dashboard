@@ -32,6 +32,7 @@ import {
   initializeProjectSetupProgress,
   readProjectSetupProgress,
   resolveProjectOnboardingStage,
+  skipProjectOnboarding,
   startProjectSetupGuide,
   type ProjectOnboardingPathSegment,
   type ProjectOnboardingStage,
@@ -68,6 +69,7 @@ export type ProjectOnboardingContextValue = {
   requiredPathSegment: ProjectOnboardingPathSegment | null;
   runningExperimentCount: number;
   setupSteps: ReadonlyArray<ProjectOnboardingStep>;
+  skipGuide: () => void;
   startGuide: () => void;
   stage: ProjectOnboardingStage;
 };
@@ -195,6 +197,10 @@ export function ProjectOnboardingProvider({
     const nextProgress = startProjectSetupGuide(projectId, { currentProgress: progress });
     setProgressSnapshot({ progress: nextProgress, projectId });
   }, [progress, projectId]);
+  const skipGuide = useCallback(() => {
+    const nextProgress = skipProjectOnboarding(projectId, { currentProgress: progress });
+    setProgressSnapshot({ progress: nextProgress, projectId });
+  }, [progress, projectId]);
   const completeFunnel = useCallback(() => {
     const nextProgress = completeProjectFunnelSetup(projectId, { currentProgress: progress });
     setProgressSnapshot({ progress: nextProgress, projectId });
@@ -229,6 +235,7 @@ export function ProjectOnboardingProvider({
       requiredPathSegment: stageResolution.requiredPathSegment,
       runningExperimentCount,
       setupSteps,
+      skipGuide,
       startGuide,
       stage: stageResolution.stage
     }),
@@ -252,6 +259,7 @@ export function ProjectOnboardingProvider({
       runningExperimentCount,
       segmentDetailQuery.error,
       setupSteps,
+      skipGuide,
       startGuide,
       stageResolution.isDashboardUnlocked,
       stageResolution.isInitialSetupComplete,

@@ -9,6 +9,7 @@ import {
   parseProjectSetupProgress,
   readProjectSetupProgress,
   resolveProjectOnboardingStage,
+  skipProjectOnboarding,
   startProjectSetupGuide,
   type ProjectSetupProgressStorage
 } from "../src/features/dashboard/model/project-setup-progress.js";
@@ -17,6 +18,7 @@ const INITIALIZED_AT = "2026-07-12T00:00:00.000Z";
 const GUIDE_STARTED_AT = "2026-07-12T00:00:30.000Z";
 const SDK_COMPLETED_AT = "2026-07-12T00:01:00.000Z";
 const FUNNEL_COMPLETED_AT = "2026-07-12T00:02:00.000Z";
+const ONBOARDING_SKIPPED_AT = "2026-07-12T00:03:00.000Z";
 
 class MemoryStorage implements ProjectSetupProgressStorage {
   readonly values = new Map<string, string>();
@@ -54,6 +56,7 @@ test("project setup progress parser accepts valid state and rejects corrupt stat
       funnelCompletedAt: null,
       guideStartedAt: INITIALIZED_AT,
       initializedAt: INITIALIZED_AT,
+      onboardingSkippedAt: null,
       sdkCompletedAt: SDK_COMPLETED_AT
     }
   );
@@ -97,6 +100,7 @@ test("initialization creates new setup state without replacing valid progress", 
     funnelCompletedAt: null,
     guideStartedAt: null,
     initializedAt: INITIALIZED_AT,
+    onboardingSkippedAt: null,
     sdkCompletedAt: null
   });
 
@@ -121,7 +125,36 @@ test("legacy initialization can mark SDK and funnel setup as already complete", 
     funnelCompletedAt: INITIALIZED_AT,
     guideStartedAt: INITIALIZED_AT,
     initializedAt: INITIALIZED_AT,
+    onboardingSkippedAt: null,
     sdkCompletedAt: INITIALIZED_AT
+  });
+});
+
+test("skipping onboarding unlocks the dashboard without completing setup steps", () => {
+  const storage = new MemoryStorage();
+  initializeProjectSetupProgress("project-1", {
+    now: () => INITIALIZED_AT,
+    storage
+  });
+
+  const skipped = skipProjectOnboarding("project-1", {
+    now: () => ONBOARDING_SKIPPED_AT,
+    storage
+  });
+  const repeated = skipProjectOnboarding("project-1", {
+    now: () => "2026-07-12T00:04:00.000Z",
+    storage
+  });
+
+  assert.equal(skipped.onboardingSkippedAt, ONBOARDING_SKIPPED_AT);
+  assert.equal(skipped.sdkCompletedAt, null);
+  assert.equal(skipped.funnelCompletedAt, null);
+  assert.deepEqual(repeated, skipped);
+  assert.deepEqual(resolveProjectOnboardingStage({ progress: skipped }), {
+    isDashboardUnlocked: true,
+    isInitialSetupComplete: true,
+    requiredPathSegment: null,
+    stage: "complete"
   });
 });
 
@@ -231,6 +264,12 @@ test("storage failures do not escape setup progress helpers", () => {
     })
   );
   assert.doesNotThrow(() =>
+    skipProjectOnboarding("project-1", {
+      now: () => ONBOARDING_SKIPPED_AT,
+      storage: unavailableStorage
+    })
+  );
+  assert.doesNotThrow(() =>
     startProjectSetupGuide("project-1", {
       now: () => GUIDE_STARTED_AT,
       storage: unavailableStorage
@@ -276,6 +315,7 @@ test("top-level onboarding resolver covers welcome, SDK, funnel, campaign, and c
         funnelCompletedAt: null,
         guideStartedAt: GUIDE_STARTED_AT,
         initializedAt: INITIALIZED_AT,
+        onboardingSkippedAt: null,
         sdkCompletedAt: null
       }
     }),
@@ -293,6 +333,7 @@ test("top-level onboarding resolver covers welcome, SDK, funnel, campaign, and c
         funnelCompletedAt: null,
         guideStartedAt: GUIDE_STARTED_AT,
         initializedAt: INITIALIZED_AT,
+        onboardingSkippedAt: null,
         sdkCompletedAt: SDK_COMPLETED_AT
       }
     }),
@@ -310,6 +351,7 @@ test("top-level onboarding resolver covers welcome, SDK, funnel, campaign, and c
         funnelCompletedAt: FUNNEL_COMPLETED_AT,
         guideStartedAt: GUIDE_STARTED_AT,
         initializedAt: INITIALIZED_AT,
+        onboardingSkippedAt: null,
         sdkCompletedAt: SDK_COMPLETED_AT
       },
       runningExperimentCount: 0

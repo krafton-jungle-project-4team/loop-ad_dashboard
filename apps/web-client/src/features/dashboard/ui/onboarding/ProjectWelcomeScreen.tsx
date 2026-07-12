@@ -1,5 +1,4 @@
 import { Button } from "@loopad/ui/shadcn/button";
-import { Link } from "@tanstack/react-router";
 import { ArrowRight, Code2, Megaphone, Route, Sparkles } from "lucide-react";
 
 const welcomeMilestones = [
@@ -20,7 +19,13 @@ const welcomeMilestones = [
   }
 ] as const;
 
-export function ProjectWelcomeScreen({ onStart }: { onStart: () => void }) {
+export function ProjectWelcomeScreen({
+  onSkip,
+  onStart
+}: {
+  onSkip: () => void;
+  onStart: () => void;
+}) {
   return (
     <section
       aria-labelledby="project-welcome-title"
@@ -75,8 +80,8 @@ export function ProjectWelcomeScreen({ onStart }: { onStart: () => void }) {
             시작 가이드 보기
             <ArrowRight aria-hidden="true" data-icon="inline-end" />
           </Button>
-          <Button asChild className="h-11 px-5" variant="ghost">
-            <Link to="/">프로젝트 목록으로 돌아가기</Link>
+          <Button className="h-11 px-5" onClick={onSkip} type="button" variant="outline">
+            건너뛰고 바로 시작
           </Button>
         </div>
       </div>
