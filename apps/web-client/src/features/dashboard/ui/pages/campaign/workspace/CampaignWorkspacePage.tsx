@@ -135,6 +135,7 @@ export function CampaignWorkspacePage({
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await setDashboardQueryState({
         campaignView: "manage",
+        createCampaign: false,
         promotionView: "manage",
         segmentView: "manage",
         selectedAdExperimentId: "",
@@ -186,6 +187,7 @@ export function CampaignWorkspacePage({
       await invalidateCampaignWorkspace(queryClient, query, selectedCampaignId);
       await setDashboardQueryState({
         campaignView: "manage",
+        createPromotion: false,
         promotionView: "overview",
         segmentView: "recommendations",
         selectedAdExperimentId: "",
@@ -225,26 +227,6 @@ export function CampaignWorkspacePage({
       setDeletingPromotionId(null);
     }
   });
-
-  useEffect(() => {
-    if (!query.createCampaign) {
-      return;
-    }
-
-    createCampaignMutation.reset();
-    setCampaignFormDialog({ mode: "create" });
-    void setDashboardQueryState({ createCampaign: false }, { history: "replace" });
-  }, [createCampaignMutation, query.createCampaign, setDashboardQueryState]);
-
-  useEffect(() => {
-    if (!query.createPromotion || !selectedCampaign) {
-      return;
-    }
-
-    createPromotionMutation.reset();
-    setIsPromotionAddDialogOpen(true);
-    void setDashboardQueryState({ createPromotion: false }, { history: "replace" });
-  }, [createPromotionMutation, query.createPromotion, selectedCampaign, setDashboardQueryState]);
 
   useEffect(() => {
     if (!query.selectedCampaignId || selectedCampaign) {
@@ -551,12 +533,15 @@ export function CampaignWorkspacePage({
         onOpenChange={(open) => {
           if (!open) {
             setCampaignFormDialog(null);
+            if (query.createCampaign) {
+              void setDashboardQueryState({ createCampaign: false }, { history: "replace" });
+            }
           }
         }}
         onUpdate={(campaignId, requestBody) =>
           updateCampaignMutation.mutate({ campaignId, requestBody })
         }
-        open={Boolean(campaignFormDialog)}
+        open={Boolean(campaignFormDialog) || query.createCampaign}
         updateError={updateCampaignMutation.error}
         updateIsError={updateCampaignMutation.isError}
         updateIsPending={updateCampaignMutation.isPending}
@@ -564,8 +549,13 @@ export function CampaignWorkspacePage({
       <PromotionAddDialog
         createIsPending={createPromotionMutation.isPending}
         onCreate={(form) => createPromotionMutation.mutate(form)}
-        onOpenChange={setIsPromotionAddDialogOpen}
-        open={isPromotionAddDialogOpen}
+        onOpenChange={(open) => {
+          setIsPromotionAddDialogOpen(open);
+          if (!open && query.createPromotion) {
+            void setDashboardQueryState({ createPromotion: false }, { history: "replace" });
+          }
+        }}
+        open={isPromotionAddDialogOpen || (query.createPromotion && Boolean(selectedCampaign))}
       />
       <PromotionEditDialog
         isPending={updatePromotionMutation.isPending}

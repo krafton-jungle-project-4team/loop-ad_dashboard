@@ -65,6 +65,7 @@ export function ProjectSelectPage() {
             <ProjectManagementDialog
               trigger={
                 <button
+                  aria-label="새 프로젝트 만들기"
                   className="group flex min-h-44 items-center justify-center rounded-[18px] border border-dashed border-black/20 bg-white/70 p-4 text-center transition-colors hover:border-primary/50 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   type="button"
                 >

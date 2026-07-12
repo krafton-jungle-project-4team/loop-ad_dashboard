@@ -136,15 +136,16 @@ export function ProjectExperimentWorkspace({
     }))
   );
   const promotions = uniqueEntities(
-    experiments
-      .filter(
-        (experiment) =>
-          filters.campaignId === "all" || experiment.campaign_id === filters.campaignId
-      )
-      .map((experiment) => ({
-        id: experiment.promotion_id,
-        name: experiment.promotion_name
-      }))
+    experiments.flatMap((experiment) =>
+      filters.campaignId === "all" || experiment.campaign_id === filters.campaignId
+        ? [
+            {
+              id: experiment.promotion_id,
+              name: experiment.promotion_name
+            }
+          ]
+        : []
+    )
   );
   const statuses = uniqueProjectExperimentValues(
     experiments.map((experiment) => experiment.status)
