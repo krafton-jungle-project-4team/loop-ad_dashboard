@@ -27,7 +27,6 @@ import {
   dashboardSegmentDetailQueryKey
 } from "../../model/dashboard-query-keys.js";
 import {
-  completeProjectFunnelSetup,
   completeProjectSdkSetup,
   initializeProjectSetupProgress,
   readProjectSetupProgress,
@@ -54,7 +53,6 @@ type ProjectProgressSnapshot = {
 export type ProjectOnboardingContextValue = {
   allowedTabs: ReadonlySet<DashboardTab>;
   campaignSteps: ReadonlyArray<ProjectOnboardingStep>;
-  completeFunnel: () => void;
   completeSdk: () => void;
   error: Error | null;
   isDashboardUnlocked: boolean;
@@ -201,10 +199,6 @@ export function ProjectOnboardingProvider({
     const nextProgress = skipProjectOnboarding(projectId, { currentProgress: progress });
     setProgressSnapshot({ progress: nextProgress, projectId });
   }, [progress, projectId]);
-  const completeFunnel = useCallback(() => {
-    const nextProgress = completeProjectFunnelSetup(projectId, { currentProgress: progress });
-    setProgressSnapshot({ progress: nextProgress, projectId });
-  }, [progress, projectId]);
   const isTabAllowed = useCallback((tab: DashboardTab) => allowedTabs.has(tab), [allowedTabs]);
   const requiredPath = stageResolution.requiredPathSegment
     ? `/dashboard/${encodeURIComponent(projectId)}/${stageResolution.requiredPathSegment}`
@@ -213,7 +207,6 @@ export function ProjectOnboardingProvider({
     () => ({
       allowedTabs,
       campaignSteps,
-      completeFunnel,
       completeSdk,
       error:
         mainQuery.error ??
@@ -243,7 +236,6 @@ export function ProjectOnboardingProvider({
       allowedTabs,
       campaignSteps,
       campaignDetailQuery.error,
-      completeFunnel,
       completeSdk,
       funnelListQuery.error,
       funnelListQuery.isPending,

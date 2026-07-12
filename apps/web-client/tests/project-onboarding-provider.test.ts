@@ -10,33 +10,22 @@ import { dashboardTabValues } from "../src/features/dashboard/model/dashboard-ty
 test("allowed dashboard tabs expand with the top-level onboarding stage", () => {
   assert.deepEqual([...allowedDashboardTabs("welcome")], ["sdk"]);
   assert.deepEqual([...allowedDashboardTabs("sdk")], ["sdk"]);
-  assert.deepEqual([...allowedDashboardTabs("funnel")], ["sdk", "funnels"]);
   assert.deepEqual([...allowedDashboardTabs("campaign")], ["sdk", "funnels", "campaigns"]);
   assert.deepEqual([...allowedDashboardTabs("complete")], [...dashboardTabValues]);
 });
 
-test("setup steps mark only the next required initial setup step as current", () => {
-  assert.equal(
-    createSetupOnboardingSteps("welcome").every((step) => step.state === "locked"),
-    true
+test("setup guide tracks only SDK before campaign onboarding", () => {
+  assert.deepEqual(
+    createSetupOnboardingSteps("welcome").map(({ id, state }) => ({ id, state })),
+    [{ id: "sdk", state: "locked" }]
   );
   assert.deepEqual(
     createSetupOnboardingSteps("sdk").map(({ id, state }) => ({ id, state })),
-    [
-      { id: "sdk", state: "current" },
-      { id: "funnel", state: "locked" }
-    ]
+    [{ id: "sdk", state: "current" }]
   );
   assert.deepEqual(
-    createSetupOnboardingSteps("funnel").map(({ id, state }) => ({ id, state })),
-    [
-      { id: "sdk", state: "complete" },
-      { id: "funnel", state: "current" }
-    ]
-  );
-  assert.equal(
-    createSetupOnboardingSteps("campaign").every((step) => step.state === "complete"),
-    true
+    createSetupOnboardingSteps("campaign").map(({ id, state }) => ({ id, state })),
+    [{ id: "sdk", state: "complete" }]
   );
 });
 

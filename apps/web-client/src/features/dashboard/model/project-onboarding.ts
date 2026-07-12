@@ -22,7 +22,6 @@ export type CampaignOnboardingProgress = {
 };
 
 const SDK_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk"]);
-const FUNNEL_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk", "funnels"]);
 const CAMPAIGN_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(["sdk", "funnels", "campaigns"]);
 const COMPLETE_STAGE_TABS: ReadonlySet<DashboardTab> = new Set(dashboardTabValues);
 
@@ -31,8 +30,6 @@ export function allowedDashboardTabs(stage: ProjectOnboardingStage): ReadonlySet
     case "welcome":
     case "sdk":
       return SDK_STAGE_TABS;
-    case "funnel":
-      return FUNNEL_STAGE_TABS;
     case "campaign":
       return CAMPAIGN_STAGE_TABS;
     case "complete":
@@ -49,17 +46,6 @@ export function createSetupOnboardingSteps(
       id: "sdk",
       label: "SDK 연동",
       state: stage === "welcome" ? "locked" : stage === "sdk" ? "current" : "complete"
-    },
-    {
-      description: "사용자 여정과 전환 흐름을 확인합니다.",
-      id: "funnel",
-      label: "퍼널 확인",
-      state:
-        stage === "welcome" || stage === "sdk"
-          ? "locked"
-          : stage === "funnel"
-            ? "current"
-            : "complete"
     }
   ];
 }

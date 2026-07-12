@@ -23,9 +23,9 @@ export type InitializeProjectSetupProgressOptions = ProjectSetupProgressOptions 
   initialSetupCompleted?: boolean;
 };
 
-export type ProjectOnboardingStage = "welcome" | "sdk" | "funnel" | "campaign" | "complete";
+export type ProjectOnboardingStage = "welcome" | "sdk" | "campaign" | "complete";
 
-export type ProjectOnboardingPathSegment = "sdk" | "funnels" | "campaigns";
+export type ProjectOnboardingPathSegment = "sdk" | "campaigns";
 
 export type ProjectOnboardingStageInput = {
   progress: ProjectSetupProgress | null;
@@ -196,29 +196,6 @@ export function completeProjectSdkSetup(
   return next;
 }
 
-export function completeProjectFunnelSetup(
-  projectId: string,
-  options: CompleteProjectSetupProgressOptions = {}
-): ProjectSetupProgress {
-  const completedAt = getCurrentTimestamp(options.now);
-  const current =
-    options.currentProgress ??
-    readProjectSetupProgress(projectId, options.storage) ??
-    createEmptyProgress(completedAt);
-
-  if (current.sdkCompletedAt === null || current.funnelCompletedAt !== null) {
-    persistProjectSetupProgress(projectId, current, options.storage);
-    return current;
-  }
-
-  const next: ProjectSetupProgress = {
-    ...current,
-    funnelCompletedAt: completedAt
-  };
-  persistProjectSetupProgress(projectId, next, options.storage);
-  return next;
-}
-
 export function clearProjectSetupProgress(
   projectId: string,
   storage?: ProjectSetupProgressStorage | null
@@ -263,15 +240,6 @@ export function resolveProjectOnboardingStage({
       isInitialSetupComplete: false,
       requiredPathSegment: "sdk",
       stage: "sdk"
-    };
-  }
-
-  if (progress.funnelCompletedAt === null) {
-    return {
-      isDashboardUnlocked: false,
-      isInitialSetupComplete: false,
-      requiredPathSegment: "funnels",
-      stage: "funnel"
     };
   }
 

@@ -113,9 +113,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
     isDetailPanelCollapsed,
     setIsDetailPanelCollapsed,
     startDetailPanelResize
-  } = useFunnelDetailPanelResize(
-    stage === "funnel" || stage === "campaign" ? DASHBOARD_MOBILE_ACTION_OFFSET_PX : 0
-  );
+  } = useFunnelDetailPanelResize(stage === "campaign" ? DASHBOARD_MOBILE_ACTION_OFFSET_PX : 0);
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
     queryKey: dashboardEventCatalogQueryKey(query.projectId)
