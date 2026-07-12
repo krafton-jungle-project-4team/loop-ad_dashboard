@@ -1,4 +1,4 @@
-import type { DashboardFunnelMetricsScope } from "@loopad/shared";
+import type { DashboardEntitySearchType, DashboardFunnelMetricsScope } from "@loopad/shared";
 import type { DashboardQuery, DashboardTab } from "./dashboard-types.js";
 
 export function dashboardPageQueryKey(tab: DashboardTab, query: DashboardQuery) {
@@ -13,8 +13,20 @@ export function dashboardProjectsQueryKey() {
   return ["dashboard", "projects"] as const;
 }
 
+export function dashboardProjectExperimentsQueryKey(projectId: string) {
+  return ["dashboard", "project-experiments", projectId] as const;
+}
+
 export function dashboardEventCatalogQueryKey(projectId: string) {
   return ["dashboard", "event-catalog", projectId] as const;
+}
+
+export function dashboardEntitySearchQueryKey(
+  projectId: string,
+  query: string,
+  entityType: DashboardEntitySearchType = "all"
+) {
+  return ["dashboard", "entity-search", projectId, entityType, query.trim().toLowerCase()] as const;
 }
 
 export function dashboardCampaignDetailQueryKey(projectId: string, campaignId: string) {

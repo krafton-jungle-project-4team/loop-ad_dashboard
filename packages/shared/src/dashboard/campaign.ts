@@ -14,6 +14,7 @@ export const DashboardCampaignSummarySchema = z.object({
   promotion_count: CountSchema,
   segment_count: CountSchema,
   ad_experiment_count: CountSchema,
+  running_ad_experiment_count: CountSchema.default(0),
   latest_goal_achievement_rate: RateSchema.nullable(),
   next_action: z.string(),
   updated_at: z.string()
@@ -38,24 +39,46 @@ export const DashboardCampaignStatusSchema = z.enum([
 ]);
 export type DashboardCampaignStatus = z.infer<typeof DashboardCampaignStatusSchema>;
 
-export const DashboardCreateCampaignRequestSchema = z.object({
-  campaign_name: z.string().min(1),
-  objective: z.string().nullable().optional(),
-  primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
-  start_date: z.string().date().nullable().optional(),
-  end_date: z.string().date().nullable().optional(),
-  status: DashboardCampaignStatusSchema.default("draft")
-});
+export function isCampaignDateRangeValid(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined
+): boolean {
+  return !startDate || !endDate || startDate <= endDate;
+}
+
+const campaignDateRangeValidation = {
+  message: "종료일은 시작일보다 빠를 수 없습니다.",
+  path: ["end_date"]
+};
+
+export const DashboardCreateCampaignRequestSchema = z
+  .object({
+    campaign_name: z.string().min(1),
+    objective: z.string().nullable().optional(),
+    primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
+    start_date: z.string().date().nullable().optional(),
+    end_date: z.string().date().nullable().optional(),
+    status: DashboardCampaignStatusSchema.default("draft")
+  })
+  .refine(
+    ({ end_date: endDate, start_date: startDate }) => isCampaignDateRangeValid(startDate, endDate),
+    campaignDateRangeValidation
+  );
 export type DashboardCreateCampaignRequest = z.infer<typeof DashboardCreateCampaignRequestSchema>;
 
-export const DashboardUpdateCampaignRequestSchema = z.object({
-  campaign_name: z.string().min(1).optional(),
-  objective: z.string().nullable().optional(),
-  primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
-  start_date: z.string().date().nullable().optional(),
-  end_date: z.string().date().nullable().optional(),
-  status: DashboardCampaignStatusSchema.optional()
-});
+export const DashboardUpdateCampaignRequestSchema = z
+  .object({
+    campaign_name: z.string().min(1).optional(),
+    objective: z.string().nullable().optional(),
+    primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
+    start_date: z.string().date().nullable().optional(),
+    end_date: z.string().date().nullable().optional(),
+    status: DashboardCampaignStatusSchema.optional()
+  })
+  .refine(
+    ({ end_date: endDate, start_date: startDate }) => isCampaignDateRangeValid(startDate, endDate),
+    campaignDateRangeValidation
+  );
 export type DashboardUpdateCampaignRequest = z.infer<typeof DashboardUpdateCampaignRequestSchema>;
 
 export const DashboardDeleteCampaignResultSchema = z.object({

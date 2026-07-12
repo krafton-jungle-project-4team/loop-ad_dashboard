@@ -593,6 +593,7 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionRunId });
     log.info("started", { projectId, promotionRunId });
+    await this.campaignReader.preparePromotionRunEvaluationCompatibility(projectId, promotionRunId);
     const response = await this.decisionClient.evaluatePromotionRun({ promotionRunId });
     log.assignContext({ promotionId: response.promotion_id });
 

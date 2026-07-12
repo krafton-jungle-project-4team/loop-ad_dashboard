@@ -65,6 +65,7 @@ export function ProjectSelectPage() {
             <ProjectManagementDialog
               trigger={
                 <button
+                  aria-label="새 프로젝트 만들기"
                   className="group flex min-h-44 items-center justify-center rounded-[18px] border border-dashed border-black/20 bg-white/70 p-4 text-center transition-colors hover:border-primary/50 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   type="button"
                 >
@@ -87,8 +88,8 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
   return (
     <Link
       className="group block rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-      params={{ projectId: project.project_id, tabPath: "main" }}
-      to="/dashboard/$projectId/$tabPath"
+      params={{ projectId: project.project_id }}
+      to="/dashboard/$projectId"
     >
       <Card className="min-h-44 bg-white p-0 transition-colors group-hover:border-primary/35">
         <CardContent className="grid h-full gap-3 p-4 text-center">

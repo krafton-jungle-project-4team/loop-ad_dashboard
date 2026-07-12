@@ -108,6 +108,11 @@ import {
   type IListDashboardSegmentContentCandidatesResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
+import { listDashboardRunningAdExperimentCounts } from "../database/__generated__/project-experiments.queries.js";
+import {
+  backfillDashboardPromotionRunMinSampleSize,
+  normalizeDashboardPromotionRunLegacyGoalNearEvaluations
+} from "../database/__generated__/promotion-run-compatibility.queries.js";
 
 @Injectable()
 export class DashboardCampaignReader {
@@ -147,9 +152,27 @@ export class DashboardCampaignReader {
   }
 
   async listCampaigns(projectId: string): Promise<DashboardCampaignSummary[]> {
-    const rows = await this.db.query(listDashboardCampaignSummaries, { projectId }).multiple();
+    const [rows, runningCounts] = await Promise.all([
+      this.db.query(listDashboardCampaignSummaries, { projectId }).multiple(),
+      this.runningAdExperimentCounts(projectId)
+    ]);
 
-    return rows.map(toCampaignSummary);
+    return rows.map((row) => toCampaignSummary(row, runningCounts.get(row.campaignId)));
+  }
+
+  async preparePromotionRunEvaluationCompatibility(
+    projectId: string,
+    promotionRunId: string
+  ): Promise<void> {
+    await this.db
+      .query(backfillDashboardPromotionRunMinSampleSize, { projectId, promotionRunId })
+      .multiple();
+    await this.db
+      .query(normalizeDashboardPromotionRunLegacyGoalNearEvaluations, {
+        projectId,
+        promotionRunId
+      })
+      .multiple();
   }
 
   async createCampaign(
@@ -650,18 +673,26 @@ export class DashboardCampaignReader {
     projectId: string,
     campaignId: string
   ): Promise<Omit<DashboardCampaignDetail, "realtime_metrics">> {
-    const [campaign, promotions, segments, adExperiments, contentCandidates, experimentMetrics] =
-      await Promise.all([
-        this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single(),
-        this.db.query(listDashboardCampaignPromotions, { campaignId, projectId }).multiple(),
-        this.db.query(listDashboardCampaignSegments, { campaignId, projectId }).multiple(),
-        this.db.query(listDashboardCampaignAdExperiments, { campaignId, projectId }).multiple(),
-        this.db.query(listDashboardCampaignContentCandidates, { campaignId, projectId }).multiple(),
-        this.db.query(listDashboardCampaignExperimentMetrics, { campaignId, projectId }).multiple()
-      ]);
+    const [
+      campaign,
+      promotions,
+      segments,
+      adExperiments,
+      contentCandidates,
+      experimentMetrics,
+      runningCounts
+    ] = await Promise.all([
+      this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single(),
+      this.db.query(listDashboardCampaignPromotions, { campaignId, projectId }).multiple(),
+      this.db.query(listDashboardCampaignSegments, { campaignId, projectId }).multiple(),
+      this.db.query(listDashboardCampaignAdExperiments, { campaignId, projectId }).multiple(),
+      this.db.query(listDashboardCampaignContentCandidates, { campaignId, projectId }).multiple(),
+      this.db.query(listDashboardCampaignExperimentMetrics, { campaignId, projectId }).multiple(),
+      this.runningAdExperimentCounts(projectId)
+    ]);
 
     return {
-      campaign: toCampaignSummary(campaign),
+      campaign: toCampaignSummary(campaign, runningCounts.get(campaignId)),
       promotions: promotions.map(toCampaignPromotion),
       segments: segments.map(toCampaignSegment),
       ad_experiments: adExperiments.map(toCampaignAdExperiment),
@@ -721,10 +752,21 @@ export class DashboardCampaignReader {
     projectId: string,
     campaignId: string
   ): Promise<DashboardCampaignSummary> {
-    const row = await this.db
-      .query(getDashboardCampaignSummary, { campaignId, projectId })
-      .single();
-    return toCampaignSummary(row);
+    const [row, runningCounts] = await Promise.all([
+      this.db.query(getDashboardCampaignSummary, { campaignId, projectId }).single(),
+      this.runningAdExperimentCounts(projectId)
+    ]);
+    return toCampaignSummary(row, runningCounts.get(campaignId));
+  }
+
+  private async runningAdExperimentCounts(projectId: string): Promise<Map<string, number>> {
+    const rows = await this.db
+      .query(listDashboardRunningAdExperimentCounts, { projectId })
+      .multiple();
+
+    return new Map(
+      rows.map((row) => [row.campaignId, countValue(row.runningAdExperimentCount)] as const)
+    );
   }
 
   async getPromotionSummary(

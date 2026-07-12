@@ -8,6 +8,10 @@ function DashboardProjectIndexRoute() {
   const { projectId } = Route.useParams();
 
   return (
-    <Navigate params={{ projectId, tabPath: "main" }} replace to="/dashboard/$projectId/$tabPath" />
+    <Navigate
+      params={{ projectId, tabPath: "campaigns" }}
+      replace
+      to="/dashboard/$projectId/$tabPath"
+    />
   );
 }

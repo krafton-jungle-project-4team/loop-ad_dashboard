@@ -1,6 +1,13 @@
-import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Outlet, useParams } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { DashboardShell } from "../features/dashboard/layout/DashboardShell.js";
 import { getDashboardTabByPath } from "../features/dashboard/model/dashboard-navigation.js";
+import type { DashboardTab } from "../features/dashboard/model/dashboard-types.js";
+import { LoadingState } from "../features/dashboard/ui/LoadingState.js";
+import {
+  ProjectOnboardingProvider,
+  useProjectOnboarding
+} from "../features/dashboard/ui/onboarding/ProjectOnboardingProvider.js";
 
 export const Route = createFileRoute("/dashboard/$projectId")({
   component: DashboardProjectLayout
@@ -8,11 +15,50 @@ export const Route = createFileRoute("/dashboard/$projectId")({
 
 function DashboardProjectLayout() {
   const params = useParams({ strict: false }) as { projectId: string; tabPath?: string };
-  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "main";
+  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "campaigns";
 
   return (
-    <DashboardShell activeTab={tab} projectId={params.projectId}>
-      <Outlet />
+    <ProjectOnboardingProvider projectId={params.projectId}>
+      <DashboardProjectAccessGate activeTab={tab} projectId={params.projectId}>
+        <Outlet />
+      </DashboardProjectAccessGate>
+    </ProjectOnboardingProvider>
+  );
+}
+
+function DashboardProjectAccessGate({
+  activeTab,
+  children,
+  projectId
+}: {
+  activeTab: DashboardTab;
+  children: ReactNode;
+  projectId: string;
+}) {
+  const { isLoading, isTabAllowed, requiredPathSegment } = useProjectOnboarding();
+
+  if (isLoading) {
+    return (
+      <DashboardShell activeTab={activeTab} projectId={projectId}>
+        <LoadingState tab={activeTab} />
+      </DashboardShell>
+    );
+  }
+
+  if (!isTabAllowed(activeTab) && requiredPathSegment) {
+    return (
+      <Navigate
+        params={{ projectId, tabPath: requiredPathSegment }}
+        replace
+        search={(current) => current}
+        to="/dashboard/$projectId/$tabPath"
+      />
+    );
+  }
+
+  return (
+    <DashboardShell activeTab={activeTab} projectId={projectId}>
+      {children}
     </DashboardShell>
   );
 }

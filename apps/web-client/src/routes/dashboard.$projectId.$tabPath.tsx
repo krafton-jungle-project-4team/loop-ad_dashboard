@@ -2,7 +2,11 @@ import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { createFileRoute, Navigate, useParams } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { createRouteBoundaryOptions } from "../app/route-boundary.js";
-import { getDashboardTabByPath } from "../features/dashboard/model/dashboard-navigation.js";
+import {
+  getCanonicalDashboardPath,
+  getLegacyDashboardViewPatch,
+  getDashboardTabByPath
+} from "../features/dashboard/model/dashboard-navigation.js";
 import {
   normalizeDashboardQuery,
   useDashboardQueryState
@@ -11,6 +15,7 @@ import type { DashboardQuery, DashboardTab } from "../features/dashboard/model/d
 import { useSuspenseDashboardResources } from "../features/dashboard/model/use-dashboard-resources.js";
 import { DashboardPanelRenderer } from "../features/dashboard/ui/DashboardRenderer.js";
 import { LoadingState } from "../features/dashboard/ui/LoadingState.js";
+import { ExperimentComponent } from "../features/dashboard/ui/pages/campaign/promotion/experiment/ExperimentComponent.js";
 import { DataExplorerDashboardPage } from "../features/dashboard/ui/pages/data-explorer/DataExplorerDashboardPage.js";
 import { SdkPage } from "../features/dashboard/ui/pages/sdk/SdkPage.js";
 
@@ -26,13 +31,28 @@ export const Route = createFileRoute("/dashboard/$projectId/$tabPath")({
 
 function DashboardProjectRoute() {
   const { projectId, tabPath } = Route.useParams();
+  const canonicalPath = getCanonicalDashboardPath(tabPath);
   const tab = getDashboardTabByPath(tabPath);
 
   if (!tab) {
     return (
       <Navigate
-        params={{ projectId, tabPath: "main" }}
+        params={{ projectId, tabPath: "campaigns" }}
         replace
+        to="/dashboard/$projectId/$tabPath"
+      />
+    );
+  }
+
+  if (canonicalPath !== tabPath) {
+    return (
+      <Navigate
+        params={{ projectId, tabPath: canonicalPath }}
+        replace
+        search={(current) => ({
+          ...current,
+          ...getLegacyDashboardViewPatch(tabPath)
+        })}
         to="/dashboard/$projectId/$tabPath"
       />
     );
@@ -43,7 +63,7 @@ function DashboardProjectRoute() {
 
 function DashboardRoutePending() {
   const params = useParams({ strict: false }) as { tabPath?: string };
-  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "main";
+  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "campaigns";
 
   return <LoadingState tab={tab} />;
 }
@@ -70,6 +90,10 @@ function DashboardProjectContent({ projectId, tab }: { projectId: string; tab: D
 
   if (tab === "sdk") {
     return <SdkPage />;
+  }
+
+  if (tab === "experiments") {
+    return <ExperimentComponent query={query} />;
   }
 
   return <DashboardResourcePanel query={query} tab={tab} />;

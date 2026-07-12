@@ -1,4 +1,4 @@
-import type { DashboardTab } from "./dashboard-types.js";
+import type { CampaignWorkspaceView, DashboardTab } from "./dashboard-types.js";
 
 export type DashboardNavItem = {
   label: string;
@@ -26,7 +26,7 @@ export type DashboardNavigationGroup = {
 };
 
 export const dashboardTabs = [
-  { value: "main", label: "메인 대시보드", pathSegment: "main" },
+  { value: "main", label: "통계", pathSegment: "statistics" },
   { value: "funnels", label: "사용자 여정", pathSegment: "funnels" },
   {
     value: "campaign-flow-map",
@@ -79,34 +79,22 @@ export const dashboardTabs = [
 
 export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
   {
-    label: "개요",
-    items: [
-      { label: "메인", value: "main", pathSegment: "main", type: "link" },
-      { label: "사용자 여정", value: "funnels", pathSegment: "funnels", type: "link" }
-    ]
-  },
-  {
-    label: "캠페인 운영",
+    label: "",
     items: [
       { label: "캠페인", value: "campaigns", pathSegment: "campaigns", type: "link" },
-      { label: "프로모션", value: "promotions", pathSegment: "promotions", type: "link" },
-      { label: "세그먼트", value: "segments", pathSegment: "segments", type: "link" },
-      { label: "실험 관리", value: "experiments", pathSegment: "experiments", type: "link" }
-    ]
-  },
-  {
-    label: "도구",
-    items: [
-      {
-        label: "데이터 탐색기",
-        value: "dataExplorer",
-        pathSegment: "data-explorer",
-        type: "link"
-      },
+      { label: "실험", value: "experiments", pathSegment: "experiments", type: "link" },
+      { label: "통계", value: "main", pathSegment: "statistics", type: "link" },
+      { label: "사용자 여정", value: "funnels", pathSegment: "funnels", type: "link" },
       {
         label: "워크플로우",
         value: "campaign-flow-map",
         pathSegment: "campaign-flow-map",
+        type: "link"
+      },
+      {
+        label: "데이터 탐색기",
+        value: "dataExplorer",
+        pathSegment: "data-explorer",
         type: "link"
       },
       { label: "SDK 연동", value: "sdk", pathSegment: "sdk", type: "link" }
@@ -114,8 +102,35 @@ export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
   }
 ];
 
+const legacyDashboardPaths: Record<string, string> = {
+  "campaign-detail": "campaigns",
+  "campaign-metrics": "campaigns",
+  "campaign-promotions": "campaigns",
+  main: "statistics",
+  "promotion-metrics": "campaigns",
+  promotions: "campaigns",
+  segments: "campaigns"
+};
+
+export function getCanonicalDashboardPath(path: string): string {
+  return legacyDashboardPaths[path] ?? path;
+}
+
+export function getLegacyDashboardViewPatch(path: string): {
+  campaignView?: CampaignWorkspaceView;
+} {
+  if (path === "campaign-detail") {
+    return { campaignView: "overview" };
+  }
+  if (path === "campaign-metrics") {
+    return { campaignView: "performance" };
+  }
+  return {};
+}
+
 export function getDashboardTabByPath(path: string): DashboardTab | null {
-  return dashboardTabs.find((item) => item.pathSegment === path)?.value ?? null;
+  const canonicalPath = getCanonicalDashboardPath(path);
+  return dashboardTabs.find((item) => item.pathSegment === canonicalPath)?.value ?? null;
 }
 
 export function getDashboardTabLabel(tab: DashboardTab): string {

@@ -121,6 +121,7 @@ export function usePromotionWorkspaceController({
       });
       void setDashboardQueryState({
         promotionView: "overview",
+        selectedAdExperimentId: "",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
         selectedSegmentId: ""
@@ -138,6 +139,7 @@ export function usePromotionWorkspaceController({
       if (selectedPromotionId === result.promotion_id) {
         await setDashboardQueryState({
           promotionView: "manage",
+          selectedAdExperimentId: "",
           selectedCampaignId,
           selectedPromotionId: "",
           selectedSegmentId: ""
@@ -193,6 +195,7 @@ export function usePromotionWorkspaceController({
     if (query.selectedCampaignId && !selectedCampaign) {
       void setDashboardQueryState(
         {
+          selectedAdExperimentId: "",
           selectedCampaignId: "",
           selectedPromotionId: "",
           selectedSegmentId: ""
@@ -220,7 +223,7 @@ export function usePromotionWorkspaceController({
     );
     if (!hasSelectedPromotion) {
       void setDashboardQueryState(
-        { selectedPromotionId: "", selectedSegmentId: "" },
+        { selectedAdExperimentId: "", selectedPromotionId: "", selectedSegmentId: "" },
         { history: "replace" }
       );
     }
@@ -258,7 +261,10 @@ export function usePromotionWorkspaceController({
 
   useEffect(() => {
     if (query.selectedSegmentId && !selectedPromotionSegmentId) {
-      void setDashboardQueryState({ selectedSegmentId: "" }, { history: "replace" });
+      void setDashboardQueryState(
+        { selectedAdExperimentId: "", selectedSegmentId: "" },
+        { history: "replace" }
+      );
     }
   }, [query.selectedSegmentId, selectedPromotionSegmentId, setDashboardQueryState]);
 
@@ -580,6 +586,7 @@ export function usePromotionWorkspaceController({
       if (firstConfirmedSuggestion) {
         await setDashboardQueryState({
           segmentView: "experiments",
+          selectedAdExperimentId: "",
           selectedSegmentId: firstConfirmedSuggestion.segment_id
         });
       }
@@ -615,7 +622,11 @@ export function usePromotionWorkspaceController({
         )
       });
       if (query.selectedSegmentId === result.segment_id) {
-        await setDashboardQueryState({ segmentView: "manage", selectedSegmentId: "" });
+        await setDashboardQueryState({
+          segmentView: "manage",
+          selectedAdExperimentId: "",
+          selectedSegmentId: ""
+        });
       }
     }
   });
@@ -660,6 +671,7 @@ export function usePromotionWorkspaceController({
   const selectPromotion = (promotionId: string, segmentId = "") => {
     void setDashboardQueryState({
       promotionView: "overview",
+      selectedAdExperimentId: "",
       selectedCampaignId,
       selectedPromotionId: promotionId,
       selectedSegmentId: segmentId
@@ -669,6 +681,7 @@ export function usePromotionWorkspaceController({
     setWorkspaceTab("segment-detail");
     void setDashboardQueryState({
       segmentView: "experiments",
+      selectedAdExperimentId: "",
       selectedCampaignId,
       selectedPromotionId: promotionId,
       selectedSegmentId: segmentId

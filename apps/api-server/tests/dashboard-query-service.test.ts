@@ -666,6 +666,52 @@ test("dashboard promotion generation retries when existing result is failed", as
   ]);
 });
 
+test("dashboard promotion run evaluation prepares legacy data before Decision", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      preparePromotionRunEvaluationCompatibility: async (projectId, promotionRunId) => {
+        calls.push({ kind: "prepare-legacy-data", projectId, promotionRunId });
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      evaluatePromotionRun: async (request) => {
+        calls.push({ kind: "decision", request });
+        return {
+          ad_experiment_results: [],
+          failed_ad_experiment_ids: [],
+          failed_segment_ids: [],
+          next_loop_required: false,
+          promotion_id: "promo_email_001",
+          promotion_run_id: request.promotionRunId,
+          status: "goal_met"
+        };
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  const result = await service.evaluatePromotionRun("hotel-client-a", "run_email_001");
+
+  assert.equal(result.status, "goal_met");
+  assert.deepEqual(calls, [
+    {
+      kind: "prepare-legacy-data",
+      projectId: "hotel-client-a",
+      promotionRunId: "run_email_001"
+    },
+    {
+      kind: "decision",
+      request: { promotionRunId: "run_email_001" }
+    }
+  ]);
+});
+
 test("dashboard confirms accepted suggestions in DB without calling analysis", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =

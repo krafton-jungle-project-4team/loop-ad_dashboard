@@ -1,4 +1,4 @@
-import { type ClickHouseClient } from "@clickhouse/client";
+import { SettingsMap, type ClickHouseClient } from "@clickhouse/client";
 import { Inject, Injectable } from "@nestjs/common";
 import type {
   DataExplorerColumn,
@@ -21,6 +21,7 @@ export type ListObjectsInput = {
 };
 
 export type ExecuteReadOnlyQueryInput = {
+  projectId: string;
   sqlText: string;
   rowLimit: number;
   timeoutMs: number;
@@ -39,6 +40,12 @@ type ClickHouseObjectRow = {
   object_type: string;
   column_count: number;
   row_count_estimate: number | null;
+  project_scoped: boolean | number | string;
+};
+
+type ClickHouseProjectScopedObjectRow = {
+  database_name: string;
+  object_name: string;
 };
 
 type ClickHouseColumnRow = {
@@ -83,7 +90,8 @@ export class ClickHouseEventsReader {
           t.engine AS engine,
           multiIf(t.engine = 'View', 'view', t.engine = 'MaterializedView', 'materialized_view', 'table') AS object_type,
           t.total_rows AS row_count_estimate,
-          count(c.name) AS column_count
+          count(c.name) AS column_count,
+          countIf(c.name = 'project_id') > 0 AS project_scoped
         FROM system.tables t
         LEFT JOIN system.columns c ON c.database = t.database AND c.table = t.name
         WHERE t.database = {databaseName:String}
@@ -114,7 +122,7 @@ export class ClickHouseEventsReader {
       this.readTable(env.clickhouse.database, ref.object_name),
       this.readColumns(env.clickhouse.database, ref.object_name)
     ]);
-    const object = tableToObjectSummary(table, columns.length);
+    const object = tableToObjectSummary(table, columns);
 
     return {
       object,
@@ -128,11 +136,15 @@ export class ClickHouseEventsReader {
   async executeReadOnlyQuery(
     input: ExecuteReadOnlyQueryInput
   ): Promise<DataExplorerQueryExecutionResult> {
+    const projectScopedObjects = await this.readProjectScopedObjects();
+    const additionalTableFilters = createProjectScopeFilters(projectScopedObjects);
     const startedAt = performance.now();
     const result = await this.clickhouse.query({
       query: input.sqlText,
       format: "JSON",
       clickhouse_settings: {
+        additional_table_filters: additionalTableFilters,
+        log_comment: input.projectId,
         max_execution_time: Math.ceil(input.timeoutMs / 1000),
         max_result_rows: String(input.rowLimit),
         result_overflow_mode: "break",
@@ -150,6 +162,27 @@ export class ClickHouseEventsReader {
       durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
       truncated: resultRows.length > rows.length
     };
+  }
+
+  private async readProjectScopedObjects(): Promise<ClickHouseProjectScopedObjectRow[]> {
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          database AS database_name,
+          table AS object_name
+        FROM system.columns
+        WHERE name = 'project_id'
+        GROUP BY database, table
+        ORDER BY database, table
+      `,
+      format: "JSONEachRow",
+      clickhouse_settings: {
+        max_execution_time: SCHEMA_QUERY_TIMEOUT_SECONDS,
+        readonly: "1"
+      }
+    });
+
+    return result.json<ClickHouseProjectScopedObjectRow>();
   }
 
   private async readTable(databaseName: string, objectName: string): Promise<ClickHouseTableRow> {
@@ -226,21 +259,50 @@ function toObjectSummary(row: ClickHouseObjectRow): DataExplorerObjectSummary {
     object_name: row.object_name,
     engine: row.engine || null,
     column_count: Number(row.column_count ?? 0),
-    row_count_estimate: row.row_count_estimate === null ? null : Number(row.row_count_estimate)
+    row_count_estimate: row.row_count_estimate === null ? null : Number(row.row_count_estimate),
+    project_scoped: row.project_scoped === true || Number(row.project_scoped) === 1
   };
 }
 
 function tableToObjectSummary(
   row: ClickHouseTableRow,
-  columnCount: number
+  columns: DataExplorerColumn[]
 ): DataExplorerObjectSummary {
   return {
     object_type: normalizeClickHouseObjectType("table", row.engine),
     object_name: row.object_name,
     engine: row.engine || null,
-    column_count: columnCount,
-    row_count_estimate: row.total_rows === null ? null : Number(row.total_rows)
+    column_count: columns.length,
+    row_count_estimate: row.total_rows === null ? null : Number(row.total_rows),
+    project_scoped: columns.some((column) => column.column_name === "project_id")
   };
+}
+
+function createProjectScopeFilters(rows: ClickHouseProjectScopedObjectRow[]) {
+  if (rows.length === 0) {
+    return undefined;
+  }
+
+  const filters: Record<string, string> = {};
+  const projectFilterExpression = "project_id = getSetting(\\'log_comment\\')";
+
+  for (const row of rows) {
+    assertSafeSettingsMapName(row.database_name);
+    assertSafeSettingsMapName(row.object_name);
+
+    filters[`${row.database_name}.${row.object_name}`] = projectFilterExpression;
+    if (row.database_name === env.clickhouse.database) {
+      filters[row.object_name] = projectFilterExpression;
+    }
+  }
+
+  return SettingsMap.from(filters);
+}
+
+function assertSafeSettingsMapName(value: string) {
+  if (value.includes("'") || value.includes("\\")) {
+    throw new Error("ClickHouse object name cannot be represented in a settings map.");
+  }
 }
 
 function normalizeClickHouseObjectType(

@@ -1,7 +1,8 @@
 import {
   DashboardCampaignPrimaryMetricSchema,
   DashboardCampaignStatusSchema,
-  type DashboardCampaignSummary
+  type DashboardCampaignSummary,
+  isCampaignDateRangeValid
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
@@ -17,7 +18,7 @@ import {
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Button } from "@loopad/ui/shadcn/button";
 import { DialogFooter } from "@loopad/ui/shadcn/dialog";
-import { Field, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import {
   Select,
@@ -135,12 +136,14 @@ function CampaignCreateForm({
   const requestClose = useDashboardFormDraft(
     Boolean(campaignName || objective || startDate || endDate || primaryMetric !== "none")
   );
-  const canSubmit = Boolean(campaignName.trim()) && !isPending;
+  const dateRangeIsValid = isCampaignDateRangeValid(startDate, endDate);
+  const canSubmit = Boolean(campaignName.trim()) && dateRangeIsValid && !isPending;
 
   return (
     <section className="grid gap-4">
       <CampaignFormFields
         campaignName={campaignName}
+        dateRangeIsValid={dateRangeIsValid}
         endDate={endDate}
         objective={objective}
         onCampaignNameChange={setCampaignName}
@@ -213,12 +216,14 @@ function CampaignEditForm({
     );
   }
 
-  const canSubmit = Boolean(campaignName.trim()) && !isPending;
+  const dateRangeIsValid = isCampaignDateRangeValid(startDate, endDate);
+  const canSubmit = Boolean(campaignName.trim()) && dateRangeIsValid && !isPending;
 
   return (
     <section className="grid gap-4">
       <CampaignFormFields
         campaignName={campaignName}
+        dateRangeIsValid={dateRangeIsValid}
         endDate={endDate}
         objective={objective}
         onCampaignNameChange={setCampaignName}
@@ -281,6 +286,7 @@ function CampaignEditForm({
 
 function CampaignFormFields({
   campaignName,
+  dateRangeIsValid,
   endDate,
   objective,
   onCampaignNameChange,
@@ -292,6 +298,7 @@ function CampaignFormFields({
   statusControl
 }: {
   campaignName: string;
+  dateRangeIsValid: boolean;
   endDate: string;
   objective: string;
   onCampaignNameChange: (value: string) => void;
@@ -364,13 +371,20 @@ function CampaignFormFields({
         <Field>
           <FieldLabel htmlFor="dashboard-campaign-end-date">종료일</FieldLabel>
           <Input
+            aria-invalid={!dateRangeIsValid}
             autoComplete="off"
+            aria-describedby={!dateRangeIsValid ? "dashboard-campaign-date-error" : undefined}
             id="dashboard-campaign-end-date"
             name="campaignEndDate"
             onChange={(event) => onEndDateChange(event.target.value)}
             type="date"
             value={endDate}
           />
+          {!dateRangeIsValid ? (
+            <FieldError id="dashboard-campaign-date-error">
+              종료일은 시작일보다 빠를 수 없습니다.
+            </FieldError>
+          ) : null}
         </Field>
         {statusControl ? (
           <Field>

@@ -27,6 +27,7 @@ import {
   dataExplorerObjectsQueryOptions,
   useDataExplorerMutations
 } from "../hooks/use-data-explorer.js";
+import { buildColumnSampleSql, buildObjectSampleSql } from "../model/data-explorer-sql.js";
 
 const panelToggleButtonClass =
   "size-7 border-0 bg-transparent shadow-none transition-none focus-visible:border-transparent focus-visible:ring-0 active:translate-y-0";
@@ -39,8 +40,8 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const [queryResult, setQueryResult] = useState<DataExplorerQueryRunResponse | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<"result" | "visualization">("result");
-  const [isSchemaPanelOpen, setIsSchemaPanelOpen] = useState(true);
-  const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(true);
+  const [isSchemaPanelOpen, setIsSchemaPanelOpen] = useState(shouldOpenSidePanelsByDefault);
+  const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(shouldOpenSidePanelsByDefault);
   const mutations = useDataExplorerMutations();
   const objectsQuery = useQuery(dataExplorerObjectsQueryOptions({ q: objectSearch }));
   const eventCatalogQuery = useQuery(dataExplorerEventCatalogQueryOptions(projectId));
@@ -96,19 +97,22 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     setValidation(null);
   }, []);
 
-  const handleBuildObjectQuery = useCallback((object: DataExplorerObjectSummary) => {
-    setQueryError(null);
-    setValidation(null);
-    setSqlText(sampleObjectSqlText(object.object_name));
-  }, []);
+  const handleBuildObjectQuery = useCallback(
+    (object: DataExplorerObjectSummary) => {
+      setQueryError(null);
+      setValidation(null);
+      setSqlText(buildObjectSampleSql(object, projectId));
+    },
+    [projectId]
+  );
 
   const handleBuildColumnQuery = useCallback(
     (object: DataExplorerObjectSummary, column: DataExplorerColumn) => {
       setQueryError(null);
       setValidation(null);
-      setSqlText(columnSqlText(object.object_name, column.column_name));
+      setSqlText(buildColumnSampleSql(object, column.column_name, projectId));
     },
-    []
+    [projectId]
   );
 
   const handleBuildObjectDdlQuery = useCallback((object: DataExplorerObjectSummary) => {
@@ -370,19 +374,6 @@ function defaultSqlText(projectId: string) {
   ].join("\n");
 }
 
-function sampleObjectSqlText(objectName: string) {
-  return ["SELECT", "  *", `FROM ${quoteClickHouseIdentifier(objectName)}`, "LIMIT 100"].join("\n");
-}
-
-function columnSqlText(objectName: string, columnName: string) {
-  return [
-    "SELECT",
-    `  ${quoteClickHouseIdentifier(columnName)}`,
-    `FROM ${quoteClickHouseIdentifier(objectName)}`,
-    "LIMIT 100"
-  ].join("\n");
-}
-
 function objectDdlSqlText(objectName: string) {
   return [
     "SELECT",
@@ -418,8 +409,12 @@ function escapeSqlLiteral(value: string) {
   return value.replaceAll("'", "''");
 }
 
-function quoteClickHouseIdentifier(identifier: string) {
-  return `\`${identifier.replaceAll("`", "``")}\``;
+function shouldOpenSidePanelsByDefault() {
+  return (
+    typeof window === "undefined" ||
+    typeof window.matchMedia !== "function" ||
+    !window.matchMedia("(max-width: 767px)").matches
+  );
 }
 
 function errorMessage(error: unknown) {

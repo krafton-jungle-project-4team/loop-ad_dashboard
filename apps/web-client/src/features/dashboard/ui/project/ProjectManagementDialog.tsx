@@ -13,7 +13,7 @@ import {
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
@@ -22,6 +22,10 @@ import {
   fetchDashboardProjects
 } from "../../api/dashboard-api.js";
 import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
+import {
+  clearProjectSetupProgress,
+  initializeProjectSetupProgress
+} from "../../model/project-setup-progress.js";
 
 type ProjectFormState = {
   domain: string;
@@ -55,11 +59,12 @@ export function ProjectManagementDialog({
     mutationFn: createDashboardProject,
     onSuccess: async (project) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      initializeProjectSetupProgress(project.project_id);
       setForm(emptyProjectForm);
       setPendingDeleteProjectId(null);
       setOpen(false);
       void navigate({
-        params: { projectId: project.project_id, tabPath: "main" },
+        params: { projectId: project.project_id, tabPath: "sdk" },
         to: "/dashboard/$projectId/$tabPath"
       });
     }
@@ -67,6 +72,7 @@ export function ProjectManagementDialog({
   const deleteProjectMutation = useMutation({
     mutationFn: deleteDashboardProject,
     onSuccess: async (_result, deletedProjectId) => {
+      clearProjectSetupProgress(deletedProjectId);
       const projectList = await fetchDashboardProjects();
       queryClient.setQueryData(dashboardProjectsQueryKey(), projectList);
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -203,18 +209,6 @@ export function ProjectManagementDialog({
                         <p className="truncate text-xs text-muted-foreground">{project.domain}</p>
                       </div>
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant={isCurrentProject ? "secondary" : "outline"}
-                        >
-                          <Link
-                            params={{ projectId: project.project_id, tabPath: "main" }}
-                            to="/dashboard/$projectId/$tabPath"
-                          >
-                            열기
-                          </Link>
-                        </Button>
                         <Button
                           aria-label={`${project.project_name} 삭제`}
                           disabled={isDeleting}

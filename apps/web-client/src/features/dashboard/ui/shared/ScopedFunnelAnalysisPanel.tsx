@@ -156,6 +156,7 @@ export function ScopedFunnelAnalysisPanel({
                 {selectedFunnelIds.map((funnelId, index) => (
                   <div className="flex items-center gap-1" key={`${index}-${funnelId}`}>
                     <NativeSelect
+                      aria-label={`비교 사용자 여정 ${index + 1}`}
                       className="w-[220px]"
                       onChange={(event) => updateFunnelSlot(index, event.target.value)}
                       size="sm"

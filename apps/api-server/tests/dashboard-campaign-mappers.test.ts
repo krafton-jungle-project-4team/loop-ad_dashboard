@@ -6,23 +6,26 @@ import {
 } from "../src/features/dashboard/repository/dashboard-campaign-mappers.js";
 
 test("campaign mapper preserves date and numeric conversion contracts", () => {
-  const summary = toCampaignSummary({
-    campaignId: "campaign-1",
-    campaignName: "여름 캠페인",
-    objective: "예약 전환 증가",
-    primaryMetric: "booking_conversion_rate",
-    status: "active",
-    startDate: new Date("2026-07-01T00:00:00.000Z"),
-    endDate: new Date("2026-07-31T00:00:00.000Z"),
-    maxLoopCount: "3",
-    currentLoopCount: "1",
-    promotionCount: "2",
-    segmentCount: "4",
-    adExperimentCount: "5",
-    latestGoalAchievementRate: "0.42",
-    nextAction: null,
-    updatedAt: new Date("2026-07-10T00:00:00.000Z")
-  } as unknown as Parameters<typeof toCampaignSummary>[0]);
+  const summary = toCampaignSummary(
+    {
+      campaignId: "campaign-1",
+      campaignName: "여름 캠페인",
+      objective: "예약 전환 증가",
+      primaryMetric: "booking_conversion_rate",
+      status: "active",
+      startDate: new Date("2026-07-01T00:00:00.000Z"),
+      endDate: new Date("2026-07-31T00:00:00.000Z"),
+      maxLoopCount: "3",
+      currentLoopCount: "1",
+      promotionCount: "2",
+      segmentCount: "4",
+      adExperimentCount: "5",
+      latestGoalAchievementRate: "0.42",
+      nextAction: null,
+      updatedAt: new Date("2026-07-10T00:00:00.000Z")
+    } as unknown as Parameters<typeof toCampaignSummary>[0],
+    2
+  );
 
   assert.deepEqual(summary, {
     campaign_id: "campaign-1",
@@ -37,6 +40,7 @@ test("campaign mapper preserves date and numeric conversion contracts", () => {
     promotion_count: 2,
     segment_count: 4,
     ad_experiment_count: 5,
+    running_ad_experiment_count: 2,
     latest_goal_achievement_rate: 0.42,
     next_action: "monitor",
     updated_at: "2026-07-10T00:00:00.000Z"

@@ -1,4 +1,8 @@
-import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
+import type {
+  DashboardCampaignDetail,
+  DashboardEntitySearchResult,
+  DashboardMain
+} from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Separator } from "@loopad/ui/shadcn/separator";
 import {
@@ -26,8 +30,8 @@ import {
 } from "@loopad/ui/shadcn/sidebar";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { ChevronRight, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { ChevronRight, Code2, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -44,12 +48,16 @@ import {
   type DashboardNavTreeLinkItem
 } from "../model/dashboard-navigation.js";
 import { normalizeDashboardQuery, useDashboardQueryState } from "../model/dashboard-query.js";
+import { entitySearchResultToDashboardPatch } from "../model/entity-search-navigation.js";
 import {
   dashboardCampaignDetailQueryKey,
   dashboardPageQueryKey
 } from "../model/dashboard-query-keys.js";
 import type { DashboardTab } from "../model/dashboard-types.js";
+import { OnboardingWorkspaceLayout } from "../ui/onboarding/OnboardingWorkspaceLayout.js";
+import { useProjectOnboarding } from "../ui/onboarding/ProjectOnboardingProvider.js";
 import { ProjectReturnIconLink, ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
+import { GlobalEntitySearch } from "../ui/search/GlobalEntitySearch.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 360;
@@ -66,9 +74,11 @@ export function DashboardShell({
   projectId: string;
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
+  const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
   const isFunnelTab = activeTab === "funnels";
   const isFullHeightTab = isCanvasTab || isFunnelTab;
+  const constrainToViewport = isFullHeightTab || !isDashboardUnlocked;
 
   return (
     <SidebarProvider
@@ -85,10 +95,11 @@ export function DashboardShell({
         <SidebarContent>
           {dashboardNavigationGroups.map((group) => (
             <SidebarGroup key={group.label}>
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
               <SidebarGroupContent>
                 <DashboardNavigation
                   activeTab={activeTab}
+                  isTabAllowed={isTabAllowed}
                   items={group.items}
                   projectId={projectId}
                 />
@@ -100,15 +111,27 @@ export function DashboardShell({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className={isFullHeightTab ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
+      <SidebarInset className={constrainToViewport ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
-          <div className="flex h-full min-w-0 items-center gap-3">
+          <div className="flex h-full min-w-0 flex-1 items-center gap-3">
             <ProjectReturnIconLink />
             <SidebarTrigger className="-ml-1" />
             <div className="flex h-6 items-center">
               <Separator className="h-full" orientation="vertical" />
             </div>
-            <DashboardHeaderContext activeTab={activeTab} projectId={projectId} />
+            {isDashboardUnlocked ? (
+              <DashboardGlobalSearch projectId={projectId} />
+            ) : isLoading ? (
+              <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                {getDashboardTabLabel(activeTab)}
+              </div>
+            ) : stage === "welcome" ? (
+              <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                프로젝트 시작
+              </div>
+            ) : (
+              <DashboardHeaderContext activeTab={activeTab} projectId={projectId} />
+            )}
           </div>
         </header>
 
@@ -128,20 +151,53 @@ export function DashboardShell({
                   : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
             }
           >
-            {children}
+            <OnboardingWorkspaceLayout activeTab={activeTab}>{children}</OnboardingWorkspaceLayout>
           </div>
         </main>
-        <MobileBottomNavigation activeTab={activeTab} projectId={projectId} />
+        {stage === "welcome" ? null : (
+          <MobileBottomNavigation
+            activeTab={activeTab}
+            isDashboardUnlocked={isDashboardUnlocked}
+            isTabAllowed={isTabAllowed}
+            projectId={projectId}
+          />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );
 }
 
+function DashboardGlobalSearch({ projectId }: { projectId: string }) {
+  const navigate = useNavigate();
+  const [, setDashboardQueryState] = useDashboardQueryState();
+
+  const handleResultSelect = async (result: DashboardEntitySearchResult) => {
+    await setDashboardQueryState(entitySearchResultToDashboardPatch(result));
+    await navigate({
+      params: { projectId, tabPath: "campaigns" },
+      search: (current) => current,
+      to: "/dashboard/$projectId/$tabPath"
+    });
+  };
+
+  return (
+    <GlobalEntitySearch
+      className="ml-auto w-full max-w-2xl"
+      onResultSelect={(result) => void handleResultSelect(result)}
+      projectId={projectId}
+    />
+  );
+}
+
 function MobileBottomNavigation({
   activeTab,
+  isDashboardUnlocked,
+  isTabAllowed,
   projectId
 }: {
   activeTab: DashboardTab;
+  isDashboardUnlocked: boolean;
+  isTabAllowed: (tab: DashboardTab) => boolean;
   projectId: string;
 }) {
   const { toggleSidebar } = useSidebar();
@@ -152,36 +208,73 @@ function MobileBottomNavigation({
     "promotions",
     "campaign-promotions",
     "promotion-metrics",
-    "segments",
-    "experiments"
+    "segments"
   ].includes(activeTab);
+
+  const primaryItems = isDashboardUnlocked
+    ? [
+        {
+          active: campaignIsActive,
+          allowed: true,
+          icon: <Megaphone aria-hidden="true" />,
+          label: "캠페인",
+          pathSegment: "campaigns"
+        },
+        {
+          active: activeTab === "experiments",
+          allowed: true,
+          icon: <Route aria-hidden="true" />,
+          label: "실험",
+          pathSegment: "experiments"
+        },
+        {
+          active: activeTab === "main",
+          allowed: true,
+          icon: <Home aria-hidden="true" />,
+          label: "통계",
+          pathSegment: "statistics"
+        }
+      ]
+    : [
+        {
+          active: activeTab === "sdk",
+          allowed: isTabAllowed("sdk"),
+          icon: <Code2 aria-hidden="true" />,
+          label: "SDK 연동",
+          pathSegment: "sdk"
+        },
+        {
+          active: activeTab === "funnels",
+          allowed: isTabAllowed("funnels"),
+          icon: <Route aria-hidden="true" />,
+          label: "사용자 여정",
+          pathSegment: "funnels"
+        },
+        {
+          active: activeTab === "campaigns",
+          allowed: isTabAllowed("campaigns"),
+          icon: <Megaphone aria-hidden="true" />,
+          label: "캠페인",
+          pathSegment: "campaigns"
+        }
+      ];
 
   return (
     <nav
       aria-label="모바일 주요 메뉴"
       className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
     >
-      <MobileNavigationLink
-        active={activeTab === "main"}
-        icon={<Home aria-hidden="true" />}
-        label="메인"
-        pathSegment="main"
-        projectId={projectId}
-      />
-      <MobileNavigationLink
-        active={activeTab === "funnels"}
-        icon={<Route aria-hidden="true" />}
-        label="여정"
-        pathSegment="funnels"
-        projectId={projectId}
-      />
-      <MobileNavigationLink
-        active={campaignIsActive}
-        icon={<Megaphone aria-hidden="true" />}
-        label="캠페인"
-        pathSegment="campaigns"
-        projectId={projectId}
-      />
+      {primaryItems.map((item) => (
+        <MobileNavigationLink
+          active={item.active}
+          allowed={item.allowed}
+          icon={item.icon}
+          key={item.pathSegment}
+          label={item.label}
+          pathSegment={item.pathSegment}
+          projectId={projectId}
+        />
+      ))}
       <Button
         aria-label="전체 메뉴 열기"
         className="h-16 rounded-none text-xs text-muted-foreground"
@@ -200,17 +293,40 @@ function MobileBottomNavigation({
 
 function MobileNavigationLink({
   active,
+  allowed,
   icon,
   label,
   pathSegment,
   projectId
 }: {
   active: boolean;
+  allowed: boolean;
   icon: ReactNode;
   label: string;
   pathSegment: string;
   projectId: string;
 }) {
+  const content = (
+    <>
+      <span className="grid place-items-center gap-1 [&_svg]:size-5">{icon}</span>
+      <span>{label}</span>
+    </>
+  );
+
+  if (!allowed) {
+    return (
+      <Button
+        aria-label={`${label} (아직 사용할 수 없음)`}
+        className="h-16 rounded-none text-xs text-muted-foreground"
+        disabled
+        type="button"
+        variant="ghost"
+      >
+        {content}
+      </Button>
+    );
+  }
+
   return (
     <Button
       asChild
@@ -226,8 +342,7 @@ function MobileNavigationLink({
         search={(current) => current}
         to="/dashboard/$projectId/$tabPath"
       >
-        <span className="grid place-items-center gap-1 [&_svg]:size-5">{icon}</span>
-        <span>{label}</span>
+        {content}
       </Link>
     </Button>
   );
@@ -235,10 +350,12 @@ function MobileNavigationLink({
 
 function DashboardNavigation({
   activeTab,
+  isTabAllowed,
   items,
   projectId
 }: {
   activeTab: DashboardTab;
+  isTabAllowed: (tab: DashboardTab) => boolean;
   items: DashboardNavTreeLinkItem[];
   projectId: string;
 }) {
@@ -247,6 +364,7 @@ function DashboardNavigation({
       {items.map((item) => (
         <DashboardNavigationLinkItem
           activeTab={activeTab}
+          isAllowed={isTabAllowed(item.value)}
           item={item}
           key={item.pathSegment}
           projectId={projectId}
@@ -258,14 +376,31 @@ function DashboardNavigation({
 
 function DashboardNavigationLinkItem({
   activeTab,
+  isAllowed,
   item,
   projectId
 }: {
   activeTab: DashboardTab;
+  isAllowed: boolean;
   item: DashboardNavTreeLinkItem;
   projectId: string;
 }) {
   const isActive = isSidebarNavigationItemActive(item.value, activeTab);
+
+  if (!isAllowed) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          aria-label={`${item.label} (아직 사용할 수 없음)`}
+          className="rounded-full text-sidebar-foreground/45"
+          disabled
+          tooltip={item.label}
+        >
+          <span>{item.label}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
 
   return (
     <SidebarMenuItem>
@@ -369,6 +504,7 @@ function DashboardSelectionContext({
         label="캠페인"
         onValueChange={(campaignId) => {
           void setDashboardQueryState({
+            selectedAdExperimentId: "",
             selectedCampaignId: campaignId,
             selectedPromotionId: "",
             selectedSegmentId: ""
@@ -394,6 +530,7 @@ function DashboardSelectionContext({
             label="프로모션"
             onValueChange={(promotionId) => {
               void setDashboardQueryState({
+                selectedAdExperimentId: "",
                 selectedCampaignId,
                 selectedPromotionId: promotionId,
                 selectedSegmentId: ""
@@ -421,6 +558,7 @@ function DashboardSelectionContext({
             label="세그먼트"
             onValueChange={(segmentId) => {
               void setDashboardQueryState({
+                selectedAdExperimentId: "",
                 selectedCampaignId,
                 selectedPromotionId,
                 selectedSegmentId: segmentId

@@ -26,6 +26,8 @@ import {
   DashboardDeleteFunnelResultSchema,
   DashboardDeletePromotionResultSchema,
   DashboardDeletePromotionSegmentResultSchema,
+  DashboardEntitySearchQuerySchema,
+  DashboardEntitySearchResponseSchema,
   DashboardEventCatalogSchema,
   DashboardEvaluatePromotionRunResultSchema,
   DashboardFunnelListSchema,
@@ -39,6 +41,7 @@ import {
   DashboardNextLoopAnalysisSchema,
   DashboardProjectListSchema,
   DashboardProjectSchema,
+  DashboardProjectExperimentListSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionAnalysisResultSchema,
   DashboardPromotionScopedSegmentDefinitionListSchema,
@@ -65,13 +68,21 @@ import {
 } from "@loopad/shared";
 import type { DashboardFunnelMetricsScope } from "@loopad/shared";
 import { dashboardErrors } from "../dashboard-errors.js";
-import { DashboardQueryService } from "../service/index.js";
+import {
+  DashboardEntitySearchService,
+  DashboardProjectExperimentsService,
+  DashboardQueryService
+} from "../service/index.js";
 
 @Controller("dashboard/v1")
 export class DashboardController {
   constructor(
     @Inject(DashboardQueryService)
-    private readonly dashboardQuery: DashboardQueryService
+    private readonly dashboardQuery: DashboardQueryService,
+    @Inject(DashboardEntitySearchService)
+    private readonly entitySearch?: DashboardEntitySearchService,
+    @Inject(DashboardProjectExperimentsService)
+    private readonly projectExperiments?: DashboardProjectExperimentsService
   ) {}
 
   @Get("projects")
@@ -96,6 +107,38 @@ export class DashboardController {
   async main(@Query("project_id") projectId?: string) {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardMainSchema.parse(await this.dashboardQuery.main(requiredProjectId));
+  }
+
+  @Get("entity-search")
+  async searchEntities(
+    @Query("project_id") projectId?: string,
+    @Query("q") query?: string,
+    @Query("entity_type") entityType?: string
+  ) {
+    const request = DashboardEntitySearchQuerySchema.parse({
+      entity_type: entityType,
+      project_id: projectId,
+      q: query
+    });
+    if (!this.entitySearch) {
+      throw new Error("DashboardEntitySearchService is not available.");
+    }
+
+    return DashboardEntitySearchResponseSchema.parse(
+      await this.entitySearch.search(request.project_id, request.q, request.entity_type)
+    );
+  }
+
+  @Get("experiments")
+  async experiments(@Query("project_id") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    if (!this.projectExperiments) {
+      throw new Error("DashboardProjectExperimentsService is not available.");
+    }
+
+    return DashboardProjectExperimentListSchema.parse(
+      await this.projectExperiments.list(requiredProjectId)
+    );
   }
 
   @Post("campaigns")
