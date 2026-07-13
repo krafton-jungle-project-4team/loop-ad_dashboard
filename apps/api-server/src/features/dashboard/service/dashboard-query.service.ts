@@ -552,7 +552,8 @@ export class DashboardQueryService {
       analysisId: request.analysis_id,
       generationId: request.generation_id,
       projectId,
-      promotionId
+      promotionId,
+      segmentIds: request.segment_ids
     });
     log.info("started", { projectId, promotionId, request });
     const response = await this.decisionClient.createPromotionRun({

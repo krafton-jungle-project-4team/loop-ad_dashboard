@@ -16,8 +16,12 @@ test("experiment launch creates a run, builds assignments, then starts eligible 
       calls.push("create");
       return {
         experiments: [
-          { adExperimentId: "experiment-1", channel: "email", status: "planned" },
-          { adExperimentId: "experiment-2", channel: "email", status: "approved" }
+          {
+            adExperimentId: "experiment-1",
+            channel: "email",
+            segmentId: "segment-1",
+            status: "planned"
+          }
         ],
         promotionRunId: "run-1"
       };
@@ -30,16 +34,13 @@ test("experiment launch creates a run, builds assignments, then starts eligible 
     }
   };
 
-  const result = await launchPromotionExperiment({ existingExperiments: [] }, operations);
+  const result = await launchPromotionExperiment(
+    { existingExperiments: [], segmentId: "segment-1" },
+    operations
+  );
 
-  assert.deepEqual(calls, [
-    "create",
-    "build:run-1",
-    "start:experiment-1",
-    "start:experiment-2",
-    "dispatch:run-1"
-  ]);
-  assert.deepEqual(result.startedExperimentIds, ["experiment-1", "experiment-2"]);
+  assert.deepEqual(calls, ["create", "build:run-1", "start:experiment-1", "dispatch:run-1"]);
+  assert.deepEqual(result.startedExperimentIds, ["experiment-1"]);
 });
 
 test("experiment launch resumes an existing run without creating a duplicate", async () => {
@@ -49,12 +50,14 @@ test("experiment launch resumes an existing run without creating a duplicate", a
       ad_experiment_id: "experiment-1",
       channel: "onsite_banner",
       promotion_run_id: "run-1",
+      segment_id: "segment-1",
       status: "planned"
     },
     {
       ad_experiment_id: "experiment-old",
       channel: "onsite_banner",
       promotion_run_id: "run-old",
+      segment_id: "segment-2",
       status: "planned"
     }
   ] as DashboardAdExperiment[];
@@ -74,12 +77,12 @@ test("experiment launch resumes an existing run without creating a duplicate", a
     }
   };
 
-  await launchPromotionExperiment({ existingExperiments }, operations);
+  await launchPromotionExperiment({ existingExperiments, segmentId: "segment-1" }, operations);
 
   assert.deepEqual(calls, ["build:run-1", "start:experiment-1"]);
 });
 
-test("experiment launch keeps successful starts and reports only failed experiments", async () => {
+test("segment experiment launch reports a failed start without starting another segment", async () => {
   const calls: string[] = [];
   const operations: PromotionExperimentOperations = {
     buildAssignments: async (promotionRunId) => {
@@ -87,8 +90,18 @@ test("experiment launch keeps successful starts and reports only failed experime
     },
     createRun: async () => ({
       experiments: [
-        { adExperimentId: "experiment-success", channel: "email", status: "planned" },
-        { adExperimentId: "experiment-failed", channel: "email", status: "planned" }
+        {
+          adExperimentId: "experiment-failed",
+          channel: "email",
+          segmentId: "segment-1",
+          status: "planned"
+        },
+        {
+          adExperimentId: "experiment-other",
+          channel: "email",
+          segmentId: "segment-2",
+          status: "planned"
+        }
       ],
       promotionRunId: "run-partial"
     }),
@@ -103,24 +116,29 @@ test("experiment launch keeps successful starts and reports only failed experime
     }
   };
 
-  const result = await launchPromotionExperiment({ existingExperiments: [] }, operations);
+  const result = await launchPromotionExperiment(
+    { existingExperiments: [], segmentId: "segment-1" },
+    operations
+  );
 
-  assert.deepEqual(result.startedExperimentIds, ["experiment-success"]);
+  assert.deepEqual(result.startedExperimentIds, []);
   assert.deepEqual(result.failedExperimentIds, ["experiment-failed"]);
-  assert.equal(result.dispatched, true);
-  assert.deepEqual(calls, [
-    "build:run-partial",
-    "start:experiment-success",
-    "start:experiment-failed",
-    "dispatch:run-partial"
-  ]);
+  assert.equal(result.dispatched, false);
+  assert.deepEqual(calls, ["build:run-partial", "start:experiment-failed"]);
 });
 
 test("experiment launch keeps started experiments when dispatch fails", async () => {
   const operations: PromotionExperimentOperations = {
     buildAssignments: async () => undefined,
     createRun: async () => ({
-      experiments: [{ adExperimentId: "experiment-1", channel: "email", status: "planned" }],
+      experiments: [
+        {
+          adExperimentId: "experiment-1",
+          channel: "email",
+          segmentId: "segment-1",
+          status: "planned"
+        }
+      ],
       promotionRunId: "run-1"
     }),
     dispatch: async () => {
@@ -129,7 +147,10 @@ test("experiment launch keeps started experiments when dispatch fails", async ()
     startExperiment: async () => undefined
   };
 
-  const result = await launchPromotionExperiment({ existingExperiments: [] }, operations);
+  const result = await launchPromotionExperiment(
+    { existingExperiments: [], segmentId: "segment-1" },
+    operations
+  );
 
   assert.deepEqual(result.startedExperimentIds, ["experiment-1"]);
   assert.equal(result.dispatched, false);

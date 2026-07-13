@@ -360,7 +360,12 @@ export function PromotionTabWorkspace({
   onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
   onEditConfirmedSegment: (segmentId: string) => void;
-  onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
+  onLaunchExperiment: (
+    promotionId: string,
+    segmentId: string,
+    analysisId?: string,
+    generationId?: string
+  ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onRecommendSegments: () => void;
@@ -710,7 +715,12 @@ function PromotionSegmentDetailTab({
   launchExperimentIsPending: boolean;
   launchExperimentResult: PromotionExperimentLaunchResult | null;
   onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
-  onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
+  onLaunchExperiment: (
+    promotionId: string,
+    segmentId: string,
+    analysisId?: string,
+    generationId?: string
+  ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
   rejectContentCandidateIsPending: boolean;
@@ -977,7 +987,12 @@ function SegmentConnectedExperimentsCard({
   launchExperimentIsError: boolean;
   launchExperimentIsPending: boolean;
   launchExperimentResult: PromotionExperimentLaunchResult | null;
-  onLaunchExperiment: (promotionId: string, analysisId?: string, generationId?: string) => void;
+  onLaunchExperiment: (
+    promotionId: string,
+    segmentId: string,
+    analysisId?: string,
+    generationId?: string
+  ) => void;
 }) {
   const approvedContentCandidate = detail.content_candidates.find(
     (candidate) => candidate.status === "approved"
@@ -1009,6 +1024,7 @@ function SegmentConnectedExperimentsCard({
             onClick={() => {
               onLaunchExperiment(
                 detail.segment.promotion_id,
+                detail.segment.segment_id,
                 approvedContentCandidate?.analysis_id,
                 approvedContentCandidate?.generation_id
               );

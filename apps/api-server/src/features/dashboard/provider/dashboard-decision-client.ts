@@ -187,6 +187,7 @@ export class DashboardDecisionClient {
       body: {
         analysis_id: request.request.analysis_id,
         generation_id: request.request.generation_id,
+        segment_ids: request.request.segment_ids,
         loop_count: request.request.loop_count
       },
       path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/runs`,

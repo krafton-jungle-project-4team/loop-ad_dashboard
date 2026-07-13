@@ -4,6 +4,7 @@ import { canStartAdExperiment } from "./promotionUtils.js";
 type ExperimentLaunchTarget = {
   adExperimentId: string;
   channel: string;
+  segmentId: string;
   status: string;
 };
 
@@ -26,52 +27,50 @@ export type PromotionExperimentLaunchResult = {
 };
 
 export async function launchPromotionExperiment(
-  input: { existingExperiments: DashboardAdExperiment[] },
+  input: { existingExperiments: DashboardAdExperiment[]; segmentId: string },
   operations: PromotionExperimentOperations
 ) {
-  const existingRunId = input.existingExperiments[0]?.promotion_run_id;
+  const segmentExperiments = input.existingExperiments.filter(
+    (experiment) => experiment.segment_id === input.segmentId
+  );
+  const existingRunId = segmentExperiments[0]?.promotion_run_id;
   const existingRunExperiments = existingRunId
-    ? input.existingExperiments.filter(
-        (experiment) => experiment.promotion_run_id === existingRunId
-      )
+    ? segmentExperiments.filter((experiment) => experiment.promotion_run_id === existingRunId)
     : [];
   const run = existingRunId
     ? {
         experiments: existingRunExperiments.map((experiment) => ({
           adExperimentId: experiment.ad_experiment_id,
           channel: experiment.channel,
+          segmentId: experiment.segment_id,
           status: experiment.status
         })),
         promotionRunId: existingRunId
       }
     : await operations.createRun();
 
+  const targetExperiment = run.experiments.find(
+    (experiment) => experiment.segmentId === input.segmentId
+  );
+  if (!targetExperiment) {
+    throw new Error("선택한 세그먼트의 광고 실험을 찾지 못했습니다.");
+  }
+
   await operations.buildAssignments(run.promotionRunId);
 
-  const startableExperiments = run.experiments.filter((experiment) =>
-    canStartAdExperiment(experiment.status)
-  );
-  const startResults = await Promise.allSettled(
-    startableExperiments.map((experiment) => operations.startExperiment(experiment.adExperimentId))
-  );
   const startedExperimentIds: string[] = [];
   const failedExperimentIds: string[] = [];
 
-  startResults.forEach((result, index) => {
-    const experiment = startableExperiments[index];
-    if (!experiment) {
-      return;
+  if (canStartAdExperiment(targetExperiment.status)) {
+    try {
+      await operations.startExperiment(targetExperiment.adExperimentId);
+      startedExperimentIds.push(targetExperiment.adExperimentId);
+    } catch {
+      failedExperimentIds.push(targetExperiment.adExperimentId);
     }
-    if (result.status === "fulfilled") {
-      startedExperimentIds.push(experiment.adExperimentId);
-      return;
-    }
-    failedExperimentIds.push(experiment.adExperimentId);
-  });
+  }
 
-  const shouldDispatch = run.experiments.some(
-    (experiment) => experiment.channel === "email" || experiment.channel === "sms"
-  );
+  const shouldDispatch = targetExperiment.channel === "email" || targetExperiment.channel === "sms";
   const canDispatch = shouldDispatch && startedExperimentIds.length > 0;
   let dispatchFailed = false;
   if (canDispatch) {

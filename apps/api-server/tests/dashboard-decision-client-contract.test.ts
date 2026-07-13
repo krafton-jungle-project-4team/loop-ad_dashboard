@@ -113,6 +113,7 @@ test("decision client preserves promotion run request contract", async () => {
     request: {
       analysis_id: "analysis-1",
       generation_id: "generation-1",
+      segment_ids: ["segment-1"],
       loop_count: 2
     }
   });
@@ -123,6 +124,7 @@ test("decision client preserves promotion run request contract", async () => {
     body: {
       analysis_id: "analysis-1",
       generation_id: "generation-1",
+      segment_ids: ["segment-1"],
       loop_count: 2
     }
   });

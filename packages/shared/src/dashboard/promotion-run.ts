@@ -110,6 +110,7 @@ export type DashboardStartAdExperimentResult = z.infer<
 export const DashboardCreatePromotionRunRequestSchema = z.object({
   analysis_id: z.string().min(1).optional(),
   generation_id: z.string().min(1).optional(),
+  segment_ids: z.array(z.string().min(1)).length(1),
   loop_count: z.number().int().min(1).default(1)
 });
 export type DashboardCreatePromotionRunRequest = z.infer<

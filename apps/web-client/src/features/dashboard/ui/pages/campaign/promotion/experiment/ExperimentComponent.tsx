@@ -38,36 +38,55 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
       promotionId,
       promotionRunId
     }: NextLoopInput) =>
-      launchPromotionExperiment(
-        { existingExperiments: [] },
-        {
-          buildAssignments: (nextPromotionRunId) =>
-            buildDashboardPromotionRunAssignments(query, nextPromotionRunId),
-          createRun: async () => {
-            const nextLoop = await createDashboardNextLoop(query, promotionRunId, {
-              failed_ad_experiment_ids: failedAdExperimentIds,
-              failed_segment_ids: failedSegmentIds,
-              operator_instruction: null
-            });
-            if (!nextLoop.next_promotion_run_id) {
-              throw new Error("다음 루프에 포함할 실패 대상이 없습니다.");
-            }
-            return {
-              experiments: nextLoop.next_ad_experiments.map((experiment) => ({
-                adExperimentId: experiment.ad_experiment_id,
-                channel: experiment.channel,
-                status: experiment.status
-              })),
-              promotionRunId: nextLoop.next_promotion_run_id
-            };
-          },
-          dispatch: dispatchDashboardPromotionRun,
-          startExperiment: (adExperimentId) =>
-            startDashboardAdExperiment(query, promotionId, adExperimentId)
-        }
-      ),
+      launchSingleSegmentNextLoop({
+        failedAdExperimentIds,
+        failedSegmentIds,
+        promotionId,
+        promotionRunId
+      }),
     onSettled: invalidateExperimentData
   });
+
+  function launchSingleSegmentNextLoop({
+    failedAdExperimentIds,
+    failedSegmentIds,
+    promotionId,
+    promotionRunId
+  }: NextLoopInput) {
+    const segmentId = failedSegmentIds[0];
+    if (!segmentId || failedSegmentIds.length !== 1) {
+      throw new Error("다음 루프는 세그먼트 1개 단위로만 시작할 수 있습니다.");
+    }
+    return launchPromotionExperiment(
+      { existingExperiments: [], segmentId },
+      {
+        buildAssignments: (nextPromotionRunId) =>
+          buildDashboardPromotionRunAssignments(query, nextPromotionRunId),
+        createRun: async () => {
+          const nextLoop = await createDashboardNextLoop(query, promotionRunId, {
+            failed_ad_experiment_ids: failedAdExperimentIds,
+            failed_segment_ids: failedSegmentIds,
+            operator_instruction: null
+          });
+          if (!nextLoop.next_promotion_run_id) {
+            throw new Error("다음 루프에 포함할 실패 대상이 없습니다.");
+          }
+          return {
+            experiments: nextLoop.next_ad_experiments.map((experiment) => ({
+              adExperimentId: experiment.ad_experiment_id,
+              channel: experiment.channel,
+              segmentId: experiment.segment_id,
+              status: experiment.status
+            })),
+            promotionRunId: nextLoop.next_promotion_run_id
+          };
+        },
+        dispatch: dispatchDashboardPromotionRun,
+        startExperiment: (adExperimentId) =>
+          startDashboardAdExperiment(query, promotionId, adExperimentId)
+      }
+    );
+  }
 
   async function invalidateExperimentData() {
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });

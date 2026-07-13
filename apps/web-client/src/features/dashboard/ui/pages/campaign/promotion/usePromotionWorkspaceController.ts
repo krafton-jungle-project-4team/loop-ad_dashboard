@@ -438,18 +438,21 @@ export function usePromotionWorkspaceController({
     mutationFn: ({
       analysisId,
       generationId,
-      promotionId
+      promotionId,
+      segmentId
     }: {
       analysisId?: string;
       generationId?: string;
       promotionId: string;
+      segmentId: string;
     }) =>
       launchPromotionExperiment(
         {
           existingExperiments:
             campaignDetail.data?.ad_experiments.filter(
               (experiment) => experiment.promotion_id === promotionId
-            ) ?? []
+            ) ?? [],
+          segmentId
         },
         {
           buildAssignments: (promotionRunId) =>
@@ -461,12 +464,14 @@ export function usePromotionWorkspaceController({
             const run = await createDashboardPromotionRun(query, promotionId, {
               analysis_id: analysisId,
               generation_id: generationId,
+              segment_ids: [segmentId],
               loop_count: 1
             });
             return {
               experiments: run.ad_experiments.map((experiment) => ({
                 adExperimentId: experiment.ad_experiment_id,
                 channel: experiment.channel,
+                segmentId: experiment.segment_id,
                 status: experiment.status
               })),
               promotionRunId: run.promotion_run_id

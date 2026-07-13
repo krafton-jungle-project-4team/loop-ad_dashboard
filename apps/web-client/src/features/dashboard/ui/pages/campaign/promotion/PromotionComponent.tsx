@@ -132,11 +132,12 @@ export function PromotionWorkspace({
                 deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
               }
               onEditConfirmedSegment={setEditingSegmentId}
-              onLaunchExperiment={(promotionId, analysisId, generationId) =>
+              onLaunchExperiment={(promotionId, segmentId, analysisId, generationId) =>
                 launchPromotionExperimentMutation.mutate({
                   analysisId,
                   generationId,
-                  promotionId
+                  promotionId,
+                  segmentId
                 })
               }
               onRejectContentCandidate={(promotionId, segmentId, contentId) =>
