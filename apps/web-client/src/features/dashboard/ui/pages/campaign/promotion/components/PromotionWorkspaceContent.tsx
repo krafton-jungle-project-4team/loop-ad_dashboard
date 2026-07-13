@@ -23,7 +23,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loop
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
-import { Link } from "@tanstack/react-router";
 import {
   Table,
   TableBody,
@@ -73,8 +72,8 @@ import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow
 import { PromotionSegmentSuggestionPanel } from "./PromotionSegmentSuggestions.js";
 
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
-  overview: "프로모션 개요",
-  segments: "세그먼트 생성",
+  overview: "프로모션 성과",
+  segments: "세그먼트 관리",
   "segment-detail": "세그먼트 맞춤 광고 생성"
 };
 
@@ -307,7 +306,6 @@ export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
 export function PromotionTabWorkspace({
   archiveScopedSegmentIsPending,
   approveContentCandidateIsPending,
-  campaignId,
   confirmIsPending,
   decideIsPending,
   deleteConfirmedSegmentIsPending,
@@ -329,7 +327,6 @@ export function PromotionTabWorkspace({
   onStartGeneration,
   onTabChange,
   promotion,
-  projectId,
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
@@ -349,7 +346,6 @@ export function PromotionTabWorkspace({
 }: {
   archiveScopedSegmentIsPending: boolean;
   approveContentCandidateIsPending: boolean;
-  campaignId: string;
   confirmIsPending: boolean;
   decideIsPending: boolean;
   deleteConfirmedSegmentIsPending: boolean;
@@ -371,7 +367,6 @@ export function PromotionTabWorkspace({
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
-  projectId: string;
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -393,34 +388,50 @@ export function PromotionTabWorkspace({
   const showsOverviewTab = visibleTabs.includes("overview");
   const showsSegmentsTab = visibleTabs.includes("segments");
   const showsSegmentDetailTab = visibleTabs.includes("segment-detail");
+  const showsPromotionSummary = showsOverviewTab;
   return (
     <section className="grid gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <div className="text-sm font-medium text-primary">프로모션 보기</div>
-          <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-            {promotion.marketing_theme}
-          </h2>
-          <p className="text-sm text-muted-foreground">{formatChannelLabel(promotion.channel)}</p>
-        </div>
-        <Badge variant={statusBadgeVariant(promotion.status)}>
-          {formatStatusLabel(promotion.status)}
-        </Badge>
-      </div>
-      <div className="grid gap-4 md:grid-cols-5">
-        <PromotionMetricCard label="목표 지표" value={formatMetricLabel(promotion.goal_metric)} />
-        <PromotionMetricCard label="목표값" value={formatGoalValue(promotion.goal_target_value)} />
-        <PromotionMetricCard
-          label="현재값"
-          value={
-            promotion.latest_actual_value === null
-              ? "-"
-              : formatGoalValue(promotion.latest_actual_value)
-          }
-        />
-        <PromotionMetricCard label="세그먼트" value={formatInteger(activeSegments.length)} />
-        <PromotionMetricCard label="실험" value={formatInteger(promotion.ad_experiment_count)} />
-      </div>
+      {showsPromotionSummary ? (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <div className="text-sm font-medium text-primary">프로모션 보기</div>
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+                {promotion.marketing_theme}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {formatChannelLabel(promotion.channel)}
+              </p>
+            </div>
+            <Badge variant={statusBadgeVariant(promotion.status)}>
+              {formatStatusLabel(promotion.status)}
+            </Badge>
+          </div>
+          <div className="grid gap-4 md:grid-cols-5">
+            <PromotionMetricCard
+              label="목표 지표"
+              value={formatMetricLabel(promotion.goal_metric)}
+            />
+            <PromotionMetricCard
+              label="목표값"
+              value={formatGoalValue(promotion.goal_target_value)}
+            />
+            <PromotionMetricCard
+              label="현재값"
+              value={
+                promotion.latest_actual_value === null
+                  ? "-"
+                  : formatGoalValue(promotion.latest_actual_value)
+              }
+            />
+            <PromotionMetricCard label="세그먼트" value={formatInteger(activeSegments.length)} />
+            <PromotionMetricCard
+              label="실험"
+              value={formatInteger(promotion.ad_experiment_count)}
+            />
+          </div>
+        </>
+      ) : null}
       <Tabs
         className="grid gap-4"
         onValueChange={(value) => onTabChange(value as PromotionWorkspaceTab)}
@@ -437,34 +448,28 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsOverviewTab ? (
           <TabsContent value="overview">
-            <PromotionOverviewTab
-              campaignId={campaignId}
-              promotion={promotion}
-              projectId={projectId}
-            />
+            <PromotionOverviewTab promotion={promotion} />
           </TabsContent>
         ) : null}
         {showsSegmentsTab ? (
           <TabsContent value="segments">
             <div className="grid gap-4">
-              {segmentView === "recommendations" ? (
-                <PromotionSegmentSuggestionPanel
-                  confirmIsPending={confirmIsPending}
-                  createScopedSegmentIsPending={scopedSegmentCreateIsPending}
-                  decideIsPending={decideIsPending}
-                  archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
-                  onArchiveScopedSegment={onArchiveScopedSegment}
-                  onConfirmSuggestions={onConfirmSuggestions}
-                  onCreateScopedSegment={onCreateScopedSegment}
-                  onDecideSuggestion={onDecideSuggestion}
-                  onRecommendSegments={onRecommendSegments}
-                  promotionAnalysisIsPending={promotionAnalysisIsPending}
-                  scopedSegments={scopedSegments}
-                  scopedSegmentsIsLoading={scopedSegmentsIsLoading}
-                  suggestions={suggestions}
-                  suggestionsIsLoading={suggestionsIsLoading}
-                />
-              ) : null}
+              <PromotionSegmentSuggestionPanel
+                confirmIsPending={confirmIsPending}
+                createScopedSegmentIsPending={scopedSegmentCreateIsPending}
+                decideIsPending={decideIsPending}
+                archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+                onArchiveScopedSegment={onArchiveScopedSegment}
+                onConfirmSuggestions={onConfirmSuggestions}
+                onCreateScopedSegment={onCreateScopedSegment}
+                onDecideSuggestion={onDecideSuggestion}
+                onRecommendSegments={onRecommendSegments}
+                promotionAnalysisIsPending={promotionAnalysisIsPending}
+                scopedSegments={scopedSegments}
+                scopedSegmentsIsLoading={scopedSegmentsIsLoading}
+                suggestions={suggestions}
+                suggestionsIsLoading={suggestionsIsLoading}
+              />
               <PromotionCurrentSegmentsPanel
                 deleteIsPending={deleteConfirmedSegmentIsPending}
                 onDeleteSegment={onDeleteConfirmedSegment}
@@ -504,20 +509,12 @@ export function PromotionTabWorkspace({
   );
 }
 
-function PromotionOverviewTab({
-  campaignId,
-  promotion,
-  projectId
-}: {
-  campaignId: string;
-  promotion: DashboardCampaignPromotion;
-  projectId: string;
-}) {
+function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromotion }) {
   return (
     <div className="grid gap-4">
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle>프로모션 사용자 여정 효율</CardTitle>
+          <CardTitle>프로모션 사용자 경로 효율</CardTitle>
           <CardDescription>현재 프로모션 목표와 루프 상태를 기준으로 확인합니다.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -537,23 +534,6 @@ function PromotionOverviewTab({
             <SummaryItem label="목표 기준" value={formatBasisLabel(promotion.goal_basis)} />
             <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
             <SummaryItem label="다음 액션" value={formatActionLabel(promotion.next_action)} />
-          </div>
-          <div className="flex justify-end">
-            <Button asChild>
-              <Link
-                params={{ projectId, tabPath: "segments" }}
-                search={(current) => ({
-                  ...current,
-                  segmentView: "recommendations",
-                  selectedCampaignId: campaignId,
-                  selectedPromotionId: promotion.promotion_id,
-                  selectedSegmentId: ""
-                })}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                세그먼트 생성
-              </Link>
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -582,9 +562,11 @@ function PromotionCurrentSegmentsPanel({
 
   return (
     <Card className="h-full shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base">확정 세그먼트</CardTitle>
-        <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid gap-1">
+          <CardTitle className="text-base">확정 세그먼트</CardTitle>
+          <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-2">
         {visibleSegments.map((segment) => {
@@ -647,7 +629,7 @@ function PromotionCurrentSegmentsPanel({
                     type="button"
                     variant={isSelected ? "default" : "outline"}
                   >
-                    {isSelected ? "열림" : "선택"}
+                    광고 소재 · 실험
                   </Button>
                   <Button
                     onClick={() => onEditSegment(segment.segment_id)}

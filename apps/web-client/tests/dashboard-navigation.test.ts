@@ -9,7 +9,8 @@ import {
 import {
   defaultDashboardSearchQuery,
   normalizeCampaignWorkspaceView,
-  normalizeDashboardQuery
+  normalizeDashboardQuery,
+  normalizePromotionWorkspaceView
 } from "../src/features/dashboard/model/dashboard-query.js";
 
 test("dashboard sidebar exposes the product-led flat navigation order", () => {
@@ -20,7 +21,7 @@ test("dashboard sidebar exposes the product-led flat navigation order", () => {
     })),
     [
       {
-        items: ["캠페인", "실험", "통계", "사용자 여정", "워크플로우", "데이터 탐색기", "SDK 연동"],
+        items: ["캠페인", "실험", "통계", "워크플로우", "데이터 탐색기", "SDK 연동"],
         label: ""
       }
     ]
@@ -39,27 +40,34 @@ test("dashboard keeps legacy paths available while exposing the experiment route
   assert.equal(getDashboardTabByPath("experiments"), "experiments");
   assert.equal(getDashboardTabByPath("statistics"), "main");
   assert.equal(getDashboardTabByPath("main"), "main");
+  assert.equal(getDashboardTabByPath("funnels"), "main");
+  assert.equal(getCanonicalDashboardPath("funnels"), "statistics");
   assert.equal(getCanonicalDashboardPath("main"), "statistics");
   assert.equal(getCanonicalDashboardPath("segments"), "campaigns");
   assert.deepEqual(getLegacyDashboardViewPatch("campaign-detail"), {
-    campaignView: "overview"
+    campaignView: "manage"
   });
   assert.deepEqual(getLegacyDashboardViewPatch("campaign-metrics"), {
     campaignView: "performance"
   });
+  assert.deepEqual(getLegacyDashboardViewPatch("funnels"), {
+    statisticsView: "user-paths"
+  });
 });
 
-test("legacy promotion performance view opens the promotion overview", () => {
+test("legacy promotion overview opens the promotion performance view", () => {
   const query = normalizeDashboardQuery(
-    { ...defaultDashboardSearchQuery, promotionView: "performance" },
+    { ...defaultDashboardSearchQuery, promotionView: "overview" },
     "demo_project"
   );
 
-  assert.equal(query.promotionView, "overview");
+  assert.equal(query.promotionView, "performance");
+  assert.equal(normalizePromotionWorkspaceView("performance"), "performance");
 });
 
-test("legacy campaign experiment view opens the campaign overview", () => {
-  assert.equal(normalizeCampaignWorkspaceView("experiments"), "overview");
+test("legacy campaign detail views open campaign management", () => {
+  assert.equal(normalizeCampaignWorkspaceView("overview"), "manage");
+  assert.equal(normalizeCampaignWorkspaceView("experiments"), "manage");
 });
 
 test("legacy segment detail views open the segment experiment workspace", () => {

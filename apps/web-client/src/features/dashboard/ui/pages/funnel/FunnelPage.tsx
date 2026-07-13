@@ -58,6 +58,7 @@ import {
 import {
   dashboardEventCatalogQueryKey,
   dashboardFunnelDetailQueryKey,
+  dashboardFunnelListQueryKey,
   dashboardFunnelMetricsQueryKey,
   dashboardFunnelPreviewQueryKey,
   dashboardTabQueryKey
@@ -113,9 +114,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
     isDetailPanelCollapsed,
     setIsDetailPanelCollapsed,
     startDetailPanelResize
-  } = useFunnelDetailPanelResize(
-    stage === "funnel" || stage === "campaign" ? DASHBOARD_MOBILE_ACTION_OFFSET_PX : 0
-  );
+  } = useFunnelDetailPanelResize(stage === "campaign" ? DASHBOARD_MOBILE_ACTION_OFFSET_PX : 0);
   const eventCatalog = useQuery({
     queryFn: ({ signal }) => fetchDashboardEventCatalog(query, signal),
     queryKey: dashboardEventCatalogQueryKey(query.projectId)
@@ -134,19 +133,25 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
     queryFn: ({ signal }) => fetchDashboardFunnelMetrics(query, selectedFunnelId, signal),
     queryKey: dashboardFunnelMetricsQueryKey(query.projectId, selectedFunnelId, query.dateRange)
   });
+  const invalidateFunnelList = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: dashboardFunnelListQueryKey(query.projectId) }),
+      queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") })
+    ]);
+  };
   const createMutation = useMutation({
     mutationFn: () => createDashboardFunnel(query, createFunnelRequest(funnelName, steps)),
     onSuccess: async () => {
       resetDraft();
       setDraftBaseline("", createDefaultSteps());
       setIsCreateDialogOpen(false);
-      await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
+      await invalidateFunnelList();
     }
   });
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!editingFunnelId) {
-        throw new Error("수정할 사용자 여정이 없습니다.");
+        throw new Error("수정할 사용자 경로가 없습니다.");
       }
       return updateDashboardFunnel(query, editingFunnelId, createFunnelRequest(funnelName, steps));
     },
@@ -157,7 +162,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
       setDraftDialogMode("create");
       setIsCreateDialogOpen(false);
       setSelectedFunnelId(result.funnel_id);
-      await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
+      await invalidateFunnelList();
       await queryClient.invalidateQueries({
         queryKey: dashboardFunnelDetailQueryKey(query.projectId, result.funnel_id)
       });
@@ -170,7 +175,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
     mutationFn: (funnelId: string) => deleteDashboardFunnel(query, funnelId),
     onSuccess: async (result) => {
       setSelectedFunnelId((current) => (current === result.funnel_id ? "" : current));
-      await queryClient.invalidateQueries({ queryKey: dashboardTabQueryKey("funnels") });
+      await invalidateFunnelList();
     }
   });
   const isEditMode = draftDialogMode === "edit";
@@ -213,22 +218,22 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
         <CardHeader className="flex flex-col gap-3 px-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid gap-1.5">
             <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
-              사용자 여정 목록
+              사용자 경로 목록
             </CardTitle>
-            <CardDescription>저장된 사용자 여정을 선택해 단계별 지표를 확인합니다.</CardDescription>
+            <CardDescription>저장된 사용자 경로를 선택해 단계별 지표를 확인합니다.</CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <DashboardDateRangeSelect value={query.dateRange} />
             <Button onClick={openCreateDialog} type="button">
               <Plus data-icon="inline-start" />
-              사용자 여정 생성
+              사용자 경로 생성
             </Button>
           </div>
         </CardHeader>
         <CardContent className="px-5">
           {deleteMutation.isError ? (
             <Alert className="mb-4" variant="destructive">
-              <AlertTitle>사용자 여정을 삭제하지 못했습니다</AlertTitle>
+              <AlertTitle>사용자 경로를 삭제하지 못했습니다</AlertTitle>
               <AlertDescription>{mutationErrorMessage(deleteMutation.error)}</AlertDescription>
             </Alert>
           ) : null}
@@ -305,14 +310,14 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                                 variant="outline"
                               >
                                 <Trash2 data-icon="inline-start" />
-                                <span className="sr-only">사용자 여정 삭제</span>
+                                <span className="sr-only">사용자 경로 삭제</span>
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>사용자 여정을 삭제할까요?</AlertDialogTitle>
+                                <AlertDialogTitle>사용자 경로를 삭제할까요?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  {funnel.funnel_name} 사용자 여정이 삭제됩니다. 이 작업은 되돌릴 수
+                                  {funnel.funnel_name} 사용자 경로가 삭제됩니다. 이 작업은 되돌릴 수
                                   없습니다.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
@@ -335,7 +340,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
               </Table>
             </div>
           ) : (
-            <EmptyState message="등록된 사용자 여정이 없습니다." />
+            <EmptyState message="등록된 사용자 경로가 없습니다." />
           )}
         </CardContent>
       </Card>
@@ -366,7 +371,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             <GripHorizontal size={18} />
           </div>
           <h2 className="min-w-0 truncate pt-1 text-lg font-semibold tracking-tight text-[#1d1d1f]">
-            {selectedFunnel?.funnel_name ?? "사용자 여정 선택"}
+            {selectedFunnel?.funnel_name ?? "사용자 경로 선택"}
           </h2>
           <Button
             aria-label={isDetailPanelCollapsed ? "상세 패널 펼치기" : "상세 패널 접기"}
@@ -387,13 +392,13 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
           <div className="grid min-h-0 gap-6 overflow-hidden px-6 py-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] lg:px-8">
             {!selectedFunnel ? (
               <div className="lg:col-span-2">
-                <EmptyState message="사용자 여정을 선택하면 단계별 지표가 표시됩니다." />
+                <EmptyState message="사용자 경로를 선택하면 단계별 지표가 표시됩니다." />
               </div>
             ) : (
               <>
                 {funnelMetrics.isError ? (
                   <Alert className="lg:col-span-2" variant="destructive">
-                    <AlertTitle>사용자 여정 수치를 불러오지 못했습니다</AlertTitle>
+                    <AlertTitle>사용자 경로 수치를 불러오지 못했습니다</AlertTitle>
                     <AlertDescription>{mutationErrorMessage(funnelMetrics.error)}</AlertDescription>
                   </Alert>
                 ) : null}
@@ -404,7 +409,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                   </>
                 ) : (
                   <div className="lg:col-span-2">
-                    <EmptyState message="사용자 여정 지표를 불러오는 중입니다." />
+                    <EmptyState message="사용자 경로 지표를 불러오는 중입니다." />
                   </div>
                 )}
               </>
@@ -417,24 +422,24 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
         <DialogContent className="grid max-h-[calc(100svh-2rem)] w-[calc(100%-2rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden overscroll-contain p-0 sm:w-[min(96vw,1180px)] sm:max-w-[min(96vw,1180px)]">
           <DialogHeader className="min-w-0 border-b px-4 py-5 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:py-6 lg:pr-14">
             <DialogTitle className="text-xl font-semibold text-pretty sm:text-2xl">
-              {isEditMode ? "사용자 여정 수정" : "새 사용자 여정 생성"}
+              {isEditMode ? "사용자 경로 수정" : "새 사용자 경로 생성"}
             </DialogTitle>
             <DialogDescription className="break-words text-pretty">
               {isEditMode
-                ? "저장된 사용자 여정 이름과 단계 순서를 변경합니다."
+                ? "저장된 사용자 경로 이름과 단계 순서를 변경합니다."
                 : "수집된 이벤트를 순서대로 선택하면 단계별 전환 수가 미리 계산됩니다."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid min-h-0 min-w-0 gap-6 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:px-8 lg:py-6">
             {isDraftLoading ? (
               <Alert className="lg:col-span-2">
-                <AlertTitle>사용자 여정 정보를 불러오는 중입니다</AlertTitle>
+                <AlertTitle>사용자 경로 정보를 불러오는 중입니다</AlertTitle>
                 <AlertDescription>저장된 단계 구성을 가져오고 있습니다.</AlertDescription>
               </Alert>
             ) : null}
             {draftLoadError ? (
               <Alert className="lg:col-span-2" variant="destructive">
-                <AlertTitle>사용자 여정 정보를 불러오지 못했습니다</AlertTitle>
+                <AlertTitle>사용자 경로 정보를 불러오지 못했습니다</AlertTitle>
                 <AlertDescription>{draftLoadError}</AlertDescription>
               </Alert>
             ) : null}
@@ -448,20 +453,20 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
               <Alert className="lg:col-span-2">
                 <AlertTitle>선택 가능한 이벤트가 없습니다</AlertTitle>
                 <AlertDescription>
-                  ClickHouse에 수집된 사용자 여정 이벤트가 있어야 단계를 선택할 수 있습니다.
+                  ClickHouse에 수집된 사용자 경로 이벤트가 있어야 단계를 선택할 수 있습니다.
                 </AlertDescription>
               </Alert>
             ) : null}
             {draftMutationError ? (
               <Alert className="lg:col-span-2" variant="destructive">
-                <AlertTitle>사용자 여정을 저장하지 못했습니다</AlertTitle>
+                <AlertTitle>사용자 경로를 저장하지 못했습니다</AlertTitle>
                 <AlertDescription>{mutationErrorMessage(draftMutationError)}</AlertDescription>
               </Alert>
             ) : null}
             <div className="grid min-w-0 content-start gap-5">
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="funnel-name">사용자 여정 이름</FieldLabel>
+                  <FieldLabel htmlFor="funnel-name">사용자 경로 이름</FieldLabel>
                   <Input
                     disabled={isDraftLoading || isDraftSaving}
                     autoComplete="off"
@@ -476,7 +481,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                 {steps.map((step, index) => (
                   <div className="grid gap-2 md:grid-cols-[1fr_auto]" key={index}>
                     <NativeSelect
-                      aria-label={`${index + 1}번째 사용자 여정 이벤트`}
+                      aria-label={`${index + 1}번째 사용자 경로 이벤트`}
                       className="w-full"
                       disabled={
                         eventCatalog.isLoading ||
@@ -568,7 +573,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
           <AlertDialogHeader>
             <AlertDialogTitle>작성 중인 변경사항을 버릴까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              저장하지 않은 사용자 여정 변경사항이 사라집니다. 이 작업은 되돌릴 수 없습니다.
+              저장하지 않은 사용자 경로 변경사항이 사라집니다. 이 작업은 되돌릴 수 없습니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -15,7 +15,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@loopad/ui/shadcn/alert-dialog";
-import { Button } from "@loopad/ui/shadcn/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
@@ -29,7 +28,6 @@ import {
 } from "../../../../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../../../../model/dashboard-format.js";
 import {
-  formatActionLabel,
   formatChannelLabel,
   formatMetricLabel,
   formatStatusLabel
@@ -39,8 +37,7 @@ import { dashboardCampaignDetailQueryKey } from "../../../../model/dashboard-que
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { DashboardDateRangeSelect } from "../../../shared/DashboardDateRangeSelect.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
-import { WorkspacePageHeader, WorkspaceViewTabs } from "../../../shared/WorkspaceViewTabs.js";
-import { CampaignPageSections } from "../CampaignComponent.js";
+import { CampaignPerformanceSections } from "../CampaignPerformanceSections.js";
 import { CampaignFormDialog } from "../components/CampaignFormDialog.js";
 import { PromotionWorkspace } from "../promotion/PromotionComponent.js";
 import {
@@ -56,7 +53,6 @@ import {
 } from "../promotion/promotionUtils.js";
 import { EntityCardGrid } from "./EntityCardGrid.js";
 import { HierarchyBreadcrumbs } from "./HierarchyBreadcrumbs.js";
-import { SelectionSummary } from "./SelectionSummary.js";
 import type {
   CampaignWorkspaceEntityCard,
   CampaignWorkspaceHierarchyItem
@@ -74,18 +70,6 @@ type PromotionCard = CampaignWorkspaceEntityCard & {
   promotion: DashboardCampaignPromotion;
 };
 
-const campaignViews = [
-  { label: "워크스페이스", value: "manage" },
-  { label: "개요", value: "overview" },
-  { label: "성과", value: "performance" }
-] as const;
-
-const segmentViews = [
-  { label: "세그먼트 관리", value: "manage" },
-  { label: "세그먼트 생성", value: "recommendations" },
-  { label: "광고 소재 · 실험", value: "experiments" }
-] as const;
-
 export function CampaignWorkspacePage({
   data,
   query
@@ -96,6 +80,7 @@ export function CampaignWorkspacePage({
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
   const [campaignFormDialog, setCampaignFormDialog] = useState<CampaignFormDialogState>(null);
+  const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
   const [isPromotionAddDialogOpen, setIsPromotionAddDialogOpen] = useState(false);
   const [editingPromotionId, setEditingPromotionId] = useState<string | null>(null);
   const [deletingPromotionId, setDeletingPromotionId] = useState<string | null>(null);
@@ -121,6 +106,9 @@ export function CampaignWorkspacePage({
     campaignFormDialog?.mode === "edit"
       ? data.campaigns.find((campaign) => campaign.campaign_id === campaignFormDialog.campaignId)
       : undefined;
+  const deletingCampaign = data.campaigns.find(
+    (campaign) => campaign.campaign_id === deletingCampaignId
+  );
   const editingPromotion = promotions.find(
     (promotion) => promotion.promotion_id === editingPromotionId
   );
@@ -178,6 +166,7 @@ export function CampaignWorkspacePage({
         });
       }
       setCampaignFormDialog(null);
+      setDeletingCampaignId(null);
     }
   });
   const createPromotionMutation = useMutation({
@@ -188,8 +177,8 @@ export function CampaignWorkspacePage({
       await setDashboardQueryState({
         campaignView: "manage",
         createPromotion: false,
-        promotionView: "overview",
-        segmentView: "recommendations",
+        promotionView: "performance",
+        segmentView: "manage",
         selectedAdExperimentId: "",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
@@ -260,14 +249,31 @@ export function CampaignWorkspacePage({
   const hierarchyItems = buildHierarchyItems(selectedCampaign, selectedPromotion, selectedSegment);
   const promotionMutationError =
     createPromotionMutation.error ?? updatePromotionMutation.error ?? deletePromotionMutation.error;
+  const openCampaignView = (campaignId: string, campaignView: DashboardQuery["campaignView"]) => {
+    void setDashboardQueryState({
+      campaignView,
+      promotionView: "manage",
+      segmentView: "manage",
+      selectedAdExperimentId: "",
+      selectedCampaignId: campaignId,
+      selectedPromotionId: "",
+      selectedSegmentId: ""
+    });
+  };
+  const openPromotionView = (promotionId: string, view: "manage" | "performance") => {
+    void setDashboardQueryState({
+      campaignView: "manage",
+      promotionView: view,
+      segmentView: "manage",
+      selectedAdExperimentId: "",
+      selectedCampaignId,
+      selectedPromotionId: promotionId,
+      selectedSegmentId: ""
+    });
+  };
 
   return (
     <div className="grid gap-6">
-      <WorkspacePageHeader
-        description="캠페인을 선택하고 프로모션, 세그먼트, 광고 소재와 실험까지 한 흐름에서 운영합니다."
-        eyebrow="Campaign workspace"
-        title="캠페인"
-      />
       <HierarchyBreadcrumbs
         items={hierarchyItems}
         onItemSelect={(item) => {
@@ -313,6 +319,13 @@ export function CampaignWorkspacePage({
         </Alert>
       ) : null}
 
+      {deleteCampaignMutation.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>캠페인을 삭제하지 못했습니다</AlertTitle>
+          <AlertDescription>{mutationErrorMessage(deleteCampaignMutation.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+
       {!selectedCampaign ? (
         <section className="grid gap-5">
           <div className="grid gap-1">
@@ -333,6 +346,27 @@ export function CampaignWorkspacePage({
                   deleteCampaignMutation.reset();
                   setCampaignFormDialog({ campaignId: card.id, mode: "edit" });
                 }
+              },
+              {
+                id: "delete",
+                label: "캠페인 삭제",
+                onSelect: () => {
+                  deleteCampaignMutation.reset();
+                  setDeletingCampaignId(card.id);
+                },
+                tone: "destructive"
+              }
+            ]}
+            entryActions={(card) => [
+              {
+                id: "workspace",
+                label: "관리",
+                onSelect: () => openCampaignView(card.id, "manage")
+              },
+              {
+                id: "performance",
+                label: "성과",
+                onSelect: () => openCampaignView(card.id, "performance")
               }
             ]}
             addAction={{
@@ -345,41 +379,18 @@ export function CampaignWorkspacePage({
             }}
             ariaLabel="캠페인 목록"
             items={campaignCards}
-            onSelect={(card) => {
-              void setDashboardQueryState({
-                campaignView: "manage",
-                promotionView: "manage",
-                segmentView: "manage",
-                selectedAdExperimentId: "",
-                selectedCampaignId: card.id,
-                selectedPromotionId: "",
-                selectedSegmentId: ""
-              });
-            }}
           />
         </section>
       ) : null}
 
-      {selectedCampaign ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <WorkspaceViewTabs
-            ariaLabel="캠페인 작업 탭"
-            items={campaignViews}
-            queryKey="campaignView"
-            value={query.campaignView}
-          />
-          {query.campaignView === "performance" ? (
-            <DashboardDateRangeSelect value={query.dateRange} />
-          ) : null}
+      {selectedCampaign && !selectedPromotion && query.campaignView === "performance" ? (
+        <div className="flex justify-end">
+          <DashboardDateRangeSelect value={query.dateRange} />
         </div>
       ) : null}
 
-      {selectedCampaign && query.campaignView === "performance" ? (
-        <CampaignPageSections data={data} query={query} tab="campaign-metrics" />
-      ) : null}
-
-      {selectedCampaign && query.campaignView === "overview" ? (
-        <CampaignPageSections data={data} query={query} tab="campaign-detail" />
+      {selectedCampaign && !selectedPromotion && query.campaignView === "performance" ? (
+        <CampaignPerformanceSections data={data} query={query} />
       ) : null}
 
       {selectedCampaign && query.campaignView === "manage" && campaignDetail.isError ? (
@@ -394,129 +405,69 @@ export function CampaignWorkspacePage({
         <EmptyState message="캠페인 데이터를 불러오는 중입니다." />
       ) : null}
 
-      {selectedCampaign && query.campaignView === "manage" && campaignDetail.data ? (
-        <>
-          <SelectionSummary
-            action={
-              <Button
-                onClick={() => {
-                  updateCampaignMutation.reset();
-                  deleteCampaignMutation.reset();
-                  setCampaignFormDialog({
-                    campaignId: selectedCampaign.campaign_id,
-                    mode: "edit"
-                  });
-                }}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                캠페인 수정
-              </Button>
-            }
-            metrics={campaignSummaryMetrics(
-              selectedCampaign,
-              campaignDetail.data.realtime_metrics.total_event_count
-            )}
-            selection={{
-              description: selectedCampaign.objective ?? "목표가 아직 등록되지 않았습니다.",
-              details: [
-                {
-                  id: "period",
-                  label: "운영 기간",
-                  value: formatCampaignPeriod(selectedCampaign)
-                },
-                {
-                  id: "metric",
-                  label: "주요 지표",
-                  value: formatMetricLabel(selectedCampaign.primary_metric)
-                },
-                {
-                  id: "next-action",
-                  label: "다음 작업",
-                  value: formatActionLabel(selectedCampaign.next_action)
-                }
-              ],
-              kind: "campaign",
-              status: {
-                label: formatStatusLabel(selectedCampaign.status),
-                variant: statusBadgeVariant(selectedCampaign.status)
-              },
-              title: selectedCampaign.campaign_name
-            }}
-          />
-
-          <section className="grid gap-5">
-            <div className="grid gap-1">
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">프로모션</h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
-              </p>
-            </div>
-            <EntityCardGrid
-              actions={(card) => [
-                {
-                  id: "edit",
-                  label: "프로모션 수정",
-                  onSelect: () => {
-                    updatePromotionMutation.reset();
-                    setEditingPromotionId(card.id);
-                  }
-                },
-                {
-                  id: "delete",
-                  label: "프로모션 삭제",
-                  onSelect: () => {
-                    deletePromotionMutation.reset();
-                    setDeletingPromotionId(card.id);
-                  },
-                  tone: "destructive"
-                }
-              ]}
-              addAction={{
-                description: "현재 캠페인 아래에 새 프로모션을 추가합니다.",
-                label: "새 프로모션",
+      {selectedCampaign &&
+      !selectedPromotion &&
+      query.campaignView === "manage" &&
+      campaignDetail.data ? (
+        <section className="grid gap-5">
+          <div className="grid gap-1">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">프로모션</h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
+            </p>
+          </div>
+          <EntityCardGrid
+            actions={(card) => [
+              {
+                id: "edit",
+                label: "프로모션 수정",
                 onSelect: () => {
-                  createPromotionMutation.reset();
-                  setIsPromotionAddDialogOpen(true);
+                  updatePromotionMutation.reset();
+                  setEditingPromotionId(card.id);
                 }
-              }}
-              ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
-              items={promotionCards}
-              onSelect={(card) => {
-                void setDashboardQueryState({
-                  promotionView: "overview",
-                  segmentView: "recommendations",
-                  selectedAdExperimentId: "",
-                  selectedCampaignId,
-                  selectedPromotionId: card.id,
-                  selectedSegmentId: ""
-                });
-              }}
-              selectedId={selectedPromotion?.promotion_id}
-            />
-          </section>
+              },
+              {
+                id: "delete",
+                label: "프로모션 삭제",
+                onSelect: () => {
+                  deletePromotionMutation.reset();
+                  setDeletingPromotionId(card.id);
+                },
+                tone: "destructive"
+              }
+            ]}
+            addAction={{
+              description: "현재 캠페인 아래에 새 프로모션을 추가합니다.",
+              label: "새 프로모션",
+              onSelect: () => {
+                createPromotionMutation.reset();
+                setIsPromotionAddDialogOpen(true);
+              }
+            }}
+            ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
+            entryActions={(card) => [
+              {
+                id: "manage",
+                label: "관리",
+                onSelect: () => openPromotionView(card.id, "manage")
+              },
+              {
+                id: "performance",
+                label: "성과",
+                onSelect: () => openPromotionView(card.id, "performance")
+              }
+            ]}
+            items={promotionCards}
+          />
+        </section>
+      ) : null}
 
-          {selectedPromotion ? (
-            <section className="grid gap-5 border-t pt-6">
-              <div className="grid gap-1">
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                  {selectedPromotion.marketing_theme} 운영
-                </h2>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  기존 세그먼트 추천·분석, 광고 소재 생성·승인, 실험 실행 흐름을 사용합니다.
-                </p>
-              </div>
-              <WorkspaceViewTabs
-                ariaLabel="프로모션 하위 작업 탭"
-                items={segmentViews}
-                queryKey="segmentView"
-                value={query.segmentView}
-              />
-              <PromotionWorkspace data={data} mode="segment" query={query} />
-            </section>
-          ) : null}
-        </>
+      {selectedCampaign && selectedPromotion && campaignDetail.data ? (
+        <PromotionWorkspace
+          data={data}
+          mode={query.promotionView === "performance" ? "promotion" : "segment"}
+          query={query}
+        />
       ) : null}
 
       <CampaignFormDialog
@@ -524,12 +475,8 @@ export function CampaignWorkspacePage({
         createError={createCampaignMutation.error}
         createIsError={createCampaignMutation.isError}
         createIsPending={createCampaignMutation.isPending}
-        deleteError={deleteCampaignMutation.error}
-        deleteIsError={deleteCampaignMutation.isError}
-        deleteIsPending={deleteCampaignMutation.isPending}
         mode={campaignFormDialog?.mode ?? "create"}
         onCreate={(requestBody) => createCampaignMutation.mutate(requestBody)}
-        onDelete={(campaignId) => deleteCampaignMutation.mutate(campaignId)}
         onOpenChange={(open) => {
           if (!open) {
             setCampaignFormDialog(null);
@@ -546,6 +493,38 @@ export function CampaignWorkspacePage({
         updateIsError={updateCampaignMutation.isError}
         updateIsPending={updateCampaignMutation.isPending}
       />
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open && !deleteCampaignMutation.isPending) {
+            setDeletingCampaignId(null);
+          }
+        }}
+        open={Boolean(deletingCampaign)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>캠페인을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingCampaign?.campaign_name} 캠페인이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteCampaignMutation.isPending}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteCampaignMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deletingCampaign) {
+                  deleteCampaignMutation.mutate(deletingCampaign.campaign_id);
+                }
+              }}
+              variant="destructive"
+            >
+              {deleteCampaignMutation.isPending ? "삭제 중" : "캠페인 삭제"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <PromotionAddDialog
         createIsPending={createPromotionMutation.isPending}
         onCreate={(form) => createPromotionMutation.mutate(form)}
@@ -675,19 +654,6 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
   };
 }
 
-function campaignSummaryMetrics(campaign: DashboardCampaignSummary, realtimeEventCount: number) {
-  return [
-    { id: "promotions", label: "프로모션", value: formatInteger(campaign.promotion_count) },
-    { id: "segments", label: "세그먼트", value: formatInteger(campaign.segment_count) },
-    {
-      id: "experiments",
-      label: "광고 실험",
-      value: formatInteger(campaign.ad_experiment_count)
-    },
-    { id: "events", label: "실시간 이벤트", value: formatInteger(realtimeEventCount) }
-  ];
-}
-
 function buildHierarchyItems(
   campaign: DashboardCampaignSummary | undefined,
   promotion: DashboardCampaignPromotion | undefined,
@@ -711,13 +677,6 @@ function buildHierarchyItems(
     items.push({ id: segment.segment_id, kind: "segment", label: segment.segment_name });
   }
   return items;
-}
-
-function formatCampaignPeriod(campaign: DashboardCampaignSummary) {
-  if (!campaign.start_date && !campaign.end_date) {
-    return "미정";
-  }
-  return `${campaign.start_date ?? "미정"} ~ ${campaign.end_date ?? "미정"}`;
 }
 
 async function invalidateCampaignWorkspace(

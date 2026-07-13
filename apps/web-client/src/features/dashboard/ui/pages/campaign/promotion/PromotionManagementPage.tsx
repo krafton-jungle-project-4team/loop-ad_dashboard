@@ -5,7 +5,7 @@ import { PromotionWorkspace } from "./PromotionComponent.js";
 
 const promotionViews = [
   { label: "관리", value: "manage" },
-  { label: "개요", value: "overview" }
+  { label: "성과", value: "performance" }
 ] as const;
 
 export function PromotionManagementPage({

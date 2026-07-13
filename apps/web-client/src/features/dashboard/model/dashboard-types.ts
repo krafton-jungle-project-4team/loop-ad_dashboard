@@ -4,7 +4,6 @@ export const dashboardTabValues = [
   "main",
   "funnels",
   "campaigns",
-  "campaign-detail",
   "campaign-flow-map",
   "campaign-promotions",
   "promotions",
@@ -27,6 +26,9 @@ export type DashboardSort =
   | "dropoff-desc";
 
 export type DashboardUserScope = "all" | "active" | "new" | "returning" | "at-risk";
+
+export const statisticsViewValues = ["overview", "user-paths"] as const;
+export type StatisticsView = (typeof statisticsViewValues)[number];
 
 export type DashboardConversionEvent =
   | "booking_complete"
@@ -58,7 +60,6 @@ export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
   | { tab: "funnels"; data: DashboardFunnelList }
   | { tab: "campaign-flow-map"; data: DashboardMain }
-  | { tab: "campaign-detail"; data: DashboardMain }
   | { tab: "campaign-promotions"; data: DashboardMain }
   | { tab: "promotions"; data: DashboardMain }
   | { tab: "promotion-metrics"; data: DashboardMain }
@@ -89,6 +90,7 @@ export type DashboardQuery = {
   campaignView: CampaignWorkspaceView;
   promotionView: PromotionWorkspaceView;
   segmentView: SegmentWorkspaceView;
+  statisticsView: StatisticsView;
   sort: DashboardSort;
   filter: string;
 };

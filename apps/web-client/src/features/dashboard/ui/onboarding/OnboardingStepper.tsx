@@ -3,11 +3,12 @@ import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Check, LockKeyhole } from "lucide-react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type {
   ProjectOnboardingStep,
   ProjectOnboardingStepState
 } from "../../model/project-onboarding.js";
+import { useSoftStickyMotion } from "./use-soft-sticky-motion.js";
 
 export type OnboardingStepState = ProjectOnboardingStepState;
 export type OnboardingStep = ProjectOnboardingStep;
@@ -35,6 +36,9 @@ export function OnboardingStepper({
   onStepSelect,
   setupSteps
 }: OnboardingStepperProps) {
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const surfaceRef = useRef<HTMLElement>(null);
+  useSoftStickyMotion(stickyRef, surfaceRef);
   const groups = [
     { id: "setup", label: "초기 설정", startIndex: 0, steps: setupSteps },
     {
@@ -54,6 +58,8 @@ export function OnboardingStepper({
         "w-full md:sticky md:top-6 md:max-h-[calc(100svh-7rem)] md:self-start md:w-72",
         className
       )}
+      data-soft-sticky="true"
+      ref={stickyRef}
     >
       <MobileOnboardingSummary
         ariaLabel={ariaLabel}
@@ -68,6 +74,7 @@ export function OnboardingStepper({
       <nav
         aria-label={ariaLabel}
         className="hidden rounded-2xl border bg-card p-4 shadow-sm md:block md:max-h-[calc(100svh-7rem)] md:overflow-y-auto md:overscroll-contain"
+        ref={surfaceRef}
       >
         <header className="flex flex-col gap-2 px-2 pb-4">
           <div className="flex items-center justify-between gap-3">

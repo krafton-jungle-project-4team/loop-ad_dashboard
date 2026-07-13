@@ -27,18 +27,13 @@ export type DashboardNavigationGroup = {
 
 export const dashboardTabs = [
   { value: "main", label: "통계", pathSegment: "statistics" },
-  { value: "funnels", label: "사용자 여정", pathSegment: "funnels" },
+  { value: "funnels", label: "사용자 경로", pathSegment: "funnels" },
   {
     value: "campaign-flow-map",
     label: "워크플로우 맵",
     pathSegment: "campaign-flow-map"
   },
   { value: "campaigns", label: "캠페인 관리", pathSegment: "campaigns" },
-  {
-    value: "campaign-detail",
-    label: "캠페인 개요",
-    pathSegment: "campaign-detail"
-  },
   {
     value: "campaign-metrics",
     label: "캠페인 통계",
@@ -84,7 +79,6 @@ export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
       { label: "캠페인", value: "campaigns", pathSegment: "campaigns", type: "link" },
       { label: "실험", value: "experiments", pathSegment: "experiments", type: "link" },
       { label: "통계", value: "main", pathSegment: "statistics", type: "link" },
-      { label: "사용자 여정", value: "funnels", pathSegment: "funnels", type: "link" },
       {
         label: "워크플로우",
         value: "campaign-flow-map",
@@ -106,6 +100,7 @@ const legacyDashboardPaths: Record<string, string> = {
   "campaign-detail": "campaigns",
   "campaign-metrics": "campaigns",
   "campaign-promotions": "campaigns",
+  funnels: "statistics",
   main: "statistics",
   "promotion-metrics": "campaigns",
   promotions: "campaigns",
@@ -118,12 +113,16 @@ export function getCanonicalDashboardPath(path: string): string {
 
 export function getLegacyDashboardViewPatch(path: string): {
   campaignView?: CampaignWorkspaceView;
+  statisticsView?: "overview" | "user-paths";
 } {
   if (path === "campaign-detail") {
-    return { campaignView: "overview" };
+    return { campaignView: "manage" };
   }
   if (path === "campaign-metrics") {
     return { campaignView: "performance" };
+  }
+  if (path === "funnels") {
+    return { statisticsView: "user-paths" };
   }
   return {};
 }

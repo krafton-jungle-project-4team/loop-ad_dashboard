@@ -40,8 +40,9 @@ export type EntityCardGridProps<Entity extends CampaignWorkspaceEntityCard> = {
   ariaLabel: string;
   className?: string;
   emptyState?: ReactNode;
+  entryActions?: (entity: Entity) => ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
   items: ReadonlyArray<Entity>;
-  onSelect: (entity: Entity) => void;
+  onSelect?: (entity: Entity) => void;
   selectedId?: string;
 };
 
@@ -51,6 +52,7 @@ export function EntityCardGrid<Entity extends CampaignWorkspaceEntityCard>({
   ariaLabel,
   className,
   emptyState,
+  entryActions,
   items,
   onSelect,
   selectedId
@@ -70,6 +72,7 @@ export function EntityCardGrid<Entity extends CampaignWorkspaceEntityCard>({
           <EntityCard
             actions={actions?.(item) ?? []}
             entity={item}
+            entryActions={entryActions?.(item) ?? []}
             isSelected={item.id === selectedId}
             onSelect={onSelect}
           />
@@ -87,13 +90,15 @@ export function EntityCardGrid<Entity extends CampaignWorkspaceEntityCard>({
 function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
   actions,
   entity,
+  entryActions,
   isSelected,
   onSelect
 }: {
   actions: ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
   entity: Entity;
+  entryActions: ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
   isSelected: boolean;
-  onSelect: (entity: Entity) => void;
+  onSelect?: (entity: Entity) => void;
 }) {
   const entityKindLabel = ENTITY_KIND_LABEL[entity.kind];
 
@@ -143,27 +148,49 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
         </CardContent>
       ) : null}
 
-      <CardFooter className="mt-auto">
-        <Button
-          aria-pressed={isSelected}
-          className="w-full"
-          onClick={() => onSelect(entity)}
-          type="button"
-          variant={isSelected ? "secondary" : "outline"}
-        >
-          {isSelected ? (
-            <>
-              <Check data-icon="inline-start" />
-              선택됨
-            </>
-          ) : (
-            <>
-              {entityKindLabel} 열기
-              <ArrowRight data-icon="inline-end" />
-            </>
-          )}
-        </Button>
-      </CardFooter>
+      {entryActions.length > 0 || onSelect ? (
+        <CardFooter className="mt-auto">
+          {entryActions.length > 0 ? (
+            <div className="grid w-full grid-cols-2 gap-2">
+              {entryActions.map((action, index) => (
+                <Button
+                  className={cn(
+                    "h-auto min-h-9 min-w-0 whitespace-normal px-2 py-2 text-xs",
+                    index === 0 && entryActions.length === 3 && "col-span-2"
+                  )}
+                  disabled={action.disabled}
+                  key={action.id}
+                  onClick={() => action.onSelect(entity)}
+                  type="button"
+                  variant="outline"
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </div>
+          ) : onSelect ? (
+            <Button
+              aria-pressed={isSelected}
+              className="w-full"
+              onClick={() => onSelect(entity)}
+              type="button"
+              variant={isSelected ? "secondary" : "outline"}
+            >
+              {isSelected ? (
+                <>
+                  <Check data-icon="inline-start" />
+                  선택됨
+                </>
+              ) : (
+                <>
+                  {entityKindLabel} 열기
+                  <ArrowRight data-icon="inline-end" />
+                </>
+              )}
+            </Button>
+          ) : null}
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }

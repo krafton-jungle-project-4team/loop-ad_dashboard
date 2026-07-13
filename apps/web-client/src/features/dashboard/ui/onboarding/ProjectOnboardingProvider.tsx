@@ -13,6 +13,7 @@ import {
   fetchDashboardCampaignDetail,
   fetchDashboardFunnelList,
   fetchDashboardPageResource,
+  fetchDashboardProjectExperiments,
   fetchDashboardSegmentDetail
 } from "../../api/dashboard-api.js";
 import {
@@ -24,10 +25,10 @@ import {
   dashboardCampaignDetailQueryKey,
   dashboardFunnelListQueryKey,
   dashboardPageQueryKey,
+  dashboardProjectExperimentsQueryKey,
   dashboardSegmentDetailQueryKey
 } from "../../model/dashboard-query-keys.js";
 import {
-  completeProjectFunnelSetup,
   completeProjectSdkSetup,
   initializeProjectSetupProgress,
   readProjectSetupProgress,
@@ -40,6 +41,7 @@ import {
 } from "../../model/project-setup-progress.js";
 import {
   allowedDashboardTabs,
+  countStartedExperiments,
   createCampaignOnboardingSteps,
   createSetupOnboardingSteps,
   type ProjectOnboardingStep
@@ -54,7 +56,6 @@ type ProjectProgressSnapshot = {
 export type ProjectOnboardingContextValue = {
   allowedTabs: ReadonlySet<DashboardTab>;
   campaignSteps: ReadonlyArray<ProjectOnboardingStep>;
-  completeFunnel: () => void;
   completeSdk: () => void;
   error: Error | null;
   isDashboardUnlocked: boolean;
@@ -67,7 +68,7 @@ export type ProjectOnboardingContextValue = {
   query: DashboardQuery;
   requiredPath: string | null;
   requiredPathSegment: ProjectOnboardingPathSegment | null;
-  runningExperimentCount: number;
+  startedExperimentCount: number;
   setupSteps: ReadonlyArray<ProjectOnboardingStep>;
   skipGuide: () => void;
   startGuide: () => void;
@@ -106,6 +107,10 @@ export function ProjectOnboardingProvider({
     queryFn: ({ signal }) => fetchDashboardFunnelList(onboardingQuery, signal),
     queryKey: dashboardFunnelListQueryKey(query.projectId)
   });
+  const experimentsQuery = useQuery({
+    queryFn: ({ signal }) => fetchDashboardProjectExperiments(projectId, signal),
+    queryKey: dashboardProjectExperimentsQueryKey(projectId)
+  });
   const mainData = mainQuery.data;
 
   useEffect(() => {
@@ -120,17 +125,13 @@ export function ProjectOnboardingProvider({
     setProgressSnapshot({ progress: initializedProgress, projectId });
   }, [funnelListQuery.data, funnelListQuery.isPending, mainData, progress, projectId]);
 
-  const runningExperimentCount = useMemo(
-    () =>
-      mainData?.campaigns.reduce(
-        (total, campaign) => total + campaign.running_ad_experiment_count,
-        0
-      ) ?? 0,
-    [mainData]
+  const startedExperimentCount = useMemo(
+    () => countStartedExperiments(experimentsQuery.data?.experiments ?? []),
+    [experimentsQuery.data]
   );
   const stageResolution = resolveProjectOnboardingStage({
     progress,
-    runningExperimentCount
+    startedExperimentCount
   });
   const selectedCampaign = mainData?.campaigns.find(
     (campaign) => campaign.campaign_id === query.selectedCampaignId
@@ -177,13 +178,13 @@ export function ProjectOnboardingProvider({
         hasApprovedCreative,
         hasCampaign: Boolean(selectedCampaign),
         hasPromotion: Boolean(selectedPromotion),
-        hasRunningExperiment: runningExperimentCount > 0,
+        hasStartedExperiment: startedExperimentCount > 0,
         stage: stageResolution.stage
       }),
     [
       hasAnalyzedSegment,
       hasApprovedCreative,
-      runningExperimentCount,
+      startedExperimentCount,
       selectedCampaign,
       selectedPromotion,
       stageResolution.stage
@@ -201,10 +202,6 @@ export function ProjectOnboardingProvider({
     const nextProgress = skipProjectOnboarding(projectId, { currentProgress: progress });
     setProgressSnapshot({ progress: nextProgress, projectId });
   }, [progress, projectId]);
-  const completeFunnel = useCallback(() => {
-    const nextProgress = completeProjectFunnelSetup(projectId, { currentProgress: progress });
-    setProgressSnapshot({ progress: nextProgress, projectId });
-  }, [progress, projectId]);
   const isTabAllowed = useCallback((tab: DashboardTab) => allowedTabs.has(tab), [allowedTabs]);
   const requiredPath = stageResolution.requiredPathSegment
     ? `/dashboard/${encodeURIComponent(projectId)}/${stageResolution.requiredPathSegment}`
@@ -213,10 +210,10 @@ export function ProjectOnboardingProvider({
     () => ({
       allowedTabs,
       campaignSteps,
-      completeFunnel,
       completeSdk,
       error:
         mainQuery.error ??
+        experimentsQuery.error ??
         funnelListQuery.error ??
         campaignDetailQuery.error ??
         segmentDetailQuery.error,
@@ -224,6 +221,7 @@ export function ProjectOnboardingProvider({
       isInitialSetupComplete: stageResolution.isInitialSetupComplete,
       isLoading:
         mainQuery.isPending ||
+        experimentsQuery.isPending ||
         (progress === null && funnelListQuery.isPending) ||
         (mainQuery.isSuccess && progress === null),
       isTabAllowed,
@@ -233,7 +231,7 @@ export function ProjectOnboardingProvider({
       query,
       requiredPath,
       requiredPathSegment: stageResolution.requiredPathSegment,
-      runningExperimentCount,
+      startedExperimentCount,
       setupSteps,
       skipGuide,
       startGuide,
@@ -243,8 +241,9 @@ export function ProjectOnboardingProvider({
       allowedTabs,
       campaignSteps,
       campaignDetailQuery.error,
-      completeFunnel,
       completeSdk,
+      experimentsQuery.error,
+      experimentsQuery.isPending,
       funnelListQuery.error,
       funnelListQuery.isPending,
       isTabAllowed,
@@ -256,7 +255,7 @@ export function ProjectOnboardingProvider({
       projectId,
       query,
       requiredPath,
-      runningExperimentCount,
+      startedExperimentCount,
       segmentDetailQuery.error,
       setupSteps,
       skipGuide,

@@ -13,7 +13,7 @@ import { ProjectWelcomeScreen } from "./ProjectWelcomeScreen.js";
 type OnboardingAction = {
   description: string;
   label: string;
-  type: "complete-funnel" | "complete-sdk" | "return";
+  type: "complete-sdk" | "return";
 };
 
 export function OnboardingWorkspaceLayout({
@@ -30,13 +30,12 @@ export function OnboardingWorkspaceLayout({
   const [showExperimentCta, setShowExperimentCta] = useState(false);
   const {
     campaignSteps,
-    completeFunnel,
     completeSdk,
     isDashboardUnlocked,
     isLoading,
     projectId,
     requiredPathSegment,
-    runningExperimentCount,
+    startedExperimentCount,
     setupSteps,
     skipGuide,
     startGuide,
@@ -61,14 +60,14 @@ export function OnboardingWorkspaceLayout({
       return;
     }
 
-    if (!previousDashboardUnlocked.current && isDashboardUnlocked && runningExperimentCount > 0) {
+    if (!previousDashboardUnlocked.current && isDashboardUnlocked && startedExperimentCount > 0) {
       setShowExperimentCta(true);
     }
     if (!isDashboardUnlocked) {
       setShowExperimentCta(false);
     }
     previousDashboardUnlocked.current = isDashboardUnlocked;
-  }, [isDashboardUnlocked, isLoading, runningExperimentCount]);
+  }, [isDashboardUnlocked, isLoading, startedExperimentCount]);
 
   if (isLoading) {
     return children;
@@ -126,12 +125,6 @@ export function OnboardingWorkspaceLayout({
 
     if (action.type === "complete-sdk") {
       completeSdk();
-      void navigateTo("funnels");
-      return;
-    }
-
-    if (action.type === "complete-funnel") {
-      completeFunnel();
       void navigateTo("campaigns");
       return;
     }
@@ -241,26 +234,18 @@ export function OnboardingWorkspaceLayout({
 
 function getOnboardingAction(
   activeTab: DashboardTab,
-  stage: "welcome" | "sdk" | "funnel" | "campaign" | "complete"
+  stage: "welcome" | "sdk" | "campaign" | "complete"
 ): OnboardingAction | null {
   if (activeTab === "sdk" && stage === "sdk") {
     return {
-      description: "연동 내용을 확인했다면 기존 사용자 여정 화면으로 이동합니다.",
-      label: "퍼널로 계속",
+      description: "연동 내용을 확인했다면 첫 캠페인을 만들 준비를 시작합니다.",
+      label: "캠페인으로 계속",
       type: "complete-sdk"
     };
   }
 
-  if (activeTab === "funnels" && stage === "funnel") {
-    return {
-      description: "퍼널을 확인했다면 첫 캠페인을 만들 준비를 시작합니다.",
-      label: "캠페인으로 계속",
-      type: "complete-funnel"
-    };
-  }
-
   const isPastSetupScreen =
-    (activeTab === "sdk" && (stage === "funnel" || stage === "campaign")) ||
+    (activeTab === "sdk" && stage === "campaign") ||
     (activeTab === "funnels" && stage === "campaign");
 
   if (isPastSetupScreen) {
@@ -274,12 +259,9 @@ function getOnboardingAction(
   return null;
 }
 
-function getStepPathSegment(stepId: string): "campaigns" | "funnels" | "sdk" | null {
+function getStepPathSegment(stepId: string): "campaigns" | "sdk" | null {
   if (stepId === "sdk") {
     return "sdk";
-  }
-  if (stepId === "funnel") {
-    return "funnels";
   }
   if (["campaign", "promotion", "segment", "creative", "experiment"].includes(stepId)) {
     return "campaigns";

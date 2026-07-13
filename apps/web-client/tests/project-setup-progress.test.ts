@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   clearProjectSetupProgress,
-  completeProjectFunnelSetup,
   completeProjectSdkSetup,
   getProjectSetupProgressStorageKey,
   initializeProjectSetupProgress,
@@ -202,36 +201,6 @@ test("SDK completion is persisted and idempotent", () => {
   assert.deepEqual(readProjectSetupProgress("project-1", storage), completed);
 });
 
-test("funnel completion requires SDK completion and is then idempotent", () => {
-  const storage = new MemoryStorage();
-  initializeProjectSetupProgress("project-1", {
-    now: () => INITIALIZED_AT,
-    storage
-  });
-
-  const blocked = completeProjectFunnelSetup("project-1", {
-    now: () => SDK_COMPLETED_AT,
-    storage
-  });
-  assert.equal(blocked.funnelCompletedAt, null);
-
-  completeProjectSdkSetup("project-1", {
-    now: () => SDK_COMPLETED_AT,
-    storage
-  });
-  const completed = completeProjectFunnelSetup("project-1", {
-    now: () => FUNNEL_COMPLETED_AT,
-    storage
-  });
-  const repeated = completeProjectFunnelSetup("project-1", {
-    now: () => "2026-07-12T00:03:00.000Z",
-    storage
-  });
-
-  assert.equal(completed.funnelCompletedAt, FUNNEL_COMPLETED_AT);
-  assert.deepEqual(repeated, completed);
-});
-
 test("clearing progress is project scoped", () => {
   const storage = new MemoryStorage();
   initializeProjectSetupProgress("project-1", { now: () => INITIALIZED_AT, storage });
@@ -290,18 +259,12 @@ test("storage failures do not escape setup progress helpers", () => {
     now: () => SDK_COMPLETED_AT,
     storage: unavailableStorage
   });
-  const funnelCompleted = completeProjectFunnelSetup("project-1", {
-    currentProgress: sdkCompleted,
-    now: () => FUNNEL_COMPLETED_AT,
-    storage: unavailableStorage
-  });
-
-  assert.equal(funnelCompleted.sdkCompletedAt, SDK_COMPLETED_AT);
-  assert.equal(funnelCompleted.funnelCompletedAt, FUNNEL_COMPLETED_AT);
+  assert.equal(sdkCompleted.sdkCompletedAt, SDK_COMPLETED_AT);
+  assert.equal(sdkCompleted.funnelCompletedAt, null);
   assert.doesNotThrow(() => clearProjectSetupProgress("project-1", unavailableStorage));
 });
 
-test("top-level onboarding resolver covers welcome, SDK, funnel, campaign, and complete stages", () => {
+test("top-level onboarding resolver covers welcome, SDK, campaign, and complete stages", () => {
   assert.deepEqual(resolveProjectOnboardingStage({ progress: null }), {
     isDashboardUnlocked: false,
     isInitialSetupComplete: false,
@@ -339,25 +302,6 @@ test("top-level onboarding resolver covers welcome, SDK, funnel, campaign, and c
     }),
     {
       isDashboardUnlocked: false,
-      isInitialSetupComplete: false,
-      requiredPathSegment: "funnels",
-      stage: "funnel"
-    }
-  );
-
-  assert.deepEqual(
-    resolveProjectOnboardingStage({
-      progress: {
-        funnelCompletedAt: FUNNEL_COMPLETED_AT,
-        guideStartedAt: GUIDE_STARTED_AT,
-        initializedAt: INITIALIZED_AT,
-        onboardingSkippedAt: null,
-        sdkCompletedAt: SDK_COMPLETED_AT
-      },
-      runningExperimentCount: 0
-    }),
-    {
-      isDashboardUnlocked: false,
       isInitialSetupComplete: true,
       requiredPathSegment: "campaigns",
       stage: "campaign"
@@ -367,7 +311,7 @@ test("top-level onboarding resolver covers welcome, SDK, funnel, campaign, and c
   assert.deepEqual(
     resolveProjectOnboardingStage({
       progress: null,
-      runningExperimentCount: 1
+      startedExperimentCount: 1
     }),
     {
       isDashboardUnlocked: true,

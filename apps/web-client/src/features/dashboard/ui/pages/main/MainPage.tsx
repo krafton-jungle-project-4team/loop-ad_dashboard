@@ -7,6 +7,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts"
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import {
   Table,
   TableBody,
@@ -16,7 +17,9 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
+import { fetchDashboardFunnelList } from "../../../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../../../model/dashboard-format.js";
 import {
   formatActionLabel,
@@ -24,10 +27,54 @@ import {
   formatLandingTypeLabel,
   formatStatusLabel
 } from "../../../model/dashboard-labels.js";
+import { useDashboardQueryState } from "../../../model/dashboard-query.js";
+import { dashboardFunnelListQueryKey } from "../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";
 import { EmptyState } from "../../shared/EmptyState.js";
+import { FunnelPage } from "../funnel/FunnelPage.js";
 
 export function MainPage({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
+  const [, setDashboardQueryState] = useDashboardQueryState();
+  const userPathsQuery = useQuery({
+    enabled: query.statisticsView === "user-paths",
+    queryFn: ({ signal }) => fetchDashboardFunnelList(query, signal),
+    queryKey: dashboardFunnelListQueryKey(query.projectId)
+  });
+
+  const handleViewChange = (value: string) => {
+    if (value !== "overview" && value !== "user-paths") {
+      return;
+    }
+    void setDashboardQueryState({ statisticsView: value });
+  };
+
+  return (
+    <Tabs
+      className="grid min-h-0 gap-6"
+      onValueChange={handleViewChange}
+      value={query.statisticsView}
+    >
+      <TabsList className="w-fit" variant="line">
+        <TabsTrigger value="overview">운영 현황</TabsTrigger>
+        <TabsTrigger value="user-paths">사용자 경로</TabsTrigger>
+      </TabsList>
+      <TabsContent value="overview">
+        <MainOverview data={data} query={query} />
+      </TabsContent>
+      <TabsContent value="user-paths">
+        {userPathsQuery.data ? (
+          <FunnelPage data={userPathsQuery.data} query={query} />
+        ) : userPathsQuery.isError ? (
+          <EmptyState message="사용자 경로 목록을 불러오지 못했습니다." />
+        ) : (
+          <EmptyState message="사용자 경로 목록을 불러오는 중입니다." />
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQuery }) {
   const summary = createMainSummary(data.campaigns);
 
   return (

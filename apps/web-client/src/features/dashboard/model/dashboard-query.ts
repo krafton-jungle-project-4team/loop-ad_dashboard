@@ -16,7 +16,8 @@ import type {
 import {
   campaignWorkspaceViewValues,
   promotionWorkspaceViewValues,
-  segmentWorkspaceViewValues
+  segmentWorkspaceViewValues,
+  statisticsViewValues
 } from "./dashboard-types.js";
 
 export const dashboardDateRangeOptions = [
@@ -64,6 +65,7 @@ export const defaultDashboardSearchQuery: DashboardSearchQuery = {
   campaignView: "manage",
   promotionView: "manage",
   segmentView: "manage",
+  statisticsView: "overview",
   experimentPromotionFilter: "all",
   experimentStatusFilter: "all",
   filter: "",
@@ -105,6 +107,9 @@ export const dashboardQueryParsers = {
   ),
   segmentView: parseAsStringLiteral(segmentWorkspaceViewValues).withDefault(
     defaultDashboardSearchQuery.segmentView
+  ),
+  statisticsView: parseAsStringLiteral(statisticsViewValues).withDefault(
+    defaultDashboardSearchQuery.statisticsView
   ),
   experimentPromotionFilter: parseAsString.withDefault(
     defaultDashboardSearchQuery.experimentPromotionFilter
@@ -167,13 +172,13 @@ export function normalizeDashboardQuery(
 export function normalizeCampaignWorkspaceView(
   view: DashboardQuery["campaignView"]
 ): DashboardQuery["campaignView"] {
-  return view === "experiments" ? "overview" : view;
+  return view === "overview" || view === "experiments" ? "manage" : view;
 }
 
 export function normalizePromotionWorkspaceView(
   view: DashboardQuery["promotionView"]
 ): DashboardQuery["promotionView"] {
-  return view === "performance" ? "overview" : view;
+  return view === "overview" ? "performance" : view;
 }
 
 export function normalizeSegmentWorkspaceView(

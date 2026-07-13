@@ -36,7 +36,7 @@ import type {
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
@@ -492,7 +492,7 @@ export class DashboardCampaignReader {
     request: DashboardConfirmSegmentSuggestionsRequest
   ): Promise<DashboardConfirmSegmentSuggestionsResult> {
     const promotion = await this.getPromotionSummary(projectId, promotionId);
-    const manualAnalysisId = `analysis_manual_confirm_${randomUUID()}`;
+    const manualAnalysisId = promotionConfirmationAnalysisId(projectId, promotionId);
 
     await this.db
       .query(insertDashboardManualPromotionAnalysis, {
@@ -789,4 +789,12 @@ export class DashboardCampaignReader {
       .single();
     return toCampaignSegment(row);
   }
+}
+
+export function promotionConfirmationAnalysisId(projectId: string, promotionId: string) {
+  const digest = createHash("sha256")
+    .update(`${projectId}:${promotionId}`)
+    .digest("hex")
+    .slice(0, 24);
+  return `analysis_manual_confirm_${digest}`;
 }

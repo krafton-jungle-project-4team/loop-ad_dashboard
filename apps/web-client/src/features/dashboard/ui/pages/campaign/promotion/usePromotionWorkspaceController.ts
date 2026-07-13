@@ -2,7 +2,6 @@ import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
-  analyzeDashboardPromotionSegments,
   archiveDashboardPromotionScopedSegmentDefinition,
   approveDashboardContentCandidate,
   buildDashboardPromotionRunAssignments,
@@ -52,7 +51,7 @@ import {
   type PromotionWorkspaceTab
 } from "./promotionUtils.js";
 import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
-import { confirmAndAnalyzePromotionSegments } from "./promotionSegmentConfirmationFlow.js";
+import { confirmedSegmentSelectionId } from "./promotionSegmentConfirmationFlow.js";
 
 const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
   promotion: ["overview"],
@@ -120,7 +119,7 @@ export function usePromotionWorkspaceController({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
       });
       void setDashboardQueryState({
-        promotionView: "overview",
+        promotionView: "performance",
         selectedAdExperimentId: "",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
@@ -500,17 +499,19 @@ export function usePromotionWorkspaceController({
     }
   });
   async function invalidateSelectedSegment() {
-    await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     await queryClient.invalidateQueries({
-      queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
-    });
-    await queryClient.invalidateQueries({
+      exact: true,
       queryKey: dashboardSegmentDetailQueryKey(
         query.projectId,
         selectedOpenPromotion?.promotion_id ?? "",
         selectedPromotionSegmentId
-      )
+      ),
+      refetchType: "all"
     });
+    await queryClient.invalidateQueries({
+      queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+    });
+    await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   }
 
   const decideSuggestionMutation = useMutation({
@@ -544,28 +545,12 @@ export function usePromotionWorkspaceController({
     }
   });
   const confirmSuggestionsMutation = useMutation({
-    mutationFn: () => {
-      const promotionId = selectedOpenPromotion?.promotion_id ?? "";
-      const segmentIds = [
-        ...(segmentSuggestions.data?.suggestions
-          .filter(
-            (suggestion) =>
-              suggestion.suggestion_status === "accepted" ||
-              suggestion.suggestion_status === "confirmed"
-          )
-          .map((suggestion) => suggestion.segment_id) ?? []),
-        ...(scopedSegmentDefinitions.data?.segments.map((segment) => segment.segment_id) ?? [])
-      ];
-
-      return confirmAndAnalyzePromotionSegments(segmentIds, {
-        analyze: (confirmedSegmentIds) =>
-          analyzeDashboardPromotionSegments(query, promotionId, {
-            operator_instruction: null,
-            segment_ids: confirmedSegmentIds
-          }),
-        confirm: () => confirmDashboardPromotionSegmentSuggestions(query, promotionId, {})
-      });
-    },
+    mutationFn: () =>
+      confirmDashboardPromotionSegmentSuggestions(
+        query,
+        selectedOpenPromotion?.promotion_id ?? "",
+        {}
+      ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
@@ -578,16 +563,21 @@ export function usePromotionWorkspaceController({
           activeAnalysisId
         )
       });
-      const firstConfirmedSuggestion = segmentSuggestions.data?.suggestions.find(
-        (suggestion) =>
-          suggestion.suggestion_status === "accepted" ||
-          suggestion.suggestion_status === "confirmed"
+      const firstConfirmedSegmentId = confirmedSegmentSelectionId(
+        segmentSuggestions.data?.suggestions
+          .filter(
+            (suggestion) =>
+              suggestion.suggestion_status === "accepted" ||
+              suggestion.suggestion_status === "confirmed"
+          )
+          .map((suggestion) => suggestion.segment_id) ?? [],
+        scopedSegmentDefinitions.data?.segments.map((segment) => segment.segment_id) ?? []
       );
-      if (firstConfirmedSuggestion) {
+      if (firstConfirmedSegmentId) {
         await setDashboardQueryState({
-          segmentView: "experiments",
+          segmentView: "manage",
           selectedAdExperimentId: "",
-          selectedSegmentId: firstConfirmedSuggestion.segment_id
+          selectedSegmentId: firstConfirmedSegmentId
         });
       }
     }
@@ -670,7 +660,7 @@ export function usePromotionWorkspaceController({
 
   const selectPromotion = (promotionId: string, segmentId = "") => {
     void setDashboardQueryState({
-      promotionView: "overview",
+      promotionView: "performance",
       selectedAdExperimentId: "",
       selectedCampaignId,
       selectedPromotionId: promotionId,
@@ -687,7 +677,6 @@ export function usePromotionWorkspaceController({
       selectedSegmentId: segmentId
     });
   };
-
   return {
     activeAnalysisId,
     analysisProgress,
