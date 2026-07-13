@@ -13,8 +13,7 @@ import {
   fetchDashboardCampaignDetail,
   fetchDashboardFunnelList,
   fetchDashboardPageResource,
-  fetchDashboardProjectExperiments,
-  fetchDashboardSegmentDetail
+  fetchDashboardProjectExperiments
 } from "../../api/dashboard-api.js";
 import {
   defaultDashboardSearchQuery,
@@ -25,8 +24,7 @@ import {
   dashboardCampaignDetailQueryKey,
   dashboardFunnelListQueryKey,
   dashboardPageQueryKey,
-  dashboardProjectExperimentsQueryKey,
-  dashboardSegmentDetailQueryKey
+  dashboardProjectExperimentsQueryKey
 } from "../../model/dashboard-query-keys.js";
 import {
   completeProjectSdkSetup,
@@ -44,12 +42,19 @@ import {
   countStartedExperiments,
   createCampaignOnboardingSteps,
   createSetupOnboardingSteps,
+  preserveCampaignOnboardingMilestones,
+  type CampaignOnboardingProgress,
   type ProjectOnboardingStep
 } from "../../model/project-onboarding.js";
 import type { DashboardQuery, DashboardTab } from "../../model/dashboard-types.js";
 
 type ProjectProgressSnapshot = {
   progress: ProjectSetupProgress;
+  projectId: string;
+};
+
+type CampaignProgressSnapshot = {
+  progress: CampaignOnboardingProgress;
   projectId: string;
 };
 
@@ -94,6 +99,8 @@ export function ProjectOnboardingProvider({
   const [progressSnapshot, setProgressSnapshot] = useState<ProjectProgressSnapshot | null>(() =>
     storedProgress === null ? null : { progress: storedProgress, projectId }
   );
+  const [campaignProgressSnapshot, setCampaignProgressSnapshot] =
+    useState<CampaignProgressSnapshot | null>(null);
   const progress =
     progressSnapshot?.projectId === projectId ? progressSnapshot.progress : storedProgress;
 
@@ -142,53 +149,54 @@ export function ProjectOnboardingProvider({
     queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
     queryKey: dashboardCampaignDetailQueryKey(projectId, selectedCampaignId)
   });
-  const selectedPromotion = campaignDetailQuery.data?.promotions.find(
-    (promotion) => promotion.promotion_id === query.selectedPromotionId
+  const detectedCampaignProgress = useMemo<CampaignOnboardingProgress>(() => {
+    const campaignSummaries = mainData?.campaigns ?? [];
+
+    return {
+      hasAnalyzedSegment: campaignSummaries.some((campaign) => campaign.segment_count > 0),
+      hasApprovedCreative:
+        campaignDetailQuery.data?.content_candidates.some((candidate) =>
+          ["active", "approved"].includes(candidate.status)
+        ) ?? false,
+      hasCampaign: campaignSummaries.length > 0,
+      hasPromotion: campaignSummaries.some((campaign) => campaign.promotion_count > 0),
+      hasStartedExperiment: startedExperimentCount > 0,
+      stage: stageResolution.stage
+    };
+  }, [
+    campaignDetailQuery.data,
+    mainData?.campaigns,
+    stageResolution.stage,
+    startedExperimentCount
+  ]);
+  const previousCampaignProgress =
+    campaignProgressSnapshot?.projectId === projectId ? campaignProgressSnapshot.progress : null;
+  const campaignProgress = useMemo(
+    () => preserveCampaignOnboardingMilestones(detectedCampaignProgress, previousCampaignProgress),
+    [detectedCampaignProgress, previousCampaignProgress]
   );
-  const selectedPromotionId = selectedPromotion?.promotion_id ?? "";
-  const selectedSegment = campaignDetailQuery.data?.segments.find(
-    (segment) =>
-      segment.promotion_id === selectedPromotionId && segment.segment_id === query.selectedSegmentId
-  );
-  const selectedSegmentId = selectedSegment?.segment_id ?? "";
-  const segmentDetailQuery = useQuery({
-    enabled:
-      stageResolution.stage === "campaign" &&
-      Boolean(selectedPromotionId) &&
-      Boolean(selectedSegmentId),
-    queryFn: ({ signal }) =>
-      fetchDashboardSegmentDetail(query, selectedPromotionId, selectedSegmentId, signal),
-    queryKey: dashboardSegmentDetailQueryKey(projectId, selectedPromotionId, selectedSegmentId)
-  });
-  const hasAnalyzedSegment =
-    Boolean(selectedSegment?.analysis_id.trim()) && selectedSegment?.status !== "stopped";
-  const hasApprovedCreative =
-    segmentDetailQuery.data?.content_candidates.some((candidate) =>
-      ["active", "approved"].includes(candidate.status)
-    ) ?? false;
+
+  useEffect(() => {
+    setCampaignProgressSnapshot((current) => {
+      if (
+        current?.projectId === projectId &&
+        campaignProgressEqual(current.progress, campaignProgress)
+      ) {
+        return current;
+      }
+
+      return { progress: campaignProgress, projectId };
+    });
+  }, [campaignProgress, projectId]);
+
   const allowedTabs = allowedDashboardTabs(stageResolution.stage);
   const setupSteps = useMemo(
     () => createSetupOnboardingSteps(stageResolution.stage),
     [stageResolution.stage]
   );
   const campaignSteps = useMemo(
-    () =>
-      createCampaignOnboardingSteps({
-        hasAnalyzedSegment,
-        hasApprovedCreative,
-        hasCampaign: Boolean(selectedCampaign),
-        hasPromotion: Boolean(selectedPromotion),
-        hasStartedExperiment: startedExperimentCount > 0,
-        stage: stageResolution.stage
-      }),
-    [
-      hasAnalyzedSegment,
-      hasApprovedCreative,
-      startedExperimentCount,
-      selectedCampaign,
-      selectedPromotion,
-      stageResolution.stage
-    ]
+    () => createCampaignOnboardingSteps(campaignProgress),
+    [campaignProgress]
   );
   const completeSdk = useCallback(() => {
     const nextProgress = completeProjectSdkSetup(projectId, { currentProgress: progress });
@@ -215,8 +223,7 @@ export function ProjectOnboardingProvider({
         mainQuery.error ??
         experimentsQuery.error ??
         funnelListQuery.error ??
-        campaignDetailQuery.error ??
-        segmentDetailQuery.error,
+        campaignDetailQuery.error,
       isDashboardUnlocked: stageResolution.isDashboardUnlocked,
       isInitialSetupComplete: stageResolution.isInitialSetupComplete,
       isLoading:
@@ -256,7 +263,6 @@ export function ProjectOnboardingProvider({
       query,
       requiredPath,
       startedExperimentCount,
-      segmentDetailQuery.error,
       setupSteps,
       skipGuide,
       startGuide,
@@ -269,6 +275,20 @@ export function ProjectOnboardingProvider({
 
   return (
     <ProjectOnboardingContext.Provider value={value}>{children}</ProjectOnboardingContext.Provider>
+  );
+}
+
+function campaignProgressEqual(
+  left: CampaignOnboardingProgress,
+  right: CampaignOnboardingProgress
+): boolean {
+  return (
+    left.hasAnalyzedSegment === right.hasAnalyzedSegment &&
+    left.hasApprovedCreative === right.hasApprovedCreative &&
+    left.hasCampaign === right.hasCampaign &&
+    left.hasPromotion === right.hasPromotion &&
+    left.hasStartedExperiment === right.hasStartedExperiment &&
+    left.stage === right.stage
   );
 }
 

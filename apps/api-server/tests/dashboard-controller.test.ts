@@ -713,6 +713,7 @@ test("dashboard controller starts an ad experiment before dispatch", async () =>
         content_id: "content_vip_a",
         content_option_id: "option_a",
         channel: "email",
+        is_fallback: false,
         loop_count: 1,
         goal_metric: "inflow_rate",
         goal_target_value: 0.1,

@@ -43,6 +43,22 @@ export function countStartedExperiments(
   return experiments.filter((experiment) => experiment.started_at !== null).length;
 }
 
+export function preserveCampaignOnboardingMilestones(
+  current: CampaignOnboardingProgress,
+  previous: CampaignOnboardingProgress | null
+): CampaignOnboardingProgress {
+  if (current.stage !== "campaign") {
+    return current;
+  }
+
+  return {
+    ...current,
+    hasApprovedCreative:
+      current.hasApprovedCreative ||
+      (current.hasAnalyzedSegment && previous?.hasApprovedCreative === true)
+  };
+}
+
 export function createSetupOnboardingSteps(
   stage: ProjectOnboardingStage
 ): ReadonlyArray<ProjectOnboardingStep> {

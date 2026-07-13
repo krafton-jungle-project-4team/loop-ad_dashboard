@@ -47,6 +47,7 @@ const decisionPromotionRunResponseSchema = z.object({
   loop_count: z.number().int().min(1),
   status: z.string(),
   goal_snapshot_json: z.record(z.string(), z.unknown()),
+  segment_ids: z.array(z.string().min(1)).length(1),
   ad_experiments: z.array(
     z.object({
       ad_experiment_id: z.string(),
@@ -55,6 +56,7 @@ const decisionPromotionRunResponseSchema = z.object({
       content_id: z.string(),
       content_option_id: z.string(),
       channel: z.string(),
+      is_fallback: z.boolean(),
       loop_count: z.number().int().min(1),
       status: z.string()
     })
@@ -69,6 +71,7 @@ const decisionSegmentAssignmentBuildResponseSchema = z.object({
   exact_reranked_pair_count: z.number().int().nonnegative(),
   assignment_count: z.number().int().nonnegative(),
   batch_has_fallback: z.boolean(),
+  completion_scope: z.literal("current_request"),
   fallback_count: z.number().int().nonnegative(),
   below_threshold_fallback_count: z.number().int().nonnegative(),
   no_candidate_fallback_count: z.number().int().nonnegative(),
@@ -76,6 +79,8 @@ const decisionSegmentAssignmentBuildResponseSchema = z.object({
   ann_underfilled_user_count: z.number().int().nonnegative(),
   skipped_existing_count: z.number().int().nonnegative(),
   insufficient_segment_count: z.number().int().nonnegative(),
+  run_fallback_count: z.number().int().nonnegative(),
+  run_has_fallback: z.boolean(),
   status: z.string()
 });
 const decisionPromotionRunEvaluateResponseSchema = z.object({
@@ -109,6 +114,7 @@ const decisionNextLoopResponseSchema = z.object({
       content_id: z.string(),
       content_option_id: z.string(),
       channel: z.string(),
+      is_fallback: z.boolean(),
       loop_count: z.number().int().min(1),
       status: z.string()
     })
@@ -187,6 +193,7 @@ export class DashboardDecisionClient {
       body: {
         analysis_id: request.request.analysis_id,
         generation_id: request.request.generation_id,
+        segment_ids: request.request.segment_ids,
         loop_count: request.request.loop_count
       },
       path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/runs`,

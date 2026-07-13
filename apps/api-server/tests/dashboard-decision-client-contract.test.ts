@@ -113,6 +113,7 @@ test("decision client preserves promotion run request contract", async () => {
     request: {
       analysis_id: "analysis-1",
       generation_id: "generation-1",
+      segment_ids: ["segment-1"],
       loop_count: 2
     }
   });
@@ -123,6 +124,7 @@ test("decision client preserves promotion run request contract", async () => {
     body: {
       analysis_id: "analysis-1",
       generation_id: "generation-1",
+      segment_ids: ["segment-1"],
       loop_count: 2
     }
   });
@@ -138,6 +140,7 @@ test("decision client preserves segment assignment request contract", async () =
     exact_reranked_pair_count: 60,
     assignment_count: 40,
     batch_has_fallback: false,
+    completion_scope: "current_request",
     fallback_count: 0,
     below_threshold_fallback_count: 0,
     no_candidate_fallback_count: 0,
@@ -145,6 +148,8 @@ test("decision client preserves segment assignment request contract", async () =
     ann_underfilled_user_count: 0,
     skipped_existing_count: 0,
     insufficient_segment_count: 0,
+    run_fallback_count: 3,
+    run_has_fallback: true,
     status: "completed"
   };
   const { client, requests } = await createClientWithResponse(response);
@@ -199,7 +204,19 @@ test("decision client preserves next loop request contract", async () => {
     loop_count: 2,
     next_analysis_id: "analysis-2",
     next_generation_id: "generation-2",
-    next_ad_experiments: []
+    next_ad_experiments: [
+      {
+        ad_experiment_id: "experiment-fallback-2",
+        segment_id: "seg_existing_all",
+        segment_name: "fallback",
+        content_id: "content-fallback-2",
+        content_option_id: "option-fallback-2",
+        channel: "email",
+        is_fallback: true,
+        loop_count: 2,
+        status: "planned"
+      }
+    ]
   };
   const { client, requests } = await createClientWithResponse(response);
 
@@ -220,6 +237,63 @@ test("decision client preserves next loop request contract", async () => {
       operator_instruction: null
     }
   });
+});
+
+test("decision client rejects promotion run responses missing fallback contract fields", async () => {
+  const response = promotionRunResponse();
+  const invalidResponse = {
+    ...response,
+    ad_experiments: response.ad_experiments.map((experiment) => ({
+      ...experiment,
+      is_fallback: undefined
+    }))
+  };
+  const { client } = await createClientWithResponse(invalidResponse);
+
+  await assert.rejects(
+    () =>
+      client.createPromotionRun({
+        promotionId: "promotion-1",
+        request: {
+          analysis_id: "analysis-1",
+          generation_id: "generation-1",
+          segment_ids: ["segment-1"],
+          loop_count: 1
+        }
+      }),
+    (error) => error instanceof AppError && error.code === "DASHBOARD_DECISION_REQUEST_FAILED"
+  );
+});
+
+test("decision client rejects assignment responses missing run-wide fallback fields", async () => {
+  const { client } = await createClientWithResponse({
+    promotion_run_id: "run-1",
+    matching_mode: "hybrid",
+    vector_version: "v1",
+    ann_candidate_limit: 100,
+    ann_candidate_count: 80,
+    exact_reranked_pair_count: 60,
+    assignment_count: 40,
+    batch_has_fallback: false,
+    completion_scope: "current_request",
+    fallback_count: 0,
+    below_threshold_fallback_count: 0,
+    no_candidate_fallback_count: 0,
+    invalid_user_vector_fallback_count: 0,
+    ann_underfilled_user_count: 0,
+    skipped_existing_count: 0,
+    insufficient_segment_count: 0,
+    status: "completed"
+  });
+
+  await assert.rejects(
+    () =>
+      client.buildPromotionRunSegmentAssignments({
+        projectId: "project-1",
+        promotionRunId: "run-1"
+      }),
+    (error) => error instanceof AppError && error.code === "DASHBOARD_DECISION_REQUEST_FAILED"
+  );
 });
 
 test("decision client preserves provider error status and detail", async () => {
@@ -300,6 +374,7 @@ function promotionRunResponse() {
     loop_count: 2,
     status: "ready",
     goal_snapshot_json: { metric: "booking_conversion_rate" },
+    segment_ids: ["segment-1"],
     ad_experiments: [
       {
         ad_experiment_id: "experiment-1",
@@ -308,6 +383,7 @@ function promotionRunResponse() {
         content_id: "content-1",
         content_option_id: "option-1",
         channel: "email",
+        is_fallback: false,
         loop_count: 2,
         status: "draft"
       }

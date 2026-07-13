@@ -84,7 +84,7 @@ export function rejectDashboardContentCandidate(
 export function createDashboardPromotionRun(
   query: DashboardQuery,
   promotionId: string,
-  requestBody: DashboardCreatePromotionRunRequest = { loop_count: 1 }
+  requestBody: DashboardCreatePromotionRunRequest
 ): Promise<DashboardCreatePromotionRunResult> {
   return apiRequest(`${promotionPath(promotionId)}/runs`, DashboardCreatePromotionRunResultSchema, {
     body: DashboardCreatePromotionRunRequestSchema.parse(requestBody),

@@ -1,137 +1,225 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { DashboardAdExperiment } from "@loopad/shared";
+import type { DashboardBuildPromotionRunAssignmentsResult } from "@loopad/shared";
 import {
   launchPromotionExperiment,
   type PromotionExperimentOperations
 } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionExperimentFlow.js";
 
-test("experiment launch creates a run, builds assignments, then starts eligible experiments", async () => {
-  const calls: string[] = [];
-  const operations: PromotionExperimentOperations = {
-    buildAssignments: async (promotionRunId) => {
-      calls.push(`build:${promotionRunId}`);
-    },
-    createRun: async () => {
-      calls.push("create");
-      return {
-        experiments: [
-          { adExperimentId: "experiment-1", channel: "email", status: "planned" },
-          { adExperimentId: "experiment-2", channel: "email", status: "approved" }
-        ],
-        promotionRunId: "run-1"
-      };
-    },
-    dispatch: async (promotionRunId) => {
-      calls.push(`dispatch:${promotionRunId}`);
-    },
-    startExperiment: async (adExperimentId) => {
-      calls.push(`start:${adExperimentId}`);
-    }
-  };
+test("fallback 배정이 없으면 선택한 세그먼트 실험만 시작한다", async () => {
+  const { calls, operations } = createOperations({
+    experiments: [selectedExperiment(), fallbackExperiment()],
+    assignmentResult: assignmentResult(false)
+  });
 
-  const result = await launchPromotionExperiment({ existingExperiments: [] }, operations);
+  const result = await launchPromotionExperiment({ segmentId: "segment-1" }, operations);
+
+  assert.deepEqual(calls, ["create", "build:run-1", "start:experiment-selected", "dispatch:run-1"]);
+  assert.deepEqual(result.startedExperimentIds, ["experiment-selected"]);
+});
+
+test("Run 전체 fallback 배정이 있으면 선택 실험과 fallback 실험을 시작한다", async () => {
+  const { calls, operations } = createOperations({
+    experiments: [selectedExperiment(), fallbackExperiment(), otherSegmentExperiment()],
+    assignmentResult: assignmentResult(true)
+  });
+
+  const result = await launchPromotionExperiment({ segmentId: "segment-1" }, operations);
 
   assert.deepEqual(calls, [
     "create",
     "build:run-1",
-    "start:experiment-1",
-    "start:experiment-2",
+    "start:experiment-selected",
+    "start:experiment-fallback",
     "dispatch:run-1"
   ]);
-  assert.deepEqual(result.startedExperimentIds, ["experiment-1", "experiment-2"]);
+  assert.deepEqual(result.startedExperimentIds, ["experiment-selected", "experiment-fallback"]);
+  assert.equal(calls.includes("start:experiment-other"), false);
 });
 
-test("experiment launch resumes an existing run without creating a duplicate", async () => {
-  const calls: string[] = [];
-  const existingExperiments = [
-    {
-      ad_experiment_id: "experiment-1",
-      channel: "onsite_banner",
-      promotion_run_id: "run-1",
-      status: "planned"
-    },
-    {
-      ad_experiment_id: "experiment-old",
-      channel: "onsite_banner",
-      promotion_run_id: "run-old",
-      status: "planned"
+test("이번 batch가 아니라 기존 Run에 fallback 배정이 있어도 fallback 실험을 시작한다", async () => {
+  const { calls, operations } = createOperations({
+    experiments: [selectedExperiment(), fallbackExperiment()],
+    assignmentResult: {
+      ...assignmentResult(false),
+      run_fallback_count: 3,
+      run_has_fallback: true,
+      skipped_existing_count: 3
     }
-  ] as DashboardAdExperiment[];
+  });
+
+  await launchPromotionExperiment({ segmentId: "segment-1" }, operations);
+
+  assert.deepEqual(calls, [
+    "create",
+    "build:run-1",
+    "start:experiment-selected",
+    "start:experiment-fallback",
+    "dispatch:run-1"
+  ]);
+});
+
+test("이미 running인 필수 실험은 중복 시작하지 않고 dispatch 준비 완료로 본다", async () => {
+  const { calls, operations } = createOperations({
+    experiments: [
+      { ...selectedExperiment(), status: "running" },
+      { ...fallbackExperiment(), status: "running" }
+    ],
+    assignmentResult: assignmentResult(true)
+  });
+
+  const result = await launchPromotionExperiment({ segmentId: "segment-1" }, operations);
+
+  assert.deepEqual(calls, ["create", "build:run-1", "dispatch:run-1"]);
+  assert.deepEqual(result.startedExperimentIds, []);
+  assert.equal(result.dispatched, true);
+});
+
+test("fallback 실험 시작이 실패하면 dispatch하지 않는다", async () => {
+  const { calls, operations } = createOperations({
+    experiments: [selectedExperiment(), fallbackExperiment()],
+    assignmentResult: assignmentResult(true),
+    startFailureId: "experiment-fallback"
+  });
+
+  const result = await launchPromotionExperiment({ segmentId: "segment-1" }, operations);
+
+  assert.deepEqual(result.failedExperimentIds, ["experiment-fallback"]);
+  assert.equal(result.dispatched, false);
+  assert.equal(calls.includes("dispatch:run-1"), false);
+});
+
+test("fallback 배정이 있는데 fallback 실험이 없으면 계약 오류로 실패한다", async () => {
+  const { operations } = createOperations({
+    experiments: [selectedExperiment()],
+    assignmentResult: assignmentResult(true)
+  });
+
+  await assert.rejects(
+    () => launchPromotionExperiment({ segmentId: "segment-1" }, operations),
+    /fallback 배정이 있지만 fallback 광고 실험이 없습니다/
+  );
+});
+
+test("Run 응답의 세그먼트 범위가 요청과 다르면 계약 오류로 실패한다", async () => {
+  const { operations } = createOperations({
+    experiments: [selectedExperiment()],
+    segmentIds: ["segment-other"]
+  });
+
+  await assert.rejects(
+    () => launchPromotionExperiment({ segmentId: "segment-1" }, operations),
+    /세그먼트 범위가 요청과 일치하지 않습니다/
+  );
+});
+
+test("실험 시작 후 dispatch가 실패하면 시작 결과를 유지한다", async () => {
+  const { operations } = createOperations({
+    dispatchFails: true,
+    experiments: [selectedExperiment()],
+    assignmentResult: assignmentResult(false)
+  });
+
+  const result = await launchPromotionExperiment({ segmentId: "segment-1" }, operations);
+
+  assert.deepEqual(result.startedExperimentIds, ["experiment-selected"]);
+  assert.equal(result.dispatched, false);
+  assert.equal(result.dispatchFailed, true);
+});
+
+function createOperations(input: {
+  assignmentResult?: DashboardBuildPromotionRunAssignmentsResult;
+  dispatchFails?: boolean;
+  experiments: Array<{
+    adExperimentId: string;
+    channel: string;
+    isFallback: boolean;
+    segmentId: string;
+    status: string;
+  }>;
+  segmentIds?: string[];
+  startFailureId?: string;
+}) {
+  const calls: string[] = [];
   const operations: PromotionExperimentOperations = {
     buildAssignments: async (promotionRunId) => {
       calls.push(`build:${promotionRunId}`);
+      return input.assignmentResult ?? assignmentResult(false);
     },
     createRun: async () => {
       calls.push("create");
-      return { experiments: [], promotionRunId: "unexpected" };
+      return {
+        experiments: input.experiments,
+        promotionRunId: "run-1",
+        segmentIds: input.segmentIds ?? ["segment-1"]
+      };
     },
     dispatch: async (promotionRunId) => {
       calls.push(`dispatch:${promotionRunId}`);
+      if (input.dispatchFails) {
+        throw new Error("dispatch failed");
+      }
     },
     startExperiment: async (adExperimentId) => {
       calls.push(`start:${adExperimentId}`);
-    }
-  };
-
-  await launchPromotionExperiment({ existingExperiments }, operations);
-
-  assert.deepEqual(calls, ["build:run-1", "start:experiment-1"]);
-});
-
-test("experiment launch keeps successful starts and reports only failed experiments", async () => {
-  const calls: string[] = [];
-  const operations: PromotionExperimentOperations = {
-    buildAssignments: async (promotionRunId) => {
-      calls.push(`build:${promotionRunId}`);
-    },
-    createRun: async () => ({
-      experiments: [
-        { adExperimentId: "experiment-success", channel: "email", status: "planned" },
-        { adExperimentId: "experiment-failed", channel: "email", status: "planned" }
-      ],
-      promotionRunId: "run-partial"
-    }),
-    dispatch: async (promotionRunId) => {
-      calls.push(`dispatch:${promotionRunId}`);
-    },
-    startExperiment: async (adExperimentId) => {
-      calls.push(`start:${adExperimentId}`);
-      if (adExperimentId === "experiment-failed") {
+      if (input.startFailureId === adExperimentId) {
         throw new Error("start failed");
       }
     }
   };
+  return { calls, operations };
+}
 
-  const result = await launchPromotionExperiment({ existingExperiments: [] }, operations);
-
-  assert.deepEqual(result.startedExperimentIds, ["experiment-success"]);
-  assert.deepEqual(result.failedExperimentIds, ["experiment-failed"]);
-  assert.equal(result.dispatched, true);
-  assert.deepEqual(calls, [
-    "build:run-partial",
-    "start:experiment-success",
-    "start:experiment-failed",
-    "dispatch:run-partial"
-  ]);
-});
-
-test("experiment launch keeps started experiments when dispatch fails", async () => {
-  const operations: PromotionExperimentOperations = {
-    buildAssignments: async () => undefined,
-    createRun: async () => ({
-      experiments: [{ adExperimentId: "experiment-1", channel: "email", status: "planned" }],
-      promotionRunId: "run-1"
-    }),
-    dispatch: async () => {
-      throw new Error("dispatch failed");
-    },
-    startExperiment: async () => undefined
+function selectedExperiment() {
+  return {
+    adExperimentId: "experiment-selected",
+    channel: "email",
+    isFallback: false,
+    segmentId: "segment-1",
+    status: "planned"
   };
+}
 
-  const result = await launchPromotionExperiment({ existingExperiments: [] }, operations);
+function fallbackExperiment() {
+  return {
+    adExperimentId: "experiment-fallback",
+    channel: "email",
+    isFallback: true,
+    segmentId: "seg_existing_all",
+    status: "planned"
+  };
+}
 
-  assert.deepEqual(result.startedExperimentIds, ["experiment-1"]);
-  assert.equal(result.dispatched, false);
-  assert.equal(result.dispatchFailed, true);
-});
+function otherSegmentExperiment() {
+  return {
+    adExperimentId: "experiment-other",
+    channel: "email",
+    isFallback: false,
+    segmentId: "segment-2",
+    status: "planned"
+  };
+}
+
+function assignmentResult(hasFallback: boolean): DashboardBuildPromotionRunAssignmentsResult {
+  return {
+    promotion_run_id: "run-1",
+    matching_mode: "hybrid",
+    vector_version: "v1",
+    ann_candidate_limit: 100,
+    ann_candidate_count: 80,
+    exact_reranked_pair_count: 60,
+    assignment_count: 40,
+    batch_has_fallback: hasFallback,
+    completion_scope: "current_request",
+    fallback_count: hasFallback ? 10 : 0,
+    below_threshold_fallback_count: 0,
+    no_candidate_fallback_count: hasFallback ? 10 : 0,
+    invalid_user_vector_fallback_count: 0,
+    ann_underfilled_user_count: 0,
+    skipped_existing_count: 0,
+    insufficient_segment_count: 0,
+    run_fallback_count: hasFallback ? 10 : 0,
+    run_has_fallback: hasFallback,
+    status: "completed"
+  };
+}
