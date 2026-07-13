@@ -13,23 +13,15 @@ import type {
   TrackingPlanEventInput,
   TrackingPlanEventUpdate
 } from "@loopad/shared";
-import { SdkPublishedSchemaSchema, TrackingPlanPropertiesSchemaSchema } from "@loopad/shared";
+import {
+  SDK_TRACKING_PLAN_SCHEMA_VERSION,
+  SdkPublishedSchemaSchema,
+  TrackingPlanPropertiesSchemaSchema
+} from "@loopad/shared";
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import { PG_POOL } from "../../infra/database/index.js";
 
-const STANDARD_EVENT_NAMES = [
-  "page_view",
-  "promotion_impression",
-  "promotion_click",
-  "campaign_redirect_click",
-  "campaign_landing",
-  "hotel_search",
-  "hotel_click",
-  "hotel_detail_view",
-  "booking_start",
-  "booking_complete",
-  "booking_cancel"
-] as const;
+const SYSTEM_EVENT_NAMES = ["page_view"] as const;
 
 type PlanRow = QueryResultRow & {
   tracking_plan_id: string;
@@ -105,7 +97,7 @@ export class TrackingPlanRepository {
           [projectId]
         );
       }
-      for (const eventName of STANDARD_EVENT_NAMES) {
+      for (const eventName of SYSTEM_EVENT_NAMES) {
         await client.query(
           `INSERT INTO tracking_plan_events
              (tracking_plan_id, event_name, description, status, properties_schema_json)
@@ -224,7 +216,7 @@ export class TrackingPlanRepository {
 
       const revision = Number(plan.current_revision) + 1;
       const snapshot = SdkPublishedSchemaSchema.parse({
-        schemaVersion: "hotel_rec_promo.v1",
+        schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
         revision,
         events: events.map(({ status: _status, ...event }) => event)
       });

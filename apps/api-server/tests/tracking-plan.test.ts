@@ -1,9 +1,88 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import {
+  SDK_TRACKING_PLAN_SCHEMA_VERSION,
+  TrackingPlanPropertiesSchemaSchema
+} from "@loopad/shared";
 import type { Pool } from "pg";
 import type { TrackingPlanRepository } from "../src/features/tracking-plan/tracking-plan.repository.js";
 
 setRequiredEnv();
+
+test("accepts recursive typed Tracking Plan properties", () => {
+  const parsed = TrackingPlanPropertiesSchemaSchema.parse({
+    type: "object",
+    properties: {
+      amount: { type: "number" },
+      item: {
+        type: "object",
+        properties: {
+          sku: { type: "string" },
+          quantity: { type: "integer" }
+        },
+        required: ["sku", "quantity"]
+      },
+      flags: {
+        type: "array",
+        items: { type: "boolean" }
+      },
+      metadata: {
+        type: "object",
+        properties: { page: { type: "string" } }
+      }
+    },
+    required: ["amount", "item"]
+  });
+
+  assert.equal(parsed.properties?.item?.type, "object");
+  assert.equal(parsed.properties?.flags?.items?.type, "boolean");
+});
+
+test("rejects reserved, unsafe, duplicate, oversized, and over-depth schemas", () => {
+  const invalidSchemas = [
+    {
+      type: "object",
+      properties: { page: { type: "string" } },
+      required: []
+    },
+    {
+      type: "object",
+      properties: {
+        item: {
+          type: "object",
+          properties: { constructor: { type: "string" } },
+          required: []
+        }
+      },
+      required: []
+    },
+    {
+      type: "object",
+      properties: { value: { type: "string" } },
+      required: ["value", "value"]
+    },
+    {
+      type: "object",
+      properties: { " value ": { type: "string" } }
+    },
+    {
+      type: "object",
+      properties: {},
+      required: ["constructor"]
+    },
+    tooDeepSchema(),
+    tooLargeSchema()
+  ];
+
+  for (const schema of invalidSchemas) {
+    assert.equal(TrackingPlanPropertiesSchemaSchema.safeParse(schema).success, false);
+  }
+
+  assert.doesNotThrow(() => {
+    const result = TrackingPlanPropertiesSchemaSchema.safeParse(tooDeepSchema(2000));
+    assert.equal(result.success, false);
+  });
+});
 
 test("publish inserts the immutable revision and switches the active revision in one transaction", async () => {
   const { TrackingPlanRepository: Repository } =
@@ -27,6 +106,8 @@ test("publish inserts the immutable revision and switches the active revision in
   assert.ok(revisionInsert < activeSwitch);
   assert.ok(activeSwitch < commit);
   assert.equal(database.queries.includes("ROLLBACK"), false);
+  assert.equal(database.publishedSnapshots.length, 1);
+  assert.equal(database.publishedSnapshots[0]?.schemaVersion, SDK_TRACKING_PLAN_SCHEMA_VERSION);
 });
 
 test("publish rolls back when the active revision switch fails", async () => {
@@ -49,7 +130,7 @@ test("public connection requires an exact allowed Origin", async () => {
       writeKey: "sdk-key",
       allowedOrigins: ["https://demo-shoppingmall.dev.loop-ad.org"],
       schema: {
-        schemaVersion: "hotel_rec_promo.v1",
+        schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
         revision: 1,
         events: []
       }
@@ -96,9 +177,10 @@ test("tracking plan creation forwards the requested allowed Origins", async () =
 
 function fakePublishDatabase(failSettingsUpdate = false) {
   const queries: string[] = [];
+  const publishedSnapshots: Array<{ schemaVersion?: unknown }> = [];
   let revision = 0;
   const client = {
-    async query(sql: string) {
+    async query(sql: string, parameters?: unknown[]) {
       const normalized = sql.replace(/\s+/g, " ").trim();
       queries.push(normalized);
       if (normalized === "BEGIN" || normalized === "COMMIT" || normalized === "ROLLBACK") {
@@ -113,7 +195,10 @@ function fakePublishDatabase(failSettingsUpdate = false) {
         revision = 1;
         return { rows: [] };
       }
-      if (normalized.includes("INSERT INTO tracking_plan_revisions")) return { rows: [] };
+      if (normalized.includes("INSERT INTO tracking_plan_revisions")) {
+        publishedSnapshots.push(JSON.parse(String(parameters?.[2])));
+        return { rows: [] };
+      }
       if (normalized.startsWith("SELECT event_name")) {
         return {
           rows: [
@@ -148,6 +233,7 @@ function fakePublishDatabase(failSettingsUpdate = false) {
   };
   return {
     queries,
+    publishedSnapshots,
     pool: { connect: async () => client } as unknown as Pool
   };
 }
@@ -159,6 +245,28 @@ function hasStatus(status: number) {
     "getStatus" in error &&
     typeof error.getStatus === "function" &&
     error.getStatus() === status;
+}
+
+function tooDeepSchema(depth = 9) {
+  let schema: Record<string, unknown> = { type: "string" };
+  for (let index = 0; index < depth; index += 1) {
+    schema = {
+      type: "object",
+      properties: { child: schema },
+      required: ["child"]
+    };
+  }
+  return schema;
+}
+
+function tooLargeSchema() {
+  return {
+    type: "object",
+    properties: Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [`property_${index}`, { type: "string" }])
+    ),
+    required: []
+  };
 }
 
 function setRequiredEnv() {
