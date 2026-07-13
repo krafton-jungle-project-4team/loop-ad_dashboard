@@ -3,15 +3,13 @@ import { Button } from "@loopad/ui/shadcn/button";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, ArrowRight, RefreshCw } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { DASHBOARD_MOBILE_ACTION_OFFSET_PX } from "../../model/project-onboarding.js";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DashboardTab } from "../../model/dashboard-types.js";
 import { OnboardingStepper } from "./OnboardingStepper.js";
 import { useProjectOnboarding } from "./ProjectOnboardingProvider.js";
 import { ProjectWelcomeScreen } from "./ProjectWelcomeScreen.js";
 
 type OnboardingAction = {
-  description: string;
   label: string;
   type: "complete-sdk" | "return";
 };
@@ -122,15 +120,15 @@ export function OnboardingWorkspaceLayout({
 
     return (
       <div className="grid min-w-0 gap-6">
-        <div
+        <Alert
           aria-live="polite"
-          className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/[0.05] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-4 border-primary/20 bg-primary/[0.05] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div>
-            <p className="font-semibold text-foreground">첫 실험이 실행 중입니다</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <div className="grid gap-1">
+            <AlertTitle>첫 실험이 실행 중입니다</AlertTitle>
+            <AlertDescription>
               시작 가이드가 완료되어 모든 메뉴를 사용할 수 있습니다.
-            </p>
+            </AlertDescription>
           </div>
           <Button asChild className="shrink-0">
             <Link
@@ -143,7 +141,7 @@ export function OnboardingWorkspaceLayout({
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
-        </div>
+        </Alert>
         {children}
       </div>
     );
@@ -161,49 +159,31 @@ export function OnboardingWorkspaceLayout({
   };
 
   return (
-    <div
-      className={cn(
-        "grid min-h-0 w-full gap-6 md:grid-cols-[18rem_minmax(0,1fr)] md:items-start",
-        action && "pb-20 md:pb-0"
-      )}
-      style={
-        action
-          ? ({
-              "--dashboard-mobile-action-offset": `calc(${DASHBOARD_MOBILE_ACTION_OFFSET_PX}px + env(safe-area-inset-bottom))`
-            } as CSSProperties)
-          : undefined
-      }
-    >
+    <div className="grid min-h-0 w-full gap-6">
       {stage === "campaign" ? <h1 className="sr-only">캠페인 시작 가이드</h1> : null}
       <OnboardingStepper
-        campaignSteps={campaignSteps}
-        desktopFooter={
+        action={
           action ? (
-            <div className="grid gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">{action.label}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.description}</p>
-              </div>
-              {action.type === "return" && requiredPathSegment ? (
-                <Button asChild className="w-full">
-                  <Link
-                    params={{ projectId, tabPath: requiredPathSegment }}
-                    search={(current) => current}
-                    to="/dashboard/$projectId/$tabPath"
-                  >
-                    {action.label}
-                    <ArrowRight aria-hidden="true" data-icon="inline-end" />
-                  </Link>
-                </Button>
-              ) : (
-                <Button className="w-full" onClick={handleCompleteSdk} type="button">
+            action.type === "return" && requiredPathSegment ? (
+              <Button asChild size="sm">
+                <Link
+                  params={{ projectId, tabPath: requiredPathSegment }}
+                  search={(current) => current}
+                  to="/dashboard/$projectId/$tabPath"
+                >
                   {action.label}
                   <ArrowRight aria-hidden="true" data-icon="inline-end" />
-                </Button>
-              )}
-            </div>
+                </Link>
+              </Button>
+            ) : (
+              <Button onClick={handleCompleteSdk} size="sm" type="button">
+                {action.label}
+                <ArrowRight aria-hidden="true" data-icon="inline-end" />
+              </Button>
+            )
           ) : undefined
         }
+        campaignSteps={campaignSteps}
         projectId={projectId}
         setupSteps={setupSteps}
       />
@@ -211,35 +191,6 @@ export function OnboardingWorkspaceLayout({
       <section className={cn("min-w-0", activeTab === "funnels" && "min-h-full")}>
         {children}
       </section>
-
-      {action ? (
-        <div className="fixed inset-x-4 bottom-[calc(4rem+env(safe-area-inset-bottom)+0.75rem)] z-30 md:hidden">
-          {action.type === "return" && requiredPathSegment ? (
-            <Button
-              asChild
-              className="h-12 w-full rounded-xl shadow-[0_12px_30px_rgba(15,23,42,0.2)]"
-            >
-              <Link
-                params={{ projectId, tabPath: requiredPathSegment }}
-                search={(current) => current}
-                to="/dashboard/$projectId/$tabPath"
-              >
-                {action.label}
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          ) : (
-            <Button
-              className="h-12 w-full rounded-xl shadow-[0_12px_30px_rgba(15,23,42,0.2)]"
-              onClick={handleCompleteSdk}
-              type="button"
-            >
-              {action.label}
-              <ArrowRight data-icon="inline-end" />
-            </Button>
-          )}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -250,7 +201,6 @@ function getOnboardingAction(
 ): OnboardingAction | null {
   if (activeTab === "sdk" && stage === "sdk") {
     return {
-      description: "연동 내용을 확인했다면 첫 캠페인을 만들 준비를 시작합니다.",
       label: "캠페인으로 계속",
       type: "complete-sdk"
     };
@@ -262,7 +212,6 @@ function getOnboardingAction(
 
   if (isPastSetupScreen) {
     return {
-      description: "완료한 설정은 언제든 다시 볼 수 있습니다.",
       label: "현재 단계로 돌아가기",
       type: "return"
     };

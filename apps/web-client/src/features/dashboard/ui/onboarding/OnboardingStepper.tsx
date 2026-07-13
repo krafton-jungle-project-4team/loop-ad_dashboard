@@ -1,24 +1,33 @@
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { buttonVariants } from "@loopad/ui/shadcn/button";
-import { Progress } from "@loopad/ui/shadcn/progress";
+import { Card, CardContent } from "@loopad/ui/shadcn/card";
+import { ScrollArea, ScrollBar } from "@loopad/ui/shadcn/scroll-area";
+import {
+  Stepper,
+  StepperDescription,
+  StepperIndicator,
+  StepperItem,
+  StepperNav,
+  StepperSeparator,
+  StepperTitle,
+  StepperTrigger
+} from "@loopad/ui/shadcn/stepper";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Check, LockKeyhole } from "lucide-react";
-import { useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type {
   ProjectOnboardingStep,
   ProjectOnboardingStepState
 } from "../../model/project-onboarding.js";
-import { useSoftStickyMotion } from "./use-soft-sticky-motion.js";
 
 export type OnboardingStepState = ProjectOnboardingStepState;
 export type OnboardingStep = ProjectOnboardingStep;
 
 export type OnboardingStepperProps = {
+  action?: ReactNode;
   ariaLabel?: string;
   campaignSteps: ReadonlyArray<OnboardingStep>;
   className?: string;
-  desktopFooter?: ReactNode;
   projectId: string;
   setupSteps: ReadonlyArray<OnboardingStep>;
 };
@@ -30,343 +39,117 @@ const STEP_STATE_LABEL: Record<OnboardingStepState, string> = {
 };
 
 export function OnboardingStepper({
+  action,
   ariaLabel = "프로젝트 시작 가이드",
   campaignSteps,
   className,
-  desktopFooter,
   projectId,
   setupSteps
 }: OnboardingStepperProps) {
-  const stickyRef = useRef<HTMLDivElement>(null);
-  const surfaceRef = useRef<HTMLElement>(null);
-  useSoftStickyMotion(stickyRef, surfaceRef);
-  const groups = [
-    { id: "setup", label: "초기 설정", startIndex: 0, steps: setupSteps },
-    {
-      id: "campaign",
-      label: "캠페인 운영",
-      startIndex: setupSteps.length,
-      steps: campaignSteps
-    }
-  ] as const;
+  const navigate = useNavigate();
   const steps = [...setupSteps, ...campaignSteps];
-  const completedCount = steps.filter((step) => step.state === "complete").length;
-  const progressValue = steps.length === 0 ? 0 : (completedCount / steps.length) * 100;
+  const activeStep = getActiveStepNumber(steps);
+  const isSetupComplete = setupSteps.every((step) => step.state === "complete");
+
+  const navigateToStep = (stepNumber: number) => {
+    const step = steps[stepNumber - 1];
+    const tabPath = step ? getStepPathSegment(step.id) : null;
+    if (!step || step.state === "locked" || !tabPath) {
+      return;
+    }
+
+    void navigate({
+      params: { projectId, tabPath },
+      search: (current) => ({ ...current, ...getStepSearchPatch(step.id) }),
+      to: "/dashboard/$projectId/$tabPath"
+    });
+  };
 
   return (
-    <div
-      className={cn(
-        "w-full md:sticky md:top-6 md:max-h-[calc(100svh-7rem)] md:self-start md:w-72",
-        className
-      )}
-      data-soft-sticky="true"
-      ref={stickyRef}
-    >
-      <MobileOnboardingSummary
-        ariaLabel={ariaLabel}
-        campaignStepCount={campaignSteps.length}
-        completedCount={completedCount}
-        projectId={projectId}
-        progressValue={progressValue}
-        setupStepCount={setupSteps.length}
-        steps={steps}
-      />
-
-      <nav
-        aria-label={ariaLabel}
-        className="hidden rounded-2xl border bg-card p-4 shadow-sm md:block md:max-h-[calc(100svh-7rem)] md:overflow-y-auto md:overscroll-contain"
-        ref={surfaceRef}
-      >
-        <header className="flex flex-col gap-2 px-2 pb-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-foreground">시작 가이드</h2>
-            <span
-              aria-atomic="true"
-              aria-live="polite"
-              className="shrink-0 text-xs tabular-nums text-muted-foreground"
+    <Card aria-label={ariaLabel} className={cn("w-full gap-0 py-0", className)}>
+      <CardContent className="px-0 py-0">
+        {steps.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            표시할 단계가 없습니다.
+          </p>
+        ) : (
+          <ScrollArea className="w-full pb-3">
+            <div aria-label="온보딩 구간" className="grid min-w-[64rem] grid-cols-6 px-8 pt-6">
+              <div className="flex justify-center">
+                <Badge variant={isSetupComplete ? "secondary" : "default"}>초기 설정</Badge>
+              </div>
+              <div className="flex justify-center">
+                <Badge variant={isSetupComplete ? "default" : "outline"}>캠페인 운영</Badge>
+              </div>
+            </div>
+            <Stepper
+              className="min-w-[64rem] px-8 pt-4 pb-6"
+              indicators={{ completed: <Check aria-hidden="true" /> }}
+              onValueChange={navigateToStep}
+              value={activeStep}
             >
-              {completedCount}/{steps.length} 완료
-            </span>
-          </div>
-          <Progress
-            aria-label={`${completedCount}/${steps.length}단계 완료`}
-            aria-valuemax={steps.length}
-            aria-valuemin={0}
-            aria-valuenow={completedCount}
-            value={progressValue}
-          />
-        </header>
+              <StepperNav aria-label={ariaLabel}>
+                {steps.map((step, index) => {
+                  const stepNumber = index + 1;
 
-        <div className="flex flex-col gap-6">
-          {groups.map((group) => (
-            <section className="flex flex-col gap-2" key={group.id}>
-              <h3 className="px-2 text-xs font-semibold tracking-wide text-muted-foreground">
-                {group.label}
-              </h3>
-              <ol aria-label={`${group.label} 단계`} className="flex flex-col gap-1">
-                {group.steps.map((step, index) => (
-                  <DesktopStepItem
-                    globalIndex={group.startIndex + index}
-                    isLast={index === group.steps.length - 1}
-                    key={step.id}
-                    projectId={projectId}
-                    step={step}
-                  />
-                ))}
-              </ol>
-            </section>
-          ))}
-        </div>
+                  return (
+                    <StepperItem
+                      className="relative flex-1 items-start"
+                      completed={step.state === "complete"}
+                      disabled={step.state === "locked" || getStepPathSegment(step.id) === null}
+                      key={step.id}
+                      step={stepNumber}
+                    >
+                      <StepperTrigger
+                        aria-current={step.state === "current" ? "step" : undefined}
+                        aria-label={`${stepNumber}단계 ${step.label}, ${STEP_STATE_LABEL[step.state]}`}
+                        className="flex w-full flex-col gap-2.5 rounded-md px-2 text-center whitespace-normal"
+                      >
+                        <StepperIndicator>
+                          {step.state === "locked" ? (
+                            <LockKeyhole aria-hidden="true" />
+                          ) : (
+                            stepNumber
+                          )}
+                        </StepperIndicator>
+                        <StepperTitle>{step.label}</StepperTitle>
+                        {step.description ? (
+                          <StepperDescription className="max-w-40 text-xs leading-5">
+                            {step.description}
+                          </StepperDescription>
+                        ) : null}
+                        <span className="sr-only">상태: {STEP_STATE_LABEL[step.state]}</span>
+                      </StepperTrigger>
+                      {index < steps.length - 1 ? (
+                        <StepperSeparator className="absolute inset-x-0 top-2.5 left-[calc(50%+0.875rem)] m-0 w-[calc(100%-2rem+0.225rem)] flex-none group-data-[state=completed]/step:bg-primary" />
+                      ) : null}
+                    </StepperItem>
+                  );
+                })}
+              </StepperNav>
+            </Stepper>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        )}
 
-        {desktopFooter ? (
-          <footer className="sticky bottom-0 -mx-4 -mb-4 mt-4 border-t bg-card px-4 py-4 shadow-[0_-10px_24px_rgba(15,23,42,0.06)]">
-            {desktopFooter}
-          </footer>
-        ) : null}
-      </nav>
-    </div>
+        {action ? <div className="flex justify-end px-8 pb-6">{action}</div> : null}
+      </CardContent>
+    </Card>
   );
 }
 
-function DesktopStepItem({
-  globalIndex,
-  isLast,
-  projectId,
-  step
-}: {
-  globalIndex: number;
-  isLast: boolean;
-  projectId: string;
-  step: OnboardingStep;
-}) {
-  const pathSegment = getStepPathSegment(step.id);
-  const canSelect = step.state !== "locked" && pathSegment !== null;
-  const content = (
-    <>
-      <StepMarker number={globalIndex + 1} state={step.state} />
-      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-        <span className="text-sm font-medium leading-5 text-foreground">{step.label}</span>
-        {step.description ? (
-          <span className="text-xs leading-5 text-muted-foreground">{step.description}</span>
-        ) : null}
-        <span className="sr-only">상태: {STEP_STATE_LABEL[step.state]}</span>
-      </span>
-    </>
-  );
-  const rowClassName = cn(
-    "relative z-10 h-auto min-h-14 w-full justify-start gap-3 rounded-xl px-3 py-2.5 text-left whitespace-normal",
-    step.state === "locked" && "text-muted-foreground opacity-60"
-  );
-  const rowVariant = step.state === "current" ? "secondary" : "ghost";
-
-  return (
-    <li className="relative">
-      {!isLast ? (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute -bottom-3 left-[1.625rem] top-10 w-px bg-border",
-            step.state === "complete" && "bg-primary"
-          )}
-        />
-      ) : null}
-
-      {canSelect ? (
-        <Link
-          aria-current={step.state === "current" ? "step" : undefined}
-          aria-label={`${globalIndex + 1}단계 ${step.label}, ${STEP_STATE_LABEL[step.state]}`}
-          className={cn(buttonVariants({ variant: rowVariant }), rowClassName)}
-          params={{ projectId, tabPath: pathSegment }}
-          search={(current) => ({ ...current, ...getStepSearchPatch(step.id) })}
-          to="/dashboard/$projectId/$tabPath"
-        >
-          {content}
-        </Link>
-      ) : (
-        <div
-          aria-current={step.state === "current" ? "step" : undefined}
-          className={cn(buttonVariants({ variant: rowVariant }), rowClassName)}
-          data-state={step.state}
-        >
-          {content}
-        </div>
-      )}
-    </li>
-  );
-}
-
-function MobileOnboardingSummary({
-  ariaLabel,
-  campaignStepCount,
-  completedCount,
-  projectId,
-  progressValue,
-  setupStepCount,
-  steps
-}: {
-  ariaLabel: string;
-  campaignStepCount: number;
-  completedCount: number;
-  projectId: string;
-  progressValue: number;
-  setupStepCount: number;
-  steps: ReadonlyArray<OnboardingStep>;
-}) {
-  if (steps.length === 0) {
-    return (
-      <section className="rounded-2xl border bg-card p-4 shadow-sm md:hidden">
-        <h2 className="text-sm font-semibold text-foreground">시작 가이드</h2>
-        <p className="mt-1 text-sm text-muted-foreground">표시할 단계가 없습니다.</p>
-      </section>
-    );
-  }
-
+function getActiveStepNumber(steps: ReadonlyArray<OnboardingStep>) {
   const currentIndex = steps.findIndex((step) => step.state === "current");
+  if (currentIndex >= 0) {
+    return currentIndex + 1;
+  }
+
   const firstLockedIndex = steps.findIndex((step) => step.state === "locked");
-  const summaryIndex =
-    currentIndex >= 0 ? currentIndex : firstLockedIndex >= 0 ? firstLockedIndex : steps.length - 1;
-  const summaryStep = steps[summaryIndex];
-
-  if (!summaryStep) {
-    return null;
+  if (firstLockedIndex >= 0) {
+    return firstLockedIndex + 1;
   }
 
-  const summaryGroupLabel = summaryIndex < setupStepCount ? "초기 설정" : "캠페인 운영";
-
-  return (
-    <nav
-      aria-label={`${ariaLabel} 요약`}
-      className="rounded-2xl border bg-card p-4 shadow-sm md:hidden"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <Badge variant="secondary">{summaryGroupLabel}</Badge>
-        <span
-          aria-atomic="true"
-          aria-live="polite"
-          className="text-xs tabular-nums text-muted-foreground"
-        >
-          {completedCount}/{steps.length} 완료
-        </span>
-      </div>
-
-      <div className="mt-3 flex flex-col gap-1">
-        <p className="text-xs font-medium text-primary">
-          {summaryIndex + 1}단계 · {STEP_STATE_LABEL[summaryStep.state]}
-        </p>
-        <h2 className="text-base font-semibold text-foreground">{summaryStep.label}</h2>
-        {summaryStep.description ? (
-          <p className="text-sm leading-6 text-muted-foreground">{summaryStep.description}</p>
-        ) : null}
-      </div>
-
-      <Progress
-        aria-label={`${completedCount}/${steps.length}단계 완료`}
-        aria-valuemax={steps.length}
-        aria-valuemin={0}
-        aria-valuenow={completedCount}
-        className="mt-4 h-1.5"
-        value={progressValue}
-      />
-
-      <div className="mt-4 overflow-x-auto pb-1">
-        <ol className="flex min-w-max items-center gap-1.5">
-          {steps.map((step, index) => (
-            <li key={step.id}>
-              <MobileStepControl index={index} projectId={projectId} step={step} />
-              {index === setupStepCount - 1 && campaignStepCount > 0 ? (
-                <span
-                  aria-hidden="true"
-                  className="mx-1 inline-block h-4 w-px align-middle bg-border"
-                />
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      </div>
-    </nav>
-  );
-}
-
-function MobileStepControl({
-  index,
-  projectId,
-  step
-}: {
-  index: number;
-  projectId: string;
-  step: OnboardingStep;
-}) {
-  const pathSegment = getStepPathSegment(step.id);
-  const canSelect = step.state !== "locked" && pathSegment !== null;
-  const label = `${index + 1}단계 ${step.label}, ${STEP_STATE_LABEL[step.state]}`;
-  const variant =
-    step.state === "current" ? "default" : step.state === "complete" ? "secondary" : "outline";
-  const content = <MobileMarkerContent number={index + 1} state={step.state} />;
-
-  if (canSelect) {
-    return (
-      <Link
-        aria-current={step.state === "current" ? "step" : undefined}
-        aria-label={label}
-        className={buttonVariants({ size: "icon-sm", variant })}
-        params={{ projectId, tabPath: pathSegment }}
-        search={(current) => ({ ...current, ...getStepSearchPatch(step.id) })}
-        to="/dashboard/$projectId/$tabPath"
-      >
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <span
-      aria-current={step.state === "current" ? "step" : undefined}
-      className={cn(
-        buttonVariants({ size: "icon-sm", variant }),
-        step.state === "locked" && "opacity-50"
-      )}
-      data-state={step.state}
-    >
-      {content}
-      <span className="sr-only">{label}</span>
-    </span>
-  );
-}
-
-function StepMarker({ number, state }: { number: number; state: OnboardingStepState }) {
-  return (
-    <Badge
-      aria-hidden="true"
-      className="size-7 rounded-full p-0 tabular-nums"
-      variant={state === "locked" ? "outline" : "default"}
-    >
-      <MarkerContent number={number} state={state} />
-    </Badge>
-  );
-}
-
-function MobileMarkerContent({ number, state }: { number: number; state: OnboardingStepState }) {
-  if (state === "complete") {
-    return <Check aria-hidden="true" />;
-  }
-
-  if (state === "locked") {
-    return <LockKeyhole aria-hidden="true" />;
-  }
-
-  return <span aria-hidden="true">{number}</span>;
-}
-
-function MarkerContent({ number, state }: { number: number; state: OnboardingStepState }) {
-  if (state === "complete") {
-    return <Check aria-hidden="true" />;
-  }
-
-  if (state === "locked") {
-    return <LockKeyhole aria-hidden="true" />;
-  }
-
-  return number;
+  return Math.max(1, steps.length);
 }
 
 function getStepPathSegment(stepId: string): "campaigns" | "sdk" | null {

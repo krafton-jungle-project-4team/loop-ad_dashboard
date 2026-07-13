@@ -23,6 +23,7 @@ import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
+import { Progress } from "@loopad/ui/shadcn/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import {
   Table,
@@ -151,10 +152,12 @@ export function PromotionManagementList({
                 {openPromotions.map((promotion) => (
                   <TableRow key={promotion.promotion_id}>
                     <TableCell className="max-w-[360px]">
-                      <button
-                        className="grid max-w-full gap-1 text-left"
+                      <Button
+                        className="grid h-auto max-w-full justify-start gap-1 p-0 text-left"
                         onClick={() => onSelectPromotion(promotion.promotion_id)}
+                        size="sm"
                         type="button"
+                        variant="link"
                       >
                         <span className="truncate font-medium hover:text-primary">
                           {promotion.marketing_theme}
@@ -162,7 +165,7 @@ export function PromotionManagementList({
                         <span className="truncate text-xs text-muted-foreground">
                           {promotion.message_brief ?? "설명 미등록"}
                         </span>
-                      </button>
+                      </Button>
                     </TableCell>
                     <TableCell>{formatChannelLabel(promotion.channel)}</TableCell>
                     <TableCell>
@@ -196,14 +199,16 @@ export function PromotionManagementList({
             {openPromotions.map((promotion) => (
               <Card className="shadow-none" key={promotion.promotion_id}>
                 <CardHeader className="gap-3">
-                  <button
-                    className="grid gap-1 text-left"
+                  <Button
+                    className="grid h-auto justify-start gap-1 p-0 text-left"
                     onClick={() => onSelectPromotion(promotion.promotion_id)}
+                    size="sm"
                     type="button"
+                    variant="link"
                   >
                     <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
                     <CardDescription>{formatChannelLabel(promotion.channel)}</CardDescription>
-                  </button>
+                  </Button>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
                   <SummaryItem label="상태" value={formatStatusLabel(promotion.status)} />
@@ -1138,10 +1143,12 @@ function SegmentConnectedExperimentsCard({
 
 function PromotionMetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid min-h-28 content-between rounded-lg border bg-[#f5f5f7] p-5">
-      <div className="text-sm font-medium text-muted-foreground">{label}</div>
-      <div className="truncate text-2xl font-semibold text-foreground">{value}</div>
-    </div>
+    <Card className="min-h-28 justify-between bg-[#f5f5f7] py-5">
+      <CardContent className="grid h-full content-between">
+        <div className="text-sm font-medium text-muted-foreground">{label}</div>
+        <div className="truncate text-2xl font-semibold text-foreground">{value}</div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1152,9 +1159,12 @@ function PromotionProgressRow({ label, value }: { label: string; value: number }
         <span className="font-medium">{label}</span>
         <span className="tabular-nums">{formatInteger(value)}%</span>
       </div>
-      <div className="h-3 overflow-hidden rounded-full bg-[#e8e8ed]">
-        <div className="h-full bg-primary" style={{ width: `${Math.max(value, 4)}%` }} />
-      </div>
+      <Progress
+        aria-label={`${label} ${formatInteger(value)}%`}
+        aria-valuenow={value}
+        className="h-3"
+        value={Math.max(value, 4)}
+      />
     </div>
   );
 }

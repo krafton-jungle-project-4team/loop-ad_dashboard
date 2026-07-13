@@ -14,7 +14,12 @@ import {
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { Checkbox } from "@loopad/ui/shadcn/checkbox";
+import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Input } from "@loopad/ui/shadcn/input";
+import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
+import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   eventSdkInitCode,
@@ -211,15 +216,16 @@ function EventDesigner({
             새 이벤트
           </Button>
           {plan.events.map((event) => (
-            <button
-              className="flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm"
+            <Button
+              className="justify-between"
               key={event.eventName}
               onClick={() => selectEvent(event)}
               type="button"
+              variant={selectedName === event.eventName ? "secondary" : "outline"}
             >
               <span>{event.eventName}</span>
               <Badge variant="outline">{event.status}</Badge>
-            </button>
+            </Button>
           ))}
         </CardContent>
       </Card>
@@ -231,17 +237,20 @@ function EventDesigner({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <Field label="이벤트명">
-            <input
-              className="h-10 rounded-md border px-3"
+          <Field>
+            <FieldLabel htmlFor="tracking-plan-event-name">이벤트명</FieldLabel>
+            <Input
               disabled={Boolean(selected)}
+              id="tracking-plan-event-name"
               value={eventName}
               onChange={(event) => setEventName(event.target.value)}
             />
           </Field>
-          <Field label="설명">
-            <textarea
-              className="min-h-20 rounded-md border p-3"
+          <Field>
+            <FieldLabel htmlFor="tracking-plan-event-description">설명</FieldLabel>
+            <Textarea
+              id="tracking-plan-event-description"
+              className="min-h-20"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
@@ -317,8 +326,7 @@ function PropertyList({
         return (
           <div className="grid gap-3 rounded-md border p-3" key={property.id}>
             <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_auto_auto]">
-              <input
-                className="h-9 rounded-md border px-2"
+              <Input
                 placeholder="property_name"
                 value={property.name}
                 onChange={(event) =>
@@ -332,21 +340,21 @@ function PropertyList({
                   onChange(replaceAt(properties, index, { ...property, schema }))
                 }
               />
-              <label className="flex items-center gap-2 text-sm">
-                <input
+              <Field orientation="horizontal">
+                <Checkbox
                   checked={property.required}
-                  type="checkbox"
-                  onChange={(event) =>
+                  id={`property-required-${property.id}`}
+                  onCheckedChange={(checked) =>
                     onChange(
                       replaceAt(properties, index, {
                         ...property,
-                        required: event.target.checked
+                        required: checked === true
                       })
                     )
                   }
                 />
-                필수
-              </label>
+                <FieldLabel htmlFor={`property-required-${property.id}`}>필수</FieldLabel>
+              </Field>
               <Button
                 size="sm"
                 variant="ghost"
@@ -382,15 +390,15 @@ function SchemaTypeSelect({
     ["string", "number", "integer", "boolean", "object", "array"] as TrackingPlanPropertyType[]
   ).filter((type) => type !== "array" || depth < TRACKING_PLAN_MAX_SCHEMA_DEPTH);
   return (
-    <select
-      className="h-9 rounded-md border px-2"
+    <NativeSelect
+      size="sm"
       value={schema.type}
       onChange={(event) => onChange(newSchemaDraft(event.target.value as TrackingPlanPropertyType))}
     >
       {types.map((type) => (
-        <option key={type}>{type}</option>
+        <NativeSelectOption key={type}>{type}</NativeSelectOption>
       ))}
-    </select>
+    </NativeSelect>
   );
 }
 
@@ -468,8 +476,9 @@ function ConnectionPanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
-          <textarea
-            className="min-h-32 rounded-md border p-3"
+          <Textarea
+            aria-label="허용 Origin"
+            className="min-h-32"
             value={originText}
             onChange={(event) => setOriginText(event.target.value)}
           />
@@ -619,20 +628,20 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
       >
         {selectedEvent ? (
           <div className="grid gap-4">
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium">이벤트</span>
-              <select
-                className="h-10 rounded-md border px-3"
+            <Field>
+              <FieldLabel htmlFor="tracking-plan-guide-event">이벤트</FieldLabel>
+              <NativeSelect
+                id="tracking-plan-guide-event"
                 value={selectedEvent.eventName}
                 onChange={(event) => setSelectedEventName(event.target.value)}
               >
                 {plan.events.map((event) => (
-                  <option key={event.eventName} value={event.eventName}>
+                  <NativeSelectOption key={event.eventName} value={event.eventName}>
                     {event.eventName}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
             <p className="text-sm text-muted-foreground">
               {selectedEvent.description || "등록된 설명이 없습니다."}
             </p>
@@ -705,14 +714,6 @@ function PropertyContract({ event }: { event: TrackingPlanEvent }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="grid gap-1 text-sm">
-      <span className="font-medium">{label}</span>
-      {children}
-    </label>
-  );
-}
 function ReadOnlyValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1">

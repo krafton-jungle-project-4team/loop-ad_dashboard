@@ -46,7 +46,7 @@ export function createSetupOnboardingSteps(
 ): ReadonlyArray<ProjectOnboardingStep> {
   return [
     {
-      description: "프로젝트에서 사용할 SDK를 연결합니다.",
+      description: "프로젝트에서 최초 1회 SDK를 연결합니다.",
       id: "sdk",
       label: "SDK 연동",
       state: stage === "welcome" ? "locked" : stage === "sdk" ? "current" : "complete"
