@@ -187,7 +187,9 @@ export function ProjectManagementDialog({
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-foreground">프로젝트 목록</h3>
             {projectsQuery.isFetching ? (
-              <span className="text-xs text-muted-foreground">프로젝트 목록 불러오는 중…</span>
+              <span className="text-xs text-muted-foreground" role="status">
+                프로젝트 목록 불러오는 중…
+              </span>
             ) : null}
           </div>
 

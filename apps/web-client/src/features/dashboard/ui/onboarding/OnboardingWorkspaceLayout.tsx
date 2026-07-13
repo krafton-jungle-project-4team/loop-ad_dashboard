@@ -73,8 +73,8 @@ export function OnboardingWorkspaceLayout({
   if (isLoading) {
     return (
       <div className="grid min-h-[calc(100svh-9rem)] place-items-center">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <Spinner aria-label="시작 가이드 상태를 불러오는 중" />
+        <div className="flex items-center gap-3 text-sm text-muted-foreground" role="status">
+          <Spinner aria-hidden="true" />
           <span>시작 가이드 상태를 불러오는 중…</span>
         </div>
       </div>
