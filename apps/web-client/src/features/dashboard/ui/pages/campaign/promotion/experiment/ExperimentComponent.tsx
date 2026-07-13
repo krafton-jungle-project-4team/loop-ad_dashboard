@@ -54,7 +54,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     promotionRunId
   }: NextLoopInput) {
     if (failedSegmentIds.length === 0) {
-      throw new Error("다음 루프에 포함할 실패 세그먼트가 없습니다.");
+      throw new Error("다시 실험할 실패 세그먼트가 없어요.");
     }
     return launchPromotionExperiment(
       { segmentIds: failedSegmentIds },
@@ -68,7 +68,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
             operator_instruction: null
           });
           if (!nextLoop.next_promotion_run_id) {
-            throw new Error("다음 루프에 포함할 실패 대상이 없습니다.");
+            throw new Error("다시 실험할 실패 대상이 없어요.");
           }
           return {
             experiments: nextLoop.next_ad_experiments.map((experiment) => ({
@@ -99,7 +99,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
         <ExperimentPageHeader />
         <Card>
           <CardHeader>
-            <CardTitle>프로젝트 실험을 불러오지 못했습니다</CardTitle>
+            <CardTitle>프로젝트 실험을 불러오지 못했어요</CardTitle>
             <CardDescription>{toErrorMessage(experimentsQuery.error)}</CardDescription>
           </CardHeader>
         </Card>
@@ -138,7 +138,7 @@ function ExperimentPageHeader() {
     <div className="grid gap-1">
       <h1 className="text-2xl font-semibold tracking-tight text-[#1d1d1f]">실험</h1>
       <p className="text-sm text-muted-foreground">
-        프로젝트 전체 캠페인의 실험 상태와 성과, 평가 및 다음 루프 작업을 한곳에서 관리합니다.
+        모든 캠페인의 실험 상태와 성과, 다음 반복 실험을 한곳에서 관리해요.
       </p>
     </div>
   );

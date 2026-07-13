@@ -119,7 +119,7 @@ export function DashboardFormDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>작성 중인 변경사항을 버릴까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              저장하지 않은 입력 내용은 복구할 수 없습니다.
+              저장하지 않은 내용은 사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

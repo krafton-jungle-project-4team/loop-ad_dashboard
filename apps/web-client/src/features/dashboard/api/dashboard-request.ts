@@ -36,7 +36,7 @@ export function dashboardQuerySearchParams(
 }
 
 export async function readDashboardApiErrorMessage(response: Response) {
-  const fallbackMessage = `API 요청 실패: ${response.status}`;
+  const fallbackMessage = `요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요. (${response.status})`;
 
   try {
     const body: unknown = await response.clone().json();
@@ -54,11 +54,11 @@ export async function readDashboardApiErrorMessage(response: Response) {
 function dashboardApiErrorMessage(code: string, message: string) {
   switch (code) {
     case "ACTIVE_ASSIGNMENT_NOT_FOUND":
-      return "광고 실행 대상 배정이 아직 없습니다. 승인된 광고 실험에 대한 세그먼트 매칭/assignment 생성이 먼저 필요합니다.";
+      return "광고를 보여 줄 대상이 아직 없어요. 광고 소재를 선택한 뒤 다시 시도해 주세요.";
     case "PROMOTION_RUN_NOT_FOUND":
-      return "광고 실행에 사용할 promotion_run을 찾지 못했습니다. 광고 후보 승인 후 다시 시도해주세요.";
+      return "실행할 광고 실험을 찾지 못했어요. 광고 소재를 선택한 뒤 다시 시도해 주세요.";
     case "UNSUPPORTED_DISPATCH_CHANNEL":
-      return "현재 광고 실행은 Email/SMS 채널만 지원합니다.";
+      return "지금은 이메일과 문자 광고만 보낼 수 있어요.";
     default:
       return message;
   }

@@ -62,7 +62,7 @@ export async function renderHomeTopBanner(user: { id: string; sessionId: string 
 
 function handleAdDecision(decision: AdvertisementDecision): void {
   if (decision.status === "empty") {
-    renderFallbackBanner("추천할 프로모션이 없습니다.");
+    renderFallbackBanner("지금 추천할 프로모션이 없어요.");
     return;
   }
 
@@ -144,9 +144,9 @@ const scriptTagCode = String.raw`<div id="loopad-home-top-banner"></div>
 </script>`;
 
 const checklistItems = [
-  "광고 지면의 targetId element가 렌더링 전에 존재합니다.",
+  "광고를 보여 줄 targetId 요소가 화면에 있어요.",
   "ads.render() 결과가 empty이면 직접 fallback UI를 보여줍니다.",
-  "filled 광고의 노출과 클릭은 onImpression, onClick 콜백에서 수집 SDK로 전달합니다."
+  "광고 노출과 클릭은 onImpression, onClick에서 수집 SDK로 보내요."
 ];
 
 const prerequisites = [
@@ -200,15 +200,15 @@ function AdvertisementSdkGuide() {
           </div>
           <TabsContent className="grid gap-4" value="npm">
             <GuideStep
-              body="공개 npm 패키지로 배포된 광고 SDK를 설치합니다."
+              body="공개 npm 패키지로 배포된 광고 SDK를 설치해요."
               icon={PackageCheck}
               number="1"
-              title="패키지를 설치합니다"
+              title="패키지 설치"
             >
               <CodeBlock code={registryInstallCode} language="bash" title=".npmrc / terminal" />
             </GuideStep>
             <GuideStep
-              body="광고 SDK는 decision 요청과 DOM 렌더링을 담당합니다. 이벤트 수집 문서를 먼저 적용한 뒤 노출·클릭 콜백을 수집 SDK로 넘깁니다."
+              body="광고 SDK는 광고를 고르고 화면에 보여 줘요. 먼저 이벤트 수집 가이드를 적용한 뒤 노출·클릭 정보를 수집 SDK로 넘겨 주세요."
               icon={FileCode2}
               number="2"
               title="광고 SDK를 렌더링 지면에 붙입니다"
@@ -251,7 +251,7 @@ function PageHeader() {
         </h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
           일반 웹 프로젝트에 광고 지면을 붙이는 절차입니다. 프로젝트 값, 사용자 세션, 광고 지면
-          이름만 실제 값으로 바꾸면 됩니다.
+          이름만 실제 값으로 바꾸면 돼요.
         </p>
       </div>
     </div>
@@ -266,8 +266,8 @@ function GuideSummary() {
           목표
         </CardTitle>
         <CardDescription className="leading-6">
-          광고 SDK는 지정한 영역에 광고를 렌더링합니다. 앱 코드는 광고 응답 처리와 노출·클릭 콜백
-          연결만 담당하면 됩니다.
+          광고 SDK는 지정한 영역에 광고를 보여 줘요. 앱에서는 광고 응답과 노출·클릭 정보만 연결하면
+          돼요.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -275,7 +275,7 @@ function GuideSummary() {
           <Code2 className="text-primary" />
           <AlertTitle>필수 흐름</AlertTitle>
           <AlertDescription>
-            이벤트 수집 가이드를 먼저 적용한 뒤 광고 SDK의 render 결과와 콜백을 처리합니다.
+            이벤트 수집 가이드를 먼저 적용한 뒤 광고 SDK의 결과와 콜백을 처리해요.
           </AlertDescription>
         </Alert>
         <div className="grid gap-2 sm:grid-cols-3">
@@ -338,7 +338,7 @@ function TroubleshootingPanel() {
     <Card className="bg-white shadow-none">
       <CardHeader>
         <CardTitle className="text-base font-semibold text-[#1d1d1f]">문제 해결</CardTitle>
-        <CardDescription>대부분의 연동 오류는 아래 세 가지에서 시작합니다.</CardDescription>
+        <CardDescription>연동이 안 된다면 아래 세 가지를 먼저 확인해 보세요.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <TroubleshootingItem
@@ -347,7 +347,7 @@ function TroubleshootingPanel() {
         />
         <TroubleshootingItem
           title="응답 처리를 어디서 해야 할지 모름"
-          body="ads.render()가 반환한 decision은 렌더링 직후 처리하고, 노출/클릭은 onImpression과 onClick 콜백에서 처리합니다."
+          body="ads.render() 결과는 광고를 보여 준 직후 처리해요. 노출과 클릭은 onImpression과 onClick에서 처리해 주세요."
         />
       </CardContent>
     </Card>

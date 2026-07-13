@@ -97,8 +97,7 @@ export function PromotionSegmentSuggestionPanel({
         <div className="grid gap-1">
           <CardTitle>세그먼트 후보</CardTitle>
           <CardDescription>
-            AI가 제안한 후보와 직접 추가한 후보를 확인합니다. 확정 시 최종 타겟 세그먼트로
-            저장됩니다.
+            AI가 제안한 후보와 직접 추가한 후보를 확인해요. 확정하면 최종 세그먼트로 저장돼요.
           </CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -109,7 +108,7 @@ export function PromotionSegmentSuggestionPanel({
             variant="outline"
           >
             <BarChart3 className="mr-2 size-4" />
-            {promotionAnalysisIsPending ? "추천 생성 중" : "AI 추천 요청"}
+            {promotionAnalysisIsPending ? "추천하는 중" : "AI 추천 받기"}
           </Button>
           <Button onClick={() => setIsCreateDialogOpen(true)} type="button" variant="outline">
             <Plus className="mr-2 size-4" />
@@ -120,13 +119,13 @@ export function PromotionSegmentSuggestionPanel({
             onClick={onConfirmSuggestions}
             type="button"
           >
-            {confirmIsPending ? "확정 중" : `후보 확정 (${confirmableCount})`}
+            {confirmIsPending ? "확정 중" : `선택한 후보 확정 (${confirmableCount})`}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
         {scopedSegmentsIsLoading ? (
-          <EmptyState message="직접 추가 세그먼트를 불러오는 중입니다." />
+          <EmptyState message="직접 추가한 후보를 불러오는 중이에요." />
         ) : null}
         {scopedSegments.length > 0 ? (
           <div className="grid gap-3">
@@ -165,8 +164,7 @@ export function PromotionSegmentSuggestionPanel({
                           <AlertDialogHeader>
                             <AlertDialogTitle>직접 추가 후보를 삭제할까요?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              {segment.segment_name} 후보가 목록에서 삭제됩니다. 이 작업은 되돌릴 수
-                              없습니다.
+                              {segment.segment_name} 후보가 목록에서 사라지고 되돌릴 수 없어요.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -184,12 +182,12 @@ export function PromotionSegmentSuggestionPanel({
                   </div>
                   <div className="grid gap-2 text-sm text-muted-foreground">
                     <div>
-                      표본 {formatInteger(segment.sample_size)}명 · 비율{" "}
+                      평가 대상 {formatInteger(segment.sample_size)}명 · 비율{" "}
                       {formatInteger(segment.sample_ratio * 100)}%
                     </div>
                     <div className="line-clamp-2">
                       {(segment.natural_language_query ?? formatJsonObject(segment.rule_json)) ||
-                        "조건 설명이 비어 있습니다."}
+                        "조건 설명이 없어요."}
                     </div>
                   </div>
                 </div>
@@ -197,7 +195,7 @@ export function PromotionSegmentSuggestionPanel({
             </div>
           </div>
         ) : null}
-        {suggestionsIsLoading ? <EmptyState message="추천 세그먼트를 불러오는 중입니다." /> : null}
+        {suggestionsIsLoading ? <EmptyState message="추천 후보를 불러오는 중이에요." /> : null}
         {suggestions.length > 0 ? (
           <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
             {suggestions.map((suggestion) => {
@@ -206,7 +204,7 @@ export function PromotionSegmentSuggestionPanel({
               const isDismissed = suggestion.suggestion_status === "dismissed";
               const displayCopy = suggestion.display_copy;
               const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
-              const rankLabel = `Rank ${formatInteger(suggestion.suggested_rank)}`;
+              const rankLabel = `${formatInteger(suggestion.suggested_rank)}위`;
               const rankRole = displayCopy?.rank_role;
               const performanceEstimate = displayCopy?.performance_estimate;
               const fallbackSummary = segmentAudienceSummary(
@@ -275,7 +273,7 @@ export function PromotionSegmentSuggestionPanel({
                       <p className="line-clamp-2 leading-5">
                         {displayCopy?.reason ||
                           formatJsonObject(suggestion.reason_json) ||
-                          "추천 사유가 비어 있습니다."}
+                          "추천 이유가 없어요."}
                       </p>
                     </div>
                     {displayCopy ? <SegmentRankDifference displayCopy={displayCopy} /> : null}
@@ -375,7 +373,7 @@ function SegmentPerformanceSummary({ estimate }: { estimate: SegmentPerformanceE
           {estimate.formatted}
         </strong>
       ) : (
-        <strong className="text-sm font-semibold text-foreground">현재 산출할 수 없음</strong>
+        <strong className="text-sm font-semibold text-foreground">지금은 계산할 수 없어요</strong>
       )}
       <div className="grid min-w-0 gap-0.5 text-[11px] leading-4 text-muted-foreground">
         {estimate.window_label ? <span>{estimate.window_label}</span> : null}
@@ -431,7 +429,7 @@ function SegmentRankDifference({ displayCopy }: { displayCopy: SegmentSuggestion
   return (
     <div className="grid gap-1 border-l-2 border-primary bg-accent/40 px-3 py-2 text-xs leading-5 text-foreground">
       <span className="font-medium">
-        {comparison ? `Rank ${formatInteger(comparison.reference_rank)} 대비` : "후보 비교"}
+        {comparison ? `${formatInteger(comparison.reference_rank)}위와 비교` : "후보 비교"}
       </span>
       <p className="line-clamp-2">{summary}</p>
     </div>
@@ -454,9 +452,7 @@ function SegmentSuggestionReportDialog({
         <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">
-                Rank {formatInteger(suggestion?.suggested_rank ?? 0)}
-              </Badge>
+              <Badge variant="secondary">{formatInteger(suggestion?.suggested_rank ?? 0)}위</Badge>
               {rankRole ? (
                 <Badge
                   className="max-w-full whitespace-normal [word-break:keep-all]"
@@ -465,11 +461,11 @@ function SegmentSuggestionReportDialog({
                   {rankRole}
                 </Badge>
               ) : null}
-              <Badge variant="outline">AI 추천 리포트</Badge>
+              <Badge variant="outline">AI 추천 보고서</Badge>
             </div>
             <DialogTitle>{report.title}</DialogTitle>
             <DialogDescription>
-              후보를 확정하기 전에 고객군의 성격과 추천 근거를 확인합니다.
+              후보를 확정하기 전에 고객 특성과 추천 이유를 확인해 보세요.
             </DialogDescription>
           </DialogHeader>
           <SegmentSuggestionReportContent suggestion={suggestion} />
@@ -547,7 +543,7 @@ function SegmentSuggestionReportContent({
       <ReportSection items={report.promotion_interpretation} title="프로모션 해석" />
       <ReportSection items={report.why_recommended} title="추천한 이유" />
       <ReportSection items={report.evidence} title="확인된 행동 근거" />
-      <ReportSection items={report.difference_from_other_ranks} title="다른 Rank와의 차이" />
+      <ReportSection items={report.difference_from_other_ranks} title="다른 순위와의 차이" />
       <section className="grid gap-2 rounded-md border p-4">
         <h4 className="text-sm font-semibold">활용 방법</h4>
         <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
@@ -598,7 +594,7 @@ function formatObservedPerformance(
     estimate.metric === "booking_conversion_rate"
       ? "예약 완료율"
       : estimate.metric === "inflow_rate"
-        ? "랜딩 도달률"
+        ? "연결 페이지 도달률"
         : estimate.metric === "funnel_step_rate"
           ? "예약 시작률"
           : "목표 행동률";
@@ -631,10 +627,10 @@ function PromotionSegmentCreateDialog({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>프로모션 세그먼트 후보 추가</DialogTitle>
+          <DialogTitle>세그먼트 후보 추가</DialogTitle>
           <DialogDescription>
-            현재 프로모션에 종속되는 세그먼트 후보를 저장합니다. 최종 타겟 반영은 후보 확정 버튼에서
-            처리합니다.
+            이 프로모션에서 사용할 세그먼트 후보를 저장해요. 저장한 뒤 후보 확정 버튼을 눌러 최종
+            세그먼트로 바꿀 수 있어요.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
@@ -650,7 +646,7 @@ function PromotionSegmentCreateDialog({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="promotion-segment-natural-query">생성 이유/조건 설명</FieldLabel>
+            <FieldLabel htmlFor="promotion-segment-natural-query">만든 이유와 조건</FieldLabel>
             <Textarea
               id="promotion-segment-natural-query"
               name="promotionSegmentNaturalLanguageQuery"
@@ -671,7 +667,7 @@ function PromotionSegmentCreateDialog({
           </Field>
           <div className="grid gap-4 md:grid-cols-3">
             <Field>
-              <FieldLabel htmlFor="promotion-segment-sample-size">샘플 수</FieldLabel>
+              <FieldLabel htmlFor="promotion-segment-sample-size">대상 수</FieldLabel>
               <Input
                 id="promotion-segment-sample-size"
                 inputMode="numeric"
@@ -683,7 +679,7 @@ function PromotionSegmentCreateDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="promotion-segment-eligible-size">모수</FieldLabel>
+              <FieldLabel htmlFor="promotion-segment-eligible-size">전체 대상 수</FieldLabel>
               <Input
                 id="promotion-segment-eligible-size"
                 inputMode="numeric"
@@ -697,7 +693,7 @@ function PromotionSegmentCreateDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="promotion-segment-sample-ratio">샘플 비율</FieldLabel>
+              <FieldLabel htmlFor="promotion-segment-sample-ratio">대상 비율</FieldLabel>
               <Input
                 id="promotion-segment-sample-ratio"
                 inputMode="decimal"
@@ -727,7 +723,7 @@ function PromotionSegmentCreateDialog({
             }}
             type="button"
           >
-            {createIsPending ? "저장 중" : "후보 저장"}
+            {createIsPending ? "추가하는 중" : "후보 추가하기"}
           </Button>
         </DialogFooter>
       </DialogContent>

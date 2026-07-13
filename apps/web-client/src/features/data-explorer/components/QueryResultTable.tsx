@@ -11,7 +11,7 @@ import { EmptyState } from "../../dashboard/ui/shared/EmptyState.js";
 
 export function QueryResultTable({ result }: { result: DataExplorerQueryRunResponse | null }) {
   if (!result || result.rows.length === 0) {
-    return <EmptyState message="표시할 쿼리 결과가 없습니다." />;
+    return <EmptyState message="아직 표시할 결과가 없어요." />;
   }
 
   return (

@@ -100,7 +100,7 @@ export function SchemaBrowserPanel({
           <Input
             className="h-10 bg-white pl-8"
             onChange={(event) => onObjectSearchChange(event.target.value)}
-            placeholder="스키마와 이벤트 검색..."
+            placeholder="스키마나 이벤트 검색"
             value={objectSearch}
           />
         </div>
@@ -184,13 +184,13 @@ export function SchemaBrowserPanel({
 
               {isLoading ? (
                 <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
-                  스키마를 불러오는 중입니다.
+                  스키마를 불러오고 있어요.
                 </div>
               ) : null}
 
               {!isLoading && !objects.length ? (
                 <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
-                  조회된 테이블이 없습니다.
+                  일치하는 테이블이 없어요.
                 </div>
               ) : null}
             </div>
@@ -239,13 +239,13 @@ export function SchemaBrowserPanel({
 
               {isEventsLoading ? (
                 <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
-                  이벤트를 불러오는 중입니다.
+                  이벤트를 불러오고 있어요.
                 </div>
               ) : null}
 
               {!isEventsLoading && !filteredEvents.length ? (
                 <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
-                  조회된 이벤트가 없습니다.
+                  일치하는 이벤트가 없어요.
                 </div>
               ) : null}
             </div>
@@ -304,14 +304,14 @@ function ObjectActionMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={`${object.object_name} 객체 작업`}
+          aria-label={`${object.object_name} 데이터 작업`}
           className={cn(
             schemaIconButtonClass,
             "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
           )}
           onClick={(event) => event.stopPropagation()}
           size="icon-xs"
-          title={`${object.object_name} 객체 작업`}
+          title={`${object.object_name} 데이터 작업`}
           type="button"
           variant="ghost"
         >
@@ -347,7 +347,7 @@ function ObjectColumns({
   if (isLoading && !detail) {
     return (
       <div className="ml-6 border-l border-black/10 px-2 py-2 text-xs text-muted-foreground">
-        컬럼을 불러오는 중입니다.
+        열 정보를 불러오고 있어요.
       </div>
     );
   }

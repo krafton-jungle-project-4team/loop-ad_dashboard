@@ -265,7 +265,7 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
 }
 
 export function segmentAudienceSummary(sampleSize: number, sampleRatio: number) {
-  return `표본 ${formatInteger(sampleSize)}명 · 비율 ${formatInteger(sampleRatio * 100)}%`;
+  return `평가 대상 ${formatInteger(sampleSize)}명 · 비율 ${formatInteger(sampleRatio * 100)}%`;
 }
 
 export function nonEmptyText(value: unknown): string | null {
@@ -389,7 +389,7 @@ export function parseJsonObject(value: string): Record<string, unknown> | null {
 }
 
 export function mutationErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
+  return error instanceof Error ? error.message : "문제가 생겼어요. 다시 시도해 주세요.";
 }
 
 export function uniqueStrings(values: Array<string | null | undefined>): string[] {

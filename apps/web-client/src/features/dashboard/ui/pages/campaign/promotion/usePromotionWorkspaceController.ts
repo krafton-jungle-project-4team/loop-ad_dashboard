@@ -463,7 +463,7 @@ export function usePromotionWorkspaceController({
             buildDashboardPromotionRunAssignments(query, promotionRunId),
           createRun: async () => {
             if (!analysisId || !generationId) {
-              throw new Error("승인된 광고 콘텐츠가 필요합니다.");
+              throw new Error("먼저 사용할 광고 소재를 선택해 주세요.");
             }
             const run = await createDashboardPromotionRun(query, promotionId, {
               analysis_id: analysisId,

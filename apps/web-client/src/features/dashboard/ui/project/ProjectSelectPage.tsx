@@ -45,10 +45,10 @@ export function ProjectSelectPage() {
         <section className="flex flex-1 flex-col items-center justify-center gap-9 py-12 text-center">
           <div className="grid gap-3">
             <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-              프로젝트를 선택하세요.
+              어떤 프로젝트를 볼까요?
             </h1>
             <p className="text-sm text-muted-foreground sm:text-base">
-              선택한 프로젝트의 캠페인, 세그먼트, 실험 현황으로 이동합니다.
+              프로젝트를 선택하면 캠페인과 실험 현황을 볼 수 있어요.
             </p>
           </div>
 
@@ -56,8 +56,8 @@ export function ProjectSelectPage() {
             {projectsQuery.isLoading ? <ProjectCardSkeletons /> : null}
             {projectsQuery.isError ? (
               <Alert className="col-span-full text-left" variant="destructive">
-                <AlertTitle>프로젝트 목록을 불러오지 못했습니다</AlertTitle>
-                <AlertDescription>서버 연결을 확인한 뒤 다시 시도해주세요.</AlertDescription>
+                <AlertTitle>프로젝트를 불러오지 못했어요</AlertTitle>
+                <AlertDescription>서버 연결을 확인하고 다시 시도해 주세요.</AlertDescription>
               </Alert>
             ) : null}
             {!projectsQuery.isLoading

@@ -74,9 +74,9 @@ export function PromotionWorkspace({
 
   return (
     <EntityWorkspaceShell>
-      {!selectedCampaign ? <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." /> : null}
+      {!selectedCampaign ? <EmptyState message="먼저 캠페인을 선택해 주세요." /> : null}
       {selectedCampaign && campaignDetail.isLoading ? (
-        <EmptyState message="프로모션 데이터를 불러오는 중입니다." />
+        <EmptyState message="프로모션을 불러오는 중이에요." />
       ) : null}
       {campaignDetail.data ? (
         <>
@@ -95,15 +95,15 @@ export function PromotionWorkspace({
             mode === "promotion" ? (
               <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
             ) : (
-              <EmptyState message="세그먼트를 관리할 프로모션을 먼저 선택해주세요." />
+              <EmptyState message="먼저 프로모션을 선택해 주세요." />
             )
           ) : null}
           {openPromotions.length > 0 && !isManagementView && !selectedOpenPromotion ? (
             <EmptyState
               message={
                 mode === "segment"
-                  ? "세그먼트를 관리할 프로모션을 선택해주세요."
-                  : "개요를 확인할 프로모션을 선택해주세요."
+                  ? "세그먼트를 관리할 프로모션을 선택해 주세요."
+                  : "성과를 확인할 프로모션을 선택해 주세요."
               }
             />
           ) : null}

@@ -60,23 +60,23 @@ export function CampaignFormDialog({
     <DashboardFormDialog
       description={
         isCreateMode
-          ? "새 캠페인을 생성하고 탭으로 엽니다."
-          : "선택한 캠페인의 이름, 목표, 기간, 상태를 수정합니다."
+          ? "캠페인을 만들면 바로 관리 화면으로 이동해요."
+          : "캠페인의 이름, 목표, 기간, 상태를 바꿀 수 있어요."
       }
       onOpenChange={onOpenChange}
       open={open}
-      title={isCreateMode ? "새 캠페인 추가" : "캠페인 수정"}
+      title={isCreateMode ? "새 캠페인 만들기" : "캠페인 수정"}
     >
       <div className="grid gap-4 px-5 py-5 sm:px-8 sm:py-6">
         {isCreateMode && createIsError ? (
           <Alert variant="destructive">
-            <AlertTitle>캠페인을 생성하지 못했습니다</AlertTitle>
+            <AlertTitle>캠페인을 만들지 못했어요</AlertTitle>
             <AlertDescription>{mutationErrorMessage(createError)}</AlertDescription>
           </Alert>
         ) : null}
         {!isCreateMode && updateIsError ? (
           <Alert variant="destructive">
-            <AlertTitle>캠페인을 수정하지 못했습니다</AlertTitle>
+            <AlertTitle>캠페인을 수정하지 못했어요</AlertTitle>
             <AlertDescription>{mutationErrorMessage(updateError)}</AlertDescription>
           </Alert>
         ) : null}
@@ -146,7 +146,7 @@ function CampaignCreateForm({
           }
           type="button"
         >
-          {isPending ? "생성 중" : "캠페인 생성"}
+          {isPending ? "만드는 중" : "캠페인 만들기"}
         </Button>
       </DialogFooter>
     </section>
@@ -183,7 +183,7 @@ function CampaignEditForm({
   if (!campaign) {
     return (
       <section className="grid place-items-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-        수정할 캠페인을 목록에서 선택해주세요.
+        수정할 캠페인을 목록에서 선택해 주세요.
       </section>
     );
   }
@@ -222,7 +222,7 @@ function CampaignEditForm({
           }
           type="button"
         >
-          {isPending ? "저장 중" : "수정 저장"}
+          {isPending ? "저장 중" : "저장하기"}
         </Button>
       </DialogFooter>
     </section>
@@ -273,13 +273,13 @@ function CampaignFormFields({
           id="dashboard-campaign-objective"
           name="campaignObjective"
           onChange={(event) => onObjectiveChange(event.target.value)}
-          placeholder="기존 유저의 예약 전환 증가"
+          placeholder="기존 고객의 예약 전환 늘리기"
           value={objective}
         />
       </Field>
       {primaryMetricControl ? (
         <Field>
-          <FieldLabel id="dashboard-campaign-primary-metric-label">주요 지표</FieldLabel>
+          <FieldLabel id="dashboard-campaign-primary-metric-label">핵심 지표</FieldLabel>
           <Select
             onValueChange={primaryMetricControl.onValueChange}
             value={primaryMetricControl.value}
@@ -288,7 +288,7 @@ function CampaignFormFields({
               aria-labelledby="dashboard-campaign-primary-metric-label"
               className="w-full"
             >
-              <SelectValue placeholder="주요 지표 선택" />
+              <SelectValue placeholder="핵심 지표 선택" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">미설정</SelectItem>
@@ -327,7 +327,7 @@ function CampaignFormFields({
           />
           {!dateRangeIsValid ? (
             <FieldError id="dashboard-campaign-date-error">
-              종료일은 시작일보다 빠를 수 없습니다.
+              종료일은 시작일보다 빠를 수 없어요.
             </FieldError>
           ) : null}
         </Field>
@@ -354,7 +354,7 @@ function CampaignFormFields({
 }
 
 function mutationErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "요청에 실패했습니다.";
+  return error instanceof Error ? error.message : "요청하지 못했어요. 다시 시도해 주세요.";
 }
 
 function nullableDate(value: string): string | null {

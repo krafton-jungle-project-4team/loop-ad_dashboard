@@ -16,17 +16,17 @@ const START_SCREEN_PROMPTS: StartScreenPrompt[] = [
   {
     icon: "chart",
     label: "최근 이벤트 추이",
-    prompt: "최근 7일 이벤트 추이를 조회하는 SQL을 만들고 실행해줘."
+    prompt: "최근 7일 이벤트 추이를 보는 SQL을 만들고 실행해 줘."
   },
   {
     icon: "analytics",
-    label: "상위 이벤트",
-    prompt: "이 프로젝트에서 가장 많이 발생한 이벤트 TOP 10을 보여줘."
+    label: "많이 발생한 이벤트",
+    prompt: "이 프로젝트에서 가장 많이 발생한 이벤트 10개를 보여 줘."
   },
   {
     icon: "sparkle",
     label: "결과 해석",
-    prompt: "현재 쿼리 결과에서 볼 만한 인사이트를 한국어로 요약해줘."
+    prompt: "현재 쿼리 결과에서 눈여겨볼 점을 한국어로 요약해 줘."
   }
 ];
 
@@ -79,7 +79,7 @@ export function ChatKitQueryPanel({
 
       const parsed = ChatKitQueryEffectSchema.safeParse(data);
       if (!parsed.success) {
-        onError("ChatKit 쿼리 결과를 해석하지 못했습니다.");
+        onError("AI 답변을 읽지 못했어요. 다시 요청해 주세요.");
         return;
       }
 
@@ -106,7 +106,7 @@ export function ChatKitQueryPanel({
     locale: "ko-KR",
     onEffect: handleEffect,
     onError: ({ error }) => {
-      onError(error.message || "ChatKit 요청에 실패했습니다.");
+      onError(error.message || "AI 도우미가 답하지 못했어요. 다시 시도해 주세요.");
     },
     startScreen: {
       greeting: "무엇을 조회할까요?",
@@ -142,7 +142,7 @@ export function ChatKitQueryPanel({
       {showTitle ? (
         <div className="border-b border-black/10 px-4 py-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-            AI 어시스턴트
+            AI 도우미
           </div>
         </div>
       ) : null}

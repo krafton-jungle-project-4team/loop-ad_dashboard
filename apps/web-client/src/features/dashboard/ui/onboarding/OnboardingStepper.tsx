@@ -35,7 +35,7 @@ export type OnboardingStepperProps = {
 const STEP_STATE_LABEL: Record<OnboardingStepState, string> = {
   complete: "완료",
   current: "진행 중",
-  locked: "잠김"
+  locked: "아직 시작 전"
 };
 
 export function OnboardingStepper({
@@ -70,7 +70,7 @@ export function OnboardingStepper({
       <CardContent className="px-0 py-0">
         {steps.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            표시할 단계가 없습니다.
+            아직 표시할 단계가 없어요.
           </p>
         ) : (
           <ScrollArea className="w-full pb-3">

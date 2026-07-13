@@ -148,8 +148,8 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   if (!projectId.trim()) {
     return (
       <Alert>
-        <AlertTitle>조회 컨텍스트가 필요합니다</AlertTitle>
-        <AlertDescription>대시보드 경로에 projectId를 명시해주세요.</AlertDescription>
+        <AlertTitle>프로젝트를 찾지 못했어요</AlertTitle>
+        <AlertDescription>프로젝트 목록에서 다시 선택해 주세요.</AlertDescription>
       </Alert>
     );
   }
@@ -250,7 +250,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                 <section className="flex h-full min-h-0 min-w-0 flex-col bg-white">
                   {queryError ? (
                     <Alert className="m-3 shrink-0" variant="destructive">
-                      <AlertTitle>데이터 탐색기 요청 실패</AlertTitle>
+                      <AlertTitle>데이터를 불러오지 못했어요</AlertTitle>
                       <AlertDescription>{queryError}</AlertDescription>
                     </Alert>
                   ) : null}
@@ -262,7 +262,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                     <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
                       <TabsList className="h-8">
                         <TabsTrigger value="result">쿼리 결과</TabsTrigger>
-                        <TabsTrigger value="visualization">시각화 인사이트</TabsTrigger>
+                        <TabsTrigger value="visualization">차트로 보기</TabsTrigger>
                       </TabsList>
                       <div className="flex items-center gap-2">
                         {validation ? (
@@ -314,7 +314,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                 <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
                   <Bot className="size-4 text-primary" />
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    AI 어시스턴트
+                    AI 도우미
                   </div>
                 </div>
                 <div className="h-[calc(100%-49px)] min-h-0">
@@ -418,7 +418,5 @@ function shouldOpenSidePanelsByDefault() {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "데이터 탐색기에서 예상하지 못한 오류가 발생했습니다.";
+  return error instanceof Error ? error.message : "문제가 생겼어요. 잠시 후 다시 시도해 주세요.";
 }

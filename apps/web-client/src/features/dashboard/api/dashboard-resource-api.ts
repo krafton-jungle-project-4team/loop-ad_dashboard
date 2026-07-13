@@ -36,7 +36,7 @@ export async function fetchDashboardPageResource(
         data: await fetchResource("/dashboard/v1/main", DashboardMainSchema, query, signal)
       };
     case "dataExplorer":
-      throw new Error("데이터 탐색기는 별도 API 리소스 흐름을 사용합니다.");
+      throw new Error("데이터 탐색기를 여는 방법이 올바르지 않아요. 다시 접속해 주세요.");
     case "sdk":
       throw new Error("SDK 연동 가이드는 정적 페이지입니다.");
   }

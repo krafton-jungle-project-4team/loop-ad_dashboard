@@ -175,8 +175,10 @@ export function ExperimentContent({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{isLoading ? "실험 데이터를 불러오는 중" : "실험 데이터 없음"}</CardTitle>
-          <CardDescription>선택된 캠페인의 실험 정보를 준비하고 있습니다.</CardDescription>
+          <CardTitle>{isLoading ? "실험을 불러오는 중" : "아직 실험이 없어요"}</CardTitle>
+          <CardDescription>
+            {isLoading ? "잠시만 기다려 주세요." : "이 캠페인에서 아직 실험을 시작하지 않았어요."}
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -216,7 +218,7 @@ export function ExperimentContent({
           <div className="grid gap-1">
             <CardTitle>진행 실험 목록</CardTitle>
             <CardDescription>
-              프로모션과 세그먼트에 연결된 실험, 평가 지표, 다음 루프 여부를 함께 봅니다.
+              프로모션과 세그먼트에 연결된 실험, 평가 지표, 반복 실험 여부를 함께 볼 수 있어요.
             </CardDescription>
           </div>
           <Field className="w-full md:w-56">
@@ -270,9 +272,9 @@ export function ExperimentContent({
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
-            <EmptyState message="선택된 캠페인에 연결된 실험이 없습니다." />
+            <EmptyState message="이 캠페인에는 아직 실험이 없어요." />
           ) : filteredRows.length === 0 ? (
-            <EmptyState message="필터 조건에 맞는 실험이 없습니다." />
+            <EmptyState message="조건에 맞는 실험이 없어요." />
           ) : (
             <div className="grid gap-4">
               <ExperimentTable rows={pageRows} />
@@ -333,7 +335,7 @@ function ExperimentSegmentPanel({
   segments: DashboardCampaignSegment[];
 }) {
   if (segments.length === 0) {
-    return <EmptyState message="실험을 확인할 세그먼트가 없습니다." />;
+    return <EmptyState message="실험을 확인할 세그먼트가 없어요." />;
   }
   return (
     <section className="grid gap-4">
@@ -387,13 +389,13 @@ function SelectedSegmentExperimentCards({
   selectedSegmentId: string;
 }) {
   if (!selectedSegmentId) {
-    return <EmptyState message="실험을 확인할 세그먼트를 선택해주세요." />;
+    return <EmptyState message="세그먼트를 선택해 주세요." />;
   }
   if (isError) {
     return null;
   }
   if (isLoading || !detail) {
-    return <EmptyState message="세그먼트 실험 정보를 불러오는 중입니다." />;
+    return <EmptyState message="세그먼트 실험을 불러오는 중이에요." />;
   }
 
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
@@ -436,10 +438,8 @@ function SelectedSegmentExperimentCards({
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="grid gap-1">
-            <CardTitle className="text-base">지표 / 표본 부족 사유</CardTitle>
-            <CardDescription>
-              실험 결과를 평가하고 실패한 대상만 다음 루프로 이어갑니다.
-            </CardDescription>
+            <CardTitle className="text-base">성과와 평가 대상</CardTitle>
+            <CardDescription>실험 결과를 평가하고 실패한 대상만 다시 실험해요.</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -453,21 +453,21 @@ function SelectedSegmentExperimentCards({
               variant="outline"
             >
               <BarChart3 data-icon="inline-start" />
-              {evaluatePromotionRunIsPending ? "평가 중" : "성과 평가"}
+              {evaluatePromotionRunIsPending ? "평가 중" : "성과 평가하기"}
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button disabled={!canCreateNextLoop || createNextLoopIsPending} type="button">
                   <Plus data-icon="inline-start" />
-                  {createNextLoopIsPending ? "다음 루프 생성 및 시작 중" : "다음 루프 생성 및 시작"}
+                  {createNextLoopIsPending ? "반복 실험 시작 중" : "반복 실험 시작하기"}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>다음 루프를 생성하고 바로 시작할까요?</AlertDialogTitle>
+                  <AlertDialogTitle>실패한 대상을 다시 실험할까요?</AlertDialogTitle>
                   <AlertDialogDescription>
                     실패한 세그먼트를 다시 분석해 광고 소재와 실험을 만들고, 사용자 배정과 채널
-                    실행까지 이어서 처리합니다.
+                    실행까지 이어서 진행해요.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -495,27 +495,27 @@ function SelectedSegmentExperimentCards({
             <Alert>
               <AlertTitle>
                 {currentCreateNextLoopResult.dispatchFailed
-                  ? "다음 루프는 시작했지만 발송하지 못했습니다"
+                  ? "반복 실험은 시작했지만 광고를 보내지 못했어요"
                   : currentCreateNextLoopResult.failedExperimentIds.length > 0
-                    ? "다음 루프의 일부 실험만 시작됐습니다"
-                    : "다음 루프를 생성하고 시작했습니다"}
+                    ? "일부 반복 실험만 시작됐어요"
+                    : "반복 실험을 시작했어요"}
               </AlertTitle>
               <AlertDescription>
                 {formatInteger(currentCreateNextLoopResult.startedExperimentIds.length)}개 실험을
-                시작했습니다.
+                시작했어요.
                 {currentCreateNextLoopResult.dispatchFailed
-                  ? " 시작된 실험은 유지됩니다. 발송 상태를 확인해주세요."
+                  ? " 시작된 실험은 유지돼요. 발송 상태를 확인해 주세요."
                   : currentCreateNextLoopResult.failedExperimentIds.length > 0
-                    ? ` ${formatInteger(currentCreateNextLoopResult.failedExperimentIds.length)}개 실험은 시작하지 못했습니다.`
+                    ? ` ${formatInteger(currentCreateNextLoopResult.failedExperimentIds.length)}개 실험은 시작하지 못했어요.`
                     : currentCreateNextLoopResult.dispatched
-                      ? " 사용자 배정과 발송도 완료했습니다."
-                      : " 사용자 배정을 완료했습니다."}
+                      ? " 사용자 배정과 발송도 마쳤어요."
+                      : " 사용자 배정을 마쳤어요."}
               </AlertDescription>
             </Alert>
           ) : null}
           {createNextLoopIsError ? (
             <Alert variant="destructive">
-              <AlertTitle>다음 루프를 시작하지 못했습니다</AlertTitle>
+              <AlertTitle>반복 실험을 시작하지 못했어요</AlertTitle>
               <AlertDescription>{toErrorMessage(createNextLoopError)}</AlertDescription>
             </Alert>
           ) : null}
@@ -527,7 +527,7 @@ function SelectedSegmentExperimentCards({
                   <TableHead>평가</TableHead>
                   <TableHead className="text-right">목표</TableHead>
                   <TableHead className="text-right">실제</TableHead>
-                  <TableHead className="text-right">표본</TableHead>
+                  <TableHead className="text-right">평가 대상</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>사유</TableHead>
                 </TableRow>
@@ -565,7 +565,7 @@ function SelectedSegmentExperimentCards({
               </TableBody>
             </Table>
           ) : (
-            <EmptyState message="아직 세그먼트 실험 지표가 없습니다." />
+            <EmptyState message="아직 확인할 실험 성과가 없어요." />
           )}
         </CardContent>
       </Card>
@@ -656,9 +656,9 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
             <TableHead>실험</TableHead>
             <TableHead>프로모션</TableHead>
             <TableHead>세그먼트</TableHead>
-            <TableHead>콘텐츠</TableHead>
+            <TableHead>광고 소재</TableHead>
             <TableHead className="text-right">목표 / 실제</TableHead>
-            <TableHead className="text-right">평가 표본 / 배정</TableHead>
+            <TableHead className="text-right">평가 대상 / 배정</TableHead>
             <TableHead>실험 상태</TableHead>
             <TableHead>평가 상태</TableHead>
             <TableHead>업데이트</TableHead>
@@ -697,7 +697,7 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
                 <div className="grid min-w-[220px] gap-1">
                   <span className="font-medium">{contentCandidateTitle(row.contentCandidate)}</span>
                   <span className="text-xs text-muted-foreground">
-                    {row.contentCandidate?.cta ?? "광고 콘텐츠"}
+                    {row.contentCandidate?.cta ?? "광고 소재"}
                   </span>
                 </div>
               </TableCell>
@@ -723,7 +723,7 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
                   <Badge variant={statusBadgeVariant(row.evaluationStatus ?? "not_evaluated")}>
                     {formatStatusLabel(row.evaluationStatus ?? "not_evaluated")}
                   </Badge>
-                  {row.nextLoopRequired ? <Badge variant="outline">다음 루프</Badge> : null}
+                  {row.nextLoopRequired ? <Badge variant="outline">반복 실험 필요</Badge> : null}
                 </div>
               </TableCell>
               <TableCell>{formatDateTime(row.createdAt)}</TableCell>
