@@ -1,9 +1,77 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { TrackingPlanPropertiesSchemaSchema } from "@loopad/shared";
 import type { Pool } from "pg";
 import type { TrackingPlanRepository } from "../src/features/tracking-plan/tracking-plan.repository.js";
 
 setRequiredEnv();
+
+test("accepts recursive typed Tracking Plan properties", () => {
+  const parsed = TrackingPlanPropertiesSchemaSchema.parse({
+    type: "object",
+    properties: {
+      amount: { type: "number" },
+      item: {
+        type: "object",
+        properties: {
+          sku: { type: "string" },
+          quantity: { type: "integer" }
+        },
+        required: ["sku", "quantity"]
+      },
+      flags: {
+        type: "array",
+        items: { type: "boolean" }
+      }
+    },
+    required: ["amount", "item"]
+  });
+
+  assert.equal(parsed.properties?.item?.type, "object");
+  assert.equal(parsed.properties?.flags?.items?.type, "boolean");
+});
+
+test("rejects reserved, unsafe, duplicate, oversized, and over-depth schemas", () => {
+  const invalidSchemas = [
+    {
+      type: "object",
+      properties: { page: { type: "string" } },
+      required: []
+    },
+    {
+      type: "object",
+      properties: {
+        item: {
+          type: "object",
+          properties: { constructor: { type: "string" } },
+          required: []
+        }
+      },
+      required: []
+    },
+    {
+      type: "object",
+      properties: { value: { type: "string" } },
+      required: ["value", "value"]
+    },
+    {
+      type: "object",
+      properties: {},
+      required: ["constructor"]
+    },
+    tooDeepSchema(),
+    tooLargeSchema()
+  ];
+
+  for (const schema of invalidSchemas) {
+    assert.equal(TrackingPlanPropertiesSchemaSchema.safeParse(schema).success, false);
+  }
+
+  assert.doesNotThrow(() => {
+    const result = TrackingPlanPropertiesSchemaSchema.safeParse(tooDeepSchema(2000));
+    assert.equal(result.success, false);
+  });
+});
 
 test("publish inserts the immutable revision and switches the active revision in one transaction", async () => {
   const { TrackingPlanRepository: Repository } =
@@ -159,6 +227,28 @@ function hasStatus(status: number) {
     "getStatus" in error &&
     typeof error.getStatus === "function" &&
     error.getStatus() === status;
+}
+
+function tooDeepSchema(depth = 9) {
+  let schema: Record<string, unknown> = { type: "string" };
+  for (let index = 0; index < depth; index += 1) {
+    schema = {
+      type: "object",
+      properties: { child: schema },
+      required: ["child"]
+    };
+  }
+  return schema;
+}
+
+function tooLargeSchema() {
+  return {
+    type: "object",
+    properties: Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [`property_${index}`, { type: "string" }])
+    ),
+    required: []
+  };
 }
 
 function setRequiredEnv() {

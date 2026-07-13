@@ -5,6 +5,12 @@ import type {
   TrackingPlanPropertyType,
   TrackingPlanValidation
 } from "@loopad/shared";
+import {
+  TRACKING_PLAN_MAX_SCHEMA_DEPTH,
+  TRACKING_PLAN_MAX_SCHEMA_NODES,
+  TRACKING_PLAN_RESERVED_ROOT_PROPERTIES,
+  TRACKING_PLAN_UNSAFE_PROPERTIES
+} from "@loopad/shared";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -22,12 +28,20 @@ import {
 } from "../../../api/tracking-plan-api.js";
 
 type PropertyDraft = {
+  id: number;
   name: string;
-  type: Exclude<TrackingPlanPropertyType, "object">;
   required: boolean;
+  schema: SchemaDraft;
+};
+
+type SchemaDraft = {
+  type: TrackingPlanPropertyType;
+  properties?: PropertyDraft[];
+  items?: SchemaDraft;
 };
 
 const DEFAULT_DEMO_ORIGIN = "https://demo-shoppingmall.dev.loop-ad.org";
+let nextPropertyDraftId = 0;
 
 export function TrackingPlanWorkspace({
   projectId,
@@ -77,7 +91,9 @@ export function TrackingPlanWorkspace({
       <Card>
         <CardHeader>
           <CardTitle>Tracking Plan이 없습니다</CardTitle>
-          <CardDescription>표준 11개 이벤트를 포함한 기본 draft를 생성합니다.</CardDescription>
+          <CardDescription>
+            자동 page view를 위한 system event를 포함한 draft를 생성합니다.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Button
@@ -152,6 +168,7 @@ function EventDesigner({
   const [description, setDescription] = useState("");
   const [properties, setProperties] = useState<PropertyDraft[]>([]);
   const selected = plan.events.find((event) => event.eventName === selectedName) ?? null;
+  const propertyIssues = validatePropertyDrafts(properties);
 
   function selectEvent(event: TrackingPlanEvent | null) {
     setSelectedName(event?.eventName ?? null);
@@ -182,7 +199,7 @@ function EventDesigner({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">이벤트</CardTitle>
-          <CardDescription>표준 이벤트는 system으로 보존됩니다.</CardDescription>
+          <CardDescription>SDK 자동 수집 이벤트는 system으로 보존됩니다.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2">
           <Button variant="outline" onClick={() => selectEvent(null)}>
@@ -225,78 +242,20 @@ function EventDesigner({
             />
           </Field>
           <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <strong className="text-sm">속성</strong>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setProperties([...properties, { name: "", type: "string", required: false }])
-                }
-              >
-                속성 추가
-              </Button>
-            </div>
-            {properties.map((property, index) => (
-              <div
-                className="grid gap-2 rounded-md border p-3 md:grid-cols-[1fr_160px_auto_auto]"
-                key={`${index}-${property.name}`}
-              >
-                <input
-                  className="h-9 rounded-md border px-2"
-                  placeholder="property_name"
-                  value={property.name}
-                  onChange={(event) =>
-                    setProperties(
-                      replaceAt(properties, index, { ...property, name: event.target.value })
-                    )
-                  }
-                />
-                <select
-                  className="h-9 rounded-md border px-2"
-                  value={property.type}
-                  onChange={(event) =>
-                    setProperties(
-                      replaceAt(properties, index, {
-                        ...property,
-                        type: event.target.value as PropertyDraft["type"]
-                      })
-                    )
-                  }
-                >
-                  {(["string", "number", "integer", "boolean", "array"] as const).map((type) => (
-                    <option key={type}>{type}</option>
-                  ))}
-                </select>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    checked={property.required}
-                    type="checkbox"
-                    onChange={(event) =>
-                      setProperties(
-                        replaceAt(properties, index, {
-                          ...property,
-                          required: event.target.checked
-                        })
-                      )
-                    }
-                  />
-                  필수
-                </label>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    setProperties(properties.filter((_, propertyIndex) => propertyIndex !== index))
-                  }
-                >
-                  삭제
-                </Button>
+            <PropertyList parentDepth={0} properties={properties} onChange={setProperties} />
+            {propertyIssues.length > 0 ? (
+              <div className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
+                {propertyIssues.map((issue) => (
+                  <p key={issue}>{issue}</p>
+                ))}
               </div>
-            ))}
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button disabled={!eventName.trim()} onClick={() => void save()}>
+            <Button
+              disabled={!eventName.trim() || propertyIssues.length > 0}
+              onClick={() => void save()}
+            >
               저장
             </Button>
             {selected && selected.status !== "system" ? (
@@ -316,6 +275,161 @@ function EventDesigner({
       </Card>
     </div>
   );
+}
+
+function PropertyList({
+  onChange,
+  parentDepth,
+  properties
+}: {
+  onChange: (properties: PropertyDraft[]) => void;
+  parentDepth: number;
+  properties: PropertyDraft[];
+}) {
+  const canAdd = parentDepth < TRACKING_PLAN_MAX_SCHEMA_DEPTH;
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between">
+        <strong className="text-sm">
+          {parentDepth === 0 ? "속성" : `하위 속성 · depth ${parentDepth + 1}`}
+        </strong>
+        <Button
+          disabled={!canAdd}
+          size="sm"
+          variant="outline"
+          onClick={() => onChange([...properties, newPropertyDraft()])}
+        >
+          속성 추가
+        </Button>
+      </div>
+      {!canAdd ? (
+        <p className="text-xs text-muted-foreground">
+          최대 schema depth {TRACKING_PLAN_MAX_SCHEMA_DEPTH}에 도달했습니다.
+        </p>
+      ) : null}
+      {properties.map((property, index) => {
+        const schemaDepth = parentDepth + 1;
+        return (
+          <div className="grid gap-3 rounded-md border p-3" key={property.id}>
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_auto_auto]">
+              <input
+                className="h-9 rounded-md border px-2"
+                placeholder="property_name"
+                value={property.name}
+                onChange={(event) =>
+                  onChange(replaceAt(properties, index, { ...property, name: event.target.value }))
+                }
+              />
+              <SchemaTypeSelect
+                depth={schemaDepth}
+                schema={property.schema}
+                onChange={(schema) =>
+                  onChange(replaceAt(properties, index, { ...property, schema }))
+                }
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  checked={property.required}
+                  type="checkbox"
+                  onChange={(event) =>
+                    onChange(
+                      replaceAt(properties, index, {
+                        ...property,
+                        required: event.target.checked
+                      })
+                    )
+                  }
+                />
+                필수
+              </label>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  onChange(properties.filter((_, propertyIndex) => propertyIndex !== index))
+                }
+              >
+                삭제
+              </Button>
+            </div>
+            <NestedSchemaEditor
+              depth={schemaDepth}
+              schema={property.schema}
+              onChange={(schema) => onChange(replaceAt(properties, index, { ...property, schema }))}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SchemaTypeSelect({
+  depth,
+  onChange,
+  schema
+}: {
+  depth: number;
+  onChange: (schema: SchemaDraft) => void;
+  schema: SchemaDraft;
+}) {
+  const types = (
+    ["string", "number", "integer", "boolean", "object", "array"] as TrackingPlanPropertyType[]
+  ).filter((type) => type !== "array" || depth < TRACKING_PLAN_MAX_SCHEMA_DEPTH);
+  return (
+    <select
+      className="h-9 rounded-md border px-2"
+      value={schema.type}
+      onChange={(event) => onChange(newSchemaDraft(event.target.value as TrackingPlanPropertyType))}
+    >
+      {types.map((type) => (
+        <option key={type}>{type}</option>
+      ))}
+    </select>
+  );
+}
+
+function NestedSchemaEditor({
+  depth,
+  onChange,
+  schema
+}: {
+  depth: number;
+  onChange: (schema: SchemaDraft) => void;
+  schema: SchemaDraft;
+}) {
+  if (schema.type === "object") {
+    return (
+      <div className="ml-3 border-l pl-3">
+        <PropertyList
+          parentDepth={depth}
+          properties={schema.properties ?? []}
+          onChange={(properties) => onChange({ type: "object", properties })}
+        />
+      </div>
+    );
+  }
+  if (schema.type === "array") {
+    const items = schema.items ?? newSchemaDraft("string");
+    return (
+      <div className="ml-3 grid gap-2 border-l pl-3">
+        <span className="text-xs font-medium text-muted-foreground">
+          배열 item · depth {depth + 1}
+        </span>
+        <SchemaTypeSelect
+          depth={depth + 1}
+          schema={items}
+          onChange={(nextItems) => onChange({ type: "array", items: nextItems })}
+        />
+        <NestedSchemaEditor
+          depth={depth + 1}
+          schema={items}
+          onChange={(nextItems) => onChange({ type: "array", items: nextItems })}
+        />
+      </div>
+    );
+  }
+  return null;
 }
 
 function ConnectionPanel({
@@ -569,21 +683,20 @@ function GuideCode({ code }: { code: string }) {
 }
 
 function PropertyContract({ event }: { event: TrackingPlanEvent }) {
-  const required = new Set(event.propertiesSchema.required ?? []);
-  const properties = Object.entries(event.propertiesSchema.properties ?? {});
-  if (properties.length === 0) {
+  const rows = propertyContractRows(event.propertiesSchema);
+  if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">추가 속성 없음</p>;
   }
   return (
     <div className="overflow-hidden rounded-md border">
-      {properties.map(([name, schema]) => (
+      {rows.map((row) => (
         <div
           className="grid grid-cols-[minmax(0,1fr)_100px_60px] gap-3 border-b px-3 py-2 text-sm last:border-b-0"
-          key={name}
+          key={row.path}
         >
-          <code className="break-all">{name}</code>
-          <span>{schema.type}</span>
-          <span>{required.has(name) ? "필수" : "선택"}</span>
+          <code className="break-all">{row.path}</code>
+          <span>{row.type}</span>
+          <span>{row.required ? "필수" : "선택"}</span>
         </div>
       ))}
     </div>
@@ -600,7 +713,7 @@ function trackCode(event: TrackingPlanEvent) {
   if (Object.keys(properties).length === 0) {
     return `const client = await startLoopAdCollection({\n  userId: user.id,\n  sessionId: session.id\n});\nclient.track("${event.eventName}");`;
   }
-  return `const client = await startLoopAdCollection({\n  userId: user.id,\n  sessionId: session.id\n});\nclient.track("${event.eventName}", {\n  properties: ${JSON.stringify(properties, null, 2).replace(/\n/g, "\n  ")}\n});`;
+  return `const client = await startLoopAdCollection({\n  userId: user.id,\n  sessionId: session.id\n});\nclient.track("${event.eventName}", ${JSON.stringify(properties, null, 2)});`;
 }
 
 function exampleValue(name: string, schema: TrackingPlanJsonSchema): unknown {
@@ -646,20 +759,13 @@ function replaceAt<T>(values: T[], index: number, value: T) {
 }
 
 function schemaFromProperties(properties: PropertyDraft[]): TrackingPlanJsonSchema {
-  const schemaProperties: Record<string, TrackingPlanJsonSchema> = {};
-  for (const property of properties) {
-    const name = property.name.trim();
-    if (!name) continue;
-    schemaProperties[name] =
-      property.type === "array"
-        ? { type: "array", items: { type: "string" } }
-        : { type: property.type };
-  }
   return {
     type: "object",
-    properties: schemaProperties,
+    properties: Object.fromEntries(
+      properties.map((property) => [property.name.trim(), schemaFromDraft(property.schema)])
+    ),
     required: properties
-      .filter((property) => property.required && property.name.trim())
+      .filter((property) => property.required)
       .map((property) => property.name.trim())
   };
 }
@@ -667,8 +773,113 @@ function schemaFromProperties(properties: PropertyDraft[]): TrackingPlanJsonSche
 function propertiesFromSchema(schema: TrackingPlanJsonSchema): PropertyDraft[] {
   const required = new Set(schema.required ?? []);
   return Object.entries(schema.properties ?? {}).map(([name, property]) => ({
+    id: nextPropertyDraftId++,
     name,
-    type: property.type === "object" ? "string" : property.type,
-    required: required.has(name)
+    required: required.has(name),
+    schema: draftFromSchema(property)
   }));
+}
+
+function newPropertyDraft(): PropertyDraft {
+  return {
+    id: nextPropertyDraftId++,
+    name: "",
+    required: false,
+    schema: newSchemaDraft("string")
+  };
+}
+
+function newSchemaDraft(type: TrackingPlanPropertyType): SchemaDraft {
+  if (type === "object") return { type, properties: [] };
+  if (type === "array") return { type, items: { type: "string" } };
+  return { type };
+}
+
+function draftFromSchema(schema: TrackingPlanJsonSchema): SchemaDraft {
+  if (schema.type === "object") {
+    return { type: "object", properties: propertiesFromSchema(schema) };
+  }
+  if (schema.type === "array") {
+    return {
+      type: "array",
+      items: schema.items ? draftFromSchema(schema.items) : newSchemaDraft("string")
+    };
+  }
+  return { type: schema.type };
+}
+
+function schemaFromDraft(schema: SchemaDraft): TrackingPlanJsonSchema {
+  if (schema.type === "object") {
+    return schemaFromProperties(schema.properties ?? []);
+  }
+  if (schema.type === "array") {
+    return {
+      type: "array",
+      items: schemaFromDraft(schema.items ?? newSchemaDraft("string"))
+    };
+  }
+  return { type: schema.type };
+}
+
+function validatePropertyDrafts(properties: PropertyDraft[]): string[] {
+  const issues: string[] = [];
+  const state = { nodes: 1, nodeLimitReported: false };
+  const unsafe = new Set<string>(TRACKING_PLAN_UNSAFE_PROPERTIES);
+  const reserved = new Set<string>(TRACKING_PLAN_RESERVED_ROOT_PROPERTIES);
+
+  function visitProperties(current: PropertyDraft[], parentDepth: number, path: string) {
+    const names = new Set<string>();
+    for (const property of current) {
+      const name = property.name.trim();
+      const propertyPath = name ? `${path}.${name}` : `${path}.<이름 없음>`;
+      if (!name) issues.push(`${path}: 속성명이 필요합니다.`);
+      if (property.name !== name) issues.push(`${propertyPath}: 앞뒤 공백을 제거하세요.`);
+      if (names.has(name)) issues.push(`${propertyPath}: 같은 객체에 중복된 속성명입니다.`);
+      names.add(name);
+      if (unsafe.has(name)) issues.push(`${propertyPath}: 사용할 수 없는 속성명입니다.`);
+      if (parentDepth === 0 && reserved.has(name)) {
+        issues.push(`${propertyPath}: SDK가 예약한 최상위 속성명입니다.`);
+      }
+      visitSchema(property.schema, parentDepth + 1, propertyPath);
+    }
+  }
+
+  function visitSchema(schema: SchemaDraft, depth: number, path: string) {
+    state.nodes += 1;
+    if (state.nodes > TRACKING_PLAN_MAX_SCHEMA_NODES && !state.nodeLimitReported) {
+      issues.push(`schema node는 최대 ${TRACKING_PLAN_MAX_SCHEMA_NODES}개입니다.`);
+      state.nodeLimitReported = true;
+    }
+    if (depth > TRACKING_PLAN_MAX_SCHEMA_DEPTH) {
+      issues.push(`${path}: 최대 depth ${TRACKING_PLAN_MAX_SCHEMA_DEPTH}를 초과했습니다.`);
+      return;
+    }
+    if (schema.type === "object") {
+      visitProperties(schema.properties ?? [], depth, path);
+    } else if (schema.type === "array") {
+      visitSchema(schema.items ?? newSchemaDraft("string"), depth + 1, `${path}[]`);
+    }
+  }
+
+  visitProperties(properties, 0, "properties");
+  return [...new Set(issues)];
+}
+
+function propertyContractRows(
+  schema: TrackingPlanJsonSchema,
+  prefix = ""
+): Array<{ path: string; type: TrackingPlanPropertyType; required: boolean }> {
+  if (schema.type !== "object") return [];
+  const required = new Set(schema.required ?? []);
+  return Object.entries(schema.properties ?? {}).flatMap(([name, child]) => {
+    const path = prefix ? `${prefix}.${name}` : name;
+    const row = { path, type: child.type, required: required.has(name) };
+    if (child.type === "object") {
+      return [row, ...propertyContractRows(child, path)];
+    }
+    if (child.type === "array" && child.items?.type === "object") {
+      return [row, ...propertyContractRows(child.items, `${path}[]`)];
+    }
+    return [row];
+  });
 }
