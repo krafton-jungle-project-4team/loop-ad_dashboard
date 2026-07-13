@@ -447,7 +447,7 @@ export function usePromotionWorkspaceController({
       segmentId: string;
     }) =>
       launchPromotionExperiment(
-        { segmentId },
+        { segmentIds: [segmentId] },
         {
           buildAssignments: (promotionRunId) =>
             buildDashboardPromotionRunAssignments(query, promotionRunId),

@@ -38,6 +38,12 @@ export const adExecutionErrors = {
       code: "INCONSISTENT_AD_EXECUTION_ASSIGNMENT",
       message
     }),
+  dispatchAlreadyAccepted: (dispatchJobId: string) =>
+    createDomainError({
+      statusCode: HttpStatus.CONFLICT,
+      code: "DISPATCH_ALREADY_ACCEPTED",
+      message: `Dispatch job '${dispatchJobId}' is already running and will not be submitted again.`
+    }),
   dispatchLandingUrlInvalid: (promotionRunId: string, landingUrl: string | null) =>
     createDomainError({
       statusCode: HttpStatus.UNPROCESSABLE_ENTITY,

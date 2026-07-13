@@ -17,6 +17,19 @@ const dateFromDbSchema = z.union([z.date(), z.string().pipe(z.coerce.date())]);
 const jsonObjectSchema = z.record(z.string(), z.unknown());
 const requiredStringSchema = z.string().min(1);
 const nullableStringSchema = z.string().nullable();
+
+export const storedDispatchJobEntitySchema = z.object({
+  dispatchJobId: requiredStringSchema,
+  promotionRunId: requiredStringSchema,
+  adExperimentId: requiredStringSchema,
+  channel: z.enum(["email", "sms"]),
+  status: requiredStringSchema,
+  targetCount: z.number().int().nonnegative(),
+  sentCount: z.number().int().nonnegative(),
+  failedCount: z.number().int().nonnegative(),
+  metadataJson: jsonObjectSchema
+});
+export type StoredDispatchJobEntity = z.infer<typeof storedDispatchJobEntitySchema>;
 const promotionIdsSchema = {
   projectId: requiredStringSchema,
   campaignId: requiredStringSchema,

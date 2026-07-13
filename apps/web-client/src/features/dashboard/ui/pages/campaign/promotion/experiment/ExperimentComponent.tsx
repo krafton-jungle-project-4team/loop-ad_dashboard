@@ -38,7 +38,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
       promotionId,
       promotionRunId
     }: NextLoopInput) =>
-      launchSingleSegmentNextLoop({
+      launchNextLoop({
         failedAdExperimentIds,
         failedSegmentIds,
         promotionId,
@@ -47,18 +47,17 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     onSettled: invalidateExperimentData
   });
 
-  function launchSingleSegmentNextLoop({
+  function launchNextLoop({
     failedAdExperimentIds,
     failedSegmentIds,
     promotionId,
     promotionRunId
   }: NextLoopInput) {
-    const segmentId = failedSegmentIds[0];
-    if (!segmentId || failedSegmentIds.length !== 1) {
-      throw new Error("다음 루프는 세그먼트 1개 단위로만 시작할 수 있습니다.");
+    if (failedSegmentIds.length === 0) {
+      throw new Error("다음 루프에 포함할 실패 세그먼트가 없습니다.");
     }
     return launchPromotionExperiment(
-      { segmentId },
+      { segmentIds: failedSegmentIds },
       {
         buildAssignments: (nextPromotionRunId) =>
           buildDashboardPromotionRunAssignments(query, nextPromotionRunId),
@@ -80,7 +79,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
               status: experiment.status
             })),
             promotionRunId: nextLoop.next_promotion_run_id,
-            segmentIds: [segmentId]
+            segmentIds: nextLoop.segment_ids
           };
         },
         dispatch: dispatchDashboardPromotionRun,

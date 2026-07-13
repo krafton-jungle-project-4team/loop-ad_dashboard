@@ -7,15 +7,18 @@ import {
   promotionEntitySchema,
   promotionRunEntitySchema,
   redirectLinkEntitySchema,
+  storedDispatchJobEntitySchema,
   type ActiveAdServingAssignmentEntity,
   type AdExperimentEntity,
   type PromotionEntity,
   type PromotionRunEntity,
-  type RedirectLinkEntity
+  type RedirectLinkEntity,
+  type StoredDispatchJobEntity
 } from "../domain/index.js";
 import {
   findActiveBannerAssignment,
   findAdExperiment,
+  findDispatchJobById,
   findPromotion,
   findPromotionRun,
   findRedirectLinkByToken,
@@ -49,6 +52,13 @@ export class AdExecutionReader {
     const row = await this.db.query(findAdExperiment, { adExperimentId }).singleOrNull();
 
     return row ? adExperimentEntitySchema.parse(row) : null;
+  }
+
+  /** 동일 실행 범위의 dispatch job 상태를 조회합니다. */
+  async findDispatchJob(dispatchJobId: string): Promise<StoredDispatchJobEntity | null> {
+    const row = await this.db.query(findDispatchJobById, { dispatchJobId }).singleOrNull();
+
+    return row ? storedDispatchJobEntitySchema.parse(row) : null;
   }
 
   /** 발송 대상 active assignment 목록을 조회합니다. */

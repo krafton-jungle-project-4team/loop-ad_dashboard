@@ -31,7 +31,7 @@ function toProjectExperiment(
   row: IListDashboardProjectExperimentsResult
 ): DashboardProjectExperiment {
   return {
-    ad_experiment_id: row.adExperimentId,
+    ad_experiment_id: requiredText(row.adExperimentId, "adExperimentId"),
     assignment_count: countValue(row.assignmentCount),
     campaign_id: row.campaignId,
     campaign_name: row.campaignName,
@@ -49,7 +49,7 @@ function toProjectExperiment(
     promotion_name: row.promotionName,
     promotion_run_id: row.promotionRunId,
     segment_id: row.segmentId,
-    segment_name: row.segmentName,
+    segment_name: requiredText(row.segmentName, "segmentName"),
     started_at: row.startedAt?.toISOString() ?? null,
     status: row.status,
     updated_at: row.updatedAt.toISOString()

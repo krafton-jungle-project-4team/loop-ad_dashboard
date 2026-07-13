@@ -144,6 +144,21 @@ WHERE aas.project_id = :projectId
   AND aas.channel = 'onsite_banner'
 LIMIT 1;
 
+/* Purpose: Read a deterministic dispatch job before retrying or suppressing a duplicate send. */
+/* @name FindDispatchJobById */
+SELECT
+  ad_dispatch_job_id AS "dispatchJobId",
+  promotion_run_id AS "promotionRunId",
+  ad_experiment_id AS "adExperimentId",
+  channel,
+  status,
+  target_count AS "targetCount",
+  sent_count AS "sentCount",
+  failed_count AS "failedCount",
+  metadata_json AS "metadataJson"
+FROM ad_dispatch_jobs
+WHERE ad_dispatch_job_id = :dispatchJobId;
+
 /* Purpose: Create one dispatch job for an ad_experiment group. */
 /* @name InsertDispatchJob */
 INSERT INTO ad_dispatch_jobs (
@@ -178,6 +193,21 @@ VALUES (
   :metadataJson::jsonb,
   now()
 )
+ON CONFLICT (ad_dispatch_job_id) DO NOTHING
+RETURNING
+  ad_dispatch_job_id AS "dispatchJobId";
+
+/* Purpose: Retry only a failed deterministic dispatch job with the same idempotency key. */
+/* @name RestartFailedDispatchJob */
+UPDATE ad_dispatch_jobs
+SET
+  status = 'running',
+  sent_count = 0,
+  failed_count = 0,
+  started_at = now(),
+  completed_at = NULL
+WHERE ad_dispatch_job_id = :dispatchJobId
+  AND status = 'failed'
 RETURNING
   ad_dispatch_job_id AS "dispatchJobId";
 

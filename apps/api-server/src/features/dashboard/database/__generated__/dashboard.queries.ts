@@ -42,7 +42,7 @@ const listDashboardProjectsIR: any = {"usedParamSet":{},"params":[],"statement":
  *   updated_at AS "updatedAt"
  * FROM projects
  * WHERE status <> 'archived'
- * ORDER BY updated_at DESC, created_at DESC                               
+ * ORDER BY updated_at DESC, created_at DESC
  * ```
  */
 export const listDashboardProjects = new PreparedQuery<IListDashboardProjectsParams,IListDashboardProjectsResult>(listDashboardProjectsIR);
@@ -107,7 +107,7 @@ const insertDashboardProjectIR: any = {"usedParamSet":{"projectId":true,"project
  *   write_key AS "writeKey",
  *   status,
  *   created_at AS "createdAt",
- *   updated_at AS "updatedAt"                                                
+ *   updated_at AS "updatedAt"
  * ```
  */
 export const insertDashboardProject = new PreparedQuery<IInsertDashboardProjectParams,IInsertDashboardProjectResult>(insertDashboardProjectIR);
@@ -140,7 +140,7 @@ const archiveDashboardProjectIR: any = {"usedParamSet":{"projectId":true},"param
  *     updated_at = now()
  * WHERE project_id = :projectId
  *   AND status <> 'archived'
- * RETURNING project_id AS "projectId", status                                        
+ * RETURNING project_id AS "projectId", status
  * ```
  */
 export const archiveDashboardProject = new PreparedQuery<IArchiveDashboardProjectParams,IArchiveDashboardProjectResult>(archiveDashboardProjectIR);
@@ -216,9 +216,9 @@ const listDashboardCampaignSummariesIR: any = {"usedParamSet":{"projectId":true}
  * LEFT JOIN promotion_evaluations pe
  *   ON pe.campaign_id = c.campaign_id
  * WHERE c.project_id = :projectId
- * 
+ *
  * GROUP BY c.campaign_id
- * ORDER BY c.updated_at DESC, c.created_at DESC                                      
+ * ORDER BY c.updated_at DESC, c.created_at DESC
  * ```
  */
 export const listDashboardCampaignSummaries = new PreparedQuery<IListDashboardCampaignSummariesParams,IListDashboardCampaignSummariesResult>(listDashboardCampaignSummariesIR);
@@ -296,8 +296,8 @@ const getDashboardCampaignSummaryIR: any = {"usedParamSet":{"projectId":true,"ca
  *   ON pe.campaign_id = c.campaign_id
  * WHERE c.project_id = :projectId
  *   AND c.campaign_id = :campaignId
- * 
- * GROUP BY c.campaign_id                              
+ *
+ * GROUP BY c.campaign_id
  * ```
  */
 export const getDashboardCampaignSummary = new PreparedQuery<IGetDashboardCampaignSummaryParams,IGetDashboardCampaignSummaryResult>(getDashboardCampaignSummaryIR);
@@ -351,7 +351,7 @@ const insertDashboardCampaignIR: any = {"usedParamSet":{"campaignId":true,"proje
  *   :primaryMetric,
  *   :status
  * )
- * RETURNING campaign_id AS "campaignId"                                  
+ * RETURNING campaign_id AS "campaignId"
  * ```
  */
 export const insertDashboardCampaign = new PreparedQuery<IInsertDashboardCampaignParams,IInsertDashboardCampaignResult>(insertDashboardCampaignIR);
@@ -401,7 +401,7 @@ const updateDashboardCampaignIR: any = {"usedParamSet":{"campaignName":true,"obj
  * WHERE project_id = :projectId
  *   AND campaign_id = :campaignId
  *   AND status <> 'stopped'
- * RETURNING campaign_id AS "campaignId"                                       
+ * RETURNING campaign_id AS "campaignId"
  * ```
  */
 export const updateDashboardCampaign = new PreparedQuery<IUpdateDashboardCampaignParams,IUpdateDashboardCampaignResult>(updateDashboardCampaignIR);
@@ -570,7 +570,7 @@ const deleteDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campai
  *   RETURNING c.campaign_id, 'deleted'::text AS status
  * )
  * SELECT campaign_id AS "campaignId", status
- * FROM deleted_campaign                                     
+ * FROM deleted_campaign
  * ```
  */
 export const deleteDashboardCampaign = new PreparedQuery<IDeleteDashboardCampaignParams,IDeleteDashboardCampaignResult>(deleteDashboardCampaignIR);
@@ -655,7 +655,7 @@ const listDashboardCampaignPromotionsIR: any = {"usedParamSet":{"projectId":true
  *   AND p.campaign_id = :campaignId
  *   AND p.status <> 'stopped'
  * GROUP BY p.promotion_id
- * ORDER BY p.updated_at DESC, p.created_at DESC                                       
+ * ORDER BY p.updated_at DESC, p.created_at DESC
  * ```
  */
 export const listDashboardCampaignPromotions = new PreparedQuery<IListDashboardCampaignPromotionsParams,IListDashboardCampaignPromotionsResult>(listDashboardCampaignPromotionsIR);
@@ -740,8 +740,8 @@ const getDashboardPromotionSummaryIR: any = {"usedParamSet":{"projectId":true,"p
  *   ON pe.promotion_id = p.promotion_id
  * WHERE p.project_id = :projectId
  *   AND p.promotion_id = :promotionId
- * 
- * GROUP BY p.promotion_id                             
+ *
+ * GROUP BY p.promotion_id
  * ```
  */
 export const getDashboardPromotionSummary = new PreparedQuery<IGetDashboardPromotionSummaryParams,IGetDashboardPromotionSummaryResult>(getDashboardPromotionSummaryIR);
@@ -819,7 +819,7 @@ const insertDashboardPromotionIR: any = {"usedParamSet":{"promotionId":true,"cha
  * WHERE c.project_id = :projectId
  *   AND c.campaign_id = :campaignId
  *   AND c.status <> 'stopped'
- * RETURNING promotion_id AS "promotionId"                            
+ * RETURNING promotion_id AS "promotionId"
  * ```
  */
 export const insertDashboardPromotion = new PreparedQuery<IInsertDashboardPromotionParams,IInsertDashboardPromotionResult>(insertDashboardPromotionIR);
@@ -881,7 +881,7 @@ const updateDashboardPromotionIR: any = {"usedParamSet":{"channel":true,"marketi
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
  *   AND status <> 'stopped'
- * RETURNING promotion_id AS "promotionId"                                                
+ * RETURNING promotion_id AS "promotionId"
  * ```
  */
 export const updateDashboardPromotion = new PreparedQuery<IUpdateDashboardPromotionParams,IUpdateDashboardPromotionResult>(updateDashboardPromotionIR);
@@ -985,7 +985,7 @@ const stopDashboardPromotionIR: any = {"usedParamSet":{"projectId":true,"promoti
  *   RETURNING ad_experiment_id
  * )
  * SELECT promotion_id AS "promotionId", status
- * FROM stopped_promotion                                       
+ * FROM stopped_promotion
  * ```
  */
 export const stopDashboardPromotion = new PreparedQuery<IStopDashboardPromotionParams,IStopDashboardPromotionResult>(stopDashboardPromotionIR);
@@ -1092,7 +1092,7 @@ const listDashboardCampaignSegmentsIR: any = {"usedParamSet":{"projectId":true,"
  *   pts.priority,
  *   pts.status,
  *   pts.created_at
- * ORDER BY pts.promotion_id ASC, pts.created_at DESC                                   
+ * ORDER BY pts.promotion_id ASC, pts.created_at DESC
  * ```
  */
 export const listDashboardCampaignSegments = new PreparedQuery<IListDashboardCampaignSegmentsParams,IListDashboardCampaignSegmentsResult>(listDashboardCampaignSegmentsIR);
@@ -1199,7 +1199,7 @@ const listDashboardPromotionSegmentsIR: any = {"usedParamSet":{"projectId":true,
  *   pts.priority,
  *   pts.status,
  *   pts.created_at
- * ORDER BY pts.created_at DESC                                    
+ * ORDER BY pts.created_at DESC
  * ```
  */
 export const listDashboardPromotionSegments = new PreparedQuery<IListDashboardPromotionSegmentsParams,IListDashboardPromotionSegmentsResult>(listDashboardPromotionSegmentsIR);
@@ -1289,7 +1289,7 @@ const getDashboardPromotionSegmentIR: any = {"usedParamSet":{"projectId":true,"p
  *   AND pts.promotion_id = :promotionId
  *   AND pts.segment_id = :segmentId
  *   AND pts.status <> 'stopped'
- * 
+ *
  * GROUP BY
  *   pts.analysis_id,
  *   pts.promotion_id,
@@ -1310,7 +1310,7 @@ const getDashboardPromotionSegmentIR: any = {"usedParamSet":{"projectId":true,"p
  *   pts.status,
  *   pts.created_at
  * ORDER BY pts.created_at DESC
- * LIMIT 1                                              
+ * LIMIT 1
  * ```
  */
 export const getDashboardPromotionSegment = new PreparedQuery<IGetDashboardPromotionSegmentParams,IGetDashboardPromotionSegmentResult>(getDashboardPromotionSegmentIR);
@@ -1358,7 +1358,7 @@ const insertDashboardManualPromotionAnalysisIR: any = {"usedParamSet":{"analysis
  * )
  * ON CONFLICT (analysis_id) DO UPDATE
  * SET status = 'completed'
- * RETURNING analysis_id AS "analysisId"                                        
+ * RETURNING analysis_id AS "analysisId"
  * ```
  */
 export const insertDashboardManualPromotionAnalysis = new PreparedQuery<IInsertDashboardManualPromotionAnalysisParams,IInsertDashboardManualPromotionAnalysisResult>(insertDashboardManualPromotionAnalysisIR);
@@ -1450,7 +1450,7 @@ const insertDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"analysisI
  *       AND existing_pts.segment_id = :segmentId
  *       AND existing_pts.status <> 'stopped'
  *   )
- * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId"                                          
+ * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId"
  * ```
  */
 export const insertDashboardPromotionTargetSegment = new PreparedQuery<IInsertDashboardPromotionTargetSegmentParams,IInsertDashboardPromotionTargetSegmentResult>(insertDashboardPromotionTargetSegmentIR);
@@ -1511,7 +1511,7 @@ const listDashboardPromotionScopedSegmentDefinitionsIR: any = {"usedParamSet":{"
  *   AND promotion_id = :promotionId
  *   AND source IN ('custom_chatkit', 'manual_rule')
  *   AND status = 'active'
- * ORDER BY created_at DESC                                             
+ * ORDER BY created_at DESC
  * ```
  */
 export const listDashboardPromotionScopedSegmentDefinitions = new PreparedQuery<IListDashboardPromotionScopedSegmentDefinitionsParams,IListDashboardPromotionScopedSegmentDefinitionsResult>(listDashboardPromotionScopedSegmentDefinitionsIR);
@@ -1550,7 +1550,7 @@ const archiveDashboardPromotionScopedSegmentDefinitionIR: any = {"usedParamSet":
  *   AND segment_id = :segmentId
  *   AND source IN ('custom_chatkit', 'manual_rule')
  *   AND status = 'active'
- * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status                                                          
+ * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", status
  * ```
  */
 export const archiveDashboardPromotionScopedSegmentDefinition = new PreparedQuery<IArchiveDashboardPromotionScopedSegmentDefinitionParams,IArchiveDashboardPromotionScopedSegmentDefinitionResult>(archiveDashboardPromotionScopedSegmentDefinitionIR);
@@ -1647,7 +1647,7 @@ const insertDashboardPromotionCustomSegmentDefinitionIR: any = {"usedParamSet":{
  *   sample_size AS "sampleSize",
  *   total_eligible_user_count AS "totalEligibleUserCount",
  *   CAST(sample_ratio AS float8) AS "sampleRatio",
- *   status                                          
+ *   status
  * ```
  */
 export const insertDashboardPromotionCustomSegmentDefinition = new PreparedQuery<IInsertDashboardPromotionCustomSegmentDefinitionParams,IInsertDashboardPromotionCustomSegmentDefinitionResult>(insertDashboardPromotionCustomSegmentDefinitionIR);
@@ -1745,7 +1745,7 @@ const insertDashboardPromotionManualSegmentDefinitionIR: any = {"usedParamSet":{
  *   sample_size AS "sampleSize",
  *   total_eligible_user_count AS "totalEligibleUserCount",
  *   CAST(sample_ratio AS float8) AS "sampleRatio",
- *   status                                               
+ *   status
  * ```
  */
 export const insertDashboardPromotionManualSegmentDefinition = new PreparedQuery<IInsertDashboardPromotionManualSegmentDefinitionParams,IInsertDashboardPromotionManualSegmentDefinitionResult>(insertDashboardPromotionManualSegmentDefinitionIR);
@@ -1820,7 +1820,7 @@ const listDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projec
  * WHERE pss.project_id = :projectId
  *   AND pss.promotion_id = :promotionId
  *   AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)
- * ORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC                                                  
+ * ORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC
  * ```
  */
 export const listDashboardPromotionSegmentSuggestions = new PreparedQuery<IListDashboardPromotionSegmentSuggestionsParams,IListDashboardPromotionSegmentSuggestionsResult>(listDashboardPromotionSegmentSuggestionsIR);
@@ -1918,7 +1918,7 @@ const decideDashboardPromotionSegmentSuggestionIR: any = {"usedParamSet":{"statu
  *   d.decided_at AS "decidedAt"
  * FROM decided d
  * JOIN segment_definitions sd
- *   ON sd.segment_id = d.segment_id                                                        
+ *   ON sd.segment_id = d.segment_id
  * ```
  */
 export const decideDashboardPromotionSegmentSuggestion = new PreparedQuery<IDecideDashboardPromotionSegmentSuggestionParams,IDecideDashboardPromotionSegmentSuggestionResult>(decideDashboardPromotionSegmentSuggestionIR);
@@ -1944,7 +1944,7 @@ export interface IConfirmDashboardPromotionSegmentSuggestionsQuery {
   result: IConfirmDashboardPromotionSegmentSuggestionsResult;
 }
 
-const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"manualAnalysisId":true,"projectId":true,"promotionId":true,"confirmedBy":true},"params":[{"name":"manualAnalysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":45,"b":61},{"a":846,"b":862}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":725,"b":734},{"a":1340,"b":1349},{"a":1704,"b":1713},{"a":3881,"b":3890}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":763,"b":774},{"a":1377,"b":1388},{"a":1742,"b":1753},{"a":3919,"b":3930},{"a":4084,"b":4095}]},{"name":"confirmedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":3124,"b":3135}]}],"statement":"WITH accepted_suggestions AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    pss.project_id,\n    pss.campaign_id,\n    pss.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    pss.suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'suggestion_id', pss.suggestion_id,\n      'score', pss.score_json,\n      'reason', pss.reason_json,\n      'display_copy', pss.metadata_json->'display_copy',\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM promotion_segment_suggestions pss\n  JOIN segment_definitions sd\n    ON sd.segment_id = pss.segment_id\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.status = 'accepted'\n),\nmanual_segments AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    sd.project_id,\n    sd.campaign_id,\n    sd.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    NULL::varchar AS suggestion_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'query_preview_id', sd.query_preview_id,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM segment_definitions sd\n  WHERE sd.project_id = :projectId\n    AND sd.promotion_id = :promotionId\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n),\nselected_segments AS (\n  SELECT * FROM accepted_suggestions\n  UNION ALL\n  SELECT * FROM manual_segments\n),\nreset_unselected_approved AS (\n  UPDATE promotion_target_segments pts\n  SET status = 'planned'\n  WHERE pts.project_id = :projectId\n    AND pts.promotion_id = :promotionId\n    AND pts.status = 'approved'\n    AND EXISTS (\n      SELECT 1\n      FROM selected_segments selected\n      WHERE selected.project_id = pts.project_id\n        AND selected.campaign_id = pts.campaign_id\n        AND selected.promotion_id = pts.promotion_id\n        AND selected.analysis_id = pts.analysis_id\n    )\n    AND NOT EXISTS (\n      SELECT 1\n      FROM selected_segments selected\n      WHERE selected.project_id = pts.project_id\n        AND selected.campaign_id = pts.campaign_id\n        AND selected.promotion_id = pts.promotion_id\n        AND selected.analysis_id = pts.analysis_id\n        AND selected.segment_id = pts.segment_id\n    )\n  RETURNING pts.segment_id\n),\nconfirmed AS (\n  INSERT INTO promotion_target_segments (\n    analysis_id,\n    project_id,\n    campaign_id,\n    promotion_id,\n    segment_id,\n    segment_name,\n    rule_json,\n    profile_json,\n    content_brief_json,\n    data_evidence_json,\n    estimated_size,\n    priority,\n    status,\n    suggestion_id,\n    confirmed_by,\n    confirmed_at\n  )\n  SELECT\n    selected.analysis_id,\n    selected.project_id,\n    selected.campaign_id,\n    selected.promotion_id,\n    selected.segment_id,\n    selected.segment_name,\n    selected.rule_json,\n    selected.profile_json,\n    '{}'::jsonb,\n    selected.data_evidence_json,\n    selected.sample_size,\n    NULL,\n    'approved',\n    selected.suggestion_id,\n    :confirmedBy,\n    now()\n  FROM selected_segments selected,\n       (SELECT count(*) FROM reset_unselected_approved) dependency\n  ON CONFLICT (analysis_id, segment_id) DO UPDATE\n  SET\n    suggestion_id = EXCLUDED.suggestion_id,\n    confirmed_by = EXCLUDED.confirmed_by,\n    confirmed_at = EXCLUDED.confirmed_at,\n    status = CASE\n      WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'\n      ELSE promotion_target_segments.status\n    END\n  RETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", suggestion_id AS \"suggestionId\"\n),\nupdated AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND EXISTS (\n      SELECT 1\n      FROM confirmed c\n      WHERE c.\"suggestionId\" = pss.suggestion_id\n    )\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed                                      "};
+const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"manualAnalysisId":true,"projectId":true,"promotionId":true,"confirmedBy":true},"params":[{"name":"manualAnalysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":45,"b":61},{"a":889,"b":905}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":768,"b":777},{"a":1424,"b":1433},{"a":3315,"b":3324},{"a":5716,"b":5725}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":806,"b":817},{"a":1461,"b":1472},{"a":3353,"b":3364},{"a":5754,"b":5765},{"a":5919,"b":5930}]},{"name":"confirmedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":4798,"b":4809}]}],"statement":"WITH accepted_suggestions AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    pss.project_id,\n    pss.campaign_id,\n    pss.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    pss.suggestion_id,\n    pss.analysis_id AS source_analysis_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'suggestion_id', pss.suggestion_id,\n      'score', pss.score_json,\n      'reason', pss.reason_json,\n      'display_copy', pss.metadata_json->'display_copy',\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM promotion_segment_suggestions pss\n  JOIN segment_definitions sd\n    ON sd.segment_id = pss.segment_id\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.status = 'accepted'\n),\nmanual_segments AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    sd.project_id,\n    sd.campaign_id,\n    sd.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    NULL::varchar AS suggestion_id,\n    NULL::varchar AS source_analysis_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'query_preview_id', sd.query_preview_id,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM segment_definitions sd\n  WHERE sd.project_id = :projectId\n    AND sd.promotion_id = :promotionId\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n),\nselected_segments AS (\n  SELECT * FROM accepted_suggestions\n  UNION ALL\n  SELECT * FROM manual_segments\n),\nconfirmed_vectors AS (\n  INSERT INTO segment_vectors (\n    segment_vector_id,\n    project_id,\n    segment_id,\n    promotion_id,\n    promotion_run_id,\n    analysis_id,\n    vector_dim,\n    vector_values,\n    embedding,\n    vector_version,\n    source\n  )\n  SELECT\n    'segvec_' || substr(\n      encode(\n        digest(\n          selected.analysis_id || ':' || selected.segment_id || ':' || source_vector.vector_version,\n          'sha256'\n        ),\n        'hex'\n      ),\n      1,\n      40\n    ),\n    selected.project_id,\n    selected.segment_id,\n    selected.promotion_id,\n    NULL,\n    selected.analysis_id,\n    source_vector.vector_dim,\n    source_vector.vector_values,\n    source_vector.embedding,\n    source_vector.vector_version,\n    'manual'\n  FROM selected_segments selected\n  JOIN LATERAL (\n    SELECT\n      sv.vector_dim,\n      sv.vector_values,\n      sv.embedding,\n      sv.vector_version\n    FROM segment_vectors sv\n    WHERE sv.project_id = selected.project_id\n      AND sv.promotion_id = selected.promotion_id\n      AND sv.segment_id = selected.segment_id\n      AND (\n        selected.source_analysis_id IS NULL\n        OR sv.analysis_id = selected.source_analysis_id\n      )\n    ORDER BY sv.created_at DESC, sv.segment_vector_id DESC\n    LIMIT 1\n  ) source_vector ON true\n  ON CONFLICT (segment_vector_id) DO UPDATE\n  SET\n    vector_dim = EXCLUDED.vector_dim,\n    vector_values = EXCLUDED.vector_values,\n    embedding = EXCLUDED.embedding,\n    source = EXCLUDED.source\n  RETURNING segment_id, segment_vector_id\n),\nreset_unselected_approved AS (\n  UPDATE promotion_target_segments pts\n  SET status = 'planned'\n  WHERE pts.project_id = :projectId\n    AND pts.promotion_id = :promotionId\n    AND pts.status = 'approved'\n    AND EXISTS (\n      SELECT 1\n      FROM selected_segments selected\n      WHERE selected.project_id = pts.project_id\n        AND selected.campaign_id = pts.campaign_id\n        AND selected.promotion_id = pts.promotion_id\n        AND selected.analysis_id = pts.analysis_id\n    )\n    AND NOT EXISTS (\n      SELECT 1\n      FROM selected_segments selected\n      WHERE selected.project_id = pts.project_id\n        AND selected.campaign_id = pts.campaign_id\n        AND selected.promotion_id = pts.promotion_id\n        AND selected.analysis_id = pts.analysis_id\n        AND selected.segment_id = pts.segment_id\n    )\n  RETURNING pts.segment_id\n),\nconfirmed AS (\n  INSERT INTO promotion_target_segments (\n    analysis_id,\n    project_id,\n    campaign_id,\n    promotion_id,\n    segment_id,\n    segment_name,\n    segment_vector_id,\n    rule_json,\n    profile_json,\n    content_brief_json,\n    data_evidence_json,\n    estimated_size,\n    priority,\n    status,\n    suggestion_id,\n    confirmed_by,\n    confirmed_at\n  )\n  SELECT\n    selected.analysis_id,\n    selected.project_id,\n    selected.campaign_id,\n    selected.promotion_id,\n    selected.segment_id,\n    selected.segment_name,\n    confirmed_vector.segment_vector_id,\n    selected.rule_json,\n    selected.profile_json,\n    '{}'::jsonb,\n    selected.data_evidence_json,\n    selected.sample_size,\n    NULL,\n    'approved',\n    selected.suggestion_id,\n    :confirmedBy,\n    now()\n  FROM selected_segments selected\n  LEFT JOIN confirmed_vectors confirmed_vector\n    ON confirmed_vector.segment_id = selected.segment_id\n  CROSS JOIN (SELECT count(*) FROM reset_unselected_approved) dependency\n  ON CONFLICT (analysis_id, segment_id) DO UPDATE\n  SET\n    segment_vector_id = EXCLUDED.segment_vector_id,\n    suggestion_id = EXCLUDED.suggestion_id,\n    confirmed_by = EXCLUDED.confirmed_by,\n    confirmed_at = EXCLUDED.confirmed_at,\n    status = CASE\n      WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'\n      ELSE promotion_target_segments.status\n    END\n  RETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", suggestion_id AS \"suggestionId\"\n),\nupdated AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND EXISTS (\n      SELECT 1\n      FROM confirmed c\n      WHERE c.\"suggestionId\" = pss.suggestion_id\n    )\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed                                      "};
 
 /**
  * Query generated from SQL:
@@ -1961,6 +1961,7 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"man
  *     sd.profile_json,
  *     sd.sample_size,
  *     pss.suggestion_id,
+ *     pss.analysis_id AS source_analysis_id,
  *     jsonb_build_object(
  *       'source', sd.source,
  *       'suggestion_id', pss.suggestion_id,
@@ -1989,6 +1990,7 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"man
  *     sd.profile_json,
  *     sd.sample_size,
  *     NULL::varchar AS suggestion_id,
+ *     NULL::varchar AS source_analysis_id,
  *     jsonb_build_object(
  *       'source', sd.source,
  *       'query_preview_id', sd.query_preview_id,
@@ -2005,6 +2007,68 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"man
  *   SELECT * FROM accepted_suggestions
  *   UNION ALL
  *   SELECT * FROM manual_segments
+ * ),
+ * confirmed_vectors AS (
+ *   INSERT INTO segment_vectors (
+ *     segment_vector_id,
+ *     project_id,
+ *     segment_id,
+ *     promotion_id,
+ *     promotion_run_id,
+ *     analysis_id,
+ *     vector_dim,
+ *     vector_values,
+ *     embedding,
+ *     vector_version,
+ *     source
+ *   )
+ *   SELECT
+ *     'segvec_' || substr(
+ *       encode(
+ *         digest(
+ *           selected.analysis_id || ':' || selected.segment_id || ':' || source_vector.vector_version,
+ *           'sha256'
+ *         ),
+ *         'hex'
+ *       ),
+ *       1,
+ *       40
+ *     ),
+ *     selected.project_id,
+ *     selected.segment_id,
+ *     selected.promotion_id,
+ *     NULL,
+ *     selected.analysis_id,
+ *     source_vector.vector_dim,
+ *     source_vector.vector_values,
+ *     source_vector.embedding,
+ *     source_vector.vector_version,
+ *     'manual'
+ *   FROM selected_segments selected
+ *   JOIN LATERAL (
+ *     SELECT
+ *       sv.vector_dim,
+ *       sv.vector_values,
+ *       sv.embedding,
+ *       sv.vector_version
+ *     FROM segment_vectors sv
+ *     WHERE sv.project_id = selected.project_id
+ *       AND sv.promotion_id = selected.promotion_id
+ *       AND sv.segment_id = selected.segment_id
+ *       AND (
+ *         selected.source_analysis_id IS NULL
+ *         OR sv.analysis_id = selected.source_analysis_id
+ *       )
+ *     ORDER BY sv.created_at DESC, sv.segment_vector_id DESC
+ *     LIMIT 1
+ *   ) source_vector ON true
+ *   ON CONFLICT (segment_vector_id) DO UPDATE
+ *   SET
+ *     vector_dim = EXCLUDED.vector_dim,
+ *     vector_values = EXCLUDED.vector_values,
+ *     embedding = EXCLUDED.embedding,
+ *     source = EXCLUDED.source
+ *   RETURNING segment_id, segment_vector_id
  * ),
  * reset_unselected_approved AS (
  *   UPDATE promotion_target_segments pts
@@ -2039,6 +2103,7 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"man
  *     promotion_id,
  *     segment_id,
  *     segment_name,
+ *     segment_vector_id,
  *     rule_json,
  *     profile_json,
  *     content_brief_json,
@@ -2057,6 +2122,7 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"man
  *     selected.promotion_id,
  *     selected.segment_id,
  *     selected.segment_name,
+ *     confirmed_vector.segment_vector_id,
  *     selected.rule_json,
  *     selected.profile_json,
  *     '{}'::jsonb,
@@ -2067,10 +2133,13 @@ const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"man
  *     selected.suggestion_id,
  *     :confirmedBy,
  *     now()
- *   FROM selected_segments selected,
- *        (SELECT count(*) FROM reset_unselected_approved) dependency
+ *   FROM selected_segments selected
+ *   LEFT JOIN confirmed_vectors confirmed_vector
+ *     ON confirmed_vector.segment_id = selected.segment_id
+ *   CROSS JOIN (SELECT count(*) FROM reset_unselected_approved) dependency
  *   ON CONFLICT (analysis_id, segment_id) DO UPDATE
  *   SET
+ *     segment_vector_id = EXCLUDED.segment_vector_id,
  *     suggestion_id = EXCLUDED.suggestion_id,
  *     confirmed_by = EXCLUDED.confirmed_by,
  *     confirmed_at = EXCLUDED.confirmed_at,
@@ -2140,7 +2209,7 @@ const updateDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"segmentNa
  *   AND promotion_id = :promotionId
  *   AND segment_id = :segmentId
  *   AND status <> 'stopped'
- * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId"                                           
+ * RETURNING promotion_id AS "promotionId", segment_id AS "segmentId"
  * ```
  */
 export const updateDashboardPromotionTargetSegment = new PreparedQuery<IUpdateDashboardPromotionTargetSegmentParams,IUpdateDashboardPromotionTargetSegmentResult>(updateDashboardPromotionTargetSegmentIR);
@@ -2229,7 +2298,7 @@ const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":
  *   RETURNING pts.promotion_id, pts.segment_id, 'stopped'::text AS status
  * )
  * SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
- * FROM deleted_target_segment                                                  
+ * FROM deleted_target_segment
  * ```
  */
 export const stopDashboardPromotionTargetSegment = new PreparedQuery<IStopDashboardPromotionTargetSegmentParams,IStopDashboardPromotionTargetSegmentResult>(stopDashboardPromotionTargetSegmentIR);
@@ -2286,7 +2355,7 @@ const insertDashboardNextLoopAnalysisIR: any = {"usedParamSet":{"analysisId":tru
  *   analysis_id AS "analysisId",
  *   promotion_id AS "promotionId",
  *   focus_segment_ids_json AS "focusSegmentIdsJson",
- *   status                                              
+ *   status
  * ```
  */
 export const insertDashboardNextLoopAnalysis = new PreparedQuery<IInsertDashboardNextLoopAnalysisParams,IInsertDashboardNextLoopAnalysisResult>(insertDashboardNextLoopAnalysisIR);
@@ -2337,8 +2406,8 @@ const listDashboardPromotionAnalysesIR: any = {"usedParamSet":{"projectId":true,
  * FROM promotion_analyses
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
- * 
- * ORDER BY updated_at DESC, created_at DESC                                   
+ *
+ * ORDER BY updated_at DESC, created_at DESC
  * ```
  */
 export const listDashboardPromotionAnalyses = new PreparedQuery<IListDashboardPromotionAnalysesParams,IListDashboardPromotionAnalysesResult>(listDashboardPromotionAnalysesIR);
@@ -2405,8 +2474,8 @@ const listDashboardCampaignExperimentMetricsIR: any = {"usedParamSet":{"projectI
  * FROM promotion_evaluations
  * WHERE project_id = :projectId
  *   AND campaign_id = :campaignId
- * 
- * ORDER BY created_at DESC                               
+ *
+ * ORDER BY created_at DESC
  * ```
  */
 export const listDashboardCampaignExperimentMetrics = new PreparedQuery<IListDashboardCampaignExperimentMetricsParams,IListDashboardCampaignExperimentMetricsResult>(listDashboardCampaignExperimentMetricsIR);
@@ -2473,8 +2542,8 @@ const listDashboardPromotionExperimentMetricsIR: any = {"usedParamSet":{"project
  * FROM promotion_evaluations
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
- * 
- * ORDER BY created_at DESC                                   
+ *
+ * ORDER BY created_at DESC
  * ```
  */
 export const listDashboardPromotionExperimentMetrics = new PreparedQuery<IListDashboardPromotionExperimentMetricsParams,IListDashboardPromotionExperimentMetricsResult>(listDashboardPromotionExperimentMetricsIR);
@@ -2543,8 +2612,8 @@ const listDashboardSegmentExperimentMetricsIR: any = {"usedParamSet":{"projectId
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
  *   AND segment_id = :segmentId
- * 
- * ORDER BY created_at DESC                                        
+ *
+ * ORDER BY created_at DESC
  * ```
  */
 export const listDashboardSegmentExperimentMetrics = new PreparedQuery<IListDashboardSegmentExperimentMetricsParams,IListDashboardSegmentExperimentMetricsResult>(listDashboardSegmentExperimentMetricsIR);
@@ -2587,7 +2656,7 @@ const getDashboardCampaignDeliveryStatusIR: any = {"usedParamSet":{"projectId":t
  * FROM ad_dispatch_jobs
  * WHERE project_id = :projectId
  *   AND campaign_id = :campaignId
- *   AND channel IN ('email', 'sms')                                         
+ *   AND channel IN ('email', 'sms')
  * ```
  */
 export const getDashboardCampaignDeliveryStatus = new PreparedQuery<IGetDashboardCampaignDeliveryStatusParams,IGetDashboardCampaignDeliveryStatusResult>(getDashboardCampaignDeliveryStatusIR);
@@ -2630,7 +2699,7 @@ const getDashboardPromotionDeliveryStatusIR: any = {"usedParamSet":{"projectId":
  * FROM ad_dispatch_jobs
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
- *   AND channel IN ('email', 'sms')                                         
+ *   AND channel IN ('email', 'sms')
  * ```
  */
 export const getDashboardPromotionDeliveryStatus = new PreparedQuery<IGetDashboardPromotionDeliveryStatusParams,IGetDashboardPromotionDeliveryStatusResult>(getDashboardPromotionDeliveryStatusIR);
@@ -2677,7 +2746,7 @@ const getDashboardSegmentDeliveryStatusIR: any = {"usedParamSet":{"projectId":tr
  * WHERE adj.project_id = :projectId
  *   AND adj.promotion_id = :promotionId
  *   AND ae.segment_id = :segmentId
- *   AND adj.channel IN ('email', 'sms')                                              
+ *   AND adj.channel IN ('email', 'sms')
  * ```
  */
 export const getDashboardSegmentDeliveryStatus = new PreparedQuery<IGetDashboardSegmentDeliveryStatusParams,IGetDashboardSegmentDeliveryStatusResult>(getDashboardSegmentDeliveryStatusIR);
@@ -2722,7 +2791,7 @@ const listDashboardPromotionSegmentDeliverySummariesIR: any = {"usedParamSet":{"
  *   AND adj.promotion_id = :promotionId
  *   AND adj.channel IN ('email', 'sms')
  * GROUP BY ae.segment_id
- * ORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC                                 
+ * ORDER BY COALESCE(SUM(adj.sent_count), 0)::int DESC, ae.segment_id ASC
  * ```
  */
 export const listDashboardPromotionSegmentDeliverySummaries = new PreparedQuery<IListDashboardPromotionSegmentDeliverySummariesParams,IListDashboardPromotionSegmentDeliverySummariesResult>(listDashboardPromotionSegmentDeliverySummariesIR);
@@ -2799,8 +2868,8 @@ const listDashboardCampaignContentCandidatesIR: any = {"usedParamSet":{"projectI
  * FROM content_candidates
  * WHERE project_id = :projectId
  *   AND campaign_id = :campaignId
- * 
- * ORDER BY updated_at DESC, created_at DESC                                    
+ *
+ * ORDER BY updated_at DESC, created_at DESC
  * ```
  */
 export const listDashboardCampaignContentCandidates = new PreparedQuery<IListDashboardCampaignContentCandidatesParams,IListDashboardCampaignContentCandidatesResult>(listDashboardCampaignContentCandidatesIR);
@@ -2879,8 +2948,8 @@ const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId
  * WHERE project_id = :projectId
  *   AND promotion_id = :promotionId
  *   AND segment_id = :segmentId
- * 
- * ORDER BY updated_at DESC, created_at DESC                                                      
+ *
+ * ORDER BY updated_at DESC, created_at DESC
  * ```
  */
 export const listDashboardSegmentContentCandidates = new PreparedQuery<IListDashboardSegmentContentCandidatesParams,IListDashboardSegmentContentCandidatesResult>(listDashboardSegmentContentCandidatesIR);
@@ -2924,10 +2993,10 @@ const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId
  * WHERE gr.project_id = :projectId
  *   AND gr.promotion_id = :promotionId
  *   AND gr.analysis_id = :analysisId
- * 
+ *
  * GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
  * ORDER BY gr.updated_at DESC, gr.created_at DESC
- * LIMIT 1                                    
+ * LIMIT 1
  * ```
  */
 export const getDashboardPromotionGenerationResult = new PreparedQuery<IGetDashboardPromotionGenerationResultParams,IGetDashboardPromotionGenerationResultResult>(getDashboardPromotionGenerationResultIR);
@@ -3003,7 +3072,7 @@ const listDashboardCampaignAdExperimentsIR: any = {"usedParamSet":{"projectId":t
  *   ae.status,
  *   ae.updated_at,
  *   ae.created_at
- * ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC                                        
+ * ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC
  * ```
  */
 export const listDashboardCampaignAdExperiments = new PreparedQuery<IListDashboardCampaignAdExperimentsParams,IListDashboardCampaignAdExperimentsResult>(listDashboardCampaignAdExperimentsIR);
@@ -3081,8 +3150,8 @@ const listDashboardSegmentAdExperimentsIR: any = {"usedParamSet":{"projectId":tr
  *   ae.status,
  *   ae.updated_at,
  *   ae.created_at
- * 
- * ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC                                                     
+ *
+ * ORDER BY ae.loop_count DESC, ae.updated_at DESC, ae.created_at DESC
  * ```
  */
 export const listDashboardSegmentAdExperiments = new PreparedQuery<IListDashboardSegmentAdExperimentsParams,IListDashboardSegmentAdExperimentsResult>(listDashboardSegmentAdExperimentsIR);
@@ -3142,7 +3211,7 @@ const startDashboardAdExperimentIR: any = {"usedParamSet":{"projectId":true,"pro
  *   goal_metric AS "goalMetric",
  *   CAST(goal_target_value AS float8) AS "goalTargetValue",
  *   goal_basis AS "goalBasis",
- *   status                                                        
+ *   status
  * ```
  */
 export const startDashboardAdExperiment = new PreparedQuery<IStartDashboardAdExperimentParams,IStartDashboardAdExperimentResult>(startDashboardAdExperimentIR);
@@ -3220,7 +3289,7 @@ const getDashboardContentCandidateForApprovalIR: any = {"usedParamSet":{"project
  *   AND cc.content_id = :contentId
  *   AND p.status <> 'stopped'
  *   AND pts.status <> 'stopped'
- *   AND cc.status IN ('draft', 'approved', 'active')                                                       
+ *   AND cc.status IN ('draft', 'approved', 'active')
  * ```
  */
 export const getDashboardContentCandidateForApproval = new PreparedQuery<IGetDashboardContentCandidateForApprovalParams,IGetDashboardContentCandidateForApprovalResult>(getDashboardContentCandidateForApprovalIR);
@@ -3258,7 +3327,7 @@ const rejectDashboardSiblingContentCandidatesIR: any = {"usedParamSet":{"project
  *   AND segment_id = :segmentId
  *   AND content_id <> :contentId
  *   AND status IN ('draft', 'approved', 'active')
- * RETURNING content_id AS "contentId"                                           
+ * RETURNING content_id AS "contentId"
  * ```
  */
 export const rejectDashboardSiblingContentCandidates = new PreparedQuery<IRejectDashboardSiblingContentCandidatesParams,IRejectDashboardSiblingContentCandidatesResult>(rejectDashboardSiblingContentCandidatesIR);
@@ -3301,7 +3370,7 @@ const approveDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":tru
  * RETURNING
  *   content_id AS "contentId",
  *   content_option_id AS "contentOptionId",
- *   status                                           
+ *   status
  * ```
  */
 export const approveDashboardContentCandidate = new PreparedQuery<IApproveDashboardContentCandidateParams,IApproveDashboardContentCandidateResult>(approveDashboardContentCandidateIR);
@@ -3360,7 +3429,7 @@ const rejectDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":true
  *   cc.promotion_id AS "promotionId",
  *   cc.segment_id AS "segmentId",
  *   cc.status,
- *   cc.updated_at AS "rejectedAt"                                        
+ *   cc.updated_at AS "rejectedAt"
  * ```
  */
 export const rejectDashboardContentCandidate = new PreparedQuery<IRejectDashboardContentCandidateParams,IRejectDashboardContentCandidateResult>(rejectDashboardContentCandidateIR);
@@ -3452,7 +3521,7 @@ const insertDashboardSegmentQueryPreviewIR: any = {"usedParamSet":{"queryPreview
  *   sample_size_status AS "sampleSizeStatus",
  *   result_columns_json AS "resultColumnsJson",
  *   result_preview_json AS "resultPreviewJson",
- *   status                                     
+ *   status
  * ```
  */
 export const insertDashboardSegmentQueryPreview = new PreparedQuery<IInsertDashboardSegmentQueryPreviewParams,IInsertDashboardSegmentQueryPreviewResult>(insertDashboardSegmentQueryPreviewIR);
@@ -3500,7 +3569,7 @@ const getDashboardSegmentQueryPreviewForSaveIR: any = {"usedParamSet":{"projectI
  *   status
  * FROM segment_query_previews
  * WHERE project_id = :projectId
- *   AND query_preview_id = :queryPreviewId                                                  
+ *   AND query_preview_id = :queryPreviewId
  * ```
  */
 export const getDashboardSegmentQueryPreviewForSave = new PreparedQuery<IGetDashboardSegmentQueryPreviewForSaveParams,IGetDashboardSegmentQueryPreviewForSaveResult>(getDashboardSegmentQueryPreviewForSaveIR);
@@ -3586,7 +3655,7 @@ const insertDashboardCustomSegmentDefinitionIR: any = {"usedParamSet":{"segmentI
  *   sample_size AS "sampleSize",
  *   total_eligible_user_count AS "totalEligibleUserCount",
  *   CAST(sample_ratio AS float8) AS "sampleRatio",
- *   status                                   
+ *   status
  * ```
  */
 export const insertDashboardCustomSegmentDefinition = new PreparedQuery<IInsertDashboardCustomSegmentDefinitionParams,IInsertDashboardCustomSegmentDefinitionResult>(insertDashboardCustomSegmentDefinitionIR);
@@ -3618,8 +3687,8 @@ const markDashboardSegmentQueryPreviewSavedIR: any = {"usedParamSet":{"projectId
  * SET status = 'saved'
  * WHERE project_id = :projectId
  *   AND query_preview_id = :queryPreviewId
- * 
- * RETURNING query_preview_id AS "queryPreviewId"                                  
+ *
+ * RETURNING query_preview_id AS "queryPreviewId"
  * ```
  */
 export const markDashboardSegmentQueryPreviewSaved = new PreparedQuery<IMarkDashboardSegmentQueryPreviewSavedParams,IMarkDashboardSegmentQueryPreviewSavedResult>(markDashboardSegmentQueryPreviewSavedIR);
@@ -3636,8 +3705,8 @@ export interface IListActiveFunnelsResult {
   domainType: string;
   funnelId: string;
   funnelName: string;
-  stepCount: number;
   status: string;
+  stepCount: number | null;
   updatedAt: Date;
 }
 
@@ -3647,7 +3716,7 @@ export interface IListActiveFunnelsQuery {
   result: IListActiveFunnelsResult;
 }
 
-const listActiveFunnelsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":332,"b":341}]}],"statement":"SELECT\n  fd.funnel_id AS \"funnelId\",\n  fd.funnel_name AS \"funnelName\",\n  fd.domain_type AS \"domainType\",\n  fd.status,\n  COUNT(fs.funnel_id)::int AS \"stepCount\",\n  fd.created_at AS \"createdAt\",\n  fd.updated_at AS \"updatedAt\"\nFROM funnel_definitions fd\nLEFT JOIN funnel_steps fs\n  ON fs.funnel_id = fd.funnel_id\nWHERE fd.project_id = :projectId\n  AND fd.status = 'active'\nGROUP BY\n  fd.funnel_id,\n  fd.funnel_name,\n  fd.domain_type,\n  fd.status,\n  fd.created_at,\n  fd.updated_at\nORDER BY fd.updated_at DESC, fd.created_at DESC"};
+const listActiveFunnelsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":332,"b":341}]}],"statement":"SELECT\n  fd.funnel_id AS \"funnelId\",\n  fd.funnel_name AS \"funnelName\",\n  fd.domain_type AS \"domainType\",\n  fd.status,\n  COUNT(fs.funnel_id)::int AS \"stepCount\",\n  fd.created_at AS \"createdAt\",\n  fd.updated_at AS \"updatedAt\"\nFROM funnel_definitions fd\nLEFT JOIN funnel_steps fs\n  ON fs.funnel_id = fd.funnel_id\nWHERE fd.project_id = :projectId\n  AND fd.status = 'active'\nGROUP BY\n  fd.funnel_id,\n  fd.funnel_name,\n  fd.domain_type,\n  fd.status,\n  fd.created_at,\n  fd.updated_at\nORDER BY fd.updated_at DESC, fd.created_at DESC                                  "};
 
 /**
  * Query generated from SQL:
@@ -3715,7 +3784,7 @@ const getActiveFunnelByIdIR: any = {"usedParamSet":{"projectId":true,"funnelId":
  * FROM funnel_definitions
  * WHERE project_id = :projectId
  *   AND funnel_id = :funnelId
- *   AND status = 'active'                                     
+ *   AND status = 'active'
  * ```
  */
 export const getActiveFunnelById = new PreparedQuery<IGetActiveFunnelByIdParams,IGetActiveFunnelByIdResult>(getActiveFunnelByIdIR);
@@ -3755,7 +3824,7 @@ const listActiveFunnelStepsIR: any = {"usedParamSet":{"projectId":true},"params"
  *   ON fd.funnel_id = fs.funnel_id
  * WHERE fd.project_id = :projectId
  *   AND fd.status = 'active'
- * ORDER BY fs.funnel_id ASC, fs.step_order ASC                                         
+ * ORDER BY fs.funnel_id ASC, fs.step_order ASC
  * ```
  */
 export const listActiveFunnelSteps = new PreparedQuery<IListActiveFunnelStepsParams,IListActiveFunnelStepsResult>(listActiveFunnelStepsIR);
@@ -3797,7 +3866,7 @@ const listActiveFunnelStepsByFunnelIdIR: any = {"usedParamSet":{"projectId":true
  * WHERE fd.project_id = :projectId
  *   AND fd.funnel_id = :funnelId
  *   AND fd.status = 'active'
- * ORDER BY fs.step_order ASC                          
+ * ORDER BY fs.step_order ASC
  * ```
  */
 export const listActiveFunnelStepsByFunnelId = new PreparedQuery<IListActiveFunnelStepsByFunnelIdParams,IListActiveFunnelStepsByFunnelIdResult>(listActiveFunnelStepsByFunnelIdIR);
@@ -3826,7 +3895,7 @@ export interface IInsertFunnelDefinitionQuery {
   result: IInsertFunnelDefinitionResult;
 }
 
-const insertFunnelDefinitionIR: any = {"usedParamSet":{"funnelId":true,"projectId":true,"funnelName":true},"params":[{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":76,"b":84}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":87,"b":96}]},{"name":"funnelName","required":false,"transform":{"type":"scalar"},"locs":[{"a":99,"b":109}]}],"statement":"INSERT INTO funnel_definitions (funnel_id, project_id, funnel_name)\nVALUES (:funnelId, :projectId, :funnelName)\nRETURNING\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"                          "};
+const insertFunnelDefinitionIR: any = {"usedParamSet":{"funnelId":true,"projectId":true,"funnelName":true},"params":[{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":76,"b":84}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":87,"b":96}]},{"name":"funnelName","required":false,"transform":{"type":"scalar"},"locs":[{"a":99,"b":109}]}],"statement":"INSERT INTO funnel_definitions (funnel_id, project_id, funnel_name)\nVALUES (:funnelId, :projectId, :funnelName)\nRETURNING\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"                                        "};
 
 /**
  * Query generated from SQL:
@@ -3839,7 +3908,7 @@ const insertFunnelDefinitionIR: any = {"usedParamSet":{"funnelId":true,"projectI
  *   domain_type AS "domainType",
  *   status,
  *   created_at AS "createdAt",
- *   updated_at AS "updatedAt"                          
+ *   updated_at AS "updatedAt"
  * ```
  */
 export const insertFunnelDefinition = new PreparedQuery<IInsertFunnelDefinitionParams,IInsertFunnelDefinitionResult>(insertFunnelDefinitionIR);
@@ -3868,7 +3937,7 @@ export interface IUpdateFunnelDefinitionQuery {
   result: IUpdateFunnelDefinitionResult;
 }
 
-const updateFunnelDefinitionIR: any = {"usedParamSet":{"funnelName":true,"projectId":true,"funnelId":true},"params":[{"name":"funnelName","required":false,"transform":{"type":"scalar"},"locs":[{"a":46,"b":56}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":99,"b":108}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":128,"b":136}]}],"statement":"UPDATE funnel_definitions\nSET\n  funnel_name = :funnelName,\n  updated_at = now()\nWHERE project_id = :projectId\n  AND funnel_id = :funnelId\n  AND status = 'active'\nRETURNING\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\""};
+const updateFunnelDefinitionIR: any = {"usedParamSet":{"funnelName":true,"projectId":true,"funnelId":true},"params":[{"name":"funnelName","required":false,"transform":{"type":"scalar"},"locs":[{"a":46,"b":56}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":99,"b":108}]},{"name":"funnelId","required":false,"transform":{"type":"scalar"},"locs":[{"a":128,"b":136}]}],"statement":"UPDATE funnel_definitions\nSET\n  funnel_name = :funnelName,\n  updated_at = now()\nWHERE project_id = :projectId\n  AND funnel_id = :funnelId\n  AND status = 'active'\nRETURNING\n  funnel_id AS \"funnelId\",\n  funnel_name AS \"funnelName\",\n  domain_type AS \"domainType\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"                          "};
 
 /**
  * Query generated from SQL:
@@ -3925,7 +3994,7 @@ const insertFunnelStepIR: any = {"usedParamSet":{"funnelId":true,"stepOrder":tru
  *   funnel_id AS "funnelId",
  *   step_order AS "stepOrder",
  *   step_name AS "stepName",
- *   event_name AS "eventName"                                         
+ *   event_name AS "eventName"
  * ```
  */
 export const insertFunnelStep = new PreparedQuery<IInsertFunnelStepParams,IInsertFunnelStepResult>(insertFunnelStepIR);
@@ -3957,7 +4026,7 @@ const deleteFunnelStepsIR: any = {"usedParamSet":{"projectId":true,"funnelId":tr
  *   FROM funnel_definitions
  *   WHERE project_id = :projectId
  *     AND funnel_id = :funnelId
- * )                                        
+ * )
  * ```
  */
 export const deleteFunnelSteps = new PreparedQuery<IDeleteFunnelStepsParams,IDeleteFunnelStepsResult>(deleteFunnelStepsIR);
@@ -3988,7 +4057,7 @@ const deleteFunnelDefinitionIR: any = {"usedParamSet":{"projectId":true,"funnelI
  * DELETE FROM funnel_definitions
  * WHERE project_id = :projectId
  *   AND funnel_id = :funnelId
- * 
+ *
  * RETURNING funnel_id AS "funnelId"
  * ```
  */

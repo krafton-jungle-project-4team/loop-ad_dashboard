@@ -1067,6 +1067,7 @@ WITH accepted_suggestions AS (
     sd.profile_json,
     sd.sample_size,
     pss.suggestion_id,
+    pss.analysis_id AS source_analysis_id,
     jsonb_build_object(
       'source', sd.source,
       'suggestion_id', pss.suggestion_id,
@@ -1095,6 +1096,7 @@ manual_segments AS (
     sd.profile_json,
     sd.sample_size,
     NULL::varchar AS suggestion_id,
+    NULL::varchar AS source_analysis_id,
     jsonb_build_object(
       'source', sd.source,
       'query_preview_id', sd.query_preview_id,
@@ -1111,6 +1113,68 @@ selected_segments AS (
   SELECT * FROM accepted_suggestions
   UNION ALL
   SELECT * FROM manual_segments
+),
+confirmed_vectors AS (
+  INSERT INTO segment_vectors (
+    segment_vector_id,
+    project_id,
+    segment_id,
+    promotion_id,
+    promotion_run_id,
+    analysis_id,
+    vector_dim,
+    vector_values,
+    embedding,
+    vector_version,
+    source
+  )
+  SELECT
+    'segvec_' || substr(
+      encode(
+        digest(
+          selected.analysis_id || ':' || selected.segment_id || ':' || source_vector.vector_version,
+          'sha256'
+        ),
+        'hex'
+      ),
+      1,
+      40
+    ),
+    selected.project_id,
+    selected.segment_id,
+    selected.promotion_id,
+    NULL,
+    selected.analysis_id,
+    source_vector.vector_dim,
+    source_vector.vector_values,
+    source_vector.embedding,
+    source_vector.vector_version,
+    'manual'
+  FROM selected_segments selected
+  JOIN LATERAL (
+    SELECT
+      sv.vector_dim,
+      sv.vector_values,
+      sv.embedding,
+      sv.vector_version
+    FROM segment_vectors sv
+    WHERE sv.project_id = selected.project_id
+      AND sv.promotion_id = selected.promotion_id
+      AND sv.segment_id = selected.segment_id
+      AND (
+        selected.source_analysis_id IS NULL
+        OR sv.analysis_id = selected.source_analysis_id
+      )
+    ORDER BY sv.created_at DESC, sv.segment_vector_id DESC
+    LIMIT 1
+  ) source_vector ON true
+  ON CONFLICT (segment_vector_id) DO UPDATE
+  SET
+    vector_dim = EXCLUDED.vector_dim,
+    vector_values = EXCLUDED.vector_values,
+    embedding = EXCLUDED.embedding,
+    source = EXCLUDED.source
+  RETURNING segment_id, segment_vector_id
 ),
 reset_unselected_approved AS (
   UPDATE promotion_target_segments pts
@@ -1145,6 +1209,7 @@ confirmed AS (
     promotion_id,
     segment_id,
     segment_name,
+    segment_vector_id,
     rule_json,
     profile_json,
     content_brief_json,
@@ -1163,6 +1228,7 @@ confirmed AS (
     selected.promotion_id,
     selected.segment_id,
     selected.segment_name,
+    confirmed_vector.segment_vector_id,
     selected.rule_json,
     selected.profile_json,
     '{}'::jsonb,
@@ -1173,10 +1239,13 @@ confirmed AS (
     selected.suggestion_id,
     :confirmedBy,
     now()
-  FROM selected_segments selected,
-       (SELECT count(*) FROM reset_unselected_approved) dependency
+  FROM selected_segments selected
+  LEFT JOIN confirmed_vectors confirmed_vector
+    ON confirmed_vector.segment_id = selected.segment_id
+  CROSS JOIN (SELECT count(*) FROM reset_unselected_approved) dependency
   ON CONFLICT (analysis_id, segment_id) DO UPDATE
   SET
+    segment_vector_id = EXCLUDED.segment_vector_id,
     suggestion_id = EXCLUDED.suggestion_id,
     confirmed_by = EXCLUDED.confirmed_by,
     confirmed_at = EXCLUDED.confirmed_at,

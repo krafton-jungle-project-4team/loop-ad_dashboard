@@ -5,6 +5,7 @@ import type { DispatchChannel, DispatchJobStatus } from "../domain/index.js";
 import {
   insertDispatchJob,
   insertRedirectLink,
+  restartFailedDispatchJob,
   updateDispatchJobResult
 } from "../database/__generated__/ad-execution.queries.js";
 
@@ -27,6 +28,10 @@ export interface FinishDispatchJobInput {
   dispatchedCount: number;
   failedCount: number;
   result: unknown;
+}
+
+export interface RestartDispatchJobInput {
+  dispatchJobId: string;
 }
 
 export interface InsertRedirectLinkInput {
@@ -55,7 +60,7 @@ export class AdExecutionWriter {
   ) {}
 
   /** ad_experiment 그룹 단위 dispatch job을 생성합니다. */
-  async insertDispatchJob(input: InsertDispatchJobInput): Promise<string> {
+  async insertDispatchJob(input: InsertDispatchJobInput): Promise<string | null> {
     const row = await this.db
       .query(insertDispatchJob, {
         dispatchJobId: input.dispatchJobId,
@@ -73,9 +78,18 @@ export class AdExecutionWriter {
           ...toJsonObject(input.request)
         })
       })
-      .single();
+      .singleOrNull();
 
-    return row.dispatchJobId;
+    return row?.dispatchJobId ?? null;
+  }
+
+  /** 실패한 dispatch job을 같은 멱등 키로 재시작합니다. */
+  async restartDispatchJob(input: RestartDispatchJobInput): Promise<boolean> {
+    const row = await this.db
+      .query(restartFailedDispatchJob, { dispatchJobId: input.dispatchJobId })
+      .singleOrNull();
+
+    return Boolean(row);
   }
 
   /** dispatch job 결과와 성공/실패 수를 저장합니다. */

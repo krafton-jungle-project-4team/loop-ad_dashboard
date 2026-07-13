@@ -1,8 +1,9 @@
 import { Buffer } from "node:buffer";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
 import type { DispatchJobSummary, PromotionRunDispatchResponse } from "@loopad/shared";
+import { z } from "zod";
 import { env } from "../../../infra/env/env.js";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
@@ -15,7 +16,8 @@ import {
   type DispatchAttemptSnapshot,
   type DispatchChannel,
   type DispatchJobStatus,
-  type PromotionRunEntity
+  type PromotionRunEntity,
+  type StoredDispatchJobEntity
 } from "../domain/index.js";
 import { AdExecutionReader, AdExecutionWriter, RecipientDirectory } from "../repository/index.js";
 import { requirePromotionLandingUrl } from "./landing-url.guard.js";
@@ -32,6 +34,19 @@ interface DispatchContext {
   promotionRun: PromotionRunEntity;
   channel: DispatchChannel;
 }
+
+const storedDispatchResultSchema = z.object({
+  status: z.enum(["completed", "partial_failed", "failed"]),
+  attempts: z.array(
+    z.object({
+      userId: z.string().min(1),
+      redirectId: z.string().min(1).optional(),
+      status: z.enum(["sent", "failed"]),
+      errorCode: z.string().min(1).optional(),
+      providerMessageId: z.string().min(1).optional()
+    })
+  )
+});
 
 /** 프로모션 외부 발행 요청을 저장된 assignment 기반으로 처리합니다. */
 @Injectable()
@@ -175,8 +190,37 @@ export class PromotionDispatchService {
   ): Promise<DispatchJobSummary> {
     log.info("dispatch_group_started", { assignments });
 
-    const dispatchJobId = await this.createDispatchJob(context, assignments);
-    const attempts = await this.dispatchGroup(context.channel, assignments);
+    const dispatchJobId = deterministicDispatchJobId(context, assignments);
+    const existingJob = await this.findOrCreateDispatchJob(dispatchJobId, context, assignments);
+    if (existingJob?.status === "completed") {
+      const attempts = this.requireStoredAttempts(existingJob, assignments);
+      return AdExecutionDomain.toDispatchJobSummary(
+        dispatchJobId,
+        context.channel,
+        assignments,
+        attempts
+      );
+    }
+    if (existingJob?.status === "running") {
+      throw adExecutionErrors.dispatchAlreadyAccepted(dispatchJobId);
+    }
+
+    const previousAttempts = existingJob
+      ? this.requireStoredAttempts(existingJob, assignments)
+      : [];
+    if (existingJob && !(await this.writer.restartDispatchJob({ dispatchJobId }))) {
+      throw adExecutionErrors.dispatchAlreadyAccepted(dispatchJobId);
+    }
+    const sentUserIds = new Set(
+      previousAttempts
+        .filter((attempt) => attempt.status === "sent")
+        .map((attempt) => attempt.userId)
+    );
+    const retryAssignments = assignments.filter(
+      (assignment) => !sentUserIds.has(assignment.userId)
+    );
+    const retryAttempts = await this.dispatchGroup(context.channel, retryAssignments);
+    const attempts = mergeDispatchAttempts(assignments, previousAttempts, retryAttempts);
     const summary = AdExecutionDomain.toDispatchJobSummary(
       dispatchJobId,
       context.channel,
@@ -188,6 +232,34 @@ export class PromotionDispatchService {
     log.info("dispatch_group_completed", { summary });
 
     return summary;
+  }
+
+  private requireStoredAttempts(
+    job: StoredDispatchJobEntity,
+    assignments: readonly ActiveAdServingAssignmentEntity[]
+  ): DispatchAttemptSnapshot[] {
+    const parsed = storedDispatchResultSchema.safeParse(job.metadataJson.result);
+    if (!parsed.success) {
+      if (job.sentCount === 0 && job.status === "failed") {
+        return [];
+      }
+      throw adExecutionErrors.inconsistentAssignment(
+        `dispatch_job_id '${job.dispatchJobId}' has no valid retry result metadata.`
+      );
+    }
+
+    const assignmentUsers = new Set(assignments.map((assignment) => assignment.userId));
+    const attemptUsers = new Set(parsed.data.attempts.map((attempt) => attempt.userId));
+    if (
+      attemptUsers.size !== parsed.data.attempts.length ||
+      attemptUsers.size !== assignmentUsers.size ||
+      [...attemptUsers].some((userId) => !assignmentUsers.has(userId))
+    ) {
+      throw adExecutionErrors.inconsistentAssignment(
+        `dispatch_job_id '${job.dispatchJobId}' does not match the current assignment scope.`
+      );
+    }
+    return parsed.data.attempts;
   }
 
   @Transactional()
@@ -211,13 +283,19 @@ export class PromotionDispatchService {
   }
 
   @Transactional()
-  private async createDispatchJob(
+  private async findOrCreateDispatchJob(
+    dispatchJobId: string,
     context: DispatchContext,
     assignments: readonly ActiveAdServingAssignmentEntity[]
-  ) {
+  ): Promise<StoredDispatchJobEntity | null> {
+    const existingJob = await this.reader.findDispatchJob(dispatchJobId);
+    if (existingJob) {
+      return existingJob;
+    }
+
     const first = requireFirstAssignment(assignments);
     const input = {
-      dispatchJobId: randomUUID(),
+      dispatchJobId,
       projectId: context.promotionRun.projectId,
       campaignId: context.promotionRun.campaignId,
       promotionId: context.promotionRun.promotionId,
@@ -235,7 +313,18 @@ export class PromotionDispatchService {
 
     log.info("dispatch_job_created", { input, assignments });
 
-    return this.writer.insertDispatchJob(input);
+    const insertedId = await this.writer.insertDispatchJob(input);
+    if (insertedId) {
+      return null;
+    }
+
+    const concurrentJob = await this.reader.findDispatchJob(dispatchJobId);
+    if (!concurrentJob) {
+      throw adExecutionErrors.inconsistentAssignment(
+        `dispatch_job_id '${dispatchJobId}' could not be created or reloaded.`
+      );
+    }
+    return concurrentJob;
   }
 
   private async dispatchGroup(
@@ -420,6 +509,51 @@ function toStoredDispatchJobStatus(
   status: DispatchJobStatus
 ): Extract<DispatchJobStatus, "completed" | "failed"> {
   return status === "completed" ? "completed" : "failed";
+}
+
+function deterministicDispatchJobId(
+  context: DispatchContext,
+  assignments: readonly ActiveAdServingAssignmentEntity[]
+) {
+  const first = requireFirstAssignment(assignments);
+  const digest = createHash("sha256")
+    .update(
+      [
+        context.promotionRun.promotionRunId,
+        context.channel,
+        first.adExperimentId,
+        "promotion-dispatch"
+      ].join(":"),
+      "utf8"
+    )
+    .digest("hex");
+  return `dispatch_${digest}`;
+}
+
+function mergeDispatchAttempts(
+  assignments: readonly ActiveAdServingAssignmentEntity[],
+  previousAttempts: readonly DispatchAttemptSnapshot[],
+  retryAttempts: readonly DispatchAttemptSnapshot[]
+): DispatchAttemptSnapshot[] {
+  const attemptsByUser = new Map<string, DispatchAttemptSnapshot>();
+  for (const attempt of previousAttempts) {
+    if (attempt.status === "sent") {
+      attemptsByUser.set(attempt.userId, attempt);
+    }
+  }
+  for (const attempt of retryAttempts) {
+    attemptsByUser.set(attempt.userId, attempt);
+  }
+
+  return assignments.map((assignment) => {
+    const attempt = attemptsByUser.get(assignment.userId);
+    if (!attempt) {
+      throw adExecutionErrors.inconsistentAssignment(
+        `dispatch retry produced no result for user_id '${assignment.userId}'.`
+      );
+    }
+    return attempt;
+  });
 }
 
 function redirectUrl(redirectId: string) {

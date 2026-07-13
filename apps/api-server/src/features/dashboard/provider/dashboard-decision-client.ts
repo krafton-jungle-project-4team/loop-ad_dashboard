@@ -47,7 +47,7 @@ const decisionPromotionRunResponseSchema = z.object({
   loop_count: z.number().int().min(1),
   status: z.string(),
   goal_snapshot_json: z.record(z.string(), z.unknown()),
-  segment_ids: z.array(z.string().min(1)).length(1),
+  segment_ids: z.array(z.string().min(1)).min(1),
   ad_experiments: z.array(
     z.object({
       ad_experiment_id: z.string(),
@@ -79,8 +79,6 @@ const decisionSegmentAssignmentBuildResponseSchema = z.object({
   ann_underfilled_user_count: z.number().int().nonnegative(),
   skipped_existing_count: z.number().int().nonnegative(),
   insufficient_segment_count: z.number().int().nonnegative(),
-  run_fallback_count: z.number().int().nonnegative(),
-  run_has_fallback: z.boolean(),
   status: z.string()
 });
 const decisionPromotionRunEvaluateResponseSchema = z.object({
@@ -104,6 +102,7 @@ const decisionNextLoopResponseSchema = z.object({
   next_promotion_run_id: z.string().nullable(),
   promotion_id: z.string(),
   loop_count: z.number().int().min(1),
+  segment_ids: z.array(z.string().min(1)).min(1),
   next_analysis_id: z.string().nullable(),
   next_generation_id: z.string().nullable(),
   next_ad_experiments: z.array(
