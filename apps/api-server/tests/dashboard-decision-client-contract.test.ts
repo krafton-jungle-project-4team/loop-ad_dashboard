@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { afterEach, test } from "node:test";
 import { AppError } from "../src/app-errors.js";
 
@@ -148,8 +149,6 @@ test("decision client preserves segment assignment request contract", async () =
     ann_underfilled_user_count: 0,
     skipped_existing_count: 0,
     insufficient_segment_count: 0,
-    run_fallback_count: 3,
-    run_has_fallback: true,
     status: "completed"
   };
   const { client, requests } = await createClientWithResponse(response);
@@ -202,6 +201,7 @@ test("decision client preserves next loop request contract", async () => {
     next_promotion_run_id: "run-2",
     promotion_id: "promotion-1",
     loop_count: 2,
+    segment_ids: ["segment-1"],
     next_analysis_id: "analysis-2",
     next_generation_id: "generation-2",
     next_ad_experiments: [
@@ -265,7 +265,29 @@ test("decision client rejects promotion run responses missing fallback contract 
   );
 });
 
-test("decision client rejects assignment responses missing run-wide fallback fields", async () => {
+test("decision client rejects promotion run responses missing segment scope", async () => {
+  const invalidResponse: Partial<ReturnType<typeof promotionRunResponse>> = {
+    ...promotionRunResponse()
+  };
+  delete invalidResponse.segment_ids;
+  const { client } = await createClientWithResponse(invalidResponse);
+
+  await assert.rejects(
+    () =>
+      client.createPromotionRun({
+        promotionId: "promotion-1",
+        request: {
+          analysis_id: "analysis-1",
+          generation_id: "generation-1",
+          segment_ids: ["segment-1"],
+          loop_count: 1
+        }
+      }),
+    (error) => error instanceof AppError && error.code === "DASHBOARD_DECISION_REQUEST_FAILED"
+  );
+});
+
+test("decision client accepts the exact Decision assignment fallback contract", async () => {
   const { client } = await createClientWithResponse({
     promotion_run_id: "run-1",
     matching_mode: "hybrid",
@@ -286,14 +308,36 @@ test("decision client rejects assignment responses missing run-wide fallback fie
     status: "completed"
   });
 
-  await assert.rejects(
-    () =>
-      client.buildPromotionRunSegmentAssignments({
-        projectId: "project-1",
-        promotionRunId: "run-1"
-      }),
-    (error) => error instanceof AppError && error.code === "DASHBOARD_DECISION_REQUEST_FAILED"
+  const result = await client.buildPromotionRunSegmentAssignments({
+    projectId: "project-1",
+    promotionRunId: "run-1"
+  });
+
+  assert.equal(result.batch_has_fallback, false);
+  assert.equal(result.fallback_count, 0);
+});
+
+test("decision client parses the versioned Decision promotion run fixture", async () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("../../../docs/contracts/decision-promotion-run-response.v1.json", import.meta.url),
+      "utf8"
+    )
   );
+  const { client } = await createClientWithResponse(fixture);
+
+  const result = await client.createPromotionRun({
+    promotionId: "promotion-1",
+    request: {
+      analysis_id: "analysis-1",
+      generation_id: "generation-1",
+      segment_ids: ["segment-a"],
+      loop_count: 2
+    }
+  });
+
+  assert.deepEqual(result.segment_ids, ["segment-a", "segment-b"]);
+  assert.equal(result.ad_experiments.at(-1)?.is_fallback, true);
 });
 
 test("decision client preserves provider error status and detail", async () => {
@@ -385,7 +429,18 @@ function promotionRunResponse() {
         channel: "email",
         is_fallback: false,
         loop_count: 2,
-        status: "draft"
+        status: "planned"
+      },
+      {
+        ad_experiment_id: "experiment-fallback",
+        segment_id: "seg_existing_all",
+        segment_name: "fallback",
+        content_id: "content-fallback",
+        content_option_id: "option-fallback",
+        channel: "email",
+        is_fallback: true,
+        loop_count: 2,
+        status: "planned"
       }
     ]
   };

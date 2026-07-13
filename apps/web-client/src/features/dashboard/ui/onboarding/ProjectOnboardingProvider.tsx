@@ -16,6 +16,12 @@ import {
   fetchDashboardProjectExperiments
 } from "../../api/dashboard-api.js";
 import {
+  clearCampaignOnboardingScope,
+  readCampaignOnboardingScope,
+  writeCampaignOnboardingScope,
+  type CampaignOnboardingScope
+} from "../../model/campaign-onboarding-scope.js";
+import {
   defaultDashboardSearchQuery,
   normalizeDashboardQuery,
   useDashboardQueryState
@@ -31,6 +37,7 @@ import {
   initializeProjectSetupProgress,
   readProjectSetupProgress,
   resolveProjectOnboardingStage,
+  restartProjectOnboarding,
   skipProjectOnboarding,
   startProjectSetupGuide,
   type ProjectOnboardingPathSegment,
@@ -39,10 +46,9 @@ import {
 } from "../../model/project-setup-progress.js";
 import {
   allowedDashboardTabs,
-  countStartedExperiments,
+  countRunningExperiments,
   createCampaignOnboardingSteps,
   createSetupOnboardingSteps,
-  preserveCampaignOnboardingMilestones,
   type CampaignOnboardingProgress,
   type ProjectOnboardingStep
 } from "../../model/project-onboarding.js";
@@ -53,14 +59,15 @@ type ProjectProgressSnapshot = {
   projectId: string;
 };
 
-type CampaignProgressSnapshot = {
-  progress: CampaignOnboardingProgress;
+type CampaignScopeSnapshot = {
   projectId: string;
+  scope: CampaignOnboardingScope;
 };
 
 export type ProjectOnboardingContextValue = {
   allowedTabs: ReadonlySet<DashboardTab>;
   campaignSteps: ReadonlyArray<ProjectOnboardingStep>;
+  canRestartGuide: boolean;
   completeSdk: () => void;
   error: Error | null;
   isDashboardUnlocked: boolean;
@@ -73,7 +80,9 @@ export type ProjectOnboardingContextValue = {
   query: DashboardQuery;
   requiredPath: string | null;
   requiredPathSegment: ProjectOnboardingPathSegment | null;
-  startedExperimentCount: number;
+  restartGuide: () => void;
+  retry: () => Promise<void>;
+  runningExperimentCount: number;
   setupSteps: ReadonlyArray<ProjectOnboardingStep>;
   skipGuide: () => void;
   startGuide: () => void;
@@ -96,13 +105,19 @@ export function ProjectOnboardingProvider({
     [projectId]
   );
   const storedProgress = useMemo(() => readProjectSetupProgress(projectId), [projectId]);
+  const storedCampaignScope = useMemo(() => readCampaignOnboardingScope(projectId), [projectId]);
   const [progressSnapshot, setProgressSnapshot] = useState<ProjectProgressSnapshot | null>(() =>
     storedProgress === null ? null : { progress: storedProgress, projectId }
   );
-  const [campaignProgressSnapshot, setCampaignProgressSnapshot] =
-    useState<CampaignProgressSnapshot | null>(null);
+  const [campaignScopeSnapshot, setCampaignScopeSnapshot] = useState<CampaignScopeSnapshot | null>(
+    () => (storedCampaignScope === null ? null : { projectId, scope: storedCampaignScope })
+  );
   const progress =
     progressSnapshot?.projectId === projectId ? progressSnapshot.progress : storedProgress;
+  const campaignScope =
+    campaignScopeSnapshot?.projectId === projectId
+      ? campaignScopeSnapshot.scope
+      : storedCampaignScope;
 
   const mainQuery = useQuery({
     queryFn: ({ signal }) => fetchDashboardPageResource("main", onboardingQuery, signal),
@@ -132,63 +147,182 @@ export function ProjectOnboardingProvider({
     setProgressSnapshot({ progress: initializedProgress, projectId });
   }, [funnelListQuery.data, funnelListQuery.isPending, mainData, progress, projectId]);
 
-  const startedExperimentCount = useMemo(
-    () => countStartedExperiments(experimentsQuery.data?.experiments ?? []),
-    [experimentsQuery.data]
+  const campaigns = useMemo(() => mainData?.campaigns ?? [], [mainData?.campaigns]);
+  const campaignIds = useMemo(
+    () => new Set(campaigns.map((campaign) => campaign.campaign_id)),
+    [campaigns]
   );
+  const runningExperiments = useMemo(
+    () =>
+      (experimentsQuery.data?.experiments ?? []).filter(
+        (experiment) => experiment.status === "running" && campaignIds.has(experiment.campaign_id)
+      ),
+    [campaignIds, experimentsQuery.data]
+  );
+  const runningExperimentCount = countRunningExperiments(runningExperiments);
+  const storedRunningExperiment = runningExperiments.find(
+    (experiment) =>
+      experiment.campaign_id === campaignScope?.campaignId &&
+      experiment.promotion_id === campaignScope.promotionId &&
+      experiment.segment_id === campaignScope.segmentId
+  );
+  const runningScopeExperiment = storedRunningExperiment ?? runningExperiments[0];
+  const selectedCampaignId = campaignIds.has(query.selectedCampaignId)
+    ? query.selectedCampaignId
+    : "";
+  const storedCampaignId =
+    campaignScope && campaignIds.has(campaignScope.campaignId) ? campaignScope.campaignId : "";
+  const hasPersistedCampaignCompletion =
+    Boolean(storedCampaignId) && campaignScope?.completedAt != null;
+  const scopedCampaignId =
+    runningScopeExperiment?.campaign_id ||
+    selectedCampaignId ||
+    storedCampaignId ||
+    campaigns[0]?.campaign_id ||
+    "";
+  const initialStageResolution = resolveProjectOnboardingStage({
+    progress,
+    runningExperimentCount: runningScopeExperiment || hasPersistedCampaignCompletion ? 1 : 0
+  });
+  const shouldLoadCampaignDetail =
+    initialStageResolution.stage === "campaign" && Boolean(scopedCampaignId);
+  const campaignDetailQuery = useQuery({
+    enabled: shouldLoadCampaignDetail,
+    queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, scopedCampaignId, signal),
+    queryKey: dashboardCampaignDetailQueryKey(projectId, scopedCampaignId)
+  });
+  const campaignDetail = campaignDetailQuery.data;
+  const scopedPromotionId = useMemo(() => {
+    if (runningScopeExperiment?.campaign_id === scopedCampaignId) {
+      return runningScopeExperiment.promotion_id;
+    }
+
+    const promotions = campaignDetail?.promotions ?? [];
+    const validPromotionIds = new Set(promotions.map((promotion) => promotion.promotion_id));
+    if (validPromotionIds.has(query.selectedPromotionId)) {
+      return query.selectedPromotionId;
+    }
+    if (
+      campaignScope?.campaignId === scopedCampaignId &&
+      validPromotionIds.has(campaignScope.promotionId)
+    ) {
+      return campaignScope.promotionId;
+    }
+    return promotions[0]?.promotion_id ?? "";
+  }, [
+    campaignDetail?.promotions,
+    campaignScope,
+    query.selectedPromotionId,
+    runningScopeExperiment,
+    scopedCampaignId
+  ]);
+  const scopedSegmentId = useMemo(() => {
+    if (
+      runningScopeExperiment?.campaign_id === scopedCampaignId &&
+      runningScopeExperiment.promotion_id === scopedPromotionId
+    ) {
+      return runningScopeExperiment.segment_id;
+    }
+
+    const segments = (campaignDetail?.segments ?? []).filter(
+      (segment) => segment.promotion_id === scopedPromotionId && segment.status === "approved"
+    );
+    const validSegmentIds = new Set(segments.map((segment) => segment.segment_id));
+    if (validSegmentIds.has(query.selectedSegmentId)) {
+      return query.selectedSegmentId;
+    }
+    if (
+      campaignScope?.campaignId === scopedCampaignId &&
+      campaignScope.promotionId === scopedPromotionId &&
+      validSegmentIds.has(campaignScope.segmentId)
+    ) {
+      return campaignScope.segmentId;
+    }
+    return segments[0]?.segment_id ?? "";
+  }, [
+    campaignDetail?.segments,
+    campaignScope,
+    query.selectedSegmentId,
+    runningScopeExperiment,
+    scopedCampaignId,
+    scopedPromotionId
+  ]);
+  const scopedRunningExperimentCount = runningExperiments.some(
+    (experiment) =>
+      experiment.campaign_id === scopedCampaignId &&
+      experiment.promotion_id === scopedPromotionId &&
+      experiment.segment_id === scopedSegmentId
+  )
+    ? 1
+    : 0;
+  const completedExperimentMilestone =
+    scopedRunningExperimentCount > 0 ||
+    (hasPersistedCampaignCompletion && campaignScope?.campaignId === scopedCampaignId);
   const stageResolution = resolveProjectOnboardingStage({
     progress,
-    startedExperimentCount
+    runningExperimentCount: completedExperimentMilestone ? 1 : 0
   });
-  const selectedCampaign = mainData?.campaigns.find(
-    (campaign) => campaign.campaign_id === query.selectedCampaignId
-  );
-  const selectedCampaignId = selectedCampaign?.campaign_id ?? "";
-  const campaignDetailQuery = useQuery({
-    enabled: stageResolution.stage === "campaign" && Boolean(selectedCampaignId),
-    queryFn: ({ signal }) => fetchDashboardCampaignDetail(query, selectedCampaignId, signal),
-    queryKey: dashboardCampaignDetailQueryKey(projectId, selectedCampaignId)
-  });
-  const detectedCampaignProgress = useMemo<CampaignOnboardingProgress>(() => {
-    const campaignSummaries = mainData?.campaigns ?? [];
-
-    return {
-      hasAnalyzedSegment: campaignSummaries.some((campaign) => campaign.segment_count > 0),
-      hasApprovedCreative:
-        campaignDetailQuery.data?.content_candidates.some((candidate) =>
-          ["active", "approved"].includes(candidate.status)
-        ) ?? false,
-      hasCampaign: campaignSummaries.length > 0,
-      hasPromotion: campaignSummaries.some((campaign) => campaign.promotion_count > 0),
-      hasStartedExperiment: startedExperimentCount > 0,
-      stage: stageResolution.stage
-    };
-  }, [
-    campaignDetailQuery.data,
-    mainData?.campaigns,
-    stageResolution.stage,
-    startedExperimentCount
-  ]);
-  const previousCampaignProgress =
-    campaignProgressSnapshot?.projectId === projectId ? campaignProgressSnapshot.progress : null;
-  const campaignProgress = useMemo(
-    () => preserveCampaignOnboardingMilestones(detectedCampaignProgress, previousCampaignProgress),
-    [detectedCampaignProgress, previousCampaignProgress]
-  );
 
   useEffect(() => {
-    setCampaignProgressSnapshot((current) => {
-      if (
-        current?.projectId === projectId &&
-        campaignProgressEqual(current.progress, campaignProgress)
-      ) {
-        return current;
-      }
+    if (mainData === undefined) {
+      return;
+    }
 
-      return { progress: campaignProgress, projectId };
-    });
-  }, [campaignProgress, projectId]);
+    if (!scopedCampaignId) {
+      clearCampaignOnboardingScope(projectId);
+      setCampaignScopeSnapshot(null);
+      return;
+    }
 
+    const nextScope: CampaignOnboardingScope = {
+      campaignId: scopedCampaignId,
+      completedAt:
+        campaignScope?.completedAt ??
+        (scopedRunningExperimentCount > 0 ? new Date().toISOString() : null),
+      promotionId: scopedPromotionId,
+      segmentId: scopedSegmentId
+    };
+    if (campaignScopeEqual(campaignScope, nextScope)) {
+      return;
+    }
+
+    writeCampaignOnboardingScope(projectId, nextScope);
+    setCampaignScopeSnapshot({ projectId, scope: nextScope });
+  }, [
+    campaignScope,
+    mainData,
+    projectId,
+    scopedCampaignId,
+    scopedPromotionId,
+    scopedRunningExperimentCount,
+    scopedSegmentId
+  ]);
+
+  const campaignProgress = useMemo<CampaignOnboardingProgress>(
+    () => ({
+      hasAnalyzedSegment: Boolean(scopedSegmentId),
+      hasApprovedCreative:
+        campaignDetail?.content_candidates.some(
+          (candidate) =>
+            candidate.promotion_id === scopedPromotionId &&
+            candidate.segment_id === scopedSegmentId &&
+            ["active", "approved"].includes(candidate.status)
+        ) ?? false,
+      hasCampaign: Boolean(scopedCampaignId),
+      hasPromotion: Boolean(scopedPromotionId),
+      hasRunningExperiment: completedExperimentMilestone,
+      stage: stageResolution.stage
+    }),
+    [
+      campaignDetail?.content_candidates,
+      completedExperimentMilestone,
+      scopedCampaignId,
+      scopedPromotionId,
+      scopedRunningExperimentCount,
+      scopedSegmentId,
+      stageResolution.stage
+    ]
+  );
   const allowedTabs = allowedDashboardTabs(stageResolution.stage);
   const setupSteps = useMemo(
     () => createSetupOnboardingSteps(stageResolution.stage),
@@ -210,6 +344,27 @@ export function ProjectOnboardingProvider({
     const nextProgress = skipProjectOnboarding(projectId, { currentProgress: progress });
     setProgressSnapshot({ progress: nextProgress, projectId });
   }, [progress, projectId]);
+  const restartGuide = useCallback(() => {
+    const nextProgress = restartProjectOnboarding(projectId, { currentProgress: progress });
+    setProgressSnapshot({ progress: nextProgress, projectId });
+  }, [progress, projectId]);
+  const retry = useCallback(async () => {
+    const requests: Array<Promise<unknown>> = [mainQuery.refetch(), experimentsQuery.refetch()];
+    if (progress === null) {
+      requests.push(funnelListQuery.refetch());
+    }
+    if (scopedCampaignId) {
+      requests.push(campaignDetailQuery.refetch());
+    }
+    await Promise.all(requests);
+  }, [
+    campaignDetailQuery,
+    experimentsQuery,
+    funnelListQuery,
+    mainQuery,
+    progress,
+    scopedCampaignId
+  ]);
   const isTabAllowed = useCallback((tab: DashboardTab) => allowedTabs.has(tab), [allowedTabs]);
   const requiredPath = stageResolution.requiredPathSegment
     ? `/dashboard/${encodeURIComponent(projectId)}/${stageResolution.requiredPathSegment}`
@@ -218,19 +373,25 @@ export function ProjectOnboardingProvider({
     () => ({
       allowedTabs,
       campaignSteps,
+      canRestartGuide:
+        progress?.onboardingSkippedAt != null &&
+        runningExperimentCount === 0 &&
+        !hasPersistedCampaignCompletion,
       completeSdk,
-      error:
-        mainQuery.error ??
-        experimentsQuery.error ??
-        funnelListQuery.error ??
-        campaignDetailQuery.error,
+      error: stageResolution.isDashboardUnlocked
+        ? null
+        : (mainQuery.error ??
+          experimentsQuery.error ??
+          funnelListQuery.error ??
+          campaignDetailQuery.error),
       isDashboardUnlocked: stageResolution.isDashboardUnlocked,
       isInitialSetupComplete: stageResolution.isInitialSetupComplete,
       isLoading:
         mainQuery.isPending ||
         experimentsQuery.isPending ||
         (progress === null && funnelListQuery.isPending) ||
-        (mainQuery.isSuccess && progress === null),
+        (mainQuery.isSuccess && progress === null) ||
+        (shouldLoadCampaignDetail && campaignDetailQuery.isPending),
       isTabAllowed,
       mainData,
       progress,
@@ -238,7 +399,9 @@ export function ProjectOnboardingProvider({
       query,
       requiredPath,
       requiredPathSegment: stageResolution.requiredPathSegment,
-      startedExperimentCount,
+      restartGuide,
+      retry,
+      runningExperimentCount,
       setupSteps,
       skipGuide,
       startGuide,
@@ -246,13 +409,15 @@ export function ProjectOnboardingProvider({
     }),
     [
       allowedTabs,
-      campaignSteps,
       campaignDetailQuery.error,
+      campaignDetailQuery.isPending,
+      campaignSteps,
       completeSdk,
       experimentsQuery.error,
       experimentsQuery.isPending,
       funnelListQuery.error,
       funnelListQuery.isPending,
+      hasPersistedCampaignCompletion,
       isTabAllowed,
       mainData,
       mainQuery.error,
@@ -262,14 +427,17 @@ export function ProjectOnboardingProvider({
       projectId,
       query,
       requiredPath,
-      startedExperimentCount,
+      restartGuide,
+      retry,
+      runningExperimentCount,
       setupSteps,
+      shouldLoadCampaignDetail,
       skipGuide,
-      startGuide,
       stageResolution.isDashboardUnlocked,
       stageResolution.isInitialSetupComplete,
       stageResolution.requiredPathSegment,
-      stageResolution.stage
+      stageResolution.stage,
+      startGuide
     ]
   );
 
@@ -278,17 +446,15 @@ export function ProjectOnboardingProvider({
   );
 }
 
-function campaignProgressEqual(
-  left: CampaignOnboardingProgress,
-  right: CampaignOnboardingProgress
+function campaignScopeEqual(
+  left: CampaignOnboardingScope | null,
+  right: CampaignOnboardingScope
 ): boolean {
   return (
-    left.hasAnalyzedSegment === right.hasAnalyzedSegment &&
-    left.hasApprovedCreative === right.hasApprovedCreative &&
-    left.hasCampaign === right.hasCampaign &&
-    left.hasPromotion === right.hasPromotion &&
-    left.hasStartedExperiment === right.hasStartedExperiment &&
-    left.stage === right.stage
+    left?.campaignId === right.campaignId &&
+    left.completedAt === right.completedAt &&
+    left.promotionId === right.promotionId &&
+    left.segmentId === right.segmentId
   );
 }
 

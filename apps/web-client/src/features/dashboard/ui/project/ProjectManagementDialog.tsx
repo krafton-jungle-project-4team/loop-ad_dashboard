@@ -22,6 +22,7 @@ import {
   fetchDashboardProjects
 } from "../../api/dashboard-api.js";
 import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
+import { clearCampaignOnboardingScope } from "../../model/campaign-onboarding-scope.js";
 import {
   clearProjectSetupProgress,
   initializeProjectSetupProgress
@@ -72,6 +73,7 @@ export function ProjectManagementDialog({
   const deleteProjectMutation = useMutation({
     mutationFn: deleteDashboardProject,
     onSuccess: async (_result, deletedProjectId) => {
+      clearCampaignOnboardingScope(deletedProjectId);
       clearProjectSetupProgress(deletedProjectId);
       const projectList = await fetchDashboardProjects();
       queryClient.setQueryData(dashboardProjectsQueryKey(), projectList);

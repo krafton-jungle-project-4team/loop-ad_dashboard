@@ -26,15 +26,29 @@ export class DashboardEntitySearchReader {
 
     return {
       results: rows.map((row) => ({
-        campaign_id: row.campaignId,
-        display_name: row.displayName,
-        entity_id: row.entityId,
-        entity_type: row.entityType as DashboardEntityType,
+        campaign_id: requiredText(row.campaignId, "campaignId"),
+        display_name: requiredText(row.displayName, "displayName"),
+        entity_id: requiredText(row.entityId, "entityId"),
+        entity_type: requiredText(row.entityType, "entityType") as DashboardEntityType,
         promotion_id: row.promotionId,
         segment_id: row.segmentId,
-        status: row.status,
-        updated_at: row.updatedAt.toISOString()
+        status: requiredText(row.status, "status"),
+        updated_at: requiredDate(row.updatedAt, "updatedAt").toISOString()
       }))
     };
   }
+}
+
+function requiredText(value: string | null, field: string): string {
+  if (!value) {
+    throw new Error(`Entity search returned an empty ${field}.`);
+  }
+  return value;
+}
+
+function requiredDate(value: Date | null, field: string): Date {
+  if (!value) {
+    throw new Error(`Entity search returned an empty ${field}.`);
+  }
+  return value;
 }

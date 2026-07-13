@@ -3,7 +3,8 @@ export {
   AdExecutionWriter,
   type FinishDispatchJobInput,
   type InsertDispatchJobInput,
-  type InsertRedirectLinkInput
+  type InsertRedirectLinkInput,
+  type RestartDispatchJobInput
 } from "./ad-execution-writer.js";
 export {
   EnvDemoRecipientDirectory,

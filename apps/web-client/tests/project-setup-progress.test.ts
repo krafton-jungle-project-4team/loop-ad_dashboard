@@ -8,6 +8,7 @@ import {
   parseProjectSetupProgress,
   readProjectSetupProgress,
   resolveProjectOnboardingStage,
+  restartProjectOnboarding,
   skipProjectOnboarding,
   startProjectSetupGuide,
   type ProjectSetupProgressStorage
@@ -179,6 +180,33 @@ test("starting the guide is persisted, idempotent, and leaves setup incomplete",
   assert.deepEqual(readProjectSetupProgress("project-1", storage), started);
 });
 
+test("a skipped guide can be started again", () => {
+  const storage = new MemoryStorage();
+  const initialized = initializeProjectSetupProgress("project-1", {
+    now: () => INITIALIZED_AT,
+    storage
+  });
+  const skipped = skipProjectOnboarding("project-1", {
+    currentProgress: initialized,
+    now: () => ONBOARDING_SKIPPED_AT,
+    storage
+  });
+  const restarted = restartProjectOnboarding("project-1", {
+    currentProgress: skipped,
+    now: () => GUIDE_STARTED_AT,
+    storage
+  });
+
+  assert.equal(restarted.guideStartedAt, null);
+  assert.equal(restarted.onboardingSkippedAt, null);
+  assert.deepEqual(resolveProjectOnboardingStage({ progress: restarted }), {
+    isDashboardUnlocked: false,
+    isInitialSetupComplete: false,
+    requiredPathSegment: "sdk",
+    stage: "welcome"
+  });
+});
+
 test("SDK completion is persisted and idempotent", () => {
   const storage = new MemoryStorage();
   initializeProjectSetupProgress("project-1", {
@@ -311,7 +339,7 @@ test("top-level onboarding resolver covers welcome, SDK, campaign, and complete 
   assert.deepEqual(
     resolveProjectOnboardingStage({
       progress: null,
-      startedExperimentCount: 1
+      runningExperimentCount: 1
     }),
     {
       isDashboardUnlocked: true,

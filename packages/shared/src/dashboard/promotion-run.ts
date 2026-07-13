@@ -145,7 +145,7 @@ export const DashboardCreatePromotionRunResultSchema = z.object({
   loop_count: CountSchema,
   status: z.string(),
   goal_snapshot_json: JsonObjectSchema,
-  segment_ids: z.array(z.string().min(1)).length(1),
+  segment_ids: z.array(z.string().min(1)).min(1),
   ad_experiments: z.array(DashboardPromotionRunAdExperimentSchema)
 });
 export type DashboardCreatePromotionRunResult = z.infer<
@@ -169,8 +169,6 @@ export const DashboardBuildPromotionRunAssignmentsResultSchema = z.object({
   ann_underfilled_user_count: CountSchema,
   skipped_existing_count: CountSchema,
   insufficient_segment_count: CountSchema,
-  run_fallback_count: CountSchema,
-  run_has_fallback: z.boolean(),
   status: z.string()
 });
 export type DashboardBuildPromotionRunAssignmentsResult = z.infer<
@@ -217,6 +215,7 @@ export const DashboardCreateNextLoopResultSchema = z.object({
   next_promotion_run_id: z.string().nullable(),
   promotion_id: z.string(),
   loop_count: CountSchema,
+  segment_ids: z.array(z.string().min(1)).min(1),
   next_analysis_id: z.string().nullable(),
   next_generation_id: z.string().nullable(),
   next_ad_experiments: z.array(DashboardPromotionRunAdExperimentSchema)

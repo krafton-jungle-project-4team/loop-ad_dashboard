@@ -7,7 +7,8 @@ import type {
   AdExperimentEntity,
   PromotionEntity,
   PromotionRunEntity,
-  RedirectLinkEntity
+  RedirectLinkEntity,
+  StoredDispatchJobEntity
 } from "../src/features/ad-execution/domain/index.js";
 import type {
   DispatchSendResult,
@@ -153,6 +154,71 @@ test("dispatch uses stored assignments and records sender success", async () => 
     logs.some((entry) => JSON.stringify(entry).includes("+1555")),
     true
   );
+});
+
+test("completed dispatch job is returned without sending again", async () => {
+  const reader = new FakeAdExecutionReader();
+  const writer = new FakeAdExecutionWriter();
+  const emailSender = new RecordingEmailSender();
+  const service = createDispatchService(reader, writer, emailSender);
+
+  const first = await captureDispatchLogs(() => service.dispatchPromotionRun("run-1"));
+  const completedJob = first.result.jobs[0]!;
+  reader.dispatchJob = storedDispatchJob({
+    dispatchJobId: completedJob.dispatch_job_id,
+    status: "completed",
+    targetCount: completedJob.target_count,
+    sentCount: completedJob.dispatched_count,
+    failedCount: completedJob.failed_count,
+    metadataJson: { result: writer.finishes[0]!.result }
+  });
+
+  const second = await captureDispatchLogs(() => service.dispatchPromotionRun("run-1"));
+
+  assert.equal(second.result.jobs[0]?.dispatch_job_id, completedJob.dispatch_job_id);
+  assert.equal(emailSender.inputs.length, 1);
+  assert.equal(writer.dispatchJobs.length, 1);
+  assert.equal(writer.finishes.length, 1);
+});
+
+test("failed dispatch retries only failed recipients with the same job id", async () => {
+  const reader = new FakeAdExecutionReader();
+  const writer = new FakeAdExecutionWriter();
+  const emailSender = new RecordingEmailSender();
+  reader.dispatchAssignments = [assignment({ userId: "user-1" }), assignment({ userId: "user-2" })];
+  reader.dispatchJob = storedDispatchJob({
+    dispatchJobId: "dispatch_629053cbd09473465f4bc1a2d18f02fd8ee0d2904f697c596c49fd461ef7a65a",
+    status: "failed",
+    targetCount: 2,
+    sentCount: 1,
+    failedCount: 1,
+    metadataJson: {
+      result: {
+        status: "partial_failed",
+        attempts: [
+          { userId: "user-1", status: "sent", providerMessageId: "message-1" },
+          { userId: "user-2", status: "failed", errorCode: "SEND_FAILED" }
+        ]
+      }
+    }
+  });
+
+  const response = await captureDispatchLogs(() =>
+    createDispatchService(
+      reader,
+      writer,
+      emailSender,
+      new RecordingSmsSender(),
+      new FakeRecipientDirectory(true, [recipient("user-1"), recipient("user-2")])
+    ).dispatchPromotionRun("run-1")
+  );
+
+  assert.equal(response.result.jobs[0]?.dispatch_job_id, reader.dispatchJob.dispatchJobId);
+  assert.equal(response.result.dispatched_count, 2);
+  assert.equal(response.result.failed_count, 0);
+  assert.equal(emailSender.inputs.length, 1);
+  assert.equal(emailSender.inputs[0]?.recipient, "user-2@example.test");
+  assert.deepEqual(writer.restartedDispatchJobIds, [reader.dispatchJob.dispatchJobId]);
 });
 
 test("dispatch module always creates AWS senders from fixed code config", () => {
@@ -812,6 +878,28 @@ function recipient(userId: string, overrides: Partial<DispatchRecipient> = {}): 
   };
 }
 
+function storedDispatchJob(
+  overrides: Partial<StoredDispatchJobEntity> = {}
+): StoredDispatchJobEntity {
+  return {
+    dispatchJobId: "dispatch-existing",
+    promotionRunId: "run-1",
+    adExperimentId: "exp-1",
+    channel: "email",
+    status: "completed",
+    targetCount: 1,
+    sentCount: 1,
+    failedCount: 0,
+    metadataJson: {
+      result: {
+        status: "completed",
+        attempts: [{ userId: "user-1", status: "sent" }]
+      }
+    },
+    ...overrides
+  };
+}
+
 function dispatchAttemptErrorCodes(writer: FakeAdExecutionWriter): string[] {
   const result = writer.finishes[0]?.result as
     | { attempts?: Array<{ errorCode?: string }> }
@@ -922,6 +1010,7 @@ class RecordingAwsClient {
 }
 
 class FakeAdExecutionReader {
+  dispatchJob: StoredDispatchJobEntity | null = null;
   promotionRun: PromotionRunEntity = {
     promotionRunId: "run-1",
     projectId: "project-1",
@@ -1009,6 +1098,10 @@ class FakeAdExecutionReader {
     return this.adExperiment;
   }
 
+  async findDispatchJob() {
+    return this.dispatchJob;
+  }
+
   async listDispatchAssignments() {
     return this.dispatchAssignments;
   }
@@ -1037,10 +1130,16 @@ class FakeAdExecutionWriter {
     contentId: string;
     contentOptionId: string;
   }> = [];
+  restartedDispatchJobIds: string[] = [];
 
   async insertDispatchJob(input: { dispatchJobId: string }) {
     this.dispatchJobs.push(input);
     return input.dispatchJobId;
+  }
+
+  async restartDispatchJob(input: { dispatchJobId: string }) {
+    this.restartedDispatchJobIds.push(input.dispatchJobId);
+    return true;
   }
 
   async finishDispatchJob(input: {

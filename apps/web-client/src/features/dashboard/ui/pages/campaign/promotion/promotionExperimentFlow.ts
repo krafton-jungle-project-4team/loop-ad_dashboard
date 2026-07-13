@@ -1,4 +1,7 @@
-import type { DashboardBuildPromotionRunAssignmentsResult } from "@loopad/shared";
+import {
+  DASHBOARD_FALLBACK_SEGMENT_ID,
+  type DashboardBuildPromotionRunAssignmentsResult
+} from "@loopad/shared";
 import { canStartAdExperiment } from "./promotionUtils.js";
 
 type ExperimentLaunchTarget = {
@@ -33,35 +36,19 @@ export type PromotionExperimentLaunchResult = {
 };
 
 export async function launchPromotionExperiment(
-  input: { segmentId: string },
+  input: { segmentIds: string[] },
   operations: PromotionExperimentOperations
 ) {
   const run = await operations.createRun();
-  assertRequestedSegmentScope(run.segmentIds, input.segmentId);
-
-  const selectedExperiments = run.experiments.filter(
-    (experiment) => !experiment.isFallback && experiment.segmentId === input.segmentId
-  );
-  if (selectedExperiments.length !== 1) {
-    throw new Error("선택한 세그먼트의 광고 실험이 정확히 하나여야 합니다.");
-  }
-  const targetExperiment = selectedExperiments[0]!;
-  const fallbackExperiments = run.experiments.filter((experiment) => experiment.isFallback);
-  if (fallbackExperiments.length > 1) {
-    throw new Error("fallback 광고 실험은 하나만 존재해야 합니다.");
-  }
+  const { fallbackExperiment, selectedExperiments } = validateRunContract(run, input.segmentIds);
 
   const assignmentResult = await operations.buildAssignments(run.promotionRunId);
   const fallbackRequired =
-    assignmentResult.run_has_fallback || assignmentResult.run_fallback_count > 0;
-  const fallbackExperiment = fallbackExperiments[0];
-  if (fallbackRequired && !fallbackExperiment) {
-    throw new Error("fallback 배정이 있지만 fallback 광고 실험이 없습니다.");
-  }
+    assignmentResult.batch_has_fallback || assignmentResult.fallback_count > 0;
 
   const requiredExperiments = fallbackRequired
-    ? [targetExperiment, fallbackExperiment!]
-    : [targetExperiment];
+    ? [...selectedExperiments, fallbackExperiment]
+    : selectedExperiments;
   const startedExperimentIds: string[] = [];
   const failedExperimentIds: string[] = [];
 
@@ -82,7 +69,8 @@ export async function launchPromotionExperiment(
     }
   }
 
-  const shouldDispatch = targetExperiment.channel === "email" || targetExperiment.channel === "sms";
+  const channel = selectedExperiments[0]!.channel;
+  const shouldDispatch = channel === "email" || channel === "sms";
   const canDispatch = shouldDispatch && failedExperimentIds.length === 0;
   let dispatchFailed = false;
   if (canDispatch) {
@@ -102,8 +90,53 @@ export async function launchPromotionExperiment(
   } satisfies PromotionExperimentLaunchResult;
 }
 
-function assertRequestedSegmentScope(segmentIds: string[], requestedSegmentId: string) {
-  if (segmentIds.length !== 1 || segmentIds[0] !== requestedSegmentId) {
+function validateRunContract(run: PromotionRunLaunchTarget, requestedSegmentIds: string[]) {
+  const scope = uniqueSorted(run.segmentIds);
+  const requestedScope = uniqueSorted(requestedSegmentIds);
+  if (
+    scope.length !== run.segmentIds.length ||
+    requestedScope.length !== requestedSegmentIds.length ||
+    !sameStringArray(scope, requestedScope)
+  ) {
     throw new Error("생성된 실험 Run의 세그먼트 범위가 요청과 일치하지 않습니다.");
   }
+
+  const fallbackExperiments = run.experiments.filter(
+    (experiment) => experiment.isFallback && experiment.segmentId === DASHBOARD_FALLBACK_SEGMENT_ID
+  );
+  const invalidFallbackFlags = run.experiments.some(
+    (experiment) =>
+      experiment.isFallback !== (experiment.segmentId === DASHBOARD_FALLBACK_SEGMENT_ID)
+  );
+  if (invalidFallbackFlags || fallbackExperiments.length !== 1) {
+    throw new Error("fallback 광고 실험 계약이 올바르지 않습니다.");
+  }
+
+  const selectedExperiments = run.experiments.filter((experiment) => !experiment.isFallback);
+  if (
+    selectedExperiments.length !== scope.length ||
+    !sameStringArray(
+      uniqueSorted(selectedExperiments.map((experiment) => experiment.segmentId)),
+      scope
+    ) ||
+    scope.some(
+      (segmentId) =>
+        selectedExperiments.filter((experiment) => experiment.segmentId === segmentId).length !== 1
+    )
+  ) {
+    throw new Error("실험 Run의 일반 세그먼트와 광고 실험 범위가 일치하지 않습니다.");
+  }
+
+  return {
+    fallbackExperiment: fallbackExperiments[0]!,
+    selectedExperiments
+  };
+}
+
+function uniqueSorted(values: string[]) {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function sameStringArray(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }

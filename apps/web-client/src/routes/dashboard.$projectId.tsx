@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, Outlet, useParams } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Outlet, useLocation, useParams } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { DashboardShell } from "../features/dashboard/layout/DashboardShell.js";
 import { getDashboardTabByPath } from "../features/dashboard/model/dashboard-navigation.js";
@@ -15,7 +15,9 @@ export const Route = createFileRoute("/dashboard/$projectId")({
 
 function DashboardProjectLayout() {
   const params = useParams({ strict: false }) as { projectId: string; tabPath?: string };
-  const tab = getDashboardTabByPath(params.tabPath ?? "") ?? "campaigns";
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const pathSegment = pathname.split("/").filter(Boolean).at(-1) ?? "";
+  const tab = getDashboardTabByPath(pathSegment) ?? "campaigns";
 
   return (
     <ProjectOnboardingProvider projectId={params.projectId}>
@@ -35,12 +37,20 @@ function DashboardProjectAccessGate({
   children: ReactNode;
   projectId: string;
 }) {
-  const { isLoading, isTabAllowed, requiredPathSegment } = useProjectOnboarding();
+  const { error, isLoading, isTabAllowed, requiredPathSegment } = useProjectOnboarding();
 
   if (isLoading) {
     return (
       <DashboardShell activeTab={activeTab} projectId={projectId}>
         <LoadingState tab={activeTab} />
+      </DashboardShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardShell activeTab={activeTab} projectId={projectId}>
+        {children}
       </DashboardShell>
     );
   }

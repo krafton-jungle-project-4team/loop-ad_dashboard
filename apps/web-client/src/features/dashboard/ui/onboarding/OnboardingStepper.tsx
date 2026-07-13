@@ -1,7 +1,8 @@
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
+import { buttonVariants } from "@loopad/ui/shadcn/button";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import { cn } from "@loopad/ui/shadcn/utils";
+import { Link } from "@tanstack/react-router";
 import { Check, LockKeyhole } from "lucide-react";
 import { useRef, type ReactNode } from "react";
 import type {
@@ -18,7 +19,7 @@ export type OnboardingStepperProps = {
   campaignSteps: ReadonlyArray<OnboardingStep>;
   className?: string;
   desktopFooter?: ReactNode;
-  onStepSelect?: (step: OnboardingStep) => void;
+  projectId: string;
   setupSteps: ReadonlyArray<OnboardingStep>;
 };
 
@@ -33,7 +34,7 @@ export function OnboardingStepper({
   campaignSteps,
   className,
   desktopFooter,
-  onStepSelect,
+  projectId,
   setupSteps
 }: OnboardingStepperProps) {
   const stickyRef = useRef<HTMLDivElement>(null);
@@ -65,7 +66,7 @@ export function OnboardingStepper({
         ariaLabel={ariaLabel}
         campaignStepCount={campaignSteps.length}
         completedCount={completedCount}
-        onStepSelect={onStepSelect}
+        projectId={projectId}
         progressValue={progressValue}
         setupStepCount={setupSteps.length}
         steps={steps}
@@ -79,7 +80,11 @@ export function OnboardingStepper({
         <header className="flex flex-col gap-2 px-2 pb-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-foreground">시작 가이드</h2>
-            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            <span
+              aria-atomic="true"
+              aria-live="polite"
+              className="shrink-0 text-xs tabular-nums text-muted-foreground"
+            >
               {completedCount}/{steps.length} 완료
             </span>
           </div>
@@ -104,7 +109,7 @@ export function OnboardingStepper({
                     globalIndex={group.startIndex + index}
                     isLast={index === group.steps.length - 1}
                     key={step.id}
-                    onStepSelect={onStepSelect}
+                    projectId={projectId}
                     step={step}
                   />
                 ))}
@@ -126,15 +131,16 @@ export function OnboardingStepper({
 function DesktopStepItem({
   globalIndex,
   isLast,
-  onStepSelect,
+  projectId,
   step
 }: {
   globalIndex: number;
   isLast: boolean;
-  onStepSelect?: (step: OnboardingStep) => void;
+  projectId: string;
   step: OnboardingStep;
 }) {
-  const canSelect = step.state !== "locked" && onStepSelect !== undefined;
+  const pathSegment = getStepPathSegment(step.id);
+  const canSelect = step.state !== "locked" && pathSegment !== null;
   const content = (
     <>
       <StepMarker number={globalIndex + 1} state={step.state} />
@@ -166,16 +172,16 @@ function DesktopStepItem({
       ) : null}
 
       {canSelect ? (
-        <Button
+        <Link
           aria-current={step.state === "current" ? "step" : undefined}
           aria-label={`${globalIndex + 1}단계 ${step.label}, ${STEP_STATE_LABEL[step.state]}`}
-          className={rowClassName}
-          onClick={() => onStepSelect(step)}
-          type="button"
-          variant={rowVariant}
+          className={cn(buttonVariants({ variant: rowVariant }), rowClassName)}
+          params={{ projectId, tabPath: pathSegment }}
+          search={(current) => ({ ...current, ...getStepSearchPatch(step.id) })}
+          to="/dashboard/$projectId/$tabPath"
         >
           {content}
-        </Button>
+        </Link>
       ) : (
         <div
           aria-current={step.state === "current" ? "step" : undefined}
@@ -193,7 +199,7 @@ function MobileOnboardingSummary({
   ariaLabel,
   campaignStepCount,
   completedCount,
-  onStepSelect,
+  projectId,
   progressValue,
   setupStepCount,
   steps
@@ -201,7 +207,7 @@ function MobileOnboardingSummary({
   ariaLabel: string;
   campaignStepCount: number;
   completedCount: number;
-  onStepSelect?: (step: OnboardingStep) => void;
+  projectId: string;
   progressValue: number;
   setupStepCount: number;
   steps: ReadonlyArray<OnboardingStep>;
@@ -234,7 +240,11 @@ function MobileOnboardingSummary({
     >
       <div className="flex items-center justify-between gap-3">
         <Badge variant="secondary">{summaryGroupLabel}</Badge>
-        <span className="text-xs tabular-nums text-muted-foreground">
+        <span
+          aria-atomic="true"
+          aria-live="polite"
+          className="text-xs tabular-nums text-muted-foreground"
+        >
           {completedCount}/{steps.length} 완료
         </span>
       </div>
@@ -262,7 +272,7 @@ function MobileOnboardingSummary({
         <ol className="flex min-w-max items-center gap-1.5">
           {steps.map((step, index) => (
             <li key={step.id}>
-              <MobileStepControl index={index} onStepSelect={onStepSelect} step={step} />
+              <MobileStepControl index={index} projectId={projectId} step={step} />
               {index === setupStepCount - 1 && campaignStepCount > 0 ? (
                 <span
                   aria-hidden="true"
@@ -279,14 +289,15 @@ function MobileOnboardingSummary({
 
 function MobileStepControl({
   index,
-  onStepSelect,
+  projectId,
   step
 }: {
   index: number;
-  onStepSelect?: (step: OnboardingStep) => void;
+  projectId: string;
   step: OnboardingStep;
 }) {
-  const canSelect = step.state !== "locked" && onStepSelect !== undefined;
+  const pathSegment = getStepPathSegment(step.id);
+  const canSelect = step.state !== "locked" && pathSegment !== null;
   const label = `${index + 1}단계 ${step.label}, ${STEP_STATE_LABEL[step.state]}`;
   const variant =
     step.state === "current" ? "default" : step.state === "complete" ? "secondary" : "outline";
@@ -294,16 +305,16 @@ function MobileStepControl({
 
   if (canSelect) {
     return (
-      <Button
+      <Link
         aria-current={step.state === "current" ? "step" : undefined}
         aria-label={label}
-        onClick={() => onStepSelect(step)}
-        size="icon-sm"
-        type="button"
-        variant={variant}
+        className={buttonVariants({ size: "icon-sm", variant })}
+        params={{ projectId, tabPath: pathSegment }}
+        search={(current) => ({ ...current, ...getStepSearchPatch(step.id) })}
+        to="/dashboard/$projectId/$tabPath"
       >
         {content}
-      </Button>
+      </Link>
     );
   }
 
@@ -356,4 +367,51 @@ function MarkerContent({ number, state }: { number: number; state: OnboardingSte
   }
 
   return number;
+}
+
+function getStepPathSegment(stepId: string): "campaigns" | "sdk" | null {
+  if (stepId === "sdk") {
+    return "sdk";
+  }
+  if (["campaign", "promotion", "segment", "creative", "experiment"].includes(stepId)) {
+    return "campaigns";
+  }
+  return null;
+}
+
+function getStepSearchPatch(stepId: string) {
+  switch (stepId) {
+    case "campaign":
+      return {
+        campaignView: "manage" as const,
+        segmentView: "manage" as const,
+        selectedAdExperimentId: "",
+        selectedCampaignId: "",
+        selectedPromotionId: "",
+        selectedSegmentId: ""
+      };
+    case "promotion":
+      return {
+        campaignView: "manage" as const,
+        segmentView: "manage" as const,
+        selectedAdExperimentId: "",
+        selectedPromotionId: "",
+        selectedSegmentId: ""
+      };
+    case "segment":
+      return {
+        campaignView: "manage" as const,
+        segmentView: "recommendations" as const,
+        selectedAdExperimentId: "",
+        selectedSegmentId: ""
+      };
+    case "creative":
+    case "experiment":
+      return {
+        campaignView: "manage" as const,
+        segmentView: "experiments" as const
+      };
+    default:
+      return {};
+  }
 }
