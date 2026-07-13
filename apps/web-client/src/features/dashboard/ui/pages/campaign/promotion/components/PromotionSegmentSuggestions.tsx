@@ -25,11 +25,11 @@ import {
   DialogHeader,
   DialogTitle
 } from "@loopad/ui/shadcn/dialog";
-import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Field, FieldError, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { BarChart3, CheckCircle2, FileText, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
@@ -318,16 +318,39 @@ export function PromotionSegmentSuggestionPanel({
                         후보 선택
                       </FieldLabel>
                     </Field>
-                    <Button
-                      disabled={decideIsPending || isDismissed || isConfirmed}
-                      onClick={() => onDecideSuggestion(suggestion.suggestion_id, "dismissed")}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Trash2 className="mr-2 size-3.5" />
-                      삭제
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          disabled={decideIsPending || isDismissed || isConfirmed}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Trash2 className="mr-2 size-3.5" />
+                          세그먼트 후보 삭제
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>세그먼트 후보를 삭제할까요?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {displayCopy?.title ?? suggestion.segment_name} 후보가 목록에서 사라지고
+                            되돌릴 수 없어요.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() =>
+                              onDecideSuggestion(suggestion.suggestion_id, "dismissed")
+                            }
+                            variant="destructive"
+                          >
+                            세그먼트 후보 삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               );
@@ -620,6 +643,8 @@ function PromotionSegmentCreateDialog({
   const [form, setForm] = useState<PromotionSegmentCreateFormState>(
     createEmptyPromotionSegmentFormState()
   );
+  const [ruleJsonError, setRuleJsonError] = useState<string | null>(null);
+  const ruleJsonRef = useRef<HTMLTextAreaElement>(null);
 
   const canSubmit = Boolean(form.segmentName.trim()) && !createIsPending;
 
@@ -658,12 +683,23 @@ function PromotionSegmentCreateDialog({
           <Field>
             <FieldLabel htmlFor="promotion-segment-rule-json">조건 JSON</FieldLabel>
             <Textarea
+              aria-describedby={ruleJsonError ? "promotion-segment-rule-json-error" : undefined}
+              aria-invalid={Boolean(ruleJsonError)}
               className="font-mono text-xs"
               id="promotion-segment-rule-json"
               name="promotionSegmentRuleJson"
-              onChange={(event) => setForm({ ...form, ruleJsonText: event.target.value })}
+              onChange={(event) => {
+                setForm({ ...form, ruleJsonText: event.target.value });
+                if (ruleJsonError) {
+                  setRuleJsonError(null);
+                }
+              }}
+              ref={ruleJsonRef}
               value={form.ruleJsonText}
             />
+            {ruleJsonError ? (
+              <FieldError id="promotion-segment-rule-json-error">{ruleJsonError}</FieldError>
+            ) : null}
           </Field>
           <div className="grid gap-4 md:grid-cols-3">
             <Field>
@@ -716,6 +752,10 @@ function PromotionSegmentCreateDialog({
             onClick={() => {
               const ruleJson = parseJsonObject(form.ruleJsonText);
               if (!ruleJson) {
+                setRuleJsonError(
+                  '조건 JSON을 읽을 수 없어요. { "source": "manual_rule" }처럼 객체 형태로 입력해 주세요.'
+                );
+                ruleJsonRef.current?.focus();
                 return;
               }
               onCreate({ ...form, ruleJsonText: JSON.stringify(ruleJson) });

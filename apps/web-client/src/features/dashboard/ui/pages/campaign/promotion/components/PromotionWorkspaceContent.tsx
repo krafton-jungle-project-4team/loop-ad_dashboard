@@ -690,7 +690,7 @@ function PromotionCurrentSegmentsPanel({
                           }
                           variant="destructive"
                         >
-                          삭제
+                          확정 세그먼트 삭제
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

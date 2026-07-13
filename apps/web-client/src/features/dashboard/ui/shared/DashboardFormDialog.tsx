@@ -28,6 +28,7 @@ import {
   useState
 } from "react";
 import type { ReactNode } from "react";
+import { useBeforeUnloadWarning } from "./use-before-unload-warning.js";
 
 type DashboardFormDialogContextValue = {
   requestClose: () => void;
@@ -54,9 +55,11 @@ export function DashboardFormDialog({
   width?: "campaign" | "promotion" | "segment";
 }) {
   const isDirtyRef = useRef(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const setDirty = useCallback((nextDirty: boolean) => {
     isDirtyRef.current = nextDirty;
+    setHasUnsavedChanges(nextDirty);
   }, []);
   const requestClose = useCallback(() => {
     if (isDirtyRef.current) {
@@ -66,6 +69,8 @@ export function DashboardFormDialog({
     onOpenChange(false);
   }, [onOpenChange]);
   const contextValue = useMemo(() => ({ requestClose, setDirty }), [requestClose, setDirty]);
+
+  useBeforeUnloadWarning(open && hasUnsavedChanges);
 
   useEffect(() => {
     if (dirty !== undefined) {

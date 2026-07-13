@@ -326,7 +326,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                                   onClick={() => deleteMutation.mutate(funnel.funnel_id)}
                                   variant="destructive"
                                 >
-                                  삭제
+                                  사용자 경로 삭제
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>

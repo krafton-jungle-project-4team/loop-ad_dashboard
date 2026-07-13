@@ -1,4 +1,15 @@
 import type { DashboardCreateProjectRequest, DashboardProject } from "@loopad/shared";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@loopad/ui/shadcn/alert-dialog";
 import { Button } from "@loopad/ui/shadcn/button";
 import {
   Dialog,
@@ -27,6 +38,7 @@ import {
   clearProjectSetupProgress,
   initializeProjectSetupProgress
 } from "../../model/project-setup-progress.js";
+import { useBeforeUnloadWarning } from "../shared/use-before-unload-warning.js";
 
 type ProjectFormState = {
   domain: string;
@@ -56,6 +68,11 @@ export function ProjectManagementDialog({
     queryKey: dashboardProjectsQueryKey()
   });
   const projects = projectsQuery.data?.projects ?? [];
+  const pendingDeleteProject =
+    projects.find((project) => project.project_id === pendingDeleteProjectId) ?? null;
+  const hasUnsavedProject = Boolean(form.project_name.trim() || form.domain.trim());
+
+  useBeforeUnloadWarning(open && hasUnsavedProject);
   const createProjectMutation = useMutation({
     mutationFn: createDashboardProject,
     onSuccess: async (project) => {
@@ -101,12 +118,7 @@ export function ProjectManagementDialog({
     createProjectMutation.mutate(requestBody);
   }
 
-  function handleDeleteProject(project: DashboardProject) {
-    if (pendingDeleteProjectId === project.project_id) {
-      deleteProjectMutation.mutate(project.project_id);
-      return;
-    }
-
+  function requestProjectDelete(project: DashboardProject) {
     setPendingDeleteProjectId(project.project_id);
   }
 
@@ -155,9 +167,12 @@ export function ProjectManagementDialog({
           </div>
 
           {createProjectMutation.isError ? (
-            <p className="text-sm text-destructive">
-              {toErrorMessage(createProjectMutation.error)}
-            </p>
+            <Alert variant="destructive">
+              <AlertTitle>프로젝트를 만들 수 없어요</AlertTitle>
+              <AlertDescription>
+                프로젝트 이름과 도메인을 확인한 뒤 다시 시도해 주세요.
+              </AlertDescription>
+            </Alert>
           ) : null}
 
           <div className="flex justify-end">
@@ -178,9 +193,21 @@ export function ProjectManagementDialog({
 
           <div className="max-h-64 overflow-y-auto rounded-lg border border-black/10">
             {projectsQuery.isError ? (
-              <div className="p-3 text-sm text-destructive">
-                {toErrorMessage(projectsQuery.error)}
-              </div>
+              <Alert className="m-3" variant="destructive">
+                <AlertTitle>프로젝트 목록을 불러올 수 없어요</AlertTitle>
+                <AlertDescription className="grid gap-3">
+                  <p>네트워크 연결을 확인한 뒤 프로젝트 목록을 다시 불러와 주세요.</p>
+                  <Button
+                    className="w-fit"
+                    onClick={() => void projectsQuery.refetch()}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    프로젝트 목록 다시 불러오기
+                  </Button>
+                </AlertDescription>
+              </Alert>
             ) : projects.length > 0 ? (
               <div className="divide-y divide-black/10">
                 {projects.map((project) => {
@@ -188,8 +215,6 @@ export function ProjectManagementDialog({
                   const isDeleting =
                     deleteProjectMutation.isPending &&
                     deleteProjectMutation.variables === project.project_id;
-                  const isPendingDelete = pendingDeleteProjectId === project.project_id;
-
                   return (
                     <div
                       className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
@@ -208,28 +233,16 @@ export function ProjectManagementDialog({
                         </div>
                         <p className="truncate text-xs text-muted-foreground">{project.domain}</p>
                       </div>
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          aria-label={`${project.project_name} 삭제`}
-                          disabled={isDeleting}
-                          onClick={() => handleDeleteProject(project)}
-                          size={isPendingDelete ? "sm" : "icon-sm"}
-                          type="button"
-                          variant="destructive"
-                        >
-                          {isPendingDelete ? "삭제하기" : <Trash2 />}
-                        </Button>
-                        {isPendingDelete ? (
-                          <Button
-                            onClick={() => setPendingDeleteProjectId(null)}
-                            size="sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            취소
-                          </Button>
-                        ) : null}
-                      </div>
+                      <Button
+                        aria-label={`${project.project_name} 프로젝트 삭제`}
+                        disabled={isDeleting}
+                        onClick={() => requestProjectDelete(project)}
+                        size="icon-sm"
+                        type="button"
+                        variant="destructive"
+                      >
+                        <Trash2 />
+                      </Button>
                     </div>
                   );
                 })}
@@ -240,9 +253,12 @@ export function ProjectManagementDialog({
           </div>
 
           {deleteProjectMutation.isError ? (
-            <p className="text-sm text-destructive">
-              {toErrorMessage(deleteProjectMutation.error)}
-            </p>
+            <Alert variant="destructive">
+              <AlertTitle>프로젝트를 삭제할 수 없어요</AlertTitle>
+              <AlertDescription>
+                프로젝트가 목록에 남아 있는지 확인한 뒤 다시 시도해 주세요.
+              </AlertDescription>
+            </Alert>
           ) : null}
         </div>
 
@@ -254,10 +270,39 @@ export function ProjectManagementDialog({
           </DialogClose>
         </DialogFooter>
       </DialogContent>
+      <AlertDialog
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !deleteProjectMutation.isPending) {
+            setPendingDeleteProjectId(null);
+          }
+        }}
+        open={Boolean(pendingDeleteProject)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>프로젝트를 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDeleteProject?.project_name} 프로젝트와 연결된 캠페인, 프로모션, 세그먼트,
+              실험이 모두 사라지고 되돌릴 수 없어요.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteProjectMutation.isPending}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!pendingDeleteProject || deleteProjectMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingDeleteProject) {
+                  deleteProjectMutation.mutate(pendingDeleteProject.project_id);
+                }
+              }}
+              variant="destructive"
+            >
+              {deleteProjectMutation.isPending ? "프로젝트 삭제 중…" : "프로젝트 삭제"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
-}
-
-function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "요청을 처리하지 못했어요. 다시 시도해 주세요.";
 }
