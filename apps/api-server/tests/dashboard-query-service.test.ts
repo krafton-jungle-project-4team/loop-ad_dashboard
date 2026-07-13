@@ -799,12 +799,62 @@ test("dashboard reject content candidate runs inside transaction host", async ()
   assert.equal(result.status, "rejected");
 });
 
+test("dashboard content selection cancellation runs inside transaction host", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  const transactionHost = installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      unapproveContentCandidate: async (projectId, promotionId, segmentId, contentId, request) => {
+        writes.push({ contentId, projectId, promotionId, request, segmentId });
+        return {
+          content_id: contentId,
+          content_option_id: "option_a",
+          promotion_id: promotionId,
+          segment_id: segmentId,
+          status: "draft"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const result = await service.unapproveContentCandidate(
+    "hotel-client-a",
+    "promo_banner_001",
+    "seg_vip",
+    "content_vip_a",
+    {}
+  );
+
+  assert.equal(transactionHost.calls.length, 1);
+  assert.deepEqual(writes, [
+    {
+      contentId: "content_vip_a",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001",
+      request: {},
+      segmentId: "seg_vip"
+    }
+  ]);
+  assert.equal(result.content_id, "content_vip_a");
+  assert.equal(result.status, "draft");
+});
+
 function emptyCampaignReader(): DashboardCampaignReader {
   return {
     getPromotionGenerationResult: async () => undefined,
     listCampaigns: async () => [],
     rejectContentCandidate: async () => {
       throw new Error("Unexpected rejectContentCandidate call.");
+    },
+    unapproveContentCandidate: async () => {
+      throw new Error("Unexpected unapproveContentCandidate call.");
     }
   } as unknown as DashboardCampaignReader;
 }

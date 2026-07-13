@@ -1864,21 +1864,21 @@ export interface IDecideDashboardPromotionSegmentSuggestionQuery {
   result: IDecideDashboardPromotionSegmentSuggestionResult;
 }
 
-const decideDashboardPromotionSegmentSuggestionIR: any = {"usedParamSet":{"status":true,"projectId":true,"promotionId":true,"suggestionId":true},"params":[{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":73,"b":79},{"a":247,"b":253},{"a":538,"b":544}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":154,"b":163},{"a":445,"b":454}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":188,"b":199},{"a":479,"b":490}]},{"name":"suggestionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":225,"b":237},{"a":516,"b":528}]}],"statement":"WITH accepted AS (\n  UPDATE promotion_segment_suggestions\n  SET status = :status,\n      decided_at = now(),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = 'accepted'\n    AND status IN ('suggested', 'accepted', 'dismissed')\n  RETURNING *, status AS result_status\n),\ndeleted AS (\n  DELETE FROM promotion_segment_suggestions\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = 'dismissed'\n    AND status IN ('suggested', 'accepted', 'dismissed')\n  RETURNING *, 'dismissed'::varchar AS result_status\n),\ndecided AS (\n  SELECT * FROM accepted\n  UNION ALL\n  SELECT * FROM deleted\n)\nSELECT\n  d.suggestion_id AS \"suggestionId\",\n  d.analysis_id AS \"analysisId\",\n  d.campaign_id AS \"campaignId\",\n  d.promotion_id AS \"promotionId\",\n  d.segment_id AS \"segmentId\",\n  d.suggested_rank AS \"suggestedRank\",\n  d.suggestion_source AS \"suggestionSource\",\n  d.result_status AS \"suggestionStatus\",\n  d.score_json AS \"scoreJson\",\n  d.reason_json AS \"reasonJson\",\n  d.metadata_json AS \"metadataJson\",\n  sd.segment_name AS \"segmentName\",\n  sd.source AS \"segmentSource\",\n  sd.rule_json AS \"ruleJson\",\n  sd.profile_json AS \"profileJson\",\n  sd.sample_size AS \"sampleSize\",\n  CAST(sd.sample_ratio AS float8) AS \"sampleRatio\",\n  d.created_at AS \"createdAt\",\n  d.updated_at AS \"updatedAt\",\n  d.decided_at AS \"decidedAt\"\nFROM decided d\nJOIN segment_definitions sd\n  ON sd.segment_id = d.segment_id                                                        "};
+const decideDashboardPromotionSegmentSuggestionIR: any = {"usedParamSet":{"status":true,"projectId":true,"promotionId":true,"suggestionId":true},"params":[{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":72,"b":78},{"a":110,"b":116},{"a":318,"b":324},{"a":612,"b":618}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":225,"b":234},{"a":519,"b":528}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":259,"b":270},{"a":553,"b":564}]},{"name":"suggestionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":296,"b":308},{"a":590,"b":602}]}],"statement":"WITH updated AS (\n  UPDATE promotion_segment_suggestions\n  SET status = :status,\n      decided_at = CASE WHEN :status = 'accepted' THEN COALESCE(decided_at, now()) ELSE NULL END,\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status IN ('suggested', 'accepted')\n    AND status IN ('suggested', 'accepted')\n  RETURNING *, status AS result_status\n),\ndeleted AS (\n  DELETE FROM promotion_segment_suggestions\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND suggestion_id = :suggestionId\n    AND :status = 'dismissed'\n    AND status IN ('suggested', 'accepted', 'dismissed')\n  RETURNING *, 'dismissed'::varchar AS result_status\n),\ndecided AS (\n  SELECT * FROM updated\n  UNION ALL\n  SELECT * FROM deleted\n)\nSELECT\n  d.suggestion_id AS \"suggestionId\",\n  d.analysis_id AS \"analysisId\",\n  d.campaign_id AS \"campaignId\",\n  d.promotion_id AS \"promotionId\",\n  d.segment_id AS \"segmentId\",\n  d.suggested_rank AS \"suggestedRank\",\n  d.suggestion_source AS \"suggestionSource\",\n  d.result_status AS \"suggestionStatus\",\n  d.score_json AS \"scoreJson\",\n  d.reason_json AS \"reasonJson\",\n  d.metadata_json AS \"metadataJson\",\n  sd.segment_name AS \"segmentName\",\n  sd.source AS \"segmentSource\",\n  sd.rule_json AS \"ruleJson\",\n  sd.profile_json AS \"profileJson\",\n  sd.sample_size AS \"sampleSize\",\n  CAST(sd.sample_ratio AS float8) AS \"sampleRatio\",\n  d.created_at AS \"createdAt\",\n  d.updated_at AS \"updatedAt\",\n  d.decided_at AS \"decidedAt\"\nFROM decided d\nJOIN segment_definitions sd\n  ON sd.segment_id = d.segment_id                                                        "};
 
 /**
  * Query generated from SQL:
  * ```
- * WITH accepted AS (
+ * WITH updated AS (
  *   UPDATE promotion_segment_suggestions
  *   SET status = :status,
- *       decided_at = now(),
+ *       decided_at = CASE WHEN :status = 'accepted' THEN COALESCE(decided_at, now()) ELSE NULL END,
  *       updated_at = now()
  *   WHERE project_id = :projectId
  *     AND promotion_id = :promotionId
  *     AND suggestion_id = :suggestionId
- *     AND :status = 'accepted'
- *     AND status IN ('suggested', 'accepted', 'dismissed')
+ *     AND :status IN ('suggested', 'accepted')
+ *     AND status IN ('suggested', 'accepted')
  *   RETURNING *, status AS result_status
  * ),
  * deleted AS (
@@ -1891,7 +1891,7 @@ const decideDashboardPromotionSegmentSuggestionIR: any = {"usedParamSet":{"statu
  *   RETURNING *, 'dismissed'::varchar AS result_status
  * ),
  * decided AS (
- *   SELECT * FROM accepted
+ *   SELECT * FROM updated
  *   UNION ALL
  *   SELECT * FROM deleted
  * )
@@ -3295,44 +3295,6 @@ const getDashboardContentCandidateForApprovalIR: any = {"usedParamSet":{"project
 export const getDashboardContentCandidateForApproval = new PreparedQuery<IGetDashboardContentCandidateForApprovalParams,IGetDashboardContentCandidateForApprovalResult>(getDashboardContentCandidateForApprovalIR);
 
 
-/** 'RejectDashboardSiblingContentCandidates' parameters type */
-export interface IRejectDashboardSiblingContentCandidatesParams {
-  contentId?: string | null | void;
-  generationId?: string | null | void;
-  projectId?: string | null | void;
-  segmentId?: string | null | void;
-}
-
-/** 'RejectDashboardSiblingContentCandidates' return type */
-export interface IRejectDashboardSiblingContentCandidatesResult {
-  contentId: string;
-}
-
-/** 'RejectDashboardSiblingContentCandidates' query type */
-export interface IRejectDashboardSiblingContentCandidatesQuery {
-  params: IRejectDashboardSiblingContentCandidatesParams;
-  result: IRejectDashboardSiblingContentCandidatesResult;
-}
-
-const rejectDashboardSiblingContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"generationId":true,"segmentId":true,"contentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":93,"b":102}]},{"name":"generationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":126,"b":138}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":159,"b":168}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":190,"b":199}]}],"statement":"UPDATE content_candidates\nSET status = 'rejected',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND generation_id = :generationId\n  AND segment_id = :segmentId\n  AND content_id <> :contentId\n  AND status IN ('draft', 'approved', 'active')\nRETURNING content_id AS \"contentId\"                                           "};
-
-/**
- * Query generated from SQL:
- * ```
- * UPDATE content_candidates
- * SET status = 'rejected',
- *     updated_at = now()
- * WHERE project_id = :projectId
- *   AND generation_id = :generationId
- *   AND segment_id = :segmentId
- *   AND content_id <> :contentId
- *   AND status IN ('draft', 'approved', 'active')
- * RETURNING content_id AS "contentId"
- * ```
- */
-export const rejectDashboardSiblingContentCandidates = new PreparedQuery<IRejectDashboardSiblingContentCandidatesParams,IRejectDashboardSiblingContentCandidatesResult>(rejectDashboardSiblingContentCandidatesIR);
-
-
 /** 'ApproveDashboardContentCandidate' parameters type */
 export interface IApproveDashboardContentCandidateParams {
   contentId?: string | null | void;
@@ -3374,6 +3336,49 @@ const approveDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":tru
  * ```
  */
 export const approveDashboardContentCandidate = new PreparedQuery<IApproveDashboardContentCandidateParams,IApproveDashboardContentCandidateResult>(approveDashboardContentCandidateIR);
+
+
+/** 'UnapproveDashboardContentCandidate' parameters type */
+export interface IUnapproveDashboardContentCandidateParams {
+  contentId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+}
+
+/** 'UnapproveDashboardContentCandidate' return type */
+export interface IUnapproveDashboardContentCandidateResult {
+  contentId: string;
+  contentOptionId: string;
+  status: string;
+}
+
+/** 'UnapproveDashboardContentCandidate' query type */
+export interface IUnapproveDashboardContentCandidateQuery {
+  params: IUnapproveDashboardContentCandidateParams;
+  result: IUnapproveDashboardContentCandidateResult;
+}
+
+const unapproveDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true,"contentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":90,"b":99}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":122,"b":133}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":154,"b":163}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":184,"b":193}]}],"statement":"UPDATE content_candidates\nSET status = 'draft',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND content_id = :contentId\n  AND status = 'approved'\nRETURNING\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  status                                           "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE content_candidates
+ * SET status = 'draft',
+ *     updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ *   AND segment_id = :segmentId
+ *   AND content_id = :contentId
+ *   AND status = 'approved'
+ * RETURNING
+ *   content_id AS "contentId",
+ *   content_option_id AS "contentOptionId",
+ *   status
+ * ```
+ */
+export const unapproveDashboardContentCandidate = new PreparedQuery<IUnapproveDashboardContentCandidateParams,IUnapproveDashboardContentCandidateResult>(unapproveDashboardContentCandidateIR);
 
 
 /** 'RejectDashboardContentCandidate' parameters type */

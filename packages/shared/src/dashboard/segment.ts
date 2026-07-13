@@ -355,7 +355,7 @@ export type DashboardPromotionSegmentSuggestionList = z.infer<
 >;
 
 export const DashboardDecideSegmentSuggestionRequestSchema = z.object({
-  status: z.enum(["accepted", "dismissed"])
+  status: z.enum(["suggested", "accepted", "dismissed"])
 });
 export type DashboardDecideSegmentSuggestionRequest = z.infer<
   typeof DashboardDecideSegmentSuggestionRequestSchema

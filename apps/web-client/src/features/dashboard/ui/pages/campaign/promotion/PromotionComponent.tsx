@@ -120,8 +120,13 @@ export function PromotionWorkspace({
                   segmentId
                 })
               }
-              onApproveContentCandidate={(promotionId, segmentId, contentId) =>
-                approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+              onContentCandidateSelectionChange={(promotionId, segmentId, contentId, selected) =>
+                approveContentCandidateMutation.mutate({
+                  contentId,
+                  promotionId,
+                  segmentId,
+                  selected
+                })
               }
               onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
               onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
