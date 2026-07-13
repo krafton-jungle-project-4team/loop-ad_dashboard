@@ -120,6 +120,33 @@ test("only running experiments complete onboarding", () => {
   );
 });
 
+test("each onboarding step explains how the current step is completed", () => {
+  const setupSteps = createSetupOnboardingSteps("sdk");
+  const campaignSteps = createCampaignOnboardingSteps({
+    hasAnalyzedSegment: false,
+    hasApprovedCreative: false,
+    hasCampaign: false,
+    hasPromotion: false,
+    hasRunningExperiment: false,
+    stage: "campaign"
+  });
+
+  assert.equal(
+    setupSteps[0]?.completionCondition,
+    "SDK 연동을 확인하고 캠페인 만들기를 누르면 완료돼요."
+  );
+  assert.deepEqual(
+    campaignSteps.map((step) => step.completionCondition),
+    [
+      "캠페인을 1개 만들면 완료돼요.",
+      "프로모션을 1개 만들면 완료돼요.",
+      "사용할 세그먼트 후보를 확정하면 완료돼요.",
+      "광고 소재를 만들고 사용할 소재를 선택하면 완료돼요.",
+      "선택한 광고 소재로 첫 실험을 시작하면 완료돼요."
+    ]
+  );
+});
+
 function states(steps: ReturnType<typeof createCampaignOnboardingSteps>) {
   return steps.map((step) => step.state);
 }
