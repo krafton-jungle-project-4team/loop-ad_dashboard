@@ -19,8 +19,9 @@ import {
   AlertDialogTrigger
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button } from "@loopad/ui/shadcn/button";
+import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
@@ -320,7 +321,7 @@ export function PromotionTabWorkspace({
   launchExperimentIsPending,
   launchExperimentResult,
   onArchiveScopedSegment,
-  onApproveContentCandidate,
+  onContentCandidateSelectionChange,
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
@@ -361,10 +362,18 @@ export function PromotionTabWorkspace({
   launchExperimentIsPending: boolean;
   launchExperimentResult: PromotionExperimentLaunchResult | null;
   onArchiveScopedSegment: (segmentId: string) => void;
-  onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onContentCandidateSelectionChange: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    selected: boolean
+  ) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
-  onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  onDecideSuggestion: (
+    suggestionId: string,
+    status: "suggested" | "accepted" | "dismissed"
+  ) => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
   onEditConfirmedSegment: (segmentId: string) => void;
   onLaunchExperiment: (
@@ -505,7 +514,7 @@ export function PromotionTabWorkspace({
               isLoading={selectedSegmentDetailIsLoading}
               launchExperimentError={launchExperimentError}
               launchExperimentIsError={launchExperimentIsError}
-              onApproveContentCandidate={onApproveContentCandidate}
+              onContentCandidateSelectionChange={onContentCandidateSelectionChange}
               onLaunchExperiment={onLaunchExperiment}
               onRejectContentCandidate={onRejectContentCandidate}
               onStartGeneration={onStartGeneration}
@@ -706,7 +715,7 @@ function PromotionSegmentDetailTab({
   launchExperimentIsError,
   launchExperimentIsPending,
   launchExperimentResult,
-  onApproveContentCandidate,
+  onContentCandidateSelectionChange,
   onLaunchExperiment,
   onRejectContentCandidate,
   onStartGeneration,
@@ -724,7 +733,12 @@ function PromotionSegmentDetailTab({
   launchExperimentIsError: boolean;
   launchExperimentIsPending: boolean;
   launchExperimentResult: PromotionExperimentLaunchResult | null;
-  onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onContentCandidateSelectionChange: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    selected: boolean
+  ) => void;
   onLaunchExperiment: (
     promotionId: string,
     segmentId: string,
@@ -830,12 +844,7 @@ function PromotionSegmentDetailTab({
                     approvedContentCandidate &&
                     approvedContentCandidate.content_id !== candidate.content_id
                   );
-                  const selectionLabel =
-                    candidate.status === "approved"
-                      ? "선택됨"
-                      : hasDifferentApprovedCandidate
-                        ? "선택 불가"
-                        : "선택";
+                  const selectionId = `content-candidate-selection-${candidate.content_id}`;
 
                   return (
                     <Card className="shadow-none" key={candidate.content_id}>
@@ -854,28 +863,49 @@ function PromotionSegmentDetailTab({
                               {contentCandidateTitle(candidate)}
                             </CardTitle>
                           </div>
-                          <div className="flex shrink-0 flex-wrap gap-2">
-                            <Button
-                              disabled={
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                            <Field
+                              className={buttonVariants({
+                                className: "w-auto gap-2",
+                                size: "sm",
+                                variant: "outline"
+                              })}
+                              data-disabled={
                                 approveContentCandidateIsPending ||
                                 hasDifferentApprovedCandidate ||
-                                candidate.status === "approved" ||
                                 candidate.status === "rejected"
                               }
-                              onClick={() =>
-                                onApproveContentCandidate(
-                                  detail.segment.promotion_id,
-                                  detail.segment.segment_id,
-                                  candidate.content_id
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant={candidate.status === "approved" ? "secondary" : "default"}
+                              orientation="horizontal"
                             >
-                              <CheckCircle2 className="mr-2 size-4" />
-                              {selectionLabel}
-                            </Button>
+                              <Checkbox
+                                aria-label={`${contentCandidateTitle(candidate)} 광고 소재 선택`}
+                                checked={candidate.status === "approved"}
+                                disabled={
+                                  approveContentCandidateIsPending ||
+                                  hasDifferentApprovedCandidate ||
+                                  candidate.status === "rejected"
+                                }
+                                id={selectionId}
+                                onCheckedChange={(checked) =>
+                                  onContentCandidateSelectionChange(
+                                    detail.segment.promotion_id,
+                                    detail.segment.segment_id,
+                                    candidate.content_id,
+                                    checked === true
+                                  )
+                                }
+                              />
+                              <FieldLabel
+                                className="cursor-pointer text-[0.8rem] font-medium"
+                                htmlFor={selectionId}
+                              >
+                                {candidate.status === "approved"
+                                  ? "선택됨"
+                                  : hasDifferentApprovedCandidate
+                                    ? "다른 소재가 선택됨"
+                                    : "광고 소재 선택"}
+                              </FieldLabel>
+                            </Field>
                             <Button
                               disabled={
                                 rejectContentCandidateIsPending ||

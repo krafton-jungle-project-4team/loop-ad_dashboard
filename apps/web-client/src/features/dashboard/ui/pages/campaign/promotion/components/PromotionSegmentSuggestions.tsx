@@ -14,8 +14,9 @@ import {
   AlertDialogTrigger
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button } from "@loopad/ui/shadcn/button";
+import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -71,7 +72,10 @@ export function PromotionSegmentSuggestionPanel({
   onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
-  onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  onDecideSuggestion: (
+    suggestionId: string,
+    status: "suggested" | "accepted" | "dismissed"
+  ) => void;
   onRecommendSegments: () => void;
   promotionAnalysisIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
@@ -201,6 +205,7 @@ export function PromotionSegmentSuggestionPanel({
               const isConfirmed = suggestion.suggestion_status === "confirmed";
               const isDismissed = suggestion.suggestion_status === "dismissed";
               const displayCopy = suggestion.display_copy;
+              const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
               const rankLabel = `Rank ${formatInteger(suggestion.suggested_rank)}`;
               const rankRole = displayCopy?.rank_role;
               const performanceEstimate = displayCopy?.performance_estimate;
@@ -287,14 +292,34 @@ export function PromotionSegmentSuggestionPanel({
                         리포트
                       </Button>
                     ) : null}
-                    <Button
-                      disabled={decideIsPending || isAccepted || isConfirmed}
-                      onClick={() => onDecideSuggestion(suggestion.suggestion_id, "accepted")}
-                      size="sm"
-                      type="button"
+                    <Field
+                      className={buttonVariants({
+                        className: "w-auto gap-2",
+                        size: "sm",
+                        variant: "outline"
+                      })}
+                      data-disabled={decideIsPending || isConfirmed || isDismissed}
+                      orientation="horizontal"
                     >
-                      수락
-                    </Button>
+                      <Checkbox
+                        aria-label={`${displayCopy?.title ?? suggestion.segment_name} 후보 선택`}
+                        checked={isAccepted}
+                        disabled={decideIsPending || isConfirmed || isDismissed}
+                        id={acceptanceId}
+                        onCheckedChange={(checked) =>
+                          onDecideSuggestion(
+                            suggestion.suggestion_id,
+                            checked === true ? "accepted" : "suggested"
+                          )
+                        }
+                      />
+                      <FieldLabel
+                        className="cursor-pointer text-[0.8rem] font-medium"
+                        htmlFor={acceptanceId}
+                      >
+                        후보 선택
+                      </FieldLabel>
+                    </Field>
                     <Button
                       disabled={decideIsPending || isDismissed || isConfirmed}
                       onClick={() => onDecideSuggestion(suggestion.suggestion_id, "dismissed")}

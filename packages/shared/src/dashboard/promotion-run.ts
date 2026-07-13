@@ -67,6 +67,24 @@ export type DashboardApproveContentCandidateResult = z.infer<
   typeof DashboardApproveContentCandidateResultSchema
 >;
 
+export const DashboardUnapproveContentCandidateRequestSchema = z.object({
+  operator_note: z.string().nullable().optional()
+});
+export type DashboardUnapproveContentCandidateRequest = z.infer<
+  typeof DashboardUnapproveContentCandidateRequestSchema
+>;
+
+export const DashboardUnapproveContentCandidateResultSchema = z.object({
+  content_id: z.string(),
+  content_option_id: z.string(),
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  status: z.literal("draft")
+});
+export type DashboardUnapproveContentCandidateResult = z.infer<
+  typeof DashboardUnapproveContentCandidateResultSchema
+>;
+
 export const DashboardRejectContentCandidateRequestSchema = z.object({
   operator_note: z.string().nullable().optional()
 });

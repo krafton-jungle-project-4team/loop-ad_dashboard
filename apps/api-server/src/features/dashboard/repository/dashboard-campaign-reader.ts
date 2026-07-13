@@ -32,6 +32,8 @@ import type {
   DashboardStartPromotionGenerationResult,
   DashboardStartAdExperimentResult,
   DashboardStartNextLoopRequest,
+  DashboardUnapproveContentCandidateRequest,
+  DashboardUnapproveContentCandidateResult,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
@@ -98,13 +100,13 @@ import {
   listDashboardSegmentExperimentMetrics,
   markDashboardSegmentQueryPreviewSaved,
   rejectDashboardContentCandidate,
-  rejectDashboardSiblingContentCandidates,
   startDashboardAdExperiment,
   stopDashboardPromotion,
   stopDashboardPromotionTargetSegment,
   updateDashboardCampaign,
   updateDashboardPromotion,
   updateDashboardPromotionTargetSegment,
+  unapproveDashboardContentCandidate,
   type IListDashboardSegmentContentCandidatesResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
@@ -565,7 +567,7 @@ export class DashboardCampaignReader {
     contentId: string,
     _request: DashboardApproveContentCandidateRequest
   ): Promise<DashboardApproveContentCandidateResult> {
-    const candidate = await this.db
+    await this.db
       .query(getDashboardContentCandidateForApproval, {
         contentId,
         projectId,
@@ -583,14 +585,6 @@ export class DashboardCampaignReader {
       throw dashboardErrors.contentCandidateApprovalLocked();
     }
 
-    await this.db
-      .query(rejectDashboardSiblingContentCandidates, {
-        contentId,
-        generationId: candidate.generationId,
-        projectId,
-        segmentId
-      })
-      .multiple();
     const approved = await this.db
       .query(approveDashboardContentCandidate, {
         contentId,
@@ -606,6 +600,31 @@ export class DashboardCampaignReader {
       promotion_id: promotionId,
       segment_id: segmentId,
       status: "approved"
+    };
+  }
+
+  async unapproveContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    _request: DashboardUnapproveContentCandidateRequest
+  ): Promise<DashboardUnapproveContentCandidateResult> {
+    const unapproved = await this.db
+      .query(unapproveDashboardContentCandidate, {
+        contentId,
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
+
+    return {
+      content_id: unapproved.contentId,
+      content_option_id: unapproved.contentOptionId,
+      promotion_id: promotionId,
+      segment_id: segmentId,
+      status: "draft"
     };
   }
 

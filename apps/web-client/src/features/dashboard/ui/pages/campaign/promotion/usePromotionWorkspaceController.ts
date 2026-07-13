@@ -1,4 +1,9 @@
-import type { DashboardCampaignDetail, DashboardMain } from "@loopad/shared";
+import type {
+  DashboardApproveContentCandidateResult,
+  DashboardCampaignDetail,
+  DashboardMain,
+  DashboardUnapproveContentCandidateResult
+} from "@loopad/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
@@ -22,6 +27,7 @@ import {
   recommendDashboardPromotionSegments,
   startDashboardAdExperiment,
   startDashboardPromotionGeneration,
+  unapproveDashboardContentCandidate,
   updateDashboardPromotion,
   updateDashboardPromotionSegment
 } from "../../../../api/dashboard-api.js";
@@ -410,16 +416,20 @@ export function usePromotionWorkspaceController({
       });
     }
   });
-  const approveContentCandidateMutation = useMutation({
-    mutationFn: ({
-      contentId,
-      promotionId,
-      segmentId
-    }: {
+  const approveContentCandidateMutation = useMutation<
+    DashboardApproveContentCandidateResult | DashboardUnapproveContentCandidateResult,
+    Error,
+    {
       contentId: string;
       promotionId: string;
+      selected: boolean;
       segmentId: string;
-    }) => approveDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
+    }
+  >({
+    mutationFn: ({ contentId, promotionId, selected, segmentId }) =>
+      selected
+        ? approveDashboardContentCandidate(query, promotionId, segmentId, contentId, {})
+        : unapproveDashboardContentCandidate(query, promotionId, segmentId, contentId, {}),
     onSuccess: async (candidate) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
@@ -521,7 +531,7 @@ export function usePromotionWorkspaceController({
       status,
       suggestionId
     }: {
-      status: "accepted" | "dismissed";
+      status: "suggested" | "accepted" | "dismissed";
       suggestionId: string;
     }) =>
       decideDashboardPromotionSegmentSuggestion(
