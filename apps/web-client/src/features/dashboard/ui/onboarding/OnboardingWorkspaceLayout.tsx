@@ -1,12 +1,12 @@
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Button } from "@loopad/ui/shadcn/button";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { AlertTriangle, ArrowRight, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useDashboardQueryState } from "../../model/dashboard-query.js";
 import { DASHBOARD_MOBILE_ACTION_OFFSET_PX } from "../../model/project-onboarding.js";
 import type { DashboardTab } from "../../model/dashboard-types.js";
-import { OnboardingStepper, type OnboardingStep } from "./OnboardingStepper.js";
+import { OnboardingStepper } from "./OnboardingStepper.js";
 import { useProjectOnboarding } from "./ProjectOnboardingProvider.js";
 import { ProjectWelcomeScreen } from "./ProjectWelcomeScreen.js";
 
@@ -24,18 +24,20 @@ export function OnboardingWorkspaceLayout({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
-  const [, setDashboardQueryState] = useDashboardQueryState();
   const hasObservedResolvedStage = useRef(false);
   const previousDashboardUnlocked = useRef(false);
   const [showExperimentCta, setShowExperimentCta] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const {
     campaignSteps,
     completeSdk,
+    error,
     isDashboardUnlocked,
     isLoading,
     projectId,
     requiredPathSegment,
-    startedExperimentCount,
+    retry,
+    runningExperimentCount,
     setupSteps,
     skipGuide,
     startGuide,
@@ -60,17 +62,45 @@ export function OnboardingWorkspaceLayout({
       return;
     }
 
-    if (!previousDashboardUnlocked.current && isDashboardUnlocked && startedExperimentCount > 0) {
+    if (!previousDashboardUnlocked.current && isDashboardUnlocked && runningExperimentCount > 0) {
       setShowExperimentCta(true);
     }
     if (!isDashboardUnlocked) {
       setShowExperimentCta(false);
     }
     previousDashboardUnlocked.current = isDashboardUnlocked;
-  }, [isDashboardUnlocked, isLoading, startedExperimentCount]);
+  }, [isDashboardUnlocked, isLoading, runningExperimentCount]);
 
   if (isLoading) {
     return children;
+  }
+
+  if (error) {
+    return (
+      <Alert className="mx-auto max-w-2xl p-5" variant="destructive">
+        <AlertTriangle aria-hidden="true" />
+        <AlertTitle>시작 가이드 정보를 불러오지 못했습니다</AlertTitle>
+        <AlertDescription className="grid gap-4">
+          <p>
+            캠페인 진행 상태를 확인할 수 없어 현재 단계를 임의로 표시하지 않았습니다. 서버 연결을
+            확인한 뒤 다시 시도해주세요.
+          </p>
+          <Button
+            className="w-fit"
+            disabled={isRetrying}
+            onClick={() => {
+              setIsRetrying(true);
+              void retry().finally(() => setIsRetrying(false));
+            }}
+            type="button"
+            variant="outline"
+          >
+            <RefreshCw aria-hidden="true" className={cn(isRetrying && "animate-spin")} />
+            {isRetrying ? "다시 불러오는 중" : "다시 불러오기"}
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   if (stage === "welcome") {
@@ -92,23 +122,26 @@ export function OnboardingWorkspaceLayout({
 
     return (
       <div className="grid min-w-0 gap-6">
-        <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/[0.05] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          aria-live="polite"
+          className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/[0.05] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+        >
           <div>
             <p className="font-semibold text-foreground">첫 실험이 실행 중입니다</p>
             <p className="mt-1 text-sm text-muted-foreground">
               시작 가이드가 완료되어 모든 메뉴를 사용할 수 있습니다.
             </p>
           </div>
-          <Button
-            className="shrink-0"
-            onClick={() => {
-              setShowExperimentCta(false);
-              void navigateTo("experiments");
-            }}
-            type="button"
-          >
-            실험 보기
-            <ArrowRight data-icon="inline-end" />
+          <Button asChild className="shrink-0">
+            <Link
+              onClick={() => setShowExperimentCta(false)}
+              params={{ projectId, tabPath: "experiments" }}
+              search={(current) => current}
+              to="/dashboard/$projectId/$tabPath"
+            >
+              실험 보기
+              <ArrowRight data-icon="inline-end" />
+            </Link>
           </Button>
         </div>
         {children}
@@ -118,64 +151,13 @@ export function OnboardingWorkspaceLayout({
 
   const action = getOnboardingAction(activeTab, stage);
 
-  const handleAction = () => {
+  const handleCompleteSdk = () => {
     if (!action || !requiredPathSegment) {
       return;
     }
 
-    if (action.type === "complete-sdk") {
-      completeSdk();
-      void navigateTo("campaigns");
-      return;
-    }
-
-    void navigateTo(requiredPathSegment);
-  };
-
-  const handleStepSelect = async (step: OnboardingStep) => {
-    const pathSegment = getStepPathSegment(step.id);
-    if (!pathSegment) {
-      return;
-    }
-
-    switch (step.id) {
-      case "campaign":
-        await setDashboardQueryState({
-          campaignView: "manage",
-          segmentView: "manage",
-          selectedAdExperimentId: "",
-          selectedCampaignId: "",
-          selectedPromotionId: "",
-          selectedSegmentId: ""
-        });
-        break;
-      case "promotion":
-        await setDashboardQueryState({
-          campaignView: "manage",
-          segmentView: "manage",
-          selectedAdExperimentId: "",
-          selectedPromotionId: "",
-          selectedSegmentId: ""
-        });
-        break;
-      case "segment":
-        await setDashboardQueryState({
-          campaignView: "manage",
-          segmentView: "recommendations",
-          selectedAdExperimentId: "",
-          selectedSegmentId: ""
-        });
-        break;
-      case "creative":
-      case "experiment":
-        await setDashboardQueryState({
-          campaignView: "manage",
-          segmentView: "experiments"
-        });
-        break;
-    }
-
-    await navigateTo(pathSegment);
+    completeSdk();
+    void navigateTo("campaigns");
   };
 
   return (
@@ -192,6 +174,7 @@ export function OnboardingWorkspaceLayout({
           : undefined
       }
     >
+      {stage === "campaign" ? <h1 className="sr-only">캠페인 시작 가이드</h1> : null}
       <OnboardingStepper
         campaignSteps={campaignSteps}
         desktopFooter={
@@ -201,14 +184,27 @@ export function OnboardingWorkspaceLayout({
                 <p className="text-sm font-semibold text-foreground">{action.label}</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.description}</p>
               </div>
-              <Button className="w-full" onClick={handleAction} type="button">
-                {action.label}
-                <ArrowRight aria-hidden="true" data-icon="inline-end" />
-              </Button>
+              {action.type === "return" && requiredPathSegment ? (
+                <Button asChild className="w-full">
+                  <Link
+                    params={{ projectId, tabPath: requiredPathSegment }}
+                    search={(current) => current}
+                    to="/dashboard/$projectId/$tabPath"
+                  >
+                    {action.label}
+                    <ArrowRight aria-hidden="true" data-icon="inline-end" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button className="w-full" onClick={handleCompleteSdk} type="button">
+                  {action.label}
+                  <ArrowRight aria-hidden="true" data-icon="inline-end" />
+                </Button>
+              )}
             </div>
           ) : undefined
         }
-        onStepSelect={(step) => void handleStepSelect(step)}
+        projectId={projectId}
         setupSteps={setupSteps}
       />
 
@@ -218,14 +214,30 @@ export function OnboardingWorkspaceLayout({
 
       {action ? (
         <div className="fixed inset-x-4 bottom-[calc(4rem+env(safe-area-inset-bottom)+0.75rem)] z-30 md:hidden">
-          <Button
-            className="h-12 w-full rounded-xl shadow-[0_12px_30px_rgba(15,23,42,0.2)]"
-            onClick={handleAction}
-            type="button"
-          >
-            {action.label}
-            <ArrowRight data-icon="inline-end" />
-          </Button>
+          {action.type === "return" && requiredPathSegment ? (
+            <Button
+              asChild
+              className="h-12 w-full rounded-xl shadow-[0_12px_30px_rgba(15,23,42,0.2)]"
+            >
+              <Link
+                params={{ projectId, tabPath: requiredPathSegment }}
+                search={(current) => current}
+                to="/dashboard/$projectId/$tabPath"
+              >
+                {action.label}
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              className="h-12 w-full rounded-xl shadow-[0_12px_30px_rgba(15,23,42,0.2)]"
+              onClick={handleCompleteSdk}
+              type="button"
+            >
+              {action.label}
+              <ArrowRight data-icon="inline-end" />
+            </Button>
+          )}
         </div>
       ) : null}
     </div>
@@ -256,15 +268,5 @@ function getOnboardingAction(
     };
   }
 
-  return null;
-}
-
-function getStepPathSegment(stepId: string): "campaigns" | "sdk" | null {
-  if (stepId === "sdk") {
-    return "sdk";
-  }
-  if (["campaign", "promotion", "segment", "creative", "experiment"].includes(stepId)) {
-    return "campaigns";
-  }
   return null;
 }

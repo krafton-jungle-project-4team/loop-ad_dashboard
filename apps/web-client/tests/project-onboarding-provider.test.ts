@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   allowedDashboardTabs,
-  countStartedExperiments,
+  countRunningExperiments,
   createCampaignOnboardingSteps,
-  createSetupOnboardingSteps,
-  preserveCampaignOnboardingMilestones
+  createSetupOnboardingSteps
 } from "../src/features/dashboard/model/project-onboarding.js";
 import { dashboardTabValues } from "../src/features/dashboard/model/dashboard-types.js";
 
@@ -31,13 +30,13 @@ test("setup guide tracks only SDK before campaign onboarding", () => {
   );
 });
 
-test("campaign steps open at campaign creation and complete after the first started experiment", () => {
+test("campaign steps open at campaign creation and complete after the first running experiment", () => {
   const emptyProgress = {
     hasAnalyzedSegment: false,
     hasApprovedCreative: false,
     hasCampaign: false,
     hasPromotion: false,
-    hasStartedExperiment: false,
+    hasRunningExperiment: false,
     stage: "campaign" as const
   };
 
@@ -95,7 +94,7 @@ test("campaign steps open at campaign creation and complete after the first star
     states(
       createCampaignOnboardingSteps({
         ...approvedButNotRunning,
-        hasStartedExperiment: true
+        hasRunningExperiment: true
       })
     ),
     ["complete", "complete", "complete", "complete", "complete"]
@@ -114,67 +113,11 @@ test("campaign steps open at campaign creation and complete after the first star
   );
 });
 
-test("evaluated experiments remain started after leaving the running state", () => {
+test("only running experiments complete onboarding", () => {
   assert.equal(
-    countStartedExperiments([{ started_at: "2026-07-12T11:22:17.113Z" }, { started_at: null }]),
+    countRunningExperiments([{ status: "planned" }, { status: "running" }, { status: "failed" }]),
     1
   );
-});
-
-test("returning to an earlier screen preserves achieved campaign milestones", () => {
-  const previousProgress = {
-    hasAnalyzedSegment: true,
-    hasApprovedCreative: true,
-    hasCampaign: true,
-    hasPromotion: true,
-    hasStartedExperiment: false,
-    stage: "campaign" as const
-  };
-
-  const preserved = preserveCampaignOnboardingMilestones(
-    {
-      ...previousProgress,
-      hasApprovedCreative: false
-    },
-    previousProgress
-  );
-
-  assert.deepEqual(states(createCampaignOnboardingSteps(preserved)), [
-    "complete",
-    "complete",
-    "complete",
-    "complete",
-    "current"
-  ]);
-});
-
-test("removing campaign prerequisites resets dependent milestones", () => {
-  const previousProgress = {
-    hasAnalyzedSegment: true,
-    hasApprovedCreative: true,
-    hasCampaign: true,
-    hasPromotion: true,
-    hasStartedExperiment: false,
-    stage: "campaign" as const
-  };
-
-  const reset = preserveCampaignOnboardingMilestones(
-    {
-      ...previousProgress,
-      hasAnalyzedSegment: false,
-      hasApprovedCreative: false,
-      hasPromotion: false
-    },
-    previousProgress
-  );
-
-  assert.deepEqual(states(createCampaignOnboardingSteps(reset)), [
-    "complete",
-    "current",
-    "locked",
-    "locked",
-    "locked"
-  ]);
 });
 
 function states(steps: ReturnType<typeof createCampaignOnboardingSteps>) {

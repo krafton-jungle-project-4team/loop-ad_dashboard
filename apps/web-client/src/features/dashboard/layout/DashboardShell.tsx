@@ -15,6 +15,7 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -31,7 +32,15 @@ import {
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, Code2, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
+import {
+  ChevronRight,
+  Code2,
+  HelpCircle,
+  Home,
+  Megaphone,
+  MoreHorizontal,
+  Route
+} from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -74,7 +83,8 @@ export function DashboardShell({
   projectId: string;
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
-  const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
+  const { canRestartGuide, isDashboardUnlocked, isLoading, isTabAllowed, restartGuide, stage } =
+    useProjectOnboarding();
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
   const isFullHeightTab = isCanvasTab;
   const constrainToViewport = isFullHeightTab || !isDashboardUnlocked;
@@ -106,6 +116,19 @@ export function DashboardShell({
             </SidebarGroup>
           ))}
         </SidebarContent>
+        {canRestartGuide ? (
+          <SidebarFooter className="border-t p-3">
+            <Button
+              className="w-full justify-start"
+              onClick={restartGuide}
+              type="button"
+              variant="ghost"
+            >
+              <HelpCircle aria-hidden="true" />
+              시작 가이드 다시 보기
+            </Button>
+          </SidebarFooter>
+        ) : null}
         <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
         <SidebarRail />
       </Sidebar>

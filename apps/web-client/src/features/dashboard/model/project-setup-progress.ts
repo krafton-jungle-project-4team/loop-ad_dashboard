@@ -29,7 +29,7 @@ export type ProjectOnboardingPathSegment = "sdk" | "campaigns";
 
 export type ProjectOnboardingStageInput = {
   progress: ProjectSetupProgress | null;
-  startedExperimentCount?: number;
+  runningExperimentCount?: number;
 };
 
 export type ProjectOnboardingStageResolution = {
@@ -151,6 +151,25 @@ export function skipProjectOnboarding(
   return next;
 }
 
+export function restartProjectOnboarding(
+  projectId: string,
+  options: CompleteProjectSetupProgressOptions = {}
+): ProjectSetupProgress {
+  const restartedAt = getCurrentTimestamp(options.now);
+  const current =
+    options.currentProgress ??
+    readProjectSetupProgress(projectId, options.storage) ??
+    createEmptyProgress(restartedAt);
+
+  const next: ProjectSetupProgress = {
+    ...current,
+    guideStartedAt: current.sdkCompletedAt === null ? null : current.guideStartedAt,
+    onboardingSkippedAt: null
+  };
+  persistProjectSetupProgress(projectId, next, options.storage);
+  return next;
+}
+
 export function startProjectSetupGuide(
   projectId: string,
   options: CompleteProjectSetupProgressOptions = {}
@@ -214,9 +233,9 @@ export function clearProjectSetupProgress(
 
 export function resolveProjectOnboardingStage({
   progress,
-  startedExperimentCount = 0
+  runningExperimentCount = 0
 }: ProjectOnboardingStageInput): ProjectOnboardingStageResolution {
-  if (startedExperimentCount > 0 || progress?.onboardingSkippedAt != null) {
+  if (runningExperimentCount > 0 || progress?.onboardingSkippedAt != null) {
     return {
       isDashboardUnlocked: true,
       isInitialSetupComplete: true,
