@@ -77,12 +77,9 @@ export function OnboardingWorkspaceLayout({
     return (
       <Alert className="mx-auto max-w-2xl p-5" variant="destructive">
         <AlertTriangle aria-hidden="true" />
-        <AlertTitle>시작 가이드 정보를 불러오지 못했습니다</AlertTitle>
+        <AlertTitle>시작 가이드를 불러오지 못했어요</AlertTitle>
         <AlertDescription className="grid gap-4">
-          <p>
-            캠페인 진행 상태를 확인할 수 없어 현재 단계를 임의로 표시하지 않았습니다. 서버 연결을
-            확인한 뒤 다시 시도해주세요.
-          </p>
+          <p>현재 단계를 확인할 수 없어요. 서버 연결을 확인하고 다시 시도해 주세요.</p>
           <Button
             className="w-fit"
             disabled={isRetrying}
@@ -94,7 +91,7 @@ export function OnboardingWorkspaceLayout({
             variant="outline"
           >
             <RefreshCw aria-hidden="true" className={cn(isRetrying && "animate-spin")} />
-            {isRetrying ? "다시 불러오는 중" : "다시 불러오기"}
+            {isRetrying ? "불러오는 중" : "다시 불러오기"}
           </Button>
         </AlertDescription>
       </Alert>
@@ -125,10 +122,8 @@ export function OnboardingWorkspaceLayout({
           className="flex flex-col gap-4 border-primary/20 bg-primary/[0.05] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="grid gap-1">
-            <AlertTitle>첫 실험이 실행 중입니다</AlertTitle>
-            <AlertDescription>
-              시작 가이드가 완료되어 모든 메뉴를 사용할 수 있습니다.
-            </AlertDescription>
+            <AlertTitle>첫 실험을 시작했어요</AlertTitle>
+            <AlertDescription>이제 모든 메뉴를 사용할 수 있어요.</AlertDescription>
           </div>
           <Button asChild className="shrink-0">
             <Link
@@ -201,7 +196,7 @@ function getOnboardingAction(
 ): OnboardingAction | null {
   if (activeTab === "sdk" && stage === "sdk") {
     return {
-      label: "캠페인으로 계속",
+      label: "캠페인 만들기",
       type: "complete-sdk"
     };
   }
@@ -212,7 +207,7 @@ function getOnboardingAction(
 
   if (isPastSetupScreen) {
     return {
-      label: "현재 단계로 돌아가기",
+      label: "가이드 계속하기",
       type: "return"
     };
   }

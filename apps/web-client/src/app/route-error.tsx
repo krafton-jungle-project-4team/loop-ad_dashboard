@@ -5,13 +5,13 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 export function RouteErrorFallback({
   error,
   onRetry,
-  title = "대시보드 API 요청 실패"
+  title = "페이지를 불러오지 못했어요"
 }: {
   error: unknown;
   onRetry: () => void;
   title?: string;
 }) {
-  const message = error instanceof Error ? error.message : "데이터 요청 실패";
+  const message = error instanceof Error ? error.message : "잠시 후 다시 시도해 주세요.";
 
   return (
     <Alert variant="destructive">
@@ -21,7 +21,7 @@ export function RouteErrorFallback({
       <div className="mt-3">
         <Button onClick={onRetry} type="button" variant="outline">
           <RefreshCw />
-          다시 시도
+          다시 시도하기
         </Button>
       </div>
     </Alert>

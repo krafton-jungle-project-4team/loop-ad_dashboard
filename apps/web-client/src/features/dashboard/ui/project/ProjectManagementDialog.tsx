@@ -124,9 +124,7 @@ export function ProjectManagementDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>프로젝트 관리</DialogTitle>
-          <DialogDescription>
-            대시보드에서 사용할 프로젝트를 생성하거나 삭제합니다.
-          </DialogDescription>
+          <DialogDescription>프로젝트를 만들거나 삭제할 수 있어요.</DialogDescription>
         </DialogHeader>
 
         <form
@@ -165,7 +163,7 @@ export function ProjectManagementDialog({
           <div className="flex justify-end">
             <Button disabled={createProjectMutation.isPending} type="submit">
               <Plus />
-              {createProjectMutation.isPending ? "생성 중" : "프로젝트 생성"}
+              {createProjectMutation.isPending ? "만드는 중" : "프로젝트 만들기"}
             </Button>
           </div>
         </form>
@@ -219,7 +217,7 @@ export function ProjectManagementDialog({
                           type="button"
                           variant="destructive"
                         >
-                          {isPendingDelete ? "삭제 확인" : <Trash2 />}
+                          {isPendingDelete ? "삭제하기" : <Trash2 />}
                         </Button>
                         {isPendingDelete ? (
                           <Button
@@ -237,7 +235,7 @@ export function ProjectManagementDialog({
                 })}
               </div>
             ) : (
-              <div className="p-3 text-sm text-muted-foreground">등록된 프로젝트가 없습니다.</div>
+              <div className="p-3 text-sm text-muted-foreground">아직 만든 프로젝트가 없어요.</div>
             )}
           </div>
 
@@ -261,5 +259,5 @@ export function ProjectManagementDialog({
 }
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "요청을 처리하지 못했습니다.";
+  return error instanceof Error ? error.message : "요청을 처리하지 못했어요. 다시 시도해 주세요.";
 }

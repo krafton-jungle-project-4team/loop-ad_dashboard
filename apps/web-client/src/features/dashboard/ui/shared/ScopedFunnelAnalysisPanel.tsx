@@ -209,19 +209,19 @@ export function ScopedFunnelAnalysisPanel({
 
         {isError ? (
           <Alert variant="destructive">
-            <AlertTitle>사용자 경로 목록을 불러오지 못했습니다</AlertTitle>
-            <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
+            <AlertTitle>사용자 경로를 불러오지 못했어요</AlertTitle>
+            <AlertDescription>{error?.message ?? "잠시 후 다시 시도해 주세요."}</AlertDescription>
           </Alert>
         ) : null}
-        {isLoading ? <EmptyState message="사용자 경로 목록을 불러오는 중입니다." /> : null}
+        {isLoading ? <EmptyState message="사용자 경로를 불러오고 있어요." /> : null}
         {!isLoading && funnels.length === 0 ? (
-          <EmptyState message="등록된 사용자 경로가 없습니다." />
+          <EmptyState message="아직 만든 사용자 경로가 없어요." />
         ) : null}
 
         {selectedFunnels.length > 0 ? (
           <ScopedFunnelComparisonPanel funnels={selectedFunnels} query={query} scope={scope} />
         ) : !isLoading && funnels.length > 0 ? (
-          <EmptyState message="표시할 사용자 경로를 선택해주세요." />
+          <EmptyState message="확인할 사용자 경로를 선택해 주세요." />
         ) : null}
       </CollapsibleContent>
     </Collapsible>
@@ -271,11 +271,11 @@ function ScopedFunnelComparisonPanel({
     <div className="grid gap-4 rounded-md border bg-muted/10 p-4">
       {firstError ? (
         <Alert variant="destructive">
-          <AlertTitle>사용자 경로 지표를 불러오지 못했습니다</AlertTitle>
+          <AlertTitle>사용자 경로 수치를 불러오지 못했어요</AlertTitle>
           <AlertDescription>{mutationErrorMessage(firstError)}</AlertDescription>
         </Alert>
       ) : null}
-      {isInitialLoading ? <EmptyState message="사용자 경로 지표를 불러오는 중입니다." /> : null}
+      {isInitialLoading ? <EmptyState message="사용자 경로 수치를 불러오고 있어요." /> : null}
       {metricItems.length > 0 ? (
         <div className="grid gap-4">
           <ScopedFunnelComparisonChart items={metricItems} />
@@ -412,5 +412,5 @@ function funnelChartColor(index: number): string {
 }
 
 function mutationErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "API 요청 실패";
+  return error instanceof Error ? error.message : "문제가 생겼어요. 다시 시도해 주세요.";
 }

@@ -74,9 +74,9 @@ export function MainPage({ data, query }: { data: DashboardMain; query: Dashboar
         {userPathsQuery.data ? (
           <FunnelPage data={userPathsQuery.data} query={query} />
         ) : userPathsQuery.isError ? (
-          <EmptyState message="사용자 경로 목록을 불러오지 못했습니다." />
+          <EmptyState message="사용자 경로를 불러오지 못했어요. 다시 시도해 주세요." />
         ) : (
-          <EmptyState message="사용자 경로 목록을 불러오는 중입니다." />
+          <EmptyState message="사용자 경로를 불러오고 있어요." />
         )}
       </TabsContent>
     </Tabs>
@@ -95,7 +95,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
               운영 현황
             </CardTitle>
             <CardDescription className="text-sm">
-              사용자 행동을 확인하고 캠페인 작업으로 자연스럽게 이어가세요.
+              사용자 반응을 살펴보고 필요한 캠페인 작업을 이어가세요.
             </CardDescription>
           </div>
         </CardHeader>
@@ -133,12 +133,12 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
                   캠페인 작업 목록
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  이름을 선택하면 해당 캠페인의 개요로 이동합니다.
+                  이름을 누르면 캠페인 성과를 볼 수 있어요.
                 </p>
               </div>
               <Badge variant="outline">
                 <Sparkles data-icon="inline-start" />
-                다음 액션 {formatInteger(summary.actionRequiredCampaigns)}개
+                다음 할 일 {formatInteger(summary.actionRequiredCampaigns)}개
               </Badge>
             </div>
             {data.campaigns.length > 0 ? (
@@ -153,7 +153,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
                       <TableHead className="text-right">세그먼트</TableHead>
                       <TableHead className="text-right">실험</TableHead>
                       <TableHead className="text-right">최근 목표 달성률</TableHead>
-                      <TableHead>다음 액션</TableHead>
+                      <TableHead>다음 할 일</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -168,7 +168,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
                 </Table>
               </div>
             ) : (
-              <EmptyState message="등록된 캠페인이 없습니다. 캠페인 관리에서 첫 캠페인을 만들어보세요." />
+              <EmptyState message="아직 캠페인이 없어요. 캠페인 관리에서 첫 캠페인을 만들어 보세요." />
             )}
           </section>
         </CardContent>
@@ -255,7 +255,7 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
                   },
                   unique_user_count: {
                     color: "var(--chart-2)",
-                    label: "유니크 유저"
+                    label: "순 사용자"
                   }
                 }}
               >
@@ -281,7 +281,7 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
                 </LineChart>
               </ChartContainer>
             ) : (
-              <EmptyState message="시간대별 수집 이벤트가 아직 없습니다." />
+              <EmptyState message="아직 시간대별 이벤트가 없어요." />
             )}
           </div>
         </div>
@@ -291,7 +291,7 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
 
       <div className="grid gap-3 lg:grid-cols-4">
         <MainAnalyticsRankCard
-          emptyMessage="채널 집계가 없습니다."
+          emptyMessage="아직 채널별 데이터가 없어요."
           items={metrics.channel_breakdown.map((item) => ({
             key: item.key,
             label: formatChannelLabel(item.key),
@@ -300,7 +300,7 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
           title="채널별 세션"
         />
         <MainAnalyticsRankCard
-          emptyMessage="숙소군 집계가 없습니다."
+          emptyMessage="아직 숙소군별 데이터가 없어요."
           items={metrics.hotel_cluster_breakdown.map((item) => ({
             key: item.key,
             label: formatHotelClusterLabel(item.key),
@@ -309,16 +309,16 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
           title="숙소군별 반응"
         />
         <MainAnalyticsRankCard
-          emptyMessage="랜딩 유형 집계가 없습니다."
+          emptyMessage="아직 연결 페이지별 데이터가 없어요."
           items={metrics.landing_type_breakdown.map((item) => ({
             key: item.key,
             label: formatLandingTypeLabel(item.key),
             value: item.event_count
           }))}
-          title="랜딩 유형"
+          title="연결 페이지 유형"
         />
         <MainAnalyticsRankCard
-          emptyMessage="이벤트 집계가 없습니다."
+          emptyMessage="아직 이벤트 데이터가 없어요."
           items={metrics.events.map((event) => ({
             key: event.event_name,
             label: eventDisplayName(event.event_name),
@@ -379,7 +379,7 @@ function MainRealtimeActivityCard({
               </ChartContainer>
             ) : (
               <div className="grid h-full flex-1 place-items-center text-sm text-muted-foreground">
-                최근 수집 구간 없음
+                최근 수집된 이벤트가 없어요
               </div>
             )}
           </div>
@@ -659,8 +659,8 @@ const EVENT_DISPLAY_NAMES: Record<string, string> = {
   booking_cancel: "예약 취소",
   booking_complete: "예약 완료",
   booking_start: "예약 시작",
-  campaign_landing: "캠페인 랜딩",
-  campaign_redirect_click: "캠페인 리다이렉트 클릭",
+  campaign_landing: "캠페인 페이지 도착",
+  campaign_redirect_click: "캠페인 이동 버튼 클릭",
   hotel_click: "숙소 클릭",
   hotel_detail_view: "숙소 상세 조회",
   hotel_search: "숙소 검색",

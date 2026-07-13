@@ -12,12 +12,12 @@ import { ArrowRight, Code2, Megaphone, Sparkles } from "lucide-react";
 
 const welcomeMilestones = [
   {
-    description: "프로젝트에 데이터를 연결할 준비를 합니다.",
+    description: "프로젝트 데이터를 연결해요.",
     icon: Code2,
     label: "SDK 연동"
   },
   {
-    description: "캠페인을 만들고 첫 실험 실행까지 이어갑니다.",
+    description: "캠페인을 만들고 첫 실험을 시작해요.",
     icon: Megaphone,
     label: "첫 캠페인 시작"
   }
@@ -40,16 +40,15 @@ export function ProjectWelcomeScreen({
           <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <Sparkles aria-hidden="true" className="size-6" />
           </div>
-          <p className="mt-5 text-sm font-semibold text-primary">프로젝트 생성 완료</p>
+          <p className="mt-5 text-sm font-semibold text-primary">프로젝트를 만들었어요</p>
           <h1
             className="mt-3 text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
             id="project-welcome-title"
           >
-            새 프로젝트가 준비됐어요
+            이제 시작해 볼까요?
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-pretty text-base leading-7 text-muted-foreground">
-            LoopAd가 처음이시라면 어디서부터 시작할지 고민하지 마세요. SDK 연동부터 첫 실험까지
-            필요한 순서대로 안내해드릴게요.
+            처음이라면 시작 가이드를 따라 SDK를 연결하고 첫 실험을 시작해 보세요.
           </p>
         </CardHeader>
 
@@ -88,11 +87,11 @@ export function ProjectWelcomeScreen({
 
         <CardFooter className="flex flex-col items-stretch justify-center gap-2 border-0 bg-transparent px-6 pt-0 pb-8 sm:flex-row sm:items-center sm:px-10 sm:pb-10 lg:px-14">
           <Button className="h-11 px-5" onClick={onStart} type="button">
-            시작 가이드 보기
+            가이드 따라 시작하기
             <ArrowRight aria-hidden="true" data-icon="inline-end" />
           </Button>
           <Button className="h-11 px-5" onClick={onSkip} type="button" variant="outline">
-            건너뛰고 바로 시작
+            직접 시작하기
           </Button>
         </CardFooter>
       </Card>

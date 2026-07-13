@@ -72,7 +72,7 @@ export function PromotionEditDialog({
 
   return (
     <DashboardFormDialog
-      description="프로모션 생성 시 입력한 운영 조건과 상태를 수정합니다."
+      description="프로모션의 운영 조건과 상태를 바꿀 수 있어요."
       dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
@@ -114,7 +114,7 @@ export function PromotionEditDialog({
             }
             type="button"
           >
-            {isPending ? "저장 중" : "변경사항 저장"}
+            {isPending ? "저장 중" : "저장하기"}
           </Button>
         </DialogFooter>
       </div>
@@ -155,7 +155,7 @@ export function SegmentEditDialog({
 
   return (
     <DashboardFormDialog
-      description="확정된 세그먼트의 이름, 우선순위, 운영 상태를 수정합니다."
+      description="세그먼트의 이름, 우선순위, 상태를 바꿀 수 있어요."
       dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
@@ -226,7 +226,7 @@ export function SegmentEditDialog({
             }
             type="button"
           >
-            {isPending ? "저장 중" : "변경사항 저장"}
+            {isPending ? "저장 중" : "저장하기"}
           </Button>
         </DialogFooter>
       </div>
@@ -259,11 +259,11 @@ export function PromotionAddDialog({
 
   return (
     <DashboardFormDialog
-      description="선택된 캠페인 하위에 새 프로모션을 생성하고 탭으로 엽니다."
+      description="프로모션을 만들면 바로 관리 화면으로 이동해요."
       dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
-      title="새 프로모션 추가"
+      title="새 프로모션 만들기"
       width="promotion"
     >
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
@@ -276,7 +276,7 @@ export function PromotionAddDialog({
           </Button>
         </DialogClose>
         <Button className="px-8" disabled={!canSubmit} onClick={() => onCreate(form)} type="button">
-          {createIsPending ? "생성 중" : "프로모션 생성"}
+          {createIsPending ? "만드는 중" : "프로모션 만들기"}
         </Button>
       </DialogFooter>
     </DashboardFormDialog>
@@ -311,7 +311,7 @@ function PromotionFormFields({
           id={`${idPrefix}-message-brief`}
           name={`${idPrefix}MessageBrief`}
           onChange={(event) => onChange({ ...form, messageBrief: event.target.value })}
-          placeholder="여름 휴가를 준비하는 20-30대 사용자를 대상으로 제주/오키나와 숙소 예약을 유도하는 여행 프로모션입니다. 인기 여행지, 조기 예약 할인, 후기 기반 추천을 강조합니다."
+          placeholder="여름 휴가를 준비하는 20~30대에게 인기 여행지와 조기 예약 할인을 소개해요."
           rows={4}
           value={form.messageBrief}
         />
@@ -394,7 +394,7 @@ function PromotionFormFields({
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-sample`}>최소 표본</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-sample`}>최소 평가 대상</FieldLabel>
           <Input
             id={`${idPrefix}-sample`}
             inputMode="numeric"
@@ -406,7 +406,7 @@ function PromotionFormFields({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-loop`}>최대 루프</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-loop`}>최대 반복 횟수</FieldLabel>
           <Input
             id={`${idPrefix}-loop`}
             inputMode="numeric"
@@ -419,7 +419,7 @@ function PromotionFormFields({
         </Field>
       </div>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-landing-url`}>랜딩 URL</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-landing-url`}>연결 페이지 주소</FieldLabel>
         <Input
           autoComplete="url"
           id={`${idPrefix}-landing-url`}

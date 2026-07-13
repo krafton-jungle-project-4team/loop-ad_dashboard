@@ -5,7 +5,7 @@ export function EmptyState({ message }: { message: string }) {
     <Empty className="min-h-40 rounded-[18px] border border-dashed border-black/10 bg-[#fafafc]">
       <EmptyHeader>
         <EmptyTitle className="text-[15px] font-semibold tracking-tight text-foreground">
-          표시할 데이터가 없습니다
+          아직 표시할 데이터가 없어요
         </EmptyTitle>
         <EmptyDescription>{message}</EmptyDescription>
       </EmptyHeader>

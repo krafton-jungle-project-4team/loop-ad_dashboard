@@ -13,7 +13,7 @@ export function SegmentManagementPage({
   return (
     <div className="grid gap-6">
       <WorkspacePageHeader
-        description="프로모션별 타깃을 생성·관리하고 광고 실험을 세그먼트 단위로 운영합니다."
+        description="세그먼트를 관리하고 세그먼트별 광고 실험을 시작해요."
         eyebrow="Segment workspace"
         title="세그먼트"
       />

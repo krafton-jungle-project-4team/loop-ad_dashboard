@@ -50,21 +50,21 @@ export function CampaignPerformanceSections({
           캠페인 통계
         </CardTitle>
         <CardDescription>
-          실시간 추이, 사용자 경로, 실험 평가 결과를 기준으로 캠페인 통계를 확인합니다.
+          실시간 추이, 사용자 경로, 실험 평가 결과를 함께 볼 수 있어요.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 px-5">
         {campaignDetail.isError ? (
           <Alert variant="destructive">
-            <AlertTitle>캠페인 데이터를 불러오지 못했습니다</AlertTitle>
+            <AlertTitle>캠페인 성과를 불러오지 못했어요</AlertTitle>
             <AlertDescription>
-              {campaignDetail.error?.message ?? "API 요청에 실패했습니다."}
+              {campaignDetail.error?.message ?? "잠시 후 다시 시도해 주세요."}
             </AlertDescription>
           </Alert>
         ) : null}
-        {!selectedCampaign ? <EmptyState message="통계를 확인할 캠페인을 선택해주세요." /> : null}
+        {!selectedCampaign ? <EmptyState message="성과를 확인할 캠페인을 선택해 주세요." /> : null}
         {selectedCampaign && campaignDetail.isLoading ? (
-          <EmptyState message="캠페인 데이터를 불러오는 중입니다." />
+          <EmptyState message="캠페인 성과를 불러오고 있어요." />
         ) : null}
         {campaignDetail.data ? (
           <>
@@ -145,39 +145,39 @@ function EvaluationOutcomePanel({
   );
 
   if (evaluationMetrics.length === 0) {
-    return <EmptyState message="종료 후 결과를 표시할 실험 평가가 없습니다." />;
+    return <EmptyState message="아직 완료된 실험 평가가 없어요." />;
   }
 
   return (
     <section className="grid gap-3">
       <div className="grid gap-1">
-        <h3 className="text-base font-semibold text-[#1d1d1f]">종료 후 결과 / 재실험 흐름</h3>
+        <h3 className="text-base font-semibold text-[#1d1d1f]">완료된 실험과 재실험</h3>
         <p className="text-sm text-muted-foreground">
-          프로모션 평가 기준으로 목표 미달 세그먼트만 다음 루프 후보로 분리합니다.
+          목표에 미치지 못한 세그먼트만 다음 반복 실험 후보로 보여 줘요.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
         <SummaryItem label="평가 완료" value={formatInteger(evaluationMetrics.length)} />
         <SummaryItem label="목표 달성" value={formatInteger(goalMetCount)} />
         <SummaryItem label="목표 미달" value={formatInteger(goalNotMetMetrics.length)} />
-        <SummaryItem label="표본 부족" value={formatInteger(insufficientMetrics.length)} />
-        <SummaryItem label="다음 루프 후보" value={formatInteger(nextLoopMetrics.length)} />
+        <SummaryItem label="대상 부족" value={formatInteger(insufficientMetrics.length)} />
+        <SummaryItem label="반복 실험 후보" value={formatInteger(nextLoopMetrics.length)} />
         <SummaryItem label="실패 세그먼트" value={formatInteger(failedSegmentIds.length)} />
         <SummaryItem label="실패 실험" value={formatInteger(failedExperimentIds.length)} />
       </div>
       {nextLoopMetrics.length === 0 ? (
         <Alert>
-          <AlertTitle>재실험 후보 없음</AlertTitle>
+          <AlertTitle>다시 실험할 대상이 없어요</AlertTitle>
           <AlertDescription>
-            목표 미달 상태의 평가가 없거나 다음 루프 필요 여부가 false입니다.
+            목표에 미치지 못한 평가가 없어 다시 실험할 대상이 없어요.
           </AlertDescription>
         </Alert>
       ) : null}
       {insufficientMetrics.length > 0 ? (
         <Alert>
-          <AlertTitle>표본 부족은 자동 재실험 대상에서 분리합니다</AlertTitle>
+          <AlertTitle>대상이 부족한 실험은 따로 확인해 주세요</AlertTitle>
           <AlertDescription>
-            표본 부족은 판단 보류 상태이므로 사용자가 다시 실험하기를 선택할 때만 다음 루프 대상으로
+            대상이 부족한 실험은 바로 이어가지 않아요. 다시 실험하기를 선택했을 때만 후보로
             다룹니다.
           </AlertDescription>
         </Alert>

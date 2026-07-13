@@ -210,7 +210,7 @@ export function ProjectExperimentWorkspace({
       <Card>
         <CardHeader>
           <CardTitle>프로젝트 실험을 불러오는 중</CardTitle>
-          <CardDescription>캠페인 전체의 실행 및 평가 상태를 모으고 있습니다.</CardDescription>
+          <CardDescription>잠시만 기다려 주세요.</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -236,7 +236,7 @@ export function ProjectExperimentWorkspace({
         <ExperimentSummaryCard label="배정 합계" value={formatInteger(totalAssignmentCount)} />
         <ExperimentSummaryCard
           label="후속 작업"
-          value={`다음 루프 ${formatInteger(nextLoopCount)} · 표본 부족 ${formatInteger(insufficientCount)}`}
+          value={`반복 실험 ${formatInteger(nextLoopCount)} · 대상 부족 ${formatInteger(insufficientCount)}`}
         />
       </div>
 
@@ -245,7 +245,7 @@ export function ProjectExperimentWorkspace({
           <div className="grid gap-1">
             <CardTitle>프로젝트 실험 목록</CardTitle>
             <CardDescription>
-              캠페인, 프로모션, 실행 상태로 필터링하고 실험을 선택해 상세 성과를 확인합니다.
+              캠페인, 프로모션, 상태로 실험을 찾고 자세한 성과를 볼 수 있어요.
             </CardDescription>
           </div>
           <ExperimentFilter
@@ -300,9 +300,9 @@ export function ProjectExperimentWorkspace({
         </CardHeader>
         <CardContent>
           {experiments.length === 0 ? (
-            <EmptyState message="프로젝트에 생성된 실험이 없습니다." />
+            <EmptyState message="아직 시작한 실험이 없어요." />
           ) : filteredExperiments.length === 0 ? (
-            <EmptyState message="필터 조건에 맞는 실험이 없습니다." />
+            <EmptyState message="조건에 맞는 실험이 없어요." />
           ) : (
             <div className="grid gap-4">
               <ProjectExperimentTable
@@ -423,7 +423,7 @@ function ProjectExperimentTable({
               <TableRow aria-selected={isSelected} key={experiment.ad_experiment_id}>
                 <TableCell>
                   <Button
-                    aria-label={`${experiment.segment_name} 루프 ${experiment.loop_count} 실험 상세 보기`}
+                    aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
                     className="h-auto justify-start px-0 text-left"
                     onClick={() => onSelect(experiment)}
                     type="button"
@@ -431,7 +431,7 @@ function ProjectExperimentTable({
                   >
                     <span className="grid gap-0.5">
                       <span className="font-medium">
-                        루프 {formatInteger(experiment.loop_count)}
+                        {formatInteger(experiment.loop_count)}번째 실험
                       </span>
                       <span className="max-w-40 truncate text-xs text-muted-foreground">
                         {experiment.ad_experiment_id}
@@ -469,7 +469,7 @@ function ProjectExperimentTable({
                       {formatStatusLabel(evaluation?.status ?? "not_evaluated")}
                     </Badge>
                     {evaluation?.next_loop_required ? (
-                      <Badge variant="outline">다음 루프</Badge>
+                      <Badge variant="outline">반복 실험 필요</Badge>
                     ) : null}
                   </div>
                 </TableCell>
@@ -549,13 +549,13 @@ function SelectedProjectExperimentDetail({
             <span>{experiment.segment_name}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>루프 {formatInteger(experiment.loop_count)} 실험 상세</CardTitle>
+            <CardTitle>{formatInteger(experiment.loop_count)}번째 반복 실험</CardTitle>
             <Badge variant={statusBadgeVariant(experiment.status)}>
               {formatStatusLabel(experiment.status)}
             </Badge>
           </div>
           <CardDescription>
-            성과, 평가 결과, 표본 부족 사유와 다음 루프 상태를 같은 화면에서 확인합니다.
+            성과, 평가 결과, 대상 부족 이유와 다음 반복 실험을 한곳에서 볼 수 있어요.
           </CardDescription>
         </div>
         <div className="flex flex-wrap items-start gap-2">
@@ -566,21 +566,21 @@ function SelectedProjectExperimentDetail({
             variant="outline"
           >
             <BarChart3 data-icon="inline-start" />
-            {isEvaluatingSelected ? "평가 중" : "성과 평가"}
+            {isEvaluatingSelected ? "평가 중" : "성과 평가하기"}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button disabled={!canCreateNextLoop || createNextLoopIsPending} type="button">
                 <Plus data-icon="inline-start" />
-                {isCreatingNextLoopForSelected ? "다음 루프 시작 중" : "다음 루프 생성 및 시작"}
+                {isCreatingNextLoopForSelected ? "반복 실험 시작 중" : "반복 실험 시작하기"}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>실패 대상을 다음 루프로 이어갈까요?</AlertDialogTitle>
+                <AlertDialogTitle>실패한 대상을 다시 실험할까요?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  같은 실행에서 목표 미달로 평가된 세그먼트와 실험만 포함합니다. 생성 후 사용자
-                  배정, 실험 시작, 지원 채널 발송 순서로 실행됩니다.
+                  목표에 미치지 못한 세그먼트와 실험만 이어가요. 만들면 대상 배정, 실험 시작, 광고
+                  발송 순서로 진행돼요.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -604,19 +604,19 @@ function SelectedProjectExperimentDetail({
       <CardContent className="grid gap-6">
         {currentEvaluationResult ? (
           <Alert>
-            <AlertTitle>성과 평가를 완료했습니다</AlertTitle>
+            <AlertTitle>성과 평가를 마쳤어요</AlertTitle>
             <AlertDescription>
               {formatInteger(currentEvaluationResult.ad_experiment_results.length)}개 실험을
               평가했고, 실패 대상{" "}
               {formatInteger(currentEvaluationResult.failed_ad_experiment_ids.length)}개를
-              확인했습니다.
+              확인했어요.
             </AlertDescription>
           </Alert>
         ) : null}
         {evaluatePromotionRunIsError &&
         evaluatePromotionRunVariables === experiment.promotion_run_id ? (
           <Alert variant="destructive">
-            <AlertTitle>성과를 평가하지 못했습니다</AlertTitle>
+            <AlertTitle>성과를 평가하지 못했어요</AlertTitle>
             <AlertDescription>{toErrorMessage(evaluatePromotionRunError)}</AlertDescription>
           </Alert>
         ) : null}
@@ -624,21 +624,21 @@ function SelectedProjectExperimentDetail({
           <Alert>
             <AlertTitle>
               {currentCreateNextLoopResult.dispatchFailed
-                ? "다음 루프는 시작했지만 발송하지 못했습니다"
+                ? "반복 실험은 시작했지만 광고를 보내지 못했어요"
                 : currentCreateNextLoopResult.failedExperimentIds.length > 0
-                  ? "다음 루프의 일부 실험만 시작됐습니다"
-                  : "다음 루프를 생성하고 시작했습니다"}
+                  ? "일부 반복 실험만 시작됐어요"
+                  : "반복 실험을 시작했어요"}
             </AlertTitle>
             <AlertDescription>
               {formatInteger(currentCreateNextLoopResult.startedExperimentIds.length)}개 실험을
-              시작했습니다.
+              시작했어요.
             </AlertDescription>
           </Alert>
         ) : null}
         {createNextLoopIsError &&
         createNextLoopVariables?.promotionRunId === experiment.promotion_run_id ? (
           <Alert variant="destructive">
-            <AlertTitle>다음 루프를 시작하지 못했습니다</AlertTitle>
+            <AlertTitle>반복 실험을 시작하지 못했어요</AlertTitle>
             <AlertDescription>{toErrorMessage(createNextLoopError)}</AlertDescription>
           </Alert>
         ) : null}
@@ -650,7 +650,7 @@ function SelectedProjectExperimentDetail({
             value={`${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)} / ${formatGoalValue(evaluation?.actual_value ?? null)}`}
           />
           <DetailMetric
-            label="평가 표본 / 배정"
+            label="평가 대상 / 배정"
             value={`${formatInteger(evaluation?.sample_size ?? 0)} / ${formatInteger(experiment.assignment_count)}`}
           />
           <DetailMetric
@@ -662,9 +662,9 @@ function SelectedProjectExperimentDetail({
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="grid content-start gap-3 rounded-xl border p-4">
             <div className="grid gap-1">
-              <h3 className="font-semibold">평가 및 표본 상태</h3>
+              <h3 className="font-semibold">평가 대상과 결과</h3>
               <p className="text-sm text-muted-foreground">
-                최신 평가 결과와 계산에 사용된 표본을 표시합니다.
+                최신 평가 결과와 계산에 쓴 대상을 보여 줘요.
               </p>
             </div>
             {evaluation ? (
@@ -686,28 +686,28 @@ function SelectedProjectExperimentDetail({
                 </dl>
                 {evaluation.status === "insufficient_data" ? (
                   <Alert>
-                    <AlertTitle>표본이 더 필요합니다</AlertTitle>
+                    <AlertTitle>평가 대상이 더 필요해요</AlertTitle>
                     <AlertDescription>
                       {evaluation.feedback ??
-                        `현재 ${formatInteger(evaluation.sample_size)}명의 표본으로는 안정적인 평가가 어렵습니다.`}
+                        `현재 ${formatInteger(evaluation.sample_size)}명으로는 안정적인 평가가 어려워요.`}
                     </AlertDescription>
                   </Alert>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    {evaluation.feedback ?? "추가 평가 피드백이 없습니다."}
+                    {evaluation.feedback ?? "추가 안내가 없어요."}
                   </p>
                 )}
               </div>
             ) : (
-              <EmptyState message="아직 평가 결과가 없습니다. 성과 평가를 실행해주세요." />
+              <EmptyState message="아직 평가 결과가 없어요. 성과 평가를 시작해 주세요." />
             )}
           </section>
 
           <section className="grid content-start gap-3 rounded-xl border p-4">
             <div className="grid gap-1">
-              <h3 className="font-semibold">다음 루프</h3>
+              <h3 className="font-semibold">반복 실험</h3>
               <p className="text-sm text-muted-foreground">
-                목표 미달 대상의 후속 실험 준비 상태를 표시합니다.
+                목표에 미치지 못한 대상의 다음 실험 준비 상태를 보여 줘요.
               </p>
             </div>
             {experiment.next_loop ? (
@@ -717,7 +717,7 @@ function SelectedProjectExperimentDetail({
                     {formatStatusLabel(experiment.next_loop.status)}
                   </Badge>
                   <span className="text-sm font-medium">
-                    루프 {formatInteger(experiment.next_loop.loop_count)} 생성됨
+                    {formatInteger(experiment.next_loop.loop_count)}번째 반복 실험
                   </span>
                 </div>
                 <p className="break-all text-xs text-muted-foreground">
@@ -726,15 +726,15 @@ function SelectedProjectExperimentDetail({
               </div>
             ) : evaluation?.next_loop_required ? (
               <Alert>
-                <AlertTitle>다음 루프가 필요합니다</AlertTitle>
+                <AlertTitle>반복 실험이 필요해요</AlertTitle>
                 <AlertDescription>
                   같은 실행에서 실패한 실험{" "}
                   {formatInteger(failedTargets.failedAdExperimentIds.length)}개, 세그먼트{" "}
-                  {formatInteger(failedTargets.failedSegmentIds.length)}개를 이어갈 수 있습니다.
+                  {formatInteger(failedTargets.failedSegmentIds.length)}개를 이어갈 수 있어요.
                 </AlertDescription>
               </Alert>
             ) : (
-              <EmptyState message="현재 생성할 다음 루프가 없습니다." />
+              <EmptyState message="지금은 다시 실험할 대상이 없어요." />
             )}
           </section>
         </div>

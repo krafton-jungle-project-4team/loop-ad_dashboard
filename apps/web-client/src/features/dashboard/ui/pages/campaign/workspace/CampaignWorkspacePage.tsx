@@ -314,14 +314,14 @@ export function CampaignWorkspacePage({
 
       {promotionMutationError ? (
         <Alert variant="destructive">
-          <AlertTitle>프로모션 작업을 완료하지 못했습니다</AlertTitle>
+          <AlertTitle>프로모션 작업을 마치지 못했어요</AlertTitle>
           <AlertDescription>{mutationErrorMessage(promotionMutationError)}</AlertDescription>
         </Alert>
       ) : null}
 
       {deleteCampaignMutation.isError ? (
         <Alert variant="destructive">
-          <AlertTitle>캠페인을 삭제하지 못했습니다</AlertTitle>
+          <AlertTitle>캠페인을 삭제하지 못했어요</AlertTitle>
           <AlertDescription>{mutationErrorMessage(deleteCampaignMutation.error)}</AlertDescription>
         </Alert>
       ) : null}
@@ -330,10 +330,10 @@ export function CampaignWorkspacePage({
         <section className="grid gap-5">
           <div className="grid gap-1">
             <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              캠페인을 선택해주세요
+              캠페인을 선택해 주세요
             </h2>
             <p className="text-sm leading-6 text-muted-foreground">
-              캠페인 카드를 열면 하위 프로모션과 운영 성과를 이어서 확인할 수 있습니다.
+              캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
             </p>
           </div>
           <EntityCardGrid
@@ -370,7 +370,7 @@ export function CampaignWorkspacePage({
               }
             ]}
             addAction={{
-              description: "새 캠페인을 만들고 프로모션 설정을 시작합니다.",
+              description: "캠페인을 만들고 프로모션을 설정해요.",
               label: "새 캠페인",
               onSelect: () => {
                 createCampaignMutation.reset();
@@ -395,14 +395,14 @@ export function CampaignWorkspacePage({
 
       {selectedCampaign && query.campaignView === "manage" && campaignDetail.isError ? (
         <Alert variant="destructive">
-          <AlertTitle>캠페인 데이터를 불러오지 못했습니다</AlertTitle>
+          <AlertTitle>캠페인을 불러오지 못했어요</AlertTitle>
           <AlertDescription>
-            {campaignDetail.error?.message ?? "API 요청에 실패했습니다."}
+            {campaignDetail.error?.message ?? "다시 시도해 주세요."}
           </AlertDescription>
         </Alert>
       ) : null}
       {selectedCampaign && query.campaignView === "manage" && campaignDetail.isLoading ? (
-        <EmptyState message="캠페인 데이터를 불러오는 중입니다." />
+        <EmptyState message="캠페인을 불러오는 중이에요." />
       ) : null}
 
       {selectedCampaign &&
@@ -437,7 +437,7 @@ export function CampaignWorkspacePage({
               }
             ]}
             addAction={{
-              description: "현재 캠페인 아래에 새 프로모션을 추가합니다.",
+              description: "이 캠페인에 프로모션을 추가해요.",
               label: "새 프로모션",
               onSelect: () => {
                 createPromotionMutation.reset();
@@ -505,7 +505,7 @@ export function CampaignWorkspacePage({
           <AlertDialogHeader>
             <AlertDialogTitle>캠페인을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deletingCampaign?.campaign_name} 캠페인이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+              {deletingCampaign?.campaign_name} 캠페인과 연결된 항목이 모두 사라져요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -566,9 +566,8 @@ export function CampaignWorkspacePage({
           <AlertDialogHeader>
             <AlertDialogTitle>프로모션을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deletingPromotion?.marketing_theme ?? "선택한 프로모션"}이 목록에서 제거됩니다.
-              연결된 세그먼트, 광고 소재, 실행과 실험도 중지 또는 보관되며 이 작업은 되돌릴 수
-              없습니다.
+              {deletingPromotion?.marketing_theme ?? "선택한 프로모션"}이 목록에서 사라져요. 연결된
+              세그먼트, 광고 소재, 실행과 실험도 모두 사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -594,7 +593,7 @@ export function CampaignWorkspacePage({
 function toCampaignCard(campaign: DashboardCampaignSummary): CampaignCard {
   return {
     campaign,
-    description: campaign.objective ?? "목표 미등록",
+    description: campaign.objective ?? "아직 목표가 없어요",
     id: campaign.campaign_id,
     kind: "campaign",
     metrics: [

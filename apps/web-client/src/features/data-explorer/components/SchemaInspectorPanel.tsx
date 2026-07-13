@@ -21,13 +21,13 @@ export function SchemaInspectorPanel({
   if (isLoading && !detail) {
     return (
       <div className="rounded-[18px] border border-dashed border-black/10 bg-[#fafafc] p-6 text-sm text-muted-foreground">
-        스키마 정보를 불러오는 중입니다.
+        스키마 정보를 불러오고 있어요.
       </div>
     );
   }
 
   if (!detail) {
-    return <EmptyState message="왼쪽 목록에서 객체를 선택해주세요." />;
+    return <EmptyState message="왼쪽 목록에서 데이터를 선택해 주세요." />;
   }
 
   return (
