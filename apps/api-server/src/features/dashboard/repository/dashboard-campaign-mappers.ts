@@ -1,6 +1,8 @@
 import {
   DASHBOARD_FALLBACK_SEGMENT_ID,
-  normalizePromotionSegmentPerformanceEstimate
+  normalizePromotionSegmentAudience,
+  normalizePromotionSegmentPerformanceEstimate,
+  normalizePromotionSegmentRankComparison
 } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
@@ -442,15 +444,19 @@ function suggestionDisplayCopy(
   const performanceEstimate = normalizePromotionSegmentPerformanceEstimate(
     raw.performance_estimate
   );
+  const audience = normalizePromotionSegmentAudience(raw.audience);
+  const rankComparison = normalizePromotionSegmentRankComparison(raw.rank_comparison);
 
   return {
     title,
     rank_role: nonEmptyString(raw.rank_role) ?? undefined,
     audience_summary: audienceSummary,
+    audience,
     performance_estimate: performanceEstimate,
     signal_chips: signalChips,
     reason,
     difference_summary: nonEmptyString(raw.difference_summary) ?? undefined,
+    rank_comparison: rankComparison,
     action_hint: actionHint
   };
 }

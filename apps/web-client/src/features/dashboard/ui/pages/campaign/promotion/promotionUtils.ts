@@ -3,7 +3,9 @@ import {
   DashboardPromotionGoalBasisSchema,
   DashboardPromotionGoalMetricSchema,
   DashboardPromotionStatusSchema,
+  normalizePromotionSegmentAudience,
   normalizePromotionSegmentPerformanceEstimate,
+  normalizePromotionSegmentRankComparison,
   type DashboardCampaignPromotion,
   type DashboardCampaignSegment,
   type DashboardCreatePromotionSegmentDefinitionRequest,
@@ -245,15 +247,19 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
   const performanceEstimate = normalizePromotionSegmentPerformanceEstimate(
     raw.performance_estimate
   );
+  const audience = normalizePromotionSegmentAudience(raw.audience);
+  const rankComparison = normalizePromotionSegmentRankComparison(raw.rank_comparison);
 
   return {
     title,
     rank_role: nonEmptyText(raw.rank_role) ?? undefined,
     audience_summary: audienceSummary,
+    audience,
     performance_estimate: performanceEstimate,
     signal_chips: signalChips,
     reason,
     difference_summary: nonEmptyText(raw.difference_summary) ?? undefined,
+    rank_comparison: rankComparison,
     action_hint: actionHint
   };
 }

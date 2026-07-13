@@ -108,13 +108,20 @@ export type DashboardPromotionSegmentSuggestionSource = z.infer<
 export const DashboardPromotionSegmentSuggestionPerformanceEstimateSchema = z.object({
   metric: z.string(),
   label: z.string(),
-  value: RateSchema,
-  formatted: z.string(),
+  availability: z.enum(["available", "unavailable"]).optional(),
+  unit: z.string().optional(),
+  value: RateSchema.optional(),
+  formatted: z.string().optional(),
   observed_value: RateSchema.optional(),
   basis_label: z.string().optional(),
+  window_days: CountSchema.optional(),
+  window_label: z.string().optional(),
+  confidence_label: z.enum(["high", "medium", "low"]).optional(),
+  confidence_reason: z.string().optional(),
+  unavailable_reason: z.string().optional(),
   method: z.string().optional(),
   prior_user_count: CountSchema.optional(),
-  calibration_status: z.enum(["not_backtested", "backtested"]).optional()
+  calibration_status: z.string().optional()
 });
 export type DashboardPromotionSegmentSuggestionPerformanceEstimate = z.infer<
   typeof DashboardPromotionSegmentSuggestionPerformanceEstimateSchema
@@ -130,25 +137,120 @@ export function normalizePromotionSegmentPerformanceEstimate(
   const raw = value as Record<string, unknown>;
   const metric = normalizedNonEmptyString(raw.metric);
   const label = normalizedNonEmptyString(raw.label);
-  const estimatedValue = normalizedRate(raw.value);
-  if (!metric || !label || estimatedValue === null) {
+  if (!metric || !label) {
     return undefined;
   }
 
-  const calibrationStatus = normalizedNonEmptyString(raw.calibration_status);
+  const estimatedValue = normalizedRate(raw.value);
+  const requestedAvailability = normalizedNonEmptyString(raw.availability);
+  const hasRawValue = raw.value !== undefined && raw.value !== null && raw.value !== "";
+  if (hasRawValue && estimatedValue === null) {
+    return undefined;
+  }
+  const availability =
+    requestedAvailability === "unavailable" || estimatedValue === null
+      ? "unavailable"
+      : "available";
+  const confidenceLabel = normalizedNonEmptyString(raw.confidence_label);
   return {
     metric,
     label,
-    value: estimatedValue,
-    formatted: `${(estimatedValue * 100).toFixed(1)}%`,
+    availability,
+    unit: normalizedNonEmptyString(raw.unit) ?? undefined,
+    value: estimatedValue ?? undefined,
+    formatted: estimatedValue === null ? undefined : `${(estimatedValue * 100).toFixed(1)}%`,
     observed_value: normalizedRate(raw.observed_value) ?? undefined,
     basis_label: normalizedNonEmptyString(raw.basis_label) ?? undefined,
+    window_days: normalizedPositiveCount(raw.window_days) ?? undefined,
+    window_label: normalizedNonEmptyString(raw.window_label) ?? undefined,
+    confidence_label:
+      confidenceLabel === "high" || confidenceLabel === "medium" || confidenceLabel === "low"
+        ? confidenceLabel
+        : undefined,
+    confidence_reason: normalizedNonEmptyString(raw.confidence_reason) ?? undefined,
+    unavailable_reason: normalizedNonEmptyString(raw.unavailable_reason) ?? undefined,
     method: normalizedNonEmptyString(raw.method) ?? undefined,
     prior_user_count: normalizedCount(raw.prior_user_count) ?? undefined,
-    calibration_status:
-      calibrationStatus === "not_backtested" || calibrationStatus === "backtested"
-        ? calibrationStatus
-        : undefined
+    calibration_status: normalizedNonEmptyString(raw.calibration_status) ?? undefined
+  };
+}
+
+export const DashboardPromotionSegmentSuggestionAudienceSchema = z.object({
+  total_eligible_user_count: CountSchema,
+  matching_user_count: CountSchema,
+  selected_user_count: CountSchema,
+  selected_user_ratio: RateSchema.optional(),
+  selection_limited: z.boolean().optional()
+});
+export type DashboardPromotionSegmentSuggestionAudience = z.infer<
+  typeof DashboardPromotionSegmentSuggestionAudienceSchema
+>;
+
+export function normalizePromotionSegmentAudience(
+  value: unknown
+): DashboardPromotionSegmentSuggestionAudience | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const raw = value as Record<string, unknown>;
+  const totalEligibleUserCount = normalizedCount(raw.total_eligible_user_count);
+  const matchingUserCount = normalizedCount(raw.matching_user_count);
+  const selectedUserCount = normalizedCount(raw.selected_user_count);
+  if (totalEligibleUserCount === null || matchingUserCount === null || selectedUserCount === null) {
+    return undefined;
+  }
+  return {
+    total_eligible_user_count: totalEligibleUserCount,
+    matching_user_count: matchingUserCount,
+    selected_user_count: selectedUserCount,
+    selected_user_ratio: normalizedRate(raw.selected_user_ratio) ?? undefined,
+    selection_limited:
+      typeof raw.selection_limited === "boolean" ? raw.selection_limited : undefined
+  };
+}
+
+export const DashboardPromotionSegmentSuggestionRankComparisonSchema = z.object({
+  reference_rank: CountSchema,
+  metric: z.string(),
+  metric_label: z.string(),
+  direction: z.enum(["higher", "lower", "similar"]),
+  delta_percentage_points: z.number(),
+  summary: z.string()
+});
+export type DashboardPromotionSegmentSuggestionRankComparison = z.infer<
+  typeof DashboardPromotionSegmentSuggestionRankComparisonSchema
+>;
+
+export function normalizePromotionSegmentRankComparison(
+  value: unknown
+): DashboardPromotionSegmentSuggestionRankComparison | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const raw = value as Record<string, unknown>;
+  const referenceRank = normalizedPositiveCount(raw.reference_rank);
+  const metric = normalizedNonEmptyString(raw.metric);
+  const metricLabel = normalizedNonEmptyString(raw.metric_label);
+  const direction = normalizedNonEmptyString(raw.direction);
+  const deltaPercentagePoints = normalizedNumber(raw.delta_percentage_points);
+  const summary = normalizedNonEmptyString(raw.summary);
+  if (
+    referenceRank === null ||
+    !metric ||
+    !metricLabel ||
+    (direction !== "higher" && direction !== "lower" && direction !== "similar") ||
+    deltaPercentagePoints === null ||
+    !summary
+  ) {
+    return undefined;
+  }
+  return {
+    reference_rank: referenceRank,
+    metric,
+    metric_label: metricLabel,
+    direction,
+    delta_percentage_points: deltaPercentagePoints,
+    summary
   };
 }
 
@@ -172,14 +274,29 @@ function normalizedCount(value: unknown): number | null {
   return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : null;
 }
 
+function normalizedPositiveCount(value: unknown): number | null {
+  const count = normalizedCount(value);
+  return count !== null && count > 0 ? count : null;
+}
+
+function normalizedNumber(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export const DashboardPromotionSegmentSuggestionDisplayCopySchema = z.object({
   title: z.string(),
   rank_role: z.string().optional(),
   audience_summary: z.string(),
+  audience: DashboardPromotionSegmentSuggestionAudienceSchema.optional(),
   performance_estimate: DashboardPromotionSegmentSuggestionPerformanceEstimateSchema.optional(),
   signal_chips: z.array(z.string()),
   reason: z.string(),
   difference_summary: z.string().optional(),
+  rank_comparison: DashboardPromotionSegmentSuggestionRankComparisonSchema.optional(),
   action_hint: z.string()
 });
 export type DashboardPromotionSegmentSuggestionDisplayCopy = z.infer<
