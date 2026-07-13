@@ -35,6 +35,7 @@ const STATUS_LABELS: Record<string, string> = {
   running: "실행 중",
   sent: "발송됨",
   stopped: "중지됨",
+  suggested: "추천됨",
   succeeded: "성공",
   valid: "정상",
   waiting: "대기"
