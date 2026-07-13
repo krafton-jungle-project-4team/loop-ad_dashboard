@@ -178,7 +178,7 @@ export function ProjectManagementDialog({
           <div className="flex justify-end">
             <Button disabled={createProjectMutation.isPending} type="submit">
               <Plus />
-              {createProjectMutation.isPending ? "만드는 중" : "프로젝트 만들기"}
+              {createProjectMutation.isPending ? "프로젝트 만드는 중…" : "프로젝트 만들기"}
             </Button>
           </div>
         </form>
@@ -187,7 +187,7 @@ export function ProjectManagementDialog({
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-foreground">프로젝트 목록</h3>
             {projectsQuery.isFetching ? (
-              <span className="text-xs text-muted-foreground">불러오는 중</span>
+              <span className="text-xs text-muted-foreground">프로젝트 목록 불러오는 중…</span>
             ) : null}
           </div>
 

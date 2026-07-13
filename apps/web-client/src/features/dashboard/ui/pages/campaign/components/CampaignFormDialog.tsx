@@ -146,7 +146,7 @@ function CampaignCreateForm({
           }
           type="button"
         >
-          {isPending ? "만드는 중" : "캠페인 만들기"}
+          {isPending ? "캠페인 만드는 중…" : "캠페인 만들기"}
         </Button>
       </DialogFooter>
     </section>
@@ -222,7 +222,7 @@ function CampaignEditForm({
           }
           type="button"
         >
-          {isPending ? "저장 중" : "저장하기"}
+          {isPending ? "캠페인 저장 중…" : "캠페인 저장"}
         </Button>
       </DialogFooter>
     </section>

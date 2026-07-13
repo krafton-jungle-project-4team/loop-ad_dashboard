@@ -555,7 +555,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
               취소
             </Button>
             <Button disabled={!canSave || isDraftSaving} onClick={saveFunnel} type="button">
-              {isDraftSaving ? "저장 중" : "저장하기"}
+              {isDraftSaving ? "사용자 경로 저장 중…" : "사용자 경로 저장"}
             </Button>
           </DialogFooter>
         </DialogContent>

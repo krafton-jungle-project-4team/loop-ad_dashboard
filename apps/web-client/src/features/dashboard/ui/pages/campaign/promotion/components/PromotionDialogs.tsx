@@ -114,7 +114,7 @@ export function PromotionEditDialog({
             }
             type="button"
           >
-            {isPending ? "저장 중" : "저장하기"}
+            {isPending ? "프로모션 저장 중…" : "프로모션 저장"}
           </Button>
         </DialogFooter>
       </div>
@@ -226,7 +226,7 @@ export function SegmentEditDialog({
             }
             type="button"
           >
-            {isPending ? "저장 중" : "저장하기"}
+            {isPending ? "세그먼트 저장 중…" : "세그먼트 저장"}
           </Button>
         </DialogFooter>
       </div>
@@ -276,7 +276,7 @@ export function PromotionAddDialog({
           </Button>
         </DialogClose>
         <Button className="px-8" disabled={!canSubmit} onClick={() => onCreate(form)} type="button">
-          {createIsPending ? "만드는 중" : "프로모션 만들기"}
+          {createIsPending ? "프로모션 만드는 중…" : "프로모션 만들기"}
         </Button>
       </DialogFooter>
     </DashboardFormDialog>
