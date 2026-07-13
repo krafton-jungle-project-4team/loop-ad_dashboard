@@ -83,8 +83,10 @@ export function TrackingPlanWorkspace({
     try {
       setPlan(await action());
       setValidation(null);
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "요청을 처리하지 못했습니다.");
+      return false;
     }
   }
 
@@ -166,8 +168,9 @@ function EventDesigner({
   run
 }: {
   plan: TrackingPlan;
-  run: (action: () => Promise<TrackingPlan>) => Promise<void>;
+  run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
 }) {
+  const [mode, setMode] = useState<"list" | "view" | "create" | "edit">("list");
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [eventName, setEventName] = useState("");
   const [description, setDescription] = useState("");
@@ -175,110 +178,192 @@ function EventDesigner({
   const selected = plan.events.find((event) => event.eventName === selectedName) ?? null;
   const propertyIssues = validatePropertyDrafts(properties);
 
-  function selectEvent(event: TrackingPlanEvent | null) {
-    setSelectedName(event?.eventName ?? null);
-    setEventName(event?.eventName ?? "");
-    setDescription(event?.description ?? "");
-    setProperties(event ? propertiesFromSchema(event.propertiesSchema) : []);
+  function showList() {
+    setMode("list");
+    setSelectedName(null);
+  }
+
+  function showEvent(event: TrackingPlanEvent) {
+    setSelectedName(event.eventName);
+    setMode("view");
+  }
+
+  function startCreate() {
+    setSelectedName(null);
+    setEventName("");
+    setDescription("");
+    setProperties([]);
+    setMode("create");
+  }
+
+  function startEdit(event: TrackingPlanEvent) {
+    setSelectedName(event.eventName);
+    setEventName(event.eventName);
+    setDescription(event.description);
+    setProperties(propertiesFromSchema(event.propertiesSchema));
+    setMode("edit");
   }
 
   async function save() {
     const propertiesSchema = schemaFromProperties(properties);
-    if (selected) {
-      await run(() =>
+    if (mode === "edit" && selected) {
+      const saved = await run(() =>
         updateTrackingPlanEvent(plan.projectId, selected.eventName, {
           description,
           propertiesSchema
         })
       );
-    } else {
-      await run(() =>
-        addTrackingPlanEvent(plan.projectId, { eventName, description, propertiesSchema })
-      );
-      selectEvent(null);
+      if (saved) setMode("view");
+      return;
+    }
+
+    const nextEventName = eventName.trim();
+    const saved = await run(() =>
+      addTrackingPlanEvent(plan.projectId, {
+        eventName: nextEventName,
+        description,
+        propertiesSchema
+      })
+    );
+    if (saved) {
+      setSelectedName(nextEventName);
+      setMode("view");
     }
   }
 
-  return (
-    <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+  async function removeEvent(event: TrackingPlanEvent) {
+    const deleted = await run(() => deleteTrackingPlanEvent(plan.projectId, event.eventName));
+    if (deleted) showList();
+  }
+
+  if (mode === "list" || (mode !== "create" && !selected)) {
+    return (
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">이벤트</CardTitle>
-          <CardDescription>SDK 자동 수집 이벤트는 system으로 보존됩니다.</CardDescription>
+        <CardHeader className="flex-row items-start justify-between gap-4">
+          <div className="grid gap-1.5">
+            <CardTitle className="text-base">이벤트 목록</CardTitle>
+            <CardDescription>SDK 자동 수집 이벤트는 system으로 보존됩니다.</CardDescription>
+          </div>
+          <Button onClick={startCreate}>이벤트 추가</Button>
         </CardHeader>
-        <CardContent className="grid gap-2">
-          <Button variant="outline" onClick={() => selectEvent(null)}>
-            새 이벤트
-          </Button>
-          {plan.events.map((event) => (
-            <button
-              className="flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm"
-              key={event.eventName}
-              onClick={() => selectEvent(event)}
-              type="button"
-            >
-              <span>{event.eventName}</span>
-              <Badge variant="outline">{event.status}</Badge>
-            </button>
-          ))}
+        <CardContent>
+          {plan.events.length > 0 ? (
+            <div className="overflow-hidden rounded-md border">
+              {plan.events.map((event) => (
+                <button
+                  className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3 text-left last:border-b-0 hover:bg-muted/50"
+                  key={event.eventName}
+                  onClick={() => showEvent(event)}
+                  type="button"
+                >
+                  <span className="grid gap-1">
+                    <strong className="text-sm font-medium">{event.eventName}</strong>
+                    <span className="line-clamp-1 text-xs text-muted-foreground">
+                      {event.description || "설명 없음"}
+                    </span>
+                  </span>
+                  <Badge variant="outline">{event.status}</Badge>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              등록된 이벤트가 없습니다.
+            </p>
+          )}
         </CardContent>
       </Card>
+    );
+  }
+
+  if (mode === "view" && selected) {
+    return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{selected ? selected.eventName : "새 이벤트"}</CardTitle>
-          <CardDescription>
-            JSON을 직접 편집하지 않고 속성명, 타입, 필수 여부를 지정합니다.
-          </CardDescription>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>조회</Badge>
+            <Badge variant="outline">{selected.status}</Badge>
+          </div>
+          <CardTitle className="text-xl">{selected.eventName}</CardTitle>
+          <CardDescription>{selected.description || "설명 없음"}</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          <Field label="이벤트명">
-            <input
-              className="h-10 rounded-md border px-3"
-              disabled={Boolean(selected)}
-              value={eventName}
-              onChange={(event) => setEventName(event.target.value)}
-            />
-          </Field>
-          <Field label="설명">
-            <textarea
-              className="min-h-20 rounded-md border p-3"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </Field>
+        <CardContent className="grid gap-5">
           <div className="grid gap-2">
-            <PropertyList parentDepth={0} properties={properties} onChange={setProperties} />
-            {propertyIssues.length > 0 ? (
-              <div className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
-                {propertyIssues.map((issue) => (
-                  <p key={issue}>{issue}</p>
-                ))}
-              </div>
-            ) : null}
+            <strong className="text-sm">속성 스키마</strong>
+            <PropertyContract event={selected} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={!eventName.trim() || propertyIssues.length > 0}
-              onClick={() => void save()}
-            >
-              저장
+            <Button variant="outline" onClick={showList}>
+              목록으로
             </Button>
-            {selected && selected.status !== "system" ? (
-              <Button
-                variant="destructive"
-                onClick={() =>
-                  void run(() => deleteTrackingPlanEvent(plan.projectId, selected.eventName)).then(
-                    () => selectEvent(null)
-                  )
-                }
-              >
+            <Button onClick={() => startEdit(selected)}>수정</Button>
+            {selected.status !== "system" ? (
+              <Button variant="destructive" onClick={() => void removeEvent(selected)}>
                 이벤트 삭제
               </Button>
             ) : null}
           </div>
         </CardContent>
       </Card>
-    </div>
+    );
+  }
+
+  const isEdit = mode === "edit";
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge>{isEdit ? "수정" : "생성"}</Badge>
+          {isEdit && selected ? <Badge variant="outline">{selected.status}</Badge> : null}
+        </div>
+        <CardTitle className="text-xl">{isEdit ? selected?.eventName : "이벤트 추가"}</CardTitle>
+        <CardDescription>
+          JSON을 직접 편집하지 않고 속성명, 타입, 필수 여부를 지정합니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <Field label="이벤트명">
+          <input
+            className="h-10 rounded-md border px-3"
+            disabled={isEdit}
+            value={eventName}
+            onChange={(event) => setEventName(event.target.value)}
+          />
+        </Field>
+        <Field label="설명">
+          <textarea
+            className="min-h-20 rounded-md border p-3"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </Field>
+        <div className="grid gap-2">
+          <PropertyList parentDepth={0} properties={properties} onChange={setProperties} />
+          {propertyIssues.length > 0 ? (
+            <div className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
+              {propertyIssues.map((issue) => (
+                <p key={issue}>{issue}</p>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={!eventName.trim() || propertyIssues.length > 0}
+            onClick={() => void save()}
+          >
+            {isEdit ? "변경 저장" : "이벤트 생성"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => (isEdit && selected ? showEvent(selected) : showList())}
+          >
+            취소
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -444,7 +529,7 @@ function ConnectionPanel({
   setValidation
 }: {
   plan: TrackingPlan;
-  run: (action: () => Promise<TrackingPlan>) => Promise<void>;
+  run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
   validation: TrackingPlanValidation | null;
   setValidation: (value: TrackingPlanValidation | null) => void;
 }) {
@@ -571,8 +656,8 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <GuideSection
-          description="공개 npm 패키지를 설치합니다. 브라우저 사용자는 GitHub Packages에 직접 접근하지 않습니다."
-          title="1. 수집 SDK 설치"
+          description="공개 GitHub Pages IIFE를 HTML에 연결합니다. npm registry나 패키지 토큰은 필요하지 않습니다."
+          title="1. 수집 SDK 연결"
         >
           <GuideCode code={installCode} />
         </GuideSection>
