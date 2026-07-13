@@ -1,4 +1,5 @@
 import type {
+  DashboardAdExperiment,
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardPromotionScopedSegmentDefinition,
@@ -327,6 +328,7 @@ export function PromotionTabWorkspace({
   onStartGeneration,
   onTabChange,
   promotion,
+  promotionExperiments,
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
@@ -372,6 +374,7 @@ export function PromotionTabWorkspace({
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   promotion: DashboardCampaignPromotion;
+  promotionExperiments: DashboardAdExperiment[];
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -501,6 +504,7 @@ export function PromotionTabWorkspace({
               onLaunchExperiment={onLaunchExperiment}
               onRejectContentCandidate={onRejectContentCandidate}
               onStartGeneration={onStartGeneration}
+              promotionExperiments={promotionExperiments}
               rejectContentCandidateIsPending={rejectContentCandidateIsPending}
               view={segmentView}
               selectedSegmentId={selectedSegmentId}
@@ -701,6 +705,7 @@ function PromotionSegmentDetailTab({
   onLaunchExperiment,
   onRejectContentCandidate,
   onStartGeneration,
+  promotionExperiments,
   rejectContentCandidateIsPending,
   selectedSegmentId,
   view
@@ -723,6 +728,7 @@ function PromotionSegmentDetailTab({
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
+  promotionExperiments: DashboardAdExperiment[];
   rejectContentCandidateIsPending: boolean;
   selectedSegmentId: string;
   view: SegmentWorkspaceView;
@@ -968,6 +974,7 @@ function PromotionSegmentDetailTab({
           launchExperimentIsPending={launchExperimentIsPending}
           launchExperimentResult={launchExperimentResult}
           onLaunchExperiment={onLaunchExperiment}
+          promotionExperiments={promotionExperiments}
         />
       ) : null}
     </section>
@@ -980,7 +987,8 @@ function SegmentConnectedExperimentsCard({
   launchExperimentIsError,
   launchExperimentIsPending,
   launchExperimentResult,
-  onLaunchExperiment
+  onLaunchExperiment,
+  promotionExperiments
 }: {
   detail: DashboardSegmentDetail;
   launchExperimentError: Error | null;
@@ -993,22 +1001,34 @@ function SegmentConnectedExperimentsCard({
     analysisId?: string,
     generationId?: string
   ) => void;
+  promotionExperiments: DashboardAdExperiment[];
 }) {
   const approvedContentCandidate = detail.content_candidates.find(
     (candidate) => candidate.status === "approved"
   );
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
   const activeRunExperiments = activePromotionRunId
-    ? detail.ad_experiments.filter(
+    ? promotionExperiments.filter(
         (experiment) => experiment.promotion_run_id === activePromotionRunId
       )
     : [];
+  const requiredActiveRunExperiments = activeRunExperiments.filter(
+    (experiment) =>
+      experiment.segment_id === detail.segment.segment_id ||
+      (experiment.is_fallback && experiment.assignment_count > 0)
+  );
+  const launchNeedsRetry =
+    launchExperimentResult?.promotionRunId === activePromotionRunId &&
+    (launchExperimentResult.dispatchFailed ||
+      launchExperimentResult.failedExperimentIds.length > 0);
   const isExperimentRunning =
-    activeRunExperiments.length > 0 &&
-    activeRunExperiments.every((experiment) => experiment.status === "running");
+    requiredActiveRunExperiments.length > 0 &&
+    requiredActiveRunExperiments.every((experiment) => experiment.status === "running") &&
+    !launchNeedsRetry;
   const canLaunchExperiment =
+    launchNeedsRetry ||
     (!activePromotionRunId && Boolean(approvedContentCandidate)) ||
-    activeRunExperiments.some((experiment) => canStartAdExperiment(experiment.status));
+    requiredActiveRunExperiments.some((experiment) => canStartAdExperiment(experiment.status));
   return (
     <Card className="shadow-none">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

@@ -1,4 +1,7 @@
-import { normalizePromotionSegmentPerformanceEstimate } from "@loopad/shared";
+import {
+  DASHBOARD_FALLBACK_SEGMENT_ID,
+  normalizePromotionSegmentPerformanceEstimate
+} from "@loopad/shared";
 import type {
   DashboardAdExperiment,
   DashboardCampaignExperimentMetric,
@@ -272,6 +275,7 @@ export function toAdExperiment(
     goal_metric: row.goalMetric,
     goal_target_value: row.goalTargetValue ?? 0,
     assignment_count: "assignmentCount" in row ? countValue(row.assignmentCount) : 0,
+    is_fallback: row.segmentId === DASHBOARD_FALLBACK_SEGMENT_ID,
     loop_count: row.loopCount,
     promotion_id: row.promotionId,
     promotion_run_id: row.promotionRunId,

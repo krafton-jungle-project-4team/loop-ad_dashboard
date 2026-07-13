@@ -58,7 +58,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
       throw new Error("다음 루프는 세그먼트 1개 단위로만 시작할 수 있습니다.");
     }
     return launchPromotionExperiment(
-      { existingExperiments: [], segmentId },
+      { segmentId },
       {
         buildAssignments: (nextPromotionRunId) =>
           buildDashboardPromotionRunAssignments(query, nextPromotionRunId),
@@ -75,10 +75,12 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
             experiments: nextLoop.next_ad_experiments.map((experiment) => ({
               adExperimentId: experiment.ad_experiment_id,
               channel: experiment.channel,
+              isFallback: experiment.is_fallback,
               segmentId: experiment.segment_id,
               status: experiment.status
             })),
-            promotionRunId: nextLoop.next_promotion_run_id
+            promotionRunId: nextLoop.next_promotion_run_id,
+            segmentIds: [segmentId]
           };
         },
         dispatch: dispatchDashboardPromotionRun,

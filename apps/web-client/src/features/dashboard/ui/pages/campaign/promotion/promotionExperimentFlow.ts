@@ -1,19 +1,25 @@
-import type { DashboardAdExperiment } from "@loopad/shared";
+import type { DashboardBuildPromotionRunAssignmentsResult } from "@loopad/shared";
 import { canStartAdExperiment } from "./promotionUtils.js";
 
 type ExperimentLaunchTarget = {
   adExperimentId: string;
   channel: string;
+  isFallback: boolean;
   segmentId: string;
   status: string;
 };
 
+type PromotionRunLaunchTarget = {
+  experiments: ExperimentLaunchTarget[];
+  promotionRunId: string;
+  segmentIds: string[];
+};
+
 export type PromotionExperimentOperations = {
-  buildAssignments: (promotionRunId: string) => Promise<unknown>;
-  createRun: () => Promise<{
-    experiments: ExperimentLaunchTarget[];
-    promotionRunId: string;
-  }>;
+  buildAssignments: (
+    promotionRunId: string
+  ) => Promise<DashboardBuildPromotionRunAssignmentsResult>;
+  createRun: () => Promise<PromotionRunLaunchTarget>;
   dispatch: (promotionRunId: string) => Promise<unknown>;
   startExperiment: (adExperimentId: string) => Promise<unknown>;
 };
@@ -27,51 +33,57 @@ export type PromotionExperimentLaunchResult = {
 };
 
 export async function launchPromotionExperiment(
-  input: { existingExperiments: DashboardAdExperiment[]; segmentId: string },
+  input: { segmentId: string },
   operations: PromotionExperimentOperations
 ) {
-  const segmentExperiments = input.existingExperiments.filter(
-    (experiment) => experiment.segment_id === input.segmentId
-  );
-  const existingRunId = segmentExperiments[0]?.promotion_run_id;
-  const existingRunExperiments = existingRunId
-    ? segmentExperiments.filter((experiment) => experiment.promotion_run_id === existingRunId)
-    : [];
-  const run = existingRunId
-    ? {
-        experiments: existingRunExperiments.map((experiment) => ({
-          adExperimentId: experiment.ad_experiment_id,
-          channel: experiment.channel,
-          segmentId: experiment.segment_id,
-          status: experiment.status
-        })),
-        promotionRunId: existingRunId
-      }
-    : await operations.createRun();
+  const run = await operations.createRun();
+  assertRequestedSegmentScope(run.segmentIds, input.segmentId);
 
-  const targetExperiment = run.experiments.find(
-    (experiment) => experiment.segmentId === input.segmentId
+  const selectedExperiments = run.experiments.filter(
+    (experiment) => !experiment.isFallback && experiment.segmentId === input.segmentId
   );
-  if (!targetExperiment) {
-    throw new Error("선택한 세그먼트의 광고 실험을 찾지 못했습니다.");
+  if (selectedExperiments.length !== 1) {
+    throw new Error("선택한 세그먼트의 광고 실험이 정확히 하나여야 합니다.");
+  }
+  const targetExperiment = selectedExperiments[0]!;
+  const fallbackExperiments = run.experiments.filter((experiment) => experiment.isFallback);
+  if (fallbackExperiments.length > 1) {
+    throw new Error("fallback 광고 실험은 하나만 존재해야 합니다.");
   }
 
-  await operations.buildAssignments(run.promotionRunId);
+  const assignmentResult = await operations.buildAssignments(run.promotionRunId);
+  const fallbackRequired =
+    assignmentResult.run_has_fallback || assignmentResult.run_fallback_count > 0;
+  const fallbackExperiment = fallbackExperiments[0];
+  if (fallbackRequired && !fallbackExperiment) {
+    throw new Error("fallback 배정이 있지만 fallback 광고 실험이 없습니다.");
+  }
 
+  const requiredExperiments = fallbackRequired
+    ? [targetExperiment, fallbackExperiment!]
+    : [targetExperiment];
   const startedExperimentIds: string[] = [];
   const failedExperimentIds: string[] = [];
 
-  if (canStartAdExperiment(targetExperiment.status)) {
+  for (const experiment of requiredExperiments) {
+    if (experiment.status === "running") {
+      continue;
+    }
+    if (!canStartAdExperiment(experiment.status)) {
+      throw new Error(
+        `광고 실험 '${experiment.adExperimentId}'은(는) 시작할 수 없는 상태입니다: ${experiment.status}`
+      );
+    }
     try {
-      await operations.startExperiment(targetExperiment.adExperimentId);
-      startedExperimentIds.push(targetExperiment.adExperimentId);
+      await operations.startExperiment(experiment.adExperimentId);
+      startedExperimentIds.push(experiment.adExperimentId);
     } catch {
-      failedExperimentIds.push(targetExperiment.adExperimentId);
+      failedExperimentIds.push(experiment.adExperimentId);
     }
   }
 
   const shouldDispatch = targetExperiment.channel === "email" || targetExperiment.channel === "sms";
-  const canDispatch = shouldDispatch && startedExperimentIds.length > 0;
+  const canDispatch = shouldDispatch && failedExperimentIds.length === 0;
   let dispatchFailed = false;
   if (canDispatch) {
     try {
@@ -88,4 +100,10 @@ export async function launchPromotionExperiment(
     promotionRunId: run.promotionRunId,
     startedExperimentIds
   } satisfies PromotionExperimentLaunchResult;
+}
+
+function assertRequestedSegmentScope(segmentIds: string[], requestedSegmentId: string) {
+  if (segmentIds.length !== 1 || segmentIds[0] !== requestedSegmentId) {
+    throw new Error("생성된 실험 Run의 세그먼트 범위가 요청과 일치하지 않습니다.");
+  }
 }

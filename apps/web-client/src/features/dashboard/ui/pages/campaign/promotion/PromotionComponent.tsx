@@ -153,6 +153,9 @@ export function PromotionWorkspace({
               }
               onTabChange={setWorkspaceTab}
               promotion={selectedOpenPromotion}
+              promotionExperiments={campaignDetail.data.ad_experiments.filter(
+                (experiment) => experiment.promotion_id === selectedOpenPromotion.promotion_id
+              )}
               promotionAnalysisIsPending={promotionAnalysisIsPending}
               promotionGenerationIsPending={promotionGenerationIsPending}
               rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { CountSchema, JsonObjectSchema } from "./schema-primitives.js";
 
+export const DASHBOARD_FALLBACK_SEGMENT_ID = "seg_existing_all";
+
 export const DashboardContentCandidateSchema = z.object({
   content_id: z.string(),
   content_option_id: z.string(),
@@ -96,6 +98,7 @@ export const DashboardAdExperimentSchema = z.object({
   goal_target_value: z.number().nonnegative(),
   goal_basis: z.string(),
   assignment_count: CountSchema.default(0),
+  is_fallback: z.boolean(),
   status: z.string()
 });
 export type DashboardAdExperiment = z.infer<typeof DashboardAdExperimentSchema>;
@@ -124,6 +127,7 @@ export const DashboardPromotionRunAdExperimentSchema = z.object({
   content_id: z.string(),
   content_option_id: z.string(),
   channel: z.string(),
+  is_fallback: z.boolean(),
   loop_count: CountSchema,
   status: z.string()
 });
@@ -141,6 +145,7 @@ export const DashboardCreatePromotionRunResultSchema = z.object({
   loop_count: CountSchema,
   status: z.string(),
   goal_snapshot_json: JsonObjectSchema,
+  segment_ids: z.array(z.string().min(1)).length(1),
   ad_experiments: z.array(DashboardPromotionRunAdExperimentSchema)
 });
 export type DashboardCreatePromotionRunResult = z.infer<
@@ -156,6 +161,7 @@ export const DashboardBuildPromotionRunAssignmentsResultSchema = z.object({
   exact_reranked_pair_count: CountSchema,
   assignment_count: CountSchema,
   batch_has_fallback: z.boolean(),
+  completion_scope: z.literal("current_request"),
   fallback_count: CountSchema,
   below_threshold_fallback_count: CountSchema,
   no_candidate_fallback_count: CountSchema,
@@ -163,6 +169,8 @@ export const DashboardBuildPromotionRunAssignmentsResultSchema = z.object({
   ann_underfilled_user_count: CountSchema,
   skipped_existing_count: CountSchema,
   insufficient_segment_count: CountSchema,
+  run_fallback_count: CountSchema,
+  run_has_fallback: z.boolean(),
   status: z.string()
 });
 export type DashboardBuildPromotionRunAssignmentsResult = z.infer<

@@ -447,13 +447,7 @@ export function usePromotionWorkspaceController({
       segmentId: string;
     }) =>
       launchPromotionExperiment(
-        {
-          existingExperiments:
-            campaignDetail.data?.ad_experiments.filter(
-              (experiment) => experiment.promotion_id === promotionId
-            ) ?? [],
-          segmentId
-        },
+        { segmentId },
         {
           buildAssignments: (promotionRunId) =>
             buildDashboardPromotionRunAssignments(query, promotionRunId),
@@ -471,10 +465,12 @@ export function usePromotionWorkspaceController({
               experiments: run.ad_experiments.map((experiment) => ({
                 adExperimentId: experiment.ad_experiment_id,
                 channel: experiment.channel,
+                isFallback: experiment.is_fallback,
                 segmentId: experiment.segment_id,
                 status: experiment.status
               })),
-              promotionRunId: run.promotion_run_id
+              promotionRunId: run.promotion_run_id,
+              segmentIds: run.segment_ids
             };
           },
           dispatch: dispatchDashboardPromotionRun,
