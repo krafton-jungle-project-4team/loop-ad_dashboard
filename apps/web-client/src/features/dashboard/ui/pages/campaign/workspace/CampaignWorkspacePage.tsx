@@ -177,7 +177,7 @@ export function CampaignWorkspacePage({
       await setDashboardQueryState({
         campaignView: "manage",
         createPromotion: false,
-        promotionView: "performance",
+        promotionView: "manage",
         segmentView: "manage",
         selectedAdExperimentId: "",
         selectedCampaignId,

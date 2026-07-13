@@ -119,7 +119,8 @@ export function usePromotionWorkspaceController({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
       });
       void setDashboardQueryState({
-        promotionView: "performance",
+        promotionView: "manage",
+        segmentView: "manage",
         selectedAdExperimentId: "",
         selectedCampaignId,
         selectedPromotionId: promotion.promotion_id,
