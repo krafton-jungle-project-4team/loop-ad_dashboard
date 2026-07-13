@@ -10,6 +10,16 @@ export const TrackingPlanPropertyTypeSchema = z.enum([
 ]);
 export type TrackingPlanPropertyType = z.infer<typeof TrackingPlanPropertyTypeSchema>;
 
+export const TRACKING_PLAN_MAX_SCHEMA_DEPTH = 8;
+export const TRACKING_PLAN_MAX_SCHEMA_NODES = 100;
+export const TRACKING_PLAN_RESERVED_ROOT_PROPERTIES = [
+  "page_path",
+  "page",
+  "sdk",
+  "element"
+] as const;
+export const TRACKING_PLAN_UNSAFE_PROPERTIES = ["__proto__", "prototype", "constructor"] as const;
+
 export interface TrackingPlanJsonSchema {
   type: TrackingPlanPropertyType;
   properties?: Record<string, TrackingPlanJsonSchema>;
@@ -18,17 +28,17 @@ export interface TrackingPlanJsonSchema {
 }
 
 export const SDK_TRACKING_PLAN_SCHEMA_VERSION = "tracking-plan.v1";
-const SDK_SCHEMA_MAX_DEPTH = 8;
-const SDK_SCHEMA_MAX_NODES = 100;
-const SDK_RESERVED_PROPERTY_NAMES = new Set(["page_path", "page", "sdk", "element"]);
-const SDK_DANGEROUS_PROPERTY_NAMES = new Set(["__proto__", "prototype", "constructor"]);
+const TrackingPlanPropertyNameSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value === value.trim(), "property names must not have surrounding whitespace");
 
 export const TrackingPlanJsonSchemaSchema: z.ZodType<TrackingPlanJsonSchema> = z.lazy(() =>
   z
     .object({
       type: TrackingPlanPropertyTypeSchema,
-      properties: z.record(z.string().trim().min(1), TrackingPlanJsonSchemaSchema).optional(),
-      required: z.array(z.string().trim().min(1)).optional(),
+      properties: z.record(TrackingPlanPropertyNameSchema, TrackingPlanJsonSchemaSchema).optional(),
+      required: z.array(TrackingPlanPropertyNameSchema).optional(),
       items: TrackingPlanJsonSchemaSchema.optional()
     })
     .strict()
@@ -36,7 +46,7 @@ export const TrackingPlanJsonSchemaSchema: z.ZodType<TrackingPlanJsonSchema> = z
       if (schema.type === "object") {
         const properties = schema.properties ?? {};
         for (const requiredName of schema.required ?? []) {
-          if (!(requiredName in properties)) {
+          if (!Object.prototype.hasOwnProperty.call(properties, requiredName)) {
             context.addIssue({
               code: "custom",
               message: `required property ${requiredName} is not defined`,
@@ -77,76 +87,145 @@ export const TrackingPlanJsonSchemaSchema: z.ZodType<TrackingPlanJsonSchema> = z
     })
 );
 
-export const TrackingPlanPropertiesSchemaSchema = TrackingPlanJsonSchemaSchema.refine(
+const TrackingPlanPropertiesShapeSchema = TrackingPlanJsonSchemaSchema.refine(
   (schema) => schema.type === "object",
   "event properties schema must be an object"
-).superRefine((schema, context) => validateSdkSchemaContract(schema, context));
+).superRefine((schema, context) => {
+  if (schema.type !== "object") return;
+  for (const issue of trackingPlanSchemaIssues(schema)) {
+    context.addIssue({
+      code: "custom",
+      message: issue.message,
+      path: issue.path
+    });
+  }
+});
 
-function validateSdkSchemaContract(schema: TrackingPlanJsonSchema, context: z.RefinementCtx): void {
+const TrackingPlanSchemaComplexityGuard = z.unknown().superRefine((value, context) => {
+  const pending: Array<{ value: unknown; depth: number; path: PropertyKey[] }> = [
+    { value, depth: 0, path: [] }
+  ];
+  const visited = new WeakSet<object>();
   let nodes = 0;
-  let nodeLimitReported = false;
 
-  function visit(current: TrackingPlanJsonSchema, path: PropertyKey[], depth: number): void {
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current || !isRecord(current.value)) continue;
+    if (visited.has(current.value)) {
+      context.addIssue({
+        code: "custom",
+        message: "schema must not be circular",
+        path: current.path
+      });
+      return;
+    }
+    visited.add(current.value);
     nodes += 1;
-    if (nodes > SDK_SCHEMA_MAX_NODES) {
-      if (!nodeLimitReported) {
-        context.addIssue({
-          code: "custom",
-          message: `schema exceeds ${SDK_SCHEMA_MAX_NODES} nodes`,
+    if (nodes > TRACKING_PLAN_MAX_SCHEMA_NODES) {
+      context.addIssue({
+        code: "custom",
+        message: `schema exceeds ${TRACKING_PLAN_MAX_SCHEMA_NODES} nodes`,
+        path: current.path
+      });
+      return;
+    }
+    if (current.depth > TRACKING_PLAN_MAX_SCHEMA_DEPTH) {
+      context.addIssue({
+        code: "custom",
+        message: `schema exceeds depth ${TRACKING_PLAN_MAX_SCHEMA_DEPTH}`,
+        path: current.path
+      });
+      return;
+    }
+
+    if (isRecord(current.value.properties)) {
+      for (const [name, child] of Object.entries(current.value.properties)) {
+        pending.push({
+          value: child,
+          depth: current.depth + 1,
+          path: [...current.path, "properties", name]
+        });
+      }
+    }
+    if (current.value.items !== undefined) {
+      pending.push({
+        value: current.value.items,
+        depth: current.depth + 1,
+        path: [...current.path, "items"]
+      });
+    }
+  }
+});
+
+export const TrackingPlanPropertiesSchemaSchema = TrackingPlanSchemaComplexityGuard.pipe(
+  TrackingPlanPropertiesShapeSchema
+);
+
+type TrackingPlanSchemaIssue = {
+  message: string;
+  path: PropertyKey[];
+};
+
+function trackingPlanSchemaIssues(schema: TrackingPlanJsonSchema): TrackingPlanSchemaIssue[] {
+  const issues: TrackingPlanSchemaIssue[] = [];
+  const state = { nodes: 0 };
+  const reservedRootProperties = new Set<string>(TRACKING_PLAN_RESERVED_ROOT_PROPERTIES);
+  const unsafeProperties = new Set<string>(TRACKING_PLAN_UNSAFE_PROPERTIES);
+
+  function visit(current: TrackingPlanJsonSchema, depth: number, path: PropertyKey[]) {
+    state.nodes += 1;
+    if (state.nodes > TRACKING_PLAN_MAX_SCHEMA_NODES) {
+      if (state.nodes === TRACKING_PLAN_MAX_SCHEMA_NODES + 1) {
+        issues.push({
+          message: `schema exceeds ${TRACKING_PLAN_MAX_SCHEMA_NODES} nodes`,
           path
         });
-        nodeLimitReported = true;
       }
       return;
     }
-    if (depth > SDK_SCHEMA_MAX_DEPTH) {
-      context.addIssue({
-        code: "custom",
-        message: `schema exceeds depth ${SDK_SCHEMA_MAX_DEPTH}`,
+    if (depth > TRACKING_PLAN_MAX_SCHEMA_DEPTH) {
+      issues.push({
+        message: `schema exceeds depth ${TRACKING_PLAN_MAX_SCHEMA_DEPTH}`,
         path
       });
       return;
     }
 
     if (current.type === "object") {
-      const properties = current.properties ?? {};
       const required = current.required ?? [];
       if (new Set(required).size !== required.length) {
-        context.addIssue({
-          code: "custom",
-          message: "required contains duplicates",
-          path: [...path, "required"]
-        });
+        issues.push({ message: "required contains duplicates", path: [...path, "required"] });
       }
-      for (const [name, property] of Object.entries(properties)) {
+      for (const [name, child] of Object.entries(current.properties ?? {})) {
         const propertyPath = [...path, "properties", name];
-        if (!name.trim() || name !== name.trim()) {
-          context.addIssue({
-            code: "custom",
-            message: "invalid property name",
+        if (name !== name.trim()) {
+          issues.push({
+            message: "property names must not have surrounding whitespace",
             path: propertyPath
           });
-          continue;
         }
-        if (SDK_DANGEROUS_PROPERTY_NAMES.has(name)) {
-          context.addIssue({ code: "custom", message: `${name} is unsafe`, path: propertyPath });
-          continue;
+        if (unsafeProperties.has(name)) {
+          issues.push({ message: `${name} is unsafe`, path: propertyPath });
         }
-        if (depth === 0 && SDK_RESERVED_PROPERTY_NAMES.has(name)) {
-          context.addIssue({ code: "custom", message: `${name} is reserved`, path: propertyPath });
-          continue;
+        if (depth === 0 && reservedRootProperties.has(name)) {
+          issues.push({ message: `${name} is reserved`, path: propertyPath });
         }
-        visit(property, propertyPath, depth + 1);
+        visit(child, depth + 1, propertyPath);
       }
       return;
     }
 
     if (current.type === "array" && current.items) {
-      visit(current.items, [...path, "items"], depth + 1);
+      visit(current.items, depth + 1, [...path, "items"]);
     }
   }
 
-  visit(schema, [], 0);
+  visit(schema, 0, []);
+  return issues;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export const TrackingPlanEventStatusSchema = z.enum(["draft", "system", "archived"]);

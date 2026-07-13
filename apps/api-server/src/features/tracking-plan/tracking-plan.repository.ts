@@ -21,19 +21,7 @@ import {
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import { PG_POOL } from "../../infra/database/index.js";
 
-const STANDARD_EVENT_NAMES = [
-  "page_view",
-  "promotion_impression",
-  "promotion_click",
-  "campaign_redirect_click",
-  "campaign_landing",
-  "hotel_search",
-  "hotel_click",
-  "hotel_detail_view",
-  "booking_start",
-  "booking_complete",
-  "booking_cancel"
-] as const;
+const SYSTEM_EVENT_NAMES = ["page_view"] as const;
 
 type PlanRow = QueryResultRow & {
   tracking_plan_id: string;
@@ -109,7 +97,7 @@ export class TrackingPlanRepository {
           [projectId]
         );
       }
-      for (const eventName of STANDARD_EVENT_NAMES) {
+      for (const eventName of SYSTEM_EVENT_NAMES) {
         await client.query(
           `INSERT INTO tracking_plan_events
              (tracking_plan_id, event_name, description, status, properties_schema_json)
