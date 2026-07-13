@@ -1,4 +1,13 @@
 import { Button } from "@loopad/ui/shadcn/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@loopad/ui/shadcn/card";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle
+} from "@loopad/ui/shadcn/item";
 import { ArrowRight, Code2, Megaphone, Sparkles } from "lucide-react";
 
 const welcomeMilestones = [
@@ -26,8 +35,8 @@ export function ProjectWelcomeScreen({
       aria-labelledby="project-welcome-title"
       className="grid min-h-[calc(100svh-9rem)] place-items-center py-6 md:py-10"
     >
-      <div className="w-full max-w-4xl rounded-[2rem] border border-black/10 bg-card px-6 py-8 shadow-[0_24px_70px_rgba(15,23,42,0.08),0_2px_8px_rgba(15,23,42,0.04)] sm:px-10 sm:py-12 lg:px-14">
-        <div className="mx-auto max-w-2xl text-center">
+      <Card className="w-full max-w-4xl gap-8 rounded-[2rem] py-8 shadow-[0_24px_70px_rgba(15,23,42,0.08),0_2px_8px_rgba(15,23,42,0.04)] sm:py-12">
+        <CardHeader className="mx-auto w-full max-w-2xl px-6 text-center sm:px-10 lg:px-14">
           <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <Sparkles aria-hidden="true" className="size-6" />
           </div>
@@ -42,35 +51,42 @@ export function ProjectWelcomeScreen({
             LoopAd가 처음이시라면 어디서부터 시작할지 고민하지 마세요. SDK 연동부터 첫 실험까지
             필요한 순서대로 안내해드릴게요.
           </p>
-        </div>
+        </CardHeader>
 
-        <ol className="mt-8 grid gap-3 md:grid-cols-2">
-          {welcomeMilestones.map((milestone, index) => {
-            const Icon = milestone.icon;
+        <CardContent className="px-6 sm:px-10 lg:px-14">
+          <ItemGroup className="grid gap-3 md:grid-cols-2">
+            {welcomeMilestones.map((milestone, index) => {
+              const Icon = milestone.icon;
 
-            return (
-              <li
-                className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-2xl border border-black/10 bg-background/70 p-4 text-left"
-                key={milestone.label}
-              >
-                <div className="flex size-9 items-center justify-center rounded-xl bg-white text-primary shadow-sm ring-1 ring-black/5">
-                  <Icon aria-hidden="true" className="size-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold tabular-nums text-primary">
-                    {String(index + 1).padStart(2, "0")}
-                  </p>
-                  <h2 className="mt-1 text-sm font-semibold text-foreground">{milestone.label}</h2>
-                  <p className="mt-1 text-pretty text-sm leading-6 text-muted-foreground">
-                    {milestone.description}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+              return (
+                <Item
+                  className="min-w-0 flex-nowrap items-start rounded-2xl bg-background/70 p-4 text-left"
+                  key={milestone.label}
+                  role="listitem"
+                  variant="outline"
+                >
+                  <ItemMedia
+                    className="size-9 rounded-xl bg-white text-primary shadow-sm ring-1 ring-black/5"
+                    variant="icon"
+                  >
+                    <Icon aria-hidden="true" />
+                  </ItemMedia>
+                  <ItemContent className="min-w-0">
+                    <p className="text-xs font-semibold tabular-nums text-primary">
+                      {String(index + 1).padStart(2, "0")}
+                    </p>
+                    <ItemTitle className="mt-1">{milestone.label}</ItemTitle>
+                    <ItemDescription className="mt-1 text-pretty leading-6">
+                      {milestone.description}
+                    </ItemDescription>
+                  </ItemContent>
+                </Item>
+              );
+            })}
+          </ItemGroup>
+        </CardContent>
 
-        <div className="mt-8 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+        <CardFooter className="flex flex-col items-stretch justify-center gap-2 border-0 bg-transparent px-6 pt-0 pb-8 sm:flex-row sm:items-center sm:px-10 sm:pb-10 lg:px-14">
           <Button className="h-11 px-5" onClick={onStart} type="button">
             시작 가이드 보기
             <ArrowRight aria-hidden="true" data-icon="inline-end" />
@@ -78,8 +94,8 @@ export function ProjectWelcomeScreen({
           <Button className="h-11 px-5" onClick={onSkip} type="button" variant="outline">
             건너뛰고 바로 시작
           </Button>
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
     </section>
   );
 }

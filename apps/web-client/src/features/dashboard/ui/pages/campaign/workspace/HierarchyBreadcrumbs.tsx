@@ -6,6 +6,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from "@loopad/ui/shadcn/breadcrumb";
+import { Button } from "@loopad/ui/shadcn/button";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Fragment } from "react";
 import type { CampaignWorkspaceHierarchyItem } from "./campaign-workspace-types.js";
@@ -35,13 +36,15 @@ export function HierarchyBreadcrumbs({
             <BreadcrumbPage>{rootLabel}</BreadcrumbPage>
           ) : onRootSelect ? (
             <BreadcrumbLink asChild>
-              <button
-                className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              <Button
+                className="h-auto p-0 text-muted-foreground"
                 onClick={onRootSelect}
+                size="sm"
                 type="button"
+                variant="link"
               >
                 {rootLabel}
-              </button>
+              </Button>
             </BreadcrumbLink>
           ) : (
             <span>{rootLabel}</span>
@@ -62,13 +65,15 @@ export function HierarchyBreadcrumbs({
                   </BreadcrumbPage>
                 ) : canSelect ? (
                   <BreadcrumbLink asChild>
-                    <button
-                      className="max-w-48 truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    <Button
+                      className="h-auto max-w-48 truncate p-0 text-muted-foreground"
                       onClick={() => onItemSelect(item, index)}
+                      size="sm"
                       type="button"
+                      variant="link"
                     >
                       {item.label}
-                    </button>
+                    </Button>
                   </BreadcrumbLink>
                 ) : (
                   <span className="block max-w-48 truncate">{item.label}</span>

@@ -1,4 +1,4 @@
-import { cn } from "@loopad/ui/shadcn/utils";
+import { Tabs, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -19,29 +19,21 @@ export function WorkspaceViewTabs<Value extends string>({
   value: Value;
 }) {
   return (
-    <nav aria-label={ariaLabel} className="min-w-0 overflow-x-auto border-b">
-      <div className="flex min-w-max items-center gap-1">
-        {items.map((item) => {
-          const isActive = item.value === value;
-
-          return (
+    <Tabs className="min-w-0 overflow-x-auto border-b" value={value}>
+      <TabsList aria-label={ariaLabel} className="min-w-max" variant="line">
+        {items.map((item) => (
+          <TabsTrigger asChild key={item.value} value={item.value}>
             <Link
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "relative inline-flex h-11 items-center justify-center px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isActive &&
-                  "text-primary after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary"
-              )}
-              key={item.value}
+              aria-current={item.value === value ? "page" : undefined}
               search={(current) => ({ ...current, [queryKey]: item.value })}
               to="."
             >
               {item.label}
             </Link>
-          );
-        })}
-      </div>
-    </nav>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }
 

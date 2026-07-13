@@ -12,6 +12,7 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from "@loopad/ui/shadcn/chart";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@loopad/ui/shadcn/collapsible";
 import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
 import {
   Table,
@@ -125,102 +126,105 @@ export function ScopedFunnelAnalysisPanel({
   }
 
   return (
-    <section className="overflow-hidden rounded-md border bg-white">
-      <button
-        aria-expanded={isOpen}
-        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/40"
-        onClick={() => setIsOpen((current) => !current)}
-        type="button"
-      >
-        <div className="min-w-0">
-          <span className="text-base font-semibold text-foreground">{title}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-sm text-muted-foreground">{isOpen ? "닫기" : "열기"}</span>
-          <ChevronDown
-            className={`size-4 text-muted-foreground transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
-          />
-        </div>
-      </button>
-
-      {isOpen ? (
-        <div className="grid gap-4 border-t p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="grid gap-1">
-              <div className="text-sm font-medium text-foreground">비교 사용자 경로</div>
-            </div>
-            {funnels.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {selectedFunnelIds.map((funnelId, index) => (
-                  <div className="flex items-center gap-1" key={`${index}-${funnelId}`}>
-                    <NativeSelect
-                      aria-label={`비교 사용자 경로 ${index + 1}`}
-                      className="w-[220px]"
-                      onChange={(event) => updateFunnelSlot(index, event.target.value)}
-                      size="sm"
-                      value={funnelId}
-                    >
-                      {funnels.map((funnel) => (
-                        <NativeSelectOption
-                          disabled={
-                            selectedFunnelIds.includes(funnel.funnel_id) &&
-                            funnel.funnel_id !== funnelId
-                          }
-                          key={funnel.funnel_id}
-                          value={funnel.funnel_id}
-                        >
-                          {funnel.funnel_name}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                    {selectedFunnelIds.length > 1 ? (
-                      <Button
-                        aria-label="비교 사용자 경로 제거"
-                        onClick={() => removeFunnelSlot(index)}
-                        size="icon"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <X className="size-4" />
-                      </Button>
-                    ) : null}
-                  </div>
-                ))}
-                <Button
-                  disabled={!canAddFunnel}
-                  onClick={addFunnelSlot}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <Plus data-icon="inline-start" />
-                  추가
-                </Button>
-              </div>
-            ) : null}
+    <Collapsible
+      className="overflow-hidden rounded-md border bg-white"
+      onOpenChange={setIsOpen}
+      open={isOpen}
+    >
+      <CollapsibleTrigger asChild>
+        <Button
+          className="h-auto w-full justify-between rounded-none px-4 py-3 text-left"
+          type="button"
+          variant="ghost"
+        >
+          <div className="min-w-0">
+            <span className="text-base font-semibold text-foreground">{title}</span>
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="text-sm text-muted-foreground">{isOpen ? "닫기" : "열기"}</span>
+            <ChevronDown
+              aria-hidden="true"
+              className={isOpen ? "rotate-180 transition-transform" : "transition-transform"}
+              data-icon="inline-end"
+            />
+          </div>
+        </Button>
+      </CollapsibleTrigger>
 
-          {isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>사용자 경로 목록을 불러오지 못했습니다</AlertTitle>
-              <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
-            </Alert>
-          ) : null}
-          {isLoading ? <EmptyState message="사용자 경로 목록을 불러오는 중입니다." /> : null}
-          {!isLoading && funnels.length === 0 ? (
-            <EmptyState message="등록된 사용자 경로가 없습니다." />
-          ) : null}
-
-          {selectedFunnels.length > 0 ? (
-            <ScopedFunnelComparisonPanel funnels={selectedFunnels} query={query} scope={scope} />
-          ) : !isLoading && funnels.length > 0 ? (
-            <EmptyState message="표시할 사용자 경로를 선택해주세요." />
+      <CollapsibleContent className="grid gap-4 border-t p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="grid gap-1">
+            <div className="text-sm font-medium text-foreground">비교 사용자 경로</div>
+          </div>
+          {funnels.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedFunnelIds.map((funnelId, index) => (
+                <div className="flex items-center gap-1" key={`${index}-${funnelId}`}>
+                  <NativeSelect
+                    aria-label={`비교 사용자 경로 ${index + 1}`}
+                    className="w-[220px]"
+                    onChange={(event) => updateFunnelSlot(index, event.target.value)}
+                    size="sm"
+                    value={funnelId}
+                  >
+                    {funnels.map((funnel) => (
+                      <NativeSelectOption
+                        disabled={
+                          selectedFunnelIds.includes(funnel.funnel_id) &&
+                          funnel.funnel_id !== funnelId
+                        }
+                        key={funnel.funnel_id}
+                        value={funnel.funnel_id}
+                      >
+                        {funnel.funnel_name}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  {selectedFunnelIds.length > 1 ? (
+                    <Button
+                      aria-label="비교 사용자 경로 제거"
+                      onClick={() => removeFunnelSlot(index)}
+                      size="icon"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+              <Button
+                disabled={!canAddFunnel}
+                onClick={addFunnelSlot}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Plus data-icon="inline-start" />
+                추가
+              </Button>
+            </div>
           ) : null}
         </div>
-      ) : null}
-    </section>
+
+        {isError ? (
+          <Alert variant="destructive">
+            <AlertTitle>사용자 경로 목록을 불러오지 못했습니다</AlertTitle>
+            <AlertDescription>{error?.message ?? "API 요청에 실패했습니다."}</AlertDescription>
+          </Alert>
+        ) : null}
+        {isLoading ? <EmptyState message="사용자 경로 목록을 불러오는 중입니다." /> : null}
+        {!isLoading && funnels.length === 0 ? (
+          <EmptyState message="등록된 사용자 경로가 없습니다." />
+        ) : null}
+
+        {selectedFunnels.length > 0 ? (
+          <ScopedFunnelComparisonPanel funnels={selectedFunnels} query={query} scope={scope} />
+        ) : !isLoading && funnels.length > 0 ? (
+          <EmptyState message="표시할 사용자 경로를 선택해주세요." />
+        ) : null}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

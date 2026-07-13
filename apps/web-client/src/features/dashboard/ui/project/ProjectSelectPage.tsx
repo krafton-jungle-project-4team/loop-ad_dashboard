@@ -1,6 +1,8 @@
 import type { DashboardProject } from "@loopad/shared";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Avatar, AvatarFallback } from "@loopad/ui/shadcn/avatar";
 import { Badge } from "@loopad/ui/shadcn/badge";
+import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent } from "@loopad/ui/shadcn/card";
 import { Skeleton } from "@loopad/ui/shadcn/skeleton";
 import { cn } from "@loopad/ui/shadcn/utils";
@@ -53,9 +55,10 @@ export function ProjectSelectPage() {
           <div className="grid w-full max-w-5xl grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {projectsQuery.isLoading ? <ProjectCardSkeletons /> : null}
             {projectsQuery.isError ? (
-              <div className="col-span-full rounded-lg border border-destructive/30 bg-white p-4 text-sm text-destructive">
-                프로젝트 목록을 불러오지 못했습니다.
-              </div>
+              <Alert className="col-span-full text-left" variant="destructive">
+                <AlertTitle>프로젝트 목록을 불러오지 못했습니다</AlertTitle>
+                <AlertDescription>서버 연결을 확인한 뒤 다시 시도해주세요.</AlertDescription>
+              </Alert>
             ) : null}
             {!projectsQuery.isLoading
               ? projects.map((project, index) => (
@@ -64,15 +67,16 @@ export function ProjectSelectPage() {
               : null}
             <ProjectManagementDialog
               trigger={
-                <button
+                <Button
                   aria-label="새 프로젝트 만들기"
-                  className="group flex min-h-44 items-center justify-center rounded-[18px] border border-dashed border-black/20 bg-white/70 p-4 text-center transition-colors hover:border-primary/50 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="group min-h-44 rounded-[18px] border-dashed border-black/20 bg-white/70 p-4 hover:border-primary/50 hover:bg-white"
                   type="button"
+                  variant="outline"
                 >
                   <span className="flex size-20 items-center justify-center rounded-lg bg-black/5 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-primary">
                     <Plus size={34} />
                   </span>
-                </button>
+                </Button>
               }
             />
           </div>

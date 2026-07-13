@@ -3,7 +3,16 @@ import type {
   DashboardMain,
   DashboardRealtimeMetrics
 } from "@loopad/shared";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis
+} from "@loopad/ui/charts";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
@@ -180,17 +189,19 @@ function MainSummaryCard({
   value: string;
 }) {
   return (
-    <div
+    <Card
       className={
         accent
-          ? "grid min-h-[112px] gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] p-4"
-          : "grid min-h-[112px] gap-2 rounded-lg border bg-muted/50 p-4"
+          ? "min-h-[112px] border-primary/25 bg-primary/[0.06] py-4"
+          : "min-h-[112px] bg-muted/50 py-4"
       }
     >
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-xl font-semibold tracking-tight text-foreground">{value}</span>
-      <span className="text-xs leading-5 text-muted-foreground">{note}</span>
-    </div>
+      <CardContent className="grid gap-2">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-xl font-semibold tracking-tight text-foreground">{value}</span>
+        <span className="text-xs leading-5 text-muted-foreground">{note}</span>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -328,62 +339,68 @@ function MainRealtimeActivityCard({
   trendData: AnalyticsTrendDatum[];
 }) {
   const recentBars = trendData.slice(-24);
-  const maxEventCount = Math.max(...recentBars.map((item) => item.event_count), 1);
   const topCluster = metrics.hotel_cluster_breakdown[0];
 
   return (
-    <div className="grid min-h-[260px] content-between self-start rounded-lg border bg-background p-4">
-      <div className="grid gap-3">
-        <div className="flex items-start justify-between gap-3">
+    <Card className="min-h-[260px] self-start">
+      <CardContent className="grid h-full content-between gap-6">
+        <div className="grid gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <div className="text-sm font-medium text-muted-foreground">최근 5분 이벤트</div>
+              <div className="text-4xl font-semibold tabular-nums text-foreground">
+                {formatInteger(metrics.recent_5m_event_count)}
+              </div>
+            </div>
+            <Badge className="border-[#188038] text-[#188038]" variant="outline">
+              정상 수집
+            </Badge>
+          </div>
           <div className="grid gap-1">
-            <div className="text-sm font-medium text-muted-foreground">최근 5분 이벤트</div>
-            <div className="text-4xl font-semibold tabular-nums text-foreground">
-              {formatInteger(metrics.recent_5m_event_count)}
+            <div className="text-sm text-muted-foreground">최근 1시간 이벤트</div>
+            <div className="text-xl font-semibold tabular-nums">
+              {formatInteger(metrics.recent_1h_event_count)}
             </div>
           </div>
-          <Badge className="border-[#188038] text-[#188038]" variant="outline">
-            정상 수집
-          </Badge>
-        </div>
-        <div className="grid gap-1">
-          <div className="text-sm text-muted-foreground">최근 1시간 이벤트</div>
-          <div className="text-xl font-semibold tabular-nums">
-            {formatInteger(metrics.recent_1h_event_count)}
+          <div className="h-16">
+            {recentBars.length > 0 ? (
+              <ChartContainer
+                className="h-full w-full"
+                config={{ event_count: { color: "var(--primary)", label: "이벤트" } }}
+              >
+                <BarChart accessibilityLayer data={recentBars}>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="event_count"
+                    fill="var(--color-event_count)"
+                    radius={[2, 2, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="grid h-full flex-1 place-items-center text-sm text-muted-foreground">
+                최근 수집 구간 없음
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex h-16 items-end gap-1.5">
-          {recentBars.length > 0 ? (
-            recentBars.map((item) => (
-              <div
-                className="min-h-1 flex-1 rounded-t-sm bg-primary"
-                key={item.time_bucket}
-                style={{ height: `${Math.max((item.event_count / maxEventCount) * 100, 6)}%` }}
-                title={`${item.label}: ${formatInteger(item.event_count)}`}
-              />
-            ))
-          ) : (
-            <div className="grid h-full flex-1 place-items-center text-sm text-muted-foreground">
-              최근 수집 구간 없음
-            </div>
-          )}
+        <div className="grid gap-3">
+          <MainMetricLine label="피크 시간" value={metrics.peak_time ?? "-"} />
+          <MainMetricLine
+            label="상위 숙소군"
+            value={
+              topCluster
+                ? `${formatHotelClusterLabel(topCluster.key)} ${formatInteger(topCluster.event_count)}`
+                : "-"
+            }
+          />
+          <MainMetricLine
+            label="배너 클릭률"
+            value={formatPercentValue(metrics.banner_response.promotion_click_rate)}
+          />
         </div>
-      </div>
-      <div className="grid gap-3">
-        <MainMetricLine label="피크 시간" value={metrics.peak_time ?? "-"} />
-        <MainMetricLine
-          label="상위 숙소군"
-          value={
-            topCluster
-              ? `${formatHotelClusterLabel(topCluster.key)} ${formatInteger(topCluster.event_count)}`
-              : "-"
-          }
-        />
-        <MainMetricLine
-          label="배너 클릭률"
-          value={formatPercentValue(metrics.banner_response.promotion_click_rate)}
-        />
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -397,39 +414,50 @@ function MainAnalyticsRankCard({
   title: string;
 }) {
   const visibleItems = [...items].sort((a, b) => b.value - a.value).slice(0, 7);
-  const maxValue = Math.max(...visibleItems.map((item) => item.value), 1);
-
   return (
-    <div className="grid content-start gap-3 rounded-lg border bg-background p-4">
-      <div className="flex items-center justify-between gap-3">
+    <Card>
+      <CardHeader className="flex-row items-center justify-between gap-3">
         <h4 className="text-base font-semibold text-foreground">{title}</h4>
         <span className="text-xs text-muted-foreground">수집 기준</span>
-      </div>
-      {visibleItems.length > 0 ? (
-        <div className="grid gap-2.5">
-          {visibleItems.map((item) => (
-            <div className="grid gap-1.5" key={item.key}>
-              <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <div className="truncate font-medium text-foreground/85">{item.label}</div>
-                </div>
-                <div className="shrink-0 tabular-nums text-foreground/85">
-                  {formatInteger(item.value)}
-                </div>
-              </div>
-              <div className="h-1 bg-muted">
-                <div
-                  className="h-full bg-primary"
-                  style={{ width: `${Math.max((item.value / maxValue) * 100, 4)}%` }}
+      </CardHeader>
+      <CardContent>
+        {visibleItems.length > 0 ? (
+          <ChartContainer
+            className="w-full"
+            config={{ value: { color: "var(--primary)", label: title } }}
+            style={{ height: `${Math.max(visibleItems.length * 34, 80)}px` }}
+          >
+            <BarChart
+              accessibilityLayer
+              data={visibleItems}
+              layout="vertical"
+              margin={{ right: 34 }}
+            >
+              <XAxis dataKey="value" hide type="number" />
+              <YAxis
+                axisLine={false}
+                dataKey="label"
+                tickLine={false}
+                tickMargin={8}
+                type="category"
+                width={88}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="value" fill="var(--color-value)" radius={3}>
+                <LabelList
+                  className="fill-foreground text-xs tabular-nums"
+                  dataKey="value"
+                  formatter={(value) => formatInteger(Number(value ?? 0))}
+                  position="right"
                 />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground">{emptyMessage}</div>
-      )}
-    </div>
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        ) : (
+          <div className="text-sm text-muted-foreground">{emptyMessage}</div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
