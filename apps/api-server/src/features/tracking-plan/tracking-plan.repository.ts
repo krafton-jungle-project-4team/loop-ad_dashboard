@@ -13,7 +13,11 @@ import type {
   TrackingPlanEventInput,
   TrackingPlanEventUpdate
 } from "@loopad/shared";
-import { SdkPublishedSchemaSchema, TrackingPlanPropertiesSchemaSchema } from "@loopad/shared";
+import {
+  SDK_TRACKING_PLAN_SCHEMA_VERSION,
+  SdkPublishedSchemaSchema,
+  TrackingPlanPropertiesSchemaSchema
+} from "@loopad/shared";
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import { PG_POOL } from "../../infra/database/index.js";
 
@@ -224,7 +228,7 @@ export class TrackingPlanRepository {
 
       const revision = Number(plan.current_revision) + 1;
       const snapshot = SdkPublishedSchemaSchema.parse({
-        schemaVersion: "hotel_rec_promo.v1",
+        schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
         revision,
         events: events.map(({ status: _status, ...event }) => event)
       });

@@ -11,6 +11,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loop
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  eventSdkInitCode,
+  eventSdkInstallCode,
+  eventSdkTrackCode
+} from "../../../model/sdk-guide.js";
+import {
   addTrackingPlanEvent,
   createTrackingPlan,
   deleteTrackingPlanEvent,
@@ -431,32 +436,8 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
   const selectedEvent =
     plan.events.find((event) => event.eventName === selectedEventName) ?? plan.events[0] ?? null;
   const connectionUrl = `https://dashboard.api.dev.loop-ad.org/api/public/v1/sdk/connections/${plan.sdkKey}`;
-  const installCode = `# .npmrc
-@krafton-jungle-project-4team:registry=https://npm.pkg.github.com
-
-npm install @krafton-jungle-project-4team/loop-ad_event_sdk`;
-  const initCode = `// src/lib/loop-ad-events.ts
-import {
-  init,
-  type LoopAdEventSdkClient
-} from "@krafton-jungle-project-4team/loop-ad_event_sdk";
-
-let clientPromise: Promise<LoopAdEventSdkClient> | null = null;
-
-export function startLoopAdCollection(identity: {
-  userId: string;
-  sessionId: string;
-}) {
-  clientPromise ??= init({
-    connectionUrl: "${connectionUrl}",
-    debug: import.meta.env.DEV
-  });
-
-  return clientPromise.then((client) => {
-    client.setIdentity(identity);
-    return client;
-  });
-}`;
+  const installCode = eventSdkInstallCode();
+  const initCode = eventSdkInitCode(connectionUrl);
 
   return (
     <article className="grid gap-5">
@@ -500,15 +481,27 @@ export function startLoopAdCollection(identity: {
       </div>
 
       <GuideSection
-        description="connection fetch가 실패하면 init도 실패합니다. 앱 초기화 단계에서 오류를 처리하세요."
+        description="앱 시작 시 Connection과 스키마를 로드합니다. 로그인 전에는 identity 없음 상태로 DevTools를 사용할 수 있습니다."
         title="3. Tracking Plan 연결"
       >
         <GuideCode code={initCode} />
       </GuideSection>
 
       <GuideSection
+        description="개발 빌드에서 우측 하단 LoopAd 버튼으로 SDK 상태를 확인합니다."
+        title="4. SDK DevTools"
+      >
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <DebugFeature label="개요" value="연결 · identity · 버전" />
+          <DebugFeature label="스키마" value="필드 · 타입 · 필수값" />
+          <DebugFeature label="검증" value="차단 사유 · 수정 항목" />
+          <DebugFeature label="요청" value="상태 · HTTP · 크기" />
+        </div>
+      </GuideSection>
+
+      <GuideSection
         description="이벤트를 선택하면 현재 규약의 속성과 전송 예제가 함께 바뀝니다. 규약에 없는 이벤트나 타입이 맞지 않는 값은 전송되지 않습니다."
-        title="4. 규약에 맞춰 이벤트 전송"
+        title="5. 규약에 맞춰 이벤트 전송"
       >
         {selectedEvent ? (
           <div className="grid gap-4">
@@ -530,13 +523,22 @@ export function startLoopAdCollection(identity: {
               {selectedEvent.description || "등록된 설명이 없습니다."}
             </p>
             <PropertyContract event={selectedEvent} />
-            <GuideCode code={trackCode(selectedEvent)} />
+            <GuideCode code={eventSdkTrackCode(selectedEvent)} />
           </div>
         ) : (
           <p className="text-sm text-destructive">Tracking Plan에 등록된 이벤트가 없습니다.</p>
         )}
       </GuideSection>
     </article>
+  );
+}
+
+function DebugFeature({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1 rounded-md border p-3">
+      <strong className="text-sm">{label}</strong>
+      <span className="text-xs text-muted-foreground">{value}</span>
+    </div>
   );
 }
 
@@ -588,41 +590,6 @@ function PropertyContract({ event }: { event: TrackingPlanEvent }) {
       ))}
     </div>
   );
-}
-
-function trackCode(event: TrackingPlanEvent) {
-  const properties = Object.fromEntries(
-    Object.entries(event.propertiesSchema.properties ?? {}).map(([name, schema]) => [
-      name,
-      exampleValue(name, schema)
-    ])
-  );
-  if (Object.keys(properties).length === 0) {
-    return `const client = await startLoopAdCollection({\n  userId: user.id,\n  sessionId: session.id\n});\nclient.track("${event.eventName}");`;
-  }
-  return `const client = await startLoopAdCollection({\n  userId: user.id,\n  sessionId: session.id\n});\nclient.track("${event.eventName}", {\n  properties: ${JSON.stringify(properties, null, 2).replace(/\n/g, "\n  ")}\n});`;
-}
-
-function exampleValue(name: string, schema: TrackingPlanJsonSchema): unknown {
-  switch (schema.type) {
-    case "string":
-      return `${name}_value`;
-    case "number":
-      return 1.5;
-    case "integer":
-      return 1;
-    case "boolean":
-      return true;
-    case "array":
-      return [schema.items ? exampleValue(`${name}_item`, schema.items) : "value"];
-    case "object":
-      return Object.fromEntries(
-        Object.entries(schema.properties ?? {}).map(([childName, childSchema]) => [
-          childName,
-          exampleValue(childName, childSchema)
-        ])
-      );
-  }
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

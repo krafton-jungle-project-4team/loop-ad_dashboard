@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import {
+  SDK_TRACKING_PLAN_SCHEMA_VERSION,
+  TrackingPlanPropertiesSchemaSchema
+} from "@loopad/shared";
 import type { Pool } from "pg";
 import type { TrackingPlanRepository } from "../src/features/tracking-plan/tracking-plan.repository.js";
 
@@ -27,6 +31,8 @@ test("publish inserts the immutable revision and switches the active revision in
   assert.ok(revisionInsert < activeSwitch);
   assert.ok(activeSwitch < commit);
   assert.equal(database.queries.includes("ROLLBACK"), false);
+  assert.equal(database.publishedSnapshots.length, 1);
+  assert.equal(database.publishedSnapshots[0]?.schemaVersion, SDK_TRACKING_PLAN_SCHEMA_VERSION);
 });
 
 test("publish rolls back when the active revision switch fails", async () => {
@@ -49,7 +55,7 @@ test("public connection requires an exact allowed Origin", async () => {
       writeKey: "sdk-key",
       allowedOrigins: ["https://demo-shoppingmall.dev.loop-ad.org"],
       schema: {
-        schemaVersion: "hotel_rec_promo.v1",
+        schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
         revision: 1,
         events: []
       }
@@ -68,6 +74,48 @@ test("public connection requires an exact allowed Origin", async () => {
   );
   assert.equal(connection.collectorUrl, "https://event.api.dev.loop-ad.org/events");
   assert.equal(connection.revision, 1);
+});
+
+test("tracking plan property schemas reject contracts that the SDK cannot load", () => {
+  const invalidSchemas = [
+    {
+      type: "object",
+      properties: { page: { type: "string" } },
+      required: []
+    },
+    JSON.parse(
+      '{"type":"object","properties":{"safe":{"type":"object","properties":{"constructor":{"type":"string"}}}}}'
+    ),
+    nestedObjectSchema(9),
+    {
+      type: "object",
+      properties: Object.fromEntries(
+        Array.from({ length: 100 }, (_, index) => [`field_${index}`, { type: "string" }])
+      )
+    },
+    {
+      type: "object",
+      properties: { order_id: { type: "string" } },
+      required: ["order_id", "order_id"]
+    }
+  ];
+
+  for (const schema of invalidSchemas) {
+    assert.equal(TrackingPlanPropertiesSchemaSchema.safeParse(schema).success, false);
+  }
+
+  assert.equal(
+    TrackingPlanPropertiesSchemaSchema.safeParse({
+      type: "object",
+      properties: {
+        metadata: {
+          type: "object",
+          properties: { page: { type: "string" } }
+        }
+      }
+    }).success,
+    true
+  );
 });
 
 test("tracking plan creation forwards the requested allowed Origins", async () => {
@@ -96,9 +144,10 @@ test("tracking plan creation forwards the requested allowed Origins", async () =
 
 function fakePublishDatabase(failSettingsUpdate = false) {
   const queries: string[] = [];
+  const publishedSnapshots: Array<{ schemaVersion?: unknown }> = [];
   let revision = 0;
   const client = {
-    async query(sql: string) {
+    async query(sql: string, parameters?: unknown[]) {
       const normalized = sql.replace(/\s+/g, " ").trim();
       queries.push(normalized);
       if (normalized === "BEGIN" || normalized === "COMMIT" || normalized === "ROLLBACK") {
@@ -113,7 +162,10 @@ function fakePublishDatabase(failSettingsUpdate = false) {
         revision = 1;
         return { rows: [] };
       }
-      if (normalized.includes("INSERT INTO tracking_plan_revisions")) return { rows: [] };
+      if (normalized.includes("INSERT INTO tracking_plan_revisions")) {
+        publishedSnapshots.push(JSON.parse(String(parameters?.[2])));
+        return { rows: [] };
+      }
       if (normalized.startsWith("SELECT event_name")) {
         return {
           rows: [
@@ -148,7 +200,16 @@ function fakePublishDatabase(failSettingsUpdate = false) {
   };
   return {
     queries,
+    publishedSnapshots,
     pool: { connect: async () => client } as unknown as Pool
+  };
+}
+
+function nestedObjectSchema(depth: number): unknown {
+  if (depth === 0) return { type: "string" };
+  return {
+    type: "object",
+    properties: { child: nestedObjectSchema(depth - 1) }
   };
 }
 

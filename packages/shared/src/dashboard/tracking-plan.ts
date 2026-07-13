@@ -17,6 +17,12 @@ export interface TrackingPlanJsonSchema {
   items?: TrackingPlanJsonSchema;
 }
 
+export const SDK_TRACKING_PLAN_SCHEMA_VERSION = "tracking-plan.v1";
+const SDK_SCHEMA_MAX_DEPTH = 8;
+const SDK_SCHEMA_MAX_NODES = 100;
+const SDK_RESERVED_PROPERTY_NAMES = new Set(["page_path", "page", "sdk", "element"]);
+const SDK_DANGEROUS_PROPERTY_NAMES = new Set(["__proto__", "prototype", "constructor"]);
+
 export const TrackingPlanJsonSchemaSchema: z.ZodType<TrackingPlanJsonSchema> = z.lazy(() =>
   z
     .object({
@@ -74,7 +80,74 @@ export const TrackingPlanJsonSchemaSchema: z.ZodType<TrackingPlanJsonSchema> = z
 export const TrackingPlanPropertiesSchemaSchema = TrackingPlanJsonSchemaSchema.refine(
   (schema) => schema.type === "object",
   "event properties schema must be an object"
-);
+).superRefine((schema, context) => validateSdkSchemaContract(schema, context));
+
+function validateSdkSchemaContract(schema: TrackingPlanJsonSchema, context: z.RefinementCtx): void {
+  let nodes = 0;
+  let nodeLimitReported = false;
+
+  function visit(current: TrackingPlanJsonSchema, path: PropertyKey[], depth: number): void {
+    nodes += 1;
+    if (nodes > SDK_SCHEMA_MAX_NODES) {
+      if (!nodeLimitReported) {
+        context.addIssue({
+          code: "custom",
+          message: `schema exceeds ${SDK_SCHEMA_MAX_NODES} nodes`,
+          path
+        });
+        nodeLimitReported = true;
+      }
+      return;
+    }
+    if (depth > SDK_SCHEMA_MAX_DEPTH) {
+      context.addIssue({
+        code: "custom",
+        message: `schema exceeds depth ${SDK_SCHEMA_MAX_DEPTH}`,
+        path
+      });
+      return;
+    }
+
+    if (current.type === "object") {
+      const properties = current.properties ?? {};
+      const required = current.required ?? [];
+      if (new Set(required).size !== required.length) {
+        context.addIssue({
+          code: "custom",
+          message: "required contains duplicates",
+          path: [...path, "required"]
+        });
+      }
+      for (const [name, property] of Object.entries(properties)) {
+        const propertyPath = [...path, "properties", name];
+        if (!name.trim() || name !== name.trim()) {
+          context.addIssue({
+            code: "custom",
+            message: "invalid property name",
+            path: propertyPath
+          });
+          continue;
+        }
+        if (SDK_DANGEROUS_PROPERTY_NAMES.has(name)) {
+          context.addIssue({ code: "custom", message: `${name} is unsafe`, path: propertyPath });
+          continue;
+        }
+        if (depth === 0 && SDK_RESERVED_PROPERTY_NAMES.has(name)) {
+          context.addIssue({ code: "custom", message: `${name} is reserved`, path: propertyPath });
+          continue;
+        }
+        visit(property, propertyPath, depth + 1);
+      }
+      return;
+    }
+
+    if (current.type === "array" && current.items) {
+      visit(current.items, [...path, "items"], depth + 1);
+    }
+  }
+
+  visit(schema, [], 0);
+}
 
 export const TrackingPlanEventStatusSchema = z.enum(["draft", "system", "archived"]);
 
@@ -143,7 +216,7 @@ export const SdkPublishedEventSchema = TrackingPlanEventSchema.omit({ status: tr
 export type SdkPublishedEvent = z.infer<typeof SdkPublishedEventSchema>;
 
 export const SdkPublishedSchemaSchema = z.object({
-  schemaVersion: z.string(),
+  schemaVersion: z.literal(SDK_TRACKING_PLAN_SCHEMA_VERSION),
   revision: z.number().int().positive(),
   events: z.array(SdkPublishedEventSchema)
 });
