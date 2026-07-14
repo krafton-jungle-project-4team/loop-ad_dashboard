@@ -424,18 +424,19 @@ function ProjectExperimentTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border">
-      <Table className="min-w-[1080px]">
+      <Table className="min-w-[1280px]">
         <TableHeader>
           <TableRow>
-            <TableHead>캠페인 / 프로모션</TableHead>
+            <TableHead>캠페인</TableHead>
+            <TableHead>프로모션</TableHead>
+            <TableHead>실행 상태</TableHead>
             <TableHead>세그먼트</TableHead>
             <TableHead>노출 방식</TableHead>
             <TableHead className="text-right">배정</TableHead>
             <TableHead className="text-right">현황 / 목표</TableHead>
-            <TableHead>실행 상태</TableHead>
             <TableHead>평가</TableHead>
             <TableHead>업데이트</TableHead>
-            <TableHead className="w-44 pl-7">상세</TableHead>
+            <TableHead className="w-40 pl-7">상세</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -445,13 +446,12 @@ function ProjectExperimentTable({
 
             return (
               <TableRow aria-selected={isSelected} key={experiment.ad_experiment_id}>
+                <TableCell className="min-w-40 font-medium">{experiment.campaign_name}</TableCell>
+                <TableCell className="min-w-40">{experiment.promotion_name}</TableCell>
                 <TableCell>
-                  <div className="grid min-w-52 gap-0.5">
-                    <span className="font-medium">{experiment.campaign_name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {experiment.promotion_name}
-                    </span>
-                  </div>
+                  <Badge variant={statusBadgeVariant(experiment.status)}>
+                    {formatStatusLabel(experiment.status)}
+                  </Badge>
                 </TableCell>
                 <TableCell>{experiment.segment_name}</TableCell>
                 <TableCell>{formatChannelLabel(experiment.channel)}</TableCell>
@@ -467,11 +467,6 @@ function ProjectExperimentTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusBadgeVariant(experiment.status)}>
-                    {formatStatusLabel(experiment.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
                   <div className="flex flex-wrap gap-1.5">
                     <Badge variant={statusBadgeVariant(evaluation?.status ?? "not_evaluated")}>
                       {formatStatusLabel(evaluation?.status ?? "not_evaluated")}
@@ -482,18 +477,18 @@ function ProjectExperimentTable({
                   </div>
                 </TableCell>
                 <TableCell>{formatDateTime(experiment.updated_at)}</TableCell>
-                <TableCell className="w-44">
+                <TableCell className="w-40">
                   <Button
                     aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
                     aria-expanded={isSelected}
-                    className="h-9 min-w-36 justify-between px-4"
+                    className="h-9 min-w-32 justify-between px-4"
                     onClick={() => onSelect(experiment)}
                     size="sm"
                     type="button"
                     variant="soft"
                   >
                     <span className="font-medium">
-                      {formatInteger(experiment.loop_count)}번째 실험 보기
+                      {formatInteger(experiment.loop_count)}번째 실험
                     </span>
                     <ChevronRight aria-hidden="true" data-icon="inline-end" />
                   </Button>
