@@ -19,7 +19,12 @@ import {
   type PromotionRunEntity,
   type StoredDispatchJobEntity
 } from "../domain/index.js";
-import { AdExecutionReader, AdExecutionWriter, RecipientDirectory } from "../repository/index.js";
+import {
+  AdExecutionReader,
+  AdExecutionWriter,
+  type DispatchRecipient,
+  RecipientDirectory
+} from "../repository/index.js";
 import { requirePromotionLandingUrl } from "./landing-url.guard.js";
 import {
   getDispatchErrorCode,
@@ -133,39 +138,49 @@ export class PromotionDispatchService {
   private async requireDispatchAssignments(
     context: DispatchContext
   ): Promise<ActiveAdServingAssignmentEntity[]> {
+    const recipients = await this.requireDemoRecipients(context);
+    const recipientUserIds = recipients.map((recipient) => recipient.userId);
     const storedAssignments = await this.reader.listDispatchAssignments(
-      context.promotionRun.promotionRunId
+      context.promotionRun.promotionRunId,
+      recipientUserIds
     );
 
     this.assertDispatchAssignments(context, storedAssignments);
-    const assignments = await this.toDemoRecipientAssignments(context, storedAssignments);
+    const assignments = assignmentsForDemoRecipients(storedAssignments, recipientUserIds);
+    const storedUserIds = new Set(storedAssignments.map((assignment) => assignment.userId));
+    const exactMatchedRecipientCount = recipientUserIds.filter((userId) =>
+      storedUserIds.has(userId)
+    ).length;
 
-    log.info("dispatch_assignments_loaded", { storedAssignments, assignments });
+    log.info("demo_recipient_assignments_mapped", {
+      recipientCount: recipients.length,
+      mappedAssignmentCount: assignments.length,
+      exactMatchedRecipientCount,
+      fallbackMappedRecipientCount: recipients.length - exactMatchedRecipientCount
+    });
+    log.info("dispatch_assignments_loaded", {
+      storedAssignmentCount: storedAssignments.length,
+      mappedAssignmentCount: assignments.length
+    });
 
     return assignments;
   }
 
-  private async toDemoRecipientAssignments(
-    context: DispatchContext,
-    assignments: readonly ActiveAdServingAssignmentEntity[]
-  ): Promise<ActiveAdServingAssignmentEntity[]> {
+  private async requireDemoRecipients(
+    context: DispatchContext
+  ): Promise<readonly DispatchRecipient[]> {
     const recipients = await this.recipientDirectory.listRecipients();
 
     if (recipients.length === 0) {
-      log.warn("demo_recipients_empty", { context, assignments });
+      log.warn("demo_recipients_empty", { context });
       throw adExecutionErrors.inconsistentAssignment(
         `promotion_run_id '${context.promotionRun.promotionRunId}' has no configured demo dispatch recipients.`
       );
     }
 
-    const mappedAssignments = assignmentsForDemoRecipients(
-      assignments,
-      recipients.map((recipient) => recipient.userId)
-    );
+    log.info("demo_recipients_loaded", { recipientCount: recipients.length });
 
-    log.info("demo_recipient_assignments_mapped", { assignments, recipients, mappedAssignments });
-
-    return mappedAssignments;
+    return recipients;
   }
 
   private async dispatchAssignments(
@@ -449,7 +464,11 @@ export class PromotionDispatchService {
     );
 
     if (channelMismatch) {
-      log.warn("dispatch_assignment_channel_mismatch", { context, channelMismatch, assignments });
+      log.warn("dispatch_assignment_channel_mismatch", {
+        context,
+        channelMismatch,
+        assignmentCount: assignments.length
+      });
       throw adExecutionErrors.inconsistentAssignment(
         `promotion_run_id '${context.promotionRun.promotionRunId}' has assignment channel '${channelMismatch.channel}' but promotion channel is '${context.channel}'.`
       );
@@ -458,11 +477,18 @@ export class PromotionDispatchService {
     const conflicts = AdExecutionDomain.findAssignmentConflicts(assignments);
 
     if (conflicts.length > 0) {
-      log.warn("dispatch_assignment_conflict", { context, assignments, conflicts });
+      log.warn("dispatch_assignment_conflict", {
+        context,
+        assignmentCount: assignments.length,
+        conflicts
+      });
       throw adExecutionErrors.inconsistentAssignment(conflicts.join(" "));
     }
 
-    log.info("dispatch_assignments_validated", { context, assignments });
+    log.info("dispatch_assignments_validated", {
+      context,
+      assignmentCount: assignments.length
+    });
   }
 
   private providerNameFor(channel: DispatchChannel, promotionRunId: string) {

@@ -63,9 +63,15 @@ export class AdExecutionReader {
 
   /** 발송 대상 active assignment 목록을 조회합니다. */
   async listDispatchAssignments(
-    promotionRunId: string
+    promotionRunId: string,
+    recipientUserIds: readonly string[]
   ): Promise<ActiveAdServingAssignmentEntity[]> {
-    const rows = await this.db.query(listActiveAdServingAssignments, { promotionRunId }).multiple();
+    const rows = await this.db
+      .query(listActiveAdServingAssignments, {
+        promotionRunId,
+        recipientUserIds: [...recipientUserIds]
+      })
+      .multiple();
 
     return activeAdServingAssignmentEntitySchema.array().parse(rows);
   }
