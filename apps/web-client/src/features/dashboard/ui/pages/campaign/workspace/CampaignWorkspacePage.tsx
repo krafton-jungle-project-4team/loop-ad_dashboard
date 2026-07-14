@@ -448,12 +448,12 @@ export function CampaignWorkspacePage({
             entryActions={(card) => [
               {
                 id: "manage",
-                label: "프로모션 관리",
+                label: "세그먼트 관리",
                 onSelect: () => openPromotionView(card.id, "manage")
               },
               {
                 id: "performance",
-                label: "프로모션 성과",
+                label: "성과",
                 onSelect: () => openPromotionView(card.id, "performance")
               }
             ]}
