@@ -43,6 +43,7 @@ import {
   repeatCreativeTargetForExperiment,
   type RepeatCreativePreparationInput,
   type RunningEvaluationRefreshResult,
+  userVisibleProjectExperiments,
   uniqueProjectExperimentValues
 } from "../projectExperimentUtils.js";
 
@@ -72,15 +73,19 @@ export function ProjectExperimentWorkspace({
   query: DashboardQuery;
 }) {
   const [, setDashboardQueryState] = useDashboardQueryState();
+  const visibleExperiments = useMemo(
+    () => userVisibleProjectExperiments(experiments),
+    [experiments]
+  );
   const filters = useMemo(
     () =>
-      normalizeProjectExperimentFilters(experiments, {
+      normalizeProjectExperimentFilters(visibleExperiments, {
         campaignId: query.selectedCampaignId || "all",
         promotionId: query.experimentPromotionFilter || "all",
         status: query.experimentStatusFilter || "all"
       }),
     [
-      experiments,
+      visibleExperiments,
       query.experimentPromotionFilter,
       query.experimentStatusFilter,
       query.selectedCampaignId
@@ -92,25 +97,25 @@ export function ProjectExperimentWorkspace({
     ? (query.experimentPageSize as (typeof projectExperimentPageSizeOptions)[number])
     : 10;
   const filteredExperiments = useMemo(
-    () => filterProjectExperiments(experiments, filters),
-    [experiments, filters]
+    () => filterProjectExperiments(visibleExperiments, filters),
+    [visibleExperiments, filters]
   );
   const pagination = useMemo(
     () => paginateProjectExperiments(filteredExperiments, query.experimentPage, pageSize),
     [filteredExperiments, pageSize, query.experimentPage]
   );
   const selectedExperiment =
-    experiments.find(
+    visibleExperiments.find(
       (experiment) => experiment.ad_experiment_id === query.selectedAdExperimentId
     ) ?? null;
   const campaigns = uniqueEntities(
-    experiments.map((experiment) => ({
+    visibleExperiments.map((experiment) => ({
       id: experiment.campaign_id,
       name: experiment.campaign_name
     }))
   );
   const promotions = uniqueEntities(
-    experiments.flatMap((experiment) =>
+    visibleExperiments.flatMap((experiment) =>
       filters.campaignId === "all" || experiment.campaign_id === filters.campaignId
         ? [
             {
@@ -122,7 +127,7 @@ export function ProjectExperimentWorkspace({
     )
   );
   const statuses = uniqueProjectExperimentValues(
-    experiments.map((experiment) => experiment.status)
+    visibleExperiments.map((experiment) => experiment.status)
   );
 
   useEffect(() => {
@@ -190,15 +195,17 @@ export function ProjectExperimentWorkspace({
     );
   }
 
-  const runningCount = experiments.filter((experiment) => experiment.status === "running").length;
-  const runningPromotionRunIds = promotionRunIdsForRunningExperiments(experiments);
-  const nextLoopCount = experiments.filter(
+  const runningCount = visibleExperiments.filter(
+    (experiment) => experiment.status === "running"
+  ).length;
+  const runningPromotionRunIds = promotionRunIdsForRunningExperiments(visibleExperiments);
+  const nextLoopCount = visibleExperiments.filter(
     (experiment) => experiment.latest_evaluation?.next_loop_required
   ).length;
-  const insufficientCount = experiments.filter(
+  const insufficientCount = visibleExperiments.filter(
     (experiment) => experiment.latest_evaluation?.status === "insufficient_data"
   ).length;
-  const totalAssignmentCount = experiments.reduce(
+  const totalAssignmentCount = visibleExperiments.reduce(
     (total, experiment) => total + experiment.assignment_count,
     0
   );
@@ -206,7 +213,7 @@ export function ProjectExperimentWorkspace({
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <ExperimentSummaryCard label="전체 실험" value={formatInteger(experiments.length)} />
+        <ExperimentSummaryCard label="전체 실험" value={formatInteger(visibleExperiments.length)} />
         <ExperimentSummaryCard label="실행 중" value={formatInteger(runningCount)} />
         <ExperimentSummaryCard label="배정 합계" value={formatInteger(totalAssignmentCount)} />
         <ExperimentSummaryCard
@@ -307,12 +314,12 @@ export function ProjectExperimentWorkspace({
               </AlertTitle>
               <AlertDescription>
                 {evaluationRefreshResult.failedRunCount === 0
-                  ? `${formatInteger(evaluationRefreshResult.totalRunCount)}개 회차, ${formatInteger(evaluationRefreshResult.evaluatedExperimentCount)}개 실험의 평가를 갱신했어요.`
+                  ? `${formatInteger(evaluationRefreshResult.totalRunCount)}개 회차의 진행 중 실험 평가를 갱신했어요.`
                   : evaluationRefreshFailureMessage(evaluationRefreshResult)}
               </AlertDescription>
             </Alert>
           ) : null}
-          {experiments.length === 0 ? (
+          {visibleExperiments.length === 0 ? (
             <EmptyState message="아직 시작한 실험이 없어요." />
           ) : filteredExperiments.length === 0 ? (
             <EmptyState message="조건에 맞는 실험이 없어요." />

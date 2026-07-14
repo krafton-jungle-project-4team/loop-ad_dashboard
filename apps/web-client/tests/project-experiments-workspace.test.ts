@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type {
-  DashboardEvaluatePromotionRunResult,
-  DashboardProjectExperiment
+import {
+  DASHBOARD_FALLBACK_SEGMENT_ID,
+  type DashboardEvaluatePromotionRunResult,
+  type DashboardProjectExperiment
 } from "@loopad/shared";
 import {
   defaultDashboardSearchQuery,
@@ -15,7 +16,8 @@ import {
   paginateProjectExperiments,
   promotionRunIdsForRunningExperiments,
   projectExperimentSelectionQuery,
-  repeatCreativeTargetForExperiment
+  repeatCreativeTargetForExperiment,
+  userVisibleProjectExperiments
 } from "../src/features/dashboard/ui/pages/campaign/promotion/experiment/projectExperimentUtils.js";
 
 const experiments = [
@@ -126,6 +128,23 @@ test("running experiment evaluation targets each promotion run only once across 
     "run-another",
     "run-default"
   ]);
+});
+
+test("fallback ads stay hidden while their promotion run remains evaluable", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback",
+    promotion_run_id: "run-default",
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
+    segment_name: "Existing users fallback",
+    status: "running"
+  });
+  const visibleExperiments = userVisibleProjectExperiments([...experiments, fallbackExperiment]);
+
+  assert.equal(
+    visibleExperiments.some((experiment) => experiment.ad_experiment_id === "experiment-fallback"),
+    false
+  );
+  assert.deepEqual(promotionRunIdsForRunningExperiments(visibleExperiments), ["run-default"]);
 });
 
 test("next-loop targets stay within the selected promotion run", () => {

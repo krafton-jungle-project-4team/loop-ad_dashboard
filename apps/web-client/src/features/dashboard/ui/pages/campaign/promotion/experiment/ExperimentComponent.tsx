@@ -126,10 +126,6 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     const firstFailedEvaluation = failedEvaluations[0];
 
     return {
-      evaluatedExperimentCount: succeededEvaluations.reduce(
-        (total, evaluation) => total + evaluation.value.ad_experiment_results.length,
-        0
-      ),
       failedRunCount: failedEvaluations.length,
       failureMessage: firstFailedEvaluation ? toErrorMessage(firstFailedEvaluation.reason) : null,
       succeededRunCount: succeededEvaluations.length,

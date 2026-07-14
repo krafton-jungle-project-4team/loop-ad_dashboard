@@ -1,6 +1,7 @@
-import type {
-  DashboardEvaluatePromotionRunResult,
-  DashboardProjectExperiment
+import {
+  DASHBOARD_FALLBACK_SEGMENT_ID,
+  type DashboardEvaluatePromotionRunResult,
+  type DashboardProjectExperiment
 } from "@loopad/shared";
 import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
 
@@ -13,12 +14,19 @@ export type ProjectExperimentFilters = {
 };
 
 export type RunningEvaluationRefreshResult = {
-  evaluatedExperimentCount: number;
   failedRunCount: number;
   failureMessage: string | null;
   succeededRunCount: number;
   totalRunCount: number;
 };
+
+export function userVisibleProjectExperiments(
+  experiments: DashboardProjectExperiment[]
+): DashboardProjectExperiment[] {
+  return experiments.filter(
+    (experiment) => experiment.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID
+  );
+}
 
 export type RepeatCreativePreparationInput = {
   campaignId: string;
