@@ -424,11 +424,10 @@ function ProjectExperimentTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border">
-      <Table className="min-w-[1280px]">
+      <Table className="min-w-[1080px]">
         <TableHeader>
           <TableRow>
-            <TableHead>캠페인</TableHead>
-            <TableHead>프로모션</TableHead>
+            <TableHead>캠페인 / 프로모션</TableHead>
             <TableHead>실행 상태</TableHead>
             <TableHead>세그먼트</TableHead>
             <TableHead>노출 방식</TableHead>
@@ -446,8 +445,14 @@ function ProjectExperimentTable({
 
             return (
               <TableRow aria-selected={isSelected} key={experiment.ad_experiment_id}>
-                <TableCell className="min-w-40 font-medium">{experiment.campaign_name}</TableCell>
-                <TableCell className="min-w-40">{experiment.promotion_name}</TableCell>
+                <TableCell>
+                  <div className="grid min-w-52 gap-0.5">
+                    <span className="font-medium">{experiment.campaign_name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {experiment.promotion_name}
+                    </span>
+                  </div>
+                </TableCell>
                 <TableCell>
                   <Badge variant={statusBadgeVariant(experiment.status)}>
                     {formatStatusLabel(experiment.status)}
