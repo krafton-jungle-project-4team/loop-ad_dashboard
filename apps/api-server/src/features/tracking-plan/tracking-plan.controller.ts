@@ -20,6 +20,11 @@ export class TrackingPlanController {
     return TrackingPlanSchema.parse(await this.service.get(projectId));
   }
 
+  @Get("tracking-plan/published-schema")
+  async publishedSchema(@Param("projectId") projectId: string) {
+    return SdkPublishedSchemaSchema.parse(await this.service.publishedSchema(projectId));
+  }
+
   @Post("tracking-plan")
   async create(@Param("projectId") projectId: string, @Body() body: unknown) {
     return TrackingPlanSchema.parse(

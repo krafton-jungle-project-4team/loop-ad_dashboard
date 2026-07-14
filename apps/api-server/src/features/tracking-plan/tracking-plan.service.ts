@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException
+} from "@nestjs/common";
 import type {
   SdkConnection,
   SdkPublishedSchema,
@@ -50,6 +56,12 @@ export class TrackingPlanService {
   }
   publish(projectId: string, createdBy?: string) {
     return this.repository.publish(projectId, createdBy);
+  }
+
+  async publishedSchema(projectId: string): Promise<SdkPublishedSchema> {
+    const schema = await this.repository.getPublishedSchema(projectId);
+    if (!schema) throw new NotFoundException("Published event schema was not found.");
+    return schema;
   }
 
   async validate(projectId: string): Promise<TrackingPlanValidation> {

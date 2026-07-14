@@ -269,6 +269,42 @@ test("public connection requires an exact allowed Origin", async () => {
   assert.equal(connection.revision, 1);
 });
 
+test("developer page reads the immutable published event schema without an Origin header", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const publishedSchema = {
+    schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
+    revision: 2,
+    events: [
+      {
+        eventName: "booking_complete",
+        description: "booking complete",
+        propertiesSchema: { type: "object" as const, properties: {}, required: [] }
+      }
+    ]
+  };
+  const repository = {
+    getPublishedSchema: async (projectId: string) => {
+      assert.equal(projectId, "demo-shoppingmall");
+      return publishedSchema;
+    }
+  } as unknown as TrackingPlanRepository;
+  const service = new TrackingPlanService(repository);
+
+  assert.deepEqual(await service.publishedSchema("demo-shoppingmall"), publishedSchema);
+});
+
+test("developer page reports an absent published event schema", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const repository = {
+    getPublishedSchema: async () => null
+  } as unknown as TrackingPlanRepository;
+  const service = new TrackingPlanService(repository);
+
+  await assert.rejects(() => service.publishedSchema("demo-shoppingmall"), hasStatus(404));
+});
+
 test("tracking plan creation forwards the requested allowed Origins", async () => {
   const { TrackingPlanService } =
     await import("../src/features/tracking-plan/tracking-plan.service.js");

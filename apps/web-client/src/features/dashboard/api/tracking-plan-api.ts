@@ -1,5 +1,6 @@
 import {
   apiFailureResponseSchema,
+  SdkPublishedSchemaSchema,
   TrackingPlanSchema,
   type TrackingPlanCreateRequest,
   type TrackingPlanEventInput,
@@ -19,6 +20,10 @@ function basePath(projectId: string) {
 
 export function getTrackingPlan(projectId: string) {
   return apiGet(`${basePath(projectId)}/tracking-plan`, TrackingPlanSchema);
+}
+
+export function getPublishedTrackingPlanSchema(projectId: string) {
+  return apiGet(`${basePath(projectId)}/tracking-plan/published-schema`, SdkPublishedSchemaSchema);
 }
 
 export function createTrackingPlan(projectId: string, request: TrackingPlanCreateRequest) {

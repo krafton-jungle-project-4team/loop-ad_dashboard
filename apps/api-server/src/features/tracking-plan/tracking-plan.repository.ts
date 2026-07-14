@@ -46,6 +46,10 @@ type PublicConnectionRow = QueryResultRow & {
   schema_json: unknown;
 };
 
+type PublishedSchemaRow = QueryResultRow & {
+  schema_json: unknown;
+};
+
 @Injectable()
 export class TrackingPlanRepository {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
@@ -265,6 +269,20 @@ export class TrackingPlanRepository {
       allowedOrigins: stringArray(row.allowed_origins_json),
       schema: SdkPublishedSchemaSchema.parse(row.schema_json)
     };
+  }
+
+  async getPublishedSchema(projectId: string): Promise<SdkPublishedSchema | null> {
+    const result = await this.pool.query<PublishedSchemaRow>(
+      `SELECT revision.schema_json
+       FROM project_sdk_settings settings
+       JOIN tracking_plan_revisions revision
+         ON revision.tracking_plan_id = settings.published_tracking_plan_id
+        AND revision.revision = settings.published_revision
+       WHERE settings.project_id = $1 AND settings.status = 'active'`,
+      [projectId]
+    );
+    const row = result.rows[0];
+    return row ? SdkPublishedSchemaSchema.parse(row.schema_json) : null;
   }
 
   private async findPlanRow(
