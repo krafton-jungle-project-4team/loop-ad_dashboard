@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 import type {
@@ -178,6 +179,7 @@ export class DashboardDecisionClient {
         content_option_count: request.request.content_option_count ?? 3,
         operator_instruction: request.request.operator_instruction ?? null
       },
+      idempotencyKey: `dashboard-generation:${randomUUID()}`,
       path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/generation`,
       request,
       schema: decisionPromotionGenerationResponseSchema
@@ -245,6 +247,7 @@ export class DashboardDecisionClient {
 
 async function requestDecisionApi<T>(input: {
   body: unknown;
+  idempotencyKey?: string;
   path: string;
   request: unknown;
   schema: z.ZodType<T>;
@@ -262,6 +265,7 @@ async function requestDecisionApi<T>(input: {
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
+        ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}),
         "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
       },
       method: "POST"

@@ -94,6 +94,7 @@ test("decision client preserves promotion generation request contract", async ()
   });
   assertDecisionRequest(requests[0], {
     path: "/decision/v1/promotions/promotion-1/generation",
+    hasIdempotencyKey: true,
     body: {
       project_id: "project-1",
       campaign_id: "campaign-1",
@@ -392,18 +393,28 @@ async function createClientWithResponse(body: unknown) {
 
 function assertDecisionRequest(
   request: CapturedRequest | undefined,
-  expected: { body: unknown; path: string }
+  expected: { body: unknown; hasIdempotencyKey?: boolean; path: string }
 ) {
   assert.ok(request);
   const url = new URL(request.url);
   assert.equal(url.origin, "http://localhost:8081");
   assert.equal(url.pathname, expected.path);
   assert.equal(request.init?.method, "POST");
-  assert.deepEqual(request.init?.headers, {
+  const headers = request.init?.headers as Record<string, string>;
+  const { "Idempotency-Key": idempotencyKey, ...baseHeaders } = headers;
+  assert.deepEqual(baseHeaders, {
     Accept: "application/json",
     "Content-Type": "application/json",
     "X-Loop-Ad-Internal-Key": "test-internal-key"
   });
+  if (expected.hasIdempotencyKey) {
+    assert.match(
+      idempotencyKey ?? "",
+      /^dashboard-generation:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
+  } else {
+    assert.equal(idempotencyKey, undefined);
+  }
   assert.deepEqual(JSON.parse(String(request.init?.body)), expected.body);
 }
 
