@@ -74,7 +74,14 @@ export class TrackingPlanRepository {
       if (!project.rows[0]) throw new NotFoundException("Project was not found.");
 
       const existing = await this.findPlanRow(projectId, client);
-      if (existing) return this.hydratePlan(existing, client);
+      if (existing) {
+        const plan = await this.hydratePlan(existing, client);
+        if (plan.events.length === 0 && initialEvents.length > 0) {
+          await this.insertInitialEvents(existing.tracking_plan_id, initialEvents, client);
+          return this.get(projectId, client);
+        }
+        return plan;
+      }
 
       const trackingPlanId = `tracking_plan_${randomUUID()}`;
       await client.query(
@@ -99,19 +106,7 @@ export class TrackingPlanRepository {
           [projectId]
         );
       }
-      for (const event of initialEvents) {
-        await client.query(
-          `INSERT INTO tracking_plan_events
-             (tracking_plan_id, event_name, description, status, properties_schema_json)
-           VALUES ($1, $2, $3, 'draft', $4::jsonb)`,
-          [
-            trackingPlanId,
-            event.eventName,
-            event.description,
-            JSON.stringify(event.propertiesSchema)
-          ]
-        );
-      }
+      await this.insertInitialEvents(trackingPlanId, initialEvents, client);
       return this.get(projectId, client);
     });
   }
@@ -349,6 +344,21 @@ export class TrackingPlanRepository {
       description: event.description ?? "",
       propertiesSchema: TrackingPlanPropertiesSchemaSchema.parse(event.properties_schema_json)
     }));
+  }
+
+  private async insertInitialEvents(
+    trackingPlanId: string,
+    events: TrackingPlanEventInput[],
+    executor: Pool | PoolClient
+  ) {
+    for (const event of events) {
+      await executor.query(
+        `INSERT INTO tracking_plan_events
+           (tracking_plan_id, event_name, description, status, properties_schema_json)
+         VALUES ($1, $2, $3, 'draft', $4::jsonb)`,
+        [trackingPlanId, event.eventName, event.description, JSON.stringify(event.propertiesSchema)]
+      );
+    }
   }
 
   private async markDraft(trackingPlanId: string) {

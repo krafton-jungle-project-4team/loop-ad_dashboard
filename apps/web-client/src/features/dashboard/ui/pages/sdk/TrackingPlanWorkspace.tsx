@@ -358,6 +358,7 @@ function EventDesigner({
   const [eventName, setEventName] = useState("");
   const [description, setDescription] = useState("");
   const [properties, setProperties] = useState<PropertyDraft[]>([]);
+  const [autoGenerating, setAutoGenerating] = useState(false);
   const propertyIssues = validatePropertyDrafts(properties);
 
   function closePanel() {
@@ -417,13 +418,33 @@ function EventDesigner({
     if (deleted) closePanel();
   }
 
+  async function autoGenerateEvents() {
+    setAutoGenerating(true);
+    try {
+      await run(() => createTrackingPlanFromObservedEvents(plan.projectId));
+    } finally {
+      setAutoGenerating(false);
+    }
+  }
+
   const isEdit = mode === "edit" && selected !== null;
 
   return (
     <Card>
       <CardHeader className="flex-row items-start justify-between gap-4">
         <CardTitle className="text-base">이벤트 목록</CardTitle>
-        <Button onClick={startCreate}>이벤트 추가</Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          {plan.events.length === 0 ? (
+            <Button
+              disabled={autoGenerating}
+              onClick={() => void autoGenerateEvents()}
+              variant="outline"
+            >
+              {autoGenerating ? "이벤트 형식 확인 중…" : "수집 중인 이벤트로 자동 생성"}
+            </Button>
+          ) : null}
+          <Button onClick={startCreate}>이벤트 추가</Button>
+        </div>
       </CardHeader>
       <CardContent
         className={`relative overflow-hidden transition-[min-height] duration-200 ${panelOpen ? "min-h-[600px]" : ""}`}

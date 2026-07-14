@@ -333,6 +333,76 @@ test("tracking plan creation forwards the requested allowed Origins", async () =
   ]);
 });
 
+test("observed event creation fills an existing empty tracking plan", async () => {
+  const { TrackingPlanRepository: Repository } =
+    await import("../src/features/tracking-plan/tracking-plan.repository.js");
+  const insertedEventNames: string[] = [];
+  const client = {
+    async query(sql: string, parameters?: unknown[]) {
+      const normalized = sql.replace(/\s+/g, " ").trim();
+      if (normalized === "BEGIN" || normalized === "COMMIT" || normalized === "ROLLBACK") {
+        return { rows: [] };
+      }
+      if (normalized.startsWith("SELECT project_id FROM projects")) {
+        return { rows: [{ project_id: "project-1" }] };
+      }
+      if (normalized.startsWith("SELECT plan.tracking_plan_id")) {
+        return {
+          rows: [
+            {
+              tracking_plan_id: "tracking-plan-1",
+              project_id: "project-1",
+              name: "Default Tracking Plan",
+              status: "draft",
+              current_revision: 0,
+              sdk_key: "sdk-key",
+              allowed_origins_json: ["https://demo-shoppingmall.dev.loop-ad.org"],
+              published_revision: null
+            }
+          ]
+        };
+      }
+      if (normalized.startsWith("SELECT event_name")) {
+        return {
+          rows: insertedEventNames.map((eventName) => ({
+            event_name: eventName,
+            description: "inferred",
+            properties_schema_json: { type: "object", properties: {}, required: [] }
+          }))
+        };
+      }
+      if (normalized.startsWith("INSERT INTO tracking_plan_events")) {
+        insertedEventNames.push(String(parameters?.[1]));
+        return { rows: [] };
+      }
+      throw new Error(`unexpected query: ${normalized}`);
+    },
+    release() {}
+  };
+  const repository = new Repository({
+    connect: async () => client
+  } as unknown as Pool);
+
+  const plan = await repository.create(
+    "project-1",
+    "Demo Site Tracking Plan",
+    [],
+    [
+      {
+        eventName: "product_view",
+        description: "inferred",
+        propertiesSchema: { type: "object", properties: {}, required: [] }
+      }
+    ]
+  );
+
+  assert.deepEqual(insertedEventNames, ["product_view"]);
+  assert.deepEqual(
+    plan.events.map((event) => event.eventName),
+    ["product_view"]
+  );
+});
+
 test("observed event creation seeds the demo Origin and inferred event contracts", async () => {
   const { TrackingPlanService } =
     await import("../src/features/tracking-plan/tracking-plan.service.js");
