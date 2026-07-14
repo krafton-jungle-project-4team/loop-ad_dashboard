@@ -22,6 +22,14 @@ import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { Checkbox } from "@loopad/ui/shadcn/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@loopad/ui/shadcn/dialog";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
@@ -962,14 +970,10 @@ function PromotionSegmentDetailTab({
                       </CardHeader>
                       <CardContent className="grid gap-4">
                         {candidate.image_url ? (
-                          <img
+                          <ContentCandidateImagePreview
                             alt={`${contentCandidateTitle(candidate)} 이미지`}
-                            className="aspect-video w-full rounded-md border object-cover"
-                            decoding="async"
-                            height={675}
-                            loading="lazy"
                             src={candidate.image_url}
-                            width={1200}
+                            title={contentCandidateTitle(candidate)}
                           />
                         ) : null}
                         <div className="grid gap-3 md:grid-cols-2">
@@ -1061,6 +1065,56 @@ function contentCandidateSelectionReason(
     return "이 광고 소재가 다음 실험에 사용돼요. 다른 소재로 바꾸려면 먼저 선택을 해제해 주세요.";
   }
   return "이 광고 소재를 선택하면 다음 실험에 사용돼요.";
+}
+
+function ContentCandidateImagePreview({
+  alt,
+  src,
+  title
+}: {
+  alt: string;
+  src: string;
+  title: string;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          aria-label={`${title} 이미지 크게 보기`}
+          className="group relative mx-auto h-auto w-full max-w-sm overflow-hidden p-0"
+          type="button"
+          variant="outline"
+        >
+          <img
+            alt={alt}
+            className="aspect-video w-full object-cover"
+            decoding="async"
+            height={216}
+            loading="lazy"
+            src={src}
+            width={384}
+          />
+          <span className="absolute inset-x-3 bottom-3 rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+            크게 보기
+          </span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
+        <DialogHeader className="pr-8">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>광고 소재 이미지를 크게 확인해요.</DialogDescription>
+        </DialogHeader>
+        <img
+          alt={alt}
+          className="max-h-[calc(65vh-6rem)] w-full rounded-md object-contain"
+          decoding="async"
+          height={675}
+          src={src}
+          width={1200}
+        />
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function SegmentConnectedExperimentsCard({
