@@ -5,6 +5,8 @@ export type DateOrString = Date | string;
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
+export type stringArray = (string)[];
+
 /** 'FindPromotionRun' parameters type */
 export interface IFindPromotionRunParams {
   promotionRunId?: string | null | void;
@@ -184,6 +186,7 @@ export const findAdExperiment = new PreparedQuery<IFindAdExperimentParams,IFindA
 /** 'ListActiveAdServingAssignments' parameters type */
 export interface IListActiveAdServingAssignmentsParams {
   promotionRunId?: string | null | void;
+  recipientUserIds?: stringArray | null | void;
 }
 
 /** 'ListActiveAdServingAssignments' return type */
@@ -219,7 +222,7 @@ export interface IListActiveAdServingAssignmentsQuery {
   result: IListActiveAdServingAssignmentsResult;
 }
 
-const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":true},"params":[{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1120,"b":1134}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  COALESCE(cc.metadata_json, '{}'::jsonb) AS \"contentMetadataJson\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nLEFT JOIN content_candidates cc\n  ON cc.project_id = aas.project_id\n AND cc.campaign_id = aas.campaign_id\n AND cc.promotion_id = aas.promotion_id\n AND cc.content_id = aas.content_id\n AND cc.content_option_id = aas.content_option_id\nWHERE aas.promotion_run_id = :promotionRunId\n\nORDER BY aas.ad_experiment_id ASC, aas.user_id ASC                                                                               "};
+const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":true,"recipientUserIds":true},"params":[{"name":"promotionRunId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1120,"b":1134},{"a":1395,"b":1409}]},{"name":"recipientUserIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1166,"b":1182}]}],"statement":"SELECT\n  aas.promotion_run_id AS \"promotionRunId\",\n  aas.user_id AS \"userId\",\n  aas.segment_id AS \"segmentId\",\n  aas.ad_experiment_id AS \"adExperimentId\",\n  aas.content_id AS \"contentId\",\n  aas.content_option_id AS \"contentOptionId\",\n  aas.fallback,\n  aas.similarity_score AS \"similarityScore\",\n  aas.project_id AS \"projectId\",\n  aas.campaign_id AS \"campaignId\",\n  aas.promotion_id AS \"promotionId\",\n  aas.channel,\n  aas.subject,\n  aas.preheader,\n  aas.title,\n  aas.body,\n  aas.cta,\n  aas.message,\n  aas.image_prompt AS \"imagePrompt\",\n  p.landing_url AS \"landingUrl\",\n  COALESCE(cc.metadata_json, '{}'::jsonb) AS \"contentMetadataJson\",\n  aas.content_status AS \"contentStatus\",\n  aas.ad_experiment_status AS \"adExperimentStatus\"\nFROM active_ad_serving_assignments aas\nJOIN promotions p\n  ON p.project_id = aas.project_id\n AND p.promotion_id = aas.promotion_id\nLEFT JOIN content_candidates cc\n  ON cc.project_id = aas.project_id\n AND cc.campaign_id = aas.campaign_id\n AND cc.promotion_id = aas.promotion_id\n AND cc.content_id = aas.content_id\n AND cc.content_option_id = aas.content_option_id\nWHERE aas.promotion_run_id = :promotionRunId\n  AND (\n    aas.user_id = ANY(:recipientUserIds)\n    OR (aas.ad_experiment_id, aas.user_id) = (\n      SELECT\n        fallback.ad_experiment_id,\n        fallback.user_id\n      FROM active_ad_serving_assignments fallback\n      WHERE fallback.promotion_run_id = :promotionRunId\n      ORDER BY fallback.ad_experiment_id ASC, fallback.user_id ASC\n      LIMIT 1\n    )\n  )\n\nORDER BY aas.ad_experiment_id ASC, aas.user_id ASC                                                                               "};
 
 /**
  * Query generated from SQL:
@@ -259,6 +262,18 @@ const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":
  *  AND cc.content_id = aas.content_id
  *  AND cc.content_option_id = aas.content_option_id
  * WHERE aas.promotion_run_id = :promotionRunId
+ *   AND (
+ *     aas.user_id = ANY(:recipientUserIds)
+ *     OR (aas.ad_experiment_id, aas.user_id) = (
+ *       SELECT
+ *         fallback.ad_experiment_id,
+ *         fallback.user_id
+ *       FROM active_ad_serving_assignments fallback
+ *       WHERE fallback.promotion_run_id = :promotionRunId
+ *       ORDER BY fallback.ad_experiment_id ASC, fallback.user_id ASC
+ *       LIMIT 1
+ *     )
+ *   )
  *
  * ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC
  * ```

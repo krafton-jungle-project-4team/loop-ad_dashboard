@@ -120,6 +120,12 @@ test("dispatch uses stored assignments and records sender success", async () => 
     1
   );
   assert.equal(logs.filter((entry) => entry.event === "dispatch_assignments_loaded").length, 1);
+  assert.deepEqual(reader.dispatchAssignmentQueries, [
+    {
+      promotionRunId: "run-1",
+      recipientUserIds: ["user-ok", "user-also-ok"]
+    }
+  ]);
   assert.equal(logs.filter((entry) => entry.event === "dispatch_job_finished").length, 1);
   assert.equal(logs.filter((entry) => entry.event === "assignment_sent").length, 2);
   assert.equal(
@@ -282,9 +288,9 @@ test("dispatch sends once to each configured demo recipient", async () => {
   const emailSender = new RecordingEmailSender();
 
   reader.dispatchAssignments = [
-    assignment({ userId: "user-1" }),
-    assignment({ userId: "user-1", segmentId: "seg-2" }),
-    assignment({ userId: "raw-assignment-user" })
+    assignment({ userId: "raw-assignment-user", segmentId: "fallback-segment" }),
+    assignment({ userId: "user-2", segmentId: "matched-segment" }),
+    assignment({ userId: "unrelated-user", segmentId: "unrelated-segment" })
   ];
 
   const { result: response, logs } = await captureDispatchLogs(() =>
@@ -312,6 +318,28 @@ test("dispatch sends once to each configured demo recipient", async () => {
     ["demo-1@example.test", "demo-2@example.test", "demo-3@example.test"]
   );
   assert.equal(writer.redirectLinks.length, 3);
+  assert.deepEqual(reader.dispatchAssignmentQueries, [
+    {
+      promotionRunId: "run-1",
+      recipientUserIds: ["user-1", "user-2", "user-3"]
+    }
+  ]);
+  assert.deepEqual(
+    writer.redirectLinks.map((link) => link.segmentId),
+    ["fallback-segment", "matched-segment", "fallback-segment"]
+  );
+  const assignmentLoadedLog = logs.find((entry) => entry.event === "dispatch_assignments_loaded");
+  const recipientMappedLog = logs.find(
+    (entry) => entry.event === "demo_recipient_assignments_mapped"
+  );
+  assert.equal(assignmentLoadedLog?.storedAssignmentCount, 2);
+  assert.equal(assignmentLoadedLog?.mappedAssignmentCount, 3);
+  assert.equal("storedAssignments" in (assignmentLoadedLog ?? {}), false);
+  assert.equal("assignments" in (assignmentLoadedLog ?? {}), false);
+  assert.equal(recipientMappedLog?.exactMatchedRecipientCount, 1);
+  assert.equal(recipientMappedLog?.fallbackMappedRecipientCount, 2);
+  assert.equal("recipients" in (recipientMappedLog ?? {}), false);
+  assert.equal("mappedAssignments" in (recipientMappedLog ?? {}), false);
   assert.equal(
     logs.some((entry) => entry.event === "assignment_skipped"),
     false
@@ -1010,6 +1038,10 @@ class RecordingAwsClient {
 }
 
 class FakeAdExecutionReader {
+  dispatchAssignmentQueries: Array<{
+    promotionRunId: string;
+    recipientUserIds: readonly string[];
+  }> = [];
   dispatchJob: StoredDispatchJobEntity | null = null;
   promotionRun: PromotionRunEntity = {
     promotionRunId: "run-1",
@@ -1102,8 +1134,14 @@ class FakeAdExecutionReader {
     return this.dispatchJob;
   }
 
-  async listDispatchAssignments() {
-    return this.dispatchAssignments;
+  async listDispatchAssignments(promotionRunId: string, recipientUserIds: readonly string[]) {
+    this.dispatchAssignmentQueries.push({ promotionRunId, recipientUserIds });
+    const fallbackAssignment = this.dispatchAssignments[0];
+    const recipientUserIdSet = new Set(recipientUserIds);
+
+    return this.dispatchAssignments.filter(
+      (assignment) => assignment === fallbackAssignment || recipientUserIdSet.has(assignment.userId)
+    );
   }
 
   async findBannerAssignment() {

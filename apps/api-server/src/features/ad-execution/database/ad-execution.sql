@@ -62,7 +62,7 @@ SELECT
 FROM ad_experiments
 WHERE ad_experiment_id = :adExperimentId;
 
-/* Purpose: Read precomputed active assignments for one promotion_run dispatch. */
+/* Purpose: Read demo-recipient assignments plus one deterministic fallback for dispatch. */
 /* @name ListActiveAdServingAssignments */
 SELECT
   aas.promotion_run_id AS "promotionRunId",
@@ -99,6 +99,18 @@ LEFT JOIN content_candidates cc
  AND cc.content_id = aas.content_id
  AND cc.content_option_id = aas.content_option_id
 WHERE aas.promotion_run_id = :promotionRunId
+  AND (
+    aas.user_id = ANY(:recipientUserIds)
+    OR (aas.ad_experiment_id, aas.user_id) = (
+      SELECT
+        fallback.ad_experiment_id,
+        fallback.user_id
+      FROM active_ad_serving_assignments fallback
+      WHERE fallback.promotion_run_id = :promotionRunId
+      ORDER BY fallback.ad_experiment_id ASC, fallback.user_id ASC
+      LIMIT 1
+    )
+  )
 
 ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC;
 
