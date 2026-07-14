@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   dashboardNavigationGroups,
   getCanonicalDashboardPath,
+  getDashboardNavigationSearch,
   getDashboardTabByPath,
   getLegacyDashboardViewPatch
 } from "../src/features/dashboard/model/dashboard-navigation.js";
@@ -21,7 +22,11 @@ test("dashboard sidebar exposes the product-led flat navigation order", () => {
     })),
     [
       {
-        items: ["캠페인", "실험", "통계", "워크플로우", "데이터 탐색기", "SDK 연동"],
+        items: ["캠페인", "실험", "통계"],
+        label: ""
+      },
+      {
+        items: ["워크플로우", "데이터 탐색기", "SDK 연동"],
         label: ""
       }
     ]
@@ -29,6 +34,36 @@ test("dashboard sidebar exposes the product-led flat navigation order", () => {
   assert.equal(
     dashboardNavigationGroups.every((group) => group.items.every((item) => item.type === "link")),
     true
+  );
+});
+
+test("campaign sidebar navigation returns to the campaign list root", () => {
+  const nestedCampaignQuery = {
+    ...defaultDashboardSearchQuery,
+    campaignView: "performance" as const,
+    createPromotion: true,
+    promotionView: "performance" as const,
+    selectedAdExperimentId: "experiment-1",
+    selectedCampaignId: "campaign-1",
+    selectedPromotionId: "promotion-1",
+    selectedSegmentId: "segment-1"
+  };
+
+  assert.deepEqual(getDashboardNavigationSearch("campaigns", nestedCampaignQuery), {
+    ...nestedCampaignQuery,
+    campaignView: "manage",
+    createCampaign: false,
+    createPromotion: false,
+    promotionView: "manage",
+    segmentView: "manage",
+    selectedAdExperimentId: "",
+    selectedCampaignId: "",
+    selectedPromotionId: "",
+    selectedSegmentId: ""
+  });
+  assert.equal(
+    getDashboardNavigationSearch("experiments", nestedCampaignQuery),
+    nestedCampaignQuery
   );
 });
 
