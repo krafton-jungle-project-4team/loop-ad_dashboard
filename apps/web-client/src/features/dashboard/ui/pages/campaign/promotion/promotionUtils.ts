@@ -249,10 +249,20 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
   );
   const audience = normalizePromotionSegmentAudience(raw.audience);
   const rankComparison = normalizePromotionSegmentRankComparison(raw.rank_comparison);
+  const recommendationTier = nonEmptyText(raw.recommendation_tier);
 
   return {
     title,
     rank_role: nonEmptyText(raw.rank_role) ?? undefined,
+    recommendation_tier:
+      recommendationTier === "primary" || recommendationTier === "small_high_intent"
+        ? recommendationTier
+        : undefined,
+    recommendation_tier_label: nonEmptyText(raw.recommendation_tier_label) ?? undefined,
+    recommendation_tier_reason: nonEmptyText(raw.recommendation_tier_reason) ?? undefined,
+    recommendation_rank: nonNegativeInteger(raw.recommendation_rank) ?? undefined,
+    rank_eligible: typeof raw.rank_eligible === "boolean" ? raw.rank_eligible : undefined,
+    minimum_primary_sample_size: nonNegativeInteger(raw.minimum_primary_sample_size) ?? undefined,
     audience_summary: audienceSummary,
     audience,
     performance_estimate: performanceEstimate,
@@ -264,12 +274,35 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
   };
 }
 
+export function partitionPromotionSegmentSuggestions(
+  suggestions: DashboardPromotionSegmentSuggestion[]
+) {
+  const primary: DashboardPromotionSegmentSuggestion[] = [];
+  const smallHighIntent: DashboardPromotionSegmentSuggestion[] = [];
+  for (const suggestion of suggestions) {
+    if (suggestion.display_copy?.recommendation_tier === "small_high_intent") {
+      smallHighIntent.push(suggestion);
+    } else {
+      primary.push(suggestion);
+    }
+  }
+  return { primary, smallHighIntent };
+}
+
 export function segmentAudienceSummary(sampleSize: number, sampleRatio: number) {
   return `평가 대상 ${formatInteger(sampleSize)}명 · 비율 ${formatInteger(sampleRatio * 100)}%`;
 }
 
 export function nonEmptyText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function nonNegativeInteger(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : null;
 }
 
 export function contentCandidateTitle(

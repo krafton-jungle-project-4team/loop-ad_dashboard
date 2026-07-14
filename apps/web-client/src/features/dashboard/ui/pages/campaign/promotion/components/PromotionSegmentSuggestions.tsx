@@ -28,6 +28,7 @@ import {
 import { Field, FieldError, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { BarChart3, CheckCircle2, FileText, Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
@@ -38,6 +39,7 @@ import {
   formatJsonObject,
   formatPercentValue,
   parseJsonObject,
+  partitionPromotionSegmentSuggestions,
   segmentAudienceSummary,
   statusBadgeVariant,
   type PromotionSegmentCreateFormState
@@ -90,6 +92,7 @@ export function PromotionSegmentSuggestionPanel({
     (suggestion) => suggestion.suggestion_status === "accepted"
   ).length;
   const confirmableCount = acceptedCount + scopedSegments.length;
+  const groupedSuggestions = partitionPromotionSegmentSuggestions(suggestions);
 
   return (
     <Card className="h-full shadow-none">
@@ -201,166 +204,25 @@ export function PromotionSegmentSuggestionPanel({
           </div>
         ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 후보를 불러오는 중이에요." /> : null}
-        {suggestions.length > 0 ? (
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
-            {suggestions.map((suggestion) => {
-              const isAccepted = suggestion.suggestion_status === "accepted";
-              const isConfirmed = suggestion.suggestion_status === "confirmed";
-              const isDismissed = suggestion.suggestion_status === "dismissed";
-              const displayCopy = suggestion.display_copy;
-              const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
-              const rankLabel = `${formatInteger(suggestion.suggested_rank)}위`;
-              const rankRole = displayCopy?.rank_role;
-              const performanceEstimate = displayCopy?.performance_estimate;
-              const fallbackSummary = segmentAudienceSummary(
-                suggestion.sample_size,
-                suggestion.sample_ratio
-              );
-              return (
-                <div
-                  className={`flex min-h-full min-w-0 flex-col gap-4 overflow-hidden rounded-md border p-5 ${
-                    isAccepted ? "border-primary bg-accent/60" : "bg-background"
-                  }`}
-                  key={suggestion.suggestion_id}
-                >
-                  <div className="grid min-w-0 gap-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-semibold text-primary">{rankLabel}</span>
-                      <Badge
-                        className="shrink-0"
-                        variant={statusBadgeVariant(suggestion.suggestion_status)}
-                      >
-                        {formatStatusLabel(suggestion.suggestion_status)}
-                      </Badge>
-                    </div>
-                    {rankRole ? (
-                      <Badge
-                        className="w-fit max-w-full whitespace-normal border-primary/20 bg-accent px-2 py-1 text-left leading-4 text-primary [word-break:keep-all]"
-                        variant="outline"
-                      >
-                        {rankRole}
-                      </Badge>
-                    ) : null}
-                    <div className="grid min-w-0 gap-1">
-                      <h3 className="text-base font-semibold leading-6 text-foreground [overflow-wrap:anywhere] [word-break:keep-all]">
-                        {displayCopy?.title ?? suggestion.segment_name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {displayCopy
-                          ? "AI 추천 세그먼트"
-                          : `${suggestion.segment_source} · ${suggestion.suggestion_source}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 text-sm text-muted-foreground">
-                    {performanceEstimate ? (
-                      <SegmentPerformanceSummary estimate={performanceEstimate} />
-                    ) : null}
-                    <SegmentAudienceStats
-                      audience={displayCopy?.audience}
-                      fallbackSummary={displayCopy?.audience_summary ?? fallbackSummary}
-                    />
-                    {displayCopy?.signal_chips.length ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {displayCopy.signal_chips.map((chip) => (
-                          <Badge
-                            className="max-w-full whitespace-normal text-[11px]"
-                            key={chip}
-                            variant="outline"
-                          >
-                            {chip}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="grid gap-1">
-                      <span className="text-[11px] font-medium text-foreground">추천 이유</span>
-                      <p className="line-clamp-2 leading-5">
-                        {displayCopy?.reason ||
-                          formatJsonObject(suggestion.reason_json) ||
-                          "추천 이유가 없어요."}
-                      </p>
-                    </div>
-                    {displayCopy ? <SegmentRankDifference displayCopy={displayCopy} /> : null}
-                  </div>
-                  <div className="mt-auto flex flex-wrap items-center gap-2 border-t pt-3">
-                    {suggestion.ai_report ? (
-                      <Button
-                        onClick={() => setReportSuggestion(suggestion)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        <FileText className="mr-2 size-3.5" />
-                        추천 리포트 보기
-                      </Button>
-                    ) : null}
-                    <Field
-                      className={buttonVariants({
-                        className: "w-auto gap-2",
-                        size: "sm",
-                        variant: "outline"
-                      })}
-                      data-disabled={decideIsPending || isConfirmed || isDismissed}
-                      orientation="horizontal"
-                    >
-                      <Checkbox
-                        aria-label={`${displayCopy?.title ?? suggestion.segment_name} 후보 선택`}
-                        checked={isAccepted}
-                        disabled={decideIsPending || isConfirmed || isDismissed}
-                        id={acceptanceId}
-                        onCheckedChange={(checked) =>
-                          onDecideSuggestion(
-                            suggestion.suggestion_id,
-                            checked === true ? "accepted" : "suggested"
-                          )
-                        }
-                      />
-                      <FieldLabel
-                        className="cursor-pointer text-[0.8rem] font-medium"
-                        htmlFor={acceptanceId}
-                      >
-                        세그먼트 후보 선택
-                      </FieldLabel>
-                    </Field>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          disabled={decideIsPending || isDismissed || isConfirmed}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <Trash2 className="mr-2 size-3.5" />
-                          세그먼트 후보 삭제
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>세그먼트 후보를 삭제할까요?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {displayCopy?.title ?? suggestion.segment_name} 후보가 목록에서 사라지고
-                            되돌릴 수 없어요.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>취소</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() =>
-                              onDecideSuggestion(suggestion.suggestion_id, "dismissed")
-                            }
-                            variant="destructive"
-                          >
-                            세그먼트 후보 삭제
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        {groupedSuggestions.primary.length > 0 ? (
+          <SegmentSuggestionSection
+            decideIsPending={decideIsPending}
+            onDecideSuggestion={onDecideSuggestion}
+            onOpenReport={setReportSuggestion}
+            suggestions={groupedSuggestions.primary}
+            title="주요 추천"
+          />
+        ) : null}
+        {groupedSuggestions.smallHighIntent.length > 0 ? (
+          <SegmentSuggestionSection
+            decideIsPending={decideIsPending}
+            description="프로모션과 맞는 행동 신호는 강하지만 표본이 작아, 주요 순위와 분리해 검토하는 후보예요."
+            onDecideSuggestion={onDecideSuggestion}
+            onOpenReport={setReportSuggestion}
+            smallHighIntent
+            suggestions={groupedSuggestions.smallHighIntent}
+            title="소규모 고의도 후보"
+          />
         ) : null}
         <SegmentSuggestionReportDialog
           onOpenChange={(open) => {
@@ -380,6 +242,227 @@ export function PromotionSegmentSuggestionPanel({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function SegmentSuggestionSection({
+  decideIsPending,
+  description,
+  onDecideSuggestion,
+  onOpenReport,
+  smallHighIntent = false,
+  suggestions,
+  title
+}: {
+  decideIsPending: boolean;
+  description?: string;
+  onDecideSuggestion: (
+    suggestionId: string,
+    status: "suggested" | "accepted" | "dismissed"
+  ) => void;
+  onOpenReport: (suggestion: DashboardPromotionSegmentSuggestion) => void;
+  smallHighIntent?: boolean;
+  suggestions: DashboardPromotionSegmentSuggestion[];
+  title: string;
+}) {
+  return (
+    <section className="grid gap-3 border-t pt-5">
+      <div className="grid gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <Badge variant="secondary">{formatInteger(suggestions.length)}</Badge>
+        </div>
+        {description ? (
+          <p className="max-w-3xl text-xs leading-5 text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
+        {suggestions.map((suggestion) => (
+          <SegmentSuggestionCard
+            decideIsPending={decideIsPending}
+            key={suggestion.suggestion_id}
+            onDecideSuggestion={onDecideSuggestion}
+            onOpenReport={onOpenReport}
+            smallHighIntent={smallHighIntent}
+            suggestion={suggestion}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SegmentSuggestionCard({
+  decideIsPending,
+  onDecideSuggestion,
+  onOpenReport,
+  smallHighIntent,
+  suggestion
+}: {
+  decideIsPending: boolean;
+  onDecideSuggestion: (
+    suggestionId: string,
+    status: "suggested" | "accepted" | "dismissed"
+  ) => void;
+  onOpenReport: (suggestion: DashboardPromotionSegmentSuggestion) => void;
+  smallHighIntent: boolean;
+  suggestion: DashboardPromotionSegmentSuggestion;
+}) {
+  const isAccepted = suggestion.suggestion_status === "accepted";
+  const isConfirmed = suggestion.suggestion_status === "confirmed";
+  const isDismissed = suggestion.suggestion_status === "dismissed";
+  const displayCopy = suggestion.display_copy;
+  const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
+  const recommendationRank = displayCopy?.recommendation_rank ?? suggestion.suggested_rank;
+  const rankRole = displayCopy?.rank_role;
+  const performanceEstimate = displayCopy?.performance_estimate;
+  const fallbackSummary = segmentAudienceSummary(suggestion.sample_size, suggestion.sample_ratio);
+
+  return (
+    <div
+      className={cn(
+        "flex min-h-full min-w-0 flex-col gap-4 overflow-hidden rounded-md border p-5",
+        isAccepted ? "border-primary bg-accent/60" : "bg-background",
+        smallHighIntent && !isAccepted && "border-dashed bg-muted/20"
+      )}
+    >
+      <div className="grid min-w-0 gap-3">
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <span className="min-w-0 text-xs font-semibold text-primary">
+            {smallHighIntent
+              ? (displayCopy?.recommendation_tier_label ?? "소규모 고의도 후보")
+              : `${formatInteger(recommendationRank)}위`}
+          </span>
+          <Badge className="shrink-0" variant={statusBadgeVariant(suggestion.suggestion_status)}>
+            {formatStatusLabel(suggestion.suggestion_status)}
+          </Badge>
+        </div>
+        {rankRole ? (
+          <Badge
+            className="w-fit max-w-full whitespace-normal border-primary/20 bg-accent px-2 py-1 text-left leading-4 text-primary [word-break:keep-all]"
+            variant="outline"
+          >
+            {rankRole}
+          </Badge>
+        ) : null}
+        <div className="grid min-w-0 gap-1">
+          <h3 className="text-base font-semibold leading-6 text-foreground [overflow-wrap:anywhere] [word-break:keep-all]">
+            {displayCopy?.title ?? suggestion.segment_name}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {displayCopy
+              ? "AI 추천 세그먼트"
+              : `${suggestion.segment_source} · ${suggestion.suggestion_source}`}
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-3 text-sm text-muted-foreground">
+        {performanceEstimate ? <SegmentPerformanceSummary estimate={performanceEstimate} /> : null}
+        <SegmentAudienceStats
+          audience={displayCopy?.audience}
+          fallbackSummary={displayCopy?.audience_summary ?? fallbackSummary}
+        />
+        {smallHighIntent && displayCopy?.recommendation_tier_reason ? (
+          <div className="grid gap-1 rounded-md border border-dashed px-3 py-2 text-xs leading-5">
+            <span className="font-medium text-foreground">별도 후보로 보는 이유</span>
+            <p>{displayCopy.recommendation_tier_reason}</p>
+          </div>
+        ) : null}
+        {displayCopy?.signal_chips.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {displayCopy.signal_chips.map((chip) => (
+              <Badge
+                className="max-w-full whitespace-normal text-[11px]"
+                key={chip}
+                variant="outline"
+              >
+                {chip}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+        <div className="grid gap-1">
+          <span className="text-[11px] font-medium text-foreground">추천 이유</span>
+          <p className="line-clamp-2 leading-5">
+            {displayCopy?.reason ||
+              formatJsonObject(suggestion.reason_json) ||
+              "추천 이유가 없어요."}
+          </p>
+        </div>
+        {!smallHighIntent && displayCopy ? (
+          <SegmentRankDifference displayCopy={displayCopy} />
+        ) : null}
+      </div>
+      <div className="mt-auto flex flex-wrap items-center gap-2 border-t pt-3">
+        {suggestion.ai_report ? (
+          <Button
+            onClick={() => onOpenReport(suggestion)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <FileText className="mr-2 size-3.5" />
+            추천 리포트 보기
+          </Button>
+        ) : null}
+        <Field
+          className={buttonVariants({
+            className: "w-auto gap-2",
+            size: "sm",
+            variant: "outline"
+          })}
+          data-disabled={decideIsPending || isConfirmed || isDismissed}
+          orientation="horizontal"
+        >
+          <Checkbox
+            aria-label={`${displayCopy?.title ?? suggestion.segment_name} 후보 선택`}
+            checked={isAccepted}
+            disabled={decideIsPending || isConfirmed || isDismissed}
+            id={acceptanceId}
+            onCheckedChange={(checked) =>
+              onDecideSuggestion(
+                suggestion.suggestion_id,
+                checked === true ? "accepted" : "suggested"
+              )
+            }
+          />
+          <FieldLabel className="cursor-pointer text-[0.8rem] font-medium" htmlFor={acceptanceId}>
+            세그먼트 후보 선택
+          </FieldLabel>
+        </Field>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              disabled={decideIsPending || isDismissed || isConfirmed}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <Trash2 className="mr-2 size-3.5" />
+              세그먼트 후보 삭제
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>세그먼트 후보를 삭제할까요?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {displayCopy?.title ?? suggestion.segment_name} 후보가 목록에서 사라지고 되돌릴 수
+                없어요.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>취소</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => onDecideSuggestion(suggestion.suggestion_id, "dismissed")}
+                variant="destructive"
+              >
+                세그먼트 후보 삭제
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </div>
   );
 }
 
@@ -410,6 +493,16 @@ function SegmentPerformanceSummary({ estimate }: { estimate: SegmentPerformanceE
           <span>{estimate.unavailable_reason}</span>
         ) : null}
       </div>
+      {isAvailable && estimate.expected_count !== undefined ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-primary/10 pt-2">
+          <span className="text-[11px] text-muted-foreground">
+            {estimate.expected_count_label ?? "예상 목표 달성 인원"}
+          </span>
+          <strong className="text-sm font-semibold tabular-nums text-foreground">
+            {estimate.expected_count_formatted ?? formatExpectedCount(estimate.expected_count)}
+          </strong>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -472,7 +565,10 @@ function SegmentSuggestionReportDialog({
   suggestion: DashboardPromotionSegmentSuggestion | null;
 }) {
   const report = suggestion?.ai_report ?? null;
-  const rankRole = suggestion?.display_copy?.rank_role;
+  const displayCopy = suggestion?.display_copy;
+  const rankRole = displayCopy?.rank_role;
+  const isSmallHighIntent = displayCopy?.recommendation_tier === "small_high_intent";
+  const recommendationRank = displayCopy?.recommendation_rank ?? suggestion?.suggested_rank ?? 0;
 
   return (
     <Dialog onOpenChange={onOpenChange} open={Boolean(report)}>
@@ -480,7 +576,11 @@ function SegmentSuggestionReportDialog({
         <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{formatInteger(suggestion?.suggested_rank ?? 0)}위</Badge>
+              <Badge variant="secondary">
+                {isSmallHighIntent
+                  ? (displayCopy?.recommendation_tier_label ?? "소규모 고의도 후보")
+                  : `${formatInteger(recommendationRank)}위`}
+              </Badge>
               {rankRole ? (
                 <Badge
                   className="max-w-full whitespace-normal [word-break:keep-all]"
@@ -517,6 +617,7 @@ function SegmentSuggestionReportContent({
   const displayCopy = suggestion?.display_copy ?? null;
   const performanceEstimate = displayCopy?.performance_estimate;
   const confidenceLabel = performanceEstimate?.confidence_label ?? report?.confidence_label;
+  const isSmallHighIntent = displayCopy?.recommendation_tier === "small_high_intent";
 
   if (!report) {
     return null;
@@ -540,6 +641,12 @@ function SegmentSuggestionReportContent({
             segmentAudienceSummary(suggestion?.sample_size ?? 0, suggestion?.sample_ratio ?? 0)
           }
         />
+        {isSmallHighIntent && displayCopy?.recommendation_tier_reason ? (
+          <div className="grid gap-1 rounded-md border border-dashed px-3 py-2 text-xs leading-5 text-muted-foreground">
+            <span className="font-medium text-foreground">별도 후보로 보는 이유</span>
+            <p>{displayCopy.recommendation_tier_reason}</p>
+          </div>
+        ) : null}
         {performanceEstimate ? (
           <div className="grid gap-2">
             <SegmentPerformanceSummary estimate={performanceEstimate} />
@@ -571,7 +678,10 @@ function SegmentSuggestionReportContent({
       <ReportSection items={report.promotion_interpretation} title="프로모션 해석" />
       <ReportSection items={report.why_recommended} title="추천한 이유" />
       <ReportSection items={report.evidence} title="확인된 행동 근거" />
-      <ReportSection items={report.difference_from_other_ranks} title="다른 순위와의 차이" />
+      <ReportSection
+        items={report.difference_from_other_ranks}
+        title={isSmallHighIntent ? "주요 추천과의 차이" : "다른 순위와의 차이"}
+      />
       <section className="grid gap-2 rounded-md border p-4">
         <h4 className="text-sm font-semibold">활용 방법</h4>
         <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
@@ -612,6 +722,10 @@ function formatConfidenceLabel(value: "high" | "medium" | "low") {
     return "보통";
   }
   return "낮음";
+}
+
+function formatExpectedCount(value: number) {
+  return `약 ${Math.max(value, 0).toFixed(1)}명`;
 }
 
 function formatObservedPerformance(
