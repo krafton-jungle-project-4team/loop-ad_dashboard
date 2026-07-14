@@ -314,7 +314,9 @@ function SegmentSuggestionCard({
         </div>
       </div>
       <div className="grid gap-3 text-sm text-muted-foreground">
-        {performanceEstimate ? <SegmentPerformanceSummary estimate={performanceEstimate} /> : null}
+        {performanceEstimate ? (
+          <SegmentPerformanceSummary estimate={performanceEstimate} showExpectedCount={false} />
+        ) : null}
         <SegmentAudienceStats
           audience={displayCopy?.audience}
           fallbackSummary={displayCopy?.audience_summary ?? fallbackSummary}
@@ -423,7 +425,13 @@ function SegmentSuggestionCard({
   );
 }
 
-function SegmentPerformanceSummary({ estimate }: { estimate: SegmentPerformanceEstimate }) {
+function SegmentPerformanceSummary({
+  estimate,
+  showExpectedCount = true
+}: {
+  estimate: SegmentPerformanceEstimate;
+  showExpectedCount?: boolean;
+}) {
   const isAvailable = estimate.availability !== "unavailable" && Boolean(estimate.formatted);
 
   return (
@@ -450,7 +458,7 @@ function SegmentPerformanceSummary({ estimate }: { estimate: SegmentPerformanceE
           <span>{estimate.unavailable_reason}</span>
         ) : null}
       </div>
-      {isAvailable && estimate.expected_count !== undefined ? (
+      {showExpectedCount && isAvailable && estimate.expected_count !== undefined ? (
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-primary/10 pt-2">
           <span className="text-[11px] text-muted-foreground">
             {estimate.expected_count_label ?? "예상 목표 달성 인원"}
@@ -477,9 +485,9 @@ function SegmentAudienceStats({
 
   return (
     <div className="grid grid-cols-3 divide-x rounded-md bg-muted/60 py-2 text-center">
-      <AudienceStat label="전체" value={audience.total_eligible_user_count} />
-      <AudienceStat label="조건 일치" value={audience.matching_user_count} />
-      <AudienceStat label="추천 대상" value={audience.selected_user_count} />
+      <AudienceStat label="분석 가능 사용자" value={audience.total_eligible_user_count} />
+      <AudienceStat label="행동 조건 부합" value={audience.matching_user_count} />
+      <AudienceStat label="대표 표본" value={audience.selected_user_count} />
     </div>
   );
 }
