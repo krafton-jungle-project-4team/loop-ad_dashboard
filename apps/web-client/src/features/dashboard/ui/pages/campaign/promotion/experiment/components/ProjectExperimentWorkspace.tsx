@@ -437,7 +437,7 @@ function ProjectExperimentTable({
             <TableHead>세그먼트</TableHead>
             <TableHead>노출 방식</TableHead>
             <TableHead className="text-right">배정</TableHead>
-            <TableHead className="text-right">현황 / 목표</TableHead>
+            <TableHead>현황 / 목표</TableHead>
             <TableHead>평가</TableHead>
             <TableHead>업데이트</TableHead>
             <TableHead className="w-40 pl-7">상세</TableHead>
@@ -475,7 +475,7 @@ function ProjectExperimentTable({
                 <TableCell className="text-right tabular-nums">
                   {formatInteger(experiment.assignment_count)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="tabular-nums">
                   <MetricPair
                     left={formatGoalValue(evaluation?.actual_value ?? null)}
                     right={formatGoalValue(
@@ -807,7 +807,7 @@ function DefinitionItem({ label, value }: { label: string; value: string }) {
 
 function MetricPair({ left, right }: { left: string; right: string }) {
   return (
-    <div className="inline-flex min-w-24 items-center justify-end gap-1.5 rounded-md bg-muted/50 px-2 py-1 text-sm font-medium">
+    <div className="inline-flex min-w-24 items-center justify-start gap-1.5 rounded-md bg-muted/50 px-2 py-1 text-sm font-medium">
       <span>{left}</span>
       <span className="text-muted-foreground">/</span>
       <span>{right}</span>
