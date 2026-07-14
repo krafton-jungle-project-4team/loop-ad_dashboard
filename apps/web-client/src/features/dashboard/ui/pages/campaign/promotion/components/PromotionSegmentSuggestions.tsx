@@ -93,6 +93,16 @@ export function PromotionSegmentSuggestionPanel({
   ).length;
   const confirmableCount = acceptedCount + scopedSegments.length;
   const groupedSuggestions = partitionPromotionSegmentSuggestions(suggestions);
+  const orderedSuggestions = [
+    ...groupedSuggestions.primary.map((suggestion) => ({
+      smallHighIntent: false,
+      suggestion
+    })),
+    ...groupedSuggestions.smallHighIntent.map((suggestion) => ({
+      smallHighIntent: true,
+      suggestion
+    }))
+  ];
 
   return (
     <Card className="h-full shadow-none">
@@ -204,25 +214,19 @@ export function PromotionSegmentSuggestionPanel({
           </div>
         ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 후보를 불러오는 중이에요." /> : null}
-        {groupedSuggestions.primary.length > 0 ? (
-          <SegmentSuggestionSection
-            decideIsPending={decideIsPending}
-            onDecideSuggestion={onDecideSuggestion}
-            onOpenReport={setReportSuggestion}
-            suggestions={groupedSuggestions.primary}
-            title="주요 추천"
-          />
-        ) : null}
-        {groupedSuggestions.smallHighIntent.length > 0 ? (
-          <SegmentSuggestionSection
-            decideIsPending={decideIsPending}
-            description="프로모션과 맞는 행동 신호는 강하지만 표본이 작아, 주요 순위와 분리해 검토하는 후보예요."
-            onDecideSuggestion={onDecideSuggestion}
-            onOpenReport={setReportSuggestion}
-            smallHighIntent
-            suggestions={groupedSuggestions.smallHighIntent}
-            title="소규모 고의도 후보"
-          />
+        {orderedSuggestions.length > 0 ? (
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
+            {orderedSuggestions.map(({ smallHighIntent, suggestion }) => (
+              <SegmentSuggestionCard
+                decideIsPending={decideIsPending}
+                key={suggestion.suggestion_id}
+                onDecideSuggestion={onDecideSuggestion}
+                onOpenReport={setReportSuggestion}
+                smallHighIntent={smallHighIntent}
+                suggestion={suggestion}
+              />
+            ))}
+          </div>
         ) : null}
         <SegmentSuggestionReportDialog
           onOpenChange={(open) => {
@@ -242,53 +246,6 @@ export function PromotionSegmentSuggestionPanel({
         ) : null}
       </CardContent>
     </Card>
-  );
-}
-
-function SegmentSuggestionSection({
-  decideIsPending,
-  description,
-  onDecideSuggestion,
-  onOpenReport,
-  smallHighIntent = false,
-  suggestions,
-  title
-}: {
-  decideIsPending: boolean;
-  description?: string;
-  onDecideSuggestion: (
-    suggestionId: string,
-    status: "suggested" | "accepted" | "dismissed"
-  ) => void;
-  onOpenReport: (suggestion: DashboardPromotionSegmentSuggestion) => void;
-  smallHighIntent?: boolean;
-  suggestions: DashboardPromotionSegmentSuggestion[];
-  title: string;
-}) {
-  return (
-    <section className="grid gap-3 border-t pt-5">
-      <div className="grid gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          <Badge variant="secondary">{formatInteger(suggestions.length)}</Badge>
-        </div>
-        {description ? (
-          <p className="max-w-3xl text-xs leading-5 text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
-        {suggestions.map((suggestion) => (
-          <SegmentSuggestionCard
-            decideIsPending={decideIsPending}
-            key={suggestion.suggestion_id}
-            onDecideSuggestion={onDecideSuggestion}
-            onOpenReport={onOpenReport}
-            smallHighIntent={smallHighIntent}
-            suggestion={suggestion}
-          />
-        ))}
-      </div>
-    </section>
   );
 }
 
