@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { DashboardCampaignPromotion, DashboardSegmentDetail } from "@loopad/shared";
+import type {
+  DashboardCampaignPromotion,
+  DashboardPromotionSegmentSuggestion,
+  DashboardSegmentDetail
+} from "@loopad/shared";
 import {
   activeContentCandidates,
   canStartAdExperiment,
   nextExperimentLoopCount,
+  normalizeSegmentDisplayCopy,
+  partitionPromotionSegmentSuggestions,
   promotionFormToUpdateRequest,
   promotionToFormState
 } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionUtils.js";
@@ -72,4 +78,51 @@ test("the next experiment increments the highest loop for its segment", () => {
 
   assert.equal(nextExperimentLoopCount(detail), 3);
   assert.equal(nextExperimentLoopCount({ ad_experiments: [] } as DashboardSegmentDetail), 1);
+});
+
+test("segment suggestions separate small high-intent candidates from primary ranks", () => {
+  const primary = {
+    suggestion_id: "primary",
+    display_copy: { recommendation_tier: "primary" }
+  } as DashboardPromotionSegmentSuggestion;
+  const legacy = {
+    suggestion_id: "legacy",
+    display_copy: null
+  } as DashboardPromotionSegmentSuggestion;
+  const smallHighIntent = {
+    suggestion_id: "small",
+    display_copy: { recommendation_tier: "small_high_intent" }
+  } as DashboardPromotionSegmentSuggestion;
+
+  const result = partitionPromotionSegmentSuggestions([smallHighIntent, primary, legacy]);
+
+  assert.deepEqual(
+    result.primary.map((suggestion) => suggestion.suggestion_id),
+    ["primary", "legacy"]
+  );
+  assert.deepEqual(
+    result.smallHighIntent.map((suggestion) => suggestion.suggestion_id),
+    ["small"]
+  );
+});
+
+test("segment display copy preserves recommendation tier metadata", () => {
+  const displayCopy = normalizeSegmentDisplayCopy({
+    title: "이번 여행지를 반복 탐색한 고객",
+    audience_summary: "조건 일치 4명",
+    signal_chips: ["목적지 반복"],
+    reason: "반복 탐색 행동이 확인됐습니다.",
+    action_hint: "별도 개인화 실험으로 검토하세요.",
+    recommendation_tier: "small_high_intent",
+    recommendation_tier_label: "소규모 고의도 후보",
+    recommendation_tier_reason: "예측 기준 표본보다 적습니다.",
+    recommendation_rank: null,
+    rank_eligible: false,
+    minimum_primary_sample_size: "30"
+  });
+
+  assert.equal(displayCopy?.recommendation_tier, "small_high_intent");
+  assert.equal(displayCopy?.recommendation_rank, undefined);
+  assert.equal(displayCopy?.rank_eligible, false);
+  assert.equal(displayCopy?.minimum_primary_sample_size, 30);
 });
