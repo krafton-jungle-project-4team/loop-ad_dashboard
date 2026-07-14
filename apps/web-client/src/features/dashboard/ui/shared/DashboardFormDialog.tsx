@@ -17,6 +17,7 @@ import {
   AlertDialogTitle
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Button } from "@loopad/ui/shadcn/button";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { XIcon } from "lucide-react";
 import {
   createContext,
@@ -41,6 +42,7 @@ export function DashboardFormDialog({
   children,
   description,
   dirty,
+  footer,
   onOpenChange,
   open,
   title,
@@ -49,6 +51,7 @@ export function DashboardFormDialog({
   children: ReactNode;
   description: ReactNode;
   dirty?: boolean;
+  footer?: ReactNode;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   title: ReactNode;
@@ -69,6 +72,7 @@ export function DashboardFormDialog({
     onOpenChange(false);
   }, [onOpenChange]);
   const contextValue = useMemo(() => ({ requestClose, setDirty }), [requestClose, setDirty]);
+  const hasFixedFooter = footer != null;
 
   useBeforeUnloadWarning(open && hasUnsavedChanges);
 
@@ -91,13 +95,17 @@ export function DashboardFormDialog({
         open={open}
       >
         <DialogContent
-          className={
+          className={cn(
+            "h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] w-[calc(100%-1rem)] p-0 sm:h-auto sm:max-h-[90svh]",
             width === "promotion"
-              ? "h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] w-[calc(100%-1rem)] overflow-y-auto p-0 sm:h-auto sm:max-h-[90svh] sm:max-w-[880px] [&_[data-slot=dialog-footer]]:sticky [&_[data-slot=dialog-footer]]:bottom-0 [&_[data-slot=dialog-footer]]:z-10"
+              ? "sm:max-w-[880px]"
               : width === "segment"
-                ? "h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] w-[calc(100%-1rem)] overflow-y-auto p-0 sm:h-auto sm:max-h-[90svh] sm:max-w-[760px] [&_[data-slot=dialog-footer]]:sticky [&_[data-slot=dialog-footer]]:bottom-0 [&_[data-slot=dialog-footer]]:z-10"
-                : "h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] w-[calc(100%-1rem)] overflow-y-auto p-0 sm:h-auto sm:max-h-[90svh] sm:max-w-[720px] [&_[data-slot=dialog-footer]]:sticky [&_[data-slot=dialog-footer]]:bottom-0 [&_[data-slot=dialog-footer]]:z-10"
-          }
+                ? "sm:max-w-[760px]"
+                : "sm:max-w-[720px]",
+            hasFixedFooter
+              ? "flex flex-col overflow-hidden"
+              : "overflow-y-auto [&_[data-slot=dialog-footer]]:sticky [&_[data-slot=dialog-footer]]:bottom-0 [&_[data-slot=dialog-footer]]:z-10"
+          )}
           onPointerDownOutside={(event) => event.preventDefault()}
           showCloseButton={false}
         >
@@ -116,7 +124,12 @@ export function DashboardFormDialog({
               </Button>
             </DialogClose>
           </DialogHeader>
-          {children}
+          {hasFixedFooter ? (
+            <div className="min-h-0 flex-auto overflow-y-auto">{children}</div>
+          ) : (
+            children
+          )}
+          {footer}
         </DialogContent>
       </Dialog>
       <AlertDialog onOpenChange={setIsDiscardDialogOpen} open={isDiscardDialogOpen}>

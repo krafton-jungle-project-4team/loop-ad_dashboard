@@ -8,7 +8,7 @@ import { Skeleton } from "@loopad/ui/shadcn/skeleton";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Gauge, Plus } from "lucide-react";
+import { Gauge, Pencil } from "lucide-react";
 import { fetchDashboardProjects } from "../../api/dashboard-api.js";
 import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
 import { ProjectManagementDialog } from "./ProjectManagementDialog.js";
@@ -68,13 +68,13 @@ export function ProjectSelectPage() {
             <ProjectManagementDialog
               trigger={
                 <Button
-                  aria-label="새 프로젝트 만들기"
+                  aria-label="프로젝트 관리"
                   className="group min-h-44 rounded-[18px] border-dashed border-black/20 bg-white/70 p-4 hover:border-primary/50 hover:bg-white"
                   type="button"
                   variant="outline"
                 >
                   <span className="flex size-20 items-center justify-center rounded-lg bg-black/5 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-primary">
-                    <Plus size={34} />
+                    <Pencil size={34} />
                   </span>
                 </Button>
               }

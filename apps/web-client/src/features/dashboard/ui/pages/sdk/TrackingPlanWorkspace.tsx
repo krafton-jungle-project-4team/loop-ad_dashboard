@@ -52,6 +52,7 @@ import {
   getTrackingPlan as getDeveloperTrackingPlan,
   publishTrackingPlan
 } from "../../../api/tracking-plan-api.js";
+import { useProjectOnboarding } from "../../onboarding/ProjectOnboardingProvider.js";
 
 type PropertyDraft = {
   id: number;
@@ -70,6 +71,7 @@ const DEFAULT_DEMO_ORIGIN = "https://demo-shoppingmall.dev.loop-ad.org";
 let nextPropertyDraftId = 0;
 
 export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
+  const { restartGuide } = useProjectOnboarding();
   const [plan, setPlan] = useState<TrackingPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -173,11 +175,16 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
             마케팅에 사용할 이벤트 이름과 속성 규칙을 관리해요.
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link params={{ projectId }} reloadDocument to="/developer/$projectId">
-            개발자 페이지
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={restartGuide} size="sm" type="button" variant="ghost">
+            튜토리얼 다시 보기
+          </Button>
+          <Button asChild variant="outline">
+            <Link params={{ projectId }} to="/developer/$projectId">
+              개발자 페이지
+            </Link>
+          </Button>
+        </div>
       </div>
       {error ? (
         <p className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
