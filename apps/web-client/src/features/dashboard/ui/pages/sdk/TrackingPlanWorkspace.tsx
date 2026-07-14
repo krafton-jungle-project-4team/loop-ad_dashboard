@@ -29,6 +29,14 @@ import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from "@loopad/ui/shadcn/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { Link } from "@tanstack/react-router";
@@ -303,6 +311,8 @@ function EventDesigner({
   const [properties, setProperties] = useState<PropertyDraft[]>([]);
   const selected = plan.events.find((event) => event.eventName === selectedName) ?? null;
   const propertyIssues = validatePropertyDrafts(properties);
+  const panelOpen =
+    mode === "create" || ((mode === "view" || mode === "edit") && selected !== null);
 
   function showList() {
     setMode("list");
@@ -359,8 +369,10 @@ function EventDesigner({
     if (deleted) showList();
   }
 
-  if (mode === "list" || (mode !== "create" && !selected)) {
-    return (
+  const isEdit = mode === "edit" && selected !== null;
+
+  return (
+    <>
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div className="grid gap-1.5">
@@ -398,119 +410,126 @@ function EventDesigner({
           )}
         </CardContent>
       </Card>
-    );
-  }
 
-  if (mode === "view" && selected) {
-    return (
-      <>
-        <Card>
-          <CardHeader>
-            <Badge className="w-fit" variant="outline">
-              이벤트 상세
-            </Badge>
-            <CardTitle className="text-xl">{selected.eventName}</CardTitle>
-            <CardDescription>{selected.description || "설명 없음"}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5">
-            <div className="grid gap-2">
-              <strong className="text-sm">속성 스키마</strong>
-              <PropertyContract event={selected} />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={showList}>
-                목록으로
-              </Button>
-              <Button onClick={() => startEdit(selected)}>수정</Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">삭제</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{selected.eventName} 이벤트를 삭제할까요?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      이벤트 규칙이 목록과 다음 게시 버전에서 제거됩니다. 삭제 후에는 되돌릴 수
-                      없어요.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>취소</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={(event) => {
-                        event.preventDefault();
-                        void removeEvent(selected);
-                      }}
-                      variant="destructive"
-                    >
-                      이벤트 삭제
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </CardContent>
-        </Card>
-      </>
-    );
-  }
-
-  const isEdit = mode === "edit";
-
-  return (
-    <Card>
-      <CardHeader>
-        <Badge className="w-fit">{isEdit ? "이벤트 수정" : "이벤트 생성"}</Badge>
-        <CardTitle className="text-xl">{isEdit ? selected?.eventName : "이벤트 추가"}</CardTitle>
-        <CardDescription>
-          JSON을 직접 고치지 않고 속성 이름, 타입, 필수 여부를 정할 수 있어요.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <Field>
-          <FieldLabel htmlFor="tracking-plan-event-name">이벤트명</FieldLabel>
-          <Input
-            disabled={isEdit}
-            id="tracking-plan-event-name"
-            value={eventName}
-            onChange={(event) => setEventName(event.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="tracking-plan-event-description">설명</FieldLabel>
-          <Textarea
-            className="min-h-20"
-            id="tracking-plan-event-description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-          />
-        </Field>
-        <div className="grid gap-2">
-          <PropertyList parentDepth={0} properties={properties} onChange={setProperties} />
-          {propertyIssues.length > 0 ? (
-            <div className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
-              {propertyIssues.map((issue) => (
-                <p key={issue}>{issue}</p>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            disabled={!eventName.trim() || propertyIssues.length > 0}
-            onClick={() => void save()}
-          >
-            저장
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => (isEdit && selected ? showEvent(selected) : showList())}
-          >
-            취소
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <Sheet
+        onOpenChange={(open) => {
+          if (!open) showList();
+        }}
+        open={panelOpen}
+      >
+        <SheetContent
+          className="w-full gap-0 overflow-hidden sm:max-w-2xl"
+          data-testid="tracking-plan-event-panel"
+          side="right"
+        >
+          {mode === "view" && selected ? (
+            <>
+              <SheetHeader className="border-b pr-14">
+                <Badge className="mb-2 w-fit" variant="outline">
+                  이벤트 상세
+                </Badge>
+                <SheetTitle className="text-xl">{selected.eventName}</SheetTitle>
+                <SheetDescription>{selected.description || "설명 없음"}</SheetDescription>
+              </SheetHeader>
+              <div className="grid flex-1 content-start gap-5 overflow-y-auto px-4 py-5">
+                <div className="grid gap-2">
+                  <strong className="text-sm">속성 스키마</strong>
+                  <PropertyContract event={selected} />
+                </div>
+              </div>
+              <SheetFooter className="border-t sm:flex-row sm:justify-end">
+                <Button variant="outline" onClick={showList}>
+                  닫기
+                </Button>
+                <Button onClick={() => startEdit(selected)}>수정</Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">삭제</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{selected.eventName} 이벤트를 삭제할까요?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        이벤트 규칙이 목록과 다음 게시 버전에서 제거됩니다. 삭제 후에는 되돌릴 수
+                        없어요.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>취소</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void removeEvent(selected);
+                        }}
+                        variant="destructive"
+                      >
+                        이벤트 삭제
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </SheetFooter>
+            </>
+          ) : (
+            <>
+              <SheetHeader className="border-b pr-14">
+                <Badge className="mb-2 w-fit">{isEdit ? "이벤트 수정" : "이벤트 생성"}</Badge>
+                <SheetTitle className="text-xl">
+                  {isEdit ? selected.eventName : "이벤트 추가"}
+                </SheetTitle>
+                <SheetDescription>
+                  JSON을 직접 고치지 않고 속성 이름, 타입, 필수 여부를 정할 수 있어요.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="grid flex-1 content-start gap-4 overflow-y-auto px-4 py-5">
+                <Field>
+                  <FieldLabel htmlFor="tracking-plan-event-name">이벤트명</FieldLabel>
+                  <Input
+                    disabled={isEdit}
+                    id="tracking-plan-event-name"
+                    value={eventName}
+                    onChange={(event) => setEventName(event.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="tracking-plan-event-description">설명</FieldLabel>
+                  <Textarea
+                    className="min-h-20"
+                    id="tracking-plan-event-description"
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                  />
+                </Field>
+                <div className="grid gap-2">
+                  <PropertyList parentDepth={0} properties={properties} onChange={setProperties} />
+                  {propertyIssues.length > 0 ? (
+                    <div className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
+                      {propertyIssues.map((issue) => (
+                        <p key={issue}>{issue}</p>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <SheetFooter className="border-t sm:flex-row sm:justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => (isEdit && selected ? showEvent(selected) : showList())}
+                >
+                  취소
+                </Button>
+                <Button
+                  disabled={!eventName.trim() || propertyIssues.length > 0}
+                  onClick={() => void save()}
+                >
+                  저장
+                </Button>
+              </SheetFooter>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
