@@ -360,7 +360,7 @@ export function CampaignWorkspacePage({
             entryActions={(card) => [
               {
                 id: "workspace",
-                label: "캠페인 관리",
+                label: "프로모션 관리",
                 onSelect: () => openCampaignView(card.id, "manage")
               },
               {
