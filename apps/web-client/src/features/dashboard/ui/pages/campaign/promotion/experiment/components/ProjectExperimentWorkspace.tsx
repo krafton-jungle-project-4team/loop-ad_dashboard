@@ -3,6 +3,14 @@ import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger
+} from "@loopad/ui/shadcn/dropdown-menu";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import {
   Select,
@@ -20,7 +28,7 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { ChevronRight, Plus, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { formatDateTime, formatInteger } from "../../../../../../model/dashboard-format.js";
 import {
@@ -81,15 +89,10 @@ export function ProjectExperimentWorkspace({
     () =>
       normalizeProjectExperimentFilters(visibleExperiments, {
         campaignId: query.selectedCampaignId || "all",
-        promotionId: query.experimentPromotionFilter || "all",
+        promotionId: "all",
         status: query.experimentStatusFilter || "all"
       }),
-    [
-      visibleExperiments,
-      query.experimentPromotionFilter,
-      query.experimentStatusFilter,
-      query.selectedCampaignId
-    ]
+    [visibleExperiments, query.experimentStatusFilter, query.selectedCampaignId]
   );
   const pageSize = projectExperimentPageSizeOptions.includes(
     query.experimentPageSize as (typeof projectExperimentPageSizeOptions)[number]
@@ -113,18 +116,6 @@ export function ProjectExperimentWorkspace({
       id: experiment.campaign_id,
       name: experiment.campaign_name
     }))
-  );
-  const promotions = uniqueEntities(
-    visibleExperiments.flatMap((experiment) =>
-      filters.campaignId === "all" || experiment.campaign_id === filters.campaignId
-        ? [
-            {
-              id: experiment.promotion_id,
-              name: experiment.promotion_name
-            }
-          ]
-        : []
-    )
   );
   const statuses = uniqueProjectExperimentValues(
     visibleExperiments.map((experiment) => experiment.status)
@@ -228,7 +219,7 @@ export function ProjectExperimentWorkspace({
             <div className="grid gap-1">
               <CardTitle>프로젝트 실험 목록</CardTitle>
               <CardDescription>
-                캠페인, 프로모션, 상태로 실험을 찾고 자세한 성과를 볼 수 있어요.
+                캠페인과 상태로 실험을 찾고 자세한 성과를 볼 수 있어요.
               </CardDescription>
             </div>
             <Button
@@ -244,57 +235,6 @@ export function ProjectExperimentWorkspace({
               )}
               {evaluationRefreshIsPending ? "평가 갱신 중…" : "평가 갱신"}
             </Button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3 xl:ml-auto">
-            <ExperimentFilter
-              id="project-experiment-campaign-filter"
-              label="캠페인"
-              onValueChange={(value) => {
-                void setDashboardQueryState({
-                  experimentPage: 1,
-                  experimentPromotionFilter: "all",
-                  selectedAdExperimentId: "",
-                  selectedCampaignId: value === "all" ? "" : value,
-                  selectedPromotionId: "",
-                  selectedSegmentId: ""
-                });
-              }}
-              options={campaigns}
-              placeholder="전체 캠페인"
-              value={filters.campaignId}
-            />
-            <ExperimentFilter
-              id="project-experiment-promotion-filter"
-              label="프로모션"
-              onValueChange={(value) => {
-                void setDashboardQueryState({
-                  experimentPage: 1,
-                  experimentPromotionFilter: value,
-                  selectedAdExperimentId: "",
-                  selectedPromotionId: "",
-                  selectedSegmentId: ""
-                });
-              }}
-              options={promotions}
-              placeholder="전체 프로모션"
-              value={filters.promotionId}
-            />
-            <ExperimentFilter
-              id="project-experiment-status-filter"
-              label="실험 상태"
-              onValueChange={(value) => {
-                void setDashboardQueryState({
-                  experimentPage: 1,
-                  experimentStatusFilter: value,
-                  selectedAdExperimentId: "",
-                  selectedPromotionId: "",
-                  selectedSegmentId: ""
-                });
-              }}
-              options={statuses.map((status) => ({ id: status, name: formatStatusLabel(status) }))}
-              placeholder="전체 상태"
-              value={filters.status}
-            />
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -319,32 +259,58 @@ export function ProjectExperimentWorkspace({
           ) : null}
           {visibleExperiments.length === 0 ? (
             <EmptyState message="아직 시작한 실험이 없어요." />
-          ) : filteredExperiments.length === 0 ? (
-            <EmptyState message="조건에 맞는 실험이 없어요." />
           ) : (
             <div className="grid gap-4">
               <ProjectExperimentTable
+                campaignFilterOptions={campaigns}
+                campaignFilterValue={filters.campaignId}
+                onCampaignFilterChange={(value) => {
+                  void setDashboardQueryState({
+                    experimentPage: 1,
+                    experimentPromotionFilter: "all",
+                    selectedAdExperimentId: "",
+                    selectedCampaignId: value === "all" ? "" : value,
+                    selectedPromotionId: "",
+                    selectedSegmentId: ""
+                  });
+                }}
                 onSelect={(experiment) => {
                   void setDashboardQueryState(projectExperimentSelectionQuery(experiment));
                 }}
-                rows={pagination.rows}
-                selectedExperimentId={query.selectedAdExperimentId}
-              />
-              <ProjectExperimentPagination
-                onPageChange={(page) => {
-                  void setDashboardQueryState({ experimentPage: page });
-                }}
-                onPageSizeChange={(nextPageSize) => {
+                onStatusFilterChange={(value) => {
                   void setDashboardQueryState({
                     experimentPage: 1,
-                    experimentPageSize: nextPageSize
+                    experimentStatusFilter: value,
+                    selectedAdExperimentId: "",
+                    selectedPromotionId: "",
+                    selectedSegmentId: ""
                   });
                 }}
-                page={pagination.page}
-                pageCount={pagination.pageCount}
-                pageSize={pageSize}
-                totalCount={filteredExperiments.length}
+                rows={pagination.rows}
+                selectedExperimentId={query.selectedAdExperimentId}
+                statusFilterOptions={statuses.map((status) => ({
+                  id: status,
+                  name: formatStatusLabel(status)
+                }))}
+                statusFilterValue={filters.status}
               />
+              {filteredExperiments.length > 0 ? (
+                <ProjectExperimentPagination
+                  onPageChange={(page) => {
+                    void setDashboardQueryState({ experimentPage: page });
+                  }}
+                  onPageSizeChange={(nextPageSize) => {
+                    void setDashboardQueryState({
+                      experimentPage: 1,
+                      experimentPageSize: nextPageSize
+                    });
+                  }}
+                  page={pagination.page}
+                  pageCount={pagination.pageCount}
+                  pageSize={pageSize}
+                  totalCount={filteredExperiments.length}
+                />
+              ) : null}
             </div>
           )}
         </CardContent>
@@ -378,57 +344,96 @@ function repeatCreativePreparationErrorMessage(error: unknown): string {
   return message.includes("다시 시도") ? message : `${message} 잠시 후 다시 시도해 주세요.`;
 }
 
-function ExperimentFilter({
-  id,
+function ExperimentColumnFilter({
   label,
+  menuLabel,
   onValueChange,
   options,
   placeholder,
   value
 }: {
-  id: string;
   label: string;
+  menuLabel: string;
   onValueChange: (value: string) => void;
   options: Array<{ id: string; name: string }>;
   placeholder: string;
   value: string;
 }) {
   return (
-    <Field className="w-full xl:w-52">
-      <FieldLabel id={`${id}-label`}>{label}</FieldLabel>
-      <Select onValueChange={onValueChange} value={value}>
-        <SelectTrigger aria-labelledby={`${id}-label`} className="w-full" id={id}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">{placeholder}</SelectItem>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          aria-label={`${label} 필터 열기`}
+          className="-ml-3 h-8 px-3"
+          size="sm"
+          type="button"
+          variant={value === "all" ? "ghost" : "soft"}
+        >
+          {label}
+          <ChevronDown aria-hidden="true" data-icon="inline-end" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-52">
+        <DropdownMenuLabel>{menuLabel}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup onValueChange={onValueChange} value={value}>
+          <DropdownMenuRadioItem value="all">{placeholder}</DropdownMenuRadioItem>
           {options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
+            <DropdownMenuRadioItem key={option.id} value={option.id}>
               {option.name}
-            </SelectItem>
+            </DropdownMenuRadioItem>
           ))}
-        </SelectContent>
-      </Select>
-    </Field>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 function ProjectExperimentTable({
+  campaignFilterOptions,
+  campaignFilterValue,
+  onCampaignFilterChange,
   onSelect,
+  onStatusFilterChange,
   rows,
-  selectedExperimentId
+  selectedExperimentId,
+  statusFilterOptions,
+  statusFilterValue
 }: {
+  campaignFilterOptions: Array<{ id: string; name: string }>;
+  campaignFilterValue: string;
+  onCampaignFilterChange: (value: string) => void;
   onSelect: (experiment: DashboardProjectExperiment) => void;
+  onStatusFilterChange: (value: string) => void;
   rows: DashboardProjectExperiment[];
   selectedExperimentId: string;
+  statusFilterOptions: Array<{ id: string; name: string }>;
+  statusFilterValue: string;
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border">
       <Table className="min-w-[1080px]">
         <TableHeader>
           <TableRow>
-            <TableHead>캠페인 / 프로모션</TableHead>
-            <TableHead>실행 상태</TableHead>
+            <TableHead>
+              <ExperimentColumnFilter
+                label="캠페인 / 프로모션"
+                menuLabel="캠페인 선택"
+                onValueChange={onCampaignFilterChange}
+                options={campaignFilterOptions}
+                placeholder="전체 캠페인"
+                value={campaignFilterValue}
+              />
+            </TableHead>
+            <TableHead>
+              <ExperimentColumnFilter
+                label="실행 상태"
+                menuLabel="실행 상태 선택"
+                onValueChange={onStatusFilterChange}
+                options={statusFilterOptions}
+                placeholder="전체 상태"
+                value={statusFilterValue}
+              />
+            </TableHead>
             <TableHead>세그먼트</TableHead>
             <TableHead>노출 방식</TableHead>
             <TableHead className="text-right">배정</TableHead>
@@ -439,6 +444,13 @@ function ProjectExperimentTable({
           </TableRow>
         </TableHeader>
         <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell className="p-4" colSpan={9}>
+                <EmptyState message="조건에 맞는 실험이 없어요." />
+              </TableCell>
+            </TableRow>
+          ) : null}
           {rows.map((experiment) => {
             const evaluation = experiment.latest_evaluation;
             const isSelected = experiment.ad_experiment_id === selectedExperimentId;
