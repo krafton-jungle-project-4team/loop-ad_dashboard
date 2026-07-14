@@ -71,7 +71,6 @@ import {
   campaignSegmentDisplayCopy,
   canStartAdExperiment,
   formatGoalValue,
-  formatJsonObject,
   formatPercentValue,
   latestSegmentPerSegmentId,
   nextExperimentLoopCount,
@@ -1014,37 +1013,6 @@ function PromotionSegmentDetailTab({
                               candidate.landing_url ?? "연결 페이지가 없어요"
                             ].join("\n")}
                           />
-                        </div>
-                        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
-                          <div className="mb-2 text-xs font-medium text-muted-foreground">근거</div>
-                          <div className="grid min-w-0 gap-2 text-sm leading-6 text-muted-foreground">
-                            <p className="[overflow-wrap:anywhere]">
-                              {candidate.reason_summary ?? "-"}
-                            </p>
-                            {candidate.message_strategy ? (
-                              <p className="[overflow-wrap:anywhere]">
-                                전략: {candidate.message_strategy}
-                              </p>
-                            ) : null}
-                            {candidate.image_prompt ? (
-                              <p className="[overflow-wrap:anywhere]">
-                                이미지: {candidate.image_prompt}
-                              </p>
-                            ) : null}
-                            {candidate.image_url ? (
-                              <a
-                                className="break-all underline underline-offset-4"
-                                href={candidate.image_url}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                이미지 URL
-                              </a>
-                            ) : null}
-                            <p className="break-all">
-                              {formatJsonObject(candidate.data_evidence_json)}
-                            </p>
-                          </div>
                         </div>
                       </CardContent>
                     </Card>
