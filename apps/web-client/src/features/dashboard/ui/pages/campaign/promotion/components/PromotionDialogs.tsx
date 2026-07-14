@@ -140,6 +140,23 @@ export function PromotionAddDialog({
     <DashboardFormDialog
       description="프로모션을 만들면 바로 관리 화면으로 이동해요."
       dirty={isDirty}
+      footer={
+        <DialogFooter className="mx-0 mb-0 px-5 py-5 sm:px-8">
+          <DialogClose asChild>
+            <Button type="button" variant="ghost">
+              취소
+            </Button>
+          </DialogClose>
+          <Button
+            className="px-8"
+            disabled={!canSubmit}
+            onClick={() => onCreate(form)}
+            type="button"
+          >
+            {createIsPending ? "프로모션 만드는 중…" : "프로모션 만들기"}
+          </Button>
+        </DialogFooter>
+      }
       onOpenChange={onOpenChange}
       open={open}
       title="새 프로모션 만들기"
@@ -148,16 +165,6 @@ export function PromotionAddDialog({
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
         <PromotionFormFields form={form} idPrefix="promotion-create" onChange={setForm} />
       </div>
-      <DialogFooter className="px-5 py-5 sm:px-8">
-        <DialogClose asChild>
-          <Button type="button" variant="ghost">
-            취소
-          </Button>
-        </DialogClose>
-        <Button className="px-8" disabled={!canSubmit} onClick={() => onCreate(form)} type="button">
-          {createIsPending ? "프로모션 만드는 중…" : "프로모션 만들기"}
-        </Button>
-      </DialogFooter>
     </DashboardFormDialog>
   );
 }
