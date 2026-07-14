@@ -35,6 +35,7 @@ import { XIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   EVENT_SDK_VERSION,
+  describeEventSchemaVersion,
   eventSdkInitCode,
   eventSdkInstallCode,
   eventSdkTrackCode
@@ -195,6 +196,7 @@ export function DeveloperWorkspace({
 }) {
   const [plan, setPlan] = useState<TrackingPlan | null>(null);
   const [publishedSchema, setPublishedSchema] = useState<SdkPublishedSchema | null>(null);
+  const [previousSchema, setPreviousSchema] = useState<SdkPublishedSchema | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmingVersion, setConfirmingVersion] = useState(false);
@@ -206,9 +208,14 @@ export function DeveloperWorkspace({
       .then(async (value) => {
         const schema =
           value.publishedRevision === null ? null : await getPublishedTrackingPlanSchema(projectId);
+        const previous =
+          schema && schema.revision > 1
+            ? await getPublishedTrackingPlanSchema(projectId, schema.revision - 1)
+            : null;
         if (!cancelled) {
           setPlan(value);
           setPublishedSchema(schema);
+          setPreviousSchema(previous);
         }
       })
       .catch((cause: unknown) => {
@@ -231,8 +238,14 @@ export function DeveloperWorkspace({
     try {
       const nextPlan = await publishTrackingPlan(projectId);
       const nextSchema = await getPublishedTrackingPlanSchema(projectId);
+      const previous =
+        publishedSchema ??
+        (nextSchema.revision > 1
+          ? await getPublishedTrackingPlanSchema(projectId, nextSchema.revision - 1)
+          : null);
       setPlan(nextPlan);
       setPublishedSchema(nextSchema);
+      setPreviousSchema(previous);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "새 이벤트 버전을 확정하지 못했어요.");
     } finally {
@@ -271,11 +284,7 @@ export function DeveloperWorkspace({
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           버전이 명시된 SDK 설치 코드와 이벤트·광고 연동 절차를 확인합니다.
         </p>
-        <p className="text-xs text-muted-foreground">
-          SDK 패키지 v{EVENT_SDK_VERSION} · 이벤트 스키마{" "}
-          {formatEventRevision(plan.publishedRevision)}
-          {publishedSchema ? ` · 확정 이벤트 ${publishedSchema.events.length}개` : ""}
-        </p>
+        <VersionMetadata publishedSchema={publishedSchema} />
       </header>
       {error ? (
         <p className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
@@ -286,10 +295,13 @@ export function DeveloperWorkspace({
         confirming={confirmingVersion}
         onConfirm={() => void confirmEventVersion()}
         plan={plan}
+        previousSchema={previousSchema}
+        publishedSchema={publishedSchema}
       />
       <DeveloperGuide
         advertisementGuide={advertisementGuide}
         plan={plan}
+        previousSchema={previousSchema}
         publishedSchema={publishedSchema}
       />
     </div>
@@ -299,19 +311,31 @@ export function DeveloperWorkspace({
 function EventVersionPanel({
   confirming,
   onConfirm,
-  plan
+  plan,
+  previousSchema,
+  publishedSchema
 }: {
   confirming: boolean;
   onConfirm: () => void;
   plan: TrackingPlan;
+  previousSchema: SdkPublishedSchema | null;
+  publishedSchema: SdkPublishedSchema | null;
 }) {
   const hasPendingChanges = plan.status === "draft";
+  const versionDescription = describeEventSchemaVersion({
+    draftEvents: plan.events,
+    hasPendingChanges,
+    previousSchema,
+    publishedSchema
+  });
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">이벤트 스키마 버전</CardTitle>
         <CardDescription>
-          마케터의 변경사항은 초안으로 모이고, 개발자가 확정하면 연동 가이드와 SDK에 반영됩니다.
+          이벤트 스키마 버전은 확정된 이벤트 계약의 변경 이력입니다. SDK는 개발자가 버전을 선택하지
+          않아도 항상 최신 확정본을 사용합니다. 마케터의 수정은 개발자가 확정하기 전까지 초안으로
+          유지됩니다.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center justify-between gap-4">
@@ -320,11 +344,7 @@ function EventVersionPanel({
           <strong className="text-lg">
             이벤트 스키마 {formatEventRevision(plan.publishedRevision)}
           </strong>
-          <p className="text-sm text-muted-foreground">
-            {hasPendingChanges
-              ? "확정 대기 중인 이벤트 변경사항이 있어요."
-              : "현재 이벤트 변경사항이 모두 확정됐어요."}
-          </p>
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{versionDescription}</p>
         </div>
         <Button
           disabled={!hasPendingChanges || plan.events.length === 0 || confirming}
@@ -343,6 +363,16 @@ function EventVersionPanel({
 
 function formatEventRevision(revision: number | null) {
   return revision === null ? "아직 확정된 버전 없음" : `v${revision}`;
+}
+
+function VersionMetadata({ publishedSchema }: { publishedSchema: SdkPublishedSchema | null }) {
+  return (
+    <p className="text-xs text-muted-foreground">
+      SDK 패키지 v{EVENT_SDK_VERSION} · 이벤트 스키마{" "}
+      {formatEventRevision(publishedSchema?.revision ?? null)}
+      {publishedSchema ? ` · 확정 이벤트 ${publishedSchema.events.length}개` : ""}
+    </p>
+  );
 }
 
 function EventDesigner({
@@ -744,10 +774,12 @@ function NestedSchemaEditor({
 function DeveloperGuide({
   advertisementGuide,
   plan,
+  previousSchema,
   publishedSchema
 }: {
   advertisementGuide: ReactNode;
   plan: TrackingPlan;
+  previousSchema: SdkPublishedSchema | null;
   publishedSchema: SdkPublishedSchema | null;
 }) {
   return (
@@ -764,7 +796,11 @@ function DeveloperGuide({
           <TabsTrigger value="advertisement">광고 연동</TabsTrigger>
         </TabsList>
         <TabsContent value="collection">
-          <CollectionGuide plan={plan} publishedSchema={publishedSchema} />
+          <CollectionGuide
+            plan={plan}
+            previousSchema={previousSchema}
+            publishedSchema={publishedSchema}
+          />
         </TabsContent>
         <TabsContent value="advertisement">{advertisementGuide}</TabsContent>
       </Tabs>
@@ -774,9 +810,11 @@ function DeveloperGuide({
 
 function CollectionGuide({
   plan,
+  previousSchema,
   publishedSchema
 }: {
   plan: TrackingPlan;
+  previousSchema: SdkPublishedSchema | null;
   publishedSchema: SdkPublishedSchema | null;
 }) {
   const guideEvents = publishedSchema?.events ?? [];
@@ -785,6 +823,12 @@ function CollectionGuide({
     guideEvents.find((event) => event.eventName === selectedEventName) ?? guideEvents[0] ?? null;
   const installCode = eventSdkInstallCode();
   const initCode = eventSdkInitCode(plan.projectId, plan.sdkKey);
+  const versionDescription = describeEventSchemaVersion({
+    draftEvents: plan.events,
+    hasPendingChanges: plan.status === "draft",
+    previousSchema,
+    publishedSchema
+  });
 
   useEffect(() => {
     setSelectedEventName(guideEvents[0]?.eventName ?? "");
@@ -795,37 +839,23 @@ function CollectionGuide({
       <header className="grid gap-2 border-b pb-5">
         <h2 className="text-2xl font-semibold">이벤트 수집 SDK 연동</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          SDK 패키지와 이벤트 스키마는 별도로 버전이 관리됩니다.
+          SDK 패키지 버전은 배포 파일을, 이벤트 스키마 버전은 이벤트 계약의 확정 이력을 나타냅니다.
+          두 버전은 서로 독립적으로 관리됩니다.
         </p>
-        <p className="text-xs text-muted-foreground">
-          SDK 패키지 v{EVENT_SDK_VERSION} · 이벤트 스키마{" "}
-          {formatEventRevision(publishedSchema?.revision ?? null)}
-          {publishedSchema ? ` · 확정 이벤트 ${publishedSchema.events.length}개` : ""}
-        </p>
+        <VersionMetadata publishedSchema={publishedSchema} />
       </header>
 
       <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+        <p>{versionDescription}</p>
         {plan.status === "draft" && publishedSchema ? (
-          <>
-            이 가이드는 확정된 이벤트 스키마 v{publishedSchema.revision} 기준입니다. 초안은 아직
-            반영되지 않았습니다. 새 버전을 확정하면 이벤트 목록, 속성 정의, 전송 예시가 함께
-            갱신됩니다. SDK 패키지나 스크립트 URL은 바꿀 필요가 없습니다.
-          </>
-        ) : publishedSchema ? (
-          <>
-            이벤트 목록, 속성 정의, 전송 예시는 이벤트 스키마 v{publishedSchema.revision}{" "}
-            기준입니다. 스키마 버전이 바뀌어도 SDK 패키지나 스크립트 URL은 바꿀 필요가 없습니다.
-          </>
-        ) : (
-          <>
-            아직 확정된 이벤트 스키마가 없습니다. 첫 버전을 확정하면 이벤트 목록, 속성 정의, 전송
-            예시가 이 가이드에 표시됩니다.
-          </>
-        )}
+          <p className="mt-2">
+            아래 이벤트 목록, 속성 정의, 전송 예시는 초안이 아닌 마지막 확정본 기준입니다.
+          </p>
+        ) : null}
       </div>
 
       <GuideSection
-        description={`SDK 패키지 v${EVENT_SDK_VERSION} 파일을 연결합니다. SDK 패키지를 업데이트할 때만 URL의 v 값을 변경하세요.`}
+        description="현재 배포된 SDK 패키지 파일을 연결합니다. SDK 패키지 자체를 업데이트할 때만 스크립트 URL의 패키지 버전을 변경하세요."
         title="1. 수집 SDK 설치"
       >
         <GuideCode code={installCode} />

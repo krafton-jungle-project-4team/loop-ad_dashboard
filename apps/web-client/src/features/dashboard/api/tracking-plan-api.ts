@@ -22,8 +22,12 @@ export function getTrackingPlan(projectId: string) {
   return apiGet(`${basePath(projectId)}/tracking-plan`, TrackingPlanSchema);
 }
 
-export function getPublishedTrackingPlanSchema(projectId: string) {
-  return apiGet(`${basePath(projectId)}/tracking-plan/published-schema`, SdkPublishedSchemaSchema);
+export function getPublishedTrackingPlanSchema(projectId: string, revision?: number) {
+  const revisionPath = revision === undefined ? "" : `/${revision}`;
+  return apiGet(
+    `${basePath(projectId)}/tracking-plan/published-schema${revisionPath}`,
+    SdkPublishedSchemaSchema
+  );
 }
 
 export function createTrackingPlan(projectId: string, request: TrackingPlanCreateRequest) {

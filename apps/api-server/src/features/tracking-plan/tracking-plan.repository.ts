@@ -271,7 +271,22 @@ export class TrackingPlanRepository {
     };
   }
 
-  async getPublishedSchema(projectId: string): Promise<SdkPublishedSchema | null> {
+  async getPublishedSchema(
+    projectId: string,
+    revision?: number
+  ): Promise<SdkPublishedSchema | null> {
+    if (revision !== undefined) {
+      const result = await this.pool.query<PublishedSchemaRow>(
+        `SELECT revision.schema_json
+         FROM tracking_plan_revisions revision
+         JOIN tracking_plans plan ON plan.tracking_plan_id = revision.tracking_plan_id
+         WHERE plan.project_id = $1 AND revision.revision = $2`,
+        [projectId, revision]
+      );
+      const row = result.rows[0];
+      return row ? SdkPublishedSchemaSchema.parse(row.schema_json) : null;
+    }
+
     const result = await this.pool.query<PublishedSchemaRow>(
       `SELECT revision.schema_json
        FROM project_sdk_settings settings

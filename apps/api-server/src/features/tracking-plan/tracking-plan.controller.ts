@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Headers, Inject, Param, Patch, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post
+} from "@nestjs/common";
 import {
   SdkConnectionSchema,
   SdkPublishedSchemaSchema,
@@ -23,6 +34,14 @@ export class TrackingPlanController {
   @Get("tracking-plan/published-schema")
   async publishedSchema(@Param("projectId") projectId: string) {
     return SdkPublishedSchemaSchema.parse(await this.service.publishedSchema(projectId));
+  }
+
+  @Get("tracking-plan/published-schema/:revision")
+  async publishedSchemaRevision(
+    @Param("projectId") projectId: string,
+    @Param("revision", ParseIntPipe) revision: number
+  ) {
+    return SdkPublishedSchemaSchema.parse(await this.service.publishedSchema(projectId, revision));
   }
 
   @Post("tracking-plan")

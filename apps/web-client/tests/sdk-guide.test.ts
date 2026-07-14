@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { TrackingPlanEvent } from "@loopad/shared";
+import { SDK_TRACKING_PLAN_SCHEMA_VERSION, type TrackingPlanEvent } from "@loopad/shared";
 import {
   EVENT_SDK_IIFE_URL,
   EVENT_SDK_VERSION,
+  describeEventSchemaVersion,
   eventSdkInitCode,
   eventSdkInstallCode,
   eventSdkTrackCode
@@ -49,6 +50,52 @@ test("SDK guide passes event properties directly to track", () => {
   assert.match(code, /"booking_id": "booking_id_value"/);
   assert.doesNotMatch(code, /properties\s*:/);
 });
+
+test("event schema descriptions are generated from each self-contained version snapshot", () => {
+  const previousEvent = trackingPlanEvent("booking_start", "before");
+  const changedEvent = trackingPlanEvent("booking_complete", "after");
+  const previousSchema = {
+    schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
+    revision: 1,
+    events: [previousEvent, trackingPlanEvent("booking_complete", "before")]
+  };
+  const publishedSchema = {
+    schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
+    revision: 2,
+    events: [changedEvent, trackingPlanEvent("booking_cancel", "new")]
+  };
+
+  const publishedDescription = describeEventSchemaVersion({
+    draftEvents: publishedSchema.events,
+    hasPendingChanges: false,
+    previousSchema,
+    publishedSchema
+  });
+  assert.match(publishedDescription, /현재 확정된 이벤트 스키마 v2/);
+  assert.match(publishedDescription, /이벤트 2개/);
+  assert.match(publishedDescription, /추가: booking_cancel/);
+  assert.match(publishedDescription, /수정: booking_complete/);
+  assert.match(publishedDescription, /삭제: booking_start/);
+  assert.match(publishedDescription, /별도 버전 설정 없이/);
+
+  const draftDescription = describeEventSchemaVersion({
+    draftEvents: [...publishedSchema.events, trackingPlanEvent("hotel_view", "new")],
+    hasPendingChanges: true,
+    previousSchema,
+    publishedSchema
+  });
+  assert.match(draftDescription, /이벤트 스키마 v3 후보/);
+  assert.match(draftDescription, /추가: hotel_view/);
+  assert.match(draftDescription, /확정 전까지 SDK는 이벤트 스키마 v2/);
+});
+
+function trackingPlanEvent(eventName: string, description: string): TrackingPlanEvent {
+  return {
+    eventName,
+    description,
+    propertiesSchema: { type: "object", properties: {}, required: [] }
+  };
+}
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

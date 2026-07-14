@@ -283,15 +283,19 @@ test("developer page reads the immutable published event schema without an Origi
       }
     ]
   };
+  const requestedRevisions: Array<number | undefined> = [];
   const repository = {
-    getPublishedSchema: async (projectId: string) => {
+    getPublishedSchema: async (projectId: string, revision?: number) => {
       assert.equal(projectId, "demo-shoppingmall");
+      requestedRevisions.push(revision);
       return publishedSchema;
     }
   } as unknown as TrackingPlanRepository;
   const service = new TrackingPlanService(repository);
 
   assert.deepEqual(await service.publishedSchema("demo-shoppingmall"), publishedSchema);
+  assert.deepEqual(await service.publishedSchema("demo-shoppingmall", 2), publishedSchema);
+  assert.deepEqual(requestedRevisions, [undefined, 2]);
 });
 
 test("developer page reports an absent published event schema", async () => {

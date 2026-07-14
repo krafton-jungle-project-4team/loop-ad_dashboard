@@ -58,8 +58,8 @@ export class TrackingPlanService {
     return this.repository.publish(projectId, createdBy);
   }
 
-  async publishedSchema(projectId: string): Promise<SdkPublishedSchema> {
-    const schema = await this.repository.getPublishedSchema(projectId);
+  async publishedSchema(projectId: string, revision?: number): Promise<SdkPublishedSchema> {
+    const schema = await this.repository.getPublishedSchema(projectId, revision);
     if (!schema) throw new NotFoundException("Published event schema was not found.");
     return schema;
   }
