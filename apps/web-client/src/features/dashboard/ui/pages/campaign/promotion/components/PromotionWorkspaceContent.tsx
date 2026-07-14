@@ -120,7 +120,7 @@ export function PromotionManagementList({
                 id="promotion-management-search"
                 name="promotionSearch"
                 onChange={(event) => onFilterChange(event.target.value)}
-                placeholder="프로모션 이름이나 채널 검색"
+                placeholder="프로모션 이름이나 노출 방식 검색"
                 type="search"
                 value={filter}
               />
@@ -141,7 +141,7 @@ export function PromotionManagementList({
               <TableHeader>
                 <TableRow>
                   <TableHead>프로모션</TableHead>
-                  <TableHead>채널</TableHead>
+                  <TableHead>노출 방식</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>목표</TableHead>
                   <TableHead className="text-right">세그먼트</TableHead>
@@ -1168,7 +1168,7 @@ function SegmentConnectedExperimentsCard({
               <TableRow>
                 <TableHead>실험</TableHead>
                 <TableHead>광고 소재</TableHead>
-                <TableHead>채널</TableHead>
+                <TableHead>노출 방식</TableHead>
                 <TableHead>반복 횟수</TableHead>
                 <TableHead>목표</TableHead>
                 <TableHead>상태</TableHead>

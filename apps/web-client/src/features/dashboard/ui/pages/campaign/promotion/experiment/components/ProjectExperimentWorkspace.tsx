@@ -406,7 +406,7 @@ function ProjectExperimentTable({
             <TableHead className="w-40">실험</TableHead>
             <TableHead>캠페인 / 프로모션</TableHead>
             <TableHead>세그먼트</TableHead>
-            <TableHead>채널</TableHead>
+            <TableHead>노출 방식</TableHead>
             <TableHead className="text-right">배정</TableHead>
             <TableHead className="text-right">현황 / 목표</TableHead>
             <TableHead>실행 상태</TableHead>
@@ -735,7 +735,7 @@ function SelectedProjectExperimentDetail({
         </div>
 
         <dl className="grid gap-3 border-t pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
-          <DefinitionItem label="채널" value={formatChannelLabel(experiment.channel)} />
+          <DefinitionItem label="노출 방식" value={formatChannelLabel(experiment.channel)} />
           <DefinitionItem label="시작" value={formatDateTime(experiment.started_at)} />
           <DefinitionItem label="종료" value={formatDateTime(experiment.ended_at)} />
           <DefinitionItem label="업데이트" value={formatDateTime(experiment.updated_at)} />

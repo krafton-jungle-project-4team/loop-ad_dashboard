@@ -202,7 +202,7 @@ function PromotionFormFields({
       </Field>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
-          <FieldLabel id={`${idPrefix}-channel-label`}>채널</FieldLabel>
+          <FieldLabel id={`${idPrefix}-channel-label`}>노출 방식</FieldLabel>
           <Select
             onValueChange={(value) => onChange({ ...form, channel: value })}
             value={form.channel}

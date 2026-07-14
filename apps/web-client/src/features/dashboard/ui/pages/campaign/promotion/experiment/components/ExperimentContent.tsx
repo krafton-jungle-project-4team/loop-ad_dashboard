@@ -466,8 +466,8 @@ function SelectedSegmentExperimentCards({
                 <AlertDialogHeader>
                   <AlertDialogTitle>실패한 대상을 다시 실험할까요?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    실패한 세그먼트를 다시 분석해 광고 소재와 실험을 만들고, 사용자 배정과 채널
-                    실행까지 이어서 진행해요.
+                    실패한 세그먼트를 다시 분석해 광고 소재와 실험을 만들고, 사용자 배정과 광고
+                    전달까지 이어서 진행해요.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

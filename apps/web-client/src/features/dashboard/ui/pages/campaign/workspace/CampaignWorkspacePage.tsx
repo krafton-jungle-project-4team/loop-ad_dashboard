@@ -627,7 +627,7 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
     id: promotion.promotion_id,
     kind: "promotion",
     metrics: [
-      { id: "channel", label: "채널", value: formatChannelLabel(promotion.channel) },
+      { id: "channel", label: "노출 방식", value: formatChannelLabel(promotion.channel) },
       {
         id: "goal",
         label: "목표 지표",

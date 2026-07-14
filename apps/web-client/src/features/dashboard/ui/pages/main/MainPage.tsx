@@ -291,13 +291,13 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
 
       <div className="grid gap-3 lg:grid-cols-4">
         <MainAnalyticsRankCard
-          emptyMessage="아직 채널별 데이터가 없어요."
+          emptyMessage="아직 노출 방식별 데이터가 없어요."
           items={metrics.channel_breakdown.map((item) => ({
             key: item.key,
             label: formatChannelLabel(item.key),
             value: item.event_count
           }))}
-          title="채널별 세션"
+          title="노출 방식별 세션"
         />
         <MainAnalyticsRankCard
           emptyMessage="아직 숙소군별 데이터가 없어요."
