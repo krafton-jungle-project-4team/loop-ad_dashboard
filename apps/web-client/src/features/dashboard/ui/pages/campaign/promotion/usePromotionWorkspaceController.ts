@@ -446,11 +446,13 @@ export function usePromotionWorkspaceController({
     mutationFn: ({
       analysisId,
       generationId,
+      loopCount,
       promotionId,
       segmentId
     }: {
       analysisId?: string;
       generationId?: string;
+      loopCount?: number;
       promotionId: string;
       segmentId: string;
     }) =>
@@ -467,7 +469,7 @@ export function usePromotionWorkspaceController({
               analysis_id: analysisId,
               generation_id: generationId,
               segment_ids: [segmentId],
-              loop_count: 1
+              loop_count: loopCount ?? 1
             });
             return {
               experiments: run.ad_experiments.map((experiment) => ({

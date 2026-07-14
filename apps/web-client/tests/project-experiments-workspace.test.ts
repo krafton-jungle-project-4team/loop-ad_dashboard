@@ -14,7 +14,8 @@ import {
   normalizeProjectExperimentFilters,
   paginateProjectExperiments,
   promotionRunIdsForRunningExperiments,
-  projectExperimentSelectionQuery
+  projectExperimentSelectionQuery,
+  repeatCreativeTargetForExperiment
 } from "../src/features/dashboard/ui/pages/campaign/promotion/experiment/projectExperimentUtils.js";
 
 const experiments = [
@@ -132,6 +133,13 @@ test("next-loop targets stay within the selected promotion run", () => {
 
   assert.deepEqual(targets.failedAdExperimentIds, ["experiment-b", "experiment-c"]);
   assert.deepEqual(targets.failedSegmentIds, ["segment-b", "segment-c"]);
+});
+
+test("repeat creative generation targets only the selected experiment", () => {
+  assert.deepEqual(repeatCreativeTargetForExperiment(experiments[1]!), {
+    failedAdExperimentIds: ["experiment-b"],
+    failedSegmentIds: ["segment-b"]
+  });
 });
 
 test("fresh evaluation results take precedence over stale project-list evaluations", () => {

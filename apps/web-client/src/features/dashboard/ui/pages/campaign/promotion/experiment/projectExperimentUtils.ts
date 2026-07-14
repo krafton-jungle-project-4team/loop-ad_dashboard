@@ -20,6 +20,13 @@ export type RunningEvaluationRefreshResult = {
   totalRunCount: number;
 };
 
+export type RepeatCreativePreparationInput = {
+  campaignId: string;
+  failedAdExperimentIds: string[];
+  failedSegmentIds: string[];
+  promotionId: string;
+};
+
 export function normalizeProjectExperimentFilters(
   experiments: DashboardProjectExperiment[],
   filters: ProjectExperimentFilters
@@ -121,6 +128,13 @@ export function failedTargetsForPromotionRun(
       failedExperiments.map((experiment) => experiment.ad_experiment_id)
     ),
     failedSegmentIds: uniqueValues(failedExperiments.map((experiment) => experiment.segment_id))
+  };
+}
+
+export function repeatCreativeTargetForExperiment(experiment: DashboardProjectExperiment) {
+  return {
+    failedAdExperimentIds: [experiment.ad_experiment_id],
+    failedSegmentIds: [experiment.segment_id]
   };
 }
 

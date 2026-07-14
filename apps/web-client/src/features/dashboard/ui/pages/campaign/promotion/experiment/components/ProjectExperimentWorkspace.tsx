@@ -1,16 +1,5 @@
 import type { DashboardProjectExperiment } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -42,53 +31,44 @@ import {
 } from "../../../../../../model/dashboard-labels.js";
 import { useDashboardQueryState } from "../../../../../../model/dashboard-query.js";
 import type { DashboardQuery } from "../../../../../../model/dashboard-types.js";
-import type { PromotionExperimentLaunchResult } from "../../promotionExperimentFlow.js";
 import { EmptyState } from "../../../../../shared/EmptyState.js";
 import { formatGoalValue, statusBadgeVariant, toErrorMessage } from "../experimentUtils.js";
 import {
-  failedTargetsForPromotionRun,
   filterProjectExperiments,
   normalizeProjectExperimentFilters,
   paginateProjectExperiments,
   promotionRunIdsForRunningExperiments,
   projectExperimentPageSizeOptions,
   projectExperimentSelectionQuery,
+  repeatCreativeTargetForExperiment,
+  type RepeatCreativePreparationInput,
   type RunningEvaluationRefreshResult,
   uniqueProjectExperimentValues
 } from "../projectExperimentUtils.js";
 
-type NextLoopInput = {
-  failedAdExperimentIds: string[];
-  failedSegmentIds: string[];
-  promotionId: string;
-  promotionRunId: string;
-};
-
 export function ProjectExperimentWorkspace({
-  createNextLoopError,
-  createNextLoopIsError,
-  createNextLoopIsPending,
-  createNextLoopResult,
-  createNextLoopVariables,
   evaluationRefreshIsPending,
   evaluationRefreshResult,
   experiments,
   isLoading,
-  onCreateNextLoop,
+  onPrepareRepeatCreatives,
   onRefreshRunningEvaluations,
+  prepareRepeatCreativesError,
+  prepareRepeatCreativesIsError,
+  prepareRepeatCreativesIsPending,
+  prepareRepeatCreativesVariables,
   query
 }: {
-  createNextLoopError: unknown;
-  createNextLoopIsError: boolean;
-  createNextLoopIsPending: boolean;
-  createNextLoopResult: PromotionExperimentLaunchResult | null;
-  createNextLoopVariables: NextLoopInput | null;
   evaluationRefreshIsPending: boolean;
   evaluationRefreshResult: RunningEvaluationRefreshResult | null;
   experiments: DashboardProjectExperiment[];
   isLoading: boolean;
-  onCreateNextLoop: (input: NextLoopInput) => void;
+  onPrepareRepeatCreatives: (input: RepeatCreativePreparationInput) => void;
   onRefreshRunningEvaluations: (promotionRunIds: string[]) => void;
+  prepareRepeatCreativesError: unknown;
+  prepareRepeatCreativesIsError: boolean;
+  prepareRepeatCreativesIsPending: boolean;
+  prepareRepeatCreativesVariables: RepeatCreativePreparationInput | null;
   query: DashboardQuery;
 }) {
   const [, setDashboardQueryState] = useDashboardQueryState();
@@ -367,14 +347,12 @@ export function ProjectExperimentWorkspace({
 
       {selectedExperiment ? (
         <SelectedProjectExperimentDetail
-          createNextLoopError={createNextLoopError}
-          createNextLoopIsError={createNextLoopIsError}
-          createNextLoopIsPending={createNextLoopIsPending}
-          createNextLoopResult={createNextLoopResult}
-          createNextLoopVariables={createNextLoopVariables}
           experiment={selectedExperiment}
-          experiments={experiments}
-          onCreateNextLoop={onCreateNextLoop}
+          onPrepareRepeatCreatives={onPrepareRepeatCreatives}
+          prepareRepeatCreativesError={prepareRepeatCreativesError}
+          prepareRepeatCreativesIsError={prepareRepeatCreativesIsError}
+          prepareRepeatCreativesIsPending={prepareRepeatCreativesIsPending}
+          prepareRepeatCreativesVariables={prepareRepeatCreativesVariables}
         />
       ) : null}
     </>
@@ -388,6 +366,11 @@ function evaluationRefreshFailureMessage(result: RunningEvaluationRefreshResult)
     : " 버튼을 다시 눌러 다시 시도해 주세요.";
 
   return `${formatInteger(result.succeededRunCount)}개 회차 성공, ${formatInteger(result.failedRunCount)}개 회차 실패했어요. ${failureMessage}${retryGuide}`;
+}
+
+function repeatCreativePreparationErrorMessage(error: unknown): string {
+  const message = toErrorMessage(error);
+  return message.includes("다시 시도") ? message : `${message} 잠시 후 다시 시도해 주세요.`;
 }
 
 function ExperimentFilter({
@@ -518,36 +501,29 @@ function ProjectExperimentTable({
 }
 
 function SelectedProjectExperimentDetail({
-  createNextLoopError,
-  createNextLoopIsError,
-  createNextLoopIsPending,
-  createNextLoopResult,
-  createNextLoopVariables,
   experiment,
-  experiments,
-  onCreateNextLoop
+  onPrepareRepeatCreatives,
+  prepareRepeatCreativesError,
+  prepareRepeatCreativesIsError,
+  prepareRepeatCreativesIsPending,
+  prepareRepeatCreativesVariables
 }: {
-  createNextLoopError: unknown;
-  createNextLoopIsError: boolean;
-  createNextLoopIsPending: boolean;
-  createNextLoopResult: PromotionExperimentLaunchResult | null;
-  createNextLoopVariables: NextLoopInput | null;
   experiment: DashboardProjectExperiment;
-  experiments: DashboardProjectExperiment[];
-  onCreateNextLoop: (input: NextLoopInput) => void;
+  onPrepareRepeatCreatives: (input: RepeatCreativePreparationInput) => void;
+  prepareRepeatCreativesError: unknown;
+  prepareRepeatCreativesIsError: boolean;
+  prepareRepeatCreativesIsPending: boolean;
+  prepareRepeatCreativesVariables: RepeatCreativePreparationInput | null;
 }) {
-  const currentCreateNextLoopResult =
-    createNextLoopResult && createNextLoopVariables?.promotionRunId === experiment.promotion_run_id
-      ? createNextLoopResult
-      : null;
-  const failedTargets = failedTargetsForPromotionRun(experiments, experiment.promotion_run_id);
-  const canCreateNextLoop =
-    !experiment.next_loop &&
-    failedTargets.failedAdExperimentIds.length + failedTargets.failedSegmentIds.length > 0;
   const evaluation = experiment.latest_evaluation;
-  const isCreatingNextLoopForSelected =
-    createNextLoopIsPending &&
-    createNextLoopVariables?.promotionRunId === experiment.promotion_run_id;
+  const repeatTarget = repeatCreativeTargetForExperiment(experiment);
+  const canPrepareRepeatCreatives =
+    !experiment.next_loop &&
+    (evaluation?.next_loop_required === true || evaluation?.status === "goal_not_met");
+  const isPreparingRepeatCreativesForSelected =
+    prepareRepeatCreativesIsPending &&
+    prepareRepeatCreativesVariables?.failedAdExperimentIds.includes(experiment.ad_experiment_id) ===
+      true;
 
   return (
     <Card>
@@ -571,60 +547,38 @@ function SelectedProjectExperimentDetail({
           </CardDescription>
         </div>
         <div className="flex flex-wrap items-start gap-2">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button disabled={!canCreateNextLoop || createNextLoopIsPending} type="button">
-                <Plus data-icon="inline-start" />
-                {isCreatingNextLoopForSelected ? "반복 실험 시작 중" : "반복 실험 시작하기"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>실패한 대상을 다시 실험할까요?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  목표에 미치지 못한 세그먼트와 실험만 이어가요. 만들면 대상 배정, 실험 시작, 광고
-                  발송 순서로 진행돼요.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>취소</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() =>
-                    onCreateNextLoop({
-                      ...failedTargets,
-                      promotionId: experiment.promotion_id,
-                      promotionRunId: experiment.promotion_run_id
-                    })
-                  }
-                >
-                  생성 및 시작
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Button
+            disabled={!canPrepareRepeatCreatives || prepareRepeatCreativesIsPending}
+            onClick={() =>
+              onPrepareRepeatCreatives({
+                ...repeatTarget,
+                campaignId: experiment.campaign_id,
+                promotionId: experiment.promotion_id
+              })
+            }
+            type="button"
+          >
+            {isPreparingRepeatCreativesForSelected ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : (
+              <Plus aria-hidden="true" data-icon="inline-start" />
+            )}
+            {isPreparingRepeatCreativesForSelected
+              ? "다음 실험용 광고 만드는 중…"
+              : "다음 실험용 광고 만들기"}
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="grid gap-6">
-        {currentCreateNextLoopResult ? (
-          <Alert>
-            <AlertTitle>
-              {currentCreateNextLoopResult.dispatchFailed
-                ? "반복 실험은 시작했지만 광고를 보내지 못했어요"
-                : currentCreateNextLoopResult.failedExperimentIds.length > 0
-                  ? "일부 반복 실험만 시작됐어요"
-                  : "반복 실험을 시작했어요"}
-            </AlertTitle>
+        {prepareRepeatCreativesIsError &&
+        prepareRepeatCreativesVariables?.failedAdExperimentIds.includes(
+          experiment.ad_experiment_id
+        ) === true ? (
+          <Alert aria-live="polite" variant="destructive">
+            <AlertTitle>다음 실험용 광고를 만들지 못했어요</AlertTitle>
             <AlertDescription>
-              {formatInteger(currentCreateNextLoopResult.startedExperimentIds.length)}개 실험을
-              시작했어요.
+              {repeatCreativePreparationErrorMessage(prepareRepeatCreativesError)}
             </AlertDescription>
-          </Alert>
-        ) : null}
-        {createNextLoopIsError &&
-        createNextLoopVariables?.promotionRunId === experiment.promotion_run_id ? (
-          <Alert variant="destructive">
-            <AlertTitle>반복 실험을 시작하지 못했어요</AlertTitle>
-            <AlertDescription>{toErrorMessage(createNextLoopError)}</AlertDescription>
           </Alert>
         ) : null}
 
@@ -710,9 +664,7 @@ function SelectedProjectExperimentDetail({
               <Alert>
                 <AlertTitle>반복 실험이 필요해요</AlertTitle>
                 <AlertDescription>
-                  같은 실행에서 실패한 실험{" "}
-                  {formatInteger(failedTargets.failedAdExperimentIds.length)}개, 세그먼트{" "}
-                  {formatInteger(failedTargets.failedSegmentIds.length)}개를 이어갈 수 있어요.
+                  현재 선택한 {experiment.segment_name} 세그먼트의 광고를 새로 만들 수 있어요.
                 </AlertDescription>
               </Alert>
             ) : (
