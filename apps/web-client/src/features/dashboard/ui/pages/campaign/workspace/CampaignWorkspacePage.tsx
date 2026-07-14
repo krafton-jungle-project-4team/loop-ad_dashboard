@@ -35,6 +35,7 @@ import {
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import { dashboardCampaignDetailQueryKey } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
+import { DashboardHeaderPortal } from "../../../../layout/DashboardHeaderSlot.js";
 import { DashboardDateRangeSelect } from "../../../shared/DashboardDateRangeSelect.js";
 import { EmptyState } from "../../../shared/EmptyState.js";
 import { CampaignPerformanceSections } from "../CampaignPerformanceSections.js";
@@ -274,43 +275,45 @@ export function CampaignWorkspacePage({
 
   return (
     <div className="grid gap-6">
-      <HierarchyBreadcrumbs
-        items={hierarchyItems}
-        onItemSelect={(item) => {
-          if (item.kind === "campaign") {
-            void setDashboardQueryState({
-              promotionView: "manage",
-              segmentView: "manage",
-              selectedAdExperimentId: "",
-              selectedPromotionId: "",
-              selectedSegmentId: ""
-            });
-            return;
+      <DashboardHeaderPortal>
+        <HierarchyBreadcrumbs
+          items={hierarchyItems}
+          onItemSelect={(item) => {
+            if (item.kind === "campaign") {
+              void setDashboardQueryState({
+                promotionView: "manage",
+                segmentView: "manage",
+                selectedAdExperimentId: "",
+                selectedPromotionId: "",
+                selectedSegmentId: ""
+              });
+              return;
+            }
+            if (item.kind === "promotion") {
+              void setDashboardQueryState({
+                segmentView: "manage",
+                selectedAdExperimentId: "",
+                selectedSegmentId: ""
+              });
+            }
+          }}
+          onRootSelect={
+            selectedCampaign
+              ? () => {
+                  void setDashboardQueryState({
+                    campaignView: "manage",
+                    promotionView: "manage",
+                    segmentView: "manage",
+                    selectedAdExperimentId: "",
+                    selectedCampaignId: "",
+                    selectedPromotionId: "",
+                    selectedSegmentId: ""
+                  });
+                }
+              : undefined
           }
-          if (item.kind === "promotion") {
-            void setDashboardQueryState({
-              segmentView: "manage",
-              selectedAdExperimentId: "",
-              selectedSegmentId: ""
-            });
-          }
-        }}
-        onRootSelect={
-          selectedCampaign
-            ? () => {
-                void setDashboardQueryState({
-                  campaignView: "manage",
-                  promotionView: "manage",
-                  segmentView: "manage",
-                  selectedAdExperimentId: "",
-                  selectedCampaignId: "",
-                  selectedPromotionId: "",
-                  selectedSegmentId: ""
-                });
-              }
-            : undefined
-        }
-      />
+        />
+      </DashboardHeaderPortal>
 
       {promotionMutationError ? (
         <Alert variant="destructive">

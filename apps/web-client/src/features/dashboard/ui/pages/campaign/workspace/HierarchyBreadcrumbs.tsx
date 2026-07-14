@@ -30,14 +30,14 @@ export function HierarchyBreadcrumbs({
 }: HierarchyBreadcrumbsProps) {
   return (
     <Breadcrumb aria-label={ariaLabel} className={className}>
-      <BreadcrumbList className="min-w-0 flex-nowrap overflow-x-auto py-1">
+      <BreadcrumbList className="min-w-0 flex-nowrap overflow-x-auto py-1 text-[15px]">
         <BreadcrumbItem className="shrink-0">
           {items.length === 0 ? (
             <BreadcrumbPage>{rootLabel}</BreadcrumbPage>
           ) : onRootSelect ? (
             <BreadcrumbLink asChild>
               <Button
-                className="h-auto p-0 text-muted-foreground"
+                className="h-auto rounded-none border-0 p-0 text-[15px] text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:underline"
                 onClick={onRootSelect}
                 size="sm"
                 type="button"
@@ -66,7 +66,7 @@ export function HierarchyBreadcrumbs({
                 ) : canSelect ? (
                   <BreadcrumbLink asChild>
                     <Button
-                      className="h-auto max-w-48 truncate p-0 text-muted-foreground"
+                      className="h-auto max-w-48 truncate rounded-none border-0 p-0 text-[15px] text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:underline"
                       onClick={() => onItemSelect(item, index)}
                       size="sm"
                       type="button"

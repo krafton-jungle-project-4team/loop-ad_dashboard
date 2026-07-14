@@ -15,6 +15,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
+  SidebarSeparator,
   SidebarTrigger,
   useSidebar
 } from "@loopad/ui/shadcn/sidebar";
@@ -22,6 +23,7 @@ import { cn } from "@loopad/ui/shadcn/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Code2, HelpCircle, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useState,
@@ -31,6 +33,7 @@ import {
 } from "react";
 import {
   dashboardNavigationGroups,
+  getDashboardNavigationSearch,
   getDashboardTabLabel,
   type DashboardNavTreeLinkItem
 } from "../model/dashboard-navigation.js";
@@ -41,6 +44,7 @@ import { OnboardingWorkspaceLayout } from "../ui/onboarding/OnboardingWorkspaceL
 import { useProjectOnboarding } from "../ui/onboarding/ProjectOnboardingProvider.js";
 import { ProjectReturnIconLink, ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
 import { GlobalEntitySearch } from "../ui/search/GlobalEntitySearch.js";
+import { DashboardHeaderSlotProvider } from "./DashboardHeaderSlot.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 360;
@@ -59,107 +63,116 @@ export function DashboardShell({
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
   const { canRestartGuide, isDashboardUnlocked, isLoading, isTabAllowed, restartGuide, stage } =
     useProjectOnboarding();
+  const [headerSlotElement, setHeaderSlotElement] = useState<HTMLDivElement | null>(null);
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
   const isFullHeightTab = isCanvasTab;
   const constrainToViewport = isFullHeightTab || !isDashboardUnlocked;
 
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": `${sidebarWidth}px`
-        } as CSSProperties
-      }
-    >
-      <Sidebar className="border-r border-black/10" collapsible="offcanvas">
-        <SidebarHeader className="p-4">
-          <ProjectSidebarBrand projectId={projectId} />
-        </SidebarHeader>
-        <SidebarContent>
-          {dashboardNavigationGroups.map((group) => (
-            <SidebarGroup key={group.label}>
-              {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
-              <SidebarGroupContent>
-                <DashboardNavigation
-                  activeTab={activeTab}
-                  isTabAllowed={isTabAllowed}
-                  items={group.items}
-                  projectId={projectId}
-                />
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
-        </SidebarContent>
-        {canRestartGuide ? (
-          <SidebarFooter className="border-t p-3">
-            <Button
-              className="w-full justify-start"
-              onClick={restartGuide}
-              type="button"
-              variant="ghost"
-            >
-              <HelpCircle aria-hidden="true" />
-              시작 가이드 다시 보기
-            </Button>
-          </SidebarFooter>
-        ) : null}
-        <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
-        <SidebarRail />
-      </Sidebar>
+    <DashboardHeaderSlotProvider value={headerSlotElement}>
+      <SidebarProvider
+        style={
+          {
+            "--sidebar-width": `${sidebarWidth}px`
+          } as CSSProperties
+        }
+      >
+        <Sidebar className="border-r border-black/10" collapsible="offcanvas">
+          <SidebarHeader className="p-4">
+            <ProjectSidebarBrand projectId={projectId} />
+          </SidebarHeader>
+          <SidebarContent>
+            {dashboardNavigationGroups.map((group, index) => (
+              <Fragment key={group.items[0]?.pathSegment ?? group.label}>
+                {index > 0 ? <SidebarSeparator /> : null}
+                <SidebarGroup>
+                  {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
+                  <SidebarGroupContent>
+                    <DashboardNavigation
+                      activeTab={activeTab}
+                      isTabAllowed={isTabAllowed}
+                      items={group.items}
+                      projectId={projectId}
+                    />
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </Fragment>
+            ))}
+          </SidebarContent>
+          {canRestartGuide ? (
+            <SidebarFooter className="border-t p-3">
+              <Button
+                className="w-full justify-start"
+                onClick={restartGuide}
+                type="button"
+                variant="ghost"
+              >
+                <HelpCircle aria-hidden="true" />
+                시작 가이드 다시 보기
+              </Button>
+            </SidebarFooter>
+          ) : null}
+          <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
+          <SidebarRail />
+        </Sidebar>
 
-      <SidebarInset className={constrainToViewport ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
-          <div className="flex h-full min-w-0 flex-1 items-center gap-3">
-            <ProjectReturnIconLink />
-            <SidebarTrigger className="-ml-1" />
-            <div className="flex h-6 items-center">
-              <Separator className="h-full" orientation="vertical" />
+        <SidebarInset className={constrainToViewport ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
+            <div className="flex h-full min-w-0 flex-1 items-center gap-3">
+              <ProjectReturnIconLink />
+              <SidebarTrigger className="-ml-1" />
+              <div className="flex h-6 items-center">
+                <Separator className="h-full" orientation="vertical" />
+              </div>
+              <div className="min-w-0 flex-1 empty:hidden" ref={setHeaderSlotElement} />
+              {isDashboardUnlocked ? (
+                <DashboardGlobalSearch projectId={projectId} />
+              ) : isLoading ? (
+                <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                  {getDashboardTabLabel(activeTab)}
+                </div>
+              ) : stage === "welcome" ? (
+                <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                  프로젝트 시작
+                </div>
+              ) : (
+                <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                  {getDashboardTabLabel(activeTab)}
+                </div>
+              )}
             </div>
-            {isDashboardUnlocked ? (
-              <DashboardGlobalSearch projectId={projectId} />
-            ) : isLoading ? (
-              <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
-                {getDashboardTabLabel(activeTab)}
-              </div>
-            ) : stage === "welcome" ? (
-              <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
-                프로젝트 시작
-              </div>
-            ) : (
-              <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
-                {getDashboardTabLabel(activeTab)}
-              </div>
-            )}
-          </div>
-        </header>
+          </header>
 
-        <main
-          className={
-            isCanvasTab
-              ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background pb-20 md:pb-0"
-              : "min-h-0 min-w-0 flex-1 overflow-auto bg-background pb-20 md:pb-0"
-          }
-        >
-          <div
+          <main
             className={
               isCanvasTab
-                ? "h-full min-h-0 w-full"
-                : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
+                ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background pb-20 md:pb-0"
+                : "min-h-0 min-w-0 flex-1 overflow-auto bg-background pb-20 md:pb-0"
             }
           >
-            <OnboardingWorkspaceLayout activeTab={activeTab}>{children}</OnboardingWorkspaceLayout>
-          </div>
-        </main>
-        {stage === "welcome" ? null : (
-          <MobileBottomNavigation
-            activeTab={activeTab}
-            isDashboardUnlocked={isDashboardUnlocked}
-            isTabAllowed={isTabAllowed}
-            projectId={projectId}
-          />
-        )}
-      </SidebarInset>
-    </SidebarProvider>
+            <div
+              className={
+                isCanvasTab
+                  ? "h-full min-h-0 w-full"
+                  : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
+              }
+            >
+              <OnboardingWorkspaceLayout activeTab={activeTab}>
+                {children}
+              </OnboardingWorkspaceLayout>
+            </div>
+          </main>
+          {stage === "welcome" ? null : (
+            <MobileBottomNavigation
+              activeTab={activeTab}
+              isDashboardUnlocked={isDashboardUnlocked}
+              isTabAllowed={isTabAllowed}
+              projectId={projectId}
+            />
+          )}
+        </SidebarInset>
+      </SidebarProvider>
+    </DashboardHeaderSlotProvider>
   );
 }
 
@@ -406,7 +419,7 @@ function DashboardNavigationLinkItem({
       >
         <Link
           params={{ projectId, tabPath: item.pathSegment }}
-          search={(current) => current}
+          search={(current) => getDashboardNavigationSearch(item.value, current)}
           to="/dashboard/$projectId/$tabPath"
         >
           <span className={cn(isActive && "font-semibold text-primary")}>{item.label}</span>
