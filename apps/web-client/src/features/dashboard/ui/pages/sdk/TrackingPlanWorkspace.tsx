@@ -27,17 +27,10 @@ import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle
-} from "@loopad/ui/shadcn/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { Link } from "@tanstack/react-router";
+import { XIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   EVENT_SDK_VERSION,
@@ -167,11 +160,18 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
 
   return (
     <div className="grid gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold">이벤트 관리</h1>
-        <p className="text-sm text-muted-foreground">
-          마케팅에 사용할 이벤트 이름과 속성 규칙을 관리해요.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">이벤트 관리</h1>
+          <p className="text-sm text-muted-foreground">
+            마케팅에 사용할 이벤트 이름과 속성 규칙을 관리해요.
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link params={{ projectId }} to="/developer/$projectId">
+            개발자 문서
+          </Link>
+        </Button>
       </div>
       {error ? (
         <p className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
@@ -335,64 +335,85 @@ function EventDesigner({
   const isEdit = mode === "edit" && selected !== null;
 
   return (
-    <>
-      <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div className="grid gap-1.5">
-            <CardTitle className="text-base">이벤트 목록</CardTitle>
-            <CardDescription>이벤트를 선택하면 상세 정보와 관리 기능이 열려요.</CardDescription>
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-4">
+        <div className="grid gap-1.5">
+          <CardTitle className="text-base">이벤트 목록</CardTitle>
+          <CardDescription>이벤트를 선택하면 상세 정보와 관리 기능이 열려요.</CardDescription>
+        </div>
+        <Button onClick={startCreate}>이벤트 추가</Button>
+      </CardHeader>
+      <CardContent
+        className={`relative overflow-hidden transition-[min-height] duration-200 ${panelOpen ? "min-h-[600px]" : ""}`}
+      >
+        {plan.events.length > 0 ? (
+          <div className="overflow-hidden rounded-md border">
+            {plan.events.map((event) => (
+              <button
+                className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3 text-left last:border-b-0 hover:bg-muted/50"
+                key={event.eventName}
+                onClick={() => showEvent(event)}
+                type="button"
+              >
+                <span className="grid gap-1">
+                  <strong className="text-sm font-medium">{event.eventName}</strong>
+                  <span className="line-clamp-1 text-xs text-muted-foreground">
+                    {event.description || "설명 없음"}
+                  </span>
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  속성 {propertyContractRows(event.propertiesSchema).length}개
+                </span>
+              </button>
+            ))}
           </div>
-          <Button onClick={startCreate}>이벤트 추가</Button>
-        </CardHeader>
-        <CardContent>
-          {plan.events.length > 0 ? (
-            <div className="overflow-hidden rounded-md border">
-              {plan.events.map((event) => (
-                <button
-                  className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3 text-left last:border-b-0 hover:bg-muted/50"
-                  key={event.eventName}
-                  onClick={() => showEvent(event)}
-                  type="button"
-                >
-                  <span className="grid gap-1">
-                    <strong className="text-sm font-medium">{event.eventName}</strong>
-                    <span className="line-clamp-1 text-xs text-muted-foreground">
-                      {event.description || "설명 없음"}
-                    </span>
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    속성 {propertyContractRows(event.propertiesSchema).length}개
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-              등록한 이벤트가 없어요.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+        ) : (
+          <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+            등록한 이벤트가 없어요.
+          </p>
+        )}
 
-      <Sheet onOpenChange={setPanelOpen} open={panelOpen}>
-        <SheetContent
-          className="w-full gap-0 overflow-hidden sm:max-w-[min(860px,calc(100vw-2rem))]"
+        <button
+          aria-label="이벤트 패널 닫기"
+          className={`absolute inset-0 z-10 bg-black/10 transition-opacity duration-200 ${panelOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
+          onClick={closePanel}
+          tabIndex={panelOpen ? 0 : -1}
+          type="button"
+        />
+        <aside
+          aria-hidden={!panelOpen}
+          aria-labelledby="tracking-plan-event-panel-title"
+          className={`absolute inset-y-0 right-0 z-20 flex w-full max-w-[650px] flex-col overflow-hidden border-l bg-popover text-sm text-popover-foreground shadow-xl transition-[transform,opacity] duration-200 ease-out ${panelOpen ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-6 opacity-0"}`}
           data-testid="tracking-plan-event-panel"
-          side="right"
+          inert={!panelOpen}
+          role="dialog"
         >
+          <Button
+            aria-label="닫기"
+            className="absolute top-3 right-3 z-10"
+            onClick={closePanel}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <XIcon />
+          </Button>
           {mode === "view" && selected ? (
             <>
-              <SheetHeader className="border-b pr-14">
-                <SheetTitle className="text-xl">{selected.eventName}</SheetTitle>
-                <SheetDescription>{selected.description || "설명 없음"}</SheetDescription>
-              </SheetHeader>
+              <div className="grid gap-0.5 border-b p-4 pr-14">
+                <h2 className="text-xl font-medium" id="tracking-plan-event-panel-title">
+                  {selected.eventName}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {selected.description || "설명 없음"}
+                </p>
+              </div>
               <div className="grid flex-1 content-start gap-5 overflow-y-auto px-4 py-5">
                 <div className="grid gap-2">
                   <strong className="text-sm">속성 스키마</strong>
                   <PropertyContract event={selected} />
                 </div>
               </div>
-              <SheetFooter className="border-t sm:flex-row sm:justify-end">
+              <div className="mt-auto flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-end">
                 <Button variant="outline" onClick={closePanel}>
                   닫기
                 </Button>
@@ -405,8 +426,7 @@ function EventDesigner({
                     <AlertDialogHeader>
                       <AlertDialogTitle>{selected.eventName} 이벤트를 삭제할까요?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        이벤트 규칙이 목록과 다음 게시 버전에서 제거됩니다. 삭제 후에는 되돌릴 수
-                        없어요.
+                        이벤트 규칙이 목록에서 제거됩니다. 삭제 후에는 되돌릴 수 없어요.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -423,19 +443,19 @@ function EventDesigner({
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              </SheetFooter>
+              </div>
             </>
           ) : null}
           {mode === "create" || (mode === "edit" && selected) ? (
             <>
-              <SheetHeader className="border-b pr-14">
-                <SheetTitle className="text-xl">
+              <div className="grid gap-0.5 border-b p-4 pr-14">
+                <h2 className="text-xl font-medium" id="tracking-plan-event-panel-title">
                   {isEdit ? `${selected?.eventName} 수정` : "이벤트 추가"}
-                </SheetTitle>
-                <SheetDescription>
+                </h2>
+                <p className="text-sm text-muted-foreground">
                   JSON을 직접 고치지 않고 속성 이름, 타입, 필수 여부를 정할 수 있어요.
-                </SheetDescription>
-              </SheetHeader>
+                </p>
+              </div>
               <div className="grid flex-1 content-start gap-4 overflow-y-auto px-4 py-5">
                 <Field>
                   <FieldLabel htmlFor="tracking-plan-event-name">이벤트명</FieldLabel>
@@ -466,7 +486,7 @@ function EventDesigner({
                   ) : null}
                 </div>
               </div>
-              <SheetFooter className="border-t sm:flex-row sm:justify-end">
+              <div className="mt-auto flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-end">
                 <Button
                   variant="outline"
                   onClick={() => (isEdit && selected ? showEvent(selected) : closePanel())}
@@ -479,12 +499,12 @@ function EventDesigner({
                 >
                   저장
                 </Button>
-              </SheetFooter>
+              </div>
             </>
           ) : null}
-        </SheetContent>
-      </Sheet>
-    </>
+        </aside>
+      </CardContent>
+    </Card>
   );
 }
 
