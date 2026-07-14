@@ -875,9 +875,9 @@ function PromotionSegmentDetailTab({
                   );
 
                   return (
-                    <Card className="shadow-none" key={candidate.content_id}>
-                      <CardHeader className="grid gap-3">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <Card className="min-w-0 shadow-none" key={candidate.content_id}>
+                      <CardHeader className="grid min-w-0 gap-3">
+                        <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
                           <div className="grid min-w-0 gap-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="outline">
@@ -891,7 +891,7 @@ function PromotionSegmentDetailTab({
                               {contentCandidateTitle(candidate)}
                             </CardTitle>
                           </div>
-                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
                             <Field
                               className={buttonVariants({
                                 className: "w-auto gap-2",
@@ -971,21 +971,25 @@ function PromotionSegmentDetailTab({
                           {candidate.content_option_id}
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="grid gap-4">
-                        {candidate.image_url ? (
-                          <ContentCandidateImagePreview
-                            alt={`${contentCandidateTitle(candidate)} 이미지`}
-                            src={candidate.image_url}
-                            title={contentCandidateTitle(candidate)}
-                          />
+                      <CardContent className="grid min-w-0 gap-4">
+                        {candidate.image_url || htmlArtifact ? (
+                          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                            {candidate.image_url ? (
+                              <ContentCandidateImagePreview
+                                alt={`${contentCandidateTitle(candidate)} 이미지`}
+                                src={candidate.image_url}
+                                title={contentCandidateTitle(candidate)}
+                              />
+                            ) : null}
+                            {htmlArtifact ? (
+                              <ContentCandidateHtmlPreview
+                                artifact={htmlArtifact}
+                                title={contentCandidateTitle(candidate)}
+                              />
+                            ) : null}
+                          </div>
                         ) : null}
-                        {htmlArtifact ? (
-                          <ContentCandidateHtmlPreview
-                            artifact={htmlArtifact}
-                            title={contentCandidateTitle(candidate)}
-                          />
-                        ) : null}
-                        <div className="grid gap-3 md:grid-cols-2">
+                        <div className="grid min-w-0 gap-3 md:grid-cols-2">
                           <InsightBlock
                             label="메시지"
                             value={[
@@ -1004,15 +1008,21 @@ function PromotionSegmentDetailTab({
                             ].join("\n")}
                           />
                         </div>
-                        <div className="rounded-md border bg-muted/20 p-3">
+                        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
                           <div className="mb-2 text-xs font-medium text-muted-foreground">근거</div>
-                          <div className="grid gap-2 text-sm leading-6 text-muted-foreground">
-                            <p className="break-words">{candidate.reason_summary ?? "-"}</p>
+                          <div className="grid min-w-0 gap-2 text-sm leading-6 text-muted-foreground">
+                            <p className="[overflow-wrap:anywhere]">
+                              {candidate.reason_summary ?? "-"}
+                            </p>
                             {candidate.message_strategy ? (
-                              <p className="break-words">전략: {candidate.message_strategy}</p>
+                              <p className="[overflow-wrap:anywhere]">
+                                전략: {candidate.message_strategy}
+                              </p>
                             ) : null}
                             {candidate.image_prompt ? (
-                              <p className="break-words">이미지: {candidate.image_prompt}</p>
+                              <p className="[overflow-wrap:anywhere]">
+                                이미지: {candidate.image_prompt}
+                              </p>
                             ) : null}
                             {candidate.image_url ? (
                               <a
@@ -1086,43 +1096,45 @@ function ContentCandidateImagePreview({
   title: string;
 }) {
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button
-          aria-label={`${title} 이미지 크게 보기`}
-          className="group relative mx-auto h-auto w-full max-w-sm overflow-hidden p-0"
-          type="button"
-          variant="outline"
-        >
+    <div className="min-w-0">
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button
+            aria-label={`${title} 이미지 크게 보기`}
+            className="group relative h-auto min-w-0 w-full overflow-hidden p-0"
+            type="button"
+            variant="outline"
+          >
+            <img
+              alt={alt}
+              className="aspect-video w-full object-cover"
+              decoding="async"
+              height={216}
+              loading="lazy"
+              src={src}
+              width={384}
+            />
+            <span className="absolute inset-x-3 bottom-3 rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
+              이미지 크게 보기
+            </span>
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
+          <DialogHeader className="pr-8">
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>광고 소재 이미지를 크게 확인해요.</DialogDescription>
+          </DialogHeader>
           <img
             alt={alt}
-            className="aspect-video w-full object-cover"
+            className="max-h-[calc(65vh-6rem)] w-full rounded-md object-contain"
             decoding="async"
-            height={216}
-            loading="lazy"
+            height={675}
             src={src}
-            width={384}
+            width={1200}
           />
-          <span className="absolute inset-x-3 bottom-3 rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-            크게 보기
-          </span>
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
-        <DialogHeader className="pr-8">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>광고 소재 이미지를 크게 확인해요.</DialogDescription>
-        </DialogHeader>
-        <img
-          alt={alt}
-          className="max-h-[calc(65vh-6rem)] w-full rounded-md object-contain"
-          decoding="async"
-          height={675}
-          src={src}
-          width={1200}
-        />
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -1135,19 +1147,32 @@ function ContentCandidateHtmlPreview({
 }) {
   if (artifact.artifact_status === "published" && artifact.public_url) {
     return (
-      <div className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="grid gap-1">
-          <p className="text-sm font-medium">HTML 광고 미리보기</p>
-          <p className="text-xs text-muted-foreground">
-            실제 발송·노출에 사용하는 HTML 화면을 확인해요.
-          </p>
-        </div>
+      <div className="min-w-0">
         <Dialog>
-          <DialogTrigger asChild>
-            <Button className="shrink-0" size="sm" type="button" variant="outline">
-              광고 미리보기
-            </Button>
-          </DialogTrigger>
+          <div className="relative min-w-0 overflow-hidden rounded-md border bg-background">
+            <iframe
+              aria-hidden="true"
+              className="pointer-events-none aspect-video w-full bg-background"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              sandbox="allow-scripts"
+              src={artifact.public_url}
+              tabIndex={-1}
+              title={`${title} HTML 축소 미리보기`}
+            />
+            <DialogTrigger asChild>
+              <Button
+                aria-label={`${title} HTML 크게 보기`}
+                className="group absolute inset-0 h-full w-full rounded-md p-0"
+                type="button"
+                variant="ghost"
+              >
+                <span className="absolute inset-x-3 bottom-3 rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
+                  HTML 크게 보기
+                </span>
+              </Button>
+            </DialogTrigger>
+          </div>
           <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
             <DialogHeader className="pr-8">
               <DialogTitle>{title}</DialogTitle>
@@ -1171,12 +1196,12 @@ function ContentCandidateHtmlPreview({
 
   if (artifact.artifact_status === "failed") {
     return (
-      <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium">HTML 광고 미리보기</p>
+      <div className="flex aspect-video min-w-0 flex-col items-center justify-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <p className="text-sm font-medium">HTML 미리보기</p>
           <Badge variant="destructive">생성 실패</Badge>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="max-w-56 text-xs text-muted-foreground">
           HTML 미리보기를 만들지 못했어요. 광고 소재를 다시 만들어 주세요.
         </p>
       </div>
@@ -1185,14 +1210,12 @@ function ContentCandidateHtmlPreview({
 
   if (artifact.artifact_status === "pending") {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
-        <div className="grid gap-1">
-          <p className="text-sm font-medium">HTML 광고 미리보기</p>
-          <p className="text-xs text-muted-foreground">
-            HTML 생성이 끝나면 여기에서 실제 광고 화면을 볼 수 있어요.
-          </p>
-        </div>
-        <Badge variant="outline">준비 중</Badge>
+      <div className="flex aspect-video min-w-0 flex-col items-center justify-center gap-2 rounded-md border p-3 text-center">
+        <Spinner aria-hidden="true" />
+        <p className="text-sm font-medium">HTML 만드는 중…</p>
+        <p className="max-w-56 text-xs text-muted-foreground">
+          생성이 끝나면 실제 광고 화면을 확인할 수 있어요.
+        </p>
       </div>
     );
   }
@@ -1416,9 +1439,11 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
 
 function InsightBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 rounded-md border bg-muted/20 p-3">
+    <div className="grid min-w-0 gap-1 rounded-md border bg-muted/20 p-3">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className="whitespace-pre-wrap text-sm leading-6">{value || "-"}</div>
+      <div className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">
+        {value || "-"}
+      </div>
     </div>
   );
 }
