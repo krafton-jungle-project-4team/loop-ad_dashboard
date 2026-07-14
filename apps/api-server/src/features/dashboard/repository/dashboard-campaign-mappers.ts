@@ -1,6 +1,8 @@
 import {
   DASHBOARD_FALLBACK_SEGMENT_ID,
-  normalizePromotionSegmentPerformanceEstimate
+  normalizePromotionSegmentAudience,
+  normalizePromotionSegmentPerformanceEstimate,
+  normalizePromotionSegmentRankComparison
 } from "@loopad/shared";
 import type {
   DashboardAdExperiment,
@@ -442,21 +444,45 @@ function suggestionDisplayCopy(
   const performanceEstimate = normalizePromotionSegmentPerformanceEstimate(
     raw.performance_estimate
   );
+  const audience = normalizePromotionSegmentAudience(raw.audience);
+  const rankComparison = normalizePromotionSegmentRankComparison(raw.rank_comparison);
+  const recommendationTier = nonEmptyString(raw.recommendation_tier);
+  const recommendationRank = countValueOrNull(raw.recommendation_rank);
+  const minimumPrimarySampleSize = countValueOrNull(raw.minimum_primary_sample_size);
 
   return {
     title,
     rank_role: nonEmptyString(raw.rank_role) ?? undefined,
+    recommendation_tier:
+      recommendationTier === "primary" || recommendationTier === "small_high_intent"
+        ? recommendationTier
+        : undefined,
+    recommendation_tier_label: nonEmptyString(raw.recommendation_tier_label) ?? undefined,
+    recommendation_tier_reason: nonEmptyString(raw.recommendation_tier_reason) ?? undefined,
+    recommendation_rank: recommendationRank ?? undefined,
+    rank_eligible: typeof raw.rank_eligible === "boolean" ? raw.rank_eligible : undefined,
+    minimum_primary_sample_size: minimumPrimarySampleSize ?? undefined,
     audience_summary: audienceSummary,
+    audience,
     performance_estimate: performanceEstimate,
     signal_chips: signalChips,
     reason,
     difference_summary: nonEmptyString(raw.difference_summary) ?? undefined,
+    rank_comparison: rankComparison,
     action_hint: actionHint
   };
 }
 
 function nonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function countValueOrNull(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : null;
 }
 
 export function countValue(value: number | string | null): number {

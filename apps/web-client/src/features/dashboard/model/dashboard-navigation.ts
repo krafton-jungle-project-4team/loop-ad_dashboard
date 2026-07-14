@@ -1,4 +1,5 @@
 import type { CampaignWorkspaceView, DashboardTab } from "./dashboard-types.js";
+import type { DashboardSearchQuery } from "./dashboard-query.js";
 
 export type DashboardNavItem = {
   label: string;
@@ -78,7 +79,12 @@ export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
     items: [
       { label: "캠페인", value: "campaigns", pathSegment: "campaigns", type: "link" },
       { label: "실험", value: "experiments", pathSegment: "experiments", type: "link" },
-      { label: "통계", value: "main", pathSegment: "statistics", type: "link" },
+      { label: "통계", value: "main", pathSegment: "statistics", type: "link" }
+    ]
+  },
+  {
+    label: "",
+    items: [
       {
         label: "워크플로우",
         value: "campaign-flow-map",
@@ -95,6 +101,28 @@ export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
     ]
   }
 ];
+
+export function getDashboardNavigationSearch(
+  tab: DashboardTab,
+  current: Partial<DashboardSearchQuery>
+): Partial<DashboardSearchQuery> {
+  if (tab !== "campaigns") {
+    return current;
+  }
+
+  return {
+    ...current,
+    campaignView: "manage",
+    createCampaign: false,
+    createPromotion: false,
+    promotionView: "manage",
+    segmentView: "manage",
+    selectedAdExperimentId: "",
+    selectedCampaignId: "",
+    selectedPromotionId: "",
+    selectedSegmentId: ""
+  };
+}
 
 const legacyDashboardPaths: Record<string, string> = {
   "campaign-detail": "campaigns",

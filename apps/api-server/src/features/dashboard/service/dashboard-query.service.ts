@@ -59,6 +59,8 @@ import type {
   DashboardStartPromotionGenerationRequest,
   DashboardStartPromotionGenerationResult,
   DashboardStartNextLoopRequest,
+  DashboardUnapproveContentCandidateRequest,
+  DashboardUnapproveContentCandidateResult,
   DashboardUpdateCampaignRequest,
   DashboardUpdateFunnelRequest,
   DashboardUpdatePromotionRequest,
@@ -530,6 +532,30 @@ export class DashboardQueryService {
     log.assignContext({ contentId, projectId, promotionId, segmentId });
     log.info("started", { projectId, promotionId, segmentId, contentId, request });
     const response = await this.campaignReader.approveContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      request
+    );
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  @LogContextScope()
+  @Transactional()
+  async unapproveContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardUnapproveContentCandidateRequest
+  ): Promise<DashboardUnapproveContentCandidateResult> {
+    const startedAt = Date.now();
+    log.assignContext({ contentId, projectId, promotionId, segmentId });
+    log.info("started", { projectId, promotionId, segmentId, contentId, request });
+    const response = await this.campaignReader.unapproveContentCandidate(
       projectId,
       promotionId,
       segmentId,

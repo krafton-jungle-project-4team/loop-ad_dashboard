@@ -18,7 +18,7 @@ export function PromotionManagementPage({
   return (
     <div className="grid gap-6">
       <WorkspacePageHeader
-        description="선택한 캠페인의 프로모션을 관리하고 채널별 목표와 성과를 확인합니다."
+        description="프로모션을 관리하고 노출 방식별 성과를 확인해요."
         eyebrow="Promotion workspace"
         title="프로모션"
       />

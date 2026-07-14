@@ -32,6 +32,8 @@ import type {
   DashboardStartPromotionGenerationResult,
   DashboardStartAdExperimentResult,
   DashboardStartNextLoopRequest,
+  DashboardUnapproveContentCandidateRequest,
+  DashboardUnapproveContentCandidateResult,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
@@ -98,13 +100,13 @@ import {
   listDashboardSegmentExperimentMetrics,
   markDashboardSegmentQueryPreviewSaved,
   rejectDashboardContentCandidate,
-  rejectDashboardSiblingContentCandidates,
   startDashboardAdExperiment,
   stopDashboardPromotion,
   stopDashboardPromotionTargetSegment,
   updateDashboardCampaign,
   updateDashboardPromotion,
   updateDashboardPromotionTargetSegment,
+  unapproveDashboardContentCandidate,
   type IListDashboardSegmentContentCandidatesResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
@@ -576,21 +578,14 @@ export class DashboardCampaignReader {
     const approvedCandidate = await this.getApprovedContentCandidate(
       projectId,
       promotionId,
-      segmentId
+      segmentId,
+      candidate.analysisId
     );
 
     if (approvedCandidate && approvedCandidate.contentId !== contentId) {
       throw dashboardErrors.contentCandidateApprovalLocked();
     }
 
-    await this.db
-      .query(rejectDashboardSiblingContentCandidates, {
-        contentId,
-        generationId: candidate.generationId,
-        projectId,
-        segmentId
-      })
-      .multiple();
     const approved = await this.db
       .query(approveDashboardContentCandidate, {
         contentId,
@@ -609,6 +604,31 @@ export class DashboardCampaignReader {
     };
   }
 
+  async unapproveContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    _request: DashboardUnapproveContentCandidateRequest
+  ): Promise<DashboardUnapproveContentCandidateResult> {
+    const unapproved = await this.db
+      .query(unapproveDashboardContentCandidate, {
+        contentId,
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
+
+    return {
+      content_id: unapproved.contentId,
+      content_option_id: unapproved.contentOptionId,
+      promotion_id: promotionId,
+      segment_id: segmentId,
+      status: "draft"
+    };
+  }
+
   async rejectContentCandidate(
     projectId: string,
     promotionId: string,
@@ -616,10 +636,12 @@ export class DashboardCampaignReader {
     contentId: string,
     _request: DashboardRejectContentCandidateRequest
   ): Promise<DashboardRejectContentCandidateResult> {
-    const approvedCandidate = await this.getApprovedContentCandidate(
-      projectId,
-      promotionId,
-      segmentId
+    const candidates = await this.db
+      .query(listDashboardSegmentContentCandidates, { projectId, promotionId, segmentId })
+      .multiple();
+    const candidate = candidates.find((item) => item.contentId === contentId);
+    const approvedCandidate = candidates.find(
+      (item) => item.analysisId === candidate?.analysisId && item.status === "approved"
     );
 
     if (approvedCandidate?.contentId === contentId) {
@@ -641,13 +663,16 @@ export class DashboardCampaignReader {
   private async getApprovedContentCandidate(
     projectId: string,
     promotionId: string,
-    segmentId: string
+    segmentId: string,
+    analysisId: string
   ): Promise<IListDashboardSegmentContentCandidatesResult | undefined> {
     const candidates = await this.db
       .query(listDashboardSegmentContentCandidates, { projectId, promotionId, segmentId })
       .multiple();
 
-    return candidates.find((candidate) => candidate.status === "approved");
+    return candidates.find(
+      (candidate) => candidate.analysisId === analysisId && candidate.status === "approved"
+    );
   }
 
   async startAdExperiment(

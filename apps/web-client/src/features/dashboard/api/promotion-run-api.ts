@@ -12,6 +12,8 @@ import {
   DashboardRejectContentCandidateResultSchema,
   DashboardStartAdExperimentResultSchema,
   DashboardStartNextLoopRequestSchema,
+  DashboardUnapproveContentCandidateRequestSchema,
+  DashboardUnapproveContentCandidateResultSchema,
   PromotionRunDispatchResponseSchema,
   type DashboardApproveContentCandidateRequest,
   type DashboardApproveContentCandidateResult,
@@ -26,6 +28,8 @@ import {
   type DashboardRejectContentCandidateResult,
   type DashboardStartAdExperimentResult,
   type DashboardStartNextLoopRequest,
+  type DashboardUnapproveContentCandidateRequest,
+  type DashboardUnapproveContentCandidateResult,
   type PromotionRunDispatchResponse
 } from "@loopad/shared";
 import { apiRequest } from "../../../shared/api/http-client.js";
@@ -56,6 +60,25 @@ export function approveDashboardContentCandidate(
     DashboardApproveContentCandidateResultSchema,
     {
       body: DashboardApproveContentCandidateRequestSchema.parse(requestBody),
+      errorMessage: readDashboardApiErrorMessage,
+      method: "POST",
+      searchParams: projectSearchParams(query.projectId)
+    }
+  );
+}
+
+export function unapproveDashboardContentCandidate(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  requestBody: DashboardUnapproveContentCandidateRequest
+): Promise<DashboardUnapproveContentCandidateResult> {
+  return apiRequest(
+    contentCandidatePath(promotionId, segmentId, contentId, "unapprove"),
+    DashboardUnapproveContentCandidateResultSchema,
+    {
+      body: DashboardUnapproveContentCandidateRequestSchema.parse(requestBody),
       errorMessage: readDashboardApiErrorMessage,
       method: "POST",
       searchParams: projectSearchParams(query.projectId)
@@ -175,7 +198,7 @@ function contentCandidatePath(
   promotionId: string,
   segmentId: string,
   contentId: string,
-  action: "approve" | "reject"
+  action: "approve" | "reject" | "unapprove"
 ) {
   return `${promotionPath(promotionId)}/segments/${encodeURIComponent(segmentId)}/content-candidates/${encodeURIComponent(contentId)}/${action}`;
 }

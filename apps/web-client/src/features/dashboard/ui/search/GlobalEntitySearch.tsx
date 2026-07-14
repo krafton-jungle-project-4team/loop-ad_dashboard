@@ -127,12 +127,12 @@ export function GlobalEntitySearch({
           className="w-[min(28rem,calc(100vw-2rem))] gap-0 p-0"
           sideOffset={8}
         >
-          <Command label="프로젝트 엔티티 검색" shouldFilter={false}>
+          <Command label="프로젝트 항목 검색" shouldFilter={false}>
             <CommandInput
               aria-label="검색어"
               autoFocus
               onValueChange={setQuery}
-              placeholder="이름 또는 설명을 입력하세요…"
+              placeholder="이름이나 설명을 입력해 주세요"
               value={query}
             />
             <CommandList>
@@ -199,7 +199,7 @@ function SearchState({
   resultCount: number;
 }) {
   if (query.length === 0) {
-    return <CommandEmpty>한 글자 이상 입력해 검색하세요.</CommandEmpty>;
+    return <CommandEmpty>검색어를 입력해 주세요.</CommandEmpty>;
   }
 
   if (!isQueryReady || isLoading) {
@@ -217,7 +217,7 @@ function SearchState({
     return (
       <CommandEmpty>
         <span className="flex flex-col items-center gap-2">
-          <span className="text-destructive">검색 결과를 불러오지 못했습니다.</span>
+          <span className="text-destructive">검색하지 못했어요.</span>
           <Button onClick={onRetry} size="sm" type="button" variant="ghost">
             다시 시도
           </Button>
@@ -227,7 +227,7 @@ function SearchState({
   }
 
   if (resultCount === 0) {
-    return <CommandEmpty>검색 결과가 없습니다.</CommandEmpty>;
+    return <CommandEmpty>일치하는 결과가 없어요.</CommandEmpty>;
   }
 
   return null;

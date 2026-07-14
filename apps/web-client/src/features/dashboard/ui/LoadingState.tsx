@@ -17,8 +17,8 @@ export function LoadingState({ tab }: { tab: DashboardTab }) {
     <div aria-busy="true" className="grid gap-6">
       <Alert aria-live="polite" role="status">
         <Spinner aria-hidden="true" className="size-5" />
-        <AlertTitle>페이지를 불러오는 중입니다</AlertTitle>
-        <AlertDescription>최신 대시보드 데이터를 준비하고 있습니다.</AlertDescription>
+        <AlertTitle>페이지를 불러오고 있어요</AlertTitle>
+        <AlertDescription>잠시만 기다려 주세요.</AlertDescription>
       </Alert>
       {skeleton}
     </div>

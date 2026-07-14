@@ -53,7 +53,7 @@ export function SqlEditorPanel({
 
       {validation?.errors.length ? (
         <Alert className="mx-3 mb-3" variant="destructive">
-          <AlertTitle>SQL 확인 필요</AlertTitle>
+          <AlertTitle>SQL을 확인해 주세요</AlertTitle>
           <AlertDescription>
             {validation.errors.map((error) => error.message).join(" ")}
           </AlertDescription>

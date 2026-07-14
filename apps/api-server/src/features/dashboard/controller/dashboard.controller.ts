@@ -61,6 +61,8 @@ import {
   DashboardStartPromotionGenerationRequestSchema,
   DashboardStartPromotionGenerationResultSchema,
   DashboardStartNextLoopRequestSchema,
+  DashboardUnapproveContentCandidateRequestSchema,
+  DashboardUnapproveContentCandidateResultSchema,
   DashboardUpdateCampaignRequestSchema,
   DashboardUpdateFunnelRequestSchema,
   DashboardUpdatePromotionRequestSchema,
@@ -280,6 +282,27 @@ export class DashboardController {
     const request = DashboardApproveContentCandidateRequestSchema.parse(body);
     return DashboardApproveContentCandidateResultSchema.parse(
       await this.dashboardQuery.approveContentCandidate(
+        requiredProjectId,
+        promotionId,
+        segmentId,
+        contentId,
+        request
+      )
+    );
+  }
+
+  @Post("promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/unapprove")
+  async unapproveContentCandidate(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardUnapproveContentCandidateRequestSchema.parse(body);
+    return DashboardUnapproveContentCandidateResultSchema.parse(
+      await this.dashboardQuery.unapproveContentCandidate(
         requiredProjectId,
         promotionId,
         segmentId,

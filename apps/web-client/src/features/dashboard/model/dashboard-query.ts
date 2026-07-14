@@ -28,10 +28,10 @@ export const dashboardDateRangeOptions = [
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardDateRange }>;
 
 export const dashboardSortOptions = [
-  { label: "전환율 낮은순", value: "conversion-asc" },
-  { label: "전환율 높은순", value: "conversion-desc" },
-  { label: "참여도 높은순", value: "engagement-desc" },
-  { label: "이탈 위험 높은순", value: "dropoff-desc" }
+  { label: "전환율 낮은 순", value: "conversion-asc" },
+  { label: "전환율 높은 순", value: "conversion-desc" },
+  { label: "참여도 높은 순", value: "engagement-desc" },
+  { label: "이탈 위험 높은 순", value: "dropoff-desc" }
 ] as const satisfies ReadonlyArray<{ label: string; value: DashboardSort }>;
 
 export const dashboardUserScopeOptions = [

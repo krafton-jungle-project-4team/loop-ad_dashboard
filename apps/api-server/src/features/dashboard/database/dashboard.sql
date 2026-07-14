@@ -1000,18 +1000,18 @@ WHERE pss.project_id = :projectId
   AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)
 ORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC;
 
-/* 목적: 추천 세그먼트 후보를 확정 대상으로 표시하거나 후보 row를 삭제합니다. */
+/* 목적: 추천 세그먼트 후보의 확정 선택을 변경하거나 후보 row를 삭제합니다. */
 /* @name DecideDashboardPromotionSegmentSuggestion */
-WITH accepted AS (
+WITH updated AS (
   UPDATE promotion_segment_suggestions
   SET status = :status,
-      decided_at = now(),
+      decided_at = CASE WHEN :status = 'accepted' THEN COALESCE(decided_at, now()) ELSE NULL END,
       updated_at = now()
   WHERE project_id = :projectId
     AND promotion_id = :promotionId
     AND suggestion_id = :suggestionId
-    AND :status = 'accepted'
-    AND status IN ('suggested', 'accepted', 'dismissed')
+    AND :status IN ('suggested', 'accepted')
+    AND status IN ('suggested', 'accepted')
   RETURNING *, status AS result_status
 ),
 deleted AS (
@@ -1024,7 +1024,7 @@ deleted AS (
   RETURNING *, 'dismissed'::varchar AS result_status
 ),
 decided AS (
-  SELECT * FROM accepted
+  SELECT * FROM updated
   UNION ALL
   SELECT * FROM deleted
 )
@@ -1767,18 +1767,6 @@ WHERE cc.project_id = :projectId
   AND pts.status <> 'stopped'
   AND cc.status IN ('draft', 'approved', 'active');
 
-/* 목적: 같은 생성 실행/세그먼트 안에서 승인 대상이 아닌 후보를 거절 상태로 전환합니다. */
-/* @name RejectDashboardSiblingContentCandidates */
-UPDATE content_candidates
-SET status = 'rejected',
-    updated_at = now()
-WHERE project_id = :projectId
-  AND generation_id = :generationId
-  AND segment_id = :segmentId
-  AND content_id <> :contentId
-  AND status IN ('draft', 'approved', 'active')
-RETURNING content_id AS "contentId";
-
 /* 목적: 관리자가 선택한 콘텐츠 후보 1개를 승인 상태로 전환합니다. */
 /* @name ApproveDashboardContentCandidate */
 UPDATE content_candidates
@@ -1789,6 +1777,21 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
   AND content_id = :contentId
   AND status IN ('draft', 'approved', 'active')
+RETURNING
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  status;
+
+/* 목적: 선택한 콘텐츠 후보를 다시 미선택 상태로 전환합니다. */
+/* @name UnapproveDashboardContentCandidate */
+UPDATE content_candidates
+SET status = 'draft',
+    updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+  AND content_id = :contentId
+  AND status = 'approved'
 RETURNING
   content_id AS "contentId",
   content_option_id AS "contentOptionId",

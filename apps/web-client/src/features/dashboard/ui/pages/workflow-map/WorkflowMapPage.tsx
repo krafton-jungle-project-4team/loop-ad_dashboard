@@ -169,17 +169,20 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
       />
       <div className="relative min-h-[520px] min-w-0 flex-1 overflow-hidden">
         {data.campaigns.length === 0 ? (
-          <CanvasNotice message="등록된 캠페인이 없습니다." title="표시할 워크플로우가 없습니다" />
+          <CanvasNotice
+            message="캠페인을 만들면 흐름을 한눈에 볼 수 있어요."
+            title="아직 캠페인이 없어요"
+          />
         ) : null}
         {data.campaigns.length > 0 && campaignDetail.isLoading ? (
-          <CanvasNotice message="캠페인 상세 데이터를 불러오는 중입니다." title="로딩 중" />
+          <CanvasNotice message="잠시만 기다려 주세요." title="캠페인을 불러오고 있어요" />
         ) : null}
         {campaignDetail.isError ? (
           <div className="absolute inset-0 grid place-items-center p-4">
             <Alert className="max-w-xl bg-white">
-              <AlertTitle>워크플로우 맵을 불러오지 못했습니다</AlertTitle>
+              <AlertTitle>워크플로우를 불러오지 못했어요</AlertTitle>
               <AlertDescription>
-                {campaignDetail.error?.message ?? "API 요청에 실패했습니다."}
+                {campaignDetail.error?.message ?? "잠시 후 다시 시도해 주세요."}
               </AlertDescription>
             </Alert>
           </div>
@@ -225,7 +228,7 @@ export function WorkflowMapPage({ data, query }: { data: DashboardMain; query: D
             </ReactFlow>
             {campaignDetail.data.promotions.length === 0 ? (
               <div className="pointer-events-none absolute left-1/2 top-6 w-[min(360px,calc(100%-2rem))] -translate-x-1/2 rounded-lg border border-dashed border-black/15 bg-white/90 px-4 py-3 text-center text-sm text-muted-foreground">
-                연결된 프로모션이 없습니다.
+                아직 연결된 프로모션이 없어요.
               </div>
             ) : null}
           </>
@@ -294,7 +297,7 @@ function CampaignFlowToolbar({
         <ToolbarChip icon={Megaphone} label="프로모션" value={formatInteger(promotionCount)} />
         <ToolbarChip
           icon={RefreshCw}
-          label="다음 루프 후보"
+          label="반복 실험 후보"
           tone={nextLoopCandidateCount > 0 ? "warning" : "normal"}
           value={formatInteger(nextLoopCandidateCount)}
         />
@@ -306,7 +309,7 @@ function CampaignFlowToolbar({
         <div className="flex h-8 items-center gap-2 rounded-md border border-black/10 bg-zinc-50 px-2 text-xs text-muted-foreground">
           <LegendItem label="정상" tone="normal" />
           <LegendItem label="주의" tone="warning" />
-          <LegendItem label="표본 부족" tone="insufficient" />
+          <LegendItem label="대상 부족" tone="insufficient" />
         </div>
       </div>
     </div>
@@ -446,7 +449,7 @@ function PromotionNode(props: NodeProps) {
       <NodeSummaryGrid items={data.summary} />
       {flow ? (
         <div className="grid gap-1 border-t border-black/10 pt-2 text-xs text-muted-foreground">
-          <MetricLine label="다음 액션" value={formatActionLabel(flow.promotion.next_action)} />
+          <MetricLine label="다음 할 일" value={formatActionLabel(flow.promotion.next_action)} />
         </div>
       ) : null}
       <Handle
@@ -536,7 +539,7 @@ function WeakestPromotionList({ flows }: { flows: PromotionFlowSummary[] }) {
   const visibleFlows = flows.slice(0, 4);
 
   if (visibleFlows.length === 0) {
-    return <NodeEmptyState message="평가할 프로모션이 없습니다." />;
+    return <NodeEmptyState message="아직 평가할 프로모션이 없어요." />;
   }
 
   return (
@@ -567,7 +570,7 @@ function WeakestPromotionList({ flows }: { flows: PromotionFlowSummary[] }) {
 
 function RetryQueueList({ flows }: { flows: PromotionFlowSummary[] }) {
   if (flows.length === 0) {
-    return <NodeEmptyState message="재시도 대기열이 비어 있습니다." />;
+    return <NodeEmptyState message="다시 시도할 항목이 없어요." />;
   }
 
   return (
@@ -775,7 +778,7 @@ function NodeMetricsDrawer({
               <NodeSummaryGrid items={data.summary} />
               {data.status ? (
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">status</span>
+                  <span className="text-muted-foreground">상태</span>
                   <StatusBadge status={data.status} />
                 </div>
               ) : null}
@@ -789,7 +792,7 @@ function NodeMetricsDrawer({
               {data.kind === "promotion" ? (
                 <>
                   <PromotionFlowDetailList
-                    emptyMessage="표시할 프로모션 실행이 없습니다."
+                    emptyMessage="아직 표시할 프로모션 실행이 없어요."
                     flows={data.promotionFlow ? [data.promotionFlow] : []}
                     title="프로모션 실행"
                   />
@@ -799,7 +802,7 @@ function NodeMetricsDrawer({
               {data.kind === "evaluation" ? (
                 <>
                   <PromotionFlowDetailList
-                    emptyMessage="평가할 프로모션이 없습니다."
+                    emptyMessage="아직 평가할 프로모션이 없어요."
                     flows={data.promotionFlows ?? []}
                     title="평가 요약 · 목표 달성률 낮은 순"
                   />
@@ -810,7 +813,7 @@ function NodeMetricsDrawer({
               {data.kind === "retryQueue" ? (
                 <>
                   <PromotionFlowDetailList
-                    emptyMessage="재시도 대기열이 비어 있습니다."
+                    emptyMessage="다시 시도할 항목이 없어요."
                     flows={data.retryPromotionFlows ?? []}
                     title="재시도 후보 · 목표 달성률 낮은 순"
                   />
@@ -840,7 +843,7 @@ function CampaignNodeDetail({ campaign }: { campaign: DashboardCampaignSummary |
   return (
     <div className="grid gap-2 rounded-md border border-black/10 bg-white px-3 py-3 text-sm">
       <MetricLine label="주요 지표" value={formatMetricLabel(campaign.primary_metric)} />
-      <MetricLine label="다음 액션" value={formatActionLabel(campaign.next_action)} />
+      <MetricLine label="다음 할 일" value={formatActionLabel(campaign.next_action)} />
       <MetricLine label="업데이트" value={formatDateTime(campaign.updated_at)} />
     </div>
   );
@@ -883,7 +886,7 @@ function PromotionFlowDetailList({
               </span>
               <StatusBadge status={flow.evaluation.status} />
               {flow.nextLoopSegments.length > 0 ? (
-                <Badge variant="destructive">다음 루프</Badge>
+                <Badge variant="destructive">반복 실험</Badge>
               ) : null}
             </div>
             <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-5">
@@ -904,14 +907,17 @@ function PromotionFlowDetailList({
                 value={latestMetric ? formatMetricValue(latestMetric.target_value) : "-"}
               />
               <MetricLine
-                label="loop"
+                label="반복 횟수"
                 value={`${formatInteger(flow.promotion.current_loop_count)} / ${formatInteger(flow.promotion.max_loop_count)}`}
               />
             </div>
             <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-3">
               <MetricLine label="메시지" value={flow.promotion.message_brief ?? "-"} />
-              <MetricLine label="오퍼" value={flow.promotion.offer_type ?? "-"} />
-              <MetricLine label="다음 액션" value={formatActionLabel(flow.promotion.next_action)} />
+              <MetricLine label="혜택" value={flow.promotion.offer_type ?? "-"} />
+              <MetricLine
+                label="다음 할 일"
+                value={formatActionLabel(flow.promotion.next_action)}
+              />
             </div>
           </DetailAnchor>
         );
@@ -926,7 +932,7 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
   if (segments.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-black/10 bg-zinc-50 px-3 py-3 text-sm text-muted-foreground">
-        표시할 세그먼트가 없습니다.
+        아직 표시할 세그먼트가 없어요.
       </div>
     );
   }
@@ -943,7 +949,7 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="truncate font-medium text-[#1d1d1f]">{segment.name}</span>
             <StatusBadge status={segment.status} />
-            {segment.nextLoopRequired ? <Badge variant="destructive">다음 루프</Badge> : null}
+            {segment.nextLoopRequired ? <Badge variant="destructive">반복 실험</Badge> : null}
           </div>
           <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-4">
             <MetricLine
@@ -955,7 +961,7 @@ function SegmentSummaryList({ segments }: { segments: SegmentSummary[] }) {
               value={formatOptionalMetricValue(segment.latestActualValue)}
             />
             <MetricLine label="목표값" value={formatOptionalMetricValue(segment.targetValue)} />
-            <MetricLine label="표본" value={formatInteger(segment.sampleSize)} />
+            <MetricLine label="평가 대상" value={formatInteger(segment.sampleSize)} />
           </div>
           {segment.contentTitle ? (
             <div className="text-xs text-muted-foreground">{segment.contentTitle}</div>
@@ -972,7 +978,7 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
   if (sortedMetrics.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-black/10 bg-zinc-50 px-3 py-3 text-sm text-muted-foreground">
-        표시할 실험 지표가 없습니다.
+        아직 표시할 실험 지표가 없어요.
       </div>
     );
   }
@@ -990,7 +996,7 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
               {formatMetricLabel(metric.metric)}
             </span>
             <StatusBadge status={metric.status} />
-            {metric.next_loop_required ? <Badge variant="destructive">다음 루프</Badge> : null}
+            {metric.next_loop_required ? <Badge variant="destructive">반복 실험</Badge> : null}
           </div>
           <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-5">
             <MetricLine
@@ -1001,7 +1007,7 @@ function ExperimentMetricList({ metrics }: { metrics: DashboardCampaignExperimen
             />
             <MetricLine label="실제값" value={formatMetricValue(metric.actual_value)} />
             <MetricLine label="목표값" value={formatMetricValue(metric.target_value)} />
-            <MetricLine label="표본" value={formatInteger(metric.sample_size)} />
+            <MetricLine label="평가 대상" value={formatInteger(metric.sample_size)} />
             <MetricLine label="생성일" value={formatDateTime(metric.created_at)} />
           </div>
           {metric.feedback ? (
@@ -1071,7 +1077,7 @@ function LoopBackEdge({
   targetY
 }: EdgeProps) {
   const bottomY = Math.max(sourceY, targetY) + 76;
-  const label = typeof data?.label === "string" ? data.label : "다음 루프";
+  const label = typeof data?.label === "string" ? data.label : "반복 실험";
   const laneX = Math.min(sourceX, targetX) - 160;
   const labelX = (sourceX + laneX) / 2;
   const path = `M ${sourceX} ${sourceY} L ${sourceX} ${bottomY} L ${laneX} ${bottomY} L ${laneX} ${targetY} L ${targetX} ${targetY}`;

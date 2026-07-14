@@ -1,6 +1,7 @@
-import type {
-  DashboardEvaluatePromotionRunResult,
-  DashboardProjectExperiment
+import {
+  DASHBOARD_FALLBACK_SEGMENT_ID,
+  type DashboardEvaluatePromotionRunResult,
+  type DashboardProjectExperiment
 } from "@loopad/shared";
 import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
 
@@ -10,6 +11,28 @@ export type ProjectExperimentFilters = {
   campaignId: string;
   promotionId: string;
   status: string;
+};
+
+export type RunningEvaluationRefreshResult = {
+  failedRunCount: number;
+  failureMessage: string | null;
+  succeededRunCount: number;
+  totalRunCount: number;
+};
+
+export function userVisibleProjectExperiments(
+  experiments: DashboardProjectExperiment[]
+): DashboardProjectExperiment[] {
+  return experiments.filter(
+    (experiment) => experiment.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID
+  );
+}
+
+export type RepeatCreativePreparationInput = {
+  campaignId: string;
+  failedAdExperimentIds: string[];
+  failedSegmentIds: string[];
+  promotionId: string;
 };
 
 export function normalizeProjectExperimentFilters(
@@ -79,6 +102,16 @@ export function projectExperimentSelectionQuery(
   };
 }
 
+export function promotionRunIdsForRunningExperiments(
+  experiments: DashboardProjectExperiment[]
+): string[] {
+  return uniqueValues(
+    experiments
+      .filter((experiment) => experiment.status === "running")
+      .map((experiment) => experiment.promotion_run_id)
+  );
+}
+
 export function failedTargetsForPromotionRun(
   experiments: DashboardProjectExperiment[],
   promotionRunId: string,
@@ -103,6 +136,13 @@ export function failedTargetsForPromotionRun(
       failedExperiments.map((experiment) => experiment.ad_experiment_id)
     ),
     failedSegmentIds: uniqueValues(failedExperiments.map((experiment) => experiment.segment_id))
+  };
+}
+
+export function repeatCreativeTargetForExperiment(experiment: DashboardProjectExperiment) {
+  return {
+    failedAdExperimentIds: [experiment.ad_experiment_id],
+    failedSegmentIds: [experiment.segment_id]
   };
 }
 

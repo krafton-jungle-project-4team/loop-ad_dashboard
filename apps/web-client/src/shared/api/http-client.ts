@@ -51,7 +51,7 @@ export async function apiRequest<T>(
   if (!response.ok) {
     const message = options.errorMessage
       ? await options.errorMessage(response)
-      : `API 요청 실패: ${response.status}`;
+      : `요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요. (${response.status})`;
     throw new Error(message);
   }
 

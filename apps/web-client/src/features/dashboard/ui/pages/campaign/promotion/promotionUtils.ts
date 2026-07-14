@@ -3,7 +3,9 @@ import {
   DashboardPromotionGoalBasisSchema,
   DashboardPromotionGoalMetricSchema,
   DashboardPromotionStatusSchema,
+  normalizePromotionSegmentAudience,
   normalizePromotionSegmentPerformanceEstimate,
+  normalizePromotionSegmentRankComparison,
   type DashboardCampaignPromotion,
   type DashboardCampaignSegment,
   type DashboardCreatePromotionSegmentDefinitionRequest,
@@ -245,25 +247,62 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
   const performanceEstimate = normalizePromotionSegmentPerformanceEstimate(
     raw.performance_estimate
   );
+  const audience = normalizePromotionSegmentAudience(raw.audience);
+  const rankComparison = normalizePromotionSegmentRankComparison(raw.rank_comparison);
+  const recommendationTier = nonEmptyText(raw.recommendation_tier);
 
   return {
     title,
     rank_role: nonEmptyText(raw.rank_role) ?? undefined,
+    recommendation_tier:
+      recommendationTier === "primary" || recommendationTier === "small_high_intent"
+        ? recommendationTier
+        : undefined,
+    recommendation_tier_label: nonEmptyText(raw.recommendation_tier_label) ?? undefined,
+    recommendation_tier_reason: nonEmptyText(raw.recommendation_tier_reason) ?? undefined,
+    recommendation_rank: nonNegativeInteger(raw.recommendation_rank) ?? undefined,
+    rank_eligible: typeof raw.rank_eligible === "boolean" ? raw.rank_eligible : undefined,
+    minimum_primary_sample_size: nonNegativeInteger(raw.minimum_primary_sample_size) ?? undefined,
     audience_summary: audienceSummary,
+    audience,
     performance_estimate: performanceEstimate,
     signal_chips: signalChips,
     reason,
     difference_summary: nonEmptyText(raw.difference_summary) ?? undefined,
+    rank_comparison: rankComparison,
     action_hint: actionHint
   };
 }
 
+export function partitionPromotionSegmentSuggestions(
+  suggestions: DashboardPromotionSegmentSuggestion[]
+) {
+  const primary: DashboardPromotionSegmentSuggestion[] = [];
+  const smallHighIntent: DashboardPromotionSegmentSuggestion[] = [];
+  for (const suggestion of suggestions) {
+    if (suggestion.display_copy?.recommendation_tier === "small_high_intent") {
+      smallHighIntent.push(suggestion);
+    } else {
+      primary.push(suggestion);
+    }
+  }
+  return { primary, smallHighIntent };
+}
+
 export function segmentAudienceSummary(sampleSize: number, sampleRatio: number) {
-  return `표본 ${formatInteger(sampleSize)}명 · 비율 ${formatInteger(sampleRatio * 100)}%`;
+  return `평가 대상 ${formatInteger(sampleSize)}명 · 비율 ${formatInteger(sampleRatio * 100)}%`;
 }
 
 export function nonEmptyText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function nonNegativeInteger(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : null;
 }
 
 export function contentCandidateTitle(
@@ -278,9 +317,25 @@ export function contentCandidateMessage(
   return candidate.body ?? candidate.message ?? candidate.generation_prompt ?? "-";
 }
 
+export function activeContentCandidates(detail: DashboardSegmentDetail) {
+  return detail.content_candidates.filter(
+    (candidate) => candidate.analysis_id === detail.segment.analysis_id
+  );
+}
+
+export function nextExperimentLoopCount(detail: DashboardSegmentDetail) {
+  const latestLoopCount = detail.ad_experiments.reduce(
+    (highestLoopCount, experiment) => Math.max(highestLoopCount, experiment.loop_count),
+    0
+  );
+
+  return latestLoopCount + 1;
+}
+
 export function hasPendingOnsiteBannerImage(detail: DashboardSegmentDetail | undefined) {
   return Boolean(
-    detail?.content_candidates.some(
+    detail &&
+    activeContentCandidates(detail).some(
       (candidate) =>
         candidate.channel === "onsite_banner" && candidate.image_prompt && !candidate.image_url
     )
@@ -383,7 +438,7 @@ export function parseJsonObject(value: string): Record<string, unknown> | null {
 }
 
 export function mutationErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
+  return error instanceof Error ? error.message : "문제가 생겼어요. 다시 시도해 주세요.";
 }
 
 export function uniqueStrings(values: Array<string | null | undefined>): string[] {

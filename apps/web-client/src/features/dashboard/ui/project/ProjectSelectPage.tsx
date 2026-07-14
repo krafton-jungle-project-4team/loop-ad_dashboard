@@ -1,6 +1,8 @@
 import type { DashboardProject } from "@loopad/shared";
+import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Avatar, AvatarFallback } from "@loopad/ui/shadcn/avatar";
 import { Badge } from "@loopad/ui/shadcn/badge";
+import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent } from "@loopad/ui/shadcn/card";
 import { Skeleton } from "@loopad/ui/shadcn/skeleton";
 import { cn } from "@loopad/ui/shadcn/utils";
@@ -43,19 +45,20 @@ export function ProjectSelectPage() {
         <section className="flex flex-1 flex-col items-center justify-center gap-9 py-12 text-center">
           <div className="grid gap-3">
             <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-              프로젝트를 선택하세요.
+              어떤 프로젝트를 볼까요?
             </h1>
             <p className="text-sm text-muted-foreground sm:text-base">
-              선택한 프로젝트의 캠페인, 세그먼트, 실험 현황으로 이동합니다.
+              프로젝트를 선택하면 캠페인과 실험 현황을 볼 수 있어요.
             </p>
           </div>
 
           <div className="grid w-full max-w-5xl grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {projectsQuery.isLoading ? <ProjectCardSkeletons /> : null}
             {projectsQuery.isError ? (
-              <div className="col-span-full rounded-lg border border-destructive/30 bg-white p-4 text-sm text-destructive">
-                프로젝트 목록을 불러오지 못했습니다.
-              </div>
+              <Alert className="col-span-full text-left" variant="destructive">
+                <AlertTitle>프로젝트를 불러오지 못했어요</AlertTitle>
+                <AlertDescription>서버 연결을 확인하고 다시 시도해 주세요.</AlertDescription>
+              </Alert>
             ) : null}
             {!projectsQuery.isLoading
               ? projects.map((project, index) => (
@@ -64,15 +67,16 @@ export function ProjectSelectPage() {
               : null}
             <ProjectManagementDialog
               trigger={
-                <button
+                <Button
                   aria-label="새 프로젝트 만들기"
-                  className="group flex min-h-44 items-center justify-center rounded-[18px] border border-dashed border-black/20 bg-white/70 p-4 text-center transition-colors hover:border-primary/50 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="group min-h-44 rounded-[18px] border-dashed border-black/20 bg-white/70 p-4 hover:border-primary/50 hover:bg-white"
                   type="button"
+                  variant="outline"
                 >
                   <span className="flex size-20 items-center justify-center rounded-lg bg-black/5 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-primary">
                     <Plus size={34} />
                   </span>
-                </button>
+                </Button>
               }
             />
           </div>

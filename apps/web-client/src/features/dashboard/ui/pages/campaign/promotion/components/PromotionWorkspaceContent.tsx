@@ -19,10 +19,13 @@ import {
   AlertDialogTrigger
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button } from "@loopad/ui/shadcn/button";
+import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
+import { Progress } from "@loopad/ui/shadcn/progress";
+import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import {
   Table,
@@ -55,12 +58,14 @@ import type { SegmentWorkspaceView } from "../../../../../model/dashboard-types.
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import { EntityWorkspaceEmptyState } from "../../../../shared/EntityWorkspace.js";
 import {
+  activeContentCandidates,
   campaignSegmentDisplayCopy,
   canStartAdExperiment,
   formatGoalValue,
   formatJsonObject,
   formatPercentValue,
   latestSegmentPerSegmentId,
+  nextExperimentLoopCount,
   segmentLoopCount,
   statusBadgeVariant,
   contentCandidateMessage,
@@ -101,7 +106,7 @@ export function PromotionManagementList({
         <div className="grid gap-1">
           <h2 className="text-xl font-semibold tracking-tight">프로모션 관리</h2>
           <p className="text-sm text-muted-foreground">
-            선택한 캠페인의 프로모션을 생성하고 운영 상태를 관리합니다.
+            선택한 캠페인에 프로모션을 만들고 운영 상태를 관리해요.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -117,19 +122,20 @@ export function PromotionManagementList({
                 id="promotion-management-search"
                 name="promotionSearch"
                 onChange={(event) => onFilterChange(event.target.value)}
-                placeholder="프로모션 이름 또는 채널 검색…"
+                placeholder="프로모션 이름이나 노출 방식 검색"
                 type="search"
                 value={filter}
               />
             </div>
           </Field>
           <Button onClick={onAdd} type="button">
-            <Plus data-icon="inline-start" />새 프로모션
+            <Plus data-icon="inline-start" />
+            프로모션 만들기
           </Button>
         </div>
       </div>
       {openPromotions.length === 0 ? (
-        <EmptyState message="검색 조건에 맞는 프로모션이 없습니다." />
+        <EmptyState message="일치하는 프로모션이 없어요." />
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-lg border md:block">
@@ -137,7 +143,7 @@ export function PromotionManagementList({
               <TableHeader>
                 <TableRow>
                   <TableHead>프로모션</TableHead>
-                  <TableHead>채널</TableHead>
+                  <TableHead>노출 방식</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>목표</TableHead>
                   <TableHead className="text-right">세그먼트</TableHead>
@@ -151,18 +157,20 @@ export function PromotionManagementList({
                 {openPromotions.map((promotion) => (
                   <TableRow key={promotion.promotion_id}>
                     <TableCell className="max-w-[360px]">
-                      <button
-                        className="grid max-w-full gap-1 text-left"
+                      <Button
+                        className="grid h-auto max-w-full justify-start gap-1 p-0 text-left"
                         onClick={() => onSelectPromotion(promotion.promotion_id)}
+                        size="sm"
                         type="button"
+                        variant="link"
                       >
                         <span className="truncate font-medium hover:text-primary">
                           {promotion.marketing_theme}
                         </span>
                         <span className="truncate text-xs text-muted-foreground">
-                          {promotion.message_brief ?? "설명 미등록"}
+                          {promotion.message_brief ?? "아직 설명이 없어요"}
                         </span>
-                      </button>
+                      </Button>
                     </TableCell>
                     <TableCell>{formatChannelLabel(promotion.channel)}</TableCell>
                     <TableCell>
@@ -196,14 +204,16 @@ export function PromotionManagementList({
             {openPromotions.map((promotion) => (
               <Card className="shadow-none" key={promotion.promotion_id}>
                 <CardHeader className="gap-3">
-                  <button
-                    className="grid gap-1 text-left"
+                  <Button
+                    className="grid h-auto justify-start gap-1 p-0 text-left"
                     onClick={() => onSelectPromotion(promotion.promotion_id)}
+                    size="sm"
                     type="button"
+                    variant="link"
                   >
                     <CardTitle className="text-base">{promotion.marketing_theme}</CardTitle>
                     <CardDescription>{formatChannelLabel(promotion.channel)}</CardDescription>
-                  </button>
+                  </Button>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
                   <SummaryItem label="상태" value={formatStatusLabel(promotion.status)} />
@@ -245,20 +255,20 @@ function PromotionRowActions({
         type="button"
         variant="outline"
       >
-        수정
+        프로모션 수정
       </Button>
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button className="flex-1 md:flex-none" size="sm" type="button" variant="outline">
-            삭제
+            프로모션 삭제
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>프로모션을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              {promotion.marketing_theme} 프로모션이 목록에서 제거됩니다. 연결된 세그먼트, 광고
-              소재, 실행과 실험도 중지 또는 보관되며 이 작업은 되돌릴 수 없습니다.
+              {promotion.marketing_theme} 프로모션과 연결된 세그먼트, 광고 소재, 실험이 모두
+              사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -279,27 +289,27 @@ function PromotionRowActions({
 export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <EntityWorkspaceEmptyState
-      actionLabel="새 프로모션"
-      description="프로모션을 생성하면 현재 캠페인 하위에 추가되고 개요 화면으로 이동합니다."
+      actionLabel="프로모션 만들기"
+      description="프로모션을 만들면 세그먼트와 실험을 설정할 수 있어요."
       guideCards={[
         {
           icon: <Target className="size-5" />,
           title: "빠른 설정",
-          value: "새 프로모션을 생성하면 캠페인 하위 탭으로 바로 동기화됩니다."
+          value: "프로모션을 만들면 바로 관리 화면으로 이동해요."
         },
         {
           icon: <Users className="size-5" />,
-          title: "세그먼트 타겟팅",
-          value: "고객군별로 특화된 프로모션 뷰를 구성하여 정밀한 마케팅을 지원합니다."
+          title: "대상 설정",
+          value: "프로모션을 보여 줄 고객을 세그먼트로 정할 수 있어요."
         },
         {
           icon: <BarChart3 className="size-5" />,
-          title: "실시간 분석",
-          value: "추가된 탭에서 각 프로모션의 성과를 실시간으로 모니터링할 수 있습니다."
+          title: "성과 확인",
+          value: "프로모션을 만든 뒤 실시간 성과를 확인할 수 있어요."
         }
       ]}
       onAction={onAdd}
-      title="현재 프로모션이 없습니다."
+      title="아직 만든 프로모션이 없어요."
     />
   );
 }
@@ -315,12 +325,11 @@ export function PromotionTabWorkspace({
   launchExperimentIsPending,
   launchExperimentResult,
   onArchiveScopedSegment,
-  onApproveContentCandidate,
+  onContentCandidateSelectionChange,
   onConfirmSuggestions,
   onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
-  onEditConfirmedSegment,
   onLaunchExperiment,
   onRejectContentCandidate,
   onSelectSegment,
@@ -356,17 +365,25 @@ export function PromotionTabWorkspace({
   launchExperimentIsPending: boolean;
   launchExperimentResult: PromotionExperimentLaunchResult | null;
   onArchiveScopedSegment: (segmentId: string) => void;
-  onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onContentCandidateSelectionChange: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    selected: boolean
+  ) => void;
   onConfirmSuggestions: () => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
-  onDecideSuggestion: (suggestionId: string, status: "accepted" | "dismissed") => void;
+  onDecideSuggestion: (
+    suggestionId: string,
+    status: "suggested" | "accepted" | "dismissed"
+  ) => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
-  onEditConfirmedSegment: (segmentId: string) => void;
   onLaunchExperiment: (
     promotionId: string,
     segmentId: string,
     analysisId?: string,
-    generationId?: string
+    generationId?: string,
+    loopCount?: number
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
@@ -481,7 +498,6 @@ export function PromotionTabWorkspace({
               <PromotionCurrentSegmentsPanel
                 deleteIsPending={deleteConfirmedSegmentIsPending}
                 onDeleteSegment={onDeleteConfirmedSegment}
-                onEditSegment={onEditConfirmedSegment}
                 onSelectSegment={onSelectSegment}
                 promotion={promotion}
                 segments={activeSegments}
@@ -500,7 +516,7 @@ export function PromotionTabWorkspace({
               isLoading={selectedSegmentDetailIsLoading}
               launchExperimentError={launchExperimentError}
               launchExperimentIsError={launchExperimentIsError}
-              onApproveContentCandidate={onApproveContentCandidate}
+              onContentCandidateSelectionChange={onContentCandidateSelectionChange}
               onLaunchExperiment={onLaunchExperiment}
               onRejectContentCandidate={onRejectContentCandidate}
               onStartGeneration={onStartGeneration}
@@ -524,7 +540,7 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle>프로모션 사용자 경로 효율</CardTitle>
-          <CardDescription>현재 프로모션 목표와 루프 상태를 기준으로 확인합니다.</CardDescription>
+          <CardDescription>프로모션 목표와 반복 실행 결과를 함께 보여 줘요.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <PromotionProgressRow
@@ -532,7 +548,7 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
             value={Math.min((promotion.latest_actual_value ?? 0) * 100, 100)}
           />
           <PromotionProgressRow
-            label="루프 진행"
+            label="반복 실험"
             value={
               promotion.max_loop_count > 0
                 ? Math.min((promotion.current_loop_count / promotion.max_loop_count) * 100, 100)
@@ -541,8 +557,8 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
           />
           <div className="grid gap-3 md:grid-cols-3">
             <SummaryItem label="목표 기준" value={formatBasisLabel(promotion.goal_basis)} />
-            <SummaryItem label="최소 표본" value={formatInteger(promotion.min_sample_size)} />
-            <SummaryItem label="다음 액션" value={formatActionLabel(promotion.next_action)} />
+            <SummaryItem label="최소 평가 대상" value={formatInteger(promotion.min_sample_size)} />
+            <SummaryItem label="다음 할 일" value={formatActionLabel(promotion.next_action)} />
           </div>
         </CardContent>
       </Card>
@@ -553,7 +569,6 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
 function PromotionCurrentSegmentsPanel({
   deleteIsPending,
   onDeleteSegment,
-  onEditSegment,
   onSelectSegment,
   promotion,
   segments,
@@ -561,7 +576,6 @@ function PromotionCurrentSegmentsPanel({
 }: {
   deleteIsPending: boolean;
   onDeleteSegment: (promotionId: string, segmentId: string) => void;
-  onEditSegment: (segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotion: DashboardCampaignPromotion;
   segments: DashboardCampaignSegment[];
@@ -574,7 +588,7 @@ function PromotionCurrentSegmentsPanel({
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="grid gap-1">
           <CardTitle className="text-base">확정 세그먼트</CardTitle>
-          <CardDescription>현재 프로모션에 최종 연결된 세그먼트입니다.</CardDescription>
+          <CardDescription>이 프로모션에 연결된 세그먼트예요.</CardDescription>
         </div>
       </CardHeader>
       <CardContent className="grid gap-2">
@@ -600,8 +614,8 @@ function PromotionCurrentSegmentsPanel({
                     <span className="truncate font-medium">
                       {displayCopy?.title ?? segment.segment_name}
                     </span>
-                    <Badge variant="secondary">루프 {formatInteger(loopCount)}</Badge>
-                    {loopCount > 1 ? <Badge variant="default">다음 루프</Badge> : null}
+                    <Badge variant="secondary">{formatInteger(loopCount)}번째 실험</Badge>
+                    {loopCount > 1 ? <Badge variant="default">반복 실험</Badge> : null}
                   </div>
                   {displayCopy?.signal_chips.length ? (
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -614,11 +628,11 @@ function PromotionCurrentSegmentsPanel({
                   ) : null}
                   <div className="mt-1 text-xs text-muted-foreground">
                     {displayCopy?.audience_summary ??
-                      `${formatInteger(segment.estimated_size)}명 · 표본 ${formatInteger(
+                      `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
                         segment.sample_size
                       )} · ${formatMetricLabel(segment.goal_metric)}`}
                     {hiddenLoopCount > 0
-                      ? ` · 이전 루프 ${formatInteger(hiddenLoopCount)}개 숨김`
+                      ? ` · 이전 실험 ${formatInteger(hiddenLoopCount)}개 숨김`
                       : ""}
                   </div>
                   {displayCopy?.reason ? (
@@ -640,14 +654,6 @@ function PromotionCurrentSegmentsPanel({
                   >
                     광고 소재 · 실험
                   </Button>
-                  <Button
-                    onClick={() => onEditSegment(segment.segment_id)}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    수정
-                  </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
@@ -664,8 +670,8 @@ function PromotionCurrentSegmentsPanel({
                       <AlertDialogHeader>
                         <AlertDialogTitle>확정 세그먼트를 삭제할까요?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          {segment.segment_name} 세그먼트가 현재 프로모션에서 삭제됩니다. 이 작업은
-                          되돌릴 수 없습니다.
+                          {segment.segment_name} 세그먼트가 이 프로모션에서 사라지고 되돌릴 수
+                          없어요.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -676,7 +682,7 @@ function PromotionCurrentSegmentsPanel({
                           }
                           variant="destructive"
                         >
-                          삭제
+                          확정 세그먼트 삭제
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -701,7 +707,7 @@ function PromotionSegmentDetailTab({
   launchExperimentIsError,
   launchExperimentIsPending,
   launchExperimentResult,
-  onApproveContentCandidate,
+  onContentCandidateSelectionChange,
   onLaunchExperiment,
   onRejectContentCandidate,
   onStartGeneration,
@@ -719,12 +725,18 @@ function PromotionSegmentDetailTab({
   launchExperimentIsError: boolean;
   launchExperimentIsPending: boolean;
   launchExperimentResult: PromotionExperimentLaunchResult | null;
-  onApproveContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onContentCandidateSelectionChange: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    selected: boolean
+  ) => void;
   onLaunchExperiment: (
     promotionId: string,
     segmentId: string,
     analysisId?: string,
-    generationId?: string
+    generationId?: string,
+    loopCount?: number
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
@@ -734,20 +746,35 @@ function PromotionSegmentDetailTab({
   view: SegmentWorkspaceView;
 }) {
   if (!selectedSegmentId) {
-    return <EmptyState message="상세를 확인할 세그먼트를 선택해주세요." />;
+    return <EmptyState message="세그먼트를 선택해 주세요." />;
   }
   if (isError) {
-    return null;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>세그먼트 정보를 불러올 수 없어요</AlertTitle>
+        <AlertDescription>
+          세그먼트를 다시 선택해 주세요. 같은 문제가 계속되면 잠시 후 다시 시도해 주세요.
+        </AlertDescription>
+      </Alert>
+    );
   }
   if (isLoading || !detail) {
-    return <EmptyState message="세그먼트 맞춤 광고 생성 중입니다..." />;
+    return (
+      <Card className="shadow-none" role="status">
+        <CardContent className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Spinner aria-hidden="true" className="size-5" />
+          {generationIsPending ? "광고 소재를 만드는 중…" : "세그먼트 정보를 불러오는 중…"}
+        </CardContent>
+      </Card>
+    );
   }
 
+  const currentContentCandidates = activeContentCandidates(detail);
   const latestMetric = detail.experiment_metrics[0];
-  const approvedContentCandidate = detail.content_candidates.find(
+  const approvedContentCandidate = currentContentCandidates.find(
     (candidate) => candidate.status === "approved"
   );
-  const hasGeneratedContentCandidates = detail.content_candidates.length > 0;
+  const hasGeneratedContentCandidates = currentContentCandidates.length > 0;
 
   return (
     <section className="grid gap-4">
@@ -765,8 +792,8 @@ function PromotionSegmentDetailTab({
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-4">
           <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
-          <SummaryItem label="표본 수" value={formatInteger(detail.segment.sample_size)} />
-          <SummaryItem label="표본 비율" value={formatPercentValue(detail.segment.sample_ratio)} />
+          <SummaryItem label="평가 대상" value={formatInteger(detail.segment.sample_size)} />
+          <SummaryItem label="대상 비율" value={formatPercentValue(detail.segment.sample_ratio)} />
           <SummaryItem label="연결 실험" value={formatInteger(detail.ad_experiments.length)} />
           <SummaryItem label="목표 지표" value={formatMetricLabel(detail.segment.goal_metric)} />
           <SummaryItem
@@ -778,8 +805,8 @@ function PromotionSegmentDetailTab({
             }
           />
           <SummaryItem
-            label="콘텐츠 후보"
-            value={formatInteger(detail.content_candidates.length)}
+            label="광고 소재 후보"
+            value={formatInteger(currentContentCandidates.length)}
           />
           <SummaryItem
             label="실시간 이벤트"
@@ -792,9 +819,9 @@ function PromotionSegmentDetailTab({
         <section className="grid gap-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="grid gap-1">
-              <h3 className="text-base font-semibold">세그먼트별 생성 광고</h3>
+              <h3 className="text-base font-semibold">이 세그먼트의 광고 소재</h3>
               <p className="text-sm text-muted-foreground">
-                Decision 생성 결과로 저장된 콘텐츠 후보를 세그먼트 기준으로 조회합니다.
+                이 세그먼트에 사용할 광고 소재 후보를 확인하고 하나를 선택해 주세요.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -808,29 +835,33 @@ function PromotionSegmentDetailTab({
                 type="button"
                 variant="outline"
               >
-                <ImageIcon className="mr-2 size-4" />
+                {generationIsPending ? (
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
+                ) : (
+                  <ImageIcon aria-hidden="true" data-icon="inline-start" />
+                )}
                 {generationIsPending
-                  ? "생성 요청 중"
+                  ? "광고 소재 만드는 중…"
                   : hasGeneratedContentCandidates
-                    ? "생성 완료"
-                    : "광고 생성 요청"}
+                    ? "광고 소재 생성 완료"
+                    : "광고 소재 만들기"}
               </Button>
             </div>
           </div>
           <div className="grid gap-3">
-            {detail.content_candidates.length > 0 ? (
+            {currentContentCandidates.length > 0 ? (
               <div className="grid gap-3 lg:grid-cols-2">
-                {detail.content_candidates.map((candidate) => {
+                {currentContentCandidates.map((candidate) => {
                   const hasDifferentApprovedCandidate = Boolean(
                     approvedContentCandidate &&
                     approvedContentCandidate.content_id !== candidate.content_id
                   );
-                  const selectionLabel =
-                    candidate.status === "approved"
-                      ? "선택됨"
-                      : hasDifferentApprovedCandidate
-                        ? "선택 불가"
-                        : "선택";
+                  const selectionId = `content-candidate-selection-${candidate.content_id}`;
+                  const selectionReason = contentCandidateSelectionReason(
+                    candidate.status,
+                    approveContentCandidateIsPending,
+                    hasDifferentApprovedCandidate
+                  );
 
                   return (
                     <Card className="shadow-none" key={candidate.content_id}>
@@ -849,28 +880,50 @@ function PromotionSegmentDetailTab({
                               {contentCandidateTitle(candidate)}
                             </CardTitle>
                           </div>
-                          <div className="flex shrink-0 flex-wrap gap-2">
-                            <Button
-                              disabled={
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                            <Field
+                              className={buttonVariants({
+                                className: "w-auto gap-2",
+                                size: "sm",
+                                variant: "outline"
+                              })}
+                              data-disabled={
                                 approveContentCandidateIsPending ||
                                 hasDifferentApprovedCandidate ||
-                                candidate.status === "approved" ||
                                 candidate.status === "rejected"
                               }
-                              onClick={() =>
-                                onApproveContentCandidate(
-                                  detail.segment.promotion_id,
-                                  detail.segment.segment_id,
-                                  candidate.content_id
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant={candidate.status === "approved" ? "secondary" : "default"}
+                              orientation="horizontal"
                             >
-                              <CheckCircle2 className="mr-2 size-4" />
-                              {selectionLabel}
-                            </Button>
+                              <Checkbox
+                                aria-describedby={`${selectionId}-reason`}
+                                aria-label={`${contentCandidateTitle(candidate)} 광고 소재 선택`}
+                                checked={candidate.status === "approved"}
+                                disabled={
+                                  approveContentCandidateIsPending ||
+                                  hasDifferentApprovedCandidate ||
+                                  candidate.status === "rejected"
+                                }
+                                id={selectionId}
+                                onCheckedChange={(checked) =>
+                                  onContentCandidateSelectionChange(
+                                    detail.segment.promotion_id,
+                                    detail.segment.segment_id,
+                                    candidate.content_id,
+                                    checked === true
+                                  )
+                                }
+                              />
+                              <FieldLabel
+                                className="cursor-pointer text-[0.8rem] font-medium"
+                                htmlFor={selectionId}
+                              >
+                                {candidate.status === "approved"
+                                  ? "광고 소재 선택됨"
+                                  : hasDifferentApprovedCandidate
+                                    ? "다른 광고 소재 선택됨"
+                                    : "광고 소재 선택"}
+                              </FieldLabel>
+                            </Field>
                             <Button
                               disabled={
                                 rejectContentCandidateIsPending ||
@@ -890,10 +943,19 @@ function PromotionSegmentDetailTab({
                               variant="outline"
                             >
                               <X className="mr-2 size-4" />
-                              {candidate.status === "rejected" ? "거절됨" : "거절"}
+                              {candidate.status === "rejected"
+                                ? "광고 소재 거절됨"
+                                : "광고 소재 거절"}
                             </Button>
                           </div>
                         </div>
+                        <p
+                          aria-live="polite"
+                          className="text-xs leading-5 text-muted-foreground"
+                          id={`${selectionId}-reason`}
+                        >
+                          {selectionReason}
+                        </p>
                         <CardDescription className="break-all">
                           {candidate.content_option_id}
                         </CardDescription>
@@ -922,10 +984,10 @@ function PromotionSegmentDetailTab({
                               .join("\n")}
                           />
                           <InsightBlock
-                            label="CTA / 랜딩"
+                            label="버튼 / 연결 페이지"
                             value={[
                               candidate.cta ?? "-",
-                              candidate.landing_url ?? "랜딩 URL 없음"
+                              candidate.landing_url ?? "연결 페이지가 없어요"
                             ].join("\n")}
                           />
                         </div>
@@ -960,7 +1022,7 @@ function PromotionSegmentDetailTab({
                 })}
               </div>
             ) : (
-              <EmptyState message="아직 생성된 광고 후보가 없습니다." />
+              <EmptyState message="아직 만든 광고 소재가 없어요." />
             )}
           </div>
         </section>
@@ -981,6 +1043,26 @@ function PromotionSegmentDetailTab({
   );
 }
 
+function contentCandidateSelectionReason(
+  status: string,
+  isPending: boolean,
+  hasDifferentApprovedCandidate: boolean
+) {
+  if (isPending) {
+    return "광고 소재 선택 상태를 저장하고 있어요. 저장이 끝나면 다른 소재를 선택할 수 있어요.";
+  }
+  if (status === "rejected") {
+    return "거절한 광고 소재는 선택할 수 없어요. 다른 소재를 선택해 주세요.";
+  }
+  if (hasDifferentApprovedCandidate) {
+    return "한 세그먼트에는 광고 소재를 1개만 선택할 수 있어요. 다른 소재를 사용하려면 현재 선택을 먼저 해제해 주세요.";
+  }
+  if (status === "approved") {
+    return "이 광고 소재가 다음 실험에 사용돼요. 다른 소재로 바꾸려면 먼저 선택을 해제해 주세요.";
+  }
+  return "이 광고 소재를 선택하면 다음 실험에 사용돼요.";
+}
+
 function SegmentConnectedExperimentsCard({
   detail,
   launchExperimentError,
@@ -999,14 +1081,24 @@ function SegmentConnectedExperimentsCard({
     promotionId: string,
     segmentId: string,
     analysisId?: string,
-    generationId?: string
+    generationId?: string,
+    loopCount?: number
   ) => void;
   promotionExperiments: DashboardAdExperiment[];
 }) {
-  const approvedContentCandidate = detail.content_candidates.find(
+  const currentContentCandidates = activeContentCandidates(detail);
+  const approvedContentCandidate = currentContentCandidates.find(
     (candidate) => candidate.status === "approved"
   );
-  const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
+  const selectedCandidateExperiment = approvedContentCandidate
+    ? detail.ad_experiments.find(
+        (experiment) => experiment.content_id === approvedContentCandidate.content_id
+      )
+    : undefined;
+  const activePromotionRunId =
+    selectedCandidateExperiment?.promotion_run_id ??
+    detail.ad_experiments[0]?.promotion_run_id ??
+    null;
   const activeRunExperiments = activePromotionRunId
     ? promotionExperiments.filter(
         (experiment) => experiment.promotion_run_id === activePromotionRunId
@@ -1022,20 +1114,22 @@ function SegmentConnectedExperimentsCard({
     (launchExperimentResult.dispatchFailed ||
       launchExperimentResult.failedExperimentIds.length > 0);
   const isExperimentRunning =
+    Boolean(selectedCandidateExperiment) &&
     requiredActiveRunExperiments.length > 0 &&
     requiredActiveRunExperiments.every((experiment) => experiment.status === "running") &&
     !launchNeedsRetry;
   const canLaunchExperiment =
     launchNeedsRetry ||
-    (!activePromotionRunId && Boolean(approvedContentCandidate)) ||
+    Boolean(approvedContentCandidate && !selectedCandidateExperiment) ||
     requiredActiveRunExperiments.some((experiment) => canStartAdExperiment(experiment.status));
+  const nextLoopCount = nextExperimentLoopCount(detail);
   return (
     <Card className="shadow-none">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="grid gap-1">
           <CardTitle className="text-base">연결된 광고 실험</CardTitle>
           <CardDescription>
-            승인된 광고 소재로 실험을 시작합니다. 평가는 실험 관리에서 진행합니다.
+            선택한 광고 소재로 실험을 시작해요. 성과 평가는 실험 관리에서 할 수 있어요.
           </CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1046,42 +1140,47 @@ function SegmentConnectedExperimentsCard({
                 detail.segment.promotion_id,
                 detail.segment.segment_id,
                 approvedContentCandidate?.analysis_id,
-                approvedContentCandidate?.generation_id
+                approvedContentCandidate?.generation_id,
+                nextLoopCount
               );
             }}
             type="button"
           >
-            <CheckCircle2 className="mr-2 size-4" />
+            {launchExperimentIsPending ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : (
+              <CheckCircle2 aria-hidden="true" data-icon="inline-start" />
+            )}
             {launchExperimentIsPending
-              ? "실험 준비 중"
+              ? `${formatInteger(nextLoopCount)}번째 실험 준비 중…`
               : isExperimentRunning
                 ? "실험 진행 중"
-                : "실험 시작"}
+                : `${formatInteger(nextLoopCount)}번째 실험 시작`}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
         {launchExperimentResult?.dispatchFailed ? (
           <Alert variant="destructive">
-            <AlertTitle>실험은 시작했지만 발송하지 못했습니다</AlertTitle>
+            <AlertTitle>실험은 시작했지만 광고를 보내지 못했어요</AlertTitle>
             <AlertDescription>
-              시작된 실험은 유지됩니다. 실험 관리에서 발송 상태를 확인해주세요.
+              시작된 실험은 유지돼요. 실험 관리에서 발송 상태를 확인해 주세요.
             </AlertDescription>
           </Alert>
         ) : null}
         {launchExperimentResult && launchExperimentResult.failedExperimentIds.length > 0 ? (
           <Alert>
-            <AlertTitle>일부 실험만 시작됐습니다</AlertTitle>
+            <AlertTitle>일부 실험만 시작됐어요</AlertTitle>
             <AlertDescription>
               {formatInteger(launchExperimentResult.startedExperimentIds.length)}개는 시작했고,{" "}
-              {formatInteger(launchExperimentResult.failedExperimentIds.length)}개는 실패했습니다.
-              실험 시작을 다시 누르면 실패한 항목만 재시도합니다.
+              {formatInteger(launchExperimentResult.failedExperimentIds.length)}개는 시작하지
+              못했어요. 실험 시작을 다시 누르면 실패한 항목만 다시 시도해요.
             </AlertDescription>
           </Alert>
         ) : null}
         {launchExperimentIsError ? (
           <Alert variant="destructive">
-            <AlertTitle>실험을 시작하지 못했습니다</AlertTitle>
+            <AlertTitle>실험을 시작하지 못했어요</AlertTitle>
             <AlertDescription>{mutationErrorMessage(launchExperimentError)}</AlertDescription>
           </Alert>
         ) : null}
@@ -1090,9 +1189,9 @@ function SegmentConnectedExperimentsCard({
             <TableHeader>
               <TableRow>
                 <TableHead>실험</TableHead>
-                <TableHead>콘텐츠</TableHead>
-                <TableHead>채널</TableHead>
-                <TableHead>루프</TableHead>
+                <TableHead>광고 소재</TableHead>
+                <TableHead>노출 방식</TableHead>
+                <TableHead>반복 횟수</TableHead>
                 <TableHead>목표</TableHead>
                 <TableHead>상태</TableHead>
               </TableRow>
@@ -1129,7 +1228,7 @@ function SegmentConnectedExperimentsCard({
             </TableBody>
           </Table>
         ) : (
-          <EmptyState message="아직 연결된 광고 실험이 없습니다." />
+          <EmptyState message="아직 연결된 광고 실험이 없어요." />
         )}
       </CardContent>
     </Card>
@@ -1138,10 +1237,12 @@ function SegmentConnectedExperimentsCard({
 
 function PromotionMetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid min-h-28 content-between rounded-lg border bg-[#f5f5f7] p-5">
-      <div className="text-sm font-medium text-muted-foreground">{label}</div>
-      <div className="truncate text-2xl font-semibold text-foreground">{value}</div>
-    </div>
+    <Card className="min-h-28 justify-between bg-[#f5f5f7] py-5">
+      <CardContent className="grid h-full content-between">
+        <div className="text-sm font-medium text-muted-foreground">{label}</div>
+        <div className="truncate text-2xl font-semibold text-foreground">{value}</div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1152,9 +1253,12 @@ function PromotionProgressRow({ label, value }: { label: string; value: number }
         <span className="font-medium">{label}</span>
         <span className="tabular-nums">{formatInteger(value)}%</span>
       </div>
-      <div className="h-3 overflow-hidden rounded-full bg-[#e8e8ed]">
-        <div className="h-full bg-primary" style={{ width: `${Math.max(value, 4)}%` }} />
-      </div>
+      <Progress
+        aria-label={`${label} ${formatInteger(value)}%`}
+        aria-valuenow={value}
+        className="h-3"
+        value={Math.max(value, 4)}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from "@loopad/ui/shadcn/breadcrumb";
+import { Button } from "@loopad/ui/shadcn/button";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Fragment } from "react";
 import type { CampaignWorkspaceHierarchyItem } from "./campaign-workspace-types.js";
@@ -29,19 +30,21 @@ export function HierarchyBreadcrumbs({
 }: HierarchyBreadcrumbsProps) {
   return (
     <Breadcrumb aria-label={ariaLabel} className={className}>
-      <BreadcrumbList className="min-w-0 flex-nowrap overflow-x-auto py-1">
+      <BreadcrumbList className="min-w-0 flex-nowrap overflow-x-auto py-1 text-[15px]">
         <BreadcrumbItem className="shrink-0">
           {items.length === 0 ? (
             <BreadcrumbPage>{rootLabel}</BreadcrumbPage>
           ) : onRootSelect ? (
             <BreadcrumbLink asChild>
-              <button
-                className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              <Button
+                className="h-auto rounded-none border-0 p-0 text-[15px] text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:underline"
                 onClick={onRootSelect}
+                size="sm"
                 type="button"
+                variant="link"
               >
                 {rootLabel}
-              </button>
+              </Button>
             </BreadcrumbLink>
           ) : (
             <span>{rootLabel}</span>
@@ -62,13 +65,15 @@ export function HierarchyBreadcrumbs({
                   </BreadcrumbPage>
                 ) : canSelect ? (
                   <BreadcrumbLink asChild>
-                    <button
-                      className="max-w-48 truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    <Button
+                      className="h-auto max-w-48 truncate rounded-none border-0 p-0 text-[15px] text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:underline"
                       onClick={() => onItemSelect(item, index)}
+                      size="sm"
                       type="button"
+                      variant="link"
                     >
                       {item.label}
-                    </button>
+                    </Button>
                   </BreadcrumbLink>
                 ) : (
                   <span className="block max-w-48 truncate">{item.label}</span>

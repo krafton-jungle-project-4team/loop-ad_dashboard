@@ -3,11 +3,7 @@ import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { useState } from "react";
 import { EmptyState } from "../../../shared/EmptyState.js";
 import { EntityWorkspaceShell } from "../../../shared/EntityWorkspace.js";
-import {
-  PromotionAddDialog,
-  PromotionEditDialog,
-  SegmentEditDialog
-} from "./components/PromotionDialogs.js";
+import { PromotionAddDialog, PromotionEditDialog } from "./components/PromotionDialogs.js";
 import {
   PromotionManagementList,
   PromotionEmptyState,
@@ -38,7 +34,6 @@ export function PromotionWorkspace({
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
     editingPromotionId,
-    editingSegmentId,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
     openPromotions,
@@ -57,13 +52,11 @@ export function PromotionWorkspace({
     selectedPromotionSegments,
     setIsAddDialogOpen,
     setEditingPromotionId,
-    setEditingSegmentId,
     setWorkspaceTab,
     startGenerationMutation,
     visibleTabs,
     workspaceTab,
-    updatePromotionMutation,
-    updateConfirmedSegmentMutation
+    updatePromotionMutation
   } = controller;
   const isManagementView = mode === "promotion" && query.promotionView === "manage";
   const filteredPromotions = openPromotions.filter((promotion) =>
@@ -74,9 +67,9 @@ export function PromotionWorkspace({
 
   return (
     <EntityWorkspaceShell>
-      {!selectedCampaign ? <EmptyState message="프로모션을 관리할 캠페인을 선택해주세요." /> : null}
+      {!selectedCampaign ? <EmptyState message="먼저 캠페인을 선택해 주세요." /> : null}
       {selectedCampaign && campaignDetail.isLoading ? (
-        <EmptyState message="프로모션 데이터를 불러오는 중입니다." />
+        <EmptyState message="프로모션을 불러오는 중이에요." />
       ) : null}
       {campaignDetail.data ? (
         <>
@@ -95,15 +88,15 @@ export function PromotionWorkspace({
             mode === "promotion" ? (
               <PromotionEmptyState onAdd={() => setIsAddDialogOpen(true)} />
             ) : (
-              <EmptyState message="세그먼트를 관리할 프로모션을 먼저 선택해주세요." />
+              <EmptyState message="먼저 프로모션을 선택해 주세요." />
             )
           ) : null}
           {openPromotions.length > 0 && !isManagementView && !selectedOpenPromotion ? (
             <EmptyState
               message={
                 mode === "segment"
-                  ? "세그먼트를 관리할 프로모션을 선택해주세요."
-                  : "개요를 확인할 프로모션을 선택해주세요."
+                  ? "세그먼트를 관리할 프로모션을 선택해 주세요."
+                  : "성과를 확인할 프로모션을 선택해 주세요."
               }
             />
           ) : null}
@@ -120,8 +113,13 @@ export function PromotionWorkspace({
                   segmentId
                 })
               }
-              onApproveContentCandidate={(promotionId, segmentId, contentId) =>
-                approveContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
+              onContentCandidateSelectionChange={(promotionId, segmentId, contentId, selected) =>
+                approveContentCandidateMutation.mutate({
+                  contentId,
+                  promotionId,
+                  segmentId,
+                  selected
+                })
               }
               onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
               onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
@@ -131,11 +129,11 @@ export function PromotionWorkspace({
               onDeleteConfirmedSegment={(promotionId, segmentId) =>
                 deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
               }
-              onEditConfirmedSegment={setEditingSegmentId}
-              onLaunchExperiment={(promotionId, segmentId, analysisId, generationId) =>
+              onLaunchExperiment={(promotionId, segmentId, analysisId, generationId, loopCount) =>
                 launchPromotionExperimentMutation.mutate({
                   analysisId,
                   generationId,
+                  loopCount,
                   promotionId,
                   segmentId
                 })
@@ -207,29 +205,6 @@ export function PromotionWorkspace({
                 )}
               />
             </>
-          ) : null}
-          {mode === "segment" ? (
-            <SegmentEditDialog
-              isPending={updateConfirmedSegmentMutation.isPending}
-              onOpenChange={(open) => {
-                if (!open) {
-                  setEditingSegmentId(null);
-                }
-              }}
-              onUpdate={(requestBody) => {
-                if (editingSegmentId && selectedOpenPromotion) {
-                  updateConfirmedSegmentMutation.mutate({
-                    promotionId: selectedOpenPromotion.promotion_id,
-                    requestBody,
-                    segmentId: editingSegmentId
-                  });
-                }
-              }}
-              open={Boolean(editingSegmentId)}
-              segment={selectedPromotionSegments.find(
-                (segment) => segment.segment_id === editingSegmentId
-              )}
-            />
           ) : null}
         </>
       ) : null}

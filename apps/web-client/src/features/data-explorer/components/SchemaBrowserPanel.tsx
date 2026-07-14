@@ -5,6 +5,7 @@ import type {
   DataExplorerObjectSummary
 } from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@loopad/ui/shadcn/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,7 +100,7 @@ export function SchemaBrowserPanel({
           <Input
             className="h-10 bg-white pl-8"
             onChange={(event) => onObjectSearchChange(event.target.value)}
-            placeholder="스키마와 이벤트 검색..."
+            placeholder="스키마나 이벤트 검색"
             value={objectSearch}
           />
         </div>
@@ -109,7 +110,7 @@ export function SchemaBrowserPanel({
         <div className="grid gap-1 pr-2">
           <FolderSection
             isOpen={isSchemaFolderOpen}
-            onToggle={() => setIsSchemaFolderOpen((current) => !current)}
+            onOpenChange={setIsSchemaFolderOpen}
             title="스키마"
           >
             <div className="grid gap-px">
@@ -140,11 +141,13 @@ export function SchemaBrowserPanel({
                           className={cn("transition-none", isExpanded ? "rotate-90" : "")}
                         />
                       </Button>
-                      <button
-                        className="flex min-h-6 min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-normal leading-none"
+                      <Button
+                        className="min-h-6 min-w-0 flex-1 justify-start gap-1.5 px-0 text-left text-xs font-normal leading-none"
                         onClick={() => onSelectObject(object)}
                         onDoubleClick={() => onBuildObjectQuery(object)}
+                        size="sm"
                         type="button"
+                        variant="ghost"
                       >
                         {object.object_type === "view" ? (
                           <Database className="size-3 shrink-0" />
@@ -159,7 +162,7 @@ export function SchemaBrowserPanel({
                             {object.engine}
                           </span>
                         ) : null}
-                      </button>
+                      </Button>
                       <ObjectActionMenu
                         object={object}
                         onBuildObjectDdlQuery={onBuildObjectDdlQuery}
@@ -181,13 +184,13 @@ export function SchemaBrowserPanel({
 
               {isLoading ? (
                 <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
-                  스키마를 불러오는 중입니다.
+                  스키마를 불러오고 있어요.
                 </div>
               ) : null}
 
               {!isLoading && !objects.length ? (
                 <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
-                  조회된 테이블이 없습니다.
+                  일치하는 테이블이 없어요.
                 </div>
               ) : null}
             </div>
@@ -195,7 +198,7 @@ export function SchemaBrowserPanel({
 
           <FolderSection
             isOpen={isEventsFolderOpen}
-            onToggle={() => setIsEventsFolderOpen((current) => !current)}
+            onOpenChange={setIsEventsFolderOpen}
             title="이벤트"
           >
             <div className="grid gap-px">
@@ -205,17 +208,19 @@ export function SchemaBrowserPanel({
                   key={event.event_name}
                 >
                   <span aria-hidden="true" className="size-6 shrink-0" />
-                  <button
-                    className="flex min-h-6 min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-normal leading-none"
+                  <Button
+                    className="min-h-6 min-w-0 flex-1 justify-start gap-1.5 px-0 text-left text-xs font-normal leading-none"
                     onDoubleClick={() => onBuildEventQuery(event.event_name)}
+                    size="sm"
                     title={event.event_name}
                     type="button"
+                    variant="ghost"
                   >
                     <Zap className="size-3 shrink-0" />
                     <span className="min-w-0 flex-1 truncate leading-none text-[#1d1d1f]">
                       {event.event_name}
                     </span>
-                  </button>
+                  </Button>
                   <Button
                     className={cn(
                       schemaIconButtonClass,
@@ -234,13 +239,13 @@ export function SchemaBrowserPanel({
 
               {isEventsLoading ? (
                 <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
-                  이벤트를 불러오는 중입니다.
+                  이벤트를 불러오고 있어요.
                 </div>
               ) : null}
 
               {!isEventsLoading && !filteredEvents.length ? (
                 <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
-                  조회된 이벤트가 없습니다.
+                  일치하는 이벤트가 없어요.
                 </div>
               ) : null}
             </div>
@@ -254,33 +259,35 @@ export function SchemaBrowserPanel({
 function FolderSection({
   children,
   isOpen,
-  onToggle,
+  onOpenChange,
   title
 }: {
   children: ReactNode;
   isOpen: boolean;
-  onToggle: () => void;
+  onOpenChange: (isOpen: boolean) => void;
   title: string;
 }) {
   return (
-    <section className="min-w-0">
-      <button
-        className="flex h-8 w-full min-w-0 items-center gap-2 rounded border-0 px-1.5 text-left text-xs font-medium leading-none text-slate-700 shadow-none transition-none hover:bg-white"
-        onClick={onToggle}
-        type="button"
-      >
-        <ChevronRight
-          className={cn("size-3 shrink-0 transition-none", isOpen ? "rotate-90" : "")}
-        />
-        {isOpen ? (
-          <FolderOpen className="size-3.5 shrink-0 text-primary" />
-        ) : (
-          <Folder className="size-3.5 shrink-0 text-slate-500" />
-        )}
-        <span className="min-w-0 flex-1 truncate leading-none">{title}</span>
-      </button>
-      {isOpen ? <div className="mt-1">{children}</div> : null}
-    </section>
+    <Collapsible className="min-w-0" onOpenChange={onOpenChange} open={isOpen}>
+      <CollapsibleTrigger asChild>
+        <Button
+          className="h-8 w-full min-w-0 justify-start gap-2 px-1.5 text-left text-xs font-medium leading-none text-slate-700 shadow-none transition-none hover:bg-white"
+          type="button"
+          variant="ghost"
+        >
+          <ChevronRight
+            className={cn("size-3 shrink-0 transition-none", isOpen ? "rotate-90" : "")}
+          />
+          {isOpen ? (
+            <FolderOpen className="size-3.5 shrink-0 text-primary" />
+          ) : (
+            <Folder className="size-3.5 shrink-0 text-slate-500" />
+          )}
+          <span className="min-w-0 flex-1 truncate leading-none">{title}</span>
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1">{children}</CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -297,14 +304,14 @@ function ObjectActionMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={`${object.object_name} 객체 작업`}
+          aria-label={`${object.object_name} 데이터 작업`}
           className={cn(
             schemaIconButtonClass,
             "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
           )}
           onClick={(event) => event.stopPropagation()}
           size="icon-xs"
-          title={`${object.object_name} 객체 작업`}
+          title={`${object.object_name} 데이터 작업`}
           type="button"
           variant="ghost"
         >
@@ -340,7 +347,7 @@ function ObjectColumns({
   if (isLoading && !detail) {
     return (
       <div className="ml-6 border-l border-black/10 px-2 py-2 text-xs text-muted-foreground">
-        컬럼을 불러오는 중입니다.
+        열 정보를 불러오고 있어요.
       </div>
     );
   }
@@ -352,12 +359,14 @@ function ObjectColumns({
   return (
     <div className="ml-6 grid gap-px border-l border-black/10 py-1 pl-1">
       {detail.columns.map((column) => (
-        <button
-          className="group/column flex min-h-7 min-w-0 items-center gap-2 rounded px-2 py-1 text-left hover:bg-white"
+        <Button
+          className="group/column min-h-7 min-w-0 justify-start gap-2 px-2 py-1 text-left hover:bg-white"
           key={column.column_name}
           onClick={() => onBuildColumnQuery(object, column)}
+          size="sm"
           title={column.comment ?? `${column.column_name} ${column.data_type}`}
           type="button"
+          variant="ghost"
         >
           {columnIcon(column.data_type)}
           <span className="min-w-0 flex-1 truncate font-mono text-[11px] leading-none text-[#1d1d1f]">
@@ -366,7 +375,7 @@ function ObjectColumns({
           <span className="max-w-28 shrink-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
             {column.data_type}
           </span>
-        </button>
+        </Button>
       ))}
     </div>
   );

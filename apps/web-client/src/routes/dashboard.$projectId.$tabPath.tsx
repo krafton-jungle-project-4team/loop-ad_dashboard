@@ -21,7 +21,7 @@ import { SdkPage } from "../features/dashboard/ui/pages/sdk/SdkPage.js";
 
 const routeBoundaryOptions = createRouteBoundaryOptions({
   pendingComponent: DashboardRoutePending,
-  title: "대시보드 API 요청 실패"
+  title: "페이지를 불러오지 못했어요"
 });
 
 export const Route = createFileRoute("/dashboard/$projectId/$tabPath")({
@@ -78,8 +78,8 @@ function DashboardProjectContent({ projectId, tab }: { projectId: string; tab: D
   if (!query.projectId) {
     return (
       <Alert>
-        <AlertTitle>조회 컨텍스트가 필요합니다</AlertTitle>
-        <AlertDescription>대시보드 경로에 projectId를 명시해주세요.</AlertDescription>
+        <AlertTitle>프로젝트를 찾지 못했어요</AlertTitle>
+        <AlertDescription>프로젝트 목록에서 다시 선택해 주세요.</AlertDescription>
       </Alert>
     );
   }

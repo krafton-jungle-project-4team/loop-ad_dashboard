@@ -696,6 +696,46 @@ test("dashboard controller parses content approval body before delegating", asyn
   assert.equal(response.status, "approved");
 });
 
+test("dashboard controller parses content selection cancellation before delegating", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    unapproveContentCandidate: async (projectId, promotionId, segmentId, contentId, request) => {
+      writes.push({ contentId, projectId, promotionId, request, segmentId });
+      return {
+        content_id: contentId,
+        content_option_id: "option_a",
+        promotion_id: promotionId,
+        segment_id: segmentId,
+        status: "draft"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.unapproveContentCandidate(
+    "promo_banner_001",
+    "seg_vip",
+    "content_vip_a",
+    "hotel-client-a",
+    {}
+  );
+
+  assert.deepEqual(writes, [
+    {
+      contentId: "content_vip_a",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001",
+      request: {},
+      segmentId: "seg_vip"
+    }
+  ]);
+  assert.equal(response.content_id, "content_vip_a");
+  assert.equal(response.status, "draft");
+});
+
 test("dashboard controller starts an ad experiment before dispatch", async () => {
   setRequiredEnv();
   const { DashboardController } =
@@ -784,6 +824,9 @@ function emptyDashboardQuery(): DashboardQueryService {
   return {
     approveContentCandidate: async () => {
       throw new Error("Unexpected approveContentCandidate call.");
+    },
+    unapproveContentCandidate: async () => {
+      throw new Error("Unexpected unapproveContentCandidate call.");
     },
     rejectContentCandidate: async () => {
       throw new Error("Unexpected rejectContentCandidate call.");

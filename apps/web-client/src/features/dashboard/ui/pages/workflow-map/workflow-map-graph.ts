@@ -153,7 +153,7 @@ export function buildCampaignFlowGraph(
       subtitle: detail.campaign.objective ?? formatMetricLabel(detail.campaign.primary_metric),
       summary: [
         {
-          label: "루프",
+          label: "반복 횟수",
           value: `${formatInteger(detail.campaign.current_loop_count)} / ${formatInteger(detail.campaign.max_loop_count)}`
         },
         { label: "프로모션", value: formatInteger(detail.promotions.length) },
@@ -196,7 +196,7 @@ export function buildCampaignFlowGraph(
               tone: flow.collectionTone
             },
             {
-              label: "루프",
+              label: "반복 횟수",
               value: `L${formatInteger(flow.promotion.current_loop_count)} / ${formatInteger(flow.promotion.max_loop_count)}`
             },
             {
@@ -238,7 +238,7 @@ export function buildCampaignFlowGraph(
         promotionFlows,
         segments: allSegments,
         status: evaluationStatus,
-        subtitle: "목표 달성률이 낮은 지표부터 정렬합니다",
+        subtitle: "목표 달성률이 낮은 지표부터 보여 줘요",
         summary: [
           { label: "지표", value: formatInteger(totals.metricsCount) },
           { label: "목표 달성", value: formatInteger(totals.goalMetCount) },
@@ -248,7 +248,7 @@ export function buildCampaignFlowGraph(
             tone: totals.goalNotMetCount > 0 ? "warning" : "normal"
           },
           {
-            label: "표본 부족",
+            label: "대상 부족",
             value: formatInteger(totals.insufficientDataCount),
             tone: totals.insufficientDataCount > 0 ? "insufficient" : "normal"
           }
@@ -270,7 +270,7 @@ export function buildCampaignFlowGraph(
         retryPromotionFlows,
         segments: retrySegments,
         status: retryStatus,
-        subtitle: "실패했거나 표본이 부족한 실행만 다음 루프로 보냅니다",
+        subtitle: "실패했거나 대상이 부족한 실험만 다시 진행해요",
         summary: [
           {
             label: "후보",
@@ -288,7 +288,7 @@ export function buildCampaignFlowGraph(
             tone: totals.nextLoopCount > 0 ? "warning" : "normal"
           },
           {
-            label: "다음 루프",
+            label: "반복 실험",
             value: formatNextLoopLabel(retryPromotionFlows),
             tone: retryPromotionFlows.length > 0 ? "warning" : "normal"
           }
@@ -321,7 +321,7 @@ export function buildCampaignFlowGraph(
             `${retryQueueNodeId}->${loopTargetPromotionId}:loop`,
             retryQueueNodeId,
             loopTargetPromotionId,
-            `다음 루프 ${formatInteger(retryPromotionFlows.length)}`
+            `반복 실험 ${formatInteger(retryPromotionFlows.length)}`
           )
         );
       }

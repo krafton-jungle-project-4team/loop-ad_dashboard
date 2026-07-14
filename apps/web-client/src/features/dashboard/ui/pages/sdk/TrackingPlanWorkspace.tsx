@@ -14,7 +14,12 @@ import {
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { Checkbox } from "@loopad/ui/shadcn/checkbox";
+import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Input } from "@loopad/ui/shadcn/input";
+import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
+import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   eventSdkInitCode,
@@ -85,21 +90,23 @@ export function TrackingPlanWorkspace({
       setValidation(null);
       return true;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "요청을 처리하지 못했습니다.");
+      setError(
+        cause instanceof Error ? cause.message : "요청을 처리하지 못했어요. 다시 시도해 주세요."
+      );
       return false;
     }
   }
 
   if (loading)
-    return <p className="text-sm text-muted-foreground">Tracking Plan을 불러오는 중입니다.</p>;
+    return <p className="text-sm text-muted-foreground">트래킹 플랜을 불러오고 있어요.</p>;
 
   if (!plan) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Tracking Plan이 없습니다</CardTitle>
+          <CardTitle>아직 트래킹 플랜이 없어요</CardTitle>
           <CardDescription>
-            자동 page view를 위한 system event를 포함한 draft를 생성합니다.
+            자동 페이지 조회에 필요한 기본 이벤트와 초안을 만들어요.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -113,7 +120,7 @@ export function TrackingPlanWorkspace({
               )
             }
           >
-            기본 Tracking Plan 생성
+            기본 트래킹 플랜 만들기
           </Button>
           {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
         </CardContent>
@@ -126,7 +133,9 @@ export function TrackingPlanWorkspace({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">SDK Tracking Plan</h1>
-          <p className="text-sm text-muted-foreground">폼으로 이벤트 계약을 설계하고 게시합니다.</p>
+          <p className="text-sm text-muted-foreground">
+            입력 항목을 채워 이벤트 규칙을 만들고 게시해요.
+          </p>
         </div>
         <div className="flex gap-2">
           <Badge variant="outline">{plan.status}</Badge>
@@ -242,7 +251,9 @@ function EventDesigner({
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div className="grid gap-1.5">
             <CardTitle className="text-base">이벤트 목록</CardTitle>
-            <CardDescription>SDK 자동 수집 이벤트는 system으로 보존됩니다.</CardDescription>
+            <CardDescription>
+              SDK가 자동 수집하는 이벤트는 시스템 이벤트로 유지돼요.
+            </CardDescription>
           </div>
           <Button onClick={startCreate}>이벤트 추가</Button>
         </CardHeader>
@@ -268,7 +279,7 @@ function EventDesigner({
             </div>
           ) : (
             <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-              등록된 이벤트가 없습니다.
+              등록한 이벤트가 없어요.
             </p>
           )}
         </CardContent>
@@ -319,21 +330,24 @@ function EventDesigner({
         </div>
         <CardTitle className="text-xl">{isEdit ? selected?.eventName : "이벤트 추가"}</CardTitle>
         <CardDescription>
-          JSON을 직접 편집하지 않고 속성명, 타입, 필수 여부를 지정합니다.
+          JSON을 직접 고치지 않고 속성 이름, 타입, 필수 여부를 정할 수 있어요.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <Field label="이벤트명">
-          <input
-            className="h-10 rounded-md border px-3"
+        <Field>
+          <FieldLabel htmlFor="tracking-plan-event-name">이벤트명</FieldLabel>
+          <Input
             disabled={isEdit}
+            id="tracking-plan-event-name"
             value={eventName}
             onChange={(event) => setEventName(event.target.value)}
           />
         </Field>
-        <Field label="설명">
-          <textarea
-            className="min-h-20 rounded-md border p-3"
+        <Field>
+          <FieldLabel htmlFor="tracking-plan-event-description">설명</FieldLabel>
+          <Textarea
+            className="min-h-20"
+            id="tracking-plan-event-description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
@@ -394,7 +408,7 @@ function PropertyList({
       </div>
       {!canAdd ? (
         <p className="text-xs text-muted-foreground">
-          최대 schema depth {TRACKING_PLAN_MAX_SCHEMA_DEPTH}에 도달했습니다.
+          속성은 {TRACKING_PLAN_MAX_SCHEMA_DEPTH}단계까지만 추가할 수 있어요.
         </p>
       ) : null}
       {properties.map((property, index) => {
@@ -402,8 +416,7 @@ function PropertyList({
         return (
           <div className="grid gap-3 rounded-md border p-3" key={property.id}>
             <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_auto_auto]">
-              <input
-                className="h-9 rounded-md border px-2"
+              <Input
                 placeholder="property_name"
                 value={property.name}
                 onChange={(event) =>
@@ -417,21 +430,21 @@ function PropertyList({
                   onChange(replaceAt(properties, index, { ...property, schema }))
                 }
               />
-              <label className="flex items-center gap-2 text-sm">
-                <input
+              <Field orientation="horizontal">
+                <Checkbox
                   checked={property.required}
-                  type="checkbox"
-                  onChange={(event) =>
+                  id={`property-required-${property.id}`}
+                  onCheckedChange={(checked) =>
                     onChange(
                       replaceAt(properties, index, {
                         ...property,
-                        required: event.target.checked
+                        required: checked === true
                       })
                     )
                   }
                 />
-                필수
-              </label>
+                <FieldLabel htmlFor={`property-required-${property.id}`}>필수</FieldLabel>
+              </Field>
               <Button
                 size="sm"
                 variant="ghost"
@@ -467,15 +480,15 @@ function SchemaTypeSelect({
     ["string", "number", "integer", "boolean", "object", "array"] as TrackingPlanPropertyType[]
   ).filter((type) => type !== "array" || depth < TRACKING_PLAN_MAX_SCHEMA_DEPTH);
   return (
-    <select
-      className="h-9 rounded-md border px-2"
+    <NativeSelect
+      size="sm"
       value={schema.type}
       onChange={(event) => onChange(newSchemaDraft(event.target.value as TrackingPlanPropertyType))}
     >
       {types.map((type) => (
-        <option key={type}>{type}</option>
+        <NativeSelectOption key={type}>{type}</NativeSelectOption>
       ))}
-    </select>
+    </NativeSelect>
   );
 }
 
@@ -549,12 +562,13 @@ function ConnectionPanel({
         <CardHeader>
           <CardTitle className="text-base">허용 Origin</CardTitle>
           <CardDescription>
-            줄바꿈으로 구분한 정확한 Origin만 공개 schema를 조회할 수 있습니다.
+            줄바꿈으로 구분한 Origin에서만 공개 스키마를 볼 수 있어요.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
-          <textarea
-            className="min-h-32 rounded-md border p-3"
+          <Textarea
+            aria-label="허용 Origin"
+            className="min-h-32"
             value={originText}
             onChange={(event) => setOriginText(event.target.value)}
           />
@@ -573,7 +587,7 @@ function ConnectionPanel({
             Origin 저장
           </Button>
           <p className="text-xs text-muted-foreground">
-            Origin은 조작 가능하며 인증 수단이 아닙니다.
+            Origin은 접근 범위를 정할 뿐, 인증 수단은 아니에요.
           </p>
         </CardContent>
       </Card>
@@ -581,7 +595,7 @@ function ConnectionPanel({
         <CardHeader>
           <CardTitle className="text-base">게시</CardTitle>
           <CardDescription>
-            revision snapshot 생성과 active revision 전환은 하나의 transaction입니다.
+            게시하면 현재 버전을 저장하고 바로 사용 중인 버전으로 바꿔요.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -649,8 +663,8 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
         </div>
         <h2 className="text-2xl font-semibold">이벤트 수집 SDK 연동</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          현재 편집 중인 Tracking Plan의 Origin, 이벤트명, 필수 속성, 타입을 기준으로 생성된
-          가이드입니다. 게시 후 SDK runtime에 적용됩니다.
+          현재 트래킹 플랜의 Origin, 이벤트 이름, 필수 속성, 타입을 기준으로 만든 가이드예요.
+          게시하면 SDK에 적용돼요.
         </p>
       </header>
 
@@ -662,7 +676,7 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
           <GuideCode code={installCode} />
         </GuideSection>
         <GuideSection
-          description="아래 Origin에서만 connection과 schema를 조회할 수 있습니다. 변경 후 Tracking Plan을 게시하세요."
+          description="아래 Origin에서만 연결 정보와 스키마를 볼 수 있어요. 바꾼 뒤 트래킹 플랜을 게시해 주세요."
           title="2. 허용 Origin 확인"
         >
           <div className="grid gap-2">
@@ -673,21 +687,21 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
                 </code>
               ))
             ) : (
-              <p className="text-sm text-destructive">등록된 Origin이 없습니다.</p>
+              <p className="text-sm text-destructive">아직 등록한 Origin이 없어요.</p>
             )}
           </div>
         </GuideSection>
       </div>
 
       <GuideSection
-        description="앱 시작 시 Connection과 스키마를 로드합니다. 로그인 전에는 identity 없음 상태로 DevTools를 사용할 수 있습니다."
+        description="앱을 시작할 때 연결 정보와 스키마를 불러와요. 로그인 전에도 DevTools를 쓸 수 있어요."
         title="3. Tracking Plan 연결"
       >
         <GuideCode code={initCode} />
       </GuideSection>
 
       <GuideSection
-        description="개발 빌드에서 우측 하단 LoopAd 버튼으로 SDK 상태를 확인합니다."
+        description="개발 빌드의 오른쪽 아래 LoopAd 버튼에서 SDK 상태를 확인해요."
         title="4. SDK DevTools"
       >
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -699,33 +713,33 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
       </GuideSection>
 
       <GuideSection
-        description="이벤트를 선택하면 현재 규약의 속성과 전송 예제가 함께 바뀝니다. 규약에 없는 이벤트나 타입이 맞지 않는 값은 전송되지 않습니다."
+        description="이벤트를 고르면 속성과 전송 예제가 함께 바뀌어요. 규약에 없거나 타입이 맞지 않는 값은 보내지 않아요."
         title="5. 규약에 맞춰 이벤트 전송"
       >
         {selectedEvent ? (
           <div className="grid gap-4">
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium">이벤트</span>
-              <select
-                className="h-10 rounded-md border px-3"
+            <Field>
+              <FieldLabel htmlFor="tracking-plan-guide-event">이벤트</FieldLabel>
+              <NativeSelect
+                id="tracking-plan-guide-event"
                 value={selectedEvent.eventName}
                 onChange={(event) => setSelectedEventName(event.target.value)}
               >
                 {plan.events.map((event) => (
-                  <option key={event.eventName} value={event.eventName}>
+                  <NativeSelectOption key={event.eventName} value={event.eventName}>
                     {event.eventName}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
             <p className="text-sm text-muted-foreground">
-              {selectedEvent.description || "등록된 설명이 없습니다."}
+              {selectedEvent.description || "아직 등록한 설명이 없어요."}
             </p>
             <PropertyContract event={selectedEvent} />
             <GuideCode code={eventSdkTrackCode(selectedEvent)} />
           </div>
         ) : (
-          <p className="text-sm text-destructive">Tracking Plan에 등록된 이벤트가 없습니다.</p>
+          <p className="text-sm text-destructive">트래킹 플랜에 등록한 이벤트가 없어요.</p>
         )}
       </GuideSection>
     </article>
@@ -790,14 +804,6 @@ function PropertyContract({ event }: { event: TrackingPlanEvent }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="grid gap-1 text-sm">
-      <span className="font-medium">{label}</span>
-      {children}
-    </label>
-  );
-}
 function ReadOnlyValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1">
@@ -884,8 +890,8 @@ function validatePropertyDrafts(properties: PropertyDraft[]): string[] {
     for (const property of current) {
       const name = property.name.trim();
       const propertyPath = name ? `${path}.${name}` : `${path}.<이름 없음>`;
-      if (!name) issues.push(`${path}: 속성명이 필요합니다.`);
-      if (property.name !== name) issues.push(`${propertyPath}: 앞뒤 공백을 제거하세요.`);
+      if (!name) issues.push(`${path}: 속성 이름을 입력해 주세요.`);
+      if (property.name !== name) issues.push(`${propertyPath}: 앞뒤 공백을 지워 주세요.`);
       if (names.has(name)) issues.push(`${propertyPath}: 같은 객체에 중복된 속성명입니다.`);
       names.add(name);
       if (unsafe.has(name)) issues.push(`${propertyPath}: 사용할 수 없는 속성명입니다.`);
@@ -903,7 +909,7 @@ function validatePropertyDrafts(properties: PropertyDraft[]): string[] {
       state.nodeLimitReported = true;
     }
     if (depth > TRACKING_PLAN_MAX_SCHEMA_DEPTH) {
-      issues.push(`${path}: 최대 depth ${TRACKING_PLAN_MAX_SCHEMA_DEPTH}를 초과했습니다.`);
+      issues.push(`${path}: 속성은 ${TRACKING_PLAN_MAX_SCHEMA_DEPTH}단계까지만 추가할 수 있어요.`);
       return;
     }
     if (schema.type === "object") {

@@ -3,7 +3,16 @@ import type {
   DashboardMain,
   DashboardRealtimeMetrics
 } from "@loopad/shared";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis
+} from "@loopad/ui/charts";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
@@ -65,9 +74,9 @@ export function MainPage({ data, query }: { data: DashboardMain; query: Dashboar
         {userPathsQuery.data ? (
           <FunnelPage data={userPathsQuery.data} query={query} />
         ) : userPathsQuery.isError ? (
-          <EmptyState message="사용자 경로 목록을 불러오지 못했습니다." />
+          <EmptyState message="사용자 경로를 불러오지 못했어요. 다시 시도해 주세요." />
         ) : (
-          <EmptyState message="사용자 경로 목록을 불러오는 중입니다." />
+          <EmptyState message="사용자 경로를 불러오고 있어요." />
         )}
       </TabsContent>
     </Tabs>
@@ -86,7 +95,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
               운영 현황
             </CardTitle>
             <CardDescription className="text-sm">
-              사용자 행동을 확인하고 캠페인 작업으로 자연스럽게 이어가세요.
+              사용자 반응을 살펴보고 필요한 캠페인 작업을 이어가세요.
             </CardDescription>
           </div>
         </CardHeader>
@@ -124,12 +133,12 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
                   캠페인 작업 목록
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  이름을 선택하면 해당 캠페인의 개요로 이동합니다.
+                  이름을 누르면 캠페인 성과를 볼 수 있어요.
                 </p>
               </div>
               <Badge variant="outline">
                 <Sparkles data-icon="inline-start" />
-                다음 액션 {formatInteger(summary.actionRequiredCampaigns)}개
+                다음 할 일 {formatInteger(summary.actionRequiredCampaigns)}개
               </Badge>
             </div>
             {data.campaigns.length > 0 ? (
@@ -144,7 +153,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
                       <TableHead className="text-right">세그먼트</TableHead>
                       <TableHead className="text-right">실험</TableHead>
                       <TableHead className="text-right">최근 목표 달성률</TableHead>
-                      <TableHead>다음 액션</TableHead>
+                      <TableHead>다음 할 일</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -159,7 +168,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
                 </Table>
               </div>
             ) : (
-              <EmptyState message="등록된 캠페인이 없습니다. 캠페인 관리에서 첫 캠페인을 만들어보세요." />
+              <EmptyState message="아직 캠페인이 없어요. 캠페인 관리에서 첫 캠페인을 만들어 보세요." />
             )}
           </section>
         </CardContent>
@@ -180,17 +189,19 @@ function MainSummaryCard({
   value: string;
 }) {
   return (
-    <div
+    <Card
       className={
         accent
-          ? "grid min-h-[112px] gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] p-4"
-          : "grid min-h-[112px] gap-2 rounded-lg border bg-muted/50 p-4"
+          ? "min-h-[112px] border-primary/25 bg-primary/[0.06] py-4"
+          : "min-h-[112px] bg-muted/50 py-4"
       }
     >
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-xl font-semibold tracking-tight text-foreground">{value}</span>
-      <span className="text-xs leading-5 text-muted-foreground">{note}</span>
-    </div>
+      <CardContent className="grid gap-2">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-xl font-semibold tracking-tight text-foreground">{value}</span>
+        <span className="text-xs leading-5 text-muted-foreground">{note}</span>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -244,7 +255,7 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
                   },
                   unique_user_count: {
                     color: "var(--chart-2)",
-                    label: "유니크 유저"
+                    label: "순 사용자"
                   }
                 }}
               >
@@ -270,7 +281,7 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
                 </LineChart>
               </ChartContainer>
             ) : (
-              <EmptyState message="시간대별 수집 이벤트가 아직 없습니다." />
+              <EmptyState message="아직 시간대별 이벤트가 없어요." />
             )}
           </div>
         </div>
@@ -280,16 +291,16 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
 
       <div className="grid gap-3 lg:grid-cols-4">
         <MainAnalyticsRankCard
-          emptyMessage="채널 집계가 없습니다."
+          emptyMessage="아직 노출 방식별 데이터가 없어요."
           items={metrics.channel_breakdown.map((item) => ({
             key: item.key,
             label: formatChannelLabel(item.key),
             value: item.event_count
           }))}
-          title="채널별 세션"
+          title="노출 방식별 세션"
         />
         <MainAnalyticsRankCard
-          emptyMessage="숙소군 집계가 없습니다."
+          emptyMessage="아직 숙소군별 데이터가 없어요."
           items={metrics.hotel_cluster_breakdown.map((item) => ({
             key: item.key,
             label: formatHotelClusterLabel(item.key),
@@ -298,16 +309,16 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
           title="숙소군별 반응"
         />
         <MainAnalyticsRankCard
-          emptyMessage="랜딩 유형 집계가 없습니다."
+          emptyMessage="아직 연결 페이지별 데이터가 없어요."
           items={metrics.landing_type_breakdown.map((item) => ({
             key: item.key,
             label: formatLandingTypeLabel(item.key),
             value: item.event_count
           }))}
-          title="랜딩 유형"
+          title="연결 페이지 유형"
         />
         <MainAnalyticsRankCard
-          emptyMessage="이벤트 집계가 없습니다."
+          emptyMessage="아직 이벤트 데이터가 없어요."
           items={metrics.events.map((event) => ({
             key: event.event_name,
             label: eventDisplayName(event.event_name),
@@ -328,62 +339,68 @@ function MainRealtimeActivityCard({
   trendData: AnalyticsTrendDatum[];
 }) {
   const recentBars = trendData.slice(-24);
-  const maxEventCount = Math.max(...recentBars.map((item) => item.event_count), 1);
   const topCluster = metrics.hotel_cluster_breakdown[0];
 
   return (
-    <div className="grid min-h-[260px] content-between self-start rounded-lg border bg-background p-4">
-      <div className="grid gap-3">
-        <div className="flex items-start justify-between gap-3">
+    <Card className="min-h-[260px] self-start">
+      <CardContent className="grid h-full content-between gap-6">
+        <div className="grid gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <div className="text-sm font-medium text-muted-foreground">최근 5분 이벤트</div>
+              <div className="text-4xl font-semibold tabular-nums text-foreground">
+                {formatInteger(metrics.recent_5m_event_count)}
+              </div>
+            </div>
+            <Badge className="border-[#188038] text-[#188038]" variant="outline">
+              정상 수집
+            </Badge>
+          </div>
           <div className="grid gap-1">
-            <div className="text-sm font-medium text-muted-foreground">최근 5분 이벤트</div>
-            <div className="text-4xl font-semibold tabular-nums text-foreground">
-              {formatInteger(metrics.recent_5m_event_count)}
+            <div className="text-sm text-muted-foreground">최근 1시간 이벤트</div>
+            <div className="text-xl font-semibold tabular-nums">
+              {formatInteger(metrics.recent_1h_event_count)}
             </div>
           </div>
-          <Badge className="border-[#188038] text-[#188038]" variant="outline">
-            정상 수집
-          </Badge>
-        </div>
-        <div className="grid gap-1">
-          <div className="text-sm text-muted-foreground">최근 1시간 이벤트</div>
-          <div className="text-xl font-semibold tabular-nums">
-            {formatInteger(metrics.recent_1h_event_count)}
+          <div className="h-16">
+            {recentBars.length > 0 ? (
+              <ChartContainer
+                className="h-full w-full"
+                config={{ event_count: { color: "var(--primary)", label: "이벤트" } }}
+              >
+                <BarChart accessibilityLayer data={recentBars}>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="event_count"
+                    fill="var(--color-event_count)"
+                    radius={[2, 2, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="grid h-full flex-1 place-items-center text-sm text-muted-foreground">
+                최근 수집된 이벤트가 없어요
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex h-16 items-end gap-1.5">
-          {recentBars.length > 0 ? (
-            recentBars.map((item) => (
-              <div
-                className="min-h-1 flex-1 rounded-t-sm bg-primary"
-                key={item.time_bucket}
-                style={{ height: `${Math.max((item.event_count / maxEventCount) * 100, 6)}%` }}
-                title={`${item.label}: ${formatInteger(item.event_count)}`}
-              />
-            ))
-          ) : (
-            <div className="grid h-full flex-1 place-items-center text-sm text-muted-foreground">
-              최근 수집 구간 없음
-            </div>
-          )}
+        <div className="grid gap-3">
+          <MainMetricLine label="피크 시간" value={metrics.peak_time ?? "-"} />
+          <MainMetricLine
+            label="상위 숙소군"
+            value={
+              topCluster
+                ? `${formatHotelClusterLabel(topCluster.key)} ${formatInteger(topCluster.event_count)}`
+                : "-"
+            }
+          />
+          <MainMetricLine
+            label="배너 클릭률"
+            value={formatPercentValue(metrics.banner_response.promotion_click_rate)}
+          />
         </div>
-      </div>
-      <div className="grid gap-3">
-        <MainMetricLine label="피크 시간" value={metrics.peak_time ?? "-"} />
-        <MainMetricLine
-          label="상위 숙소군"
-          value={
-            topCluster
-              ? `${formatHotelClusterLabel(topCluster.key)} ${formatInteger(topCluster.event_count)}`
-              : "-"
-          }
-        />
-        <MainMetricLine
-          label="배너 클릭률"
-          value={formatPercentValue(metrics.banner_response.promotion_click_rate)}
-        />
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -397,39 +414,50 @@ function MainAnalyticsRankCard({
   title: string;
 }) {
   const visibleItems = [...items].sort((a, b) => b.value - a.value).slice(0, 7);
-  const maxValue = Math.max(...visibleItems.map((item) => item.value), 1);
-
   return (
-    <div className="grid content-start gap-3 rounded-lg border bg-background p-4">
-      <div className="flex items-center justify-between gap-3">
+    <Card>
+      <CardHeader className="flex-row items-center justify-between gap-3">
         <h4 className="text-base font-semibold text-foreground">{title}</h4>
         <span className="text-xs text-muted-foreground">수집 기준</span>
-      </div>
-      {visibleItems.length > 0 ? (
-        <div className="grid gap-2.5">
-          {visibleItems.map((item) => (
-            <div className="grid gap-1.5" key={item.key}>
-              <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <div className="truncate font-medium text-foreground/85">{item.label}</div>
-                </div>
-                <div className="shrink-0 tabular-nums text-foreground/85">
-                  {formatInteger(item.value)}
-                </div>
-              </div>
-              <div className="h-1 bg-muted">
-                <div
-                  className="h-full bg-primary"
-                  style={{ width: `${Math.max((item.value / maxValue) * 100, 4)}%` }}
+      </CardHeader>
+      <CardContent>
+        {visibleItems.length > 0 ? (
+          <ChartContainer
+            className="w-full"
+            config={{ value: { color: "var(--primary)", label: title } }}
+            style={{ height: `${Math.max(visibleItems.length * 34, 80)}px` }}
+          >
+            <BarChart
+              accessibilityLayer
+              data={visibleItems}
+              layout="vertical"
+              margin={{ right: 34 }}
+            >
+              <XAxis dataKey="value" hide type="number" />
+              <YAxis
+                axisLine={false}
+                dataKey="label"
+                tickLine={false}
+                tickMargin={8}
+                type="category"
+                width={88}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="value" fill="var(--color-value)" radius={3}>
+                <LabelList
+                  className="fill-foreground text-xs tabular-nums"
+                  dataKey="value"
+                  formatter={(value) => formatInteger(Number(value ?? 0))}
+                  position="right"
                 />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground">{emptyMessage}</div>
-      )}
-    </div>
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        ) : (
+          <div className="text-sm text-muted-foreground">{emptyMessage}</div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -631,8 +659,8 @@ const EVENT_DISPLAY_NAMES: Record<string, string> = {
   booking_cancel: "예약 취소",
   booking_complete: "예약 완료",
   booking_start: "예약 시작",
-  campaign_landing: "캠페인 랜딩",
-  campaign_redirect_click: "캠페인 리다이렉트 클릭",
+  campaign_landing: "캠페인 페이지 도착",
+  campaign_redirect_click: "캠페인 이동 버튼 클릭",
   hotel_click: "숙소 클릭",
   hotel_detail_view: "숙소 상세 조회",
   hotel_search: "숙소 검색",

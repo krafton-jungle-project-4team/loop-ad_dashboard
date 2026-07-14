@@ -19,7 +19,7 @@ export function VisualizationPanel({ result }: { result: DataExplorerQueryRunRes
   const yColumn = spec?.y[0]?.column;
 
   if (!result || !spec || !yColumn) {
-    return <EmptyState message="추천 차트가 없습니다." />;
+    return <EmptyState message="차트로 표시할 결과가 없어요." />;
   }
 
   return (

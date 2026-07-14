@@ -151,7 +151,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!editingFunnelId) {
-        throw new Error("수정할 사용자 경로가 없습니다.");
+        throw new Error("수정할 사용자 경로를 찾지 못했어요.");
       }
       return updateDashboardFunnel(query, editingFunnelId, createFunnelRequest(funnelName, steps));
     },
@@ -220,20 +220,20 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
               사용자 경로 목록
             </CardTitle>
-            <CardDescription>저장된 사용자 경로를 선택해 단계별 지표를 확인합니다.</CardDescription>
+            <CardDescription>사용자 경로를 선택하면 단계별 전환을 볼 수 있어요.</CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <DashboardDateRangeSelect value={query.dateRange} />
             <Button onClick={openCreateDialog} type="button">
               <Plus data-icon="inline-start" />
-              사용자 경로 생성
+              사용자 경로 만들기
             </Button>
           </div>
         </CardHeader>
         <CardContent className="px-5">
           {deleteMutation.isError ? (
             <Alert className="mb-4" variant="destructive">
-              <AlertTitle>사용자 경로를 삭제하지 못했습니다</AlertTitle>
+              <AlertTitle>사용자 경로를 삭제하지 못했어요</AlertTitle>
               <AlertDescription>{mutationErrorMessage(deleteMutation.error)}</AlertDescription>
             </Alert>
           ) : null}
@@ -317,8 +317,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                               <AlertDialogHeader>
                                 <AlertDialogTitle>사용자 경로를 삭제할까요?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  {funnel.funnel_name} 사용자 경로가 삭제됩니다. 이 작업은 되돌릴 수
-                                  없습니다.
+                                  {funnel.funnel_name} 사용자 경로와 저장된 설정이 모두 사라져요.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -327,7 +326,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                                   onClick={() => deleteMutation.mutate(funnel.funnel_id)}
                                   variant="destructive"
                                 >
-                                  삭제
+                                  사용자 경로 삭제
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -340,7 +339,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
               </Table>
             </div>
           ) : (
-            <EmptyState message="등록된 사용자 경로가 없습니다." />
+            <EmptyState message="아직 만든 사용자 경로가 없어요." />
           )}
         </CardContent>
       </Card>
@@ -392,13 +391,13 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
           <div className="grid min-h-0 gap-6 overflow-hidden px-6 py-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] lg:px-8">
             {!selectedFunnel ? (
               <div className="lg:col-span-2">
-                <EmptyState message="사용자 경로를 선택하면 단계별 지표가 표시됩니다." />
+                <EmptyState message="사용자 경로를 선택하면 단계별 전환을 볼 수 있어요." />
               </div>
             ) : (
               <>
                 {funnelMetrics.isError ? (
                   <Alert className="lg:col-span-2" variant="destructive">
-                    <AlertTitle>사용자 경로 수치를 불러오지 못했습니다</AlertTitle>
+                    <AlertTitle>사용자 경로 수치를 불러오지 못했어요</AlertTitle>
                     <AlertDescription>{mutationErrorMessage(funnelMetrics.error)}</AlertDescription>
                   </Alert>
                 ) : null}
@@ -409,7 +408,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
                   </>
                 ) : (
                   <div className="lg:col-span-2">
-                    <EmptyState message="사용자 경로 지표를 불러오는 중입니다." />
+                    <EmptyState message="사용자 경로 수치를 불러오고 있어요." />
                   </div>
                 )}
               </>
@@ -422,44 +421,44 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
         <DialogContent className="grid max-h-[calc(100svh-2rem)] w-[calc(100%-2rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden overscroll-contain p-0 sm:w-[min(96vw,1180px)] sm:max-w-[min(96vw,1180px)]">
           <DialogHeader className="min-w-0 border-b px-4 py-5 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:py-6 lg:pr-14">
             <DialogTitle className="text-xl font-semibold text-pretty sm:text-2xl">
-              {isEditMode ? "사용자 경로 수정" : "새 사용자 경로 생성"}
+              {isEditMode ? "사용자 경로 수정" : "새 사용자 경로 만들기"}
             </DialogTitle>
             <DialogDescription className="break-words text-pretty">
               {isEditMode
-                ? "저장된 사용자 경로 이름과 단계 순서를 변경합니다."
-                : "수집된 이벤트를 순서대로 선택하면 단계별 전환 수가 미리 계산됩니다."}
+                ? "이름과 단계 순서를 바꿀 수 있어요."
+                : "이벤트를 순서대로 고르면 단계별 전환을 미리 볼 수 있어요."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid min-h-0 min-w-0 gap-6 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:px-8 lg:py-6">
             {isDraftLoading ? (
               <Alert className="lg:col-span-2">
-                <AlertTitle>사용자 경로 정보를 불러오는 중입니다</AlertTitle>
-                <AlertDescription>저장된 단계 구성을 가져오고 있습니다.</AlertDescription>
+                <AlertTitle>사용자 경로를 불러오고 있어요</AlertTitle>
+                <AlertDescription>잠시만 기다려 주세요.</AlertDescription>
               </Alert>
             ) : null}
             {draftLoadError ? (
               <Alert className="lg:col-span-2" variant="destructive">
-                <AlertTitle>사용자 경로 정보를 불러오지 못했습니다</AlertTitle>
+                <AlertTitle>사용자 경로를 불러오지 못했어요</AlertTitle>
                 <AlertDescription>{draftLoadError}</AlertDescription>
               </Alert>
             ) : null}
             {eventCatalog.isError ? (
               <Alert className="lg:col-span-2" variant="destructive">
-                <AlertTitle>이벤트 목록을 불러오지 못했습니다</AlertTitle>
-                <AlertDescription>수집 이벤트 카탈로그 API 응답을 확인해주세요.</AlertDescription>
+                <AlertTitle>이벤트를 불러오지 못했어요</AlertTitle>
+                <AlertDescription>잠시 후 다시 시도해 주세요.</AlertDescription>
               </Alert>
             ) : null}
             {isEventCatalogEmpty ? (
               <Alert className="lg:col-span-2">
-                <AlertTitle>선택 가능한 이벤트가 없습니다</AlertTitle>
+                <AlertTitle>선택할 이벤트가 없어요</AlertTitle>
                 <AlertDescription>
-                  ClickHouse에 수집된 사용자 경로 이벤트가 있어야 단계를 선택할 수 있습니다.
+                  이벤트가 수집되면 사용자 경로 단계를 선택할 수 있어요.
                 </AlertDescription>
               </Alert>
             ) : null}
             {draftMutationError ? (
               <Alert className="lg:col-span-2" variant="destructive">
-                <AlertTitle>사용자 경로를 저장하지 못했습니다</AlertTitle>
+                <AlertTitle>사용자 경로를 저장하지 못했어요</AlertTitle>
                 <AlertDescription>{mutationErrorMessage(draftMutationError)}</AlertDescription>
               </Alert>
             ) : null}
@@ -530,19 +529,19 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
               <div className="grid gap-1">
                 <h3 className="text-base font-semibold text-foreground">단계별 전환 미리보기</h3>
                 <p className="text-sm text-muted-foreground">
-                  사용자별 이벤트 발생 순서를 기준으로 각 단계까지 도달한 수를 표시합니다.
+                  사용자가 각 단계까지 도달한 수를 보여 줘요.
                 </p>
               </div>
               {funnelPreview.isError ? (
                 <Alert variant="destructive">
-                  <AlertTitle>미리보기를 불러오지 못했습니다</AlertTitle>
+                  <AlertTitle>미리보기를 불러오지 못했어요</AlertTitle>
                   <AlertDescription>{mutationErrorMessage(funnelPreview.error)}</AlertDescription>
                 </Alert>
               ) : null}
               {previewSteps.length > 0 ? (
                 <FunnelMetricChart steps={previewSteps} />
               ) : (
-                <EmptyState message="이벤트를 선택하면 미리보기가 표시됩니다." />
+                <EmptyState message="이벤트를 선택하면 미리보기를 볼 수 있어요." />
               )}
             </section>
           </div>
@@ -556,7 +555,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
               취소
             </Button>
             <Button disabled={!canSave || isDraftSaving} onClick={saveFunnel} type="button">
-              {isDraftSaving ? "저장 중" : isEditMode ? "변경 저장" : "저장"}
+              {isDraftSaving ? "사용자 경로 저장 중…" : "사용자 경로 저장"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -573,7 +572,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
           <AlertDialogHeader>
             <AlertDialogTitle>작성 중인 변경사항을 버릴까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              저장하지 않은 사용자 경로 변경사항이 사라집니다. 이 작업은 되돌릴 수 없습니다.
+              저장하지 않은 내용은 사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -717,7 +716,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
 
 function FunnelMetricChart({ steps }: { steps: DashboardFunnelMetricStep[] }) {
   if (steps.length === 0) {
-    return <EmptyState message="표시할 사용자 흐름 데이터가 없습니다." />;
+    return <EmptyState message="아직 표시할 사용자 흐름이 없어요." />;
   }
 
   return (
@@ -905,5 +904,5 @@ function formatDateTime(value: string): string {
 }
 
 function mutationErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "API 요청 실패";
+  return error instanceof Error ? error.message : "문제가 생겼어요. 다시 시도해 주세요.";
 }
