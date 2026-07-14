@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { ClickHouseClient } from "@clickhouse/client";
 import {
   SDK_TRACKING_PLAN_SCHEMA_VERSION,
   TrackingPlanPropertiesSchemaSchema
 } from "@loopad/shared";
 import type { Pool } from "pg";
+import type { TrackingPlanObservedEventReader } from "../src/features/tracking-plan/tracking-plan-observed-event-reader.js";
 import type { TrackingPlanRepository } from "../src/features/tracking-plan/tracking-plan.repository.js";
 
 setRequiredEnv();
@@ -82,6 +84,96 @@ test("rejects reserved, unsafe, duplicate, oversized, and over-depth schemas", (
     const result = TrackingPlanPropertiesSchemaSchema.safeParse(tooDeepSchema(2000));
     assert.equal(result.success, false);
   });
+});
+
+test("infers Tracking Plan schemas from recently collected event properties", async () => {
+  const { inferTrackingPlanEvents } =
+    await import("../src/features/tracking-plan/tracking-plan-observed-event-reader.js");
+  const events = inferTrackingPlanEvents([
+    {
+      event_name: "page_view",
+      properties_json: JSON.stringify({
+        metadata: { count: 1, sku: "hotel-1" },
+        optional_label: "home",
+        page: { path: "/" },
+        route_group: "home",
+        sdk: { version: "1.0.0" },
+        tags: ["landing"],
+        value: 1
+      })
+    },
+    {
+      event_name: "page_view",
+      properties_json: JSON.stringify({
+        metadata: { count: 2, sku: "hotel-2" },
+        route_group: "search",
+        tags: ["search"],
+        value: 2.5
+      })
+    },
+    {
+      event_name: "booking_complete",
+      properties_json: JSON.stringify({ booking_id: "booking-1", revenue: 120000 })
+    },
+    {
+      event_name: "unstable_event",
+      properties_json: JSON.stringify({ value: "one" })
+    },
+    {
+      event_name: "unstable_event",
+      properties_json: JSON.stringify({ value: 2 })
+    },
+    { event_name: "invalid_event", properties_json: "not-json" }
+  ]);
+
+  assert.deepEqual(
+    events.map((event) => event.eventName),
+    ["page_view", "booking_complete", "unstable_event"]
+  );
+  const pageView = events[0];
+  assert.ok(pageView);
+  assert.equal(pageView.propertiesSchema.properties?.page, undefined);
+  assert.equal(pageView.propertiesSchema.properties?.sdk, undefined);
+  assert.equal(pageView.propertiesSchema.properties?.value?.type, "number");
+  assert.equal(pageView.propertiesSchema.properties?.metadata?.type, "object");
+  assert.equal(pageView.propertiesSchema.properties?.tags?.items?.type, "string");
+  assert.deepEqual(pageView.propertiesSchema.required, [
+    "metadata",
+    "route_group",
+    "tags",
+    "value"
+  ]);
+  assert.equal(events[2]?.propertiesSchema.properties?.value, undefined);
+  for (const event of events) {
+    assert.doesNotThrow(() => TrackingPlanPropertiesSchemaSchema.parse(event.propertiesSchema));
+  }
+});
+
+test("observed event reader scopes recent samples to the requested project", async () => {
+  const { TrackingPlanObservedEventReader } =
+    await import("../src/features/tracking-plan/tracking-plan-observed-event-reader.js");
+  let request: { query?: string; query_params?: Record<string, unknown> } | undefined;
+  const clickhouse = {
+    query: async (value: { query?: string; query_params?: Record<string, unknown> }) => {
+      request = value;
+      return {
+        json: async () => [
+          { event_name: "page_view", properties_json: JSON.stringify({ route_group: "home" }) }
+        ]
+      };
+    }
+  } as unknown as ClickHouseClient;
+
+  const events = await new TrackingPlanObservedEventReader(clickhouse).inferEvents("project-1");
+
+  assert.equal(request?.query_params?.projectId, "project-1");
+  assert.equal(request?.query_params?.lookbackDays, 30);
+  assert.match(request?.query ?? "", /FROM raw_events/);
+  assert.match(request?.query ?? "", /project_id = \{projectId:String\}/);
+  assert.deepEqual(
+    events.map((event) => event.eventName),
+    ["page_view"]
+  );
 });
 
 test("publish inserts the immutable revision and switches the active revision in one transaction", async () => {
@@ -173,6 +265,61 @@ test("tracking plan creation forwards the requested allowed Origins", async () =
     "Default Tracking Plan",
     ["https://demo-shoppingmall.dev.loop-ad.org"]
   ]);
+});
+
+test("observed event creation seeds the demo Origin and inferred event contracts", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const inferredEvents = [
+    {
+      eventName: "booking_complete",
+      description: "observed booking",
+      propertiesSchema: {
+        type: "object" as const,
+        properties: { booking_id: { type: "string" as const } },
+        required: ["booking_id"]
+      }
+    }
+  ];
+  let received: unknown[] | null = null;
+  const repository = {
+    create: async (...args: unknown[]) => {
+      received = args;
+      return {};
+    }
+  } as unknown as TrackingPlanRepository;
+  const reader = {
+    inferEvents: async () => inferredEvents
+  } as unknown as TrackingPlanObservedEventReader;
+  const service = new TrackingPlanService(repository, reader);
+
+  await service.createFromObservedEvents("demo-shoppingmall");
+
+  assert.deepEqual(received, [
+    "demo-shoppingmall",
+    "Demo Site Tracking Plan",
+    ["https://demo-shoppingmall.dev.loop-ad.org"],
+    inferredEvents
+  ]);
+});
+
+test("observed event creation stops before creating an empty plan", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const repository = {
+    create: async () => {
+      throw new Error("repository should not be called");
+    }
+  } as unknown as TrackingPlanRepository;
+  const reader = {
+    inferEvents: async () => []
+  } as unknown as TrackingPlanObservedEventReader;
+  const service = new TrackingPlanService(repository, reader);
+
+  await assert.rejects(
+    () => service.createFromObservedEvents("demo-shoppingmall"),
+    /최근 30일 동안 수집된 이벤트가 없습니다/
+  );
 });
 
 function fakePublishDatabase(failSettingsUpdate = false) {

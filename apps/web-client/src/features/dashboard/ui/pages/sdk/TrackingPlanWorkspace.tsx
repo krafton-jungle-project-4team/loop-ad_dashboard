@@ -29,6 +29,7 @@ import {
 import {
   addTrackingPlanEvent,
   createTrackingPlan,
+  createTrackingPlanFromObservedEvents,
   deleteTrackingPlanEvent,
   getTrackingPlan,
   publishTrackingPlan,
@@ -64,6 +65,7 @@ export function TrackingPlanWorkspace({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [validation, setValidation] = useState<TrackingPlanValidation | null>(null);
+  const [creationMode, setCreationMode] = useState<"basic" | "observed" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +99,24 @@ export function TrackingPlanWorkspace({
     }
   }
 
+  async function createInitialPlan(mode: "basic" | "observed") {
+    setCreationMode(mode);
+    try {
+      if (mode === "observed") {
+        await run(() => createTrackingPlanFromObservedEvents(projectId));
+        return;
+      }
+      await run(() =>
+        createTrackingPlan(projectId, {
+          name: "Default Tracking Plan",
+          allowedOrigins: [DEFAULT_DEMO_ORIGIN]
+        })
+      );
+    } finally {
+      setCreationMode(null);
+    }
+  }
+
   if (loading)
     return <p className="text-sm text-muted-foreground">트래킹 플랜을 불러오고 있어요.</p>;
 
@@ -106,22 +126,31 @@ export function TrackingPlanWorkspace({
         <CardHeader>
           <CardTitle>아직 트래킹 플랜이 없어요</CardTitle>
           <CardDescription>
-            자동 페이지 조회에 필요한 기본 이벤트와 초안을 만들어요.
+            데모 사이트가 최근 30일 동안 보낸 이벤트 이름과 속성 타입으로 초안을 만들 수 있어요.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button
-            onClick={() =>
-              void run(() =>
-                createTrackingPlan(projectId, {
-                  name: "Default Tracking Plan",
-                  allowedOrigins: [DEFAULT_DEMO_ORIGIN]
-                })
-              )
-            }
-          >
-            기본 트래킹 플랜 만들기
-          </Button>
+        <CardContent className="grid gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={creationMode !== null}
+              onClick={() => void createInitialPlan("observed")}
+            >
+              {creationMode === "observed"
+                ? "이벤트 형식 확인 중…"
+                : "수집 중인 이벤트로 자동 생성"}
+            </Button>
+            <Button
+              disabled={creationMode !== null}
+              onClick={() => void createInitialPlan("basic")}
+              variant="outline"
+            >
+              {creationMode === "basic" ? "기본 플랜 만드는 중…" : "기본 플랜 만들기"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            자동 생성은 최근 수집 데이터에서 이벤트별 속성 타입과 필수 필드를 추론해요. 생성 후
+            내용을 확인하고 게시해 주세요.
+          </p>
           {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
         </CardContent>
       </Card>
@@ -132,7 +161,7 @@ export function TrackingPlanWorkspace({
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">SDK Tracking Plan</h1>
+          <h1 className="text-2xl font-semibold">SDK 연동</h1>
           <p className="text-sm text-muted-foreground">
             입력 항목을 채워 이벤트 규칙을 만들고 게시해요.
           </p>

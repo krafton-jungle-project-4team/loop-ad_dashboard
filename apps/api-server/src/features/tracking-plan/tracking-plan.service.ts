@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import type {
   SdkConnection,
   SdkPublishedSchema,
@@ -7,16 +7,20 @@ import type {
   TrackingPlanEventUpdate,
   TrackingPlanValidation
 } from "@loopad/shared";
+import { TrackingPlanObservedEventReader } from "./tracking-plan-observed-event-reader.js";
 import { TrackingPlanRepository } from "./tracking-plan.repository.js";
 
 const COLLECTOR_URL = "https://event.api.dev.loop-ad.org/events";
 const PUBLIC_API_BASE_URL = "https://dashboard.api.dev.loop-ad.org/api/public/v1/sdk/connections";
 const CACHE_TTL_SECONDS = 60;
+const DEMO_SITE_ORIGIN = "https://demo-shoppingmall.dev.loop-ad.org";
 
 @Injectable()
 export class TrackingPlanService {
   constructor(
-    @Inject(TrackingPlanRepository) private readonly repository: TrackingPlanRepository
+    @Inject(TrackingPlanRepository) private readonly repository: TrackingPlanRepository,
+    @Inject(TrackingPlanObservedEventReader)
+    private readonly observedEventReader: TrackingPlanObservedEventReader
   ) {}
 
   get(projectId: string) {
@@ -24,6 +28,13 @@ export class TrackingPlanService {
   }
   create(projectId: string, request: TrackingPlanCreateRequest) {
     return this.repository.create(projectId, request.name, request.allowedOrigins);
+  }
+  async createFromObservedEvents(projectId: string) {
+    const events = await this.observedEventReader.inferEvents(projectId);
+    if (events.length === 0) {
+      throw new BadRequestException("최근 30일 동안 수집된 이벤트가 없습니다.");
+    }
+    return this.repository.create(projectId, "Demo Site Tracking Plan", [DEMO_SITE_ORIGIN], events);
   }
   addEvent(projectId: string, event: TrackingPlanEventInput) {
     return this.repository.addEvent(projectId, event);

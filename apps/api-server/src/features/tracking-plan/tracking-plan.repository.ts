@@ -62,7 +62,8 @@ export class TrackingPlanRepository {
   async create(
     projectId: string,
     name: string,
-    allowedOrigins: string[] = []
+    allowedOrigins: string[] = [],
+    initialEvents: TrackingPlanEventInput[] = []
   ): Promise<TrackingPlan> {
     return this.transaction(async (client) => {
       const project = await client.query<{ project_id: string }>(
@@ -97,16 +98,38 @@ export class TrackingPlanRepository {
           [projectId]
         );
       }
-      for (const eventName of SYSTEM_EVENT_NAMES) {
+      const initialEventsByName = new Map(
+        initialEvents.map((event) => [event.eventName, event] as const)
+      );
+      const eventsToCreate = [
+        ...SYSTEM_EVENT_NAMES.map((eventName) => {
+          const observed = initialEventsByName.get(eventName);
+          return {
+            description: observed?.description ?? `${eventName} standard event`,
+            eventName,
+            propertiesSchema:
+              observed?.propertiesSchema ??
+              ({ type: "object", properties: {}, required: [] } as const),
+            status: "system" as const
+          };
+        }),
+        ...initialEvents
+          .filter(
+            (event) => !(SYSTEM_EVENT_NAMES as ReadonlyArray<string>).includes(event.eventName)
+          )
+          .map((event) => ({ ...event, status: "draft" as const }))
+      ];
+      for (const event of eventsToCreate) {
         await client.query(
           `INSERT INTO tracking_plan_events
              (tracking_plan_id, event_name, description, status, properties_schema_json)
-           VALUES ($1, $2, $3, 'system', $4::jsonb)`,
+           VALUES ($1, $2, $3, $4, $5::jsonb)`,
           [
             trackingPlanId,
-            eventName,
-            `${eventName} standard event`,
-            JSON.stringify({ type: "object", properties: {}, required: [] })
+            event.eventName,
+            event.description,
+            event.status,
+            JSON.stringify(event.propertiesSchema)
           ]
         );
       }

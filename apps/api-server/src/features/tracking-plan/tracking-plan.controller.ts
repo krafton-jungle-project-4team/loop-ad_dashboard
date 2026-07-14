@@ -27,6 +27,11 @@ export class TrackingPlanController {
     );
   }
 
+  @Post("tracking-plan/from-observed-events")
+  async createFromObservedEvents(@Param("projectId") projectId: string) {
+    return TrackingPlanSchema.parse(await this.service.createFromObservedEvents(projectId));
+  }
+
   @Post("tracking-plan/events")
   async addEvent(@Param("projectId") projectId: string, @Body() body: unknown) {
     return TrackingPlanSchema.parse(
