@@ -282,13 +282,15 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                         className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
                         value="result"
                       >
-                        <QueryResultTable result={queryResult} />
+                        {resultTab === "result" ? <QueryResultTable result={queryResult} /> : null}
                       </TabsContent>
                       <TabsContent
                         className="h-full min-h-0 min-w-0 overflow-hidden data-[state=inactive]:hidden"
                         value="visualization"
                       >
-                        <VisualizationPanel result={queryResult} />
+                        {resultTab === "visualization" ? (
+                          <VisualizationPanel result={queryResult} />
+                        ) : null}
                       </TabsContent>
                     </div>
                   </Tabs>

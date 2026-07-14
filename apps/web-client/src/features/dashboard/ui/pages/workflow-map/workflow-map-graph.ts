@@ -5,6 +5,7 @@ import type {
   DashboardCampaignSegment,
   DashboardCampaignSummary
 } from "@loopad/shared";
+import { DASHBOARD_FALLBACK_SEGMENT_ID } from "@loopad/shared";
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import { formatChannelLabel, formatMetricLabel } from "../../../model/dashboard-labels.js";
 import { formatInteger, formatPercent } from "../../../model/dashboard-format.js";
@@ -131,10 +132,11 @@ export function buildCampaignFlowGraph(
   const campaignNodeId = `campaign:${campaignId}`;
   const evaluationNodeId = `evaluation:${campaignId}`;
   const retryQueueNodeId = `retry-queue:${campaignId}`;
-  const promotionFlows = sortPromotionsByGoalAchievement(
-    detail.promotions,
-    detail.experiment_metrics
-  ).map((promotion) => createPromotionFlowSummary(detail, projectId, campaignId, promotion));
+  const workflowMetrics = detail.experiment_metrics.filter(isUserFacingWorkflowMetric);
+  const promotionFlows = sortPromotionsByGoalAchievement(detail.promotions, workflowMetrics).map(
+    (promotion) =>
+      createPromotionFlowSummary(detail, projectId, campaignId, promotion, workflowMetrics)
+  );
   const retryPromotionFlows = promotionFlows.filter(isPromotionFlowRetryCandidate);
   const allSegments = promotionFlows.flatMap((flow) => flow.segments);
   const retrySegments = retryPromotionFlows.flatMap((flow) => flow.nextLoopSegments);
@@ -234,7 +236,7 @@ export function buildCampaignFlowGraph(
       data: {
         action: createAction(projectId, campaignId, "", "", "campaign-metrics"),
         kind: "evaluation",
-        metrics: sortMetricsByGoalAchievement(detail.experiment_metrics),
+        metrics: sortMetricsByGoalAchievement(workflowMetrics),
         promotionFlows,
         segments: allSegments,
         status: evaluationStatus,
@@ -266,7 +268,7 @@ export function buildCampaignFlowGraph(
       data: {
         action: createAction(projectId, campaignId, "", "", "campaign-metrics"),
         kind: "retryQueue",
-        metrics: detail.experiment_metrics,
+        metrics: workflowMetrics,
         retryPromotionFlows,
         segments: retrySegments,
         status: retryStatus,
@@ -392,12 +394,13 @@ function createPromotionFlowSummary(
   detail: DashboardCampaignDetail,
   projectId: string,
   campaignId: string,
-  promotion: DashboardCampaignPromotion
+  promotion: DashboardCampaignPromotion,
+  workflowMetrics: DashboardCampaignExperimentMetric[]
 ): PromotionFlowSummary {
   const promotionSegments = detail.segments.filter(
     (segment) => segment.promotion_id === promotion.promotion_id
   );
-  const promotionMetrics = detail.experiment_metrics.filter(
+  const promotionMetrics = workflowMetrics.filter(
     (metric) => metric.promotion_id === promotion.promotion_id
   );
   const evaluation = summarizeEvaluation(promotion, promotionSegments, promotionMetrics);
@@ -419,6 +422,10 @@ function createPromotionFlowSummary(
     segments: segmentSummaries,
     tone
   };
+}
+
+function isUserFacingWorkflowMetric(metric: DashboardCampaignExperimentMetric) {
+  return Boolean(metric.ad_experiment_id && metric.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID);
 }
 
 function summarizeCampaignEvaluation(flows: PromotionFlowSummary[]): FlowEvaluationTotals {

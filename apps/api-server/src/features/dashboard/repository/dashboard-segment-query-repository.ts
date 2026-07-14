@@ -360,12 +360,12 @@ function toSegmentQueryPreview(
 function toSavedSegment(row: IInsertDashboardCustomSegmentDefinitionResult): DashboardSavedSegment {
   return {
     segment_id: row.segmentId,
-    project_id: row.projectId,
+    project_id: row.projectId ?? "",
     segment_name: row.segmentName,
     source: "custom_chatkit",
     query_preview_id: row.queryPreviewId ?? "",
-    natural_language_query: row.naturalLanguageQuery,
-    generated_sql: row.generatedSql,
+    natural_language_query: row.naturalLanguageQuery ?? "",
+    generated_sql: row.generatedSql ?? "",
     sample_size: countValue(row.sampleSize),
     total_eligible_user_count: countValue(row.totalEligibleUserCount),
     sample_ratio: numberValue(row.sampleRatio),

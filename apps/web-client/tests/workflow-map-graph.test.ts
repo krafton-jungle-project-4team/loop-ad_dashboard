@@ -46,6 +46,56 @@ test("workflow graph keeps an empty campaign as a single node", () => {
   assert.deepEqual(graph.edges, []);
 });
 
+test("workflow graph ignores fallback and aggregate evaluation rows", () => {
+  const detail = campaignDetailFixture();
+  const targetMetric = detail.experiment_metrics[0]!;
+  detail.promotions[0]!.status = "running";
+  detail.segments[0]!.status = "approved";
+  detail.experiment_metrics = [
+    {
+      ...targetMetric,
+      actual_value: 0.5,
+      next_loop_required: false,
+      status: "goal_met"
+    },
+    {
+      ...targetMetric,
+      actual_value: 0,
+      ad_experiment_id: "fallback-experiment",
+      next_loop_required: true,
+      segment_id: "seg_existing_all",
+      status: "goal_not_met"
+    },
+    {
+      ...targetMetric,
+      actual_value: 0.25,
+      ad_experiment_id: null,
+      next_loop_required: true,
+      segment_id: null,
+      status: "goal_met"
+    }
+  ];
+
+  const graph = buildCampaignFlowGraph(detail, "project-1");
+
+  assert.equal(graph.nextLoopCandidateCount, 0);
+  assert.deepEqual(
+    graph.nodes.map((node) => node.type),
+    ["campaign", "promotion", "evaluation", "retryQueue"]
+  );
+  const evaluationNode = graph.nodes.find((node) => node.type === "evaluation");
+  const retryNode = graph.nodes.find((node) => node.type === "retryQueue");
+  assert.deepEqual(
+    evaluationNode?.data.metrics?.map((metric) => metric.ad_experiment_id),
+    ["experiment-1"]
+  );
+  assert.equal(retryNode?.data.retryPromotionFlows?.length, 0);
+  assert.deepEqual(
+    retryNode?.data.metrics?.map((metric) => metric.ad_experiment_id),
+    ["experiment-1"]
+  );
+});
+
 function campaignDetailFixture(): DashboardCampaignDetail {
   return {
     campaign: {
