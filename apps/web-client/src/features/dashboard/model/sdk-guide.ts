@@ -1,27 +1,25 @@
 import type { TrackingPlanEvent, TrackingPlanJsonSchema } from "@loopad/shared";
 
-export const EVENT_SDK_PACKAGE_VERSION = "0.1.20260713-run.16.1";
+export const EVENT_SDK_IIFE_URL =
+  "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js";
 
 export function eventSdkInstallCode(): string {
-  return `# .npmrc
-@krafton-jungle-project-4team:registry=https://npm.pkg.github.com
-
-npm install @krafton-jungle-project-4team/loop-ad_event_sdk@${EVENT_SDK_PACKAGE_VERSION}`;
+  return `<script
+  src="${EVENT_SDK_IIFE_URL}"
+  crossorigin="anonymous"
+></script>`;
 }
 
 export function eventSdkInitCode(connectionUrl: string): string {
-  return `// src/lib/loop-ad-events.ts
-import {
-  init,
-  type Identity,
-  type LoopAdEventSdkClient
-} from "@krafton-jungle-project-4team/loop-ad_event_sdk";
-
-let clientPromise: Promise<LoopAdEventSdkClient> | null = null;
+  return `// src/lib/loop-ad-events.js
+let clientPromise = null;
 
 export function startLoopAdCollection() {
+  if (!window.LoopAdEventSDK) {
+    return Promise.reject(new Error("LoopAd Event SDK IIFE를 먼저 연결하세요."));
+  }
   if (!clientPromise) {
-    clientPromise = init({
+    clientPromise = window.LoopAdEventSDK.init({
       connectionUrl: "${connectionUrl}",
       identity: null,
       debug: import.meta.env.DEV
@@ -33,7 +31,7 @@ export function startLoopAdCollection() {
   return clientPromise;
 }
 
-export async function setLoopAdIdentity(identity: Identity) {
+export async function setLoopAdIdentity(identity) {
   const client = await startLoopAdCollection();
   client.setIdentity(identity);
   return client;

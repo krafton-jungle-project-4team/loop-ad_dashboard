@@ -2,109 +2,16 @@ import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
-import {
-  Check,
-  Clipboard,
-  Code2,
-  FileCode2,
-  PackageCheck,
-  Terminal,
-  type LucideIcon
-} from "lucide-react";
+import { Check, Clipboard, Code2, Terminal, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TrackingPlanWorkspace } from "./TrackingPlanWorkspace.js";
 
-const registryInstallCode = `# .npmrc
-@krafton-jungle-project-4team:registry=https://npm.pkg.github.com
-
-npm install @krafton-jungle-project-4team/loop-ad_advertisement_sdk@latest`;
-
-const advertisementSdkCode = String.raw`// src/lib/loop-ad-ads.ts
-import {
-  init as initLoopAdAds,
-  type AdvertisementDecision,
-  type AdvertisementFilledDecision
-} from "@krafton-jungle-project-4team/loop-ad_advertisement_sdk";
-import { startLoopAdCollection } from "./loop-ad-events";
-
-const loopAdConfig = {
-  apiBaseUrl: import.meta.env.VITE_LOOP_AD_DASHBOARD_API_BASE_URL,
-  projectId: import.meta.env.VITE_LOOP_AD_PROJECT_ID,
-  promotionRunId: import.meta.env.VITE_LOOP_AD_PROMOTION_RUN_ID
-};
-
-export async function renderHomeTopBanner(user: { id: string; sessionId: string }): Promise<void> {
-  const eventClient = await startLoopAdCollection({
-    userId: user.id,
-    sessionId: user.sessionId
-  });
-  const ads = initLoopAdAds({
-    apiBaseUrl: loopAdConfig.apiBaseUrl,
-    projectId: loopAdConfig.projectId,
-    userId: user.id,
-    promotionRunId: loopAdConfig.promotionRunId
-  });
-
-  const decision = await ads.render({
-    placementId: "HOME_TOP_BANNER",
-    targetId: "loopad-home-top-banner",
-    onImpression(filledDecision) {
-      eventClient.track("promotion_impression", toPromotionFields(filledDecision));
-    },
-    onClick(filledDecision) {
-      eventClient.track("promotion_click", toPromotionFields(filledDecision));
-    }
-  });
-
-  handleAdDecision(decision);
-}
-
-function handleAdDecision(decision: AdvertisementDecision): void {
-  if (decision.status === "empty") {
-    renderFallbackBanner("지금 추천할 프로모션이 없어요.");
-    return;
-  }
-
-  console.info("광고가 렌더링되었습니다.", {
-    placementId: decision.placementId,
-    title: decision.ad.title,
-    targetUrl: decision.ad.targetUrl
-  });
-}
-
-function toPromotionFields(decision: AdvertisementFilledDecision) {
-  const tracking = decision.tracking;
-
-  return {
-    campaignId: tracking.campaign_id,
-    promotionId: tracking.promotion_id,
-    promotionRunId: tracking.promotion_run_id,
-    adExperimentId: tracking.ad_experiment_id,
-    segmentId: tracking.segment_id,
-    contentId: tracking.content_id,
-    contentOptionId: tracking.content_option_id,
-    promotionChannel: tracking.promotion_channel,
-    placementId: tracking.placement_id,
-    targetUrl: tracking.target_url,
-    properties: {
-      source: "loop_ad_advertisement_sdk"
-    }
-  };
-}
-
-function renderFallbackBanner(message: string): void {
-  const target = document.getElementById("loopad-home-top-banner");
-  target?.replaceChildren(message);
-}`;
-
-const placementMarkupCode = String.raw`<section aria-label="추천 프로모션">
-  <div id="loopad-home-top-banner"></div>
-</section>`;
-
 const scriptTagCode = String.raw`<div id="loopad-home-top-banner"></div>
 
-<script src="https://krafton-jungle-project-4team.github.io/loop-ad_advertisement_sdk/loop-ad-advertisement-sdk.iife.js"></script>
+<script
+  src="https://krafton-jungle-project-4team.github.io/loop-ad_advertisement_sdk/loop-ad-advertisement-sdk.iife.js"
+  crossorigin="anonymous"
+></script>
 <script>
   // 이벤트 수집 문서의 client를 window.loopAdEventClient에 연결한 뒤 사용합니다.
   const ads = LoopAdAdvertisementSDK.init({
@@ -190,44 +97,17 @@ function AdvertisementSdkGuide() {
           title="광고 SDK 연동 절차"
           description="광고 지면을 만들고 decision과 노출·클릭 콜백을 연결하는 순서입니다."
         />
-        <Tabs defaultValue="npm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <TabsList>
-              <TabsTrigger value="npm">npm 패키지</TabsTrigger>
-              <TabsTrigger value="script">script tag</TabsTrigger>
-            </TabsList>
-            <Badge>latest 기준</Badge>
-          </div>
-          <TabsContent className="grid gap-4" value="npm">
-            <GuideStep
-              body="공개 npm 패키지로 배포된 광고 SDK를 설치해요."
-              icon={PackageCheck}
-              number="1"
-              title="패키지 설치"
-            >
-              <CodeBlock code={registryInstallCode} language="bash" title=".npmrc / terminal" />
-            </GuideStep>
-            <GuideStep
-              body="광고 SDK는 광고를 고르고 화면에 보여 줘요. 먼저 이벤트 수집 가이드를 적용한 뒤 노출·클릭 정보를 수집 SDK로 넘겨 주세요."
-              icon={FileCode2}
-              number="2"
-              title="광고 SDK를 렌더링 지면에 붙입니다"
-            >
-              <CodeBlock code={placementMarkupCode} language="html" title="ad placement" />
-              <CodeBlock code={advertisementSdkCode} language="ts" title="loop-ad-ads.ts" />
-            </GuideStep>
-          </TabsContent>
-          <TabsContent value="script">
-            <GuideStep
-              body="빌드 파이프라인에 npm 패키지를 넣기 어렵다면 GitHub Pages로 배포된 IIFE 번들을 직접 불러옵니다."
-              icon={Terminal}
-              number="A"
-              title="정적 페이지나 CMS에 붙입니다"
-            >
-              <CodeBlock code={scriptTagCode} language="html" title="script tag integration" />
-            </GuideStep>
-          </TabsContent>
-        </Tabs>
+        <div className="flex justify-end">
+          <Badge>공개 IIFE</Badge>
+        </div>
+        <GuideStep
+          body="GitHub Pages로 배포된 공개 IIFE를 연결합니다. npm registry나 패키지 토큰은 필요하지 않습니다."
+          icon={Terminal}
+          number="1"
+          title="광고 SDK를 렌더링 지면에 붙입니다"
+        >
+          <CodeBlock code={scriptTagCode} language="html" title="script tag integration" />
+        </GuideStep>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
