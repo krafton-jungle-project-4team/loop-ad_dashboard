@@ -68,16 +68,18 @@ export function MainPage({ data, query }: { data: DashboardMain; query: Dashboar
         <TabsTrigger value="user-paths">사용자 경로</TabsTrigger>
       </TabsList>
       <TabsContent value="overview">
-        <MainOverview data={data} query={query} />
+        {query.statisticsView === "overview" ? <MainOverview data={data} query={query} /> : null}
       </TabsContent>
       <TabsContent value="user-paths">
-        {userPathsQuery.data ? (
-          <FunnelPage data={userPathsQuery.data} query={query} />
-        ) : userPathsQuery.isError ? (
-          <EmptyState message="사용자 경로를 불러오지 못했어요. 다시 시도해 주세요." />
-        ) : (
-          <EmptyState message="사용자 경로를 불러오고 있어요." />
-        )}
+        {query.statisticsView === "user-paths" ? (
+          userPathsQuery.data ? (
+            <FunnelPage data={userPathsQuery.data} query={query} />
+          ) : userPathsQuery.isError ? (
+            <EmptyState message="사용자 경로를 불러오지 못했어요. 다시 시도해 주세요." />
+          ) : (
+            <EmptyState message="사용자 경로를 불러오고 있어요." />
+          )
+        ) : null}
       </TabsContent>
     </Tabs>
   );

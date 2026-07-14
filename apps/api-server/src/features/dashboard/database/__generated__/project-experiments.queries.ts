@@ -167,14 +167,17 @@ export interface IListDashboardRunningAdExperimentCountsQuery {
   result: IListDashboardRunningAdExperimentCountsResult;
 }
 
-const listDashboardRunningAdExperimentCountsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":292,"b":301}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  (COUNT(DISTINCT ae.ad_experiment_id) FILTER (WHERE ae.status = 'running'))::int\n    AS \"runningAdExperimentCount\"\nFROM campaigns c\nLEFT JOIN ad_experiments ae\n  ON ae.project_id = c.project_id\n AND ae.campaign_id = c.campaign_id\nWHERE c.project_id = :projectId\nGROUP BY c.campaign_id"};
+const listDashboardRunningAdExperimentCountsIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":346,"b":355}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  (COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n    WHERE ae.status = 'running'\n      AND ae.segment_id <> 'seg_existing_all'\n  ))::int\n    AS \"runningAdExperimentCount\"\nFROM campaigns c\nLEFT JOIN ad_experiments ae\n  ON ae.project_id = c.project_id\n AND ae.campaign_id = c.campaign_id\nWHERE c.project_id = :projectId\nGROUP BY c.campaign_id"};
 
 /**
  * Query generated from SQL:
  * ```
  * SELECT
  *   c.campaign_id AS "campaignId",
- *   (COUNT(DISTINCT ae.ad_experiment_id) FILTER (WHERE ae.status = 'running'))::int
+ *   (COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+ *     WHERE ae.status = 'running'
+ *       AND ae.segment_id <> 'seg_existing_all'
+ *   ))::int
  *     AS "runningAdExperimentCount"
  * FROM campaigns c
  * LEFT JOIN ad_experiments ae

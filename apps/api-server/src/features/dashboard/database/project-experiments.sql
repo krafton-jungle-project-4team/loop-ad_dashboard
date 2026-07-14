@@ -95,7 +95,10 @@ ORDER BY ae.updated_at DESC, ae.created_at DESC, ae.ad_experiment_id ASC;
 /* @name ListDashboardRunningAdExperimentCounts */
 SELECT
   c.campaign_id AS "campaignId",
-  (COUNT(DISTINCT ae.ad_experiment_id) FILTER (WHERE ae.status = 'running'))::int
+  (COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+    WHERE ae.status = 'running'
+      AND ae.segment_id <> 'seg_existing_all'
+  ))::int
     AS "runningAdExperimentCount"
 FROM campaigns c
 LEFT JOIN ad_experiments ae

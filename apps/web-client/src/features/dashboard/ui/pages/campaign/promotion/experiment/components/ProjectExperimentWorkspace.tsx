@@ -604,8 +604,8 @@ function SelectedProjectExperimentDetail({
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <DetailMetric label="목표 지표" value={formatMetricLabel(experiment.goal_metric)} />
           <DetailMetric
-            label="목표 / 실제"
-            value={`${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)} / ${formatGoalValue(evaluation?.actual_value ?? null)}`}
+            label="현황 / 목표"
+            value={`${formatGoalValue(evaluation?.actual_value ?? null)} / ${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}`}
           />
           <DetailMetric
             label="평가 대상 / 배정"

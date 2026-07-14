@@ -67,13 +67,17 @@ SELECT
   COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
-  COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
+  COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+    WHERE ae.segment_id <> 'seg_existing_all'
+  )::int AS "adExperimentCount",
   CAST(MAX(pe.actual_value) AS float8) AS "latestGoalAchievementRate",
   CASE
     WHEN c.status = 'draft' THEN 'campaign_start'
     WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'
     WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
-    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+      WHERE ae.segment_id <> 'seg_existing_all'
+    ) = 0 THEN 'approve_content'
     WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
     ELSE 'monitor'
   END AS "nextAction",
@@ -89,6 +93,8 @@ LEFT JOIN ad_experiments ae
   ON ae.campaign_id = c.campaign_id
 LEFT JOIN promotion_evaluations pe
   ON pe.campaign_id = c.campaign_id
+ AND pe.ad_experiment_id IS NOT NULL
+ AND pe.segment_id <> 'seg_existing_all'
 WHERE c.project_id = :projectId
 
 GROUP BY c.campaign_id
@@ -108,13 +114,17 @@ SELECT
   COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
   COUNT(DISTINCT p.promotion_id)::int AS "promotionCount",
   COUNT(DISTINCT pts.segment_id)::int AS "segmentCount",
-  COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
+  COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+    WHERE ae.segment_id <> 'seg_existing_all'
+  )::int AS "adExperimentCount",
   CAST(MAX(pe.actual_value) AS float8) AS "latestGoalAchievementRate",
   CASE
     WHEN c.status = 'draft' THEN 'campaign_start'
     WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'
     WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
-    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+      WHERE ae.segment_id <> 'seg_existing_all'
+    ) = 0 THEN 'approve_content'
     WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
     ELSE 'monitor'
   END AS "nextAction",
@@ -130,6 +140,8 @@ LEFT JOIN ad_experiments ae
   ON ae.campaign_id = c.campaign_id
 LEFT JOIN promotion_evaluations pe
   ON pe.campaign_id = c.campaign_id
+ AND pe.ad_experiment_id IS NOT NULL
+ AND pe.segment_id <> 'seg_existing_all'
 WHERE c.project_id = :projectId
   AND c.campaign_id = :campaignId
 
@@ -337,12 +349,16 @@ SELECT
   p.landing_type AS "landingType",
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
-  COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
+  COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+    WHERE ae.segment_id <> 'seg_existing_all'
+  )::int AS "adExperimentCount",
   CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   CASE
     WHEN p.status = 'draft' THEN 'complete_plan'
     WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
-    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+      WHERE ae.segment_id <> 'seg_existing_all'
+    ) = 0 THEN 'approve_content'
     WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
     ELSE 'monitor'
   END AS "nextAction",
@@ -356,6 +372,8 @@ LEFT JOIN ad_experiments ae
   ON ae.promotion_id = p.promotion_id
 LEFT JOIN promotion_evaluations pe
   ON pe.promotion_id = p.promotion_id
+ AND pe.ad_experiment_id IS NOT NULL
+ AND pe.segment_id <> 'seg_existing_all'
 WHERE p.project_id = :projectId
   AND p.campaign_id = :campaignId
   AND p.status <> 'stopped'
@@ -381,12 +399,16 @@ SELECT
   p.landing_type AS "landingType",
   p.status,
   COUNT(DISTINCT pts.segment_id)::int AS "targetSegmentCount",
-  COUNT(DISTINCT ae.ad_experiment_id)::int AS "adExperimentCount",
+  COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+    WHERE ae.segment_id <> 'seg_existing_all'
+  )::int AS "adExperimentCount",
   CAST(MAX(pe.actual_value) AS float8) AS "latestActualValue",
   CASE
     WHEN p.status = 'draft' THEN 'complete_plan'
     WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'
-    WHEN COUNT(DISTINCT ae.ad_experiment_id) = 0 THEN 'approve_content'
+    WHEN COUNT(DISTINCT ae.ad_experiment_id) FILTER (
+      WHERE ae.segment_id <> 'seg_existing_all'
+    ) = 0 THEN 'approve_content'
     WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'
     ELSE 'monitor'
   END AS "nextAction",
@@ -400,6 +422,8 @@ LEFT JOIN ad_experiments ae
   ON ae.promotion_id = p.promotion_id
 LEFT JOIN promotion_evaluations pe
   ON pe.promotion_id = p.promotion_id
+ AND pe.ad_experiment_id IS NOT NULL
+ AND pe.segment_id <> 'seg_existing_all'
 WHERE p.project_id = :projectId
   AND p.promotion_id = :promotionId
 
