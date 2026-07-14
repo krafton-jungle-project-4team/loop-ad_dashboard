@@ -367,7 +367,7 @@ function ExperimentColumnFilter({
           className="-ml-3 h-8 px-3"
           size="sm"
           type="button"
-          variant={value === "all" ? "ghost" : "soft"}
+          variant="ghost"
         >
           {label}
           <ChevronDown aria-hidden="true" data-icon="inline-end" />
