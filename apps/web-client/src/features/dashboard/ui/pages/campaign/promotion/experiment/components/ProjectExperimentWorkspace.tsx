@@ -403,7 +403,7 @@ function ProjectExperimentTable({
       <Table className="min-w-[1080px]">
         <TableHeader>
           <TableRow>
-            <TableHead>실험</TableHead>
+            <TableHead className="w-40">실험</TableHead>
             <TableHead>캠페인 / 프로모션</TableHead>
             <TableHead>세그먼트</TableHead>
             <TableHead>채널</TableHead>
@@ -421,21 +421,17 @@ function ProjectExperimentTable({
 
             return (
               <TableRow aria-selected={isSelected} key={experiment.ad_experiment_id}>
-                <TableCell>
+                <TableCell className="w-40">
                   <Button
                     aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
-                    className="h-auto justify-start px-0 text-left"
+                    className="h-9 min-w-28 justify-center px-4"
                     onClick={() => onSelect(experiment)}
+                    size="sm"
                     type="button"
-                    variant="link"
+                    variant="outline"
                   >
-                    <span className="grid gap-0.5">
-                      <span className="font-medium">
-                        {formatInteger(experiment.loop_count)}번째 실험
-                      </span>
-                      <span className="max-w-40 truncate text-xs text-muted-foreground">
-                        {experiment.ad_experiment_id}
-                      </span>
+                    <span className="font-medium">
+                      {formatInteger(experiment.loop_count)}번째 실험
                     </span>
                   </Button>
                 </TableCell>
@@ -720,9 +716,6 @@ function SelectedProjectExperimentDetail({
                     {formatInteger(experiment.next_loop.loop_count)}번째 반복 실험
                   </span>
                 </div>
-                <p className="break-all text-xs text-muted-foreground">
-                  {experiment.next_loop.promotion_run_id}
-                </p>
               </div>
             ) : evaluation?.next_loop_required ? (
               <Alert>
