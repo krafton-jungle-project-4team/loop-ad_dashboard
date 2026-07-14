@@ -79,12 +79,6 @@ const ACTION_LABELS: Record<string, string> = {
   start_experiment: "실험 시작"
 };
 
-const LANDING_TYPE_LABELS: Record<string, string> = {
-  booking_resume: "예약 이어가기",
-  product_detail: "상품 상세",
-  search_results: "검색 결과"
-};
-
 export function formatStatusLabel(value: string | null | undefined): string {
   return formatKnownLabel(value, STATUS_LABELS);
 }
@@ -103,10 +97,6 @@ export function formatBasisLabel(value: string | null | undefined): string {
 
 export function formatActionLabel(value: string | null | undefined): string {
   return formatKnownLabel(value, ACTION_LABELS);
-}
-
-export function formatLandingTypeLabel(value: string | null | undefined): string {
-  return formatKnownLabel(value, LANDING_TYPE_LABELS);
 }
 
 export function formatWorkflowLabel(value: string | null | undefined): string {

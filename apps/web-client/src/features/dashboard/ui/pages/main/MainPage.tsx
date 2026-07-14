@@ -7,7 +7,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  LabelList,
   Line,
   LineChart,
   XAxis,
@@ -32,8 +31,6 @@ import { fetchDashboardFunnelList } from "../../../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../../../model/dashboard-format.js";
 import {
   formatActionLabel,
-  formatChannelLabel,
-  formatLandingTypeLabel,
   formatStatusLabel
 } from "../../../model/dashboard-labels.js";
 import { useDashboardQueryState } from "../../../model/dashboard-query.js";
@@ -290,45 +287,6 @@ function MainRealtimeAnalytics({ metrics }: { metrics: DashboardRealtimeMetrics 
 
         <MainRealtimeActivityCard metrics={metrics} trendData={trendData} />
       </div>
-
-      <div className="grid gap-3 lg:grid-cols-4">
-        <MainAnalyticsRankCard
-          emptyMessage="아직 노출 방식별 데이터가 없어요."
-          items={metrics.channel_breakdown.map((item) => ({
-            key: item.key,
-            label: formatChannelLabel(item.key),
-            value: item.event_count
-          }))}
-          title="노출 방식별 세션"
-        />
-        <MainAnalyticsRankCard
-          emptyMessage="아직 숙소군별 데이터가 없어요."
-          items={metrics.hotel_cluster_breakdown.map((item) => ({
-            key: item.key,
-            label: formatHotelClusterLabel(item.key),
-            value: item.event_count
-          }))}
-          title="숙소군별 반응"
-        />
-        <MainAnalyticsRankCard
-          emptyMessage="아직 연결 페이지별 데이터가 없어요."
-          items={metrics.landing_type_breakdown.map((item) => ({
-            key: item.key,
-            label: formatLandingTypeLabel(item.key),
-            value: item.event_count
-          }))}
-          title="연결 페이지 유형"
-        />
-        <MainAnalyticsRankCard
-          emptyMessage="아직 이벤트 데이터가 없어요."
-          items={metrics.events.map((event) => ({
-            key: event.event_name,
-            label: eventDisplayName(event.event_name),
-            value: event.event_count
-          }))}
-          title="주요 이벤트"
-        />
-      </div>
     </section>
   );
 }
@@ -401,63 +359,6 @@ function MainRealtimeActivityCard({
             value={formatPercentValue(metrics.banner_response.promotion_click_rate)}
           />
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function MainAnalyticsRankCard({
-  emptyMessage,
-  items,
-  title
-}: {
-  emptyMessage: string;
-  items: AnalyticsRankItem[];
-  title: string;
-}) {
-  const visibleItems = [...items].sort((a, b) => b.value - a.value).slice(0, 7);
-  return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between gap-3">
-        <h4 className="text-base font-semibold text-foreground">{title}</h4>
-        <span className="text-xs text-muted-foreground">수집 기준</span>
-      </CardHeader>
-      <CardContent>
-        {visibleItems.length > 0 ? (
-          <ChartContainer
-            className="w-full"
-            config={{ value: { color: "var(--primary)", label: title } }}
-            style={{ height: `${Math.max(visibleItems.length * 34, 80)}px` }}
-          >
-            <BarChart
-              accessibilityLayer
-              data={visibleItems}
-              layout="vertical"
-              margin={{ right: 34 }}
-            >
-              <XAxis dataKey="value" hide type="number" />
-              <YAxis
-                axisLine={false}
-                dataKey="label"
-                tickLine={false}
-                tickMargin={8}
-                type="category"
-                width={88}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="value" fill="var(--color-value)" radius={3}>
-                <LabelList
-                  className="fill-foreground text-xs tabular-nums"
-                  dataKey="value"
-                  formatter={(value) => formatInteger(Number(value ?? 0))}
-                  position="right"
-                />
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        ) : (
-          <div className="text-sm text-muted-foreground">{emptyMessage}</div>
-        )}
       </CardContent>
     </Card>
   );
@@ -565,12 +466,6 @@ type AnalyticsTrendDatum = {
   unique_user_count: number;
 };
 
-type AnalyticsRankItem = {
-  key: string;
-  label: string;
-  value: number;
-};
-
 type MainAnalyticsKpi = {
   helper: string;
   label: string;
@@ -649,27 +544,9 @@ function MainMetricLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-function eventDisplayName(eventName: string): string {
-  return EVENT_DISPLAY_NAMES[eventName] ?? eventName;
-}
-
 function formatHotelClusterLabel(value: string) {
   return value ? `숙소군 ${value}` : "미분류 숙소군";
 }
-
-const EVENT_DISPLAY_NAMES: Record<string, string> = {
-  booking_cancel: "예약 취소",
-  booking_complete: "예약 완료",
-  booking_start: "예약 시작",
-  campaign_landing: "캠페인 페이지 도착",
-  campaign_redirect_click: "캠페인 이동 버튼 클릭",
-  hotel_click: "숙소 클릭",
-  hotel_detail_view: "숙소 상세 조회",
-  hotel_search: "숙소 검색",
-  page_view: "페이지 조회",
-  promotion_click: "프로모션 클릭",
-  promotion_impression: "프로모션 노출"
-};
 
 function formatPeriod(campaign: DashboardCampaignSummary) {
   if (!campaign.start_date && !campaign.end_date) {
