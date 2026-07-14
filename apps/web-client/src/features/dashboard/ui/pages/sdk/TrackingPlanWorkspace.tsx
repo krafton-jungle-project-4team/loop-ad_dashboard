@@ -44,6 +44,7 @@ import {
   createTrackingPlanFromObservedEvents,
   deleteTrackingPlanEvent,
   getTrackingPlan,
+  publishTrackingPlan,
   updateTrackingPlanEvent
 } from "../../../api/tracking-plan-api.js";
 
@@ -169,7 +170,7 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
         </div>
         <Button asChild variant="outline">
           <Link params={{ projectId }} to="/developer/$projectId">
-            개발자 문서
+            개발자 페이지
           </Link>
         </Button>
       </div>
@@ -193,6 +194,7 @@ export function DeveloperWorkspace({
   const [plan, setPlan] = useState<TrackingPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingVersion, setConfirmingVersion] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -214,6 +216,18 @@ export function DeveloperWorkspace({
       cancelled = true;
     };
   }, [projectId]);
+
+  async function confirmEventVersion() {
+    setConfirmingVersion(true);
+    setError(null);
+    try {
+      setPlan(await publishTrackingPlan(projectId));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "새 이벤트 버전을 확정하지 못했어요.");
+    } finally {
+      setConfirmingVersion(false);
+    }
+  }
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">개발자 설정을 불러오고 있어요.</p>;
@@ -247,7 +261,8 @@ export function DeveloperWorkspace({
           버전이 명시된 SDK 설치 코드와 이벤트·광고 연동 절차를 확인합니다.
         </p>
         <p className="text-xs text-muted-foreground">
-          SDK v{EVENT_SDK_VERSION} · 이벤트 {plan.events.length}개
+          SDK v{EVENT_SDK_VERSION} · 이벤트 설정 {formatEventRevision(plan.publishedRevision)} ·
+          이벤트 {plan.events.length}개
         </p>
       </header>
       {error ? (
@@ -255,9 +270,60 @@ export function DeveloperWorkspace({
           {error}
         </p>
       ) : null}
+      <EventVersionPanel
+        confirming={confirmingVersion}
+        onConfirm={() => void confirmEventVersion()}
+        plan={plan}
+      />
       <DeveloperGuide advertisementGuide={advertisementGuide} plan={plan} />
     </div>
   );
+}
+
+function EventVersionPanel({
+  confirming,
+  onConfirm,
+  plan
+}: {
+  confirming: boolean;
+  onConfirm: () => void;
+  plan: TrackingPlan;
+}) {
+  const hasPendingChanges = plan.status === "draft";
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">이벤트 버전</CardTitle>
+        <CardDescription>
+          마케터의 변경사항은 초안으로 모이고, 개발자가 확정할 때 새 리비전이 생성됩니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center justify-between gap-4">
+        <div className="grid gap-1">
+          <strong className="text-lg">{formatEventRevision(plan.publishedRevision)}</strong>
+          <p className="text-sm text-muted-foreground">
+            {hasPendingChanges
+              ? "확정 대기 중인 이벤트 변경사항이 있어요."
+              : "현재 이벤트 변경사항이 모두 확정됐어요."}
+          </p>
+        </div>
+        <Button
+          disabled={!hasPendingChanges || plan.events.length === 0 || confirming}
+          onClick={onConfirm}
+        >
+          {confirming
+            ? "버전 확정 중…"
+            : plan.publishedRevision === null
+              ? "첫 버전 확정"
+              : "새 버전 확정"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatEventRevision(revision: number | null) {
+  return revision === null ? "아직 확정된 버전 없음" : `v${revision}`;
 }
 
 function EventDesigner({
@@ -707,7 +773,8 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
           올리면 됩니다.
         </p>
         <p className="text-xs text-muted-foreground">
-          SDK v{EVENT_SDK_VERSION} · 이벤트 {plan.events.length}개
+          SDK v{EVENT_SDK_VERSION} · 이벤트 설정 {formatEventRevision(plan.publishedRevision)} ·
+          이벤트 {plan.events.length}개
         </p>
       </header>
 

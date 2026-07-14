@@ -59,6 +59,10 @@ export function deleteTrackingPlanEvent(projectId: string, eventName: string) {
   );
 }
 
+export function publishTrackingPlan(projectId: string) {
+  return apiPost(`${basePath(projectId)}/tracking-plan/publish`, TrackingPlanSchema, {});
+}
+
 async function trackingPlanCreationError(response: Response): Promise<string> {
   try {
     const parsed = apiFailureResponseSchema.safeParse(await response.json());
