@@ -174,7 +174,7 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link params={{ projectId }} to="/developer/$projectId">
+          <Link params={{ projectId }} reloadDocument to="/developer/$projectId">
             개발자 페이지
           </Link>
         </Button>
