@@ -409,7 +409,7 @@ function EventDesigner({
 
       <Sheet onOpenChange={setPanelOpen} open={panelOpen}>
         <SheetContent
-          className="w-full gap-0 overflow-hidden sm:max-w-3xl"
+          className="w-full gap-0 overflow-hidden sm:max-w-[min(860px,calc(100vw-2rem))]"
           data-testid="tracking-plan-event-panel"
           side="right"
         >
