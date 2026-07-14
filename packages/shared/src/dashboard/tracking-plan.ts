@@ -228,21 +228,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export const TrackingPlanEventStatusSchema = z.enum(["draft", "system", "archived"]);
-
 export const TrackingPlanEventSchema = z.object({
   eventName: z.string().trim().min(1).max(100),
   description: z.string().trim().max(2000).default(""),
-  status: TrackingPlanEventStatusSchema,
   propertiesSchema: TrackingPlanPropertiesSchemaSchema
 });
 export type TrackingPlanEvent = z.infer<typeof TrackingPlanEventSchema>;
 
-export const TrackingPlanEventInputSchema = TrackingPlanEventSchema.pick({
-  eventName: true,
-  description: true,
-  propertiesSchema: true
-});
+export const TrackingPlanEventInputSchema = TrackingPlanEventSchema;
 export type TrackingPlanEventInput = z.infer<typeof TrackingPlanEventInputSchema>;
 
 export const TrackingPlanEventUpdateSchema = TrackingPlanEventInputSchema.omit({ eventName: true });
@@ -291,7 +284,7 @@ export const TrackingPlanValidationSchema = z.object({
 });
 export type TrackingPlanValidation = z.infer<typeof TrackingPlanValidationSchema>;
 
-export const SdkPublishedEventSchema = TrackingPlanEventSchema.omit({ status: true });
+export const SdkPublishedEventSchema = TrackingPlanEventSchema;
 export type SdkPublishedEvent = z.infer<typeof SdkPublishedEventSchema>;
 
 export const SdkPublishedSchemaSchema = z.object({

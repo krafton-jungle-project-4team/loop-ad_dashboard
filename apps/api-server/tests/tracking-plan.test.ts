@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { ClickHouseClient } from "@clickhouse/client";
 import {
   SDK_TRACKING_PLAN_SCHEMA_VERSION,
-  TrackingPlanPropertiesSchemaSchema
+  TrackingPlanPropertiesSchemaSchema,
+  TrackingPlanSchema
 } from "@loopad/shared";
 import type { Pool } from "pg";
+import type { TrackingPlanObservedEventReader } from "../src/features/tracking-plan/tracking-plan-observed-event-reader.js";
 import type { TrackingPlanRepository } from "../src/features/tracking-plan/tracking-plan.repository.js";
 
 setRequiredEnv();
@@ -36,6 +39,30 @@ test("accepts recursive typed Tracking Plan properties", () => {
 
   assert.equal(parsed.properties?.item?.type, "object");
   assert.equal(parsed.properties?.flags?.items?.type, "boolean");
+});
+
+test("tracking plan events do not expose an event type or internal status", () => {
+  const plan = TrackingPlanSchema.parse({
+    trackingPlanId: "tracking-plan-1",
+    projectId: "project-1",
+    name: "Plan",
+    status: "draft",
+    currentRevision: 0,
+    publishedRevision: null,
+    sdkKey: "sdk-key",
+    allowedOrigins: [],
+    events: [
+      {
+        eventName: "page_view",
+        description: "page view",
+        status: "system",
+        propertiesSchema: { type: "object", properties: {}, required: [] }
+      }
+    ]
+  });
+
+  assert.equal("status" in plan.events[0]!, false);
+  assert.equal("type" in plan.events[0]!, false);
 });
 
 test("rejects reserved, unsafe, duplicate, oversized, and over-depth schemas", () => {
@@ -84,6 +111,96 @@ test("rejects reserved, unsafe, duplicate, oversized, and over-depth schemas", (
   });
 });
 
+test("infers Tracking Plan schemas from recently collected event properties", async () => {
+  const { inferTrackingPlanEvents } =
+    await import("../src/features/tracking-plan/tracking-plan-observed-event-reader.js");
+  const events = inferTrackingPlanEvents([
+    {
+      event_name: "page_view",
+      properties_json: JSON.stringify({
+        metadata: { count: 1, sku: "hotel-1" },
+        optional_label: "home",
+        page: { path: "/" },
+        route_group: "home",
+        sdk: { version: "1.0.0" },
+        tags: ["landing"],
+        value: 1
+      })
+    },
+    {
+      event_name: "page_view",
+      properties_json: JSON.stringify({
+        metadata: { count: 2, sku: "hotel-2" },
+        route_group: "search",
+        tags: ["search"],
+        value: 2.5
+      })
+    },
+    {
+      event_name: "booking_complete",
+      properties_json: JSON.stringify({ booking_id: "booking-1", revenue: 120000 })
+    },
+    {
+      event_name: "unstable_event",
+      properties_json: JSON.stringify({ value: "one" })
+    },
+    {
+      event_name: "unstable_event",
+      properties_json: JSON.stringify({ value: 2 })
+    },
+    { event_name: "invalid_event", properties_json: "not-json" }
+  ]);
+
+  assert.deepEqual(
+    events.map((event) => event.eventName),
+    ["page_view", "booking_complete", "unstable_event"]
+  );
+  const pageView = events[0];
+  assert.ok(pageView);
+  assert.equal(pageView.propertiesSchema.properties?.page, undefined);
+  assert.equal(pageView.propertiesSchema.properties?.sdk, undefined);
+  assert.equal(pageView.propertiesSchema.properties?.value?.type, "number");
+  assert.equal(pageView.propertiesSchema.properties?.metadata?.type, "object");
+  assert.equal(pageView.propertiesSchema.properties?.tags?.items?.type, "string");
+  assert.deepEqual(pageView.propertiesSchema.required, [
+    "metadata",
+    "route_group",
+    "tags",
+    "value"
+  ]);
+  assert.equal(events[2]?.propertiesSchema.properties?.value, undefined);
+  for (const event of events) {
+    assert.doesNotThrow(() => TrackingPlanPropertiesSchemaSchema.parse(event.propertiesSchema));
+  }
+});
+
+test("observed event reader scopes recent samples to the requested project", async () => {
+  const { TrackingPlanObservedEventReader } =
+    await import("../src/features/tracking-plan/tracking-plan-observed-event-reader.js");
+  let request: { query?: string; query_params?: Record<string, unknown> } | undefined;
+  const clickhouse = {
+    query: async (value: { query?: string; query_params?: Record<string, unknown> }) => {
+      request = value;
+      return {
+        json: async () => [
+          { event_name: "page_view", properties_json: JSON.stringify({ route_group: "home" }) }
+        ]
+      };
+    }
+  } as unknown as ClickHouseClient;
+
+  const events = await new TrackingPlanObservedEventReader(clickhouse).inferEvents("project-1");
+
+  assert.equal(request?.query_params?.projectId, "project-1");
+  assert.equal(request?.query_params?.lookbackDays, 30);
+  assert.match(request?.query ?? "", /FROM raw_events/);
+  assert.match(request?.query ?? "", /project_id = \{projectId:String\}/);
+  assert.deepEqual(
+    events.map((event) => event.eventName),
+    ["page_view"]
+  );
+});
+
 test("publish inserts the immutable revision and switches the active revision in one transaction", async () => {
   const { TrackingPlanRepository: Repository } =
     await import("../src/features/tracking-plan/tracking-plan.repository.js");
@@ -108,6 +225,7 @@ test("publish inserts the immutable revision and switches the active revision in
   assert.equal(database.queries.includes("ROLLBACK"), false);
   assert.equal(database.publishedSnapshots.length, 1);
   assert.equal(database.publishedSnapshots[0]?.schemaVersion, SDK_TRACKING_PLAN_SCHEMA_VERSION);
+  assert.equal("status" in (database.publishedSnapshots[0]?.events[0] ?? {}), false);
 });
 
 test("publish rolls back when the active revision switch fails", async () => {
@@ -151,6 +269,46 @@ test("public connection requires an exact allowed Origin", async () => {
   assert.equal(connection.revision, 1);
 });
 
+test("developer page reads the immutable published event schema without an Origin header", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const publishedSchema = {
+    schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
+    revision: 2,
+    events: [
+      {
+        eventName: "booking_complete",
+        description: "booking complete",
+        propertiesSchema: { type: "object" as const, properties: {}, required: [] }
+      }
+    ]
+  };
+  const requestedRevisions: Array<number | undefined> = [];
+  const repository = {
+    getPublishedSchema: async (projectId: string, revision?: number) => {
+      assert.equal(projectId, "demo-shoppingmall");
+      requestedRevisions.push(revision);
+      return publishedSchema;
+    }
+  } as unknown as TrackingPlanRepository;
+  const service = new TrackingPlanService(repository);
+
+  assert.deepEqual(await service.publishedSchema("demo-shoppingmall"), publishedSchema);
+  assert.deepEqual(await service.publishedSchema("demo-shoppingmall", 2), publishedSchema);
+  assert.deepEqual(requestedRevisions, [undefined, 2]);
+});
+
+test("developer page reports an absent published event schema", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const repository = {
+    getPublishedSchema: async () => null
+  } as unknown as TrackingPlanRepository;
+  const service = new TrackingPlanService(repository);
+
+  await assert.rejects(() => service.publishedSchema("demo-shoppingmall"), hasStatus(404));
+});
+
 test("tracking plan creation forwards the requested allowed Origins", async () => {
   const { TrackingPlanService } =
     await import("../src/features/tracking-plan/tracking-plan.service.js");
@@ -175,9 +333,137 @@ test("tracking plan creation forwards the requested allowed Origins", async () =
   ]);
 });
 
+test("observed event creation fills an existing empty tracking plan", async () => {
+  const { TrackingPlanRepository: Repository } =
+    await import("../src/features/tracking-plan/tracking-plan.repository.js");
+  const insertedEventNames: string[] = [];
+  const client = {
+    async query(sql: string, parameters?: unknown[]) {
+      const normalized = sql.replace(/\s+/g, " ").trim();
+      if (normalized === "BEGIN" || normalized === "COMMIT" || normalized === "ROLLBACK") {
+        return { rows: [] };
+      }
+      if (normalized.startsWith("SELECT project_id FROM projects")) {
+        return { rows: [{ project_id: "project-1" }] };
+      }
+      if (normalized.startsWith("SELECT plan.tracking_plan_id")) {
+        return {
+          rows: [
+            {
+              tracking_plan_id: "tracking-plan-1",
+              project_id: "project-1",
+              name: "Default Tracking Plan",
+              status: "draft",
+              current_revision: 0,
+              sdk_key: "sdk-key",
+              allowed_origins_json: ["https://demo-shoppingmall.dev.loop-ad.org"],
+              published_revision: null
+            }
+          ]
+        };
+      }
+      if (normalized.startsWith("SELECT event_name")) {
+        return {
+          rows: insertedEventNames.map((eventName) => ({
+            event_name: eventName,
+            description: "inferred",
+            properties_schema_json: { type: "object", properties: {}, required: [] }
+          }))
+        };
+      }
+      if (normalized.startsWith("INSERT INTO tracking_plan_events")) {
+        insertedEventNames.push(String(parameters?.[1]));
+        return { rows: [] };
+      }
+      throw new Error(`unexpected query: ${normalized}`);
+    },
+    release() {}
+  };
+  const repository = new Repository({
+    connect: async () => client
+  } as unknown as Pool);
+
+  const plan = await repository.create(
+    "project-1",
+    "Demo Site Tracking Plan",
+    [],
+    [
+      {
+        eventName: "product_view",
+        description: "inferred",
+        propertiesSchema: { type: "object", properties: {}, required: [] }
+      }
+    ]
+  );
+
+  assert.deepEqual(insertedEventNames, ["product_view"]);
+  assert.deepEqual(
+    plan.events.map((event) => event.eventName),
+    ["product_view"]
+  );
+});
+
+test("observed event creation seeds the demo Origin and inferred event contracts", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const inferredEvents = [
+    {
+      eventName: "booking_complete",
+      description: "observed booking",
+      propertiesSchema: {
+        type: "object" as const,
+        properties: { booking_id: { type: "string" as const } },
+        required: ["booking_id"]
+      }
+    }
+  ];
+  let received: unknown[] | null = null;
+  const repository = {
+    create: async (...args: unknown[]) => {
+      received = args;
+      return {};
+    }
+  } as unknown as TrackingPlanRepository;
+  const reader = {
+    inferEvents: async () => inferredEvents
+  } as unknown as TrackingPlanObservedEventReader;
+  const service = new TrackingPlanService(repository, reader);
+
+  await service.createFromObservedEvents("demo-shoppingmall");
+
+  assert.deepEqual(received, [
+    "demo-shoppingmall",
+    "Demo Site Tracking Plan",
+    ["https://demo-shoppingmall.dev.loop-ad.org"],
+    inferredEvents
+  ]);
+});
+
+test("observed event creation stops before creating an empty plan", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const repository = {
+    create: async () => {
+      throw new Error("repository should not be called");
+    }
+  } as unknown as TrackingPlanRepository;
+  const reader = {
+    inferEvents: async () => []
+  } as unknown as TrackingPlanObservedEventReader;
+  const service = new TrackingPlanService(repository, reader);
+
+  await assert.rejects(
+    () => service.createFromObservedEvents("demo-shoppingmall"),
+    /최근 30일 동안 수집된 이벤트가 없습니다/
+  );
+});
+
 function fakePublishDatabase(failSettingsUpdate = false) {
   const queries: string[] = [];
-  const publishedSnapshots: Array<{ schemaVersion?: unknown }> = [];
+  const publishedSnapshots: Array<{
+    schemaVersion?: unknown;
+    events: Array<Record<string, unknown>>;
+  }> = [];
   let revision = 0;
   const client = {
     async query(sql: string, parameters?: unknown[]) {
@@ -205,7 +491,6 @@ function fakePublishDatabase(failSettingsUpdate = false) {
             {
               event_name: "page_view",
               description: "page view",
-              status: "system",
               properties_schema_json: { type: "object", properties: {}, required: [] }
             }
           ]

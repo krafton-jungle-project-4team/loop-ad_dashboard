@@ -21,8 +21,6 @@ import {
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import { PG_POOL } from "../../infra/database/index.js";
 
-const SYSTEM_EVENT_NAMES = ["page_view"] as const;
-
 type PlanRow = QueryResultRow & {
   tracking_plan_id: string;
   project_id: string;
@@ -37,7 +35,6 @@ type PlanRow = QueryResultRow & {
 type EventRow = QueryResultRow & {
   event_name: string;
   description: string | null;
-  status: TrackingPlanEvent["status"];
   properties_schema_json: unknown;
 };
 
@@ -46,6 +43,10 @@ type PublicConnectionRow = QueryResultRow & {
   sdk_key: string;
   allowed_origins_json: unknown;
   published_revision: number;
+  schema_json: unknown;
+};
+
+type PublishedSchemaRow = QueryResultRow & {
   schema_json: unknown;
 };
 
@@ -62,7 +63,8 @@ export class TrackingPlanRepository {
   async create(
     projectId: string,
     name: string,
-    allowedOrigins: string[] = []
+    allowedOrigins: string[] = [],
+    initialEvents: TrackingPlanEventInput[] = []
   ): Promise<TrackingPlan> {
     return this.transaction(async (client) => {
       const project = await client.query<{ project_id: string }>(
@@ -72,7 +74,14 @@ export class TrackingPlanRepository {
       if (!project.rows[0]) throw new NotFoundException("Project was not found.");
 
       const existing = await this.findPlanRow(projectId, client);
-      if (existing) return this.hydratePlan(existing, client);
+      if (existing) {
+        const plan = await this.hydratePlan(existing, client);
+        if (plan.events.length === 0 && initialEvents.length > 0) {
+          await this.insertInitialEvents(existing.tracking_plan_id, initialEvents, client);
+          return this.get(projectId, client);
+        }
+        return plan;
+      }
 
       const trackingPlanId = `tracking_plan_${randomUUID()}`;
       await client.query(
@@ -97,19 +106,7 @@ export class TrackingPlanRepository {
           [projectId]
         );
       }
-      for (const eventName of SYSTEM_EVENT_NAMES) {
-        await client.query(
-          `INSERT INTO tracking_plan_events
-             (tracking_plan_id, event_name, description, status, properties_schema_json)
-           VALUES ($1, $2, $3, 'system', $4::jsonb)`,
-          [
-            trackingPlanId,
-            eventName,
-            `${eventName} standard event`,
-            JSON.stringify({ type: "object", properties: {}, required: [] })
-          ]
-        );
-      }
+      await this.insertInitialEvents(trackingPlanId, initialEvents, client);
       return this.get(projectId, client);
     });
   }
@@ -159,8 +156,8 @@ export class TrackingPlanRepository {
   }
 
   async deleteEvent(projectId: string, eventName: string): Promise<TrackingPlan> {
-    const event = await this.pool.query<{ tracking_plan_id: string; status: string }>(
-      `SELECT event.tracking_plan_id, event.status
+    const event = await this.pool.query<{ tracking_plan_id: string }>(
+      `SELECT event.tracking_plan_id
        FROM tracking_plan_events event
        JOIN tracking_plans plan ON plan.tracking_plan_id = event.tracking_plan_id
        WHERE plan.project_id = $1 AND plan.status <> 'archived' AND event.event_name = $2`,
@@ -168,7 +165,6 @@ export class TrackingPlanRepository {
     );
     const row = event.rows[0];
     if (!row) throw new NotFoundException("Tracking Plan event was not found.");
-    if (row.status === "system") throw new BadRequestException("System events cannot be deleted.");
     await this.pool.query(
       "DELETE FROM tracking_plan_events WHERE tracking_plan_id = $1 AND event_name = $2",
       [row.tracking_plan_id, eventName]
@@ -218,7 +214,7 @@ export class TrackingPlanRepository {
       const snapshot = SdkPublishedSchemaSchema.parse({
         schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
         revision,
-        events: events.map(({ status: _status, ...event }) => event)
+        events
       });
       await client.query(
         `INSERT INTO tracking_plan_revisions
@@ -270,6 +266,35 @@ export class TrackingPlanRepository {
     };
   }
 
+  async getPublishedSchema(
+    projectId: string,
+    revision?: number
+  ): Promise<SdkPublishedSchema | null> {
+    if (revision !== undefined) {
+      const result = await this.pool.query<PublishedSchemaRow>(
+        `SELECT revision.schema_json
+         FROM tracking_plan_revisions revision
+         JOIN tracking_plans plan ON plan.tracking_plan_id = revision.tracking_plan_id
+         WHERE plan.project_id = $1 AND revision.revision = $2`,
+        [projectId, revision]
+      );
+      const row = result.rows[0];
+      return row ? SdkPublishedSchemaSchema.parse(row.schema_json) : null;
+    }
+
+    const result = await this.pool.query<PublishedSchemaRow>(
+      `SELECT revision.schema_json
+       FROM project_sdk_settings settings
+       JOIN tracking_plan_revisions revision
+         ON revision.tracking_plan_id = settings.published_tracking_plan_id
+        AND revision.revision = settings.published_revision
+       WHERE settings.project_id = $1 AND settings.status = 'active'`,
+      [projectId]
+    );
+    const row = result.rows[0];
+    return row ? SdkPublishedSchemaSchema.parse(row.schema_json) : null;
+  }
+
   private async findPlanRow(
     projectId: string,
     executor: Pool | PoolClient
@@ -308,18 +333,32 @@ export class TrackingPlanRepository {
     executor: Pool | PoolClient
   ): Promise<TrackingPlanEvent[]> {
     const result = await executor.query<EventRow>(
-      `SELECT event_name, description, status, properties_schema_json
+      `SELECT event_name, description, properties_schema_json
        FROM tracking_plan_events
        WHERE tracking_plan_id = $1 AND status <> 'archived'
-       ORDER BY CASE WHEN status = 'system' THEN 0 ELSE 1 END, event_name`,
+       ORDER BY event_name`,
       [trackingPlanId]
     );
     return result.rows.map((event) => ({
       eventName: event.event_name,
       description: event.description ?? "",
-      status: event.status,
       propertiesSchema: TrackingPlanPropertiesSchemaSchema.parse(event.properties_schema_json)
     }));
+  }
+
+  private async insertInitialEvents(
+    trackingPlanId: string,
+    events: TrackingPlanEventInput[],
+    executor: Pool | PoolClient
+  ) {
+    for (const event of events) {
+      await executor.query(
+        `INSERT INTO tracking_plan_events
+           (tracking_plan_id, event_name, description, status, properties_schema_json)
+         VALUES ($1, $2, $3, 'draft', $4::jsonb)`,
+        [trackingPlanId, event.eventName, event.description, JSON.stringify(event.propertiesSchema)]
+      );
+    }
   }
 
   private async markDraft(trackingPlanId: string) {

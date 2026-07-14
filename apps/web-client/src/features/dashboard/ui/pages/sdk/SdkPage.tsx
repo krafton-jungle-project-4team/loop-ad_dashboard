@@ -76,12 +76,10 @@ const prerequisites = [
 ];
 
 export function SdkPage({ projectId }: { projectId: string }) {
-  return (
-    <TrackingPlanWorkspace advertisementGuide={<AdvertisementSdkGuide />} projectId={projectId} />
-  );
+  return <TrackingPlanWorkspace projectId={projectId} />;
 }
 
-function AdvertisementSdkGuide() {
+export function AdvertisementSdkGuide() {
   return (
     <div className="grid gap-6">
       <PageHeader />

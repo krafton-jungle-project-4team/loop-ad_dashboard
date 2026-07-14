@@ -1,7 +1,7 @@
-import type { TrackingPlanEvent, TrackingPlanJsonSchema } from "@loopad/shared";
+import type { SdkPublishedSchema, TrackingPlanEvent, TrackingPlanJsonSchema } from "@loopad/shared";
 
-export const EVENT_SDK_IIFE_URL =
-  "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js";
+export const EVENT_SDK_VERSION = "0.1.0";
+export const EVENT_SDK_IIFE_URL = `https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js?v=${EVENT_SDK_VERSION}`;
 
 export function eventSdkInstallCode(): string {
   return `<script
@@ -10,7 +10,7 @@ export function eventSdkInstallCode(): string {
 ></script>`;
 }
 
-export function eventSdkInitCode(connectionUrl: string): string {
+export function eventSdkInitCode(projectId: string, writeKey: string): string {
   return `// src/lib/loop-ad-events.js
 let clientPromise = null;
 
@@ -19,11 +19,12 @@ export function startLoopAdCollection() {
     return Promise.reject(new Error("LoopAd Event SDK IIFE를 먼저 연결하세요."));
   }
   if (!clientPromise) {
-    clientPromise = window.LoopAdEventSDK.init({
-      connectionUrl: "${connectionUrl}",
+    clientPromise = Promise.resolve().then(() => window.LoopAdEventSDK.init({
+      projectId: "${projectId}",
+      writeKey: "${writeKey}",
       identity: null,
       debug: import.meta.env.DEV
-    }).catch((error) => {
+    })).catch((error) => {
       clientPromise = null;
       throw error;
     });
@@ -52,6 +53,69 @@ export function eventSdkTrackCode(event: TrackingPlanEvent): string {
     return `${identity}\nclient.track("${event.eventName}");`;
   }
   return `${identity}\nclient.track("${event.eventName}", ${JSON.stringify(properties, null, 2)});`;
+}
+
+export function describeEventSchemaVersion({
+  draftEvents,
+  hasPendingChanges,
+  previousSchema,
+  publishedSchema
+}: {
+  draftEvents: TrackingPlanEvent[];
+  hasPendingChanges: boolean;
+  previousSchema: SdkPublishedSchema | null;
+  publishedSchema: SdkPublishedSchema | null;
+}): string {
+  if (hasPendingChanges) {
+    const nextRevision = (publishedSchema?.revision ?? 0) + 1;
+    const changes = describeEventChanges(publishedSchema?.events ?? [], draftEvents);
+    const activeVersion = publishedSchema
+      ? `확정 전 SDK 적용 버전은 v${publishedSchema.revision}입니다.`
+      : "확정 전 SDK 적용 버전은 없습니다.";
+    return `이벤트 스키마 v${nextRevision} 초안 · 이벤트 ${draftEvents.length}개. ${changes} ${activeVersion}`;
+  }
+
+  if (!publishedSchema) {
+    return "확정된 이벤트 스키마가 없어 SDK에 적용되는 이벤트 계약이 없습니다.";
+  }
+
+  const changes = previousSchema
+    ? describeEventChanges(previousSchema.events, publishedSchema.events)
+    : "첫 확정 버전입니다.";
+  return `현재 이벤트 스키마 v${publishedSchema.revision} · 이벤트 ${publishedSchema.events.length}개. ${changes}`;
+}
+
+function describeEventChanges(
+  previousEvents: TrackingPlanEvent[],
+  nextEvents: TrackingPlanEvent[]
+): string {
+  const previousByName = new Map(previousEvents.map((event) => [event.eventName, event]));
+  const nextByName = new Map(nextEvents.map((event) => [event.eventName, event]));
+  const added = nextEvents
+    .filter((event) => !previousByName.has(event.eventName))
+    .map((event) => event.eventName);
+  const removed = previousEvents
+    .filter((event) => !nextByName.has(event.eventName))
+    .map((event) => event.eventName);
+  const changed = nextEvents
+    .filter((event) => {
+      const previous = previousByName.get(event.eventName);
+      return previous !== undefined && JSON.stringify(previous) !== JSON.stringify(event);
+    })
+    .map((event) => event.eventName);
+  const parts = [
+    formatEventNames("추가", added),
+    formatEventNames("수정", changed),
+    formatEventNames("삭제", removed)
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0 ? `${parts.join(" · ")}.` : "이전 확정본과 이벤트 계약이 같습니다.";
+}
+
+function formatEventNames(label: string, eventNames: string[]): string | null {
+  if (eventNames.length === 0) return null;
+  const visibleNames = eventNames.slice(0, 3).join(", ");
+  const remainingCount = eventNames.length - 3;
+  return `${label}: ${visibleNames}${remainingCount > 0 ? ` 외 ${remainingCount}개` : ""}`;
 }
 
 function exampleValue(name: string, schema: TrackingPlanJsonSchema): unknown {

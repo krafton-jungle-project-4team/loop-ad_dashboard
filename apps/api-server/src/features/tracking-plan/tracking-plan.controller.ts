@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Headers, Inject, Param, Patch, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post
+} from "@nestjs/common";
 import {
   SdkConnectionSchema,
   SdkPublishedSchemaSchema,
@@ -20,11 +31,29 @@ export class TrackingPlanController {
     return TrackingPlanSchema.parse(await this.service.get(projectId));
   }
 
+  @Get("tracking-plan/published-schema")
+  async publishedSchema(@Param("projectId") projectId: string) {
+    return SdkPublishedSchemaSchema.parse(await this.service.publishedSchema(projectId));
+  }
+
+  @Get("tracking-plan/published-schema/:revision")
+  async publishedSchemaRevision(
+    @Param("projectId") projectId: string,
+    @Param("revision", ParseIntPipe) revision: number
+  ) {
+    return SdkPublishedSchemaSchema.parse(await this.service.publishedSchema(projectId, revision));
+  }
+
   @Post("tracking-plan")
   async create(@Param("projectId") projectId: string, @Body() body: unknown) {
     return TrackingPlanSchema.parse(
       await this.service.create(projectId, TrackingPlanCreateRequestSchema.parse(body ?? {}))
     );
+  }
+
+  @Post("tracking-plan/from-observed-events")
+  async createFromObservedEvents(@Param("projectId") projectId: string) {
+    return TrackingPlanSchema.parse(await this.service.createFromObservedEvents(projectId));
   }
 
   @Post("tracking-plan/events")

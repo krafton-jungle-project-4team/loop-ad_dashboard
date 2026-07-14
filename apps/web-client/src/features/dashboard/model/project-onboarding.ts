@@ -47,10 +47,10 @@ export function createSetupOnboardingSteps(
 ): ReadonlyArray<ProjectOnboardingStep> {
   return [
     {
-      completionCondition: "SDK 연동을 확인하고 캠페인 만들기를 누르면 완료돼요.",
-      description: "프로젝트에 SDK를 한 번 연결해요.",
+      completionCondition: "이벤트 목록을 확인하고 캠페인 만들기를 누르면 완료돼요.",
+      description: "마케팅에 사용할 이벤트를 확인해요.",
       id: "sdk",
-      label: "SDK 연동",
+      label: "이벤트 설정",
       state: stage === "welcome" ? "locked" : stage === "sdk" ? "current" : "complete"
     }
   ];

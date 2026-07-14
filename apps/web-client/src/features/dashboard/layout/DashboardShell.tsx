@@ -21,7 +21,7 @@ import {
 } from "@loopad/ui/shadcn/sidebar";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Code2, HelpCircle, Home, Megaphone, MoreHorizontal, Route } from "lucide-react";
+import { HelpCircle, Home, ListChecks, Megaphone, MoreHorizontal, Route } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -247,8 +247,8 @@ function MobileBottomNavigation({
         {
           active: activeTab === "sdk",
           allowed: isTabAllowed("sdk"),
-          icon: <Code2 aria-hidden="true" />,
-          label: "SDK 연동",
+          icon: <ListChecks aria-hidden="true" />,
+          label: "이벤트 설정",
           pathSegment: "sdk"
         },
         {

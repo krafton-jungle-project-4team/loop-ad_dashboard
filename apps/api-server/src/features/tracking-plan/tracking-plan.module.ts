@@ -4,12 +4,13 @@ import {
   PublicSdkConnectionController,
   TrackingPlanController
 } from "./tracking-plan.controller.js";
+import { TrackingPlanObservedEventReader } from "./tracking-plan-observed-event-reader.js";
 import { TrackingPlanRepository } from "./tracking-plan.repository.js";
 import { TrackingPlanService } from "./tracking-plan.service.js";
 
 @Module({
   imports: [DatabaseModule],
   controllers: [TrackingPlanController, PublicSdkConnectionController],
-  providers: [TrackingPlanRepository, TrackingPlanService]
+  providers: [TrackingPlanObservedEventReader, TrackingPlanRepository, TrackingPlanService]
 })
 export class TrackingPlanModule {}

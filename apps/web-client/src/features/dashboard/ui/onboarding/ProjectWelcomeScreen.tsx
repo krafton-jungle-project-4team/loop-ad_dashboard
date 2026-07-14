@@ -8,13 +8,13 @@ import {
   ItemMedia,
   ItemTitle
 } from "@loopad/ui/shadcn/item";
-import { ArrowRight, Code2, Megaphone, Sparkles } from "lucide-react";
+import { ArrowRight, ListChecks, Megaphone, Sparkles } from "lucide-react";
 
 const welcomeMilestones = [
   {
-    description: "프로젝트 데이터를 연결해요.",
-    icon: Code2,
-    label: "SDK 연동"
+    description: "마케팅에 사용할 이벤트를 확인해요.",
+    icon: ListChecks,
+    label: "이벤트 설정"
   },
   {
     description: "캠페인을 만들고 첫 실험을 시작해요.",
@@ -48,7 +48,7 @@ export function ProjectWelcomeScreen({
             이제 시작해 볼까요?
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-pretty text-base leading-7 text-muted-foreground">
-            처음이라면 시작 가이드를 따라 SDK를 연결하고 첫 실험을 시작해 보세요.
+            처음이라면 시작 가이드를 따라 이벤트를 확인하고 첫 실험을 시작해 보세요.
           </p>
         </CardHeader>
 
