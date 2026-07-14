@@ -30,6 +30,9 @@ services:
     volumes:
       - .:/app
       - api_node_modules:/app/node_modules
+    networks:
+      - default
+      - loopad-local
 
   web-client:
     build:
@@ -50,3 +53,7 @@ services:
 volumes:
   api_node_modules:
   web_node_modules:
+
+networks:
+  loopad-local:
+    external: true
