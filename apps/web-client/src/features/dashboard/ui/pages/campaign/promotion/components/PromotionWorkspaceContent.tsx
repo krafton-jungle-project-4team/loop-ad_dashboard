@@ -1,4 +1,5 @@
 import type {
+  CreativeArtifact,
   DashboardAdExperiment,
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
@@ -77,6 +78,7 @@ import {
   segmentLoopCount,
   statusBadgeVariant,
   contentCandidateMessage,
+  contentCandidateHtmlArtifact,
   contentCandidateTitle,
   mutationErrorMessage,
   type PromotionSegmentCreateFormState,
@@ -860,6 +862,7 @@ function PromotionSegmentDetailTab({
             {currentContentCandidates.length > 0 ? (
               <div className="grid gap-3 lg:grid-cols-2">
                 {currentContentCandidates.map((candidate) => {
+                  const htmlArtifact = contentCandidateHtmlArtifact(candidate);
                   const hasDifferentApprovedCandidate = Boolean(
                     approvedContentCandidate &&
                     approvedContentCandidate.content_id !== candidate.content_id
@@ -973,6 +976,12 @@ function PromotionSegmentDetailTab({
                           <ContentCandidateImagePreview
                             alt={`${contentCandidateTitle(candidate)} 이미지`}
                             src={candidate.image_url}
+                            title={contentCandidateTitle(candidate)}
+                          />
+                        ) : null}
+                        {htmlArtifact ? (
+                          <ContentCandidateHtmlPreview
+                            artifact={htmlArtifact}
                             title={contentCandidateTitle(candidate)}
                           />
                         ) : null}
@@ -1115,6 +1124,80 @@ function ContentCandidateImagePreview({
       </DialogContent>
     </Dialog>
   );
+}
+
+function ContentCandidateHtmlPreview({
+  artifact,
+  title
+}: {
+  artifact: CreativeArtifact;
+  title: string;
+}) {
+  if (artifact.artifact_status === "published" && artifact.public_url) {
+    return (
+      <div className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid gap-1">
+          <p className="text-sm font-medium">HTML 광고 미리보기</p>
+          <p className="text-xs text-muted-foreground">
+            실제 발송·노출에 사용하는 HTML 화면을 확인해요.
+          </p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="shrink-0" size="sm" type="button" variant="outline">
+              광고 미리보기
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
+            <DialogHeader className="pr-8">
+              <DialogTitle>{title}</DialogTitle>
+              <DialogDescription>
+                실제 광고 HTML을 안전한 미리보기 화면으로 보여드려요.
+              </DialogDescription>
+            </DialogHeader>
+            <iframe
+              className="h-[min(30rem,50vh)] w-full rounded-md border bg-background"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              sandbox="allow-scripts"
+              src={artifact.public_url}
+              title={`${title} HTML 광고 미리보기`}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  if (artifact.artifact_status === "failed") {
+    return (
+      <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium">HTML 광고 미리보기</p>
+          <Badge variant="destructive">생성 실패</Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          HTML 미리보기를 만들지 못했어요. 광고 소재를 다시 만들어 주세요.
+        </p>
+      </div>
+    );
+  }
+
+  if (artifact.artifact_status === "pending") {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
+        <div className="grid gap-1">
+          <p className="text-sm font-medium">HTML 광고 미리보기</p>
+          <p className="text-xs text-muted-foreground">
+            HTML 생성이 끝나면 여기에서 실제 광고 화면을 볼 수 있어요.
+          </p>
+        </div>
+        <Badge variant="outline">준비 중</Badge>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function SegmentConnectedExperimentsCard({

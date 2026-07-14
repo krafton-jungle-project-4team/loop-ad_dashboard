@@ -4,6 +4,7 @@ import type { DashboardCampaignPromotion, DashboardSegmentDetail } from "@loopad
 import {
   activeContentCandidates,
   canStartAdExperiment,
+  contentCandidateHtmlArtifact,
   nextExperimentLoopCount,
   normalizeSegmentDisplayCopy,
   promotionFormToUpdateRequest,
@@ -64,6 +65,45 @@ test("creative selection only uses candidates from the segment's active analysis
     activeContentCandidates(detail).map((candidate) => candidate.content_id),
     ["content_repeat"]
   );
+});
+
+test("HTML creative artifact is exposed only for valid HTML metadata", () => {
+  const candidate = {
+    metadata_json: {
+      creative: {
+        artifact: {
+          artifact_status: "published",
+          creative_format: "email_html",
+          public_url: "https://assets.example.com/creative.html"
+        }
+      }
+    }
+  } as DashboardSegmentDetail["content_candidates"][number];
+
+  assert.deepEqual(contentCandidateHtmlArtifact(candidate), {
+    artifact_status: "published",
+    creative_format: "email_html",
+    public_url: "https://assets.example.com/creative.html"
+  });
+});
+
+test("HTML creative artifact ignores malformed metadata and text-only creatives", () => {
+  const malformedCandidate = {
+    metadata_json: { creative: { artifact: { artifact_status: "published" } } }
+  } as DashboardSegmentDetail["content_candidates"][number];
+  const smsCandidate = {
+    metadata_json: {
+      creative: {
+        artifact: {
+          artifact_status: "not_required",
+          creative_format: "sms_text"
+        }
+      }
+    }
+  } as DashboardSegmentDetail["content_candidates"][number];
+
+  assert.equal(contentCandidateHtmlArtifact(malformedCandidate), null);
+  assert.equal(contentCandidateHtmlArtifact(smsCandidate), null);
 });
 
 test("the next experiment increments the highest loop for its segment", () => {
