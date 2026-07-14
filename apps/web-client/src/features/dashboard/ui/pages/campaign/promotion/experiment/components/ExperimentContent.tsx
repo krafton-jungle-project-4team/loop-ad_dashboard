@@ -36,7 +36,7 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import { useEffect, useMemo } from "react";
-import { BarChart3, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   formatChannelLabel,
   formatMetricLabel,
@@ -69,11 +69,9 @@ export function ExperimentContent({
   createNextLoopIsPending,
   createNextLoopResult,
   detail,
-  evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
   isLoading,
   onCreateNextLoop,
-  onEvaluatePromotionRun,
   query,
   selectedSegmentDetail,
   selectedSegmentDetailIsError,
@@ -85,7 +83,6 @@ export function ExperimentContent({
   createNextLoopIsPending: boolean;
   createNextLoopResult: PromotionExperimentLaunchResult | null;
   detail: DashboardCampaignDetail | undefined;
-  evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
   isLoading: boolean;
   onCreateNextLoop: (
@@ -93,7 +90,6 @@ export function ExperimentContent({
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onEvaluatePromotionRun: (promotionRunId: string) => void;
   query: DashboardQuery;
   selectedSegmentDetail: DashboardSegmentDetail | undefined;
   selectedSegmentDetailIsError: boolean;
@@ -203,12 +199,10 @@ export function ExperimentContent({
         createNextLoopIsPending={createNextLoopIsPending}
         createNextLoopResult={createNextLoopResult}
         detail={selectedSegmentDetail}
-        evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
         evaluatePromotionRunResult={evaluatePromotionRunResult}
         isError={selectedSegmentDetailIsError}
         isLoading={selectedSegmentDetailIsLoading}
         onCreateNextLoop={onCreateNextLoop}
-        onEvaluatePromotionRun={onEvaluatePromotionRun}
         selectedSegmentId={selectedSegmentId}
         segments={detail.segments}
       />
@@ -307,12 +301,10 @@ function ExperimentSegmentPanel({
   createNextLoopIsPending,
   createNextLoopResult,
   detail,
-  evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
   isError,
   isLoading,
   onCreateNextLoop,
-  onEvaluatePromotionRun,
   selectedSegmentId,
   segments
 }: {
@@ -321,7 +313,6 @@ function ExperimentSegmentPanel({
   createNextLoopIsPending: boolean;
   createNextLoopResult: PromotionExperimentLaunchResult | null;
   detail: DashboardSegmentDetail | undefined;
-  evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
   isError: boolean;
   isLoading: boolean;
@@ -330,7 +321,6 @@ function ExperimentSegmentPanel({
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onEvaluatePromotionRun: (promotionRunId: string) => void;
   selectedSegmentId: string;
   segments: DashboardCampaignSegment[];
 }) {
@@ -345,12 +335,10 @@ function ExperimentSegmentPanel({
         createNextLoopIsPending={createNextLoopIsPending}
         createNextLoopResult={createNextLoopResult}
         detail={detail}
-        evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
         evaluatePromotionRunResult={evaluatePromotionRunResult}
         isError={isError}
         isLoading={isLoading}
         onCreateNextLoop={onCreateNextLoop}
-        onEvaluatePromotionRun={onEvaluatePromotionRun}
         selectedSegmentId={selectedSegmentId}
       />
     </section>
@@ -363,12 +351,10 @@ function SelectedSegmentExperimentCards({
   createNextLoopIsPending,
   createNextLoopResult,
   detail,
-  evaluatePromotionRunIsPending,
   evaluatePromotionRunResult,
   isError,
   isLoading,
   onCreateNextLoop,
-  onEvaluatePromotionRun,
   selectedSegmentId
 }: {
   createNextLoopError: unknown;
@@ -376,7 +362,6 @@ function SelectedSegmentExperimentCards({
   createNextLoopIsPending: boolean;
   createNextLoopResult: PromotionExperimentLaunchResult | null;
   detail: DashboardSegmentDetail | undefined;
-  evaluatePromotionRunIsPending: boolean;
   evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
   isError: boolean;
   isLoading: boolean;
@@ -385,7 +370,6 @@ function SelectedSegmentExperimentCards({
     failedSegmentIds: string[],
     failedAdExperimentIds: string[]
   ) => void;
-  onEvaluatePromotionRun: (promotionRunId: string) => void;
   selectedSegmentId: string;
 }) {
   if (!selectedSegmentId) {
@@ -439,22 +423,11 @@ function SelectedSegmentExperimentCards({
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="grid gap-1">
             <CardTitle className="text-base">성과와 평가 대상</CardTitle>
-            <CardDescription>실험 결과를 평가하고 실패한 대상만 다시 실험해요.</CardDescription>
+            <CardDescription>
+              최신 평가 결과를 확인하고 실패한 대상만 다시 실험해요.
+            </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={!activePromotionRunId || evaluatePromotionRunIsPending}
-              onClick={() => {
-                if (activePromotionRunId) {
-                  onEvaluatePromotionRun(activePromotionRunId);
-                }
-              }}
-              type="button"
-              variant="outline"
-            >
-              <BarChart3 data-icon="inline-start" />
-              {evaluatePromotionRunIsPending ? "평가 중" : "성과 평가하기"}
-            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button disabled={!canCreateNextLoop || createNextLoopIsPending} type="button">
@@ -466,8 +439,8 @@ function SelectedSegmentExperimentCards({
                 <AlertDialogHeader>
                   <AlertDialogTitle>실패한 대상을 다시 실험할까요?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    실패한 세그먼트를 다시 분석해 광고 소재와 실험을 만들고, 사용자 배정과 채널
-                    실행까지 이어서 진행해요.
+                    실패한 세그먼트를 다시 분석해 광고 소재와 실험을 만들고, 사용자 배정과 광고
+                    전달까지 이어서 진행해요.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

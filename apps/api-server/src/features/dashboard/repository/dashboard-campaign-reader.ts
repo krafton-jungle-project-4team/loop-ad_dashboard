@@ -567,7 +567,7 @@ export class DashboardCampaignReader {
     contentId: string,
     _request: DashboardApproveContentCandidateRequest
   ): Promise<DashboardApproveContentCandidateResult> {
-    await this.db
+    const candidate = await this.db
       .query(getDashboardContentCandidateForApproval, {
         contentId,
         projectId,
@@ -578,7 +578,8 @@ export class DashboardCampaignReader {
     const approvedCandidate = await this.getApprovedContentCandidate(
       projectId,
       promotionId,
-      segmentId
+      segmentId,
+      candidate.analysisId
     );
 
     if (approvedCandidate && approvedCandidate.contentId !== contentId) {
@@ -635,10 +636,12 @@ export class DashboardCampaignReader {
     contentId: string,
     _request: DashboardRejectContentCandidateRequest
   ): Promise<DashboardRejectContentCandidateResult> {
-    const approvedCandidate = await this.getApprovedContentCandidate(
-      projectId,
-      promotionId,
-      segmentId
+    const candidates = await this.db
+      .query(listDashboardSegmentContentCandidates, { projectId, promotionId, segmentId })
+      .multiple();
+    const candidate = candidates.find((item) => item.contentId === contentId);
+    const approvedCandidate = candidates.find(
+      (item) => item.analysisId === candidate?.analysisId && item.status === "approved"
     );
 
     if (approvedCandidate?.contentId === contentId) {
@@ -660,13 +663,16 @@ export class DashboardCampaignReader {
   private async getApprovedContentCandidate(
     projectId: string,
     promotionId: string,
-    segmentId: string
+    segmentId: string,
+    analysisId: string
   ): Promise<IListDashboardSegmentContentCandidatesResult | undefined> {
     const candidates = await this.db
       .query(listDashboardSegmentContentCandidates, { projectId, promotionId, segmentId })
       .multiple();
 
-    return candidates.find((candidate) => candidate.status === "approved");
+    return candidates.find(
+      (candidate) => candidate.analysisId === analysisId && candidate.status === "approved"
+    );
   }
 
   async startAdExperiment(

@@ -1,10 +1,6 @@
 import {
-  DashboardPromotionSegmentStatusSchema,
-  DashboardSegmentPrioritySchema,
   type DashboardCampaignPromotion,
-  type DashboardCampaignSegment,
-  type DashboardUpdatePromotionRequest,
-  type DashboardUpdatePromotionSegmentRequest
+  type DashboardUpdatePromotionRequest
 } from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
 import { DialogClose, DialogFooter } from "@loopad/ui/shadcn/dialog";
@@ -97,11 +93,6 @@ export function PromotionEditDialog({
           </Select>
         </Field>
         <DialogFooter className="border-t pt-5">
-          <DialogClose asChild>
-            <Button type="button" variant="ghost">
-              취소
-            </Button>
-          </DialogClose>
           <Button
             disabled={!canSubmit}
             onClick={() =>
@@ -115,118 +106,6 @@ export function PromotionEditDialog({
             type="button"
           >
             {isPending ? "프로모션 저장 중…" : "프로모션 저장"}
-          </Button>
-        </DialogFooter>
-      </div>
-    </DashboardFormDialog>
-  );
-}
-
-export function SegmentEditDialog({
-  isPending,
-  onOpenChange,
-  onUpdate,
-  open,
-  segment
-}: {
-  isPending: boolean;
-  onOpenChange: (open: boolean) => void;
-  onUpdate: (requestBody: DashboardUpdatePromotionSegmentRequest) => void;
-  open: boolean;
-  segment: DashboardCampaignSegment | undefined;
-}) {
-  const [segmentName, setSegmentName] = useState("");
-  const [priority, setPriority] = useState("none");
-  const [status, setStatus] = useState("planned");
-
-  useEffect(() => {
-    if (open && segment) {
-      setSegmentName(segment.segment_name);
-      setPriority(segment.priority ?? "none");
-      setStatus(segment.status);
-    }
-  }, [open, segment]);
-  const isDirty = Boolean(
-    segment &&
-    (segmentName !== segment.segment_name ||
-      priority !== (segment.priority ?? "none") ||
-      status !== segment.status)
-  );
-
-  return (
-    <DashboardFormDialog
-      description="세그먼트의 이름, 우선순위, 상태를 바꿀 수 있어요."
-      dirty={isDirty}
-      onOpenChange={onOpenChange}
-      open={open}
-      title="세그먼트 수정"
-      width="segment"
-    >
-      <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
-        <Field>
-          <FieldLabel htmlFor="segment-edit-name">세그먼트 이름</FieldLabel>
-          <Input
-            autoComplete="off"
-            id="segment-edit-name"
-            name="segmentEditName"
-            onChange={(event) => setSegmentName(event.target.value)}
-            value={segmentName}
-          />
-        </Field>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field>
-            <FieldLabel id="segment-edit-priority-label">우선순위</FieldLabel>
-            <Select onValueChange={setPriority} value={priority}>
-              <SelectTrigger aria-labelledby="segment-edit-priority-label" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">미지정</SelectItem>
-                {DashboardSegmentPrioritySchema.options.map((priorityOption) => (
-                  <SelectItem key={priorityOption} value={priorityOption}>
-                    {formatStatusLabel(priorityOption)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel id="segment-edit-status-label">상태</FieldLabel>
-            <Select onValueChange={setStatus} value={status}>
-              <SelectTrigger aria-labelledby="segment-edit-status-label" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DashboardPromotionSegmentStatusSchema.options.map((statusOption) => (
-                  <SelectItem key={statusOption} value={statusOption}>
-                    {formatStatusLabel(statusOption)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-        <DialogFooter className="border-t pt-5">
-          <DialogClose asChild>
-            <Button type="button" variant="ghost">
-              취소
-            </Button>
-          </DialogClose>
-          <Button
-            disabled={!segment || !segmentName.trim() || isPending}
-            onClick={() =>
-              onUpdate({
-                priority:
-                  priority === "none"
-                    ? null
-                    : (priority as DashboardUpdatePromotionSegmentRequest["priority"]),
-                segment_name: segmentName.trim(),
-                status: status as DashboardUpdatePromotionSegmentRequest["status"]
-              })
-            }
-            type="button"
-          >
-            {isPending ? "세그먼트 저장 중…" : "세그먼트 저장"}
           </Button>
         </DialogFooter>
       </div>
@@ -318,7 +197,7 @@ function PromotionFormFields({
       </Field>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
-          <FieldLabel id={`${idPrefix}-channel-label`}>채널</FieldLabel>
+          <FieldLabel id={`${idPrefix}-channel-label`}>노출 방식</FieldLabel>
           <Select
             onValueChange={(value) => onChange({ ...form, channel: value })}
             value={form.channel}

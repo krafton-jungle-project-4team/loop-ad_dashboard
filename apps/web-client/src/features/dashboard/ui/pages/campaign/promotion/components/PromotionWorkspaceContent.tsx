@@ -58,12 +58,14 @@ import type { SegmentWorkspaceView } from "../../../../../model/dashboard-types.
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import { EntityWorkspaceEmptyState } from "../../../../shared/EntityWorkspace.js";
 import {
+  activeContentCandidates,
   campaignSegmentDisplayCopy,
   canStartAdExperiment,
   formatGoalValue,
   formatJsonObject,
   formatPercentValue,
   latestSegmentPerSegmentId,
+  nextExperimentLoopCount,
   segmentLoopCount,
   statusBadgeVariant,
   contentCandidateMessage,
@@ -120,7 +122,7 @@ export function PromotionManagementList({
                 id="promotion-management-search"
                 name="promotionSearch"
                 onChange={(event) => onFilterChange(event.target.value)}
-                placeholder="프로모션 이름이나 채널 검색"
+                placeholder="프로모션 이름이나 노출 방식 검색"
                 type="search"
                 value={filter}
               />
@@ -141,7 +143,7 @@ export function PromotionManagementList({
               <TableHeader>
                 <TableRow>
                   <TableHead>프로모션</TableHead>
-                  <TableHead>채널</TableHead>
+                  <TableHead>노출 방식</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>목표</TableHead>
                   <TableHead className="text-right">세그먼트</TableHead>
@@ -328,7 +330,6 @@ export function PromotionTabWorkspace({
   onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
-  onEditConfirmedSegment,
   onLaunchExperiment,
   onRejectContentCandidate,
   onSelectSegment,
@@ -377,12 +378,12 @@ export function PromotionTabWorkspace({
     status: "suggested" | "accepted" | "dismissed"
   ) => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
-  onEditConfirmedSegment: (segmentId: string) => void;
   onLaunchExperiment: (
     promotionId: string,
     segmentId: string,
     analysisId?: string,
-    generationId?: string
+    generationId?: string,
+    loopCount?: number
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
@@ -497,7 +498,6 @@ export function PromotionTabWorkspace({
               <PromotionCurrentSegmentsPanel
                 deleteIsPending={deleteConfirmedSegmentIsPending}
                 onDeleteSegment={onDeleteConfirmedSegment}
-                onEditSegment={onEditConfirmedSegment}
                 onSelectSegment={onSelectSegment}
                 promotion={promotion}
                 segments={activeSegments}
@@ -569,7 +569,6 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
 function PromotionCurrentSegmentsPanel({
   deleteIsPending,
   onDeleteSegment,
-  onEditSegment,
   onSelectSegment,
   promotion,
   segments,
@@ -577,7 +576,6 @@ function PromotionCurrentSegmentsPanel({
 }: {
   deleteIsPending: boolean;
   onDeleteSegment: (promotionId: string, segmentId: string) => void;
-  onEditSegment: (segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotion: DashboardCampaignPromotion;
   segments: DashboardCampaignSegment[];
@@ -655,14 +653,6 @@ function PromotionCurrentSegmentsPanel({
                     variant={isSelected ? "default" : "outline"}
                   >
                     광고 소재 · 실험
-                  </Button>
-                  <Button
-                    onClick={() => onEditSegment(segment.segment_id)}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    수정
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -745,7 +735,8 @@ function PromotionSegmentDetailTab({
     promotionId: string,
     segmentId: string,
     analysisId?: string,
-    generationId?: string
+    generationId?: string,
+    loopCount?: number
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
@@ -778,11 +769,12 @@ function PromotionSegmentDetailTab({
     );
   }
 
+  const currentContentCandidates = activeContentCandidates(detail);
   const latestMetric = detail.experiment_metrics[0];
-  const approvedContentCandidate = detail.content_candidates.find(
+  const approvedContentCandidate = currentContentCandidates.find(
     (candidate) => candidate.status === "approved"
   );
-  const hasGeneratedContentCandidates = detail.content_candidates.length > 0;
+  const hasGeneratedContentCandidates = currentContentCandidates.length > 0;
 
   return (
     <section className="grid gap-4">
@@ -814,7 +806,7 @@ function PromotionSegmentDetailTab({
           />
           <SummaryItem
             label="광고 소재 후보"
-            value={formatInteger(detail.content_candidates.length)}
+            value={formatInteger(currentContentCandidates.length)}
           />
           <SummaryItem
             label="실시간 이벤트"
@@ -844,9 +836,9 @@ function PromotionSegmentDetailTab({
                 variant="outline"
               >
                 {generationIsPending ? (
-                  <Spinner aria-hidden="true" className="mr-2 size-4" />
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
                 ) : (
-                  <ImageIcon className="mr-2 size-4" />
+                  <ImageIcon aria-hidden="true" data-icon="inline-start" />
                 )}
                 {generationIsPending
                   ? "광고 소재 만드는 중…"
@@ -857,9 +849,9 @@ function PromotionSegmentDetailTab({
             </div>
           </div>
           <div className="grid gap-3">
-            {detail.content_candidates.length > 0 ? (
+            {currentContentCandidates.length > 0 ? (
               <div className="grid gap-3 lg:grid-cols-2">
-                {detail.content_candidates.map((candidate) => {
+                {currentContentCandidates.map((candidate) => {
                   const hasDifferentApprovedCandidate = Boolean(
                     approvedContentCandidate &&
                     approvedContentCandidate.content_id !== candidate.content_id
@@ -1089,14 +1081,24 @@ function SegmentConnectedExperimentsCard({
     promotionId: string,
     segmentId: string,
     analysisId?: string,
-    generationId?: string
+    generationId?: string,
+    loopCount?: number
   ) => void;
   promotionExperiments: DashboardAdExperiment[];
 }) {
-  const approvedContentCandidate = detail.content_candidates.find(
+  const currentContentCandidates = activeContentCandidates(detail);
+  const approvedContentCandidate = currentContentCandidates.find(
     (candidate) => candidate.status === "approved"
   );
-  const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
+  const selectedCandidateExperiment = approvedContentCandidate
+    ? detail.ad_experiments.find(
+        (experiment) => experiment.content_id === approvedContentCandidate.content_id
+      )
+    : undefined;
+  const activePromotionRunId =
+    selectedCandidateExperiment?.promotion_run_id ??
+    detail.ad_experiments[0]?.promotion_run_id ??
+    null;
   const activeRunExperiments = activePromotionRunId
     ? promotionExperiments.filter(
         (experiment) => experiment.promotion_run_id === activePromotionRunId
@@ -1112,13 +1114,15 @@ function SegmentConnectedExperimentsCard({
     (launchExperimentResult.dispatchFailed ||
       launchExperimentResult.failedExperimentIds.length > 0);
   const isExperimentRunning =
+    Boolean(selectedCandidateExperiment) &&
     requiredActiveRunExperiments.length > 0 &&
     requiredActiveRunExperiments.every((experiment) => experiment.status === "running") &&
     !launchNeedsRetry;
   const canLaunchExperiment =
     launchNeedsRetry ||
-    (!activePromotionRunId && Boolean(approvedContentCandidate)) ||
+    Boolean(approvedContentCandidate && !selectedCandidateExperiment) ||
     requiredActiveRunExperiments.some((experiment) => canStartAdExperiment(experiment.status));
+  const nextLoopCount = nextExperimentLoopCount(detail);
   return (
     <Card className="shadow-none">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -1136,17 +1140,22 @@ function SegmentConnectedExperimentsCard({
                 detail.segment.promotion_id,
                 detail.segment.segment_id,
                 approvedContentCandidate?.analysis_id,
-                approvedContentCandidate?.generation_id
+                approvedContentCandidate?.generation_id,
+                nextLoopCount
               );
             }}
             type="button"
           >
-            <CheckCircle2 className="mr-2 size-4" />
+            {launchExperimentIsPending ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : (
+              <CheckCircle2 aria-hidden="true" data-icon="inline-start" />
+            )}
             {launchExperimentIsPending
-              ? "실험 준비 중"
+              ? `${formatInteger(nextLoopCount)}번째 실험 준비 중…`
               : isExperimentRunning
                 ? "실험 진행 중"
-                : "실험 시작"}
+                : `${formatInteger(nextLoopCount)}번째 실험 시작`}
           </Button>
         </div>
       </CardHeader>
@@ -1181,7 +1190,7 @@ function SegmentConnectedExperimentsCard({
               <TableRow>
                 <TableHead>실험</TableHead>
                 <TableHead>광고 소재</TableHead>
-                <TableHead>채널</TableHead>
+                <TableHead>노출 방식</TableHead>
                 <TableHead>반복 횟수</TableHead>
                 <TableHead>목표</TableHead>
                 <TableHead>상태</TableHead>

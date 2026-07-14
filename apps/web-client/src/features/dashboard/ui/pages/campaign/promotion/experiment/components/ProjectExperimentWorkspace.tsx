@@ -1,19 +1,5 @@
-import type {
-  DashboardEvaluatePromotionRunResult,
-  DashboardProjectExperiment
-} from "@loopad/shared";
+import type { DashboardProjectExperiment } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -25,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@loopad/ui/shadcn/select";
+import { Spinner } from "@loopad/ui/shadcn/spinner";
 import {
   Table,
   TableBody,
@@ -33,7 +20,7 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { BarChart3, ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { formatDateTime, formatInteger } from "../../../../../../model/dashboard-format.js";
 import {
@@ -44,69 +31,61 @@ import {
 } from "../../../../../../model/dashboard-labels.js";
 import { useDashboardQueryState } from "../../../../../../model/dashboard-query.js";
 import type { DashboardQuery } from "../../../../../../model/dashboard-types.js";
-import type { PromotionExperimentLaunchResult } from "../../promotionExperimentFlow.js";
 import { EmptyState } from "../../../../../shared/EmptyState.js";
 import { formatGoalValue, statusBadgeVariant, toErrorMessage } from "../experimentUtils.js";
 import {
-  failedTargetsForPromotionRun,
   filterProjectExperiments,
   normalizeProjectExperimentFilters,
   paginateProjectExperiments,
+  promotionRunIdsForRunningExperiments,
   projectExperimentPageSizeOptions,
   projectExperimentSelectionQuery,
+  repeatCreativeTargetForExperiment,
+  type RepeatCreativePreparationInput,
+  type RunningEvaluationRefreshResult,
+  userVisibleProjectExperiments,
   uniqueProjectExperimentValues
 } from "../projectExperimentUtils.js";
 
-type NextLoopInput = {
-  failedAdExperimentIds: string[];
-  failedSegmentIds: string[];
-  promotionId: string;
-  promotionRunId: string;
-};
-
 export function ProjectExperimentWorkspace({
-  createNextLoopError,
-  createNextLoopIsError,
-  createNextLoopIsPending,
-  createNextLoopResult,
-  createNextLoopVariables,
-  evaluatePromotionRunError,
-  evaluatePromotionRunIsError,
-  evaluatePromotionRunIsPending,
-  evaluatePromotionRunResult,
-  evaluatePromotionRunVariables,
+  evaluationRefreshIsPending,
+  evaluationRefreshResult,
   experiments,
   isLoading,
-  onCreateNextLoop,
-  onEvaluatePromotionRun,
+  onPrepareRepeatCreatives,
+  onRefreshRunningEvaluations,
+  prepareRepeatCreativesError,
+  prepareRepeatCreativesIsError,
+  prepareRepeatCreativesIsPending,
+  prepareRepeatCreativesVariables,
   query
 }: {
-  createNextLoopError: unknown;
-  createNextLoopIsError: boolean;
-  createNextLoopIsPending: boolean;
-  createNextLoopResult: PromotionExperimentLaunchResult | null;
-  createNextLoopVariables: NextLoopInput | null;
-  evaluatePromotionRunError: unknown;
-  evaluatePromotionRunIsError: boolean;
-  evaluatePromotionRunIsPending: boolean;
-  evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
-  evaluatePromotionRunVariables: string | null;
+  evaluationRefreshIsPending: boolean;
+  evaluationRefreshResult: RunningEvaluationRefreshResult | null;
   experiments: DashboardProjectExperiment[];
   isLoading: boolean;
-  onCreateNextLoop: (input: NextLoopInput) => void;
-  onEvaluatePromotionRun: (promotionRunId: string) => void;
+  onPrepareRepeatCreatives: (input: RepeatCreativePreparationInput) => void;
+  onRefreshRunningEvaluations: (promotionRunIds: string[]) => void;
+  prepareRepeatCreativesError: unknown;
+  prepareRepeatCreativesIsError: boolean;
+  prepareRepeatCreativesIsPending: boolean;
+  prepareRepeatCreativesVariables: RepeatCreativePreparationInput | null;
   query: DashboardQuery;
 }) {
   const [, setDashboardQueryState] = useDashboardQueryState();
+  const visibleExperiments = useMemo(
+    () => userVisibleProjectExperiments(experiments),
+    [experiments]
+  );
   const filters = useMemo(
     () =>
-      normalizeProjectExperimentFilters(experiments, {
+      normalizeProjectExperimentFilters(visibleExperiments, {
         campaignId: query.selectedCampaignId || "all",
         promotionId: query.experimentPromotionFilter || "all",
         status: query.experimentStatusFilter || "all"
       }),
     [
-      experiments,
+      visibleExperiments,
       query.experimentPromotionFilter,
       query.experimentStatusFilter,
       query.selectedCampaignId
@@ -118,25 +97,25 @@ export function ProjectExperimentWorkspace({
     ? (query.experimentPageSize as (typeof projectExperimentPageSizeOptions)[number])
     : 10;
   const filteredExperiments = useMemo(
-    () => filterProjectExperiments(experiments, filters),
-    [experiments, filters]
+    () => filterProjectExperiments(visibleExperiments, filters),
+    [visibleExperiments, filters]
   );
   const pagination = useMemo(
     () => paginateProjectExperiments(filteredExperiments, query.experimentPage, pageSize),
     [filteredExperiments, pageSize, query.experimentPage]
   );
   const selectedExperiment =
-    experiments.find(
+    visibleExperiments.find(
       (experiment) => experiment.ad_experiment_id === query.selectedAdExperimentId
     ) ?? null;
   const campaigns = uniqueEntities(
-    experiments.map((experiment) => ({
+    visibleExperiments.map((experiment) => ({
       id: experiment.campaign_id,
       name: experiment.campaign_name
     }))
   );
   const promotions = uniqueEntities(
-    experiments.flatMap((experiment) =>
+    visibleExperiments.flatMap((experiment) =>
       filters.campaignId === "all" || experiment.campaign_id === filters.campaignId
         ? [
             {
@@ -148,7 +127,7 @@ export function ProjectExperimentWorkspace({
     )
   );
   const statuses = uniqueProjectExperimentValues(
-    experiments.map((experiment) => experiment.status)
+    visibleExperiments.map((experiment) => experiment.status)
   );
 
   useEffect(() => {
@@ -216,14 +195,17 @@ export function ProjectExperimentWorkspace({
     );
   }
 
-  const runningCount = experiments.filter((experiment) => experiment.status === "running").length;
-  const nextLoopCount = experiments.filter(
+  const runningCount = visibleExperiments.filter(
+    (experiment) => experiment.status === "running"
+  ).length;
+  const runningPromotionRunIds = promotionRunIdsForRunningExperiments(visibleExperiments);
+  const nextLoopCount = visibleExperiments.filter(
     (experiment) => experiment.latest_evaluation?.next_loop_required
   ).length;
-  const insufficientCount = experiments.filter(
+  const insufficientCount = visibleExperiments.filter(
     (experiment) => experiment.latest_evaluation?.status === "insufficient_data"
   ).length;
-  const totalAssignmentCount = experiments.reduce(
+  const totalAssignmentCount = visibleExperiments.reduce(
     (total, experiment) => total + experiment.assignment_count,
     0
   );
@@ -231,7 +213,7 @@ export function ProjectExperimentWorkspace({
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <ExperimentSummaryCard label="전체 실험" value={formatInteger(experiments.length)} />
+        <ExperimentSummaryCard label="전체 실험" value={formatInteger(visibleExperiments.length)} />
         <ExperimentSummaryCard label="실행 중" value={formatInteger(runningCount)} />
         <ExperimentSummaryCard label="배정 합계" value={formatInteger(totalAssignmentCount)} />
         <ExperimentSummaryCard
@@ -241,65 +223,101 @@ export function ProjectExperimentWorkspace({
       </div>
 
       <Card>
-        <CardHeader className="gap-4 xl:grid-cols-[1fr_auto_auto_auto]">
-          <div className="grid gap-1">
-            <CardTitle>프로젝트 실험 목록</CardTitle>
-            <CardDescription>
-              캠페인, 프로모션, 상태로 실험을 찾고 자세한 성과를 볼 수 있어요.
-            </CardDescription>
+        <CardHeader className="gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="grid gap-1">
+              <CardTitle>프로젝트 실험 목록</CardTitle>
+              <CardDescription>
+                캠페인, 프로모션, 상태로 실험을 찾고 자세한 성과를 볼 수 있어요.
+              </CardDescription>
+            </div>
+            <Button
+              aria-label={evaluationRefreshIsPending ? "평가 갱신 중" : "평가 갱신"}
+              disabled={runningPromotionRunIds.length === 0 || evaluationRefreshIsPending}
+              onClick={() => onRefreshRunningEvaluations(runningPromotionRunIds)}
+              type="button"
+            >
+              {evaluationRefreshIsPending ? (
+                <Spinner aria-label="평가 갱신 중" data-icon="inline-start" />
+              ) : (
+                <RefreshCw aria-hidden="true" data-icon="inline-start" />
+              )}
+              {evaluationRefreshIsPending ? "평가 갱신 중…" : "평가 갱신"}
+            </Button>
           </div>
-          <ExperimentFilter
-            id="project-experiment-campaign-filter"
-            label="캠페인"
-            onValueChange={(value) => {
-              void setDashboardQueryState({
-                experimentPage: 1,
-                experimentPromotionFilter: "all",
-                selectedAdExperimentId: "",
-                selectedCampaignId: value === "all" ? "" : value,
-                selectedPromotionId: "",
-                selectedSegmentId: ""
-              });
-            }}
-            options={campaigns}
-            placeholder="전체 캠페인"
-            value={filters.campaignId}
-          />
-          <ExperimentFilter
-            id="project-experiment-promotion-filter"
-            label="프로모션"
-            onValueChange={(value) => {
-              void setDashboardQueryState({
-                experimentPage: 1,
-                experimentPromotionFilter: value,
-                selectedAdExperimentId: "",
-                selectedPromotionId: "",
-                selectedSegmentId: ""
-              });
-            }}
-            options={promotions}
-            placeholder="전체 프로모션"
-            value={filters.promotionId}
-          />
-          <ExperimentFilter
-            id="project-experiment-status-filter"
-            label="실험 상태"
-            onValueChange={(value) => {
-              void setDashboardQueryState({
-                experimentPage: 1,
-                experimentStatusFilter: value,
-                selectedAdExperimentId: "",
-                selectedPromotionId: "",
-                selectedSegmentId: ""
-              });
-            }}
-            options={statuses.map((status) => ({ id: status, name: formatStatusLabel(status) }))}
-            placeholder="전체 상태"
-            value={filters.status}
-          />
+          <div className="grid gap-4 md:grid-cols-3 xl:ml-auto">
+            <ExperimentFilter
+              id="project-experiment-campaign-filter"
+              label="캠페인"
+              onValueChange={(value) => {
+                void setDashboardQueryState({
+                  experimentPage: 1,
+                  experimentPromotionFilter: "all",
+                  selectedAdExperimentId: "",
+                  selectedCampaignId: value === "all" ? "" : value,
+                  selectedPromotionId: "",
+                  selectedSegmentId: ""
+                });
+              }}
+              options={campaigns}
+              placeholder="전체 캠페인"
+              value={filters.campaignId}
+            />
+            <ExperimentFilter
+              id="project-experiment-promotion-filter"
+              label="프로모션"
+              onValueChange={(value) => {
+                void setDashboardQueryState({
+                  experimentPage: 1,
+                  experimentPromotionFilter: value,
+                  selectedAdExperimentId: "",
+                  selectedPromotionId: "",
+                  selectedSegmentId: ""
+                });
+              }}
+              options={promotions}
+              placeholder="전체 프로모션"
+              value={filters.promotionId}
+            />
+            <ExperimentFilter
+              id="project-experiment-status-filter"
+              label="실험 상태"
+              onValueChange={(value) => {
+                void setDashboardQueryState({
+                  experimentPage: 1,
+                  experimentStatusFilter: value,
+                  selectedAdExperimentId: "",
+                  selectedPromotionId: "",
+                  selectedSegmentId: ""
+                });
+              }}
+              options={statuses.map((status) => ({ id: status, name: formatStatusLabel(status) }))}
+              placeholder="전체 상태"
+              value={filters.status}
+            />
+          </div>
         </CardHeader>
-        <CardContent>
-          {experiments.length === 0 ? (
+        <CardContent className="grid gap-4">
+          {evaluationRefreshResult && !evaluationRefreshIsPending ? (
+            <Alert
+              aria-live="polite"
+              variant={evaluationRefreshResult.failedRunCount > 0 ? "destructive" : "default"}
+            >
+              <AlertTitle>
+                {evaluationRefreshResult.failedRunCount === 0
+                  ? "진행 중 실험 평가를 갱신했어요"
+                  : evaluationRefreshResult.succeededRunCount > 0
+                    ? "일부 실험 평가를 갱신하지 못했어요"
+                    : "실험 평가를 갱신하지 못했어요"}
+              </AlertTitle>
+              <AlertDescription>
+                {evaluationRefreshResult.failedRunCount === 0
+                  ? `${formatInteger(evaluationRefreshResult.totalRunCount)}개 회차의 진행 중 실험 평가를 갱신했어요.`
+                  : evaluationRefreshFailureMessage(evaluationRefreshResult)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {visibleExperiments.length === 0 ? (
             <EmptyState message="아직 시작한 실험이 없어요." />
           ) : filteredExperiments.length === 0 ? (
             <EmptyState message="조건에 맞는 실험이 없어요." />
@@ -334,24 +352,30 @@ export function ProjectExperimentWorkspace({
 
       {selectedExperiment ? (
         <SelectedProjectExperimentDetail
-          createNextLoopError={createNextLoopError}
-          createNextLoopIsError={createNextLoopIsError}
-          createNextLoopIsPending={createNextLoopIsPending}
-          createNextLoopResult={createNextLoopResult}
-          createNextLoopVariables={createNextLoopVariables}
-          evaluatePromotionRunError={evaluatePromotionRunError}
-          evaluatePromotionRunIsError={evaluatePromotionRunIsError}
-          evaluatePromotionRunIsPending={evaluatePromotionRunIsPending}
-          evaluatePromotionRunResult={evaluatePromotionRunResult}
-          evaluatePromotionRunVariables={evaluatePromotionRunVariables}
           experiment={selectedExperiment}
-          experiments={experiments}
-          onCreateNextLoop={onCreateNextLoop}
-          onEvaluatePromotionRun={onEvaluatePromotionRun}
+          onPrepareRepeatCreatives={onPrepareRepeatCreatives}
+          prepareRepeatCreativesError={prepareRepeatCreativesError}
+          prepareRepeatCreativesIsError={prepareRepeatCreativesIsError}
+          prepareRepeatCreativesIsPending={prepareRepeatCreativesIsPending}
+          prepareRepeatCreativesVariables={prepareRepeatCreativesVariables}
         />
       ) : null}
     </>
   );
+}
+
+function evaluationRefreshFailureMessage(result: RunningEvaluationRefreshResult): string {
+  const failureMessage = result.failureMessage ?? "요청을 처리하지 못했어요.";
+  const retryGuide = failureMessage.includes("다시 시도")
+    ? ""
+    : " 버튼을 다시 눌러 다시 시도해 주세요.";
+
+  return `${formatInteger(result.succeededRunCount)}개 회차 성공, ${formatInteger(result.failedRunCount)}개 회차 실패했어요. ${failureMessage}${retryGuide}`;
+}
+
+function repeatCreativePreparationErrorMessage(error: unknown): string {
+  const message = toErrorMessage(error);
+  return message.includes("다시 시도") ? message : `${message} 잠시 후 다시 시도해 주세요.`;
 }
 
 function ExperimentFilter({
@@ -403,15 +427,15 @@ function ProjectExperimentTable({
       <Table className="min-w-[1080px]">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-40">실험</TableHead>
             <TableHead>캠페인 / 프로모션</TableHead>
             <TableHead>세그먼트</TableHead>
-            <TableHead>채널</TableHead>
+            <TableHead>노출 방식</TableHead>
             <TableHead className="text-right">배정</TableHead>
-            <TableHead className="text-right">목표 / 실제</TableHead>
+            <TableHead className="text-right">현황 / 목표</TableHead>
             <TableHead>실행 상태</TableHead>
             <TableHead>평가</TableHead>
             <TableHead>업데이트</TableHead>
+            <TableHead className="w-44 pl-7">상세</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -421,20 +445,6 @@ function ProjectExperimentTable({
 
             return (
               <TableRow aria-selected={isSelected} key={experiment.ad_experiment_id}>
-                <TableCell className="w-40">
-                  <Button
-                    aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
-                    className="h-9 min-w-28 justify-center px-4"
-                    onClick={() => onSelect(experiment)}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <span className="font-medium">
-                      {formatInteger(experiment.loop_count)}번째 실험
-                    </span>
-                  </Button>
-                </TableCell>
                 <TableCell>
                   <div className="grid min-w-52 gap-0.5">
                     <span className="font-medium">{experiment.campaign_name}</span>
@@ -450,8 +460,10 @@ function ProjectExperimentTable({
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   <MetricPair
-                    left={formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}
-                    right={formatGoalValue(evaluation?.actual_value ?? null)}
+                    left={formatGoalValue(evaluation?.actual_value ?? null)}
+                    right={formatGoalValue(
+                      evaluation?.target_value ?? experiment.goal_target_value
+                    )}
                   />
                 </TableCell>
                 <TableCell>
@@ -470,6 +482,22 @@ function ProjectExperimentTable({
                   </div>
                 </TableCell>
                 <TableCell>{formatDateTime(experiment.updated_at)}</TableCell>
+                <TableCell className="w-44">
+                  <Button
+                    aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
+                    aria-expanded={isSelected}
+                    className="h-9 min-w-36 justify-between px-4"
+                    onClick={() => onSelect(experiment)}
+                    size="sm"
+                    type="button"
+                    variant="soft"
+                  >
+                    <span className="font-medium">
+                      {formatInteger(experiment.loop_count)}번째 실험 보기
+                    </span>
+                    <ChevronRight aria-hidden="true" data-icon="inline-end" />
+                  </Button>
+                </TableCell>
               </TableRow>
             );
           })}
@@ -480,58 +508,29 @@ function ProjectExperimentTable({
 }
 
 function SelectedProjectExperimentDetail({
-  createNextLoopError,
-  createNextLoopIsError,
-  createNextLoopIsPending,
-  createNextLoopResult,
-  createNextLoopVariables,
-  evaluatePromotionRunError,
-  evaluatePromotionRunIsError,
-  evaluatePromotionRunIsPending,
-  evaluatePromotionRunResult,
-  evaluatePromotionRunVariables,
   experiment,
-  experiments,
-  onCreateNextLoop,
-  onEvaluatePromotionRun
+  onPrepareRepeatCreatives,
+  prepareRepeatCreativesError,
+  prepareRepeatCreativesIsError,
+  prepareRepeatCreativesIsPending,
+  prepareRepeatCreativesVariables
 }: {
-  createNextLoopError: unknown;
-  createNextLoopIsError: boolean;
-  createNextLoopIsPending: boolean;
-  createNextLoopResult: PromotionExperimentLaunchResult | null;
-  createNextLoopVariables: NextLoopInput | null;
-  evaluatePromotionRunError: unknown;
-  evaluatePromotionRunIsError: boolean;
-  evaluatePromotionRunIsPending: boolean;
-  evaluatePromotionRunResult: DashboardEvaluatePromotionRunResult | null;
-  evaluatePromotionRunVariables: string | null;
   experiment: DashboardProjectExperiment;
-  experiments: DashboardProjectExperiment[];
-  onCreateNextLoop: (input: NextLoopInput) => void;
-  onEvaluatePromotionRun: (promotionRunId: string) => void;
+  onPrepareRepeatCreatives: (input: RepeatCreativePreparationInput) => void;
+  prepareRepeatCreativesError: unknown;
+  prepareRepeatCreativesIsError: boolean;
+  prepareRepeatCreativesIsPending: boolean;
+  prepareRepeatCreativesVariables: RepeatCreativePreparationInput | null;
 }) {
-  const currentEvaluationResult =
-    evaluatePromotionRunResult?.promotion_run_id === experiment.promotion_run_id
-      ? evaluatePromotionRunResult
-      : null;
-  const currentCreateNextLoopResult =
-    createNextLoopResult && createNextLoopVariables?.promotionRunId === experiment.promotion_run_id
-      ? createNextLoopResult
-      : null;
-  const failedTargets = failedTargetsForPromotionRun(
-    experiments,
-    experiment.promotion_run_id,
-    currentEvaluationResult
-  );
-  const canCreateNextLoop =
-    !experiment.next_loop &&
-    failedTargets.failedAdExperimentIds.length + failedTargets.failedSegmentIds.length > 0;
   const evaluation = experiment.latest_evaluation;
-  const isEvaluatingSelected =
-    evaluatePromotionRunIsPending && evaluatePromotionRunVariables === experiment.promotion_run_id;
-  const isCreatingNextLoopForSelected =
-    createNextLoopIsPending &&
-    createNextLoopVariables?.promotionRunId === experiment.promotion_run_id;
+  const repeatTarget = repeatCreativeTargetForExperiment(experiment);
+  const canPrepareRepeatCreatives =
+    !experiment.next_loop &&
+    (evaluation?.next_loop_required === true || evaluation?.status === "goal_not_met");
+  const isPreparingRepeatCreativesForSelected =
+    prepareRepeatCreativesIsPending &&
+    prepareRepeatCreativesVariables?.failedAdExperimentIds.includes(experiment.ad_experiment_id) ===
+      true;
 
   return (
     <Card>
@@ -556,86 +555,37 @@ function SelectedProjectExperimentDetail({
         </div>
         <div className="flex flex-wrap items-start gap-2">
           <Button
-            disabled={evaluatePromotionRunIsPending}
-            onClick={() => onEvaluatePromotionRun(experiment.promotion_run_id)}
+            disabled={!canPrepareRepeatCreatives || prepareRepeatCreativesIsPending}
+            onClick={() =>
+              onPrepareRepeatCreatives({
+                ...repeatTarget,
+                campaignId: experiment.campaign_id,
+                promotionId: experiment.promotion_id
+              })
+            }
             type="button"
-            variant="outline"
           >
-            <BarChart3 data-icon="inline-start" />
-            {isEvaluatingSelected ? "평가 중" : "성과 평가하기"}
+            {isPreparingRepeatCreativesForSelected ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : (
+              <Plus aria-hidden="true" data-icon="inline-start" />
+            )}
+            {isPreparingRepeatCreativesForSelected
+              ? "다음 실험용 광고 만드는 중…"
+              : "다음 실험용 광고 만들기"}
           </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button disabled={!canCreateNextLoop || createNextLoopIsPending} type="button">
-                <Plus data-icon="inline-start" />
-                {isCreatingNextLoopForSelected ? "반복 실험 시작 중" : "반복 실험 시작하기"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>실패한 대상을 다시 실험할까요?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  목표에 미치지 못한 세그먼트와 실험만 이어가요. 만들면 대상 배정, 실험 시작, 광고
-                  발송 순서로 진행돼요.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>취소</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() =>
-                    onCreateNextLoop({
-                      ...failedTargets,
-                      promotionId: experiment.promotion_id,
-                      promotionRunId: experiment.promotion_run_id
-                    })
-                  }
-                >
-                  생성 및 시작
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </CardHeader>
       <CardContent className="grid gap-6">
-        {currentEvaluationResult ? (
-          <Alert>
-            <AlertTitle>성과 평가를 마쳤어요</AlertTitle>
+        {prepareRepeatCreativesIsError &&
+        prepareRepeatCreativesVariables?.failedAdExperimentIds.includes(
+          experiment.ad_experiment_id
+        ) === true ? (
+          <Alert aria-live="polite" variant="destructive">
+            <AlertTitle>다음 실험용 광고를 만들지 못했어요</AlertTitle>
             <AlertDescription>
-              {formatInteger(currentEvaluationResult.ad_experiment_results.length)}개 실험을
-              평가했고, 실패 대상{" "}
-              {formatInteger(currentEvaluationResult.failed_ad_experiment_ids.length)}개를
-              확인했어요.
+              {repeatCreativePreparationErrorMessage(prepareRepeatCreativesError)}
             </AlertDescription>
-          </Alert>
-        ) : null}
-        {evaluatePromotionRunIsError &&
-        evaluatePromotionRunVariables === experiment.promotion_run_id ? (
-          <Alert variant="destructive">
-            <AlertTitle>성과를 평가하지 못했어요</AlertTitle>
-            <AlertDescription>{toErrorMessage(evaluatePromotionRunError)}</AlertDescription>
-          </Alert>
-        ) : null}
-        {currentCreateNextLoopResult ? (
-          <Alert>
-            <AlertTitle>
-              {currentCreateNextLoopResult.dispatchFailed
-                ? "반복 실험은 시작했지만 광고를 보내지 못했어요"
-                : currentCreateNextLoopResult.failedExperimentIds.length > 0
-                  ? "일부 반복 실험만 시작됐어요"
-                  : "반복 실험을 시작했어요"}
-            </AlertTitle>
-            <AlertDescription>
-              {formatInteger(currentCreateNextLoopResult.startedExperimentIds.length)}개 실험을
-              시작했어요.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {createNextLoopIsError &&
-        createNextLoopVariables?.promotionRunId === experiment.promotion_run_id ? (
-          <Alert variant="destructive">
-            <AlertTitle>반복 실험을 시작하지 못했어요</AlertTitle>
-            <AlertDescription>{toErrorMessage(createNextLoopError)}</AlertDescription>
           </Alert>
         ) : null}
 
@@ -721,9 +671,7 @@ function SelectedProjectExperimentDetail({
               <Alert>
                 <AlertTitle>반복 실험이 필요해요</AlertTitle>
                 <AlertDescription>
-                  같은 실행에서 실패한 실험{" "}
-                  {formatInteger(failedTargets.failedAdExperimentIds.length)}개, 세그먼트{" "}
-                  {formatInteger(failedTargets.failedSegmentIds.length)}개를 이어갈 수 있어요.
+                  현재 선택한 {experiment.segment_name} 세그먼트의 광고를 새로 만들 수 있어요.
                 </AlertDescription>
               </Alert>
             ) : (
@@ -733,7 +681,7 @@ function SelectedProjectExperimentDetail({
         </div>
 
         <dl className="grid gap-3 border-t pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
-          <DefinitionItem label="채널" value={formatChannelLabel(experiment.channel)} />
+          <DefinitionItem label="노출 방식" value={formatChannelLabel(experiment.channel)} />
           <DefinitionItem label="시작" value={formatDateTime(experiment.started_at)} />
           <DefinitionItem label="종료" value={formatDateTime(experiment.ended_at)} />
           <DefinitionItem label="업데이트" value={formatDateTime(experiment.updated_at)} />

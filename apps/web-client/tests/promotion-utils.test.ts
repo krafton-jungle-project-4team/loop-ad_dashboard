@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { DashboardCampaignPromotion } from "@loopad/shared";
+import type { DashboardCampaignPromotion, DashboardSegmentDetail } from "@loopad/shared";
 import {
+  activeContentCandidates,
   canStartAdExperiment,
+  nextExperimentLoopCount,
   promotionFormToUpdateRequest,
-  promotionToFormState,
-  segmentWorkflowCurrentStep
+  promotionToFormState
 } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionUtils.js";
 
 test("ad experiments can start from the statuses accepted by the dashboard API", () => {
@@ -49,37 +50,26 @@ test("promotion edit maps every field exposed by the create form", () => {
   });
 });
 
-test("segment workflow advances from candidate creation to content generation", () => {
-  assert.equal(
-    segmentWorkflowCurrentStep({
-      candidateCount: 0,
-      confirmedCandidateCount: 0,
-      selectedCandidateCount: 0
-    }),
-    1
+test("creative selection only uses candidates from the segment's active analysis", () => {
+  const detail = {
+    content_candidates: [
+      { analysis_id: "analysis_old", content_id: "content_old" },
+      { analysis_id: "analysis_repeat", content_id: "content_repeat" }
+    ],
+    segment: { analysis_id: "analysis_repeat" }
+  } as DashboardSegmentDetail;
+
+  assert.deepEqual(
+    activeContentCandidates(detail).map((candidate) => candidate.content_id),
+    ["content_repeat"]
   );
-  assert.equal(
-    segmentWorkflowCurrentStep({
-      candidateCount: 2,
-      confirmedCandidateCount: 0,
-      selectedCandidateCount: 0
-    }),
-    2
-  );
-  assert.equal(
-    segmentWorkflowCurrentStep({
-      candidateCount: 2,
-      confirmedCandidateCount: 0,
-      selectedCandidateCount: 1
-    }),
-    3
-  );
-  assert.equal(
-    segmentWorkflowCurrentStep({
-      candidateCount: 2,
-      confirmedCandidateCount: 1,
-      selectedCandidateCount: 1
-    }),
-    4
-  );
+});
+
+test("the next experiment increments the highest loop for its segment", () => {
+  const detail = {
+    ad_experiments: [{ loop_count: 1 }, { loop_count: 2 }]
+  } as DashboardSegmentDetail;
+
+  assert.equal(nextExperimentLoopCount(detail), 3);
+  assert.equal(nextExperimentLoopCount({ ad_experiments: [] } as DashboardSegmentDetail), 1);
 });

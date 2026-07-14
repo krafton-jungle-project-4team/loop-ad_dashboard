@@ -3,11 +3,7 @@ import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import { useState } from "react";
 import { EmptyState } from "../../../shared/EmptyState.js";
 import { EntityWorkspaceShell } from "../../../shared/EntityWorkspace.js";
-import {
-  PromotionAddDialog,
-  PromotionEditDialog,
-  SegmentEditDialog
-} from "./components/PromotionDialogs.js";
+import { PromotionAddDialog, PromotionEditDialog } from "./components/PromotionDialogs.js";
 import {
   PromotionManagementList,
   PromotionEmptyState,
@@ -38,7 +34,6 @@ export function PromotionWorkspace({
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
     editingPromotionId,
-    editingSegmentId,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
     openPromotions,
@@ -57,13 +52,11 @@ export function PromotionWorkspace({
     selectedPromotionSegments,
     setIsAddDialogOpen,
     setEditingPromotionId,
-    setEditingSegmentId,
     setWorkspaceTab,
     startGenerationMutation,
     visibleTabs,
     workspaceTab,
-    updatePromotionMutation,
-    updateConfirmedSegmentMutation
+    updatePromotionMutation
   } = controller;
   const isManagementView = mode === "promotion" && query.promotionView === "manage";
   const filteredPromotions = openPromotions.filter((promotion) =>
@@ -136,11 +129,11 @@ export function PromotionWorkspace({
               onDeleteConfirmedSegment={(promotionId, segmentId) =>
                 deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
               }
-              onEditConfirmedSegment={setEditingSegmentId}
-              onLaunchExperiment={(promotionId, segmentId, analysisId, generationId) =>
+              onLaunchExperiment={(promotionId, segmentId, analysisId, generationId, loopCount) =>
                 launchPromotionExperimentMutation.mutate({
                   analysisId,
                   generationId,
+                  loopCount,
                   promotionId,
                   segmentId
                 })
@@ -212,29 +205,6 @@ export function PromotionWorkspace({
                 )}
               />
             </>
-          ) : null}
-          {mode === "segment" ? (
-            <SegmentEditDialog
-              isPending={updateConfirmedSegmentMutation.isPending}
-              onOpenChange={(open) => {
-                if (!open) {
-                  setEditingSegmentId(null);
-                }
-              }}
-              onUpdate={(requestBody) => {
-                if (editingSegmentId && selectedOpenPromotion) {
-                  updateConfirmedSegmentMutation.mutate({
-                    promotionId: selectedOpenPromotion.promotion_id,
-                    requestBody,
-                    segmentId: editingSegmentId
-                  });
-                }
-              }}
-              open={Boolean(editingSegmentId)}
-              segment={selectedPromotionSegments.find(
-                (segment) => segment.segment_id === editingSegmentId
-              )}
-            />
           ) : null}
         </>
       ) : null}

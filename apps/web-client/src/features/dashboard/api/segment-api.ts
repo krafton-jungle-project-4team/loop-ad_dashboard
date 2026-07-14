@@ -16,7 +16,6 @@ import {
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
-  DashboardUpdatePromotionSegmentRequestSchema,
   type DashboardArchivePromotionScopedSegmentDefinitionResult,
   type DashboardAttachSegmentRequest,
   type DashboardCampaignSegment,
@@ -33,8 +32,7 @@ import {
   type DashboardSaveSegmentRequest,
   type DashboardSegmentDetail,
   type DashboardSegmentQueryPreview,
-  type DashboardSegmentQueryPreviewRequest,
-  type DashboardUpdatePromotionSegmentRequest
+  type DashboardSegmentQueryPreviewRequest
 } from "@loopad/shared";
 import { apiRequest } from "../../../shared/api/http-client.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
@@ -67,23 +65,6 @@ export function attachDashboardSegmentToPromotion(
     method: "POST",
     searchParams: projectSearchParams(query.projectId)
   });
-}
-
-export function updateDashboardPromotionSegment(
-  query: DashboardQuery,
-  promotionId: string,
-  segmentId: string,
-  requestBody: DashboardUpdatePromotionSegmentRequest
-): Promise<DashboardCampaignSegment> {
-  return apiRequest(
-    `${promotionPath(promotionId)}/segments/${encodeURIComponent(segmentId)}`,
-    DashboardCampaignSegmentSchema,
-    {
-      body: DashboardUpdatePromotionSegmentRequestSchema.parse(requestBody),
-      method: "PATCH",
-      searchParams: projectSearchParams(query.projectId)
-    }
-  );
 }
 
 export function deleteDashboardPromotionSegment(

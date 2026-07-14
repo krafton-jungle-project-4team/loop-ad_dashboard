@@ -360,12 +360,12 @@ export function CampaignWorkspacePage({
             entryActions={(card) => [
               {
                 id: "workspace",
-                label: "캠페인 관리",
+                label: "프로모션 관리",
                 onSelect: () => openCampaignView(card.id, "manage")
               },
               {
                 id: "performance",
-                label: "캠페인 성과",
+                label: "성과",
                 onSelect: () => openCampaignView(card.id, "performance")
               }
             ]}
@@ -448,12 +448,12 @@ export function CampaignWorkspacePage({
             entryActions={(card) => [
               {
                 id: "manage",
-                label: "프로모션 관리",
+                label: "세그먼트 관리",
                 onSelect: () => openPromotionView(card.id, "manage")
               },
               {
                 id: "performance",
-                label: "프로모션 성과",
+                label: "성과",
                 onSelect: () => openPromotionView(card.id, "performance")
               }
             ]}
@@ -627,7 +627,7 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
     id: promotion.promotion_id,
     kind: "promotion",
     metrics: [
-      { id: "channel", label: "채널", value: formatChannelLabel(promotion.channel) },
+      { id: "channel", label: "노출 방식", value: formatChannelLabel(promotion.channel) },
       {
         id: "goal",
         label: "목표 지표",

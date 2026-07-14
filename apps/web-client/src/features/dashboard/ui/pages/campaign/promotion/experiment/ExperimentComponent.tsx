@@ -1,92 +1,136 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
-  buildDashboardPromotionRunAssignments,
-  createDashboardNextLoop,
-  dispatchDashboardPromotionRun,
+  analyzeDashboardPromotionSegments,
   evaluateDashboardPromotionRun,
+  fetchDashboardPromotionDetail,
   fetchDashboardProjectExperiments,
-  startDashboardAdExperiment
+  startDashboardPromotionGeneration
 } from "../../../../../api/dashboard-api.js";
+import { useDashboardQueryState } from "../../../../../model/dashboard-query.js";
 import { dashboardProjectExperimentsQueryKey } from "../../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
-import { launchPromotionExperiment } from "../promotionExperimentFlow.js";
 import { ProjectExperimentWorkspace } from "./components/ProjectExperimentWorkspace.js";
 import { toErrorMessage } from "./experimentUtils.js";
+import type {
+  RepeatCreativePreparationInput,
+  RunningEvaluationRefreshResult
+} from "./projectExperimentUtils.js";
 
-type NextLoopInput = {
-  failedAdExperimentIds: string[];
-  failedSegmentIds: string[];
-  promotionId: string;
-  promotionRunId: string;
-};
+const ANALYSIS_POLL_INTERVAL_MS = 1000;
+const ANALYSIS_POLL_LIMIT = 60;
+const pendingAnalysisStatuses = new Set([
+  "pending",
+  "processing",
+  "queued",
+  "requested",
+  "running"
+]);
 
 export function ExperimentComponent({ query }: { query: DashboardQuery }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [, setDashboardQueryState] = useDashboardQueryState();
   const experimentsQuery = useQuery({
     queryFn: ({ signal }) => fetchDashboardProjectExperiments(query.projectId, signal),
     queryKey: dashboardProjectExperimentsQueryKey(query.projectId)
   });
-  const evaluatePromotionRunMutation = useMutation({
-    mutationFn: (promotionRunId: string) => evaluateDashboardPromotionRun(query, promotionRunId),
+  const refreshRunningEvaluationsMutation = useMutation({
+    mutationFn: (promotionRunIds: string[]) => refreshRunningEvaluations(promotionRunIds),
     onSettled: invalidateExperimentData
   });
-  const createNextLoopMutation = useMutation({
-    mutationFn: ({
-      failedAdExperimentIds,
-      failedSegmentIds,
-      promotionId,
-      promotionRunId
-    }: NextLoopInput) =>
-      launchNextLoop({
-        failedAdExperimentIds,
-        failedSegmentIds,
-        promotionId,
-        promotionRunId
-      }),
-    onSettled: invalidateExperimentData
+  const prepareRepeatCreativesMutation = useMutation({
+    mutationFn: prepareRepeatCreatives,
+    onSettled: invalidateExperimentData,
+    onSuccess: async (_result, variables) => {
+      await setDashboardQueryState({
+        campaignView: "manage",
+        promotionView: "manage",
+        segmentView: "experiments",
+        selectedAdExperimentId: "",
+        selectedCampaignId: variables.campaignId,
+        selectedPromotionId: variables.promotionId,
+        selectedSegmentId: variables.failedSegmentIds[0] ?? ""
+      });
+      await navigate({
+        params: { projectId: query.projectId, tabPath: "campaigns" },
+        search: (current) => current,
+        to: "/dashboard/$projectId/$tabPath"
+      });
+    }
   });
 
-  function launchNextLoop({
-    failedAdExperimentIds,
+  async function prepareRepeatCreatives({
     failedSegmentIds,
-    promotionId,
-    promotionRunId
-  }: NextLoopInput) {
+    promotionId
+  }: RepeatCreativePreparationInput) {
     if (failedSegmentIds.length === 0) {
       throw new Error("다시 실험할 실패 세그먼트가 없어요.");
     }
-    return launchPromotionExperiment(
-      { segmentIds: failedSegmentIds },
-      {
-        buildAssignments: (nextPromotionRunId) =>
-          buildDashboardPromotionRunAssignments(query, nextPromotionRunId),
-        createRun: async () => {
-          const nextLoop = await createDashboardNextLoop(query, promotionRunId, {
-            failed_ad_experiment_ids: failedAdExperimentIds,
-            failed_segment_ids: failedSegmentIds,
-            operator_instruction: null
-          });
-          if (!nextLoop.next_promotion_run_id) {
-            throw new Error("다시 실험할 실패 대상이 없어요.");
-          }
-          return {
-            experiments: nextLoop.next_ad_experiments.map((experiment) => ({
-              adExperimentId: experiment.ad_experiment_id,
-              channel: experiment.channel,
-              isFallback: experiment.is_fallback,
-              segmentId: experiment.segment_id,
-              status: experiment.status
-            })),
-            promotionRunId: nextLoop.next_promotion_run_id,
-            segmentIds: nextLoop.segment_ids
-          };
-        },
-        dispatch: dispatchDashboardPromotionRun,
-        startExperiment: (adExperimentId) =>
-          startDashboardAdExperiment(query, promotionId, adExperimentId)
+
+    const analysis = await analyzeDashboardPromotionSegments(query, promotionId, {
+      operator_instruction: null,
+      segment_ids: failedSegmentIds
+    });
+    await waitForAnalysis(analysis.analysis_id, analysis.status, promotionId);
+    const generation = await startDashboardPromotionGeneration(query, promotionId, {
+      analysis_id: analysis.analysis_id,
+      content_option_count: 3,
+      operator_instruction: null
+    });
+
+    return {
+      analysisId: analysis.analysis_id,
+      generationId: generation.generation_id,
+      segmentIds: failedSegmentIds
+    };
+  }
+
+  async function waitForAnalysis(analysisId: string, initialStatus: string, promotionId: string) {
+    if (!pendingAnalysisStatuses.has(initialStatus)) {
+      assertAnalysisSucceeded(initialStatus);
+      return;
+    }
+
+    for (let attempt = 0; attempt < ANALYSIS_POLL_LIMIT; attempt += 1) {
+      await delay(ANALYSIS_POLL_INTERVAL_MS);
+      const detail = await fetchDashboardPromotionDetail(
+        query,
+        promotionId,
+        new AbortController().signal
+      );
+      const status = detail.analyses.find(
+        (analysis) => analysis.analysis_id === analysisId
+      )?.status;
+      if (!status || pendingAnalysisStatuses.has(status)) {
+        continue;
       }
+      assertAnalysisSucceeded(status);
+      return;
+    }
+
+    throw new Error("세그먼트 분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.");
+  }
+
+  async function refreshRunningEvaluations(
+    promotionRunIds: string[]
+  ): Promise<RunningEvaluationRefreshResult> {
+    const evaluations = await Promise.allSettled(
+      promotionRunIds.map((promotionRunId) => evaluateDashboardPromotionRun(query, promotionRunId))
     );
+    const succeededEvaluations = evaluations.filter(
+      (evaluation) => evaluation.status === "fulfilled"
+    );
+    const failedEvaluations = evaluations.filter((evaluation) => evaluation.status === "rejected");
+    const firstFailedEvaluation = failedEvaluations[0];
+
+    return {
+      failedRunCount: failedEvaluations.length,
+      failureMessage: firstFailedEvaluation ? toErrorMessage(firstFailedEvaluation.reason) : null,
+      succeededRunCount: succeededEvaluations.length,
+      totalRunCount: promotionRunIds.length
+    };
   }
 
   async function invalidateExperimentData() {
@@ -111,26 +155,34 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     <div className="grid gap-6">
       <ExperimentPageHeader />
       <ProjectExperimentWorkspace
-        createNextLoopError={createNextLoopMutation.error}
-        createNextLoopIsError={createNextLoopMutation.isError}
-        createNextLoopIsPending={createNextLoopMutation.isPending}
-        createNextLoopResult={createNextLoopMutation.data ?? null}
-        createNextLoopVariables={createNextLoopMutation.variables ?? null}
-        evaluatePromotionRunError={evaluatePromotionRunMutation.error}
-        evaluatePromotionRunIsError={evaluatePromotionRunMutation.isError}
-        evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
-        evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
-        evaluatePromotionRunVariables={evaluatePromotionRunMutation.variables ?? null}
+        evaluationRefreshIsPending={refreshRunningEvaluationsMutation.isPending}
+        evaluationRefreshResult={refreshRunningEvaluationsMutation.data ?? null}
         experiments={experimentsQuery.data?.experiments ?? []}
         isLoading={experimentsQuery.isLoading}
-        onCreateNextLoop={(input) => createNextLoopMutation.mutate(input)}
-        onEvaluatePromotionRun={(promotionRunId) =>
-          evaluatePromotionRunMutation.mutate(promotionRunId)
+        onPrepareRepeatCreatives={(input) => prepareRepeatCreativesMutation.mutate(input)}
+        onRefreshRunningEvaluations={(promotionRunIds) =>
+          refreshRunningEvaluationsMutation.mutate(promotionRunIds)
         }
+        prepareRepeatCreativesError={prepareRepeatCreativesMutation.error}
+        prepareRepeatCreativesIsError={prepareRepeatCreativesMutation.isError}
+        prepareRepeatCreativesIsPending={prepareRepeatCreativesMutation.isPending}
+        prepareRepeatCreativesVariables={prepareRepeatCreativesMutation.variables ?? null}
         query={query}
       />
     </div>
   );
+}
+
+function assertAnalysisSucceeded(status: string) {
+  if (status === "failed" || status === "cancelled" || status === "canceled") {
+    throw new Error("세그먼트 분석을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.");
+  }
+}
+
+function delay(durationMs: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, durationMs);
+  });
 }
 
 function ExperimentPageHeader() {

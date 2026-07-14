@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type {
-  DashboardEvaluatePromotionRunResult,
-  DashboardProjectExperiment
+import {
+  DASHBOARD_FALLBACK_SEGMENT_ID,
+  type DashboardEvaluatePromotionRunResult,
+  type DashboardProjectExperiment
 } from "@loopad/shared";
 import {
   defaultDashboardSearchQuery,
@@ -13,7 +14,10 @@ import {
   filterProjectExperiments,
   normalizeProjectExperimentFilters,
   paginateProjectExperiments,
-  projectExperimentSelectionQuery
+  promotionRunIdsForRunningExperiments,
+  projectExperimentSelectionQuery,
+  repeatCreativeTargetForExperiment,
+  userVisibleProjectExperiments
 } from "../src/features/dashboard/ui/pages/campaign/promotion/experiment/projectExperimentUtils.js";
 
 const experiments = [
@@ -103,11 +107,58 @@ test("project experiment selection persists the experiment and every ancestor id
   assert.equal(normalized.selectedAdExperimentId, "experiment-a");
 });
 
+test("running experiment evaluation targets each promotion run only once across campaigns", () => {
+  const runningExperiments = [
+    ...experiments,
+    createExperiment({
+      ad_experiment_id: "experiment-d",
+      campaign_id: "campaign-b",
+      promotion_run_id: "run-default",
+      status: "running"
+    }),
+    createExperiment({
+      ad_experiment_id: "experiment-e",
+      campaign_id: "campaign-c",
+      promotion_run_id: "run-another",
+      status: "running"
+    })
+  ];
+
+  assert.deepEqual(promotionRunIdsForRunningExperiments(runningExperiments), [
+    "run-another",
+    "run-default"
+  ]);
+});
+
+test("fallback ads stay hidden while their promotion run remains evaluable", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback",
+    promotion_run_id: "run-default",
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
+    segment_name: "Existing users fallback",
+    status: "running"
+  });
+  const visibleExperiments = userVisibleProjectExperiments([...experiments, fallbackExperiment]);
+
+  assert.equal(
+    visibleExperiments.some((experiment) => experiment.ad_experiment_id === "experiment-fallback"),
+    false
+  );
+  assert.deepEqual(promotionRunIdsForRunningExperiments(visibleExperiments), ["run-default"]);
+});
+
 test("next-loop targets stay within the selected promotion run", () => {
   const targets = failedTargetsForPromotionRun(experiments, "run-shared");
 
   assert.deepEqual(targets.failedAdExperimentIds, ["experiment-b", "experiment-c"]);
   assert.deepEqual(targets.failedSegmentIds, ["segment-b", "segment-c"]);
+});
+
+test("repeat creative generation targets only the selected experiment", () => {
+  assert.deepEqual(repeatCreativeTargetForExperiment(experiments[1]!), {
+    failedAdExperimentIds: ["experiment-b"],
+    failedSegmentIds: ["segment-b"]
+  });
 });
 
 test("fresh evaluation results take precedence over stale project-list evaluations", () => {
