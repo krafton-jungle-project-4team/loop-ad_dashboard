@@ -13,6 +13,7 @@ import {
   filterProjectExperiments,
   normalizeProjectExperimentFilters,
   paginateProjectExperiments,
+  promotionRunIdsForRunningExperiments,
   projectExperimentSelectionQuery
 } from "../src/features/dashboard/ui/pages/campaign/promotion/experiment/projectExperimentUtils.js";
 
@@ -101,6 +102,29 @@ test("project experiment selection persists the experiment and every ancestor id
     "project-a"
   );
   assert.equal(normalized.selectedAdExperimentId, "experiment-a");
+});
+
+test("running experiment evaluation targets each promotion run only once across campaigns", () => {
+  const runningExperiments = [
+    ...experiments,
+    createExperiment({
+      ad_experiment_id: "experiment-d",
+      campaign_id: "campaign-b",
+      promotion_run_id: "run-default",
+      status: "running"
+    }),
+    createExperiment({
+      ad_experiment_id: "experiment-e",
+      campaign_id: "campaign-c",
+      promotion_run_id: "run-another",
+      status: "running"
+    })
+  ];
+
+  assert.deepEqual(promotionRunIdsForRunningExperiments(runningExperiments), [
+    "run-another",
+    "run-default"
+  ]);
 });
 
 test("next-loop targets stay within the selected promotion run", () => {

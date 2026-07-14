@@ -13,6 +13,7 @@ import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
 import { launchPromotionExperiment } from "../promotionExperimentFlow.js";
 import { ProjectExperimentWorkspace } from "./components/ProjectExperimentWorkspace.js";
 import { toErrorMessage } from "./experimentUtils.js";
+import type { RunningEvaluationRefreshResult } from "./projectExperimentUtils.js";
 
 type NextLoopInput = {
   failedAdExperimentIds: string[];
@@ -27,8 +28,8 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     queryFn: ({ signal }) => fetchDashboardProjectExperiments(query.projectId, signal),
     queryKey: dashboardProjectExperimentsQueryKey(query.projectId)
   });
-  const evaluatePromotionRunMutation = useMutation({
-    mutationFn: (promotionRunId: string) => evaluateDashboardPromotionRun(query, promotionRunId),
+  const refreshRunningEvaluationsMutation = useMutation({
+    mutationFn: (promotionRunIds: string[]) => refreshRunningEvaluations(promotionRunIds),
     onSettled: invalidateExperimentData
   });
   const createNextLoopMutation = useMutation({
@@ -89,6 +90,30 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     );
   }
 
+  async function refreshRunningEvaluations(
+    promotionRunIds: string[]
+  ): Promise<RunningEvaluationRefreshResult> {
+    const evaluations = await Promise.allSettled(
+      promotionRunIds.map((promotionRunId) => evaluateDashboardPromotionRun(query, promotionRunId))
+    );
+    const succeededEvaluations = evaluations.filter(
+      (evaluation) => evaluation.status === "fulfilled"
+    );
+    const failedEvaluations = evaluations.filter((evaluation) => evaluation.status === "rejected");
+    const firstFailedEvaluation = failedEvaluations[0];
+
+    return {
+      evaluatedExperimentCount: succeededEvaluations.reduce(
+        (total, evaluation) => total + evaluation.value.ad_experiment_results.length,
+        0
+      ),
+      failedRunCount: failedEvaluations.length,
+      failureMessage: firstFailedEvaluation ? toErrorMessage(firstFailedEvaluation.reason) : null,
+      succeededRunCount: succeededEvaluations.length,
+      totalRunCount: promotionRunIds.length
+    };
+  }
+
   async function invalidateExperimentData() {
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   }
@@ -116,16 +141,13 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
         createNextLoopIsPending={createNextLoopMutation.isPending}
         createNextLoopResult={createNextLoopMutation.data ?? null}
         createNextLoopVariables={createNextLoopMutation.variables ?? null}
-        evaluatePromotionRunError={evaluatePromotionRunMutation.error}
-        evaluatePromotionRunIsError={evaluatePromotionRunMutation.isError}
-        evaluatePromotionRunIsPending={evaluatePromotionRunMutation.isPending}
-        evaluatePromotionRunResult={evaluatePromotionRunMutation.data ?? null}
-        evaluatePromotionRunVariables={evaluatePromotionRunMutation.variables ?? null}
+        evaluationRefreshIsPending={refreshRunningEvaluationsMutation.isPending}
+        evaluationRefreshResult={refreshRunningEvaluationsMutation.data ?? null}
         experiments={experimentsQuery.data?.experiments ?? []}
         isLoading={experimentsQuery.isLoading}
         onCreateNextLoop={(input) => createNextLoopMutation.mutate(input)}
-        onEvaluatePromotionRun={(promotionRunId) =>
-          evaluatePromotionRunMutation.mutate(promotionRunId)
+        onRefreshRunningEvaluations={(promotionRunIds) =>
+          refreshRunningEvaluationsMutation.mutate(promotionRunIds)
         }
         query={query}
       />
