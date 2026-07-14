@@ -135,17 +135,12 @@ test("segment suggestion mapper preserves enriched AI metadata", () => {
   assert.equal(suggestion.display_copy?.audience?.matching_user_count, 230);
   assert.equal(suggestion.display_copy?.audience?.selected_user_count, 160);
   assert.equal(suggestion.display_copy?.strategy_role, "예약 이탈 회수형");
-  assert.equal(
-    suggestion.display_copy?.strength_summary,
-    "예약 직전 행동이 확인된 고객군입니다."
-  );
+  assert.equal(suggestion.display_copy?.strength_summary, "예약 직전 행동이 확인된 고객군입니다.");
   assert.equal(
     suggestion.display_copy?.tradeoff_summary,
     "목적지 관심 범위는 함께 확인해야 합니다."
   );
-  assert.deepEqual(suggestion.ai_report?.candidate_strengths, [
-    "예약 직전 행동이 확인되었습니다."
-  ]);
+  assert.deepEqual(suggestion.ai_report?.candidate_strengths, ["예약 직전 행동이 확인되었습니다."]);
   assert.deepEqual(suggestion.ai_report?.selection_considerations, [
     "목적지 관심 범위를 함께 확인하세요."
   ]);

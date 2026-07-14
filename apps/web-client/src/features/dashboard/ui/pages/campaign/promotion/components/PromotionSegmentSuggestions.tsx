@@ -257,8 +257,7 @@ function SegmentSuggestionCard({
   const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
   const strategyRole = displayCopy?.strategy_role ?? displayCopy?.rank_role;
   const strengthSummary = displayCopy?.strength_summary;
-  const tradeoffSummary =
-    displayCopy?.tradeoff_summary ?? displayCopy?.recommendation_tier_reason;
+  const tradeoffSummary = displayCopy?.tradeoff_summary ?? displayCopy?.recommendation_tier_reason;
   const performanceEstimate = displayCopy?.performance_estimate;
   const fallbackSummary = segmentAudienceSummary(suggestion.sample_size, suggestion.sample_ratio);
 

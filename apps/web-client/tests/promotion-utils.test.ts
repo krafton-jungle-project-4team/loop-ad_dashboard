@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type {
-  DashboardCampaignPromotion,
-  DashboardSegmentDetail
-} from "@loopad/shared";
+import type { DashboardCampaignPromotion, DashboardSegmentDetail } from "@loopad/shared";
 import {
   activeContentCandidates,
   canStartAdExperiment,
@@ -97,10 +94,7 @@ test("segment display copy preserves strategy metadata and legacy candidate cont
   });
 
   assert.equal(displayCopy?.strategy_role, "이번 목적지 반복 관심형");
-  assert.equal(
-    displayCopy?.strength_summary,
-    "이번 여행지를 반복 탐색한 행동이 확인됐습니다."
-  );
+  assert.equal(displayCopy?.strength_summary, "이번 여행지를 반복 탐색한 행동이 확인됐습니다.");
   assert.equal(displayCopy?.tradeoff_summary, "대표 표본이 작아 도달 규모는 제한적입니다.");
   assert.equal(displayCopy?.recommendation_tier, "small_high_intent");
   assert.equal(displayCopy?.recommendation_rank, undefined);

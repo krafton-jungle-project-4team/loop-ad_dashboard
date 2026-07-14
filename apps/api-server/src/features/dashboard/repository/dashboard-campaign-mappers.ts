@@ -412,9 +412,7 @@ function suggestionAiReport(value: unknown): DashboardPromotionSegmentSuggestion
     why_recommended: whyRecommended,
     evidence,
     candidate_strengths: candidateStrengths.length ? candidateStrengths : undefined,
-    selection_considerations: selectionConsiderations.length
-      ? selectionConsiderations
-      : undefined,
+    selection_considerations: selectionConsiderations.length ? selectionConsiderations : undefined,
     difference_from_other_ranks: differenceFromOtherRanks.length
       ? differenceFromOtherRanks
       : undefined,
