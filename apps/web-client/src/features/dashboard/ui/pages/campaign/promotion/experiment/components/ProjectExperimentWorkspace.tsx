@@ -437,7 +437,7 @@ function ProjectExperimentTable({
             <TableHead>실행 상태</TableHead>
             <TableHead>평가</TableHead>
             <TableHead>업데이트</TableHead>
-            <TableHead className="w-40 text-right">실험</TableHead>
+            <TableHead className="w-40 pl-7">실험</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -484,7 +484,7 @@ function ProjectExperimentTable({
                   </div>
                 </TableCell>
                 <TableCell>{formatDateTime(experiment.updated_at)}</TableCell>
-                <TableCell className="w-40 text-right">
+                <TableCell className="w-40">
                   <Button
                     aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
                     className="h-9 min-w-28 justify-center px-4"
