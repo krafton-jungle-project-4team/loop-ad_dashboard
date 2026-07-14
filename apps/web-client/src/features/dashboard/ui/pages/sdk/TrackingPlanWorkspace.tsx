@@ -811,11 +811,13 @@ function CollectionGuide({
       </header>
 
       <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-        <p>{versionDescription}</p>
+        <p>
+          이벤트 스키마는 SDK 패키지와 별도로 버전 관리되며, SDK는 최신 확정본을 자동으로
+          사용합니다.
+        </p>
+        <p className="mt-2">{versionDescription}</p>
         {plan.status === "draft" && publishedSchema ? (
-          <p className="mt-2">
-            아래 이벤트 목록, 속성 정의, 전송 예시는 초안이 아닌 마지막 확정본 기준입니다.
-          </p>
+          <p className="mt-2">아래 가이드는 마지막 확정본 기준입니다.</p>
         ) : null}
       </div>
 

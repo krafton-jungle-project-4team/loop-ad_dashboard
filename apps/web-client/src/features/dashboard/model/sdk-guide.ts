@@ -70,19 +70,19 @@ export function describeEventSchemaVersion({
     const nextRevision = (publishedSchema?.revision ?? 0) + 1;
     const changes = describeEventChanges(publishedSchema?.events ?? [], draftEvents);
     const activeVersion = publishedSchema
-      ? `확정 전까지 SDK는 이벤트 스키마 v${publishedSchema.revision}을 계속 사용합니다.`
-      : "확정 전까지 SDK에 적용되는 이벤트 스키마는 없습니다.";
-    return `확정 대기 중인 이벤트 스키마 v${nextRevision} 후보에는 이벤트 ${draftEvents.length}개가 포함됩니다. ${changes} ${activeVersion}`;
+      ? `확정 전 SDK 적용 버전은 v${publishedSchema.revision}입니다.`
+      : "확정 전 SDK 적용 버전은 없습니다.";
+    return `이벤트 스키마 v${nextRevision} 초안 · 이벤트 ${draftEvents.length}개. ${changes} ${activeVersion}`;
   }
 
   if (!publishedSchema) {
-    return "아직 확정된 이벤트 스키마가 없어 SDK에 적용되는 이벤트 계약이 없습니다.";
+    return "확정된 이벤트 스키마가 없어 SDK에 적용되는 이벤트 계약이 없습니다.";
   }
 
   const changes = previousSchema
     ? describeEventChanges(previousSchema.events, publishedSchema.events)
     : "첫 확정 버전입니다.";
-  return `현재 확정된 이벤트 스키마 v${publishedSchema.revision}에는 이벤트 ${publishedSchema.events.length}개가 포함됩니다. ${changes} SDK는 별도 버전 설정 없이 이 확정본을 자동으로 사용합니다.`;
+  return `현재 이벤트 스키마 v${publishedSchema.revision} · 이벤트 ${publishedSchema.events.length}개. ${changes}`;
 }
 
 function describeEventChanges(
