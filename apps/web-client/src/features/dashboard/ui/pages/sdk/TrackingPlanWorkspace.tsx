@@ -22,7 +22,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@loopad/ui/shadcn/alert-dialog";
-import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { Checkbox } from "@loopad/ui/shadcn/checkbox";
@@ -184,7 +183,6 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
               개발자 페이지 열기
             </Link>
           </Button>
-          <Badge variant="outline">{plan.status}</Badge>
         </div>
       </div>
       {error ? (
@@ -271,14 +269,12 @@ export function DeveloperWorkspace({
   return (
     <div className="grid gap-6">
       <header className="grid gap-2 border-b border-black/10 pb-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">Developer</Badge>
-          <Badge variant="secondary">revision {plan.currentRevision}</Badge>
-          <Badge variant="secondary">이벤트 {plan.events.length}개</Badge>
-        </div>
         <h1 className="text-3xl font-semibold tracking-tight">개발자 페이지</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           SDK 연결 설정과 이벤트·광고 연동 절차를 한곳에서 확인합니다.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          현재 리비전 {plan.currentRevision} · 이벤트 {plan.events.length}개
         </p>
       </header>
       {error ? (
@@ -304,40 +300,40 @@ function EventDesigner({
   plan: TrackingPlan;
   run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
 }) {
-  const [mode, setMode] = useState<"list" | "view" | "create" | "edit">("list");
-  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [mode, setMode] = useState<"view" | "create" | "edit">("view");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [selected, setSelected] = useState<TrackingPlanEvent | null>(null);
   const [eventName, setEventName] = useState("");
   const [description, setDescription] = useState("");
   const [properties, setProperties] = useState<PropertyDraft[]>([]);
-  const selected = plan.events.find((event) => event.eventName === selectedName) ?? null;
   const propertyIssues = validatePropertyDrafts(properties);
-  const panelOpen =
-    mode === "create" || ((mode === "view" || mode === "edit") && selected !== null);
 
-  function showList() {
-    setMode("list");
-    setSelectedName(null);
+  function closePanel() {
+    setPanelOpen(false);
   }
 
   function showEvent(event: TrackingPlanEvent) {
-    setSelectedName(event.eventName);
+    setSelected(event);
     setMode("view");
+    setPanelOpen(true);
   }
 
   function startCreate() {
-    setSelectedName(null);
+    setSelected(null);
     setEventName("");
     setDescription("");
     setProperties([]);
     setMode("create");
+    setPanelOpen(true);
   }
 
   function startEdit(event: TrackingPlanEvent) {
-    setSelectedName(event.eventName);
+    setSelected(event);
     setEventName(event.eventName);
     setDescription(event.description);
     setProperties(propertiesFromSchema(event.propertiesSchema));
     setMode("edit");
+    setPanelOpen(true);
   }
 
   async function save() {
@@ -349,7 +345,7 @@ function EventDesigner({
           propertiesSchema
         })
       );
-      if (saved) showList();
+      if (saved) closePanel();
       return;
     }
 
@@ -361,12 +357,12 @@ function EventDesigner({
         propertiesSchema
       })
     );
-    if (saved) showList();
+    if (saved) closePanel();
   }
 
   async function removeEvent(event: TrackingPlanEvent) {
     const deleted = await run(() => deleteTrackingPlanEvent(plan.projectId, event.eventName));
-    if (deleted) showList();
+    if (deleted) closePanel();
   }
 
   const isEdit = mode === "edit" && selected !== null;
@@ -411,23 +407,15 @@ function EventDesigner({
         </CardContent>
       </Card>
 
-      <Sheet
-        onOpenChange={(open) => {
-          if (!open) showList();
-        }}
-        open={panelOpen}
-      >
+      <Sheet onOpenChange={setPanelOpen} open={panelOpen}>
         <SheetContent
-          className="w-full gap-0 overflow-hidden sm:max-w-2xl"
+          className="w-full gap-0 overflow-hidden sm:max-w-3xl"
           data-testid="tracking-plan-event-panel"
           side="right"
         >
           {mode === "view" && selected ? (
             <>
               <SheetHeader className="border-b pr-14">
-                <Badge className="mb-2 w-fit" variant="outline">
-                  이벤트 상세
-                </Badge>
                 <SheetTitle className="text-xl">{selected.eventName}</SheetTitle>
                 <SheetDescription>{selected.description || "설명 없음"}</SheetDescription>
               </SheetHeader>
@@ -438,7 +426,7 @@ function EventDesigner({
                 </div>
               </div>
               <SheetFooter className="border-t sm:flex-row sm:justify-end">
-                <Button variant="outline" onClick={showList}>
+                <Button variant="outline" onClick={closePanel}>
                   닫기
                 </Button>
                 <Button onClick={() => startEdit(selected)}>수정</Button>
@@ -470,12 +458,12 @@ function EventDesigner({
                 </AlertDialog>
               </SheetFooter>
             </>
-          ) : (
+          ) : null}
+          {mode === "create" || (mode === "edit" && selected) ? (
             <>
               <SheetHeader className="border-b pr-14">
-                <Badge className="mb-2 w-fit">{isEdit ? "이벤트 수정" : "이벤트 생성"}</Badge>
                 <SheetTitle className="text-xl">
-                  {isEdit ? selected.eventName : "이벤트 추가"}
+                  {isEdit ? `${selected?.eventName} 수정` : "이벤트 추가"}
                 </SheetTitle>
                 <SheetDescription>
                   JSON을 직접 고치지 않고 속성 이름, 타입, 필수 여부를 정할 수 있어요.
@@ -514,7 +502,7 @@ function EventDesigner({
               <SheetFooter className="border-t sm:flex-row sm:justify-end">
                 <Button
                   variant="outline"
-                  onClick={() => (isEdit && selected ? showEvent(selected) : showList())}
+                  onClick={() => (isEdit && selected ? showEvent(selected) : closePanel())}
                 >
                   취소
                 </Button>
@@ -526,7 +514,7 @@ function EventDesigner({
                 </Button>
               </SheetFooter>
             </>
-          )}
+          ) : null}
         </SheetContent>
       </Sheet>
     </>
@@ -838,16 +826,13 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
   return (
     <article className="grid gap-5">
       <header className="grid gap-2 border-b pb-5">
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">How-to guide</Badge>
-          <Badge variant="secondary">{plan.status}</Badge>
-          <Badge variant="secondary">revision {plan.currentRevision}</Badge>
-          <Badge variant="secondary">이벤트 {plan.events.length}개</Badge>
-        </div>
         <h2 className="text-2xl font-semibold">이벤트 수집 SDK 연동</h2>
         <p className="text-sm leading-6 text-muted-foreground">
           현재 트래킹 플랜의 Origin, 이벤트 이름, 필수 속성, 타입을 기준으로 만든 가이드예요.
           게시하면 SDK에 적용돼요.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          현재 리비전 {plan.currentRevision} · 이벤트 {plan.events.length}개
         </p>
       </header>
 
