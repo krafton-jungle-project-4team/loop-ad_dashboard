@@ -26,6 +26,9 @@ test("segment performance estimate normalizes deterministic display values", () 
     unit: undefined,
     value: 0.3476,
     formatted: "34.8%",
+    expected_count: undefined,
+    expected_count_formatted: undefined,
+    expected_count_label: undefined,
     observed_value: 0.5,
     basis_label: "최근 행동 벡터 관찰 구간 기반 추정",
     window_days: undefined,
@@ -54,6 +57,21 @@ test("segment performance estimate rejects non-numeric rates", () => {
   );
 });
 
+test("segment performance estimate normalizes expected goal count", () => {
+  const estimate = normalizePromotionSegmentPerformanceEstimate({
+    metric: "booking_conversion_rate",
+    label: "예상 예약 전환율",
+    value: 0.049,
+    expected_count: "9.016",
+    expected_count_formatted: "잘못된 표시값",
+    expected_count_label: "예상 예약 인원"
+  });
+
+  assert.equal(estimate?.expected_count, 9.016);
+  assert.equal(estimate?.expected_count_formatted, "약 9.0명");
+  assert.equal(estimate?.expected_count_label, "예상 예약 인원");
+});
+
 test("segment performance estimate preserves an explicit unavailable state", () => {
   const estimate = normalizePromotionSegmentPerformanceEstimate({
     metric: "funnel_step_rate",
@@ -70,6 +88,9 @@ test("segment performance estimate preserves an explicit unavailable state", () 
     unit: undefined,
     value: undefined,
     formatted: undefined,
+    expected_count: undefined,
+    expected_count_formatted: undefined,
+    expected_count_label: undefined,
     observed_value: undefined,
     basis_label: undefined,
     window_days: undefined,
@@ -98,6 +119,9 @@ test("segment performance estimate keeps the v1-compatible core contract", () =>
       unit: undefined,
       value: 0.2,
       formatted: "20.0%",
+      expected_count: undefined,
+      expected_count_formatted: undefined,
+      expected_count_label: undefined,
       observed_value: undefined,
       basis_label: undefined,
       window_days: undefined,
@@ -131,6 +155,12 @@ test("segment suggestion display copy accepts the enriched AI contract", () => {
   const displayCopy = {
     title: "재방문 가능성이 높은 사용자",
     rank_role: "우선 검토",
+    recommendation_tier: "primary",
+    recommendation_tier_label: "주요 추천",
+    recommendation_tier_reason: "충분한 표본을 확보했습니다.",
+    recommendation_rank: 1,
+    rank_eligible: true,
+    minimum_primary_sample_size: 30,
     audience_summary: "최근 숙소를 조회했지만 예약하지 않은 사용자입니다.",
     performance_estimate: {
       metric: "booking_conversion_rate",
@@ -139,6 +169,9 @@ test("segment suggestion display copy accepts the enriched AI contract", () => {
       unit: "rate",
       value: 0.31,
       formatted: "31.0%",
+      expected_count: 49.6,
+      expected_count_formatted: "약 49.6명",
+      expected_count_label: "예상 예약 인원",
       observed_value: 0.27,
       basis_label: "최근 행동 기반 추정",
       window_days: 30,

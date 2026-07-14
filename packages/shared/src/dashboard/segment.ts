@@ -112,6 +112,9 @@ export const DashboardPromotionSegmentSuggestionPerformanceEstimateSchema = z.ob
   unit: z.string().optional(),
   value: RateSchema.optional(),
   formatted: z.string().optional(),
+  expected_count: z.number().nonnegative().optional(),
+  expected_count_formatted: z.string().optional(),
+  expected_count_label: z.string().optional(),
   observed_value: RateSchema.optional(),
   basis_label: z.string().optional(),
   window_days: CountSchema.optional(),
@@ -152,6 +155,7 @@ export function normalizePromotionSegmentPerformanceEstimate(
       ? "unavailable"
       : "available";
   const confidenceLabel = normalizedNonEmptyString(raw.confidence_label);
+  const expectedCount = normalizedNonNegativeNumber(raw.expected_count);
   return {
     metric,
     label,
@@ -159,6 +163,10 @@ export function normalizePromotionSegmentPerformanceEstimate(
     unit: normalizedNonEmptyString(raw.unit) ?? undefined,
     value: estimatedValue ?? undefined,
     formatted: estimatedValue === null ? undefined : `${(estimatedValue * 100).toFixed(1)}%`,
+    expected_count: expectedCount ?? undefined,
+    expected_count_formatted:
+      expectedCount === null ? undefined : `약 ${expectedCount.toFixed(1)}명`,
+    expected_count_label: normalizedNonEmptyString(raw.expected_count_label) ?? undefined,
     observed_value: normalizedRate(raw.observed_value) ?? undefined,
     basis_label: normalizedNonEmptyString(raw.basis_label) ?? undefined,
     window_days: normalizedPositiveCount(raw.window_days) ?? undefined,
@@ -287,9 +295,20 @@ function normalizedNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizedNonNegativeNumber(value: unknown): number | null {
+  const number = normalizedNumber(value);
+  return number === null ? null : Math.max(0, number);
+}
+
 export const DashboardPromotionSegmentSuggestionDisplayCopySchema = z.object({
   title: z.string(),
   rank_role: z.string().optional(),
+  recommendation_tier: z.enum(["primary", "small_high_intent"]).optional(),
+  recommendation_tier_label: z.string().optional(),
+  recommendation_tier_reason: z.string().optional(),
+  recommendation_rank: CountSchema.optional(),
+  rank_eligible: z.boolean().optional(),
+  minimum_primary_sample_size: CountSchema.optional(),
   audience_summary: z.string(),
   audience: DashboardPromotionSegmentSuggestionAudienceSchema.optional(),
   performance_estimate: DashboardPromotionSegmentSuggestionPerformanceEstimateSchema.optional(),

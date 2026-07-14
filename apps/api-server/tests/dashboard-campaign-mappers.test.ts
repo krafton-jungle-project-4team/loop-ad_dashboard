@@ -56,6 +56,12 @@ test("segment suggestion mapper preserves enriched AI metadata", () => {
     metadataJson: {
       display_copy: {
         title: "재방문 가능성이 높은 사용자",
+        recommendation_tier: "small_high_intent",
+        recommendation_tier_label: "소규모 고의도 후보",
+        recommendation_tier_reason: "추천 대상이 예측 기준 표본보다 적습니다.",
+        recommendation_rank: null,
+        rank_eligible: false,
+        minimum_primary_sample_size: "30",
         audience_summary: "최근 숙소를 조회했지만 예약하지 않은 사용자입니다.",
         performance_estimate: {
           metric: "booking_conversion_rate",
@@ -63,6 +69,9 @@ test("segment suggestion mapper preserves enriched AI metadata", () => {
           availability: "available",
           unit: "rate",
           value: "0.31",
+          expected_count: "1.24",
+          expected_count_formatted: "오래된 표시값",
+          expected_count_label: "예상 예약 인원",
           basis_label: "최근 행동 기반 추정",
           window_days: "30",
           window_label: "향후 30일",
@@ -121,6 +130,11 @@ test("segment suggestion mapper preserves enriched AI metadata", () => {
   assert.equal(suggestion.display_copy?.performance_estimate?.calibration_status, "calibrated");
   assert.equal(suggestion.display_copy?.performance_estimate?.window_days, 30);
   assert.equal(suggestion.display_copy?.performance_estimate?.confidence_label, "medium");
+  assert.equal(suggestion.display_copy?.performance_estimate?.expected_count, 1.24);
+  assert.equal(suggestion.display_copy?.performance_estimate?.expected_count_formatted, "약 1.2명");
+  assert.equal(suggestion.display_copy?.recommendation_tier, "small_high_intent");
+  assert.equal(suggestion.display_copy?.rank_eligible, false);
+  assert.equal(suggestion.display_copy?.minimum_primary_sample_size, 30);
   assert.equal(suggestion.display_copy?.audience?.matching_user_count, 230);
   assert.equal(suggestion.display_copy?.audience?.selected_user_count, 160);
   assert.equal(suggestion.display_copy?.rank_comparison?.direction, "higher");
