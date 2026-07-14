@@ -513,7 +513,7 @@ function SegmentSuggestionReportDialog({
             </div>
             <DialogTitle>{report.title}</DialogTitle>
             <DialogDescription>
-              후보를 확정하기 전에 고객 특성과 추천 이유를 확인해 보세요.
+              후보를 확정하기 전에 고객 특성과 추천 이유를 확인해 봐요.
             </DialogDescription>
           </DialogHeader>
           <SegmentSuggestionReportContent suggestion={suggestion} />
