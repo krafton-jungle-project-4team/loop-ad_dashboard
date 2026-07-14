@@ -365,7 +365,7 @@ export function CampaignWorkspacePage({
               },
               {
                 id: "performance",
-                label: "캠페인 성과",
+                label: "성과",
                 onSelect: () => openCampaignView(card.id, "performance")
               }
             ]}
