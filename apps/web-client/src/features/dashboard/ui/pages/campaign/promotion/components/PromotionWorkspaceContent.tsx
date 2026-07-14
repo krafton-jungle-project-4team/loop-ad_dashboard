@@ -1,4 +1,5 @@
 import type {
+  CreativeArtifact,
   DashboardAdExperiment,
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
@@ -22,6 +23,14 @@ import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { Checkbox } from "@loopad/ui/shadcn/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@loopad/ui/shadcn/dialog";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
@@ -69,6 +78,7 @@ import {
   segmentLoopCount,
   statusBadgeVariant,
   contentCandidateMessage,
+  contentCandidateHtmlArtifact,
   contentCandidateTitle,
   mutationErrorMessage,
   type PromotionSegmentCreateFormState,
@@ -852,6 +862,7 @@ function PromotionSegmentDetailTab({
             {currentContentCandidates.length > 0 ? (
               <div className="grid gap-3 lg:grid-cols-2">
                 {currentContentCandidates.map((candidate) => {
+                  const htmlArtifact = contentCandidateHtmlArtifact(candidate);
                   const hasDifferentApprovedCandidate = Boolean(
                     approvedContentCandidate &&
                     approvedContentCandidate.content_id !== candidate.content_id
@@ -962,14 +973,16 @@ function PromotionSegmentDetailTab({
                       </CardHeader>
                       <CardContent className="grid gap-4">
                         {candidate.image_url ? (
-                          <img
+                          <ContentCandidateImagePreview
                             alt={`${contentCandidateTitle(candidate)} 이미지`}
-                            className="aspect-video w-full rounded-md border object-cover"
-                            decoding="async"
-                            height={675}
-                            loading="lazy"
                             src={candidate.image_url}
-                            width={1200}
+                            title={contentCandidateTitle(candidate)}
+                          />
+                        ) : null}
+                        {htmlArtifact ? (
+                          <ContentCandidateHtmlPreview
+                            artifact={htmlArtifact}
+                            title={contentCandidateTitle(candidate)}
                           />
                         ) : null}
                         <div className="grid gap-3 md:grid-cols-2">
@@ -1061,6 +1074,130 @@ function contentCandidateSelectionReason(
     return "이 광고 소재가 다음 실험에 사용돼요. 다른 소재로 바꾸려면 먼저 선택을 해제해 주세요.";
   }
   return "이 광고 소재를 선택하면 다음 실험에 사용돼요.";
+}
+
+function ContentCandidateImagePreview({
+  alt,
+  src,
+  title
+}: {
+  alt: string;
+  src: string;
+  title: string;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          aria-label={`${title} 이미지 크게 보기`}
+          className="group relative mx-auto h-auto w-full max-w-sm overflow-hidden p-0"
+          type="button"
+          variant="outline"
+        >
+          <img
+            alt={alt}
+            className="aspect-video w-full object-cover"
+            decoding="async"
+            height={216}
+            loading="lazy"
+            src={src}
+            width={384}
+          />
+          <span className="absolute inset-x-3 bottom-3 rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+            크게 보기
+          </span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
+        <DialogHeader className="pr-8">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>광고 소재 이미지를 크게 확인해요.</DialogDescription>
+        </DialogHeader>
+        <img
+          alt={alt}
+          className="max-h-[calc(65vh-6rem)] w-full rounded-md object-contain"
+          decoding="async"
+          height={675}
+          src={src}
+          width={1200}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ContentCandidateHtmlPreview({
+  artifact,
+  title
+}: {
+  artifact: CreativeArtifact;
+  title: string;
+}) {
+  if (artifact.artifact_status === "published" && artifact.public_url) {
+    return (
+      <div className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid gap-1">
+          <p className="text-sm font-medium">HTML 광고 미리보기</p>
+          <p className="text-xs text-muted-foreground">
+            실제 발송·노출에 사용하는 HTML 화면을 확인해요.
+          </p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="shrink-0" size="sm" type="button" variant="outline">
+              광고 미리보기
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
+            <DialogHeader className="pr-8">
+              <DialogTitle>{title}</DialogTitle>
+              <DialogDescription>
+                실제 광고 HTML을 안전한 미리보기 화면으로 보여드려요.
+              </DialogDescription>
+            </DialogHeader>
+            <iframe
+              className="h-[min(30rem,50vh)] w-full rounded-md border bg-background"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              sandbox="allow-scripts"
+              src={artifact.public_url}
+              title={`${title} HTML 광고 미리보기`}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  if (artifact.artifact_status === "failed") {
+    return (
+      <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium">HTML 광고 미리보기</p>
+          <Badge variant="destructive">생성 실패</Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          HTML 미리보기를 만들지 못했어요. 광고 소재를 다시 만들어 주세요.
+        </p>
+      </div>
+    );
+  }
+
+  if (artifact.artifact_status === "pending") {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
+        <div className="grid gap-1">
+          <p className="text-sm font-medium">HTML 광고 미리보기</p>
+          <p className="text-xs text-muted-foreground">
+            HTML 생성이 끝나면 여기에서 실제 광고 화면을 볼 수 있어요.
+          </p>
+        </div>
+        <Badge variant="outline">준비 중</Badge>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function SegmentConnectedExperimentsCard({

@@ -1,4 +1,5 @@
 import {
+  CreativeArtifactSchema,
   DashboardPromotionChannelSchema,
   DashboardPromotionGoalBasisSchema,
   DashboardPromotionGoalMetricSchema,
@@ -8,6 +9,7 @@ import {
   normalizePromotionSegmentRankComparison,
   type DashboardCampaignPromotion,
   type DashboardCampaignSegment,
+  type CreativeArtifact,
   type DashboardCreatePromotionSegmentDefinitionRequest,
   type DashboardCreatePromotionRequest,
   type DashboardUpdatePromotionRequest,
@@ -303,6 +305,24 @@ export function contentCandidateMessage(
   candidate: DashboardSegmentDetail["content_candidates"][number]
 ) {
   return candidate.body ?? candidate.message ?? candidate.generation_prompt ?? "-";
+}
+
+export function contentCandidateHtmlArtifact(
+  candidate: DashboardSegmentDetail["content_candidates"][number]
+): CreativeArtifact | null {
+  const creative = candidate.metadata_json.creative;
+  if (!creative || typeof creative !== "object" || Array.isArray(creative)) {
+    return null;
+  }
+
+  const parsedArtifact = CreativeArtifactSchema.safeParse(
+    (creative as Record<string, unknown>).artifact
+  );
+  if (!parsedArtifact.success || parsedArtifact.data.creative_format === "sms_text") {
+    return null;
+  }
+
+  return parsedArtifact.data;
 }
 
 export function activeContentCandidates(detail: DashboardSegmentDetail) {
