@@ -388,24 +388,6 @@ export function parseJsonObject(value: string): Record<string, unknown> | null {
   }
 }
 
-export function segmentWorkflowCurrentStep({
-  candidateCount,
-  confirmedCandidateCount,
-  selectedCandidateCount
-}: {
-  candidateCount: number;
-  confirmedCandidateCount: number;
-  selectedCandidateCount: number;
-}): 1 | 2 | 3 | 4 {
-  if (confirmedCandidateCount > 0) {
-    return 4;
-  }
-  if (selectedCandidateCount > 0) {
-    return 3;
-  }
-  return candidateCount > 0 ? 2 : 1;
-}
-
 export function mutationErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "문제가 생겼어요. 다시 시도해 주세요.";
 }

@@ -28,7 +28,6 @@ import {
 import { Field, FieldError, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
-import { cn } from "@loopad/ui/shadcn/utils";
 import { BarChart3, CheckCircle2, FileText, Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
@@ -40,7 +39,6 @@ import {
   formatPercentValue,
   parseJsonObject,
   segmentAudienceSummary,
-  segmentWorkflowCurrentStep,
   statusBadgeVariant,
   type PromotionSegmentCreateFormState
 } from "../promotionUtils.js";
@@ -50,14 +48,6 @@ type SegmentSuggestionDisplayCopy = NonNullable<
 >;
 type SegmentPerformanceEstimate = NonNullable<SegmentSuggestionDisplayCopy["performance_estimate"]>;
 type SegmentAudience = NonNullable<SegmentSuggestionDisplayCopy["audience"]>;
-
-const segmentWorkflowSteps = [
-  "후보 생성",
-  "사용할 후보 선택",
-  "후보 확정",
-  "광고 소재 생성",
-  "실험 시작"
-] as const;
 
 export function PromotionSegmentSuggestionPanel({
   archiveScopedSegmentIsPending,
@@ -99,18 +89,7 @@ export function PromotionSegmentSuggestionPanel({
   const acceptedCount = suggestions.filter(
     (suggestion) => suggestion.suggestion_status === "accepted"
   ).length;
-  const confirmedCount = suggestions.filter(
-    (suggestion) => suggestion.suggestion_status === "confirmed"
-  ).length;
-  const candidateCount =
-    suggestions.filter((suggestion) => suggestion.suggestion_status !== "dismissed").length +
-    scopedSegments.length;
   const confirmableCount = acceptedCount + scopedSegments.length;
-  const currentWorkflowStep = segmentWorkflowCurrentStep({
-    candidateCount,
-    confirmedCandidateCount: confirmedCount,
-    selectedCandidateCount: confirmableCount
-  });
 
   return (
     <Card className="h-full shadow-none">
@@ -122,7 +101,6 @@ export function PromotionSegmentSuggestionPanel({
             실험을 시작할 수 있어요.
           </CardDescription>
         </div>
-        <SegmentWorkflowGuide currentStep={currentWorkflowStep} />
         <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="grid gap-2">
             <p className="text-xs font-medium text-muted-foreground">1. 세그먼트 후보 생성</p>
@@ -408,35 +386,6 @@ export function PromotionSegmentSuggestionPanel({
         ) : null}
       </CardContent>
     </Card>
-  );
-}
-
-function SegmentWorkflowGuide({ currentStep }: { currentStep: 1 | 2 | 3 | 4 }) {
-  return (
-    <ol aria-label="세그먼트부터 실험까지 권장 흐름" className="grid grid-cols-5 gap-2">
-      {segmentWorkflowSteps.map((step, index) => {
-        const stepNumber = index + 1;
-        const isCurrent = stepNumber === currentStep;
-        const isComplete = stepNumber < currentStep;
-
-        return (
-          <li
-            aria-current={isCurrent ? "step" : undefined}
-            className={cn(
-              "grid min-w-0 gap-1 rounded-md border px-3 py-2 text-xs",
-              isCurrent && "border-primary bg-accent text-primary",
-              isComplete && "border-primary/30 bg-accent/40",
-              !isCurrent && !isComplete && "text-muted-foreground"
-            )}
-            key={step}
-          >
-            <span className="tabular-nums">{stepNumber}</span>
-            <span className="break-keep font-medium">{step}</span>
-            {isCurrent ? <span className="text-[11px]">현재 단계</span> : null}
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 
