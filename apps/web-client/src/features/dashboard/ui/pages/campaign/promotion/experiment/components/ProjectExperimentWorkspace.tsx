@@ -429,7 +429,6 @@ function ProjectExperimentTable({
       <Table className="min-w-[1080px]">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-40">실험</TableHead>
             <TableHead>캠페인 / 프로모션</TableHead>
             <TableHead>세그먼트</TableHead>
             <TableHead>노출 방식</TableHead>
@@ -438,6 +437,7 @@ function ProjectExperimentTable({
             <TableHead>실행 상태</TableHead>
             <TableHead>평가</TableHead>
             <TableHead>업데이트</TableHead>
+            <TableHead className="w-40 text-right">실험</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -447,20 +447,6 @@ function ProjectExperimentTable({
 
             return (
               <TableRow aria-selected={isSelected} key={experiment.ad_experiment_id}>
-                <TableCell className="w-40">
-                  <Button
-                    aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
-                    className="h-9 min-w-28 justify-center px-4"
-                    onClick={() => onSelect(experiment)}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <span className="font-medium">
-                      {formatInteger(experiment.loop_count)}번째 실험
-                    </span>
-                  </Button>
-                </TableCell>
                 <TableCell>
                   <div className="grid min-w-52 gap-0.5">
                     <span className="font-medium">{experiment.campaign_name}</span>
@@ -498,6 +484,20 @@ function ProjectExperimentTable({
                   </div>
                 </TableCell>
                 <TableCell>{formatDateTime(experiment.updated_at)}</TableCell>
+                <TableCell className="w-40 text-right">
+                  <Button
+                    aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
+                    className="h-9 min-w-28 justify-center px-4"
+                    onClick={() => onSelect(experiment)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <span className="font-medium">
+                      {formatInteger(experiment.loop_count)}번째 실험
+                    </span>
+                  </Button>
+                </TableCell>
               </TableRow>
             );
           })}
