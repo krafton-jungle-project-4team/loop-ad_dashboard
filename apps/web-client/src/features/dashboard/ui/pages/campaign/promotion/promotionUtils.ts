@@ -298,7 +298,7 @@ function nonNegativeInteger(value: unknown): number | null {
 export function contentCandidateTitle(
   candidate: DashboardSegmentDetail["content_candidates"][number]
 ) {
-  return candidate.title ?? candidate.subject ?? candidate.message ?? candidate.content_id;
+  return candidate.title ?? candidate.subject ?? candidate.message ?? "광고 소재 후보";
 }
 
 export function contentCandidateMessage(
@@ -323,6 +323,24 @@ export function contentCandidateHtmlArtifact(
   }
 
   return parsedArtifact.data;
+}
+
+export function contentCandidateIsReadyForSelection(
+  candidate: DashboardSegmentDetail["content_candidates"][number]
+) {
+  const imageIsReady = !candidate.image_prompt || Boolean(candidate.image_url);
+  if (!imageIsReady) {
+    return false;
+  }
+
+  if (candidate.channel !== "email" && candidate.channel !== "onsite_banner") {
+    return true;
+  }
+
+  const htmlArtifact = contentCandidateHtmlArtifact(candidate);
+  return Boolean(
+    htmlArtifact?.artifact_status === "published" && htmlArtifact.public_url
+  );
 }
 
 export function activeContentCandidates(detail: DashboardSegmentDetail) {

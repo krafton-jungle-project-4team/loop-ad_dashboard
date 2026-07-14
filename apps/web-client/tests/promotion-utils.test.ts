@@ -5,6 +5,8 @@ import {
   activeContentCandidates,
   canStartAdExperiment,
   contentCandidateHtmlArtifact,
+  contentCandidateIsReadyForSelection,
+  contentCandidateTitle,
   nextExperimentLoopCount,
   normalizeSegmentDisplayCopy,
   promotionFormToUpdateRequest,
@@ -67,6 +69,18 @@ test("creative selection only uses candidates from the segment's active analysis
   );
 });
 
+test("creative title never exposes an internal content id", () => {
+  const candidate = {
+    body: null,
+    content_id: "email_ai_raw_internal_id",
+    message: null,
+    subject: null,
+    title: null
+  } as DashboardSegmentDetail["content_candidates"][number];
+
+  assert.equal(contentCandidateTitle(candidate), "광고 소재 후보");
+});
+
 test("HTML creative artifact is exposed only for valid HTML metadata", () => {
   const candidate = {
     metadata_json: {
@@ -104,6 +118,49 @@ test("HTML creative artifact ignores malformed metadata and text-only creatives"
 
   assert.equal(contentCandidateHtmlArtifact(malformedCandidate), null);
   assert.equal(contentCandidateHtmlArtifact(smsCandidate), null);
+});
+
+test("creative selection waits for every required image and HTML artifact", () => {
+  const readyEmailCandidate = {
+    channel: "email",
+    image_prompt: "호텔 이미지",
+    image_url: "https://assets.example.com/creative.png",
+    metadata_json: {
+      creative: {
+        artifact: {
+          artifact_status: "published",
+          creative_format: "email_html",
+          public_url: "https://assets.example.com/creative.html"
+        }
+      }
+    }
+  } as DashboardSegmentDetail["content_candidates"][number];
+  const pendingHtmlCandidate = {
+    ...readyEmailCandidate,
+    metadata_json: {
+      creative: {
+        artifact: {
+          artifact_status: "pending",
+          creative_format: "email_html"
+        }
+      }
+    }
+  } as DashboardSegmentDetail["content_candidates"][number];
+  const pendingImageCandidate = {
+    ...readyEmailCandidate,
+    image_url: null
+  } as DashboardSegmentDetail["content_candidates"][number];
+  const readySmsCandidate = {
+    channel: "sms",
+    image_prompt: null,
+    image_url: null,
+    metadata_json: {}
+  } as DashboardSegmentDetail["content_candidates"][number];
+
+  assert.equal(contentCandidateIsReadyForSelection(readyEmailCandidate), true);
+  assert.equal(contentCandidateIsReadyForSelection(pendingHtmlCandidate), false);
+  assert.equal(contentCandidateIsReadyForSelection(pendingImageCandidate), false);
+  assert.equal(contentCandidateIsReadyForSelection(readySmsCandidate), true);
 });
 
 test("the next experiment increments the highest loop for its segment", () => {

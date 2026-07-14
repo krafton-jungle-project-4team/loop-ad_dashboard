@@ -79,6 +79,7 @@ import {
   statusBadgeVariant,
   contentCandidateMessage,
   contentCandidateHtmlArtifact,
+  contentCandidateIsReadyForSelection,
   contentCandidateTitle,
   mutationErrorMessage,
   type PromotionSegmentCreateFormState,
@@ -785,6 +786,11 @@ function PromotionSegmentDetailTab({
     (candidate) => candidate.status === "approved"
   );
   const hasGeneratedContentCandidates = currentContentCandidates.length > 0;
+  const contentCandidatesAreReady =
+    hasGeneratedContentCandidates &&
+    currentContentCandidates.every(contentCandidateIsReadyForSelection);
+  const generationIsIncomplete =
+    generationIsPending || (hasGeneratedContentCandidates && !contentCandidatesAreReady);
 
   return (
     <section className="grid gap-4">
@@ -845,12 +851,12 @@ function PromotionSegmentDetailTab({
                 type="button"
                 variant="outline"
               >
-                {generationIsPending ? (
+                {generationIsIncomplete ? (
                   <Spinner aria-hidden="true" data-icon="inline-start" />
                 ) : (
                   <ImageIcon aria-hidden="true" data-icon="inline-start" />
                 )}
-                {generationIsPending
+                {generationIsIncomplete
                   ? "광고 소재 만드는 중…"
                   : hasGeneratedContentCandidates
                     ? "광고 소재 생성 완료"
@@ -871,7 +877,8 @@ function PromotionSegmentDetailTab({
                   const selectionReason = contentCandidateSelectionReason(
                     candidate.status,
                     approveContentCandidateIsPending,
-                    hasDifferentApprovedCandidate
+                    hasDifferentApprovedCandidate,
+                    generationIsIncomplete
                   );
 
                   return (
@@ -901,6 +908,7 @@ function PromotionSegmentDetailTab({
                               data-disabled={
                                 approveContentCandidateIsPending ||
                                 hasDifferentApprovedCandidate ||
+                                generationIsIncomplete ||
                                 candidate.status === "rejected"
                               }
                               orientation="horizontal"
@@ -912,6 +920,7 @@ function PromotionSegmentDetailTab({
                                 disabled={
                                   approveContentCandidateIsPending ||
                                   hasDifferentApprovedCandidate ||
+                                  generationIsIncomplete ||
                                   candidate.status === "rejected"
                                 }
                                 id={selectionId}
@@ -939,6 +948,7 @@ function PromotionSegmentDetailTab({
                               disabled={
                                 rejectContentCandidateIsPending ||
                                 Boolean(approvedContentCandidate) ||
+                                generationIsIncomplete ||
                                 candidate.status === "approved" ||
                                 candidate.status === "rejected"
                               }
@@ -967,9 +977,6 @@ function PromotionSegmentDetailTab({
                         >
                           {selectionReason}
                         </p>
-                        <CardDescription className="break-all">
-                          {candidate.content_option_id}
-                        </CardDescription>
                       </CardHeader>
                       <CardContent className="grid min-w-0 gap-4">
                         {candidate.image_url || htmlArtifact ? (
@@ -1069,8 +1076,12 @@ function PromotionSegmentDetailTab({
 function contentCandidateSelectionReason(
   status: string,
   isPending: boolean,
-  hasDifferentApprovedCandidate: boolean
+  hasDifferentApprovedCandidate: boolean,
+  generationIsIncomplete: boolean
 ) {
+  if (generationIsIncomplete) {
+    return "광고 소재 생성이 끝나면 선택할 수 있어요. 이미지와 HTML을 준비하고 있어요.";
+  }
   if (isPending) {
     return "광고 소재 선택 상태를 저장하고 있어요. 저장이 끝나면 다른 소재를 선택할 수 있어요.";
   }

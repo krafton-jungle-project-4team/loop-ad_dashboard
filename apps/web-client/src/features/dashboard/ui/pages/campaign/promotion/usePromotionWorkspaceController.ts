@@ -406,6 +406,9 @@ export function usePromotionWorkspaceController({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
       });
       await queryClient.invalidateQueries({
+        queryKey: dashboardPromotionDetailQueryKey(query.projectId, variables.promotionId)
+      });
+      await queryClient.invalidateQueries({
         queryKey: dashboardSegmentDetailQueryKey(
           query.projectId,
           variables.promotionId,
