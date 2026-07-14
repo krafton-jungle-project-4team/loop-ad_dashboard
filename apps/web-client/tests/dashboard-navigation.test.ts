@@ -26,7 +26,7 @@ test("dashboard sidebar exposes the product-led flat navigation order", () => {
         label: ""
       },
       {
-        items: ["워크플로우", "데이터 탐색기", "SDK 연동"],
+        items: ["워크플로우", "데이터 탐색기", "SDK 관리"],
         label: ""
       }
     ]
@@ -34,6 +34,12 @@ test("dashboard sidebar exposes the product-led flat navigation order", () => {
   assert.equal(
     dashboardNavigationGroups.every((group) => group.items.every((item) => item.type === "link")),
     true
+  );
+  assert.equal(
+    dashboardNavigationGroups.some((group) =>
+      group.items.some((item) => item.label.includes("개발자"))
+    ),
+    false
   );
 });
 

@@ -21,8 +21,6 @@ import {
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import { PG_POOL } from "../../infra/database/index.js";
 
-const SYSTEM_EVENT_NAMES = ["page_view"] as const;
-
 type PlanRow = QueryResultRow & {
   tracking_plan_id: string;
   project_id: string;
@@ -37,7 +35,6 @@ type PlanRow = QueryResultRow & {
 type EventRow = QueryResultRow & {
   event_name: string;
   description: string | null;
-  status: TrackingPlanEvent["status"];
   properties_schema_json: unknown;
 };
 
@@ -98,37 +95,15 @@ export class TrackingPlanRepository {
           [projectId]
         );
       }
-      const initialEventsByName = new Map(
-        initialEvents.map((event) => [event.eventName, event] as const)
-      );
-      const eventsToCreate = [
-        ...SYSTEM_EVENT_NAMES.map((eventName) => {
-          const observed = initialEventsByName.get(eventName);
-          return {
-            description: observed?.description ?? `${eventName} standard event`,
-            eventName,
-            propertiesSchema:
-              observed?.propertiesSchema ??
-              ({ type: "object", properties: {}, required: [] } as const),
-            status: "system" as const
-          };
-        }),
-        ...initialEvents
-          .filter(
-            (event) => !(SYSTEM_EVENT_NAMES as ReadonlyArray<string>).includes(event.eventName)
-          )
-          .map((event) => ({ ...event, status: "draft" as const }))
-      ];
-      for (const event of eventsToCreate) {
+      for (const event of initialEvents) {
         await client.query(
           `INSERT INTO tracking_plan_events
              (tracking_plan_id, event_name, description, status, properties_schema_json)
-           VALUES ($1, $2, $3, $4, $5::jsonb)`,
+           VALUES ($1, $2, $3, 'draft', $4::jsonb)`,
           [
             trackingPlanId,
             event.eventName,
             event.description,
-            event.status,
             JSON.stringify(event.propertiesSchema)
           ]
         );
@@ -182,8 +157,8 @@ export class TrackingPlanRepository {
   }
 
   async deleteEvent(projectId: string, eventName: string): Promise<TrackingPlan> {
-    const event = await this.pool.query<{ tracking_plan_id: string; status: string }>(
-      `SELECT event.tracking_plan_id, event.status
+    const event = await this.pool.query<{ tracking_plan_id: string }>(
+      `SELECT event.tracking_plan_id
        FROM tracking_plan_events event
        JOIN tracking_plans plan ON plan.tracking_plan_id = event.tracking_plan_id
        WHERE plan.project_id = $1 AND plan.status <> 'archived' AND event.event_name = $2`,
@@ -191,7 +166,6 @@ export class TrackingPlanRepository {
     );
     const row = event.rows[0];
     if (!row) throw new NotFoundException("Tracking Plan event was not found.");
-    if (row.status === "system") throw new BadRequestException("System events cannot be deleted.");
     await this.pool.query(
       "DELETE FROM tracking_plan_events WHERE tracking_plan_id = $1 AND event_name = $2",
       [row.tracking_plan_id, eventName]
@@ -241,7 +215,7 @@ export class TrackingPlanRepository {
       const snapshot = SdkPublishedSchemaSchema.parse({
         schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
         revision,
-        events: events.map(({ status: _status, ...event }) => event)
+        events
       });
       await client.query(
         `INSERT INTO tracking_plan_revisions
@@ -331,16 +305,15 @@ export class TrackingPlanRepository {
     executor: Pool | PoolClient
   ): Promise<TrackingPlanEvent[]> {
     const result = await executor.query<EventRow>(
-      `SELECT event_name, description, status, properties_schema_json
+      `SELECT event_name, description, properties_schema_json
        FROM tracking_plan_events
        WHERE tracking_plan_id = $1 AND status <> 'archived'
-       ORDER BY CASE WHEN status = 'system' THEN 0 ELSE 1 END, event_name`,
+       ORDER BY event_name`,
       [trackingPlanId]
     );
     return result.rows.map((event) => ({
       eventName: event.event_name,
       description: event.description ?? "",
-      status: event.status,
       propertiesSchema: TrackingPlanPropertiesSchemaSchema.parse(event.properties_schema_json)
     }));
   }

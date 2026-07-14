@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DeveloperProjectIdRouteImport } from './routes/developer.$projectId'
 import { Route as DashboardProjectIdRouteImport } from './routes/dashboard.$projectId'
 import { Route as DashboardProjectIdIndexRouteImport } from './routes/dashboard.$projectId.index'
 import { Route as DashboardProjectIdTabPathRouteImport } from './routes/dashboard.$projectId.$tabPath'
@@ -30,6 +31,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DashboardRoute,
+} as any)
+const DeveloperProjectIdRoute = DeveloperProjectIdRouteImport.update({
+  id: '/developer/$projectId',
+  path: '/developer/$projectId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardProjectIdRoute = DashboardProjectIdRouteImport.update({
   id: '/$projectId',
@@ -52,12 +58,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/$projectId': typeof DashboardProjectIdRouteWithChildren
+  '/developer/$projectId': typeof DeveloperProjectIdRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/$projectId/$tabPath': typeof DashboardProjectIdTabPathRoute
   '/dashboard/$projectId/': typeof DashboardProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/developer/$projectId': typeof DeveloperProjectIdRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/$projectId/$tabPath': typeof DashboardProjectIdTabPathRoute
   '/dashboard/$projectId': typeof DashboardProjectIdIndexRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/$projectId': typeof DashboardProjectIdRouteWithChildren
+  '/developer/$projectId': typeof DeveloperProjectIdRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/$projectId/$tabPath': typeof DashboardProjectIdTabPathRoute
   '/dashboard/$projectId/': typeof DashboardProjectIdIndexRoute
@@ -77,12 +86,14 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/dashboard/$projectId'
+    | '/developer/$projectId'
     | '/dashboard/'
     | '/dashboard/$projectId/$tabPath'
     | '/dashboard/$projectId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/developer/$projectId'
     | '/dashboard'
     | '/dashboard/$projectId/$tabPath'
     | '/dashboard/$projectId'
@@ -91,6 +102,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/dashboard/$projectId'
+    | '/developer/$projectId'
     | '/dashboard/'
     | '/dashboard/$projectId/$tabPath'
     | '/dashboard/$projectId/'
@@ -99,6 +111,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  DeveloperProjectIdRoute: typeof DeveloperProjectIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -123,6 +136,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/'
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/developer/$projectId': {
+      id: '/developer/$projectId'
+      path: '/developer/$projectId'
+      fullPath: '/developer/$projectId'
+      preLoaderRoute: typeof DeveloperProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/$projectId': {
       id: '/dashboard/$projectId'
@@ -178,6 +198,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  DeveloperProjectIdRoute: DeveloperProjectIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

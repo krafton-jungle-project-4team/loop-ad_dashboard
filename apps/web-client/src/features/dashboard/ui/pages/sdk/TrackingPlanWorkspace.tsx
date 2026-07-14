@@ -11,6 +11,17 @@ import {
   TRACKING_PLAN_RESERVED_ROOT_PROPERTIES,
   TRACKING_PLAN_UNSAFE_PROPERTIES
 } from "@loopad/shared";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
@@ -20,6 +31,7 @@ import { Input } from "@loopad/ui/shadcn/input";
 import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   eventSdkInitCode,
@@ -54,17 +66,10 @@ type SchemaDraft = {
 const DEFAULT_DEMO_ORIGIN = "https://demo-shoppingmall.dev.loop-ad.org";
 let nextPropertyDraftId = 0;
 
-export function TrackingPlanWorkspace({
-  projectId,
-  advertisementGuide
-}: {
-  projectId: string;
-  advertisementGuide: ReactNode;
-}) {
+export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
   const [plan, setPlan] = useState<TrackingPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [validation, setValidation] = useState<TrackingPlanValidation | null>(null);
   const [creationMode, setCreationMode] = useState<"basic" | "observed" | null>(null);
 
   useEffect(() => {
@@ -89,7 +94,6 @@ export function TrackingPlanWorkspace({
     setError(null);
     try {
       setPlan(await action());
-      setValidation(null);
       return true;
     } catch (cause) {
       setError(
@@ -161,14 +165,18 @@ export function TrackingPlanWorkspace({
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">SDK 연동</h1>
+          <h1 className="text-2xl font-semibold">SDK 관리</h1>
           <p className="text-sm text-muted-foreground">
-            입력 항목을 채워 이벤트 규칙을 만들고 게시해요.
+            마케팅에 사용할 이벤트 이름과 속성 규칙을 관리해요.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline">
+            <Link params={{ projectId }} to="/developer/$projectId">
+              개발자 페이지 열기
+            </Link>
+          </Button>
           <Badge variant="outline">{plan.status}</Badge>
-          <Badge variant="secondary">revision {plan.currentRevision}</Badge>
         </div>
       </div>
       {error ? (
@@ -176,27 +184,107 @@ export function TrackingPlanWorkspace({
           {error}
         </p>
       ) : null}
-      <Tabs defaultValue="design">
-        <TabsList className="flex h-auto flex-wrap">
-          <TabsTrigger value="design">이벤트 설계</TabsTrigger>
-          <TabsTrigger value="connection">SDK 연결</TabsTrigger>
-          <TabsTrigger value="guide">개발자 가이드</TabsTrigger>
-        </TabsList>
-        <TabsContent value="design">
-          <EventDesigner plan={plan} run={run} />
-        </TabsContent>
-        <TabsContent value="connection">
-          <ConnectionPanel
-            plan={plan}
-            run={run}
-            validation={validation}
-            setValidation={setValidation}
-          />
-        </TabsContent>
-        <TabsContent value="guide">
-          <DeveloperGuide advertisementGuide={advertisementGuide} plan={plan} />
-        </TabsContent>
-      </Tabs>
+      <EventDesigner plan={plan} run={run} />
+    </div>
+  );
+}
+
+export function DeveloperWorkspace({
+  advertisementGuide,
+  projectId
+}: {
+  advertisementGuide: ReactNode;
+  projectId: string;
+}) {
+  const [plan, setPlan] = useState<TrackingPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [validation, setValidation] = useState<TrackingPlanValidation | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void getTrackingPlan(projectId)
+      .then((value) => {
+        if (!cancelled) setPlan(value);
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setPlan(null);
+          setError(cause instanceof Error ? cause.message : "SDK 설정을 불러오지 못했어요.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  async function run(action: () => Promise<TrackingPlan>) {
+    setError(null);
+    try {
+      setPlan(await action());
+      setValidation(null);
+      return true;
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "요청을 처리하지 못했어요. 다시 시도해 주세요."
+      );
+      return false;
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">개발자 설정을 불러오고 있어요.</p>;
+  }
+
+  if (!plan) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>SDK 관리 설정이 필요해요</CardTitle>
+          <CardDescription>
+            마케팅 SDK 관리 화면에서 이벤트 규칙을 먼저 생성해 주세요.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link params={{ projectId, tabPath: "sdk" }} to="/dashboard/$projectId/$tabPath">
+              SDK 관리로 이동
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid gap-6">
+      <header className="grid gap-2 border-b border-black/10 pb-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline">Developer</Badge>
+          <Badge variant="secondary">revision {plan.currentRevision}</Badge>
+          <Badge variant="secondary">이벤트 {plan.events.length}개</Badge>
+        </div>
+        <h1 className="text-3xl font-semibold tracking-tight">개발자 페이지</h1>
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          SDK 연결 설정과 이벤트·광고 연동 절차를 한곳에서 확인합니다.
+        </p>
+      </header>
+      {error ? (
+        <p className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <DeveloperGuide
+        advertisementGuide={advertisementGuide}
+        plan={plan}
+        run={run}
+        setValidation={setValidation}
+        validation={validation}
+      />
     </div>
   );
 }
@@ -251,7 +339,7 @@ function EventDesigner({
           propertiesSchema
         })
       );
-      if (saved) setMode("view");
+      if (saved) showList();
       return;
     }
 
@@ -263,10 +351,7 @@ function EventDesigner({
         propertiesSchema
       })
     );
-    if (saved) {
-      setSelectedName(nextEventName);
-      setMode("view");
-    }
+    if (saved) showList();
   }
 
   async function removeEvent(event: TrackingPlanEvent) {
@@ -280,9 +365,7 @@ function EventDesigner({
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div className="grid gap-1.5">
             <CardTitle className="text-base">이벤트 목록</CardTitle>
-            <CardDescription>
-              SDK가 자동 수집하는 이벤트는 시스템 이벤트로 유지돼요.
-            </CardDescription>
+            <CardDescription>이벤트를 선택하면 상세 정보와 관리 기능이 열려요.</CardDescription>
           </div>
           <Button onClick={startCreate}>이벤트 추가</Button>
         </CardHeader>
@@ -302,7 +385,9 @@ function EventDesigner({
                       {event.description || "설명 없음"}
                     </span>
                   </span>
-                  <Badge variant="outline">{event.status}</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    속성 {propertyContractRows(event.propertiesSchema).length}개
+                  </span>
                 </button>
               ))}
             </div>
@@ -318,33 +403,55 @@ function EventDesigner({
 
   if (mode === "view" && selected) {
     return (
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge>조회</Badge>
-            <Badge variant="outline">{selected.status}</Badge>
-          </div>
-          <CardTitle className="text-xl">{selected.eventName}</CardTitle>
-          <CardDescription>{selected.description || "설명 없음"}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-5">
-          <div className="grid gap-2">
-            <strong className="text-sm">속성 스키마</strong>
-            <PropertyContract event={selected} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={showList}>
-              목록으로
-            </Button>
-            <Button onClick={() => startEdit(selected)}>수정</Button>
-            {selected.status !== "system" ? (
-              <Button variant="destructive" onClick={() => void removeEvent(selected)}>
-                이벤트 삭제
+      <>
+        <Card>
+          <CardHeader>
+            <Badge className="w-fit" variant="outline">
+              이벤트 상세
+            </Badge>
+            <CardTitle className="text-xl">{selected.eventName}</CardTitle>
+            <CardDescription>{selected.description || "설명 없음"}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            <div className="grid gap-2">
+              <strong className="text-sm">속성 스키마</strong>
+              <PropertyContract event={selected} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={showList}>
+                목록으로
               </Button>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+              <Button onClick={() => startEdit(selected)}>수정</Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">삭제</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{selected.eventName} 이벤트를 삭제할까요?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      이벤트 규칙이 목록과 다음 게시 버전에서 제거됩니다. 삭제 후에는 되돌릴 수
+                      없어요.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>취소</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(event) => {
+                        event.preventDefault();
+                        void removeEvent(selected);
+                      }}
+                      variant="destructive"
+                    >
+                      이벤트 삭제
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      </>
     );
   }
 
@@ -353,10 +460,7 @@ function EventDesigner({
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge>{isEdit ? "수정" : "생성"}</Badge>
-          {isEdit && selected ? <Badge variant="outline">{selected.status}</Badge> : null}
-        </div>
+        <Badge className="w-fit">{isEdit ? "이벤트 수정" : "이벤트 생성"}</Badge>
         <CardTitle className="text-xl">{isEdit ? selected?.eventName : "이벤트 추가"}</CardTitle>
         <CardDescription>
           JSON을 직접 고치지 않고 속성 이름, 타입, 필수 여부를 정할 수 있어요.
@@ -396,7 +500,7 @@ function EventDesigner({
             disabled={!eventName.trim() || propertyIssues.length > 0}
             onClick={() => void save()}
           >
-            {isEdit ? "변경 저장" : "이벤트 생성"}
+            저장
           </Button>
           <Button
             variant="outline"
@@ -654,22 +758,53 @@ function ConnectionPanel({
 
 function DeveloperGuide({
   advertisementGuide,
-  plan
+  plan,
+  run,
+  setValidation,
+  validation
 }: {
   advertisementGuide: ReactNode;
   plan: TrackingPlan;
+  run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
+  setValidation: (value: TrackingPlanValidation | null) => void;
+  validation: TrackingPlanValidation | null;
 }) {
   return (
-    <Tabs defaultValue="collection">
-      <TabsList>
-        <TabsTrigger value="collection">이벤트 수집</TabsTrigger>
-        <TabsTrigger value="advertisement">광고 연동</TabsTrigger>
-      </TabsList>
-      <TabsContent value="collection">
-        <CollectionGuide plan={plan} />
-      </TabsContent>
-      <TabsContent value="advertisement">{advertisementGuide}</TabsContent>
-    </Tabs>
+    <div className="grid gap-10">
+      <section className="grid gap-4">
+        <div className="grid gap-1">
+          <h2 className="text-xl font-semibold">SDK 연결 설정</h2>
+          <p className="text-sm text-muted-foreground">
+            허용 Origin을 저장하고 검증한 규약을 SDK에 게시합니다.
+          </p>
+        </div>
+        <ConnectionPanel
+          plan={plan}
+          run={run}
+          setValidation={setValidation}
+          validation={validation}
+        />
+      </section>
+
+      <section className="grid gap-4">
+        <div className="grid gap-1">
+          <h2 className="text-xl font-semibold">연동 가이드</h2>
+          <p className="text-sm text-muted-foreground">
+            이벤트 수집과 광고 지면 연동 코드를 프로젝트에 적용합니다.
+          </p>
+        </div>
+        <Tabs defaultValue="collection">
+          <TabsList>
+            <TabsTrigger value="collection">이벤트 수집</TabsTrigger>
+            <TabsTrigger value="advertisement">광고 연동</TabsTrigger>
+          </TabsList>
+          <TabsContent value="collection">
+            <CollectionGuide plan={plan} />
+          </TabsContent>
+          <TabsContent value="advertisement">{advertisementGuide}</TabsContent>
+        </Tabs>
+      </section>
+    </div>
   );
 }
 

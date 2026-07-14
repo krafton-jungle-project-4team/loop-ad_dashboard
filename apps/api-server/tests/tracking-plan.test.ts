@@ -3,7 +3,8 @@ import { test } from "node:test";
 import type { ClickHouseClient } from "@clickhouse/client";
 import {
   SDK_TRACKING_PLAN_SCHEMA_VERSION,
-  TrackingPlanPropertiesSchemaSchema
+  TrackingPlanPropertiesSchemaSchema,
+  TrackingPlanSchema
 } from "@loopad/shared";
 import type { Pool } from "pg";
 import type { TrackingPlanObservedEventReader } from "../src/features/tracking-plan/tracking-plan-observed-event-reader.js";
@@ -38,6 +39,30 @@ test("accepts recursive typed Tracking Plan properties", () => {
 
   assert.equal(parsed.properties?.item?.type, "object");
   assert.equal(parsed.properties?.flags?.items?.type, "boolean");
+});
+
+test("tracking plan events do not expose an event type or internal status", () => {
+  const plan = TrackingPlanSchema.parse({
+    trackingPlanId: "tracking-plan-1",
+    projectId: "project-1",
+    name: "Plan",
+    status: "draft",
+    currentRevision: 0,
+    publishedRevision: null,
+    sdkKey: "sdk-key",
+    allowedOrigins: [],
+    events: [
+      {
+        eventName: "page_view",
+        description: "page view",
+        status: "system",
+        propertiesSchema: { type: "object", properties: {}, required: [] }
+      }
+    ]
+  });
+
+  assert.equal("status" in plan.events[0]!, false);
+  assert.equal("type" in plan.events[0]!, false);
 });
 
 test("rejects reserved, unsafe, duplicate, oversized, and over-depth schemas", () => {
@@ -200,6 +225,7 @@ test("publish inserts the immutable revision and switches the active revision in
   assert.equal(database.queries.includes("ROLLBACK"), false);
   assert.equal(database.publishedSnapshots.length, 1);
   assert.equal(database.publishedSnapshots[0]?.schemaVersion, SDK_TRACKING_PLAN_SCHEMA_VERSION);
+  assert.equal("status" in (database.publishedSnapshots[0]?.events[0] ?? {}), false);
 });
 
 test("publish rolls back when the active revision switch fails", async () => {
@@ -324,7 +350,10 @@ test("observed event creation stops before creating an empty plan", async () => 
 
 function fakePublishDatabase(failSettingsUpdate = false) {
   const queries: string[] = [];
-  const publishedSnapshots: Array<{ schemaVersion?: unknown }> = [];
+  const publishedSnapshots: Array<{
+    schemaVersion?: unknown;
+    events: Array<Record<string, unknown>>;
+  }> = [];
   let revision = 0;
   const client = {
     async query(sql: string, parameters?: unknown[]) {
@@ -352,7 +381,6 @@ function fakePublishDatabase(failSettingsUpdate = false) {
             {
               event_name: "page_view",
               description: "page view",
-              status: "system",
               properties_schema_json: { type: "object", properties: {}, required: [] }
             }
           ]
