@@ -26,7 +26,7 @@ test("dashboard sidebar exposes the product-led flat navigation order", () => {
         label: ""
       },
       {
-        items: ["워크플로우", "데이터 탐색기", "SDK 관리"],
+        items: ["워크플로우", "데이터 탐색기", "이벤트 관리"],
         label: ""
       }
     ]

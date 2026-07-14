@@ -63,7 +63,7 @@ export const dashboardTabs = [
   },
   {
     value: "sdk",
-    label: "SDK 관리",
+    label: "이벤트 관리",
     pathSegment: "sdk"
   },
   {
@@ -97,7 +97,7 @@ export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
         pathSegment: "data-explorer",
         type: "link"
       },
-      { label: "SDK 관리", value: "sdk", pathSegment: "sdk", type: "link" }
+      { label: "이벤트 관리", value: "sdk", pathSegment: "sdk", type: "link" }
     ]
   }
 ];

@@ -133,16 +133,15 @@ Dashboard FE
 ### SDK Tracking Plan API
 
 관리 API는 `/api/dashboard/v1/projects/:projectId/tracking-plan` 아래에서 plan 생성·조회,
-draft event CRUD, validation, publish를 제공하고 `/sdk-settings`에서 허용 Origin을
-저장합니다. publish는 immutable `tracking_plan_revisions` insert와
-`project_sdk_settings` active revision 변경을 하나의 PostgreSQL transaction으로
-처리합니다.
+draft event CRUD, validation, publish를 제공합니다. 마케팅 화면은 event CRUD만 노출하며
+SDK URL, Origin, connection 설정은 노출하지 않습니다.
 
-기본 Tracking Plan 생성 요청은 선택적으로 `allowedOrigins`를 함께 받아 draft 생성과
-동일한 transaction에서 SDK 설정에 저장합니다. Dashboard의 demo 생성 버튼은
-`https://demo-shoppingmall.dev.loop-ad.org`를 기본 Origin으로 전달합니다.
+개발자 페이지의 기본 가이드는 버전이 명시된 IIFE URL과 `projectId`, `writeKey`를 사용해
+SDK를 직접 초기화합니다. SDK 버전을 바꿀 때는 사이트의 script URL만 수정하며 Dashboard
+DB 설정은 변경하지 않습니다.
 
-공개 SDK endpoint는 다음과 같습니다.
+다음 공개 SDK endpoint는 connection 기반 초기화를 사용하는 기존 클라이언트와의 호환을
+위해 유지합니다.
 
 - `GET /api/public/v1/sdk/connections/:sdkKey`
 - `GET /api/public/v1/sdk/connections/:sdkKey/schema`

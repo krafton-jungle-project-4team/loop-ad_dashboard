@@ -21,7 +21,7 @@ export function DeveloperPage({ projectId }: { projectId: string }) {
           <Button asChild size="sm" variant="outline">
             <Link params={{ projectId, tabPath: "sdk" }} to="/dashboard/$projectId/$tabPath">
               <ArrowLeft aria-hidden="true" />
-              SDK 관리로 돌아가기
+              이벤트 관리로 돌아가기
             </Link>
           </Button>
         </div>

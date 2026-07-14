@@ -133,7 +133,7 @@ test("each onboarding step explains how the current step is completed", () => {
 
   assert.equal(
     setupSteps[0]?.completionCondition,
-    "SDK 연동을 확인하고 캠페인 만들기를 누르면 완료돼요."
+    "이벤트 목록을 확인하고 캠페인 만들기를 누르면 완료돼요."
   );
   assert.deepEqual(
     campaignSteps.map((step) => step.completionCondition),

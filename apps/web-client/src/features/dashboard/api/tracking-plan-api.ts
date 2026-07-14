@@ -1,8 +1,6 @@
 import {
   apiFailureResponseSchema,
   TrackingPlanSchema,
-  TrackingPlanValidationSchema,
-  type SdkSettingsUpdate,
   type TrackingPlanCreateRequest,
   type TrackingPlanEventInput,
   type TrackingPlanEventUpdate
@@ -59,18 +57,6 @@ export function deleteTrackingPlanEvent(projectId: string, eventName: string) {
     `${basePath(projectId)}/tracking-plan/events/${encodeURIComponent(eventName)}`,
     TrackingPlanSchema
   );
-}
-
-export function updateSdkSettings(projectId: string, request: SdkSettingsUpdate) {
-  return apiPatch(`${basePath(projectId)}/sdk-settings`, TrackingPlanSchema, request);
-}
-
-export function validateTrackingPlan(projectId: string) {
-  return apiPost(`${basePath(projectId)}/tracking-plan/validate`, TrackingPlanValidationSchema, {});
-}
-
-export function publishTrackingPlan(projectId: string) {
-  return apiPost(`${basePath(projectId)}/tracking-plan/publish`, TrackingPlanSchema, {});
 }
 
 async function trackingPlanCreationError(response: Response): Promise<string> {

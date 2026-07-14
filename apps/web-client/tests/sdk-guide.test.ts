@@ -3,6 +3,7 @@ import test from "node:test";
 import type { TrackingPlanEvent } from "@loopad/shared";
 import {
   EVENT_SDK_IIFE_URL,
+  EVENT_SDK_VERSION,
   eventSdkInitCode,
   eventSdkInstallCode,
   eventSdkTrackCode
@@ -12,10 +13,14 @@ test("SDK guide loads the public IIFE and initializes before login", () => {
   const installCode = eventSdkInstallCode();
   assert.match(installCode, new RegExp(`src="${escapeRegExp(EVENT_SDK_IIFE_URL)}"`));
   assert.match(installCode, /crossorigin="anonymous"/);
+  assert.match(installCode, new RegExp(`\\?v=${escapeRegExp(EVENT_SDK_VERSION)}`));
   assert.doesNotMatch(installCode, /npm|npmrc|github\.com\/packages/i);
 
-  const code = eventSdkInitCode("https://dashboard.example/sdk/connections/key");
+  const code = eventSdkInitCode("demo-project", "public-write-key");
   assert.match(code, /window\.LoopAdEventSDK\.init/);
+  assert.match(code, /projectId: "demo-project"/);
+  assert.match(code, /writeKey: "public-write-key"/);
+  assert.doesNotMatch(code, /connectionUrl/);
   assert.doesNotMatch(code, /@krafton-jungle-project-4team\/loop-ad_event_sdk/);
   assert.match(code, /identity: null/);
   assert.match(code, /debug: import\.meta\.env\.DEV/);

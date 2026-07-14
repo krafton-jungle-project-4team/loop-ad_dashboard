@@ -2,8 +2,7 @@ import type {
   TrackingPlan,
   TrackingPlanEvent,
   TrackingPlanJsonSchema,
-  TrackingPlanPropertyType,
-  TrackingPlanValidation
+  TrackingPlanPropertyType
 } from "@loopad/shared";
 import {
   TRACKING_PLAN_MAX_SCHEMA_DEPTH,
@@ -41,6 +40,7 @@ import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  EVENT_SDK_VERSION,
   eventSdkInitCode,
   eventSdkInstallCode,
   eventSdkTrackCode
@@ -51,10 +51,7 @@ import {
   createTrackingPlanFromObservedEvents,
   deleteTrackingPlanEvent,
   getTrackingPlan,
-  publishTrackingPlan,
-  updateSdkSettings,
-  updateTrackingPlanEvent,
-  validateTrackingPlan
+  updateTrackingPlanEvent
 } from "../../../api/tracking-plan-api.js";
 
 type PropertyDraft = {
@@ -129,13 +126,13 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
   }
 
   if (loading)
-    return <p className="text-sm text-muted-foreground">트래킹 플랜을 불러오고 있어요.</p>;
+    return <p className="text-sm text-muted-foreground">이벤트 설정을 불러오고 있어요.</p>;
 
   if (!plan) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>아직 트래킹 플랜이 없어요</CardTitle>
+          <CardTitle>아직 이벤트 설정이 없어요</CardTitle>
           <CardDescription>
             데모 사이트가 최근 30일 동안 보낸 이벤트 이름과 속성 타입으로 초안을 만들 수 있어요.
           </CardDescription>
@@ -170,20 +167,11 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
 
   return (
     <div className="grid gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">SDK 관리</h1>
-          <p className="text-sm text-muted-foreground">
-            마케팅에 사용할 이벤트 이름과 속성 규칙을 관리해요.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline">
-            <Link params={{ projectId }} to="/developer/$projectId">
-              개발자 페이지 열기
-            </Link>
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold">이벤트 관리</h1>
+        <p className="text-sm text-muted-foreground">
+          마케팅에 사용할 이벤트 이름과 속성 규칙을 관리해요.
+        </p>
       </div>
       {error ? (
         <p className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
@@ -205,7 +193,6 @@ export function DeveloperWorkspace({
   const [plan, setPlan] = useState<TrackingPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [validation, setValidation] = useState<TrackingPlanValidation | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -228,20 +215,6 @@ export function DeveloperWorkspace({
     };
   }, [projectId]);
 
-  async function run(action: () => Promise<TrackingPlan>) {
-    setError(null);
-    try {
-      setPlan(await action());
-      setValidation(null);
-      return true;
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "요청을 처리하지 못했어요. 다시 시도해 주세요."
-      );
-      return false;
-    }
-  }
-
   if (loading) {
     return <p className="text-sm text-muted-foreground">개발자 설정을 불러오고 있어요.</p>;
   }
@@ -250,15 +223,15 @@ export function DeveloperWorkspace({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>SDK 관리 설정이 필요해요</CardTitle>
+          <CardTitle>이벤트 설정이 필요해요</CardTitle>
           <CardDescription>
-            마케팅 SDK 관리 화면에서 이벤트 규칙을 먼저 생성해 주세요.
+            마케팅 이벤트 관리 화면에서 이벤트 규칙을 먼저 만들어 주세요.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
             <Link params={{ projectId, tabPath: "sdk" }} to="/dashboard/$projectId/$tabPath">
-              SDK 관리로 이동
+              이벤트 관리로 이동
             </Link>
           </Button>
         </CardContent>
@@ -271,10 +244,10 @@ export function DeveloperWorkspace({
       <header className="grid gap-2 border-b border-black/10 pb-6">
         <h1 className="text-3xl font-semibold tracking-tight">개발자 페이지</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          SDK 연결 설정과 이벤트·광고 연동 절차를 한곳에서 확인합니다.
+          버전이 명시된 SDK 설치 코드와 이벤트·광고 연동 절차를 확인합니다.
         </p>
         <p className="text-xs text-muted-foreground">
-          현재 리비전 {plan.currentRevision} · 이벤트 {plan.events.length}개
+          SDK v{EVENT_SDK_VERSION} · 이벤트 {plan.events.length}개
         </p>
       </header>
       {error ? (
@@ -282,13 +255,7 @@ export function DeveloperWorkspace({
           {error}
         </p>
       ) : null}
-      <DeveloperGuide
-        advertisementGuide={advertisementGuide}
-        plan={plan}
-        run={run}
-        setValidation={setValidation}
-        validation={validation}
-      />
+      <DeveloperGuide advertisementGuide={advertisementGuide} plan={plan} />
     </div>
   );
 }
@@ -675,143 +642,32 @@ function NestedSchemaEditor({
   return null;
 }
 
-function ConnectionPanel({
-  plan,
-  run,
-  validation,
-  setValidation
-}: {
-  plan: TrackingPlan;
-  run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
-  validation: TrackingPlanValidation | null;
-  setValidation: (value: TrackingPlanValidation | null) => void;
-}) {
-  const [originText, setOriginText] = useState(plan.allowedOrigins.join("\n"));
-  const connectionUrl = `https://dashboard.api.dev.loop-ad.org/api/public/v1/sdk/connections/${plan.sdkKey}`;
-  const schemaUrl = `${connectionUrl}/schema`;
-  async function check() {
-    try {
-      setValidation(await validateTrackingPlan(plan.projectId));
-    } catch {
-      setValidation({ valid: false, issues: ["Validation API request failed."] });
-    }
-  }
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">허용 Origin</CardTitle>
-          <CardDescription>
-            줄바꿈으로 구분한 Origin에서만 공개 스키마를 볼 수 있어요.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          <Textarea
-            aria-label="허용 Origin"
-            className="min-h-32"
-            value={originText}
-            onChange={(event) => setOriginText(event.target.value)}
-          />
-          <Button
-            onClick={() =>
-              void run(() =>
-                updateSdkSettings(plan.projectId, {
-                  allowedOrigins: originText
-                    .split(/[\n,]/)
-                    .map((value) => value.trim())
-                    .filter(Boolean)
-                })
-              )
-            }
-          >
-            Origin 저장
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Origin은 접근 범위를 정할 뿐, 인증 수단은 아니에요.
-          </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">게시</CardTitle>
-          <CardDescription>
-            게시하면 현재 버전을 저장하고 바로 사용 중인 버전으로 바꿔요.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          <ReadOnlyValue label="Connection URL" value={connectionUrl} />
-          <ReadOnlyValue label="Schema URL" value={schemaUrl} />
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void check()}>
-              검증
-            </Button>
-            <Button onClick={() => void run(() => publishTrackingPlan(plan.projectId))}>
-              게시
-            </Button>
-          </div>
-          {validation ? (
-            <div className="text-sm">
-              <strong>{validation.valid ? "검증 통과" : "검증 실패"}</strong>
-              {validation.issues.map((issue) => (
-                <p key={issue}>{issue}</p>
-              ))}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function DeveloperGuide({
   advertisementGuide,
-  plan,
-  run,
-  setValidation,
-  validation
+  plan
 }: {
   advertisementGuide: ReactNode;
   plan: TrackingPlan;
-  run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
-  setValidation: (value: TrackingPlanValidation | null) => void;
-  validation: TrackingPlanValidation | null;
 }) {
   return (
-    <div className="grid gap-10">
-      <section className="grid gap-4">
-        <div className="grid gap-1">
-          <h2 className="text-xl font-semibold">SDK 연결 설정</h2>
-          <p className="text-sm text-muted-foreground">
-            허용 Origin을 저장하고 검증한 규약을 SDK에 게시합니다.
-          </p>
-        </div>
-        <ConnectionPanel
-          plan={plan}
-          run={run}
-          setValidation={setValidation}
-          validation={validation}
-        />
-      </section>
-
-      <section className="grid gap-4">
-        <div className="grid gap-1">
-          <h2 className="text-xl font-semibold">연동 가이드</h2>
-          <p className="text-sm text-muted-foreground">
-            이벤트 수집과 광고 지면 연동 코드를 프로젝트에 적용합니다.
-          </p>
-        </div>
-        <Tabs defaultValue="collection">
-          <TabsList>
-            <TabsTrigger value="collection">이벤트 수집</TabsTrigger>
-            <TabsTrigger value="advertisement">광고 연동</TabsTrigger>
-          </TabsList>
-          <TabsContent value="collection">
-            <CollectionGuide plan={plan} />
-          </TabsContent>
-          <TabsContent value="advertisement">{advertisementGuide}</TabsContent>
-        </Tabs>
-      </section>
-    </div>
+    <section className="grid gap-4">
+      <div className="grid gap-1">
+        <h2 className="text-xl font-semibold">연동 가이드</h2>
+        <p className="text-sm text-muted-foreground">
+          이벤트 수집과 광고 지면 연동 코드를 프로젝트에 적용합니다.
+        </p>
+      </div>
+      <Tabs defaultValue="collection">
+        <TabsList>
+          <TabsTrigger value="collection">이벤트 수집</TabsTrigger>
+          <TabsTrigger value="advertisement">광고 연동</TabsTrigger>
+        </TabsList>
+        <TabsContent value="collection">
+          <CollectionGuide plan={plan} />
+        </TabsContent>
+        <TabsContent value="advertisement">{advertisementGuide}</TabsContent>
+      </Tabs>
+    </section>
   );
 }
 
@@ -819,70 +675,51 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
   const [selectedEventName, setSelectedEventName] = useState(plan.events[0]?.eventName ?? "");
   const selectedEvent =
     plan.events.find((event) => event.eventName === selectedEventName) ?? plan.events[0] ?? null;
-  const connectionUrl = `https://dashboard.api.dev.loop-ad.org/api/public/v1/sdk/connections/${plan.sdkKey}`;
   const installCode = eventSdkInstallCode();
-  const initCode = eventSdkInitCode(connectionUrl);
+  const initCode = eventSdkInitCode(plan.projectId, plan.sdkKey);
 
   return (
     <article className="grid gap-5">
       <header className="grid gap-2 border-b pb-5">
         <h2 className="text-2xl font-semibold">이벤트 수집 SDK 연동</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          현재 트래킹 플랜의 Origin, 이벤트 이름, 필수 속성, 타입을 기준으로 만든 가이드예요.
-          게시하면 SDK에 적용돼요.
+          SDK 버전과 프로젝트 키를 코드에 명시합니다. SDK를 업데이트할 때 스크립트 URL의 버전만
+          올리면 됩니다.
         </p>
         <p className="text-xs text-muted-foreground">
-          현재 리비전 {plan.currentRevision} · 이벤트 {plan.events.length}개
+          SDK v{EVENT_SDK_VERSION} · 이벤트 {plan.events.length}개
         </p>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <GuideSection
-          description="공개 GitHub Pages IIFE를 HTML에 연결합니다. npm registry나 패키지 토큰은 필요하지 않습니다."
-          title="1. 수집 SDK 연결"
-        >
-          <GuideCode code={installCode} />
-        </GuideSection>
-        <GuideSection
-          description="아래 Origin에서만 연결 정보와 스키마를 볼 수 있어요. 바꾼 뒤 트래킹 플랜을 게시해 주세요."
-          title="2. 허용 Origin 확인"
-        >
-          <div className="grid gap-2">
-            {plan.allowedOrigins.length > 0 ? (
-              plan.allowedOrigins.map((origin) => (
-                <code className="break-all rounded-md border p-2 text-xs" key={origin}>
-                  {origin}
-                </code>
-              ))
-            ) : (
-              <p className="text-sm text-destructive">아직 등록한 Origin이 없어요.</p>
-            )}
-          </div>
-        </GuideSection>
-      </div>
+      <GuideSection
+        description={`SDK v${EVENT_SDK_VERSION} 파일을 연결합니다. 새 버전을 적용할 때 URL의 v 값만 변경하세요.`}
+        title="1. 수집 SDK 설치"
+      >
+        <GuideCode code={installCode} />
+      </GuideSection>
 
       <GuideSection
-        description="앱을 시작할 때 연결 정보와 스키마를 불러와요. 로그인 전에도 DevTools를 쓸 수 있어요."
-        title="3. Tracking Plan 연결"
+        description="프로젝트 ID와 공개 write key로 SDK를 시작합니다. 별도 연결 설정이나 DB 변경은 필요하지 않습니다."
+        title="2. 프로젝트 연결"
       >
         <GuideCode code={initCode} />
       </GuideSection>
 
       <GuideSection
         description="개발 빌드의 오른쪽 아래 LoopAd 버튼에서 SDK 상태를 확인해요."
-        title="4. SDK DevTools"
+        title="3. SDK DevTools"
       >
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <DebugFeature label="개요" value="연결 · identity · 버전" />
-          <DebugFeature label="스키마" value="필드 · 타입 · 필수값" />
-          <DebugFeature label="검증" value="차단 사유 · 수정 항목" />
+          <DebugFeature label="개요" value="프로젝트 · identity · 버전" />
+          <DebugFeature label="이벤트" value="이름 · 속성 · 발생 시각" />
+          <DebugFeature label="로그" value="수집 · 전송 · 실패 사유" />
           <DebugFeature label="요청" value="상태 · HTTP · 크기" />
         </div>
       </GuideSection>
 
       <GuideSection
-        description="이벤트를 고르면 속성과 전송 예제가 함께 바뀌어요. 규약에 없거나 타입이 맞지 않는 값은 보내지 않아요."
-        title="5. 규약에 맞춰 이벤트 전송"
+        description="마케터가 관리하는 이벤트를 고르면 속성과 전송 예제가 함께 바뀝니다."
+        title="4. 이벤트 전송"
       >
         {selectedEvent ? (
           <div className="grid gap-4">
@@ -907,7 +744,7 @@ function CollectionGuide({ plan }: { plan: TrackingPlan }) {
             <GuideCode code={eventSdkTrackCode(selectedEvent)} />
           </div>
         ) : (
-          <p className="text-sm text-destructive">트래킹 플랜에 등록한 이벤트가 없어요.</p>
+          <p className="text-sm text-destructive">등록한 이벤트가 없어요.</p>
         )}
       </GuideSection>
     </article>
@@ -972,14 +809,6 @@ function PropertyContract({ event }: { event: TrackingPlanEvent }) {
   );
 }
 
-function ReadOnlyValue({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <code className="break-all rounded-md border p-2 text-xs">{value}</code>
-    </div>
-  );
-}
 function replaceAt<T>(values: T[], index: number, value: T) {
   return values.map((item, itemIndex) => (itemIndex === index ? value : item));
 }
