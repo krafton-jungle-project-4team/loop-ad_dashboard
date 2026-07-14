@@ -403,10 +403,7 @@ function EventDesigner({
   return (
     <Card>
       <CardHeader className="flex-row items-start justify-between gap-4">
-        <div className="grid gap-1.5">
-          <CardTitle className="text-base">이벤트 목록</CardTitle>
-          <CardDescription>이벤트를 선택하면 상세 정보와 관리 기능이 열려요.</CardDescription>
-        </div>
+        <CardTitle className="text-base">이벤트 목록</CardTitle>
         <Button onClick={startCreate}>이벤트 추가</Button>
       </CardHeader>
       <CardContent
@@ -518,9 +515,6 @@ function EventDesigner({
                 <h2 className="text-xl font-medium" id="tracking-plan-event-panel-title">
                   {isEdit ? `${selected?.eventName} 수정` : "이벤트 추가"}
                 </h2>
-                <p className="text-sm text-muted-foreground">
-                  JSON을 직접 고치지 않고 속성 이름, 타입, 필수 여부를 정할 수 있어요.
-                </p>
               </div>
               <div className="grid flex-1 content-start gap-4 overflow-y-auto px-4 py-5">
                 <Field>
