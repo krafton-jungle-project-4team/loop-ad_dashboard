@@ -44,10 +44,13 @@ import {
   createTrackingPlan,
   createTrackingPlanFromObservedEvents,
   deleteTrackingPlanEvent,
-  getPublishedTrackingPlanSchema,
   getTrackingPlan,
-  publishTrackingPlan,
   updateTrackingPlanEvent
+} from "../../../api/tracking-plan-stub.js";
+import {
+  getPublishedTrackingPlanSchema,
+  getTrackingPlan as getDeveloperTrackingPlan,
+  publishTrackingPlan
 } from "../../../api/tracking-plan-api.js";
 import { useProjectOnboarding } from "../../onboarding/ProjectOnboardingProvider.js";
 
@@ -210,7 +213,7 @@ export function DeveloperWorkspace({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void getTrackingPlan(projectId)
+    void getDeveloperTrackingPlan(projectId)
       .then(async (value) => {
         const schema =
           value.publishedRevision === null ? null : await getPublishedTrackingPlanSchema(projectId);
