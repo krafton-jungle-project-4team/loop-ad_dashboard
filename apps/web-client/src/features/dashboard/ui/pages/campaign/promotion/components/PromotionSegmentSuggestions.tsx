@@ -101,37 +101,31 @@ export function PromotionSegmentSuggestionPanel({
             실험을 시작할 수 있어요.
           </CardDescription>
         </div>
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div className="grid gap-2">
-            <p className="text-xs font-medium text-muted-foreground">1. 세그먼트 후보 생성</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                disabled={promotionAnalysisIsPending}
-                onClick={onRecommendSegments}
-                type="button"
-                variant="outline"
-              >
-                <BarChart3 className="mr-2 size-4" />
-                {promotionAnalysisIsPending ? "세그먼트 후보 추천 중…" : "세그먼트 후보 추천받기"}
-              </Button>
-              <Button onClick={() => setIsCreateDialogOpen(true)} type="button" variant="outline">
-                <Plus className="mr-2 size-4" />
-                세그먼트 후보 직접 추가
-              </Button>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <p className="text-xs font-medium text-muted-foreground">3. 세그먼트 후보 확정</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              disabled={confirmableCount === 0 || confirmIsPending}
-              onClick={onConfirmSuggestions}
+              disabled={promotionAnalysisIsPending}
+              onClick={onRecommendSegments}
               type="button"
+              variant="outline"
             >
-              {confirmIsPending
-                ? "세그먼트 후보 확정 중…"
-                : `선택한 세그먼트 후보 확정 (${confirmableCount})`}
+              <BarChart3 className="mr-2 size-4" />
+              {promotionAnalysisIsPending ? "세그먼트 후보 추천 중…" : "세그먼트 후보 추천받기"}
+            </Button>
+            <Button onClick={() => setIsCreateDialogOpen(true)} type="button" variant="outline">
+              <Plus className="mr-2 size-4" />
+              세그먼트 후보 직접 추가
             </Button>
           </div>
+          <Button
+            disabled={confirmableCount === 0 || confirmIsPending}
+            onClick={onConfirmSuggestions}
+            type="button"
+          >
+            {confirmIsPending
+              ? "세그먼트 후보 확정 중…"
+              : `선택한 세그먼트 후보 확정 (${confirmableCount})`}
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
