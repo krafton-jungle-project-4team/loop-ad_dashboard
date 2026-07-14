@@ -360,18 +360,18 @@ export function CampaignWorkspacePage({
             entryActions={(card) => [
               {
                 id: "workspace",
-                label: "관리",
+                label: "캠페인 관리",
                 onSelect: () => openCampaignView(card.id, "manage")
               },
               {
                 id: "performance",
-                label: "성과",
+                label: "캠페인 성과",
                 onSelect: () => openCampaignView(card.id, "performance")
               }
             ]}
             addAction={{
               description: "캠페인을 만들고 프로모션을 설정해요.",
-              label: "새 캠페인",
+              label: "캠페인 만들기",
               onSelect: () => {
                 createCampaignMutation.reset();
                 setCampaignFormDialog({ mode: "create" });
@@ -438,7 +438,7 @@ export function CampaignWorkspacePage({
             ]}
             addAction={{
               description: "이 캠페인에 프로모션을 추가해요.",
-              label: "새 프로모션",
+              label: "프로모션 만들기",
               onSelect: () => {
                 createPromotionMutation.reset();
                 setIsPromotionAddDialogOpen(true);
@@ -448,12 +448,12 @@ export function CampaignWorkspacePage({
             entryActions={(card) => [
               {
                 id: "manage",
-                label: "관리",
+                label: "프로모션 관리",
                 onSelect: () => openPromotionView(card.id, "manage")
               },
               {
                 id: "performance",
-                label: "성과",
+                label: "프로모션 성과",
                 onSelect: () => openPromotionView(card.id, "performance")
               }
             ]}
@@ -520,7 +520,7 @@ export function CampaignWorkspacePage({
               }}
               variant="destructive"
             >
-              {deleteCampaignMutation.isPending ? "삭제 중" : "캠페인 삭제"}
+              {deleteCampaignMutation.isPending ? "캠페인 삭제 중…" : "캠페인 삭제"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -581,7 +581,7 @@ export function CampaignWorkspacePage({
               }}
               variant="destructive"
             >
-              {deletePromotionMutation.isPending ? "삭제 중" : "프로모션 삭제"}
+              {deletePromotionMutation.isPending ? "프로모션 삭제 중…" : "프로모션 삭제"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -4,7 +4,8 @@ import type { DashboardCampaignPromotion } from "@loopad/shared";
 import {
   canStartAdExperiment,
   promotionFormToUpdateRequest,
-  promotionToFormState
+  promotionToFormState,
+  segmentWorkflowCurrentStep
 } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionUtils.js";
 
 test("ad experiments can start from the statuses accepted by the dashboard API", () => {
@@ -46,4 +47,39 @@ test("promotion edit maps every field exposed by the create form", () => {
     min_sample_size: 250,
     status: "approved"
   });
+});
+
+test("segment workflow advances from candidate creation to content generation", () => {
+  assert.equal(
+    segmentWorkflowCurrentStep({
+      candidateCount: 0,
+      confirmedCandidateCount: 0,
+      selectedCandidateCount: 0
+    }),
+    1
+  );
+  assert.equal(
+    segmentWorkflowCurrentStep({
+      candidateCount: 2,
+      confirmedCandidateCount: 0,
+      selectedCandidateCount: 0
+    }),
+    2
+  );
+  assert.equal(
+    segmentWorkflowCurrentStep({
+      candidateCount: 2,
+      confirmedCandidateCount: 0,
+      selectedCandidateCount: 1
+    }),
+    3
+  );
+  assert.equal(
+    segmentWorkflowCurrentStep({
+      candidateCount: 2,
+      confirmedCandidateCount: 1,
+      selectedCandidateCount: 1
+    }),
+    4
+  );
 });

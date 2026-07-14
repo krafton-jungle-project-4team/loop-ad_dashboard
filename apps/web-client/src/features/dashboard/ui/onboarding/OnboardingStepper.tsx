@@ -49,6 +49,7 @@ export function OnboardingStepper({
   const navigate = useNavigate();
   const steps = [...setupSteps, ...campaignSteps];
   const activeStep = getActiveStepNumber(steps);
+  const currentStep = steps.find((step) => step.state === "current");
   const isSetupComplete = setupSteps.every((step) => step.state === "complete");
 
   const navigateToStep = (stepNumber: number) => {
@@ -131,6 +132,16 @@ export function OnboardingStepper({
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         )}
+
+        {currentStep ? (
+          <div
+            aria-live="polite"
+            className="mx-8 mb-6 grid gap-1 rounded-lg border border-primary/20 bg-primary/[0.05] px-4 py-3"
+          >
+            <div className="text-xs font-semibold text-primary">현재 단계 완료 조건</div>
+            <p className="text-sm text-foreground">{currentStep.completionCondition}</p>
+          </div>
+        ) : null}
 
         {action ? <div className="flex justify-end px-8 pb-6">{action}</div> : null}
       </CardContent>

@@ -1,8 +1,9 @@
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Button } from "@loopad/ui/shadcn/button";
+import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DashboardTab } from "../../model/dashboard-types.js";
 import { OnboardingStepper } from "./OnboardingStepper.js";
@@ -70,7 +71,14 @@ export function OnboardingWorkspaceLayout({
   }, [isDashboardUnlocked, isLoading, runningExperimentCount]);
 
   if (isLoading) {
-    return children;
+    return (
+      <div className="grid min-h-[calc(100svh-9rem)] place-items-center">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground" role="status">
+          <Spinner aria-hidden="true" />
+          <span>시작 가이드 상태를 불러오는 중…</span>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
@@ -79,7 +87,10 @@ export function OnboardingWorkspaceLayout({
         <AlertTriangle aria-hidden="true" />
         <AlertTitle>시작 가이드를 불러오지 못했어요</AlertTitle>
         <AlertDescription className="grid gap-4">
-          <p>현재 단계를 확인할 수 없어요. 서버 연결을 확인하고 다시 시도해 주세요.</p>
+          <p>
+            네트워크 연결이 원활하지 않아 현재 단계를 확인할 수 없어요. 연결을 확인한 뒤 시작
+            가이드를 다시 불러와 주세요.
+          </p>
           <Button
             className="w-fit"
             disabled={isRetrying}
@@ -90,8 +101,8 @@ export function OnboardingWorkspaceLayout({
             type="button"
             variant="outline"
           >
-            <RefreshCw aria-hidden="true" className={cn(isRetrying && "animate-spin")} />
-            {isRetrying ? "불러오는 중" : "다시 불러오기"}
+            {isRetrying ? <Spinner aria-hidden="true" /> : null}
+            {isRetrying ? "시작 가이드 불러오는 중…" : "시작 가이드 다시 불러오기"}
           </Button>
         </AlertDescription>
       </Alert>

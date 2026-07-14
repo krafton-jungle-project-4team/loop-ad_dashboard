@@ -25,6 +25,7 @@ import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
+import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import {
   Table,
@@ -126,7 +127,8 @@ export function PromotionManagementList({
             </div>
           </Field>
           <Button onClick={onAdd} type="button">
-            <Plus data-icon="inline-start" />새 프로모션
+            <Plus data-icon="inline-start" />
+            프로모션 만들기
           </Button>
         </div>
       </div>
@@ -251,12 +253,12 @@ function PromotionRowActions({
         type="button"
         variant="outline"
       >
-        수정
+        프로모션 수정
       </Button>
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button className="flex-1 md:flex-none" size="sm" type="button" variant="outline">
-            삭제
+            프로모션 삭제
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
@@ -285,7 +287,7 @@ function PromotionRowActions({
 export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <EntityWorkspaceEmptyState
-      actionLabel="새 프로모션"
+      actionLabel="프로모션 만들기"
       description="프로모션을 만들면 세그먼트와 실험을 설정할 수 있어요."
       guideCards={[
         {
@@ -690,7 +692,7 @@ function PromotionCurrentSegmentsPanel({
                           }
                           variant="destructive"
                         >
-                          삭제
+                          확정 세그먼트 삭제
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -756,10 +758,24 @@ function PromotionSegmentDetailTab({
     return <EmptyState message="세그먼트를 선택해 주세요." />;
   }
   if (isError) {
-    return null;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>세그먼트 정보를 불러올 수 없어요</AlertTitle>
+        <AlertDescription>
+          세그먼트를 다시 선택해 주세요. 같은 문제가 계속되면 잠시 후 다시 시도해 주세요.
+        </AlertDescription>
+      </Alert>
+    );
   }
   if (isLoading || !detail) {
-    return <EmptyState message="맞춤 광고를 만드는 중이에요..." />;
+    return (
+      <Card className="shadow-none" role="status">
+        <CardContent className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Spinner aria-hidden="true" className="size-5" />
+          {generationIsPending ? "광고 소재를 만드는 중…" : "세그먼트 정보를 불러오는 중…"}
+        </CardContent>
+      </Card>
+    );
   }
 
   const latestMetric = detail.experiment_metrics[0];
@@ -813,7 +829,7 @@ function PromotionSegmentDetailTab({
             <div className="grid gap-1">
               <h3 className="text-base font-semibold">이 세그먼트의 광고 소재</h3>
               <p className="text-sm text-muted-foreground">
-                세그먼트마다 만든 광고 소재 후보를 확인해요.
+                이 세그먼트에 사용할 광고 소재 후보를 확인하고 하나를 선택해 주세요.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -827,12 +843,16 @@ function PromotionSegmentDetailTab({
                 type="button"
                 variant="outline"
               >
-                <ImageIcon className="mr-2 size-4" />
+                {generationIsPending ? (
+                  <Spinner aria-hidden="true" className="mr-2 size-4" />
+                ) : (
+                  <ImageIcon className="mr-2 size-4" />
+                )}
                 {generationIsPending
-                  ? "광고 만드는 중"
+                  ? "광고 소재 만드는 중…"
                   : hasGeneratedContentCandidates
-                    ? "생성 완료"
-                    : "광고 만들기"}
+                    ? "광고 소재 생성 완료"
+                    : "광고 소재 만들기"}
               </Button>
             </div>
           </div>
@@ -845,6 +865,11 @@ function PromotionSegmentDetailTab({
                     approvedContentCandidate.content_id !== candidate.content_id
                   );
                   const selectionId = `content-candidate-selection-${candidate.content_id}`;
+                  const selectionReason = contentCandidateSelectionReason(
+                    candidate.status,
+                    approveContentCandidateIsPending,
+                    hasDifferentApprovedCandidate
+                  );
 
                   return (
                     <Card className="shadow-none" key={candidate.content_id}>
@@ -878,6 +903,7 @@ function PromotionSegmentDetailTab({
                               orientation="horizontal"
                             >
                               <Checkbox
+                                aria-describedby={`${selectionId}-reason`}
                                 aria-label={`${contentCandidateTitle(candidate)} 광고 소재 선택`}
                                 checked={candidate.status === "approved"}
                                 disabled={
@@ -900,9 +926,9 @@ function PromotionSegmentDetailTab({
                                 htmlFor={selectionId}
                               >
                                 {candidate.status === "approved"
-                                  ? "선택됨"
+                                  ? "광고 소재 선택됨"
                                   : hasDifferentApprovedCandidate
-                                    ? "다른 소재가 선택됨"
+                                    ? "다른 광고 소재 선택됨"
                                     : "광고 소재 선택"}
                               </FieldLabel>
                             </Field>
@@ -925,10 +951,19 @@ function PromotionSegmentDetailTab({
                               variant="outline"
                             >
                               <X className="mr-2 size-4" />
-                              {candidate.status === "rejected" ? "거절됨" : "거절"}
+                              {candidate.status === "rejected"
+                                ? "광고 소재 거절됨"
+                                : "광고 소재 거절"}
                             </Button>
                           </div>
                         </div>
+                        <p
+                          aria-live="polite"
+                          className="text-xs leading-5 text-muted-foreground"
+                          id={`${selectionId}-reason`}
+                        >
+                          {selectionReason}
+                        </p>
                         <CardDescription className="break-all">
                           {candidate.content_option_id}
                         </CardDescription>
@@ -1014,6 +1049,26 @@ function PromotionSegmentDetailTab({
       ) : null}
     </section>
   );
+}
+
+function contentCandidateSelectionReason(
+  status: string,
+  isPending: boolean,
+  hasDifferentApprovedCandidate: boolean
+) {
+  if (isPending) {
+    return "광고 소재 선택 상태를 저장하고 있어요. 저장이 끝나면 다른 소재를 선택할 수 있어요.";
+  }
+  if (status === "rejected") {
+    return "거절한 광고 소재는 선택할 수 없어요. 다른 소재를 선택해 주세요.";
+  }
+  if (hasDifferentApprovedCandidate) {
+    return "한 세그먼트에는 광고 소재를 1개만 선택할 수 있어요. 다른 소재를 사용하려면 현재 선택을 먼저 해제해 주세요.";
+  }
+  if (status === "approved") {
+    return "이 광고 소재가 다음 실험에 사용돼요. 다른 소재로 바꾸려면 먼저 선택을 해제해 주세요.";
+  }
+  return "이 광고 소재를 선택하면 다음 실험에 사용돼요.";
 }
 
 function SegmentConnectedExperimentsCard({

@@ -85,14 +85,19 @@ export function ProjectWelcomeScreen({
           </ItemGroup>
         </CardContent>
 
-        <CardFooter className="flex flex-col items-stretch justify-center gap-2 border-0 bg-transparent px-6 pt-0 pb-8 sm:flex-row sm:items-center sm:px-10 sm:pb-10 lg:px-14">
-          <Button className="h-11 px-5" onClick={onStart} type="button">
-            가이드 따라 시작하기
-            <ArrowRight aria-hidden="true" data-icon="inline-end" />
-          </Button>
-          <Button className="h-11 px-5" onClick={onSkip} type="button" variant="outline">
-            직접 시작하기
-          </Button>
+        <CardFooter className="grid justify-items-center gap-3 border-0 bg-transparent px-6 pt-0 pb-8 sm:px-10 sm:pb-10 lg:px-14">
+          <div className="flex items-center justify-center gap-2">
+            <Button className="h-11 px-5" onClick={onStart} type="button">
+              시작 가이드 시작하기
+              <ArrowRight aria-hidden="true" data-icon="inline-end" />
+            </Button>
+            <Button className="h-11 px-5" onClick={onSkip} type="button" variant="outline">
+              시작 가이드 건너뛰기
+            </Button>
+          </div>
+          <p className="text-center text-sm text-muted-foreground">
+            가이드를 건너뛰면 가이드만 종료되고, 모든 기능은 계속 사용할 수 있어요.
+          </p>
         </CardFooter>
       </Card>
     </section>

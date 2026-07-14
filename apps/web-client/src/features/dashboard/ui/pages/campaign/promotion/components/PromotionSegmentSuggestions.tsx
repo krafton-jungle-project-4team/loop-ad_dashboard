@@ -25,11 +25,12 @@ import {
   DialogHeader,
   DialogTitle
 } from "@loopad/ui/shadcn/dialog";
-import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Field, FieldError, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { BarChart3, CheckCircle2, FileText, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
@@ -39,6 +40,7 @@ import {
   formatPercentValue,
   parseJsonObject,
   segmentAudienceSummary,
+  segmentWorkflowCurrentStep,
   statusBadgeVariant,
   type PromotionSegmentCreateFormState
 } from "../promotionUtils.js";
@@ -48,6 +50,14 @@ type SegmentSuggestionDisplayCopy = NonNullable<
 >;
 type SegmentPerformanceEstimate = NonNullable<SegmentSuggestionDisplayCopy["performance_estimate"]>;
 type SegmentAudience = NonNullable<SegmentSuggestionDisplayCopy["audience"]>;
+
+const segmentWorkflowSteps = [
+  "후보 생성",
+  "사용할 후보 선택",
+  "후보 확정",
+  "광고 소재 생성",
+  "실험 시작"
+] as const;
 
 export function PromotionSegmentSuggestionPanel({
   archiveScopedSegmentIsPending,
@@ -89,7 +99,18 @@ export function PromotionSegmentSuggestionPanel({
   const acceptedCount = suggestions.filter(
     (suggestion) => suggestion.suggestion_status === "accepted"
   ).length;
+  const confirmedCount = suggestions.filter(
+    (suggestion) => suggestion.suggestion_status === "confirmed"
+  ).length;
+  const candidateCount =
+    suggestions.filter((suggestion) => suggestion.suggestion_status !== "dismissed").length +
+    scopedSegments.length;
   const confirmableCount = acceptedCount + scopedSegments.length;
+  const currentWorkflowStep = segmentWorkflowCurrentStep({
+    candidateCount,
+    confirmedCandidateCount: confirmedCount,
+    selectedCandidateCount: confirmableCount
+  });
 
   return (
     <Card className="h-full shadow-none">
@@ -97,30 +118,42 @@ export function PromotionSegmentSuggestionPanel({
         <div className="grid gap-1">
           <CardTitle>세그먼트 후보</CardTitle>
           <CardDescription>
-            AI가 제안한 후보와 직접 추가한 후보를 확인해요. 확정하면 최종 세그먼트로 저장돼요.
+            후보를 만든 뒤 사용할 후보를 선택하고 확정해 주세요. 다음 단계에서 광고 소재를 만들고
+            실험을 시작할 수 있어요.
           </CardDescription>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            disabled={promotionAnalysisIsPending}
-            onClick={onRecommendSegments}
-            type="button"
-            variant="outline"
-          >
-            <BarChart3 className="mr-2 size-4" />
-            {promotionAnalysisIsPending ? "추천하는 중" : "AI 추천 받기"}
-          </Button>
-          <Button onClick={() => setIsCreateDialogOpen(true)} type="button" variant="outline">
-            <Plus className="mr-2 size-4" />
-            직접 추가
-          </Button>
-          <Button
-            disabled={confirmableCount === 0 || confirmIsPending}
-            onClick={onConfirmSuggestions}
-            type="button"
-          >
-            {confirmIsPending ? "확정 중" : `선택한 후보 확정 (${confirmableCount})`}
-          </Button>
+        <SegmentWorkflowGuide currentStep={currentWorkflowStep} />
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div className="grid gap-2">
+            <p className="text-xs font-medium text-muted-foreground">1. 세그먼트 후보 생성</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                disabled={promotionAnalysisIsPending}
+                onClick={onRecommendSegments}
+                type="button"
+                variant="outline"
+              >
+                <BarChart3 className="mr-2 size-4" />
+                {promotionAnalysisIsPending ? "세그먼트 후보 추천 중…" : "세그먼트 후보 추천받기"}
+              </Button>
+              <Button onClick={() => setIsCreateDialogOpen(true)} type="button" variant="outline">
+                <Plus className="mr-2 size-4" />
+                세그먼트 후보 직접 추가
+              </Button>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <p className="text-xs font-medium text-muted-foreground">3. 세그먼트 후보 확정</p>
+            <Button
+              disabled={confirmableCount === 0 || confirmIsPending}
+              onClick={onConfirmSuggestions}
+              type="button"
+            >
+              {confirmIsPending
+                ? "세그먼트 후보 확정 중…"
+                : `선택한 세그먼트 후보 확정 (${confirmableCount})`}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -173,7 +206,7 @@ export function PromotionSegmentSuggestionPanel({
                               onClick={() => onArchiveScopedSegment(segment.segment_id)}
                               variant="destructive"
                             >
-                              삭제
+                              직접 추가한 세그먼트 후보 삭제
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -287,7 +320,7 @@ export function PromotionSegmentSuggestionPanel({
                         variant="outline"
                       >
                         <FileText className="mr-2 size-3.5" />
-                        리포트
+                        추천 리포트 보기
                       </Button>
                     ) : null}
                     <Field
@@ -315,19 +348,42 @@ export function PromotionSegmentSuggestionPanel({
                         className="cursor-pointer text-[0.8rem] font-medium"
                         htmlFor={acceptanceId}
                       >
-                        후보 선택
+                        세그먼트 후보 선택
                       </FieldLabel>
                     </Field>
-                    <Button
-                      disabled={decideIsPending || isDismissed || isConfirmed}
-                      onClick={() => onDecideSuggestion(suggestion.suggestion_id, "dismissed")}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Trash2 className="mr-2 size-3.5" />
-                      삭제
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          disabled={decideIsPending || isDismissed || isConfirmed}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Trash2 className="mr-2 size-3.5" />
+                          세그먼트 후보 삭제
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>세그먼트 후보를 삭제할까요?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {displayCopy?.title ?? suggestion.segment_name} 후보가 목록에서 사라지고
+                            되돌릴 수 없어요.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() =>
+                              onDecideSuggestion(suggestion.suggestion_id, "dismissed")
+                            }
+                            variant="destructive"
+                          >
+                            세그먼트 후보 삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               );
@@ -352,6 +408,35 @@ export function PromotionSegmentSuggestionPanel({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function SegmentWorkflowGuide({ currentStep }: { currentStep: 1 | 2 | 3 | 4 }) {
+  return (
+    <ol aria-label="세그먼트부터 실험까지 권장 흐름" className="grid grid-cols-5 gap-2">
+      {segmentWorkflowSteps.map((step, index) => {
+        const stepNumber = index + 1;
+        const isCurrent = stepNumber === currentStep;
+        const isComplete = stepNumber < currentStep;
+
+        return (
+          <li
+            aria-current={isCurrent ? "step" : undefined}
+            className={cn(
+              "grid min-w-0 gap-1 rounded-md border px-3 py-2 text-xs",
+              isCurrent && "border-primary bg-accent text-primary",
+              isComplete && "border-primary/30 bg-accent/40",
+              !isCurrent && !isComplete && "text-muted-foreground"
+            )}
+            key={step}
+          >
+            <span className="tabular-nums">{stepNumber}</span>
+            <span className="break-keep font-medium">{step}</span>
+            {isCurrent ? <span className="text-[11px]">현재 단계</span> : null}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -620,6 +705,8 @@ function PromotionSegmentCreateDialog({
   const [form, setForm] = useState<PromotionSegmentCreateFormState>(
     createEmptyPromotionSegmentFormState()
   );
+  const [ruleJsonError, setRuleJsonError] = useState<string | null>(null);
+  const ruleJsonRef = useRef<HTMLTextAreaElement>(null);
 
   const canSubmit = Boolean(form.segmentName.trim()) && !createIsPending;
 
@@ -658,12 +745,23 @@ function PromotionSegmentCreateDialog({
           <Field>
             <FieldLabel htmlFor="promotion-segment-rule-json">조건 JSON</FieldLabel>
             <Textarea
+              aria-describedby={ruleJsonError ? "promotion-segment-rule-json-error" : undefined}
+              aria-invalid={Boolean(ruleJsonError)}
               className="font-mono text-xs"
               id="promotion-segment-rule-json"
               name="promotionSegmentRuleJson"
-              onChange={(event) => setForm({ ...form, ruleJsonText: event.target.value })}
+              onChange={(event) => {
+                setForm({ ...form, ruleJsonText: event.target.value });
+                if (ruleJsonError) {
+                  setRuleJsonError(null);
+                }
+              }}
+              ref={ruleJsonRef}
               value={form.ruleJsonText}
             />
+            {ruleJsonError ? (
+              <FieldError id="promotion-segment-rule-json-error">{ruleJsonError}</FieldError>
+            ) : null}
           </Field>
           <div className="grid gap-4 md:grid-cols-3">
             <Field>
@@ -716,6 +814,10 @@ function PromotionSegmentCreateDialog({
             onClick={() => {
               const ruleJson = parseJsonObject(form.ruleJsonText);
               if (!ruleJson) {
+                setRuleJsonError(
+                  '조건 JSON을 읽을 수 없어요. { "source": "manual_rule" }처럼 객체 형태로 입력해 주세요.'
+                );
+                ruleJsonRef.current?.focus();
                 return;
               }
               onCreate({ ...form, ruleJsonText: JSON.stringify(ruleJson) });
@@ -723,7 +825,7 @@ function PromotionSegmentCreateDialog({
             }}
             type="button"
           >
-            {createIsPending ? "추가하는 중" : "후보 추가하기"}
+            {createIsPending ? "세그먼트 후보 추가 중…" : "세그먼트 후보 추가"}
           </Button>
         </DialogFooter>
       </DialogContent>
