@@ -408,7 +408,7 @@ function ProjectExperimentTable({
             <TableHead>세그먼트</TableHead>
             <TableHead>채널</TableHead>
             <TableHead className="text-right">배정</TableHead>
-            <TableHead className="text-right">목표 / 실제</TableHead>
+            <TableHead className="text-right">현황 / 목표</TableHead>
             <TableHead>실행 상태</TableHead>
             <TableHead>평가</TableHead>
             <TableHead>업데이트</TableHead>
@@ -450,8 +450,10 @@ function ProjectExperimentTable({
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   <MetricPair
-                    left={formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}
-                    right={formatGoalValue(evaluation?.actual_value ?? null)}
+                    left={formatGoalValue(evaluation?.actual_value ?? null)}
+                    right={formatGoalValue(
+                      evaluation?.target_value ?? experiment.goal_target_value
+                    )}
                   />
                 </TableCell>
                 <TableCell>
