@@ -453,7 +453,7 @@ function SelectedSegmentExperimentCards({
               variant="outline"
             >
               <BarChart3 data-icon="inline-start" />
-              {evaluatePromotionRunIsPending ? "평가 중" : "성과 평가하기"}
+              {evaluatePromotionRunIsPending ? "회차 평가 갱신 중…" : "회차 평가 갱신"}
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
