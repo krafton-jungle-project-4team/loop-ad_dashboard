@@ -314,9 +314,7 @@ function SegmentSuggestionCard({
         </div>
       </div>
       <div className="grid gap-3 text-sm text-muted-foreground">
-        {performanceEstimate ? (
-          <SegmentPerformanceSummary estimate={performanceEstimate} showExpectedCount={false} />
-        ) : null}
+        {performanceEstimate ? <SegmentPerformanceSummary estimate={performanceEstimate} /> : null}
         <SegmentAudienceStats
           audience={displayCopy?.audience}
           fallbackSummary={displayCopy?.audience_summary ?? fallbackSummary}
@@ -425,13 +423,7 @@ function SegmentSuggestionCard({
   );
 }
 
-function SegmentPerformanceSummary({
-  estimate,
-  showExpectedCount = true
-}: {
-  estimate: SegmentPerformanceEstimate;
-  showExpectedCount?: boolean;
-}) {
+function SegmentPerformanceSummary({ estimate }: { estimate: SegmentPerformanceEstimate }) {
   const isAvailable = estimate.availability !== "unavailable" && Boolean(estimate.formatted);
 
   return (
@@ -458,16 +450,6 @@ function SegmentPerformanceSummary({
           <span>{estimate.unavailable_reason}</span>
         ) : null}
       </div>
-      {showExpectedCount && isAvailable && estimate.expected_count !== undefined ? (
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-primary/10 pt-2">
-          <span className="text-[11px] text-muted-foreground">
-            {estimate.expected_count_label ?? "예상 목표 달성 인원"}
-          </span>
-          <strong className="text-sm font-semibold tabular-nums text-foreground">
-            {estimate.expected_count_formatted ?? formatExpectedCount(estimate.expected_count)}
-          </strong>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -689,10 +671,6 @@ function formatConfidenceLabel(value: "high" | "medium" | "low") {
   return "낮음";
 }
 
-function formatExpectedCount(value: number) {
-  return `약 ${Math.max(value, 0).toFixed(1)}명`;
-}
-
 function formatObservedPerformance(
   estimate: SegmentPerformanceEstimate,
   selectedUserCount: number | undefined
@@ -707,7 +685,7 @@ function formatObservedPerformance(
           : "목표 행동률";
   const sampleLabel =
     selectedUserCount !== undefined
-      ? ` · 추천 대상 ${formatInteger(selectedUserCount)}명 기준`
+      ? ` · 대표 표본 ${formatInteger(selectedUserCount)}명 기준`
       : "";
 
   return `최근 관찰 ${metricLabel} ${formatPercentValue(estimate.observed_value ?? 0)}${sampleLabel}`;
