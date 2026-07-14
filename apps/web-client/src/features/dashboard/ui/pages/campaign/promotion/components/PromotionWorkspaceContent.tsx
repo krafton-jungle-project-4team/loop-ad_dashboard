@@ -328,7 +328,6 @@ export function PromotionTabWorkspace({
   onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
-  onEditConfirmedSegment,
   onLaunchExperiment,
   onRejectContentCandidate,
   onSelectSegment,
@@ -377,7 +376,6 @@ export function PromotionTabWorkspace({
     status: "suggested" | "accepted" | "dismissed"
   ) => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
-  onEditConfirmedSegment: (segmentId: string) => void;
   onLaunchExperiment: (
     promotionId: string,
     segmentId: string,
@@ -497,7 +495,6 @@ export function PromotionTabWorkspace({
               <PromotionCurrentSegmentsPanel
                 deleteIsPending={deleteConfirmedSegmentIsPending}
                 onDeleteSegment={onDeleteConfirmedSegment}
-                onEditSegment={onEditConfirmedSegment}
                 onSelectSegment={onSelectSegment}
                 promotion={promotion}
                 segments={activeSegments}
@@ -569,7 +566,6 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
 function PromotionCurrentSegmentsPanel({
   deleteIsPending,
   onDeleteSegment,
-  onEditSegment,
   onSelectSegment,
   promotion,
   segments,
@@ -577,7 +573,6 @@ function PromotionCurrentSegmentsPanel({
 }: {
   deleteIsPending: boolean;
   onDeleteSegment: (promotionId: string, segmentId: string) => void;
-  onEditSegment: (segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotion: DashboardCampaignPromotion;
   segments: DashboardCampaignSegment[];
@@ -655,14 +650,6 @@ function PromotionCurrentSegmentsPanel({
                     variant={isSelected ? "default" : "outline"}
                   >
                     광고 소재 · 실험
-                  </Button>
-                  <Button
-                    onClick={() => onEditSegment(segment.segment_id)}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    수정
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
