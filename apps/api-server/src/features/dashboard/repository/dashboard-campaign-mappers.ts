@@ -388,6 +388,8 @@ function suggestionAiReport(value: unknown): DashboardPromotionSegmentSuggestion
   const whyRecommended = jsonStringArray(raw.why_recommended);
   const evidence = jsonStringArray(raw.evidence);
   const promotionInterpretation = jsonStringArray(raw.promotion_interpretation);
+  const candidateStrengths = jsonStringArray(raw.candidate_strengths);
+  const selectionConsiderations = jsonStringArray(raw.selection_considerations);
   const differenceFromOtherRanks = jsonStringArray(raw.difference_from_other_ranks);
   const confidenceLabel = nonEmptyString(raw.confidence_label);
   if (
@@ -409,6 +411,8 @@ function suggestionAiReport(value: unknown): DashboardPromotionSegmentSuggestion
     promotion_interpretation: promotionInterpretation.length ? promotionInterpretation : undefined,
     why_recommended: whyRecommended,
     evidence,
+    candidate_strengths: candidateStrengths.length ? candidateStrengths : undefined,
+    selection_considerations: selectionConsiderations.length ? selectionConsiderations : undefined,
     difference_from_other_ranks: differenceFromOtherRanks.length
       ? differenceFromOtherRanks
       : undefined,
@@ -452,6 +456,9 @@ function suggestionDisplayCopy(
 
   return {
     title,
+    strategy_role: nonEmptyString(raw.strategy_role) ?? undefined,
+    strength_summary: nonEmptyString(raw.strength_summary) ?? undefined,
+    tradeoff_summary: nonEmptyString(raw.tradeoff_summary) ?? undefined,
     rank_role: nonEmptyString(raw.rank_role) ?? undefined,
     recommendation_tier:
       recommendationTier === "primary" || recommendationTier === "small_high_intent"

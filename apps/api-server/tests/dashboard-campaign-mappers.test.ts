@@ -56,6 +56,9 @@ test("segment suggestion mapper preserves enriched AI metadata", () => {
     metadataJson: {
       display_copy: {
         title: "재방문 가능성이 높은 사용자",
+        strategy_role: "예약 이탈 회수형",
+        strength_summary: "예약 직전 행동이 확인된 고객군입니다.",
+        tradeoff_summary: "목적지 관심 범위는 함께 확인해야 합니다.",
         recommendation_tier: "small_high_intent",
         recommendation_tier_label: "소규모 고의도 후보",
         recommendation_tier_reason: "추천 대상이 예측 기준 표본보다 적습니다.",
@@ -88,22 +91,16 @@ test("segment suggestion mapper preserves enriched AI metadata", () => {
         },
         signal_chips: ["최근 조회", "예약 미완료"],
         reason: "행동 신호가 프로모션 목표와 일치합니다.",
-        difference_summary: "Rank 2보다 예상 예약 전환율이 높습니다.",
-        rank_comparison: {
-          reference_rank: "2",
-          metric: "booking_conversion_rate",
-          metric_label: "예상 예약 전환율",
-          direction: "higher",
-          delta_percentage_points: "3.2",
-          summary: "Rank 2보다 예상 예약 전환율이 3.2%p 높습니다."
-        },
         action_hint: "우선 검토하세요."
       },
       ai_report: {
+        version: "dec.segment-report.v3",
         title: "추천 리포트",
         summary: "예약 가능성이 높은 고객군입니다.",
         why_recommended: ["최근 조회 신호가 있습니다."],
         evidence: ["예약 미완료 이벤트가 있습니다."],
+        candidate_strengths: ["예약 직전 행동이 확인되었습니다."],
+        selection_considerations: ["목적지 관심 범위를 함께 확인하세요."],
         action_hint: "리마인드 메시지를 사용하세요.",
         caution: "실행 후 실제 성과를 함께 확인하세요.",
         confidence_label: "medium"
@@ -137,8 +134,16 @@ test("segment suggestion mapper preserves enriched AI metadata", () => {
   assert.equal(suggestion.display_copy?.minimum_primary_sample_size, 30);
   assert.equal(suggestion.display_copy?.audience?.matching_user_count, 230);
   assert.equal(suggestion.display_copy?.audience?.selected_user_count, 160);
-  assert.equal(suggestion.display_copy?.rank_comparison?.direction, "higher");
-  assert.equal(suggestion.display_copy?.rank_comparison?.delta_percentage_points, 3.2);
+  assert.equal(suggestion.display_copy?.strategy_role, "예약 이탈 회수형");
+  assert.equal(suggestion.display_copy?.strength_summary, "예약 직전 행동이 확인된 고객군입니다.");
+  assert.equal(
+    suggestion.display_copy?.tradeoff_summary,
+    "목적지 관심 범위는 함께 확인해야 합니다."
+  );
+  assert.deepEqual(suggestion.ai_report?.candidate_strengths, ["예약 직전 행동이 확인되었습니다."]);
+  assert.deepEqual(suggestion.ai_report?.selection_considerations, [
+    "목적지 관심 범위를 함께 확인하세요."
+  ]);
   assert.equal(suggestion.ai_report?.confidence_label, "medium");
   assert.equal(suggestion.suggested_rank, 1);
   assert.equal(suggestion.sample_size, 200);
