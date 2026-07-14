@@ -39,7 +39,6 @@ import {
   formatJsonObject,
   formatPercentValue,
   parseJsonObject,
-  partitionPromotionSegmentSuggestions,
   segmentAudienceSummary,
   statusBadgeVariant,
   type PromotionSegmentCreateFormState
@@ -92,17 +91,6 @@ export function PromotionSegmentSuggestionPanel({
     (suggestion) => suggestion.suggestion_status === "accepted"
   ).length;
   const confirmableCount = acceptedCount + scopedSegments.length;
-  const groupedSuggestions = partitionPromotionSegmentSuggestions(suggestions);
-  const orderedSuggestions = [
-    ...groupedSuggestions.primary.map((suggestion) => ({
-      smallHighIntent: false,
-      suggestion
-    })),
-    ...groupedSuggestions.smallHighIntent.map((suggestion) => ({
-      smallHighIntent: true,
-      suggestion
-    }))
-  ];
 
   return (
     <Card className="h-full shadow-none">
@@ -214,15 +202,14 @@ export function PromotionSegmentSuggestionPanel({
           </div>
         ) : null}
         {suggestionsIsLoading ? <EmptyState message="추천 후보를 불러오는 중이에요." /> : null}
-        {orderedSuggestions.length > 0 ? (
+        {suggestions.length > 0 ? (
           <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
-            {orderedSuggestions.map(({ smallHighIntent, suggestion }) => (
+            {suggestions.map((suggestion) => (
               <SegmentSuggestionCard
                 decideIsPending={decideIsPending}
                 key={suggestion.suggestion_id}
                 onDecideSuggestion={onDecideSuggestion}
                 onOpenReport={setReportSuggestion}
-                smallHighIntent={smallHighIntent}
                 suggestion={suggestion}
               />
             ))}
@@ -253,7 +240,6 @@ function SegmentSuggestionCard({
   decideIsPending,
   onDecideSuggestion,
   onOpenReport,
-  smallHighIntent,
   suggestion
 }: {
   decideIsPending: boolean;
@@ -262,7 +248,6 @@ function SegmentSuggestionCard({
     status: "suggested" | "accepted" | "dismissed"
   ) => void;
   onOpenReport: (suggestion: DashboardPromotionSegmentSuggestion) => void;
-  smallHighIntent: boolean;
   suggestion: DashboardPromotionSegmentSuggestion;
 }) {
   const isAccepted = suggestion.suggestion_status === "accepted";
@@ -270,8 +255,10 @@ function SegmentSuggestionCard({
   const isDismissed = suggestion.suggestion_status === "dismissed";
   const displayCopy = suggestion.display_copy;
   const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
-  const recommendationRank = displayCopy?.recommendation_rank ?? suggestion.suggested_rank;
-  const rankRole = displayCopy?.rank_role;
+  const strategyRole = displayCopy?.strategy_role ?? displayCopy?.rank_role;
+  const strengthSummary = displayCopy?.strength_summary;
+  const tradeoffSummary =
+    displayCopy?.tradeoff_summary ?? displayCopy?.recommendation_tier_reason;
   const performanceEstimate = displayCopy?.performance_estimate;
   const fallbackSummary = segmentAudienceSummary(suggestion.sample_size, suggestion.sample_ratio);
 
@@ -279,29 +266,21 @@ function SegmentSuggestionCard({
     <div
       className={cn(
         "flex min-h-full min-w-0 flex-col gap-4 overflow-hidden rounded-md border p-5",
-        isAccepted ? "border-primary bg-accent/60" : "bg-background",
-        smallHighIntent && !isAccepted && "border-dashed bg-muted/20"
+        isAccepted ? "border-primary bg-accent/60" : "bg-background"
       )}
     >
       <div className="grid min-w-0 gap-3">
         <div className="flex min-w-0 items-center justify-between gap-3">
-          <span className="min-w-0 text-xs font-semibold text-primary">
-            {smallHighIntent
-              ? (displayCopy?.recommendation_tier_label ?? "소규모 고의도 후보")
-              : `${formatInteger(recommendationRank)}위`}
-          </span>
+          <Badge
+            className="min-w-0 max-w-full whitespace-normal border-primary/20 bg-accent px-2 py-1 text-left leading-4 text-primary [word-break:keep-all]"
+            variant="outline"
+          >
+            {strategyRole ?? "추천 전략 후보"}
+          </Badge>
           <Badge className="shrink-0" variant={statusBadgeVariant(suggestion.suggestion_status)}>
             {formatStatusLabel(suggestion.suggestion_status)}
           </Badge>
         </div>
-        {rankRole ? (
-          <Badge
-            className="w-fit max-w-full whitespace-normal border-primary/20 bg-accent px-2 py-1 text-left leading-4 text-primary [word-break:keep-all]"
-            variant="outline"
-          >
-            {rankRole}
-          </Badge>
-        ) : null}
         <div className="grid min-w-0 gap-1">
           <h3 className="text-base font-semibold leading-6 text-foreground [overflow-wrap:anywhere] [word-break:keep-all]">
             {displayCopy?.title ?? suggestion.segment_name}
@@ -319,12 +298,6 @@ function SegmentSuggestionCard({
           audience={displayCopy?.audience}
           fallbackSummary={displayCopy?.audience_summary ?? fallbackSummary}
         />
-        {smallHighIntent && displayCopy?.recommendation_tier_reason ? (
-          <div className="grid gap-1 rounded-md border border-dashed px-3 py-2 text-xs leading-5">
-            <span className="font-medium text-foreground">별도 후보로 보는 이유</span>
-            <p>{displayCopy.recommendation_tier_reason}</p>
-          </div>
-        ) : null}
         {displayCopy?.signal_chips.length ? (
           <div className="flex flex-wrap gap-1.5">
             {displayCopy.signal_chips.map((chip) => (
@@ -346,8 +319,11 @@ function SegmentSuggestionCard({
               "추천 이유가 없어요."}
           </p>
         </div>
-        {!smallHighIntent && displayCopy ? (
-          <SegmentRankDifference displayCopy={displayCopy} />
+        {strengthSummary || tradeoffSummary ? (
+          <SegmentCandidateGuidance
+            strengthSummary={strengthSummary}
+            tradeoffSummary={tradeoffSummary}
+          />
         ) : null}
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-2 border-t pt-3">
@@ -487,19 +463,31 @@ function AudienceStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function SegmentRankDifference({ displayCopy }: { displayCopy: SegmentSuggestionDisplayCopy }) {
-  const comparison = displayCopy.rank_comparison;
-  const summary = comparison?.summary ?? displayCopy.difference_summary;
-  if (!summary) {
+function SegmentCandidateGuidance({
+  strengthSummary,
+  tradeoffSummary
+}: {
+  strengthSummary: string | undefined;
+  tradeoffSummary: string | undefined;
+}) {
+  if (!strengthSummary && !tradeoffSummary) {
     return null;
   }
 
   return (
-    <div className="grid gap-1 border-l-2 border-primary bg-accent/40 px-3 py-2 text-xs leading-5 text-foreground">
-      <span className="font-medium">
-        {comparison ? `${formatInteger(comparison.reference_rank)}위와 비교` : "후보 비교"}
-      </span>
-      <p className="line-clamp-2">{summary}</p>
+    <div className="grid gap-2 border-l-2 border-primary bg-accent/40 px-3 py-2 text-xs leading-5 text-foreground">
+      {strengthSummary ? (
+        <div className="grid gap-0.5">
+          <span className="font-medium">후보 강점</span>
+          <p className="line-clamp-2">{strengthSummary}</p>
+        </div>
+      ) : null}
+      {tradeoffSummary ? (
+        <div className="grid gap-0.5">
+          <span className="font-medium">선택 시 고려사항</span>
+          <p className="line-clamp-2">{tradeoffSummary}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -513,9 +501,7 @@ function SegmentSuggestionReportDialog({
 }) {
   const report = suggestion?.ai_report ?? null;
   const displayCopy = suggestion?.display_copy;
-  const rankRole = displayCopy?.rank_role;
-  const isSmallHighIntent = displayCopy?.recommendation_tier === "small_high_intent";
-  const recommendationRank = displayCopy?.recommendation_rank ?? suggestion?.suggested_rank ?? 0;
+  const strategyRole = displayCopy?.strategy_role ?? displayCopy?.rank_role;
 
   return (
     <Dialog onOpenChange={onOpenChange} open={Boolean(report)}>
@@ -523,19 +509,7 @@ function SegmentSuggestionReportDialog({
         <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">
-                {isSmallHighIntent
-                  ? (displayCopy?.recommendation_tier_label ?? "소규모 고의도 후보")
-                  : `${formatInteger(recommendationRank)}위`}
-              </Badge>
-              {rankRole ? (
-                <Badge
-                  className="max-w-full whitespace-normal [word-break:keep-all]"
-                  variant="outline"
-                >
-                  {rankRole}
-                </Badge>
-              ) : null}
+              <Badge variant="secondary">{strategyRole ?? "추천 전략 후보"}</Badge>
               <Badge variant="outline">AI 추천 보고서</Badge>
             </div>
             <DialogTitle>{report.title}</DialogTitle>
@@ -564,7 +538,6 @@ function SegmentSuggestionReportContent({
   const displayCopy = suggestion?.display_copy ?? null;
   const performanceEstimate = displayCopy?.performance_estimate;
   const confidenceLabel = performanceEstimate?.confidence_label ?? report?.confidence_label;
-  const isSmallHighIntent = displayCopy?.recommendation_tier === "small_high_intent";
 
   if (!report) {
     return null;
@@ -588,12 +561,6 @@ function SegmentSuggestionReportContent({
             segmentAudienceSummary(suggestion?.sample_size ?? 0, suggestion?.sample_ratio ?? 0)
           }
         />
-        {isSmallHighIntent && displayCopy?.recommendation_tier_reason ? (
-          <div className="grid gap-1 rounded-md border border-dashed px-3 py-2 text-xs leading-5 text-muted-foreground">
-            <span className="font-medium text-foreground">별도 후보로 보는 이유</span>
-            <p>{displayCopy.recommendation_tier_reason}</p>
-          </div>
-        ) : null}
         {performanceEstimate ? (
           <div className="grid gap-2">
             <SegmentPerformanceSummary estimate={performanceEstimate} />
@@ -626,8 +593,22 @@ function SegmentSuggestionReportContent({
       <ReportSection items={report.why_recommended} title="추천한 이유" />
       <ReportSection items={report.evidence} title="확인된 행동 근거" />
       <ReportSection
-        items={report.difference_from_other_ranks}
-        title={isSmallHighIntent ? "주요 추천과의 차이" : "다른 순위와의 차이"}
+        items={
+          report.candidate_strengths ??
+          (displayCopy?.strength_summary ? [displayCopy.strength_summary] : undefined)
+        }
+        title="이 후보의 강점"
+      />
+      <ReportSection
+        items={
+          report.selection_considerations ??
+          (displayCopy?.tradeoff_summary
+            ? [displayCopy.tradeoff_summary]
+            : displayCopy?.recommendation_tier_reason
+              ? [displayCopy.recommendation_tier_reason]
+              : undefined)
+        }
+        title="선택 시 고려사항"
       />
       <section className="grid gap-2 rounded-md border p-4">
         <h4 className="text-sm font-semibold">활용 방법</h4>

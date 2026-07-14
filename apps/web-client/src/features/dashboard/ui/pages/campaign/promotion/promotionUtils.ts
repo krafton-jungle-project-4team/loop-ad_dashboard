@@ -253,6 +253,9 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
 
   return {
     title,
+    strategy_role: nonEmptyText(raw.strategy_role) ?? undefined,
+    strength_summary: nonEmptyText(raw.strength_summary) ?? undefined,
+    tradeoff_summary: nonEmptyText(raw.tradeoff_summary) ?? undefined,
     rank_role: nonEmptyText(raw.rank_role) ?? undefined,
     recommendation_tier:
       recommendationTier === "primary" || recommendationTier === "small_high_intent"
@@ -272,21 +275,6 @@ export function normalizeSegmentDisplayCopy(value: unknown): SegmentDisplayCopy 
     rank_comparison: rankComparison,
     action_hint: actionHint
   };
-}
-
-export function partitionPromotionSegmentSuggestions(
-  suggestions: DashboardPromotionSegmentSuggestion[]
-) {
-  const primary: DashboardPromotionSegmentSuggestion[] = [];
-  const smallHighIntent: DashboardPromotionSegmentSuggestion[] = [];
-  for (const suggestion of suggestions) {
-    if (suggestion.display_copy?.recommendation_tier === "small_high_intent") {
-      smallHighIntent.push(suggestion);
-    } else {
-      primary.push(suggestion);
-    }
-  }
-  return { primary, smallHighIntent };
 }
 
 export function segmentAudienceSummary(sampleSize: number, sampleRatio: number) {
