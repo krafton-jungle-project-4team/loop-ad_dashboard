@@ -1,4 +1,5 @@
 import { Badge } from "@loopad/ui/shadcn/badge";
+import { ButtonGroup, ButtonGroupSeparator } from "@loopad/ui/shadcn/button-group";
 import { Button } from "@loopad/ui/shadcn/button";
 import {
   Card,
@@ -20,7 +21,7 @@ import {
 } from "@loopad/ui/shadcn/dropdown-menu";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { ArrowRight, Check, Ellipsis, Plus } from "lucide-react";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type {
   CampaignWorkspaceAddAction,
   CampaignWorkspaceEntityAction,
@@ -33,6 +34,12 @@ const ENTITY_KIND_LABEL: Record<CampaignWorkspaceEntityKind, string> = {
   promotion: "프로모션",
   segment: "세그먼트"
 };
+
+const ENTRY_ACTION_VARIANT = {
+  manage: "segment-soft",
+  performance: "outline-neutral",
+  workspace: "promotion-soft"
+} as const;
 
 export type EntityCardGridProps<Entity extends CampaignWorkspaceEntityCard> = {
   actions?: (entity: Entity) => ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
@@ -149,25 +156,29 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
       ) : null}
 
       {entryActions.length > 0 || onSelect ? (
-        <CardFooter className="mt-auto">
+        <CardFooter className="mt-auto border-t-0 bg-transparent">
           {entryActions.length > 0 ? (
-            <div className="grid w-full grid-cols-2 gap-2">
-              {entryActions.map((action, index) => (
-                <Button
-                  className={cn(
-                    "h-auto min-h-9 min-w-0 whitespace-normal px-2 py-2 text-xs",
-                    index === 0 && entryActions.length === 3 && "col-span-2"
-                  )}
-                  disabled={action.disabled}
-                  key={action.id}
-                  onClick={() => action.onSelect(entity)}
-                  type="button"
-                  variant="outline"
-                >
-                  {action.label}
-                </Button>
-              ))}
-            </div>
+            <ButtonGroup aria-label={`${entity.title} 빠른 이동`} className="w-full">
+              {entryActions.map((action, index) => {
+                const variant =
+                  ENTRY_ACTION_VARIANT[action.id as keyof typeof ENTRY_ACTION_VARIANT];
+
+                return (
+                  <Fragment key={action.id}>
+                    {index > 0 ? <ButtonGroupSeparator /> : null}
+                    <Button
+                      className="h-auto min-h-9 min-w-0 flex-1 whitespace-normal px-2 py-2 text-xs"
+                      disabled={action.disabled}
+                      onClick={() => action.onSelect(entity)}
+                      type="button"
+                      variant={variant ?? "outline-neutral"}
+                    >
+                      {action.label}
+                    </Button>
+                  </Fragment>
+                );
+              })}
+            </ButtonGroup>
           ) : onSelect ? (
             <Button
               aria-pressed={isSelected}
