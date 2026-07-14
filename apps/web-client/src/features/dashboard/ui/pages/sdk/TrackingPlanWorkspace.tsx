@@ -34,7 +34,6 @@ import { Link } from "@tanstack/react-router";
 import { XIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  EVENT_SDK_VERSION,
   describeEventSchemaVersion,
   eventSdkInitCode,
   eventSdkInstallCode,
@@ -284,7 +283,6 @@ export function DeveloperWorkspace({
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           버전이 명시된 SDK 설치 코드와 이벤트·광고 연동 절차를 확인합니다.
         </p>
-        <VersionMetadata publishedSchema={publishedSchema} />
       </header>
       {error ? (
         <p className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
@@ -295,8 +293,6 @@ export function DeveloperWorkspace({
         confirming={confirmingVersion}
         onConfirm={() => void confirmEventVersion()}
         plan={plan}
-        previousSchema={previousSchema}
-        publishedSchema={publishedSchema}
       />
       <DeveloperGuide
         advertisementGuide={advertisementGuide}
@@ -311,32 +307,17 @@ export function DeveloperWorkspace({
 function EventVersionPanel({
   confirming,
   onConfirm,
-  plan,
-  previousSchema,
-  publishedSchema
+  plan
 }: {
   confirming: boolean;
   onConfirm: () => void;
   plan: TrackingPlan;
-  previousSchema: SdkPublishedSchema | null;
-  publishedSchema: SdkPublishedSchema | null;
 }) {
   const hasPendingChanges = plan.status === "draft";
-  const versionDescription = describeEventSchemaVersion({
-    draftEvents: plan.events,
-    hasPendingChanges,
-    previousSchema,
-    publishedSchema
-  });
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">이벤트 스키마 버전</CardTitle>
-        <CardDescription>
-          이벤트 스키마 버전은 확정된 이벤트 계약의 변경 이력입니다. SDK는 개발자가 버전을 선택하지
-          않아도 항상 최신 확정본을 사용합니다. 마케터의 수정은 개발자가 확정하기 전까지 초안으로
-          유지됩니다.
-        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center justify-between gap-4">
         <div className="grid gap-1">
@@ -344,7 +325,6 @@ function EventVersionPanel({
           <strong className="text-lg">
             이벤트 스키마 {formatEventRevision(plan.publishedRevision)}
           </strong>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{versionDescription}</p>
         </div>
         <Button
           disabled={!hasPendingChanges || plan.events.length === 0 || confirming}
@@ -363,16 +343,6 @@ function EventVersionPanel({
 
 function formatEventRevision(revision: number | null) {
   return revision === null ? "아직 확정된 버전 없음" : `v${revision}`;
-}
-
-function VersionMetadata({ publishedSchema }: { publishedSchema: SdkPublishedSchema | null }) {
-  return (
-    <p className="text-xs text-muted-foreground">
-      SDK 패키지 v{EVENT_SDK_VERSION} · 이벤트 스키마{" "}
-      {formatEventRevision(publishedSchema?.revision ?? null)}
-      {publishedSchema ? ` · 확정 이벤트 ${publishedSchema.events.length}개` : ""}
-    </p>
-  );
 }
 
 function EventDesigner({
@@ -838,11 +808,6 @@ function CollectionGuide({
     <article className="grid gap-5">
       <header className="grid gap-2 border-b pb-5">
         <h2 className="text-2xl font-semibold">이벤트 수집 SDK 연동</h2>
-        <p className="text-sm leading-6 text-muted-foreground">
-          SDK 패키지 버전은 배포 파일을, 이벤트 스키마 버전은 이벤트 계약의 확정 이력을 나타냅니다.
-          두 버전은 서로 독립적으로 관리됩니다.
-        </p>
-        <VersionMetadata publishedSchema={publishedSchema} />
       </header>
 
       <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
