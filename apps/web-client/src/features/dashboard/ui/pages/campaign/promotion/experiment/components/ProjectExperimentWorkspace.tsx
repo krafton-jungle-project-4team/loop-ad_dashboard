@@ -437,7 +437,7 @@ function ProjectExperimentTable({
             <TableHead>실행 상태</TableHead>
             <TableHead>평가</TableHead>
             <TableHead>업데이트</TableHead>
-            <TableHead className="w-40 pl-7">실험</TableHead>
+            <TableHead className="w-44 pl-7">상세</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -484,18 +484,20 @@ function ProjectExperimentTable({
                   </div>
                 </TableCell>
                 <TableCell>{formatDateTime(experiment.updated_at)}</TableCell>
-                <TableCell className="w-40">
+                <TableCell className="w-44">
                   <Button
                     aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
-                    className="h-9 min-w-28 justify-center px-4"
+                    aria-expanded={isSelected}
+                    className="h-9 min-w-36 justify-between px-4"
                     onClick={() => onSelect(experiment)}
                     size="sm"
                     type="button"
-                    variant="outline"
+                    variant="soft"
                   >
                     <span className="font-medium">
-                      {formatInteger(experiment.loop_count)}번째 실험
+                      {formatInteger(experiment.loop_count)}번째 실험 보기
                     </span>
+                    <ChevronRight aria-hidden="true" data-icon="inline-end" />
                   </Button>
                 </TableCell>
               </TableRow>
