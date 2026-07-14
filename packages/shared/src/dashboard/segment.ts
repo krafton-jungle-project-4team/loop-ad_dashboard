@@ -302,6 +302,9 @@ function normalizedNonNegativeNumber(value: unknown): number | null {
 
 export const DashboardPromotionSegmentSuggestionDisplayCopySchema = z.object({
   title: z.string(),
+  strategy_role: z.string().optional(),
+  strength_summary: z.string().optional(),
+  tradeoff_summary: z.string().optional(),
   rank_role: z.string().optional(),
   recommendation_tier: z.enum(["primary", "small_high_intent"]).optional(),
   recommendation_tier_label: z.string().optional(),
@@ -330,6 +333,8 @@ export const DashboardPromotionSegmentSuggestionReportSchema = z.object({
   promotion_interpretation: z.array(z.string()).optional(),
   why_recommended: z.array(z.string()),
   evidence: z.array(z.string()),
+  candidate_strengths: z.array(z.string()).optional(),
+  selection_considerations: z.array(z.string()).optional(),
   difference_from_other_ranks: z.array(z.string()).optional(),
   action_hint: z.string(),
   caution: z.string(),

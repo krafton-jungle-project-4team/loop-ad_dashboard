@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   DashboardPromotionSegmentSuggestionDisplayCopySchema,
   DashboardPromotionSegmentSuggestionPerformanceEstimateSchema,
+  DashboardPromotionSegmentSuggestionReportSchema,
   normalizePromotionSegmentPerformanceEstimate
 } from "@loopad/shared";
 
@@ -151,7 +152,7 @@ test("segment suggestion display copy accepts the previous optional-field contra
   );
 });
 
-test("segment suggestion display copy accepts the enriched AI contract", () => {
+test("segment suggestion display copy accepts the legacy ranked AI contract", () => {
   const displayCopy = {
     title: "재방문 가능성이 높은 사용자",
     rank_role: "우선 검토",
@@ -206,4 +207,38 @@ test("segment suggestion display copy accepts the enriched AI contract", () => {
     DashboardPromotionSegmentSuggestionDisplayCopySchema.parse(displayCopy),
     displayCopy
   );
+});
+
+test("segment suggestion display copy accepts the strategy portfolio contract", () => {
+  const displayCopy = {
+    title: "예약 직전 이탈 고객",
+    strategy_role: "예약 이탈 회수형",
+    strength_summary: "예약 시작 행동이 확인되어 전환 의도가 깊습니다.",
+    tradeoff_summary: "목적지 일치 여부는 다른 후보보다 약할 수 있습니다.",
+    audience_summary: "분석 가능 사용자 310명 중 대표 표본 42명",
+    signal_chips: ["예약 시작", "예약 미완료"],
+    reason: "예약 흐름까지 진입했지만 완료하지 않은 고객군입니다.",
+    action_hint: "예약 혜택과 마감 메시지를 함께 사용하세요."
+  };
+
+  assert.deepEqual(
+    DashboardPromotionSegmentSuggestionDisplayCopySchema.parse(displayCopy),
+    displayCopy
+  );
+});
+
+test("segment suggestion report accepts the strategy portfolio contract", () => {
+  const report = {
+    version: "dec.segment-report.v3",
+    title: "예약 직전 이탈 고객 리포트",
+    summary: "예약 직전 단계에서 멈춘 고객군입니다.",
+    why_recommended: ["예약 시작 행동이 확인되었습니다."],
+    evidence: ["예약 완료 행동은 확인되지 않았습니다."],
+    candidate_strengths: ["전환 의도가 깊은 고객군입니다."],
+    selection_considerations: ["목적지 일치 여부를 함께 확인하세요."],
+    action_hint: "예약 혜택을 강조하세요.",
+    caution: "실행 후 실제 성과를 확인하세요."
+  };
+
+  assert.deepEqual(DashboardPromotionSegmentSuggestionReportSchema.parse(report), report);
 });
