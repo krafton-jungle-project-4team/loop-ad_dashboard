@@ -232,19 +232,17 @@ export function ProjectExperimentWorkspace({
               </CardDescription>
             </div>
             <Button
-              aria-label={
-                evaluationRefreshIsPending ? "진행 중 실험 평가 갱신 중" : "진행 중 실험 평가 갱신"
-              }
+              aria-label={evaluationRefreshIsPending ? "평가 갱신 중" : "평가 갱신"}
               disabled={runningPromotionRunIds.length === 0 || evaluationRefreshIsPending}
               onClick={() => onRefreshRunningEvaluations(runningPromotionRunIds)}
               type="button"
             >
               {evaluationRefreshIsPending ? (
-                <Spinner aria-label="진행 중 실험 평가 갱신 중" data-icon="inline-start" />
+                <Spinner aria-label="평가 갱신 중" data-icon="inline-start" />
               ) : (
                 <RefreshCw aria-hidden="true" data-icon="inline-start" />
               )}
-              {evaluationRefreshIsPending ? "실험 평가 갱신 중…" : "진행 중 실험 평가 갱신"}
+              {evaluationRefreshIsPending ? "평가 갱신 중…" : "평가 갱신"}
             </Button>
           </div>
           <div className="grid gap-4 md:grid-cols-3 xl:ml-auto">
