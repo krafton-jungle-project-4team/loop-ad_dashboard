@@ -368,7 +368,7 @@ function SegmentSuggestionCard({
               disabled={decideIsPending || isDismissed || isConfirmed}
               size="sm"
               type="button"
-              variant="outline"
+              variant="destructive"
             >
               <Trash2 className="mr-2 size-3.5" />
               세그먼트 후보 삭제
