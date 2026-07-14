@@ -93,11 +93,6 @@ export function PromotionEditDialog({
           </Select>
         </Field>
         <DialogFooter className="border-t pt-5">
-          <DialogClose asChild>
-            <Button type="button" variant="ghost">
-              취소
-            </Button>
-          </DialogClose>
           <Button
             disabled={!canSubmit}
             onClick={() =>
