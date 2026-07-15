@@ -5,7 +5,7 @@ import type {
   DashboardUnapproveContentCandidateResult
 } from "@loopad/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   archiveDashboardPromotionScopedSegmentDefinition,
   approveDashboardContentCandidate,
@@ -247,6 +247,45 @@ export function usePromotionWorkspaceController({
         ? 2500
         : false
   });
+  const generationId = promotionDetail.data?.generation?.generation_id ?? null;
+  const generationPromotionId = promotionDetail.data?.generation?.promotion_id ?? "";
+  const generationIsPending = shouldPollAsyncStatus(promotionDetail.data?.generation?.status);
+  const previousGenerationRef = useRef({ generationId: null as string | null, isPending: false });
+
+  useEffect(() => {
+    const previousGeneration = previousGenerationRef.current;
+    previousGenerationRef.current = { generationId, isPending: generationIsPending };
+
+    if (
+      !generationId ||
+      !generationPromotionId ||
+      previousGeneration.generationId !== generationId ||
+      !previousGeneration.isPending ||
+      generationIsPending
+    ) {
+      return;
+    }
+
+    void queryClient.invalidateQueries({
+      queryKey: dashboardPromotionDetailQueryKey(query.projectId, generationPromotionId)
+    });
+    if (selectedPromotionSegmentId) {
+      void queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          generationPromotionId,
+          selectedPromotionSegmentId
+        )
+      });
+    }
+  }, [
+    generationId,
+    generationIsPending,
+    generationPromotionId,
+    query.projectId,
+    queryClient,
+    selectedPromotionSegmentId
+  ]);
   const latestAnalysisId = promotionDetail.data?.analyses[0]?.analysis_id ?? null;
   const selectedOpenPromotionId = selectedOpenPromotion?.promotion_id ?? "";
   const analysisProgressKey = dashboardPromotionAnalysisProgressQueryKey(
@@ -685,9 +724,7 @@ export function usePromotionWorkspaceController({
     openPromotions,
     promotionAnalysisIsPending:
       recommendSegmentsMutation.isPending || analysisProgress.data.status === "pending",
-    promotionGenerationIsPending:
-      startGenerationMutation.isPending ||
-      shouldPollAsyncStatus(promotionDetail.data?.generation?.status),
+    promotionGenerationIsPending: startGenerationMutation.isPending || generationIsPending,
     rejectContentCandidateMutation,
     scopedSegmentDefinitions,
     segmentDetail,
