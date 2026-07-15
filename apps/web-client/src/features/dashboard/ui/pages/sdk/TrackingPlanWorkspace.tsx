@@ -1,7 +1,10 @@
 import type {
   SdkPublishedSchema,
   TrackingPlan,
+  TrackingPlanCreateRequest,
   TrackingPlanEvent,
+  TrackingPlanEventInput,
+  TrackingPlanEventUpdate,
   TrackingPlanJsonSchema,
   TrackingPlanPropertyType
 } from "@loopad/shared";
@@ -40,17 +43,22 @@ import {
   eventSdkTrackCode
 } from "../../../model/sdk-guide.js";
 import {
-  addTrackingPlanEvent,
-  createTrackingPlan,
-  createTrackingPlanFromObservedEvents,
-  deleteTrackingPlanEvent,
-  getTrackingPlan,
-  updateTrackingPlanEvent
+  addTrackingPlanEvent as addStubTrackingPlanEvent,
+  createTrackingPlan as createStubTrackingPlan,
+  createTrackingPlanFromObservedEvents as createStubTrackingPlanFromObservedEvents,
+  deleteTrackingPlanEvent as deleteStubTrackingPlanEvent,
+  getTrackingPlan as getStubTrackingPlan,
+  updateTrackingPlanEvent as updateStubTrackingPlanEvent
 } from "../../../api/tracking-plan-stub.js";
 import {
+  addTrackingPlanEvent as addConnectedTrackingPlanEvent,
+  createTrackingPlan as createConnectedTrackingPlan,
+  createTrackingPlanFromObservedEvents as createConnectedTrackingPlanFromObservedEvents,
+  deleteTrackingPlanEvent as deleteConnectedTrackingPlanEvent,
   getPublishedTrackingPlanSchema,
-  getTrackingPlan as getDeveloperTrackingPlan,
-  publishTrackingPlan
+  getTrackingPlan as getConnectedTrackingPlan,
+  publishTrackingPlan,
+  updateTrackingPlanEvent as updateConnectedTrackingPlanEvent
 } from "../../../api/tracking-plan-api.js";
 import { useProjectOnboarding } from "../../onboarding/ProjectOnboardingProvider.js";
 
@@ -67,10 +75,71 @@ type SchemaDraft = {
   items?: SchemaDraft;
 };
 
+type TrackingPlanDataSource = {
+  addEvent: (projectId: string, event: TrackingPlanEventInput) => Promise<TrackingPlan>;
+  create: (projectId: string, request: TrackingPlanCreateRequest) => Promise<TrackingPlan>;
+  createFromObservedEvents: (projectId: string) => Promise<TrackingPlan>;
+  deleteEvent: (projectId: string, eventName: string) => Promise<TrackingPlan>;
+  get: (projectId: string) => Promise<TrackingPlan>;
+  updateEvent: (
+    projectId: string,
+    eventName: string,
+    event: TrackingPlanEventUpdate
+  ) => Promise<TrackingPlan>;
+};
+
 const DEFAULT_DEMO_ORIGIN = "https://demo-shoppingmall.dev.loop-ad.org";
+const STUB_TRACKING_PLAN_DATA_SOURCE: TrackingPlanDataSource = {
+  addEvent: addStubTrackingPlanEvent,
+  create: createStubTrackingPlan,
+  createFromObservedEvents: createStubTrackingPlanFromObservedEvents,
+  deleteEvent: deleteStubTrackingPlanEvent,
+  get: getStubTrackingPlan,
+  updateEvent: updateStubTrackingPlanEvent
+};
+const CONNECTED_TRACKING_PLAN_DATA_SOURCE: TrackingPlanDataSource = {
+  addEvent: addConnectedTrackingPlanEvent,
+  create: createConnectedTrackingPlan,
+  createFromObservedEvents: createConnectedTrackingPlanFromObservedEvents,
+  deleteEvent: deleteConnectedTrackingPlanEvent,
+  get: getConnectedTrackingPlan,
+  updateEvent: updateConnectedTrackingPlanEvent
+};
 let nextPropertyDraftId = 0;
 
 export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
+  return (
+    <TrackingPlanEditorWorkspace
+      dataSource={STUB_TRACKING_PLAN_DATA_SOURCE}
+      description="마케팅에 사용할 이벤트 이름과 주요 속성 규칙을 관리해요."
+      projectId={projectId}
+      title="이벤트 관리"
+    />
+  );
+}
+
+export function ConnectedTrackingPlanWorkspace({ projectId }: { projectId: string }) {
+  return (
+    <TrackingPlanEditorWorkspace
+      dataSource={CONNECTED_TRACKING_PLAN_DATA_SOURCE}
+      description="이벤트 수집에 사용할 전체 속성 구조와 형식을 세부적으로 조정해요."
+      projectId={projectId}
+      title="이벤트 세부 조정"
+    />
+  );
+}
+
+function TrackingPlanEditorWorkspace({
+  dataSource,
+  description,
+  projectId,
+  title
+}: {
+  dataSource: TrackingPlanDataSource;
+  description: string;
+  projectId: string;
+  title: string;
+}) {
   const { restartGuide } = useProjectOnboarding();
   const [plan, setPlan] = useState<TrackingPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +149,8 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void getTrackingPlan(projectId)
+    void dataSource
+      .get(projectId)
       .then((value) => {
         if (!cancelled) setPlan(value);
       })
@@ -93,7 +163,7 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [dataSource, projectId]);
 
   async function run(action: () => Promise<TrackingPlan>) {
     setError(null);
@@ -112,11 +182,11 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
     setCreationMode(mode);
     try {
       if (mode === "observed") {
-        await run(() => createTrackingPlanFromObservedEvents(projectId));
+        await run(() => dataSource.createFromObservedEvents(projectId));
         return;
       }
       await run(() =>
-        createTrackingPlan(projectId, {
+        dataSource.create(projectId, {
           name: "Default Tracking Plan",
           allowedOrigins: [DEFAULT_DEMO_ORIGIN]
         })
@@ -170,10 +240,8 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">이벤트 관리</h1>
-          <p className="text-sm text-muted-foreground">
-            마케팅에 사용할 이벤트 이름과 속성 규칙을 관리해요.
-          </p>
+          <h1 className="text-2xl font-semibold">{title}</h1>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={restartGuide} size="sm" type="button" variant="ghost">
@@ -191,7 +259,7 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
           {error}
         </p>
       ) : null}
-      <EventDesigner plan={plan} run={run} />
+      <EventDesigner dataSource={dataSource} plan={plan} run={run} />
     </div>
   );
 }
@@ -213,7 +281,7 @@ export function DeveloperWorkspace({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void getDeveloperTrackingPlan(projectId)
+    void getConnectedTrackingPlan(projectId)
       .then(async (value) => {
         const schema =
           value.publishedRevision === null ? null : await getPublishedTrackingPlanSchema(projectId);
@@ -356,9 +424,11 @@ function formatEventRevision(revision: number | null) {
 }
 
 function EventDesigner({
+  dataSource,
   plan,
   run
 }: {
+  dataSource: TrackingPlanDataSource;
   plan: TrackingPlan;
   run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
 }) {
@@ -403,7 +473,7 @@ function EventDesigner({
     const propertiesSchema = schemaFromProperties(properties);
     if (mode === "edit" && selected) {
       const saved = await run(() =>
-        updateTrackingPlanEvent(plan.projectId, selected.eventName, {
+        dataSource.updateEvent(plan.projectId, selected.eventName, {
           description,
           propertiesSchema
         })
@@ -414,7 +484,7 @@ function EventDesigner({
 
     const nextEventName = eventName.trim();
     const saved = await run(() =>
-      addTrackingPlanEvent(plan.projectId, {
+      dataSource.addEvent(plan.projectId, {
         eventName: nextEventName,
         description,
         propertiesSchema
@@ -424,14 +494,14 @@ function EventDesigner({
   }
 
   async function removeEvent(event: TrackingPlanEvent) {
-    const deleted = await run(() => deleteTrackingPlanEvent(plan.projectId, event.eventName));
+    const deleted = await run(() => dataSource.deleteEvent(plan.projectId, event.eventName));
     if (deleted) closePanel();
   }
 
   async function autoGenerateEvents() {
     setAutoGenerating(true);
     try {
-      await run(() => createTrackingPlanFromObservedEvents(plan.projectId));
+      await run(() => dataSource.createFromObservedEvents(plan.projectId));
     } finally {
       setAutoGenerating(false);
     }
