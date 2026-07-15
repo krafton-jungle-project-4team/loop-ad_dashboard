@@ -648,6 +648,7 @@ export interface IFindRedirectLinkByTokenResult {
   expiresAt: Date | null;
   metadataJson: Json | null;
   projectId: string;
+  sdkKey: string;
   promotionId: string;
   promotionRunId: string;
   redirectLinkId: string;
@@ -664,7 +665,7 @@ export interface IFindRedirectLinkByTokenQuery {
   result: IFindRedirectLinkByTokenResult;
 }
 
-const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"params":[{"name":"redirectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":764,"b":774}]}],"statement":"SELECT\n  rl.redirect_id AS \"redirectLinkId\",\n  rl.project_id AS \"projectId\",\n  rl.campaign_id AS \"campaignId\",\n  rl.promotion_id AS \"promotionId\",\n  rl.promotion_run_id AS \"promotionRunId\",\n  rl.ad_experiment_id AS \"adExperimentId\",\n  rl.segment_id AS \"segmentId\",\n  rl.user_id AS \"userId\",\n  rl.content_id AS \"contentId\",\n  rl.content_option_id AS \"contentOptionId\",\n  rl.redirect_id AS \"redirectToken\",\n  p.landing_url AS \"destinationUrl\",\n  'active' AS status,\n  '{}'::jsonb AS \"metadataJson\",\n  rl.expires_at AS \"expiresAt\",\n  NULL::timestamptz AS \"clickedAt\",\n  rl.created_at AS \"createdAt\",\n  rl.created_at AS \"updatedAt\"\nFROM redirect_links rl\nJOIN promotions p\n  ON p.project_id = rl.project_id\n AND p.promotion_id = rl.promotion_id\nWHERE rl.redirect_id = :redirectId\n\n LIMIT 1"};
+const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"params":[{"name":"redirectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":859,"b":869}]}],"statement":"SELECT\n  rl.redirect_id AS \"redirectLinkId\",\n  rl.project_id AS \"projectId\",\n  project.write_key AS \"sdkKey\",\n  rl.campaign_id AS \"campaignId\",\n  rl.promotion_id AS \"promotionId\",\n  rl.promotion_run_id AS \"promotionRunId\",\n  rl.ad_experiment_id AS \"adExperimentId\",\n  rl.segment_id AS \"segmentId\",\n  rl.user_id AS \"userId\",\n  rl.content_id AS \"contentId\",\n  rl.content_option_id AS \"contentOptionId\",\n  rl.redirect_id AS \"redirectToken\",\n  p.landing_url AS \"destinationUrl\",\n  'active' AS status,\n  '{}'::jsonb AS \"metadataJson\",\n  rl.expires_at AS \"expiresAt\",\n  NULL::timestamptz AS \"clickedAt\",\n  rl.created_at AS \"createdAt\",\n  rl.created_at AS \"updatedAt\"\nFROM redirect_links rl\nJOIN projects project\n  ON project.project_id = rl.project_id\nJOIN promotions p\n  ON p.project_id = rl.project_id\n AND p.promotion_id = rl.promotion_id\nWHERE rl.redirect_id = :redirectId\n\n LIMIT 1"};
 
 /**
  * Query generated from SQL:
@@ -672,6 +673,7 @@ const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"para
  * SELECT
  *   rl.redirect_id AS "redirectLinkId",
  *   rl.project_id AS "projectId",
+ *   project.write_key AS "sdkKey",
  *   rl.campaign_id AS "campaignId",
  *   rl.promotion_id AS "promotionId",
  *   rl.promotion_run_id AS "promotionRunId",
@@ -689,6 +691,8 @@ const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"para
  *   rl.created_at AS "createdAt",
  *   rl.created_at AS "updatedAt"
  * FROM redirect_links rl
+ * JOIN projects project
+ *   ON project.project_id = rl.project_id
  * JOIN promotions p
  *   ON p.project_id = rl.project_id
  *  AND p.promotion_id = rl.promotion_id

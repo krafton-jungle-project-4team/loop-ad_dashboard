@@ -107,12 +107,26 @@ export class PublicSdkConnectionController {
   constructor(@Inject(TrackingPlanService) private readonly service: TrackingPlanService) {}
 
   @Get(":sdkKey")
-  async connection(@Param("sdkKey") sdkKey: string, @Headers("origin") origin?: string) {
-    return SdkConnectionSchema.parse(await this.service.connection(sdkKey, origin));
+  async connection(
+    @Param("sdkKey") sdkKey: string,
+    @Headers("origin") origin?: string,
+    @Headers("referer") referer?: string,
+    @Headers("sec-fetch-site") secFetchSite?: string
+  ) {
+    return SdkConnectionSchema.parse(
+      await this.service.connection(sdkKey, { origin, referer, secFetchSite })
+    );
   }
 
   @Get(":sdkKey/schema")
-  async schema(@Param("sdkKey") sdkKey: string, @Headers("origin") origin?: string) {
-    return SdkPublishedSchemaSchema.parse(await this.service.schema(sdkKey, origin));
+  async schema(
+    @Param("sdkKey") sdkKey: string,
+    @Headers("origin") origin?: string,
+    @Headers("referer") referer?: string,
+    @Headers("sec-fetch-site") secFetchSite?: string
+  ) {
+    return SdkPublishedSchemaSchema.parse(
+      await this.service.schema(sdkKey, { origin, referer, secFetchSite })
+    );
   }
 }

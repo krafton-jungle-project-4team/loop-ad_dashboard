@@ -122,6 +122,7 @@ export type ActiveAdServingAssignmentEntity = z.infer<typeof activeAdServingAssi
 export const redirectLinkEntitySchema = z.object({
   redirectLinkId: requiredStringSchema,
   ...runIdsSchema,
+  sdkKey: requiredStringSchema,
   adExperimentId: requiredStringSchema.nullable(),
   segmentId: requiredStringSchema.nullable(),
   userId: requiredStringSchema.nullable(),
@@ -166,7 +167,7 @@ export interface RedirectPageSnapshot {
   targetUrl: string;
   eventSdk: {
     url: string;
-    writeKey: string;
+    connectionUrl: string;
   };
   event: RedirectClickEventSnapshot;
 }

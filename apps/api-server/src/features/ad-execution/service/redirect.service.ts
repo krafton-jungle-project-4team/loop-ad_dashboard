@@ -12,11 +12,8 @@ import { requireValidPromotionLandingUrl } from "./landing-url.guard.js";
 
 const LOOPAD_EVENT_SDK_URL =
   "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js";
-const LOOPAD_EVENT_WRITE_KEY = "public_write_key";
-const LOOPAD_EVENT_SDK = Object.freeze({
-  url: LOOPAD_EVENT_SDK_URL,
-  writeKey: LOOPAD_EVENT_WRITE_KEY
-});
+const LOOPAD_EVENT_CONNECTION_BASE_URL =
+  "https://dashboard.api.dev.loop-ad.org/api/public/v1/sdk/connections";
 
 /** redirect token을 SDK handoff 페이지 데이터로 복원합니다. */
 @Injectable()
@@ -46,7 +43,10 @@ export class RedirectService {
     });
     const promotionChannel = await this.requireRedirectChannel(link.adExperimentId);
     log.assignContext({ channel: promotionChannel });
-    const page = AdExecutionDomain.toRedirectPage(link, promotionChannel, LOOPAD_EVENT_SDK);
+    const page = AdExecutionDomain.toRedirectPage(link, promotionChannel, {
+      url: LOOPAD_EVENT_SDK_URL,
+      connectionUrl: `${LOOPAD_EVENT_CONNECTION_BASE_URL}/${encodeURIComponent(link.sdkKey)}`
+    });
 
     log.info("completed", { link, promotionChannel, page });
 

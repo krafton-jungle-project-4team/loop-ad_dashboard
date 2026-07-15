@@ -77,14 +77,13 @@
           });
         }
 
-        function trackRedirectClick() {
+        async function trackRedirectClick() {
           if (!window.LoopAdEventSDK || typeof window.LoopAdEventSDK.init !== "function") {
             throw new Error("LoopAd Event SDK is unavailable.");
           }
 
-          const sdk = window.LoopAdEventSDK.init({
-            projectId: redirect.event.projectId,
-            writeKey: redirect.eventSdk.writeKey,
+          const sdk = await window.LoopAdEventSDK.init({
+            connectionUrl: redirect.eventSdk.connectionUrl,
             identity: redirect.event.identity,
             autoTrackPageViews: false,
             collectDomEvents: false
@@ -94,11 +93,7 @@
             throw new Error("LoopAd Event SDK track method is unavailable.");
           }
 
-          sdk.track(redirect.event.name, {
-            campaignId: redirect.event.fields.campaign_id,
-            channel: redirect.event.fields.promotion_channel,
-            properties: redirect.event.fields
-          });
+          sdk.track(redirect.event.name, redirect.event.fields);
         }
 
         loadSdk(redirect.eventSdk.url)
