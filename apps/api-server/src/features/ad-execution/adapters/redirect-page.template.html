@@ -77,6 +77,18 @@
           });
         }
 
+        function detectDevice() {
+          if (window.innerWidth < 768) {
+            return "mobile";
+          }
+
+          if (window.innerWidth < 1200) {
+            return "tablet";
+          }
+
+          return "desktop";
+        }
+
         async function trackRedirectClick() {
           if (!window.LoopAdEventSDK || typeof window.LoopAdEventSDK.init !== "function") {
             throw new Error("LoopAd Event SDK is unavailable.");
@@ -93,7 +105,10 @@
             throw new Error("LoopAd Event SDK track method is unavailable.");
           }
 
-          sdk.track(redirect.event.name, redirect.event.fields);
+          sdk.track(redirect.event.name, {
+            ...redirect.event.fields,
+            device: detectDevice()
+          });
         }
 
         loadSdk(redirect.eventSdk.url)

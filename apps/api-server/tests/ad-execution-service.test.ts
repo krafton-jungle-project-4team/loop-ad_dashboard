@@ -737,7 +737,9 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   assert.match(html, /await window\.LoopAdEventSDK\.init/);
   assert.match(html, /connectionUrl:\s*redirect\.eventSdk\.connectionUrl/);
   assert.match(html, /리다이렉트_클릭/);
-  assert.match(html, /sdk\.track\(redirect\.event\.name, redirect\.event\.fields\)/);
+  assert.match(html, /sdk\.track\(redirect\.event\.name/);
+  assert.match(html, /\.\.\.redirect\.event\.fields/);
+  assert.match(html, /device:\s*detectDevice\(\)/);
   assert.match(html, /window\.location\.replace/);
 });
 

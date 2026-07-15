@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json && cpy '**/*.html' dist --cwd=src",
+    "build": "tsc -p tsconfig.json && cpy '**/*.html' ../dist --cwd=src",
     "db:generate": "pgtyped -c pgtyped.config.json",
     "start": "node dist/main.js",
     "test": "npm run build -w @loopad/shared && tsx --test \"tests/**/*.test.ts\"",
