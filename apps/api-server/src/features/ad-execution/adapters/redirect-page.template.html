@@ -77,14 +77,25 @@
           });
         }
 
-        function trackRedirectClick() {
+        function detectDevice() {
+          if (window.innerWidth < 768) {
+            return "mobile";
+          }
+
+          if (window.innerWidth < 1200) {
+            return "tablet";
+          }
+
+          return "desktop";
+        }
+
+        async function trackRedirectClick() {
           if (!window.LoopAdEventSDK || typeof window.LoopAdEventSDK.init !== "function") {
             throw new Error("LoopAd Event SDK is unavailable.");
           }
 
-          const sdk = window.LoopAdEventSDK.init({
-            projectId: redirect.event.projectId,
-            writeKey: redirect.eventSdk.writeKey,
+          const sdk = await window.LoopAdEventSDK.init({
+            connectionUrl: redirect.eventSdk.connectionUrl,
             identity: redirect.event.identity,
             autoTrackPageViews: false,
             collectDomEvents: false
@@ -95,9 +106,8 @@
           }
 
           sdk.track(redirect.event.name, {
-            campaignId: redirect.event.fields.campaign_id,
-            channel: redirect.event.fields.promotion_channel,
-            properties: redirect.event.fields
+            ...redirect.event.fields,
+            device: detectDevice()
           });
         }
 

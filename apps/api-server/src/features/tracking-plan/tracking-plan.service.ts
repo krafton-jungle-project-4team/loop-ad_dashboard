@@ -20,6 +20,13 @@ const COLLECTOR_URL = "https://event.api.dev.loop-ad.org/events";
 const PUBLIC_API_BASE_URL = "https://dashboard.api.dev.loop-ad.org/api/public/v1/sdk/connections";
 const CACHE_TTL_SECONDS = 60;
 const DEMO_SITE_ORIGIN = "https://demo-shoppingmall.dev.loop-ad.org";
+const DASHBOARD_API_ORIGIN = "https://dashboard.api.dev.loop-ad.org";
+
+interface PublicSdkRequestContext {
+  origin?: string;
+  referer?: string;
+  secFetchSite?: string;
+}
 
 @Injectable()
 export class TrackingPlanService {
@@ -77,8 +84,8 @@ export class TrackingPlanService {
     return { valid: issues.length === 0, issues };
   }
 
-  async connection(sdkKey: string, origin: string | undefined): Promise<SdkConnection> {
-    const published = await this.authorizePublicConnection(sdkKey, origin);
+  async connection(sdkKey: string, request: PublicSdkRequestContext): Promise<SdkConnection> {
+    const published = await this.authorizePublicConnection(sdkKey, request);
     return {
       projectId: published.projectId,
       writeKey: published.writeKey,
@@ -91,17 +98,35 @@ export class TrackingPlanService {
     };
   }
 
-  async schema(sdkKey: string, origin: string | undefined): Promise<SdkPublishedSchema> {
-    return (await this.authorizePublicConnection(sdkKey, origin)).schema;
+  async schema(sdkKey: string, request: PublicSdkRequestContext): Promise<SdkPublishedSchema> {
+    return (await this.authorizePublicConnection(sdkKey, request)).schema;
   }
 
-  private async authorizePublicConnection(sdkKey: string, origin: string | undefined) {
+  private async authorizePublicConnection(sdkKey: string, request: PublicSdkRequestContext) {
     const published = await this.repository.getPublicConnection(sdkKey);
-    if (!origin || !published.allowedOrigins.includes(origin)) {
+    const allowed =
+      (request.origin && published.allowedOrigins.includes(request.origin)) ||
+      isTrustedPlatformSdkRequest(request);
+    if (!allowed) {
       throw new ForbiddenException(
         "Origin is required and is not allowed for this SDK connection."
       );
     }
     return published;
+  }
+}
+
+function isTrustedPlatformSdkRequest(request: PublicSdkRequestContext) {
+  if (request.origin === DASHBOARD_API_ORIGIN) return true;
+
+  // Browsers omit Origin from same-origin GET requests. Restrict that case to
+  // SDK initialization performed by the server-rendered redirect handoff page.
+  if (request.origin || request.secFetchSite !== "same-origin" || !request.referer) return false;
+
+  try {
+    const referer = new URL(request.referer);
+    return referer.origin === DASHBOARD_API_ORIGIN && /^\/r\/[^/]+\/?$/.test(referer.pathname);
+  } catch {
+    return false;
   }
 }

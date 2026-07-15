@@ -275,6 +275,7 @@ RETURNING
 SELECT
   rl.redirect_id AS "redirectLinkId",
   rl.project_id AS "projectId",
+  project.write_key AS "sdkKey",
   rl.campaign_id AS "campaignId",
   rl.promotion_id AS "promotionId",
   rl.promotion_run_id AS "promotionRunId",
@@ -292,6 +293,8 @@ SELECT
   rl.created_at AS "createdAt",
   rl.created_at AS "updatedAt"
 FROM redirect_links rl
+JOIN projects project
+  ON project.project_id = rl.project_id
 JOIN promotions p
   ON p.project_id = rl.project_id
  AND p.promotion_id = rl.promotion_id

@@ -239,7 +239,7 @@ test("publish rolls back when the active revision switch fails", async () => {
   assert.equal(database.queries.includes("COMMIT"), false);
 });
 
-test("public connection requires an exact allowed Origin", async () => {
+test("public connection requires an exact application Origin or trusted platform request", async () => {
   const { TrackingPlanService } =
     await import("../src/features/tracking-plan/tracking-plan.service.js");
   const repository = {
@@ -256,17 +256,29 @@ test("public connection requires an exact allowed Origin", async () => {
   } as unknown as TrackingPlanRepository;
   const service = new TrackingPlanService(repository);
 
-  await assert.rejects(() => service.connection("sdk-key", undefined), hasStatus(403));
+  await assert.rejects(() => service.connection("sdk-key", {}), hasStatus(403));
   await assert.rejects(
-    () => service.connection("sdk-key", "https://attacker.example"),
+    () => service.connection("sdk-key", { origin: "https://attacker.example" }),
     hasStatus(403)
   );
-  const connection = await service.connection(
-    "sdk-key",
-    "https://demo-shoppingmall.dev.loop-ad.org"
-  );
+  const connection = await service.connection("sdk-key", {
+    origin: "https://demo-shoppingmall.dev.loop-ad.org"
+  });
   assert.equal(connection.collectorUrl, "https://event.api.dev.loop-ad.org/events");
   assert.equal(connection.revision, 1);
+  const platformConnection = await service.connection("sdk-key", {
+    referer: "https://dashboard.api.dev.loop-ad.org/r/redirect-1",
+    secFetchSite: "same-origin"
+  });
+  assert.equal(platformConnection.projectId, "demo-shoppingmall");
+  await assert.rejects(
+    () =>
+      service.connection("sdk-key", {
+        referer: "https://dashboard.api.dev.loop-ad.org/dashboard",
+        secFetchSite: "same-origin"
+      }),
+    hasStatus(403)
+  );
 });
 
 test("developer page reads the immutable published event schema without an Origin header", async () => {

@@ -730,10 +730,16 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
     page.eventSdk.url,
     "https://krafton-jungle-project-4team.github.io/loop-ad_event_sdk/loop-ad-event-sdk.iife.js"
   );
-  assert.equal(page.eventSdk.writeKey, "public_write_key");
-  assert.match(html, /LoopAdEventSDK\.init/);
+  assert.equal(
+    page.eventSdk.connectionUrl,
+    "https://dashboard.api.dev.loop-ad.org/api/public/v1/sdk/connections/sdk-key-1"
+  );
+  assert.match(html, /await window\.LoopAdEventSDK\.init/);
+  assert.match(html, /connectionUrl:\s*redirect\.eventSdk\.connectionUrl/);
   assert.match(html, /리다이렉트_클릭/);
-  assert.match(html, /properties:\s*redirect\.event\.fields/);
+  assert.match(html, /sdk\.track\(redirect\.event\.name/);
+  assert.match(html, /\.\.\.redirect\.event\.fields/);
+  assert.match(html, /device:\s*detectDevice\(\)/);
   assert.match(html, /window\.location\.replace/);
 });
 
@@ -767,7 +773,7 @@ test("redirect page escapes script data and fallback href with stable libraries"
     targetUrl: 'https://loop-ad.example/landing?next=</script><img src=x>&quote="',
     eventSdk: {
       url: "https://sdk.example/loop-ad-event-sdk.iife.js",
-      writeKey: "public_write_key"
+      connectionUrl: "https://dashboard.example/connections/sdk-key"
     },
     event: {
       name: "리다이렉트_클릭",
@@ -1100,6 +1106,7 @@ class FakeAdExecutionReader {
   redirectLink: RedirectLinkEntity | null = {
     redirectLinkId: "redirect-1",
     projectId: "project-1",
+    sdkKey: "sdk-key-1",
     campaignId: "campaign-1",
     promotionId: "promotion-1",
     promotionRunId: "run-1",
