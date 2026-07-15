@@ -142,6 +142,102 @@ test("dashboard funnel metrics scopes the first step to a session cohort", async
   assert.match(clickhouseRequest?.query ?? "", /FROM step_2_sessions/);
 });
 
+test("promotion realtime metrics include all attributed funnel events", async () => {
+  setRequiredEnv();
+  const { DashboardFunnelReader } =
+    await import("../src/features/dashboard/repository/dashboard-funnel-reader.js");
+  const clickhouseRequests: Array<{
+    query: string;
+    query_params?: Record<string, string>;
+  }> = [];
+  const db = {
+    query: () => ({
+      single: async () => ({
+        bouncedCount: 0,
+        deliveredCount: 0,
+        failedCount: 0,
+        openedCount: 0,
+        scheduledCount: 0,
+        sentCount: 0
+      })
+    })
+  } as unknown as Transaction<PgTypedTransactionalAdapter>;
+  const clickhouse = {
+    query: async (request: { query: string; query_params?: Record<string, string> }) => {
+      clickhouseRequests.push(request);
+      return {
+        json: async () =>
+          request.query.includes("GROUP BY event_name")
+            ? [{ event_count: "2", event_name: "page_view", unique_user_count: "1" }]
+            : []
+      };
+    }
+  } as unknown as ClickHouseClient;
+  const reader = new DashboardFunnelReader(db, clickhouse);
+
+  const metrics = await reader.getPromotionRealtimeMetrics("demo_project", "promo_001");
+
+  assert.equal(metrics.total_event_count, 2);
+  assert.deepEqual(metrics.events, [
+    { event_count: 2, event_name: "page_view", unique_user_count: 1 }
+  ]);
+  assert.equal(clickhouseRequests.length, 7);
+  for (const request of clickhouseRequests) {
+    assert.match(request.query, /FROM funnel_step_events/);
+    assert.doesNotMatch(request.query, /promotion_touch_events|booking_outcome_events/);
+    assert.match(request.query, /ifNull\(promotion_id, ''\) = \{filterValue:String\}/);
+    assert.deepEqual(request.query_params, {
+      filterValue: "promo_001",
+      projectId: "demo_project"
+    });
+  }
+});
+
+test("promotion segment summaries use the complete attributed funnel source", async () => {
+  setRequiredEnv();
+  const { DashboardFunnelReader } =
+    await import("../src/features/dashboard/repository/dashboard-funnel-reader.js");
+  let clickhouseRequest: { query: string; query_params?: Record<string, string> } | undefined;
+  const db = {
+    query: () => ({ multiple: async () => [] })
+  } as unknown as Transaction<PgTypedTransactionalAdapter>;
+  const clickhouse = {
+    query: async (request: { query: string; query_params?: Record<string, string> }) => {
+      clickhouseRequest = request;
+      return {
+        json: async () => [
+          {
+            booking_complete_count: "0",
+            booking_start_count: "0",
+            campaign_landing_count: "1",
+            campaign_redirect_click_count: "1",
+            promotion_click_count: "0",
+            promotion_impression_count: "0",
+            reach_count: "1",
+            segment_id: "seg_existing_all",
+            segment_user_count: "1"
+          }
+        ]
+      };
+    }
+  } as unknown as ClickHouseClient;
+  const reader = new DashboardFunnelReader(db, clickhouse);
+
+  const summaries = await reader.getPromotionSegmentRealtimeSummaries("demo_project", "promo_001");
+
+  assert.equal(summaries[0]?.segment_id, "seg_existing_all");
+  assert.equal(summaries[0]?.campaign_landing_count, 1);
+  assert.match(clickhouseRequest?.query ?? "", /FROM funnel_step_events/);
+  assert.doesNotMatch(
+    clickhouseRequest?.query ?? "",
+    /promotion_touch_events|booking_outcome_events/
+  );
+  assert.deepEqual(clickhouseRequest?.query_params, {
+    projectId: "demo_project",
+    promotionId: "promo_001"
+  });
+});
+
 test("dashboard funnel reader preview maps sequential step counts", async () => {
   setRequiredEnv();
   const { DashboardFunnelReader } =
