@@ -42,9 +42,9 @@ import {
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
 import {
   defaultPromotionAnalysisProgress,
-  hasPendingOnsiteBannerImage,
+  hasPendingContentCandidateArtifacts,
   mutationErrorMessage,
-  onsiteBannerImagePollIntervalMs,
+  contentCandidateArtifactPollIntervalMs,
   promotionAnalysisProgressCacheTimeMs,
   promotionCreateFormToRequest,
   promotionSegmentCreateFormToRequest,
@@ -288,9 +288,8 @@ export function usePromotionWorkspaceController({
     ),
     refetchInterval: (segmentDetailQuery) =>
       shouldPollAsyncStatus(promotionDetail.data?.generation?.status) ||
-      (selectedOpenPromotion?.channel === "onsite_banner" &&
-        hasPendingOnsiteBannerImage(segmentDetailQuery.state.data))
-        ? onsiteBannerImagePollIntervalMs
+      hasPendingContentCandidateArtifacts(segmentDetailQuery.state.data)
+        ? contentCandidateArtifactPollIntervalMs
         : false,
     refetchIntervalInBackground: false
   });
@@ -394,9 +393,18 @@ export function usePromotionWorkspaceController({
       });
   };
   const startGenerationMutation = useMutation({
-    mutationFn: ({ analysisId, promotionId }: { analysisId: string; promotionId: string }) =>
+    mutationFn: ({
+      analysisId,
+      promotionId,
+      segmentId
+    }: {
+      analysisId: string;
+      promotionId: string;
+      segmentId: string;
+    }) =>
       startDashboardPromotionGeneration(query, promotionId, {
         analysis_id: analysisId,
+        segment_id: segmentId,
         content_option_count: 3,
         operator_instruction: null
       }),

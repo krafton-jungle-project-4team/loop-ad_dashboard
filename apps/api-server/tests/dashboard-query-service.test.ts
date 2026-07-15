@@ -495,7 +495,7 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
   ]);
 });
 
-test("dashboard promotion generation resolves campaign and calls decision API client", async () => {
+test("dashboard promotion generation does not reuse another segment's candidates", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
@@ -527,6 +527,15 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
           target_segment_count: 2,
           updated_at: "2026-07-04T00:00:00.000Z"
         };
+      },
+      getPromotionGenerationResult: async (projectId, promotionId, analysisId, segmentId) => {
+        calls.push({ analysisId, kind: "read-generation", projectId, promotionId, segmentId });
+        return {
+          content_candidate_count: 0,
+          generation_id: "generation_other_segment",
+          promotion_id: promotionId,
+          status: "completed"
+        };
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
@@ -546,6 +555,7 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
 
   const response = await service.startPromotionGeneration("hotel-client-a", "promo_email_001", {
     analysis_id: "analysis_promo_email_001",
+    segment_id: "segment_email_002",
     content_option_count: 3,
     operator_instruction: null
   });
@@ -558,6 +568,13 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
       promotionId: "promo_email_001"
     },
     {
+      analysisId: "analysis_promo_email_001",
+      kind: "read-generation",
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001",
+      segmentId: "segment_email_002"
+    },
+    {
       kind: "decision",
       request: {
         campaignId: "camp_summer_2026",
@@ -565,6 +582,7 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
         promotionId: "promo_email_001",
         request: {
           analysis_id: "analysis_promo_email_001",
+          segment_id: "segment_email_002",
           content_option_count: 3,
           operator_instruction: null
         }

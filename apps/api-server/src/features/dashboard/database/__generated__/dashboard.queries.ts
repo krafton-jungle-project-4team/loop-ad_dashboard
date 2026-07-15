@@ -2984,6 +2984,7 @@ export interface IGetDashboardPromotionGenerationResultParams {
   analysisId?: string | null | void;
   projectId?: string | null | void;
   promotionId?: string | null | void;
+  segmentId?: string | null | void;
 }
 
 /** 'GetDashboardPromotionGenerationResult' return type */
@@ -3000,7 +3001,7 @@ export interface IGetDashboardPromotionGenerationResultQuery {
   result: IGetDashboardPromotionGenerationResultResult;
 }
 
-const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":303,"b":312}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":338,"b":349}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":374,"b":384}]}],"statement":"SELECT\n  gr.generation_id AS \"generationId\",\n  gr.promotion_id AS \"promotionId\",\n  gr.status,\n  COUNT(cc.content_id)::int AS \"contentCandidateCount\"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\n\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1                                    "};
+const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"segmentId":true,"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":287,"b":296},{"a":331,"b":340}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":365,"b":374}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":400,"b":411}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":436,"b":446}]}],"statement":"SELECT\n  gr.generation_id AS \"generationId\",\n  gr.promotion_id AS \"promotionId\",\n  gr.status,\n  COUNT(cc.content_id)::int AS \"contentCandidateCount\"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\n AND (:segmentId::text IS NULL OR cc.segment_id = :segmentId)\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\n\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1                                    "};
 
 /**
  * Query generated from SQL:
@@ -3014,6 +3015,7 @@ const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId
  * LEFT JOIN content_candidates cc
  *   ON cc.project_id = gr.project_id
  *  AND cc.generation_id = gr.generation_id
+ *  AND (:segmentId::text IS NULL OR cc.segment_id = :segmentId)
  * WHERE gr.project_id = :projectId
  *   AND gr.promotion_id = :promotionId
  *   AND gr.analysis_id = :analysisId

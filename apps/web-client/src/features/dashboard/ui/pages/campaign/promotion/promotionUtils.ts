@@ -28,7 +28,7 @@ export const promotionGoalMetricOptions = DashboardPromotionGoalMetricSchema.opt
 export const promotionGoalBasisOptions = DashboardPromotionGoalBasisSchema.options;
 export const defaultPromotionLandingUrl =
   "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
-export const onsiteBannerImagePollIntervalMs = 3000;
+export const contentCandidateArtifactPollIntervalMs = 3000;
 export type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 export type PromotionWorkspaceMode = "promotion" | "segment";
 export type PromotionAnalysisProgress = {
@@ -338,9 +338,7 @@ export function contentCandidateIsReadyForSelection(
   }
 
   const htmlArtifact = contentCandidateHtmlArtifact(candidate);
-  return Boolean(
-    htmlArtifact?.artifact_status === "published" && htmlArtifact.public_url
-  );
+  return Boolean(htmlArtifact?.artifact_status === "published" && htmlArtifact.public_url);
 }
 
 export function activeContentCandidates(detail: DashboardSegmentDetail) {
@@ -358,12 +356,11 @@ export function nextExperimentLoopCount(detail: DashboardSegmentDetail) {
   return latestLoopCount + 1;
 }
 
-export function hasPendingOnsiteBannerImage(detail: DashboardSegmentDetail | undefined) {
+export function hasPendingContentCandidateArtifacts(detail: DashboardSegmentDetail | undefined) {
   return Boolean(
     detail &&
     activeContentCandidates(detail).some(
-      (candidate) =>
-        candidate.channel === "onsite_banner" && candidate.image_prompt && !candidate.image_url
+      (candidate) => !contentCandidateIsReadyForSelection(candidate)
     )
   );
 }

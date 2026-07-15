@@ -82,7 +82,8 @@ test("decision client preserves promotion generation request contract", async ()
     projectId: "project-1",
     promotionId: "promotion-1",
     request: {
-      analysis_id: "analysis-1"
+      analysis_id: "analysis-1",
+      segment_id: "segment-2"
     }
   });
 

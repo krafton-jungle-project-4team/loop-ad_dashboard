@@ -146,7 +146,8 @@ export function PromotionWorkspace({
               onStartGeneration={(analysisId) =>
                 startGenerationMutation.mutate({
                   analysisId,
-                  promotionId: selectedOpenPromotion.promotion_id
+                  promotionId: selectedOpenPromotion.promotion_id,
+                  segmentId: selectedPromotionSegmentId
                 })
               }
               onTabChange={setWorkspaceTab}
