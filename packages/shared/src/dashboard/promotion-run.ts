@@ -32,6 +32,7 @@ export type DashboardContentCandidate = z.infer<typeof DashboardContentCandidate
 
 export const DashboardStartPromotionGenerationRequestSchema = z.object({
   analysis_id: z.string().min(1),
+  segment_id: z.string().min(1).optional(),
   content_option_count: z.number().int().min(1).max(10).optional(),
   operator_instruction: z.string().nullable().optional()
 });

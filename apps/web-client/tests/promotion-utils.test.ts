@@ -7,6 +7,7 @@ import {
   contentCandidateHtmlArtifact,
   contentCandidateIsReadyForSelection,
   contentCandidateTitle,
+  hasPendingContentCandidateArtifacts,
   nextExperimentLoopCount,
   normalizeSegmentDisplayCopy,
   promotionFormToUpdateRequest,
@@ -161,6 +162,18 @@ test("creative selection waits for every required image and HTML artifact", () =
   assert.equal(contentCandidateIsReadyForSelection(pendingHtmlCandidate), false);
   assert.equal(contentCandidateIsReadyForSelection(pendingImageCandidate), false);
   assert.equal(contentCandidateIsReadyForSelection(readySmsCandidate), true);
+
+  const pendingDetail = {
+    content_candidates: [{ ...pendingHtmlCandidate, analysis_id: "analysis_active" }],
+    segment: { analysis_id: "analysis_active" }
+  } as DashboardSegmentDetail;
+  assert.equal(hasPendingContentCandidateArtifacts(pendingDetail), true);
+
+  const readyDetail = {
+    content_candidates: [{ ...readyEmailCandidate, analysis_id: "analysis_active" }],
+    segment: { analysis_id: "analysis_active" }
+  } as DashboardSegmentDetail;
+  assert.equal(hasPendingContentCandidateArtifacts(readyDetail), false);
 });
 
 test("the next experiment increments the highest loop for its segment", () => {

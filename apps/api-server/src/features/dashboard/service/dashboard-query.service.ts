@@ -375,17 +375,29 @@ export class DashboardQueryService {
     const existingGeneration = await this.campaignReader.getPromotionGenerationResult(
       projectId,
       promotionId,
-      request.analysis_id
+      request.analysis_id,
+      request.segment_id
     );
 
-    if (existingGeneration && existingGeneration.status !== "failed") {
+    const hasReusableSegmentCandidates =
+      !request.segment_id || (existingGeneration?.content_candidate_count ?? 0) > 0;
+    if (
+      existingGeneration &&
+      existingGeneration.status !== "failed" &&
+      hasReusableSegmentCandidates
+    ) {
       log.info("promotion_generation_reused", { existingGeneration });
       log.info("completed", { response: existingGeneration, durationMs: durationMs(startedAt) });
       return existingGeneration;
     }
 
-    if (existingGeneration) {
+    if (existingGeneration?.status === "failed") {
       log.info("promotion_generation_retrying", { existingGeneration });
+    } else if (existingGeneration && request.segment_id) {
+      log.info("promotion_generation_segment_missing", {
+        existingGeneration,
+        segmentId: request.segment_id
+      });
     }
 
     const response = await this.decisionClient.startPromotionGeneration({

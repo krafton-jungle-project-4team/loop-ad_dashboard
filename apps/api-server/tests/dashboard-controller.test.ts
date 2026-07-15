@@ -575,6 +575,7 @@ test("dashboard controller parses promotion generation request before delegating
 
   const response = await controller.startPromotionGeneration("promo_email_001", "hotel-client-a", {
     analysis_id: "analysis_promo_email_001",
+    segment_id: "segment_email_002",
     content_option_count: 3,
     operator_instruction: null
   });
@@ -585,6 +586,7 @@ test("dashboard controller parses promotion generation request before delegating
       promotionId: "promo_email_001",
       request: {
         analysis_id: "analysis_promo_email_001",
+        segment_id: "segment_email_002",
         content_option_count: 3,
         operator_instruction: null
       }
