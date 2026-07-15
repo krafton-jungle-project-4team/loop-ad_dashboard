@@ -130,9 +130,10 @@ test("running experiment evaluation targets each promotion run only once across 
   ]);
 });
 
-test("fallback ads stay hidden while their promotion run remains evaluable", () => {
+test("empty fallback ads stay hidden while their promotion run remains evaluable", () => {
   const fallbackExperiment = createExperiment({
     ad_experiment_id: "experiment-fallback",
+    assignment_count: 0,
     promotion_run_id: "run-default",
     segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
     segment_name: "Existing users fallback",
@@ -147,6 +148,64 @@ test("fallback ads stay hidden while their promotion run remains evaluable", () 
   assert.deepEqual(promotionRunIdsForRunningExperiments(visibleExperiments), ["run-default"]);
 });
 
+test("fallback ads with assignments are visible", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback-assigned",
+    assignment_count: 1,
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
+    segment_name: "Assigned existing users fallback"
+  });
+
+  assert.deepEqual(
+    userVisibleProjectExperiments([fallbackExperiment]).map(
+      (experiment) => experiment.ad_experiment_id
+    ),
+    ["experiment-fallback-assigned"]
+  );
+});
+
+test("fallback ads with evaluation samples are visible without assignments", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback-evaluated",
+    assignment_count: 0,
+    latest_evaluation: createEvaluation({
+      actual_value: 0,
+      denominator_count: 1,
+      next_loop_required: true,
+      numerator_count: 0,
+      sample_size: 1,
+      status: "goal_not_met"
+    }),
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
+    segment_name: "Evaluated existing users fallback"
+  });
+
+  assert.deepEqual(
+    userVisibleProjectExperiments([fallbackExperiment]).map(
+      (experiment) => experiment.ad_experiment_id
+    ),
+    ["experiment-fallback-evaluated"]
+  );
+});
+
+test("fallback ads with zero evaluation samples stay hidden", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback-insufficient",
+    assignment_count: 0,
+    latest_evaluation: createEvaluation({
+      actual_value: 0,
+      denominator_count: 0,
+      numerator_count: 0,
+      sample_size: 0,
+      status: "insufficient_data"
+    }),
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
+    segment_name: "Insufficient existing users fallback"
+  });
+
+  assert.deepEqual(userVisibleProjectExperiments([fallbackExperiment]), []);
+});
+
 test("next-loop targets stay within the selected promotion run", () => {
   const targets = failedTargetsForPromotionRun(experiments, "run-shared");
 
@@ -155,9 +214,55 @@ test("next-loop targets stay within the selected promotion run", () => {
 });
 
 test("repeat creative generation targets only the selected experiment", () => {
-  assert.deepEqual(repeatCreativeTargetForExperiment(experiments[1]!), {
+  assert.deepEqual(repeatCreativeTargetForExperiment(experiments, experiments[1]!), {
     failedAdExperimentIds: ["experiment-b"],
     failedSegmentIds: ["segment-b"]
+  });
+});
+
+test("fallback repeat creative generation targets non-fallback experiments in the same run", () => {
+  const targetExperiment = createExperiment({
+    ad_experiment_id: "experiment-target",
+    promotion_id: "promotion-repeat",
+    promotion_run_id: "run-repeat",
+    segment_id: "segment-target"
+  });
+  const otherRunExperiment = createExperiment({
+    ad_experiment_id: "experiment-other-run",
+    promotion_id: "promotion-repeat",
+    promotion_run_id: "run-other",
+    segment_id: "segment-other"
+  });
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback-repeat",
+    promotion_id: "promotion-repeat",
+    promotion_run_id: "run-repeat",
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID
+  });
+
+  assert.deepEqual(
+    repeatCreativeTargetForExperiment(
+      [targetExperiment, otherRunExperiment, fallbackExperiment],
+      fallbackExperiment
+    ),
+    {
+      failedAdExperimentIds: ["experiment-target"],
+      failedSegmentIds: ["segment-target"]
+    }
+  );
+});
+
+test("fallback repeat creative generation stays disabled without a non-fallback target", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback-only",
+    promotion_id: "promotion-fallback-only",
+    promotion_run_id: "run-fallback-only",
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID
+  });
+
+  assert.deepEqual(repeatCreativeTargetForExperiment([fallbackExperiment], fallbackExperiment), {
+    failedAdExperimentIds: [],
+    failedSegmentIds: []
   });
 });
 

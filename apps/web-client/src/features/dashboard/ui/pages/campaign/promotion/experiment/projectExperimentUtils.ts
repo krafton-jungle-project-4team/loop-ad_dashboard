@@ -24,7 +24,10 @@ export function userVisibleProjectExperiments(
   experiments: DashboardProjectExperiment[]
 ): DashboardProjectExperiment[] {
   return experiments.filter(
-    (experiment) => experiment.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID
+    (experiment) =>
+      experiment.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID ||
+      experiment.assignment_count > 0 ||
+      (experiment.latest_evaluation?.sample_size ?? 0) > 0
   );
 }
 
@@ -139,10 +142,25 @@ export function failedTargetsForPromotionRun(
   };
 }
 
-export function repeatCreativeTargetForExperiment(experiment: DashboardProjectExperiment) {
+export function repeatCreativeTargetForExperiment(
+  experiments: DashboardProjectExperiment[],
+  experiment: DashboardProjectExperiment
+) {
+  const targetExperiments =
+    experiment.segment_id === DASHBOARD_FALLBACK_SEGMENT_ID
+      ? experiments.filter(
+          (candidate) =>
+            candidate.promotion_run_id === experiment.promotion_run_id &&
+            candidate.promotion_id === experiment.promotion_id &&
+            candidate.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID
+        )
+      : [experiment];
+
   return {
-    failedAdExperimentIds: [experiment.ad_experiment_id],
-    failedSegmentIds: [experiment.segment_id]
+    failedAdExperimentIds: uniqueValues(
+      targetExperiments.map((candidate) => candidate.ad_experiment_id)
+    ),
+    failedSegmentIds: uniqueValues(targetExperiments.map((candidate) => candidate.segment_id))
   };
 }
 

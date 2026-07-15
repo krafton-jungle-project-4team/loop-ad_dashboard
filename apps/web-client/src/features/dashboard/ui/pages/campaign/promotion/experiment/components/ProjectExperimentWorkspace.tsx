@@ -319,6 +319,7 @@ export function ProjectExperimentWorkspace({
       {selectedExperiment ? (
         <SelectedProjectExperimentDetail
           experiment={selectedExperiment}
+          experiments={visibleExperiments}
           onPrepareRepeatCreatives={onPrepareRepeatCreatives}
           prepareRepeatCreativesError={prepareRepeatCreativesError}
           prepareRepeatCreativesIsError={prepareRepeatCreativesIsError}
@@ -521,6 +522,7 @@ function ProjectExperimentTable({
 
 function SelectedProjectExperimentDetail({
   experiment,
+  experiments,
   onPrepareRepeatCreatives,
   prepareRepeatCreativesError,
   prepareRepeatCreativesIsError,
@@ -528,6 +530,7 @@ function SelectedProjectExperimentDetail({
   prepareRepeatCreativesVariables
 }: {
   experiment: DashboardProjectExperiment;
+  experiments: DashboardProjectExperiment[];
   onPrepareRepeatCreatives: (input: RepeatCreativePreparationInput) => void;
   prepareRepeatCreativesError: unknown;
   prepareRepeatCreativesIsError: boolean;
@@ -535,14 +538,18 @@ function SelectedProjectExperimentDetail({
   prepareRepeatCreativesVariables: RepeatCreativePreparationInput | null;
 }) {
   const evaluation = experiment.latest_evaluation;
-  const repeatTarget = repeatCreativeTargetForExperiment(experiment);
+  const repeatTarget = repeatCreativeTargetForExperiment(experiments, experiment);
+  const hasRepeatTarget = repeatTarget.failedSegmentIds.length > 0;
   const canPrepareRepeatCreatives =
     !experiment.next_loop &&
+    hasRepeatTarget &&
     (evaluation?.next_loop_required === true || evaluation?.status === "goal_not_met");
+  const isRepeatRequestForSelected =
+    prepareRepeatCreativesVariables?.failedAdExperimentIds.some((adExperimentId) =>
+      repeatTarget.failedAdExperimentIds.includes(adExperimentId)
+    ) === true;
   const isPreparingRepeatCreativesForSelected =
-    prepareRepeatCreativesIsPending &&
-    prepareRepeatCreativesVariables?.failedAdExperimentIds.includes(experiment.ad_experiment_id) ===
-      true;
+    prepareRepeatCreativesIsPending && isRepeatRequestForSelected;
 
   return (
     <Card>
@@ -589,10 +596,7 @@ function SelectedProjectExperimentDetail({
         </div>
       </CardHeader>
       <CardContent className="grid gap-6">
-        {prepareRepeatCreativesIsError &&
-        prepareRepeatCreativesVariables?.failedAdExperimentIds.includes(
-          experiment.ad_experiment_id
-        ) === true ? (
+        {prepareRepeatCreativesIsError && isRepeatRequestForSelected ? (
           <Alert aria-live="polite" variant="destructive">
             <AlertTitle>다음 실험용 광고를 만들지 못했어요</AlertTitle>
             <AlertDescription>
@@ -679,13 +683,15 @@ function SelectedProjectExperimentDetail({
                   </span>
                 </div>
               </div>
-            ) : evaluation?.next_loop_required ? (
+            ) : evaluation?.next_loop_required && hasRepeatTarget ? (
               <Alert>
                 <AlertTitle>반복 실험이 필요해요</AlertTitle>
                 <AlertDescription>
-                  현재 선택한 {experiment.segment_name} 세그먼트의 광고를 새로 만들 수 있어요.
+                  이 프로모션의 타깃 세그먼트 광고를 새로 만들 수 있어요.
                 </AlertDescription>
               </Alert>
+            ) : evaluation?.next_loop_required ? (
+              <EmptyState message="반복 실험에 사용할 타깃 세그먼트가 없어요." />
             ) : (
               <EmptyState message="지금은 다시 실험할 대상이 없어요." />
             )}
