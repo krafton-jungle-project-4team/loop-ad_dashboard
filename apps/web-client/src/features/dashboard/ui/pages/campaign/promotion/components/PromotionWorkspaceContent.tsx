@@ -876,8 +876,7 @@ function PromotionSegmentDetailTab({
                   const selectionReason = contentCandidateSelectionReason(
                     candidate.status,
                     approveContentCandidateIsPending,
-                    hasDifferentApprovedCandidate,
-                    generationIsIncomplete
+                    hasDifferentApprovedCandidate
                   );
 
                   return (
@@ -907,7 +906,6 @@ function PromotionSegmentDetailTab({
                               data-disabled={
                                 approveContentCandidateIsPending ||
                                 hasDifferentApprovedCandidate ||
-                                generationIsIncomplete ||
                                 candidate.status === "rejected"
                               }
                               orientation="horizontal"
@@ -919,7 +917,6 @@ function PromotionSegmentDetailTab({
                                 disabled={
                                   approveContentCandidateIsPending ||
                                   hasDifferentApprovedCandidate ||
-                                  generationIsIncomplete ||
                                   candidate.status === "rejected"
                                 }
                                 id={selectionId}
@@ -1044,12 +1041,8 @@ function PromotionSegmentDetailTab({
 function contentCandidateSelectionReason(
   status: string,
   isPending: boolean,
-  hasDifferentApprovedCandidate: boolean,
-  generationIsIncomplete: boolean
+  hasDifferentApprovedCandidate: boolean
 ) {
-  if (generationIsIncomplete) {
-    return "광고 소재 생성이 끝나면 선택할 수 있어요. 이미지와 HTML을 준비하고 있어요.";
-  }
   if (isPending) {
     return "광고 소재 선택 상태를 저장하고 있어요. 저장이 끝나면 다른 소재를 선택할 수 있어요.";
   }
