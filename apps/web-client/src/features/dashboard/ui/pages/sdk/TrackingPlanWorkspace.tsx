@@ -111,7 +111,7 @@ export function TrackingPlanWorkspace({ projectId }: { projectId: string }) {
   return (
     <TrackingPlanEditorWorkspace
       dataSource={STUB_TRACKING_PLAN_DATA_SOURCE}
-      description="마케팅 화면에 보여 줄 이벤트 이름과 속성 규칙 예시를 관리해요."
+      description="마케팅에 사용할 이벤트 이름과 주요 속성 규칙을 관리해요."
       projectId={projectId}
       title="이벤트 관리"
     />
@@ -122,9 +122,9 @@ export function ConnectedTrackingPlanWorkspace({ projectId }: { projectId: strin
   return (
     <TrackingPlanEditorWorkspace
       dataSource={CONNECTED_TRACKING_PLAN_DATA_SOURCE}
-      description="Dashboard API에 저장되고 Event SDK가 사용하는 실제 Tracking Plan을 관리해요."
+      description="이벤트 수집에 사용할 전체 속성 구조와 형식을 세부적으로 조정해요."
       projectId={projectId}
-      title="실제 Tracking Plan"
+      title="이벤트 세부 조정"
     />
   );
 }

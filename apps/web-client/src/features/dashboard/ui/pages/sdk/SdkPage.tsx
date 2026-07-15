@@ -80,8 +80,8 @@ export function SdkPage({ projectId }: { projectId: string }) {
   return (
     <Tabs defaultValue="preview">
       <TabsList>
-        <TabsTrigger value="preview">화면 예시</TabsTrigger>
-        <TabsTrigger value="connected">실제 연동</TabsTrigger>
+        <TabsTrigger value="preview">기본 설정</TabsTrigger>
+        <TabsTrigger value="connected">세부 조정</TabsTrigger>
       </TabsList>
       <TabsContent className="mt-5" value="preview">
         <TrackingPlanWorkspace projectId={projectId} />
