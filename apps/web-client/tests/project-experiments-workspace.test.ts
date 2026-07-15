@@ -130,9 +130,10 @@ test("running experiment evaluation targets each promotion run only once across 
   ]);
 });
 
-test("fallback ads stay hidden while their promotion run remains evaluable", () => {
+test("empty fallback ads stay hidden while their promotion run remains evaluable", () => {
   const fallbackExperiment = createExperiment({
     ad_experiment_id: "experiment-fallback",
+    assignment_count: 0,
     promotion_run_id: "run-default",
     segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
     segment_name: "Existing users fallback",
@@ -145,6 +146,64 @@ test("fallback ads stay hidden while their promotion run remains evaluable", () 
     false
   );
   assert.deepEqual(promotionRunIdsForRunningExperiments(visibleExperiments), ["run-default"]);
+});
+
+test("fallback ads with assignments are visible", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback-assigned",
+    assignment_count: 1,
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
+    segment_name: "Assigned existing users fallback"
+  });
+
+  assert.deepEqual(
+    userVisibleProjectExperiments([fallbackExperiment]).map(
+      (experiment) => experiment.ad_experiment_id
+    ),
+    ["experiment-fallback-assigned"]
+  );
+});
+
+test("fallback ads with evaluation samples are visible without assignments", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback-evaluated",
+    assignment_count: 0,
+    latest_evaluation: createEvaluation({
+      actual_value: 0,
+      denominator_count: 1,
+      next_loop_required: true,
+      numerator_count: 0,
+      sample_size: 1,
+      status: "goal_not_met"
+    }),
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
+    segment_name: "Evaluated existing users fallback"
+  });
+
+  assert.deepEqual(
+    userVisibleProjectExperiments([fallbackExperiment]).map(
+      (experiment) => experiment.ad_experiment_id
+    ),
+    ["experiment-fallback-evaluated"]
+  );
+});
+
+test("fallback ads with zero evaluation samples stay hidden", () => {
+  const fallbackExperiment = createExperiment({
+    ad_experiment_id: "experiment-fallback-insufficient",
+    assignment_count: 0,
+    latest_evaluation: createEvaluation({
+      actual_value: 0,
+      denominator_count: 0,
+      numerator_count: 0,
+      sample_size: 0,
+      status: "insufficient_data"
+    }),
+    segment_id: DASHBOARD_FALLBACK_SEGMENT_ID,
+    segment_name: "Insufficient existing users fallback"
+  });
+
+  assert.deepEqual(userVisibleProjectExperiments([fallbackExperiment]), []);
 });
 
 test("next-loop targets stay within the selected promotion run", () => {

@@ -24,7 +24,10 @@ export function userVisibleProjectExperiments(
   experiments: DashboardProjectExperiment[]
 ): DashboardProjectExperiment[] {
   return experiments.filter(
-    (experiment) => experiment.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID
+    (experiment) =>
+      experiment.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID ||
+      experiment.assignment_count > 0 ||
+      (experiment.latest_evaluation?.sample_size ?? 0) > 0
   );
 }
 
