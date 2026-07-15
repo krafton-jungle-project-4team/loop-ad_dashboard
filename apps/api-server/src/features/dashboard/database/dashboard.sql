@@ -1638,7 +1638,6 @@ FROM generation_runs gr
 LEFT JOIN content_candidates cc
   ON cc.project_id = gr.project_id
  AND cc.generation_id = gr.generation_id
- AND (:segmentId::text IS NULL OR cc.segment_id = :segmentId)
 WHERE gr.project_id = :projectId
   AND gr.promotion_id = :promotionId
   AND gr.analysis_id = :analysisId

@@ -550,16 +550,10 @@ export class DashboardCampaignReader {
   async getPromotionGenerationResult(
     projectId: string,
     promotionId: string,
-    analysisId: string,
-    segmentId?: string
+    analysisId: string
   ): Promise<DashboardStartPromotionGenerationResult | undefined> {
     const rows = await this.db
-      .query(getDashboardPromotionGenerationResult, {
-        analysisId,
-        projectId,
-        promotionId,
-        segmentId: segmentId ?? null
-      })
+      .query(getDashboardPromotionGenerationResult, { analysisId, projectId, promotionId })
       .multiple();
     const row = rows[0];
 
