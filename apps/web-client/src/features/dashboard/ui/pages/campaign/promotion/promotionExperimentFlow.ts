@@ -45,10 +45,14 @@ export async function launchPromotionExperiment(
   const assignmentResult = await operations.buildAssignments(run.promotionRunId);
   const fallbackRequired =
     assignmentResult.batch_has_fallback || assignmentResult.fallback_count > 0;
+  if (fallbackRequired && !fallbackExperiment) {
+    throw new Error("기본 광고 배정은 있지만 기본 광고 실험이 없어요. 다시 시도해 주세요.");
+  }
 
-  const requiredExperiments = fallbackRequired
-    ? [...selectedExperiments, fallbackExperiment]
-    : selectedExperiments;
+  const requiredExperiments =
+    fallbackRequired && fallbackExperiment
+      ? [...selectedExperiments, fallbackExperiment]
+      : selectedExperiments;
   const startedExperimentIds: string[] = [];
   const failedExperimentIds: string[] = [];
 
@@ -108,7 +112,7 @@ function validateRunContract(run: PromotionRunLaunchTarget, requestedSegmentIds:
     (experiment) =>
       experiment.isFallback !== (experiment.segmentId === DASHBOARD_FALLBACK_SEGMENT_ID)
   );
-  if (invalidFallbackFlags || fallbackExperiments.length !== 1) {
+  if (invalidFallbackFlags || fallbackExperiments.length > 1) {
     throw new Error("기본 광고 실험 정보가 올바르지 않아요. 다시 시도해 주세요.");
   }
 
@@ -128,7 +132,7 @@ function validateRunContract(run: PromotionRunLaunchTarget, requestedSegmentIds:
   }
 
   return {
-    fallbackExperiment: fallbackExperiments[0]!,
+    fallbackExperiment: fallbackExperiments[0],
     selectedExperiments
   };
 }
