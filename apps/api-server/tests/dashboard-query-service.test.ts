@@ -846,6 +846,92 @@ test("dashboard content selection cancellation runs inside transaction host", as
   assert.equal(result.status, "draft");
 });
 
+test("dashboard copy edit saves revised HTML without calling Decision API", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: Array<{ htmlUrl: string; metadataJson: Record<string, unknown> }> = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getContentCandidate: async () => ({
+        analysis_id: "analysis-a",
+        body: "기존 본문",
+        channel: "onsite_banner",
+        content_id: "content-a",
+        content_option_id: "option-a",
+        cta: "예약하기",
+        data_evidence_json: {},
+        generation_id: "generation-a",
+        generation_prompt: null,
+        image_prompt: null,
+        image_url: null,
+        landing_url: "https://example.com",
+        message: null,
+        message_strategy: null,
+        metadata_json: {
+          creative: {
+            artifact: {
+              artifact_status: "published",
+              creative_format: "banner_html",
+              public_url: "https://assets.example.com/content-a.html"
+            },
+            edited_html: "<h1>기존 제목</h1><p>기존 본문</p><a>예약하기</a>"
+          }
+        },
+        preheader: null,
+        promotion_id: "promotion-a",
+        reason_summary: null,
+        segment_id: "segment-a",
+        status: "draft",
+        subject: null,
+        title: "기존 제목",
+        updated_at: "2026-07-16T00:00:00.000Z"
+      }),
+      updateContentCandidateCopy: async (
+        _projectId: string,
+        promotionId: string,
+        segmentId: string,
+        contentId: string,
+        request: { headline: string; body: string; cta: string },
+        metadataJson: Record<string, unknown>,
+        htmlUrl: string
+      ) => {
+        writes.push({ htmlUrl, metadataJson });
+        return {
+          body: request.body,
+          content_id: contentId,
+          cta: request.cta,
+          headline: request.headline,
+          html_url: htmlUrl,
+          promotion_id: promotionId,
+          segment_id: segmentId,
+          status: "draft" as const,
+          updated_at: "2026-07-16T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const result = await service.updateContentCandidateCopy(
+    "project-a",
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    { headline: "새 제목", body: "새 본문", cta: "혜택 보기" },
+    "https://dashboard.api.dev.loop-ad.org"
+  );
+
+  assert.equal(result.headline, "새 제목");
+  assert.equal(writes.length, 1);
+  assert.match(writes[0]?.htmlUrl ?? "", /dashboard\.api\.dev\.loop-ad\.org/);
+  const creative = writes[0]?.metadataJson.creative as Record<string, unknown>;
+  assert.equal(creative.edited_html, "<h1>새 제목</h1><p>새 본문</p><a>혜택 보기</a>");
+});
+
 function emptyCampaignReader(): DashboardCampaignReader {
   return {
     getPromotionGenerationResult: async () => undefined,

@@ -32,6 +32,7 @@ export class ApiResponseInterceptor<TData> implements NestInterceptor<
     if (
       isRedirectRoute(request) ||
       isChatKitRoute(request) ||
+      isContentCandidateHtmlRoute(request) ||
       isPublicSdkConnectionRoute(request)
     ) {
       return next.handle() as Observable<ReturnType<typeof createApiSuccess<TData>>>;
@@ -45,6 +46,17 @@ function isPublicSdkConnectionRoute(request: RequestWithRequestId) {
   const routeRequest = request as RequestWithRequestId & { originalUrl?: string; url?: string };
   const path = routeRequest.originalUrl ?? routeRequest.url;
   return typeof path === "string" && path.startsWith("/api/public/v1/sdk/connections/");
+}
+
+function isContentCandidateHtmlRoute(request: RequestWithRequestId) {
+  const routeRequest = request as RequestWithRequestId & { originalUrl?: string; url?: string };
+  const path = routeRequest.originalUrl ?? routeRequest.url;
+  return (
+    typeof path === "string" &&
+    /^\/api\/dashboard\/v1\/promotions\/[^/]+\/segments\/[^/]+\/content-candidates\/[^/]+\/html(?:\?|$)/.test(
+      path
+    )
+  );
 }
 
 function isRedirectRoute(request: RequestWithRequestId) {

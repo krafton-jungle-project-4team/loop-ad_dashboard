@@ -1627,6 +1627,38 @@ WHERE project_id = :projectId
 
 ORDER BY updated_at DESC, created_at DESC;
 
+/* 목적: 수정하거나 제공할 광고 소재 한 건을 조회합니다. */
+/* @name GetDashboardContentCandidate */
+SELECT
+  content_id AS "contentId",
+  content_option_id AS "contentOptionId",
+  generation_id AS "generationId",
+  analysis_id AS "analysisId",
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  channel,
+  subject,
+  preheader,
+  title,
+  body,
+  cta,
+  message,
+  image_prompt AS "imagePrompt",
+  image_url AS "imageUrl",
+  landing_url AS "landingUrl",
+  generation_prompt AS "generationPrompt",
+  reason_summary AS "reasonSummary",
+  data_evidence_json AS "dataEvidenceJson",
+  message_strategy AS "messageStrategy",
+  metadata_json AS "metadataJson",
+  status,
+  updated_at AS "updatedAt"
+FROM content_candidates
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+  AND content_id = :contentId;
+
 /* 목적: 동일 analysis/proposition의 기존 광고 생성 결과를 조회합니다. */
 /* @name GetDashboardPromotionGenerationResult */
 SELECT
@@ -1820,6 +1852,30 @@ RETURNING
   content_id AS "contentId",
   content_option_id AS "contentOptionId",
   status;
+
+/* 목적: 실험 시작 전 광고 소재의 문구와 수정 HTML 메타데이터를 함께 저장합니다. */
+/* @name UpdateDashboardContentCandidateCopy */
+UPDATE content_candidates
+SET subject = CASE WHEN channel = 'email' THEN :headline ELSE subject END,
+    title = CASE WHEN channel = 'onsite_banner' THEN :headline ELSE title END,
+    body = :body,
+    cta = :cta,
+    metadata_json = :metadataJson::jsonb,
+    updated_at = now()
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND segment_id = :segmentId
+  AND content_id = :contentId
+  AND status = 'draft'
+RETURNING
+  content_id AS "contentId",
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId",
+  CASE WHEN channel = 'email' THEN subject ELSE title END AS headline,
+  body,
+  cta,
+  status,
+  updated_at AS "updatedAt";
 
 /* 목적: 관리자가 선택한 콘텐츠 후보 1개를 거절 상태로 전환합니다. */
 /* @name RejectDashboardContentCandidate */

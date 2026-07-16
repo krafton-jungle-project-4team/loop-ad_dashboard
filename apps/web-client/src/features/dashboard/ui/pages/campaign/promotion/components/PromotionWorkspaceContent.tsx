@@ -5,7 +5,8 @@ import type {
   DashboardCampaignSegment,
   DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionSegmentSuggestion,
-  DashboardSegmentDetail
+  DashboardSegmentDetail,
+  DashboardUpdateContentCandidateCopyRequest
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
@@ -86,6 +87,7 @@ import {
 } from "../promotionUtils.js";
 import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow.js";
 import { PromotionSegmentSuggestionPanel } from "./PromotionSegmentSuggestions.js";
+import { ContentCandidateCopyEditDialog } from "./ContentCandidateCopyEditDialog.js";
 
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   overview: "프로모션 성과",
@@ -346,6 +348,7 @@ export function PromotionTabWorkspace({
   onRecommendSegments,
   onStartGeneration,
   onTabChange,
+  onUpdateContentCandidateCopy,
   promotion,
   promotionExperiments,
   promotionAnalysisIsPending,
@@ -363,6 +366,7 @@ export function PromotionTabWorkspace({
   suggestions,
   suggestionsIsLoading,
   tab,
+  updateContentCandidateCopyIsPending,
   visibleTabs
 }: {
   archiveScopedSegmentIsPending: boolean;
@@ -400,6 +404,12 @@ export function PromotionTabWorkspace({
   onRecommendSegments: () => void;
   onStartGeneration: (analysisId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
+  onUpdateContentCandidateCopy: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardUpdateContentCandidateCopyRequest
+  ) => Promise<void>;
   promotion: DashboardCampaignPromotion;
   promotionExperiments: DashboardAdExperiment[];
   promotionAnalysisIsPending: boolean;
@@ -417,6 +427,7 @@ export function PromotionTabWorkspace({
   suggestions: DashboardPromotionSegmentSuggestion[];
   suggestionsIsLoading: boolean;
   tab: PromotionWorkspaceTab;
+  updateContentCandidateCopyIsPending: boolean;
   visibleTabs: PromotionWorkspaceTab[];
 }) {
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
@@ -530,8 +541,10 @@ export function PromotionTabWorkspace({
               onLaunchExperiment={onLaunchExperiment}
               onRejectContentCandidate={onRejectContentCandidate}
               onStartGeneration={onStartGeneration}
+              onUpdateContentCandidateCopy={onUpdateContentCandidateCopy}
               promotionExperiments={promotionExperiments}
               rejectContentCandidateIsPending={rejectContentCandidateIsPending}
+              updateContentCandidateCopyIsPending={updateContentCandidateCopyIsPending}
               view={segmentView}
               selectedSegmentId={selectedSegmentId}
               launchExperimentIsPending={launchExperimentIsPending}
@@ -721,9 +734,11 @@ function PromotionSegmentDetailTab({
   onLaunchExperiment,
   onRejectContentCandidate,
   onStartGeneration,
+  onUpdateContentCandidateCopy,
   promotionExperiments,
   rejectContentCandidateIsPending,
   selectedSegmentId,
+  updateContentCandidateCopyIsPending,
   view
 }: {
   approveContentCandidateIsPending: boolean;
@@ -750,9 +765,16 @@ function PromotionSegmentDetailTab({
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
+  onUpdateContentCandidateCopy: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardUpdateContentCandidateCopyRequest
+  ) => Promise<void>;
   promotionExperiments: DashboardAdExperiment[];
   rejectContentCandidateIsPending: boolean;
   selectedSegmentId: string;
+  updateContentCandidateCopyIsPending: boolean;
   view: SegmentWorkspaceView;
 }) {
   if (!selectedSegmentId) {
@@ -948,6 +970,20 @@ function PromotionSegmentDetailTab({
                                     : "광고 소재 선택"}
                               </FieldLabel>
                             </Field>
+                            {htmlArtifact ? (
+                              <ContentCandidateCopyEditDialog
+                                candidate={candidate}
+                                isPending={updateContentCandidateCopyIsPending}
+                                onSave={(request) =>
+                                  onUpdateContentCandidateCopy(
+                                    detail.segment.promotion_id,
+                                    detail.segment.segment_id,
+                                    candidate.content_id,
+                                    request
+                                  )
+                                }
+                              />
+                            ) : null}
                             <Button
                               disabled={
                                 rejectContentCandidateIsPending ||

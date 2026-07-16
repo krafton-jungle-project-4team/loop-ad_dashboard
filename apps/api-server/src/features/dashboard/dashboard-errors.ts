@@ -21,6 +21,21 @@ export const DASHBOARD_ERRORS = {
     statusCode: HttpStatus.CONFLICT,
     code: "DASHBOARD_CONTENT_CANDIDATE_APPROVAL_LOCKED",
     message: "A content candidate is already approved for this segment."
+  },
+  CONTENT_CANDIDATE_NOT_EDITABLE: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_CONTENT_CANDIDATE_NOT_EDITABLE",
+    message: "Only a draft HTML content candidate can be edited."
+  },
+  CONTENT_CANDIDATE_HTML_UNAVAILABLE: {
+    statusCode: HttpStatus.BAD_GATEWAY,
+    code: "DASHBOARD_CONTENT_CANDIDATE_HTML_UNAVAILABLE",
+    message: "The content candidate HTML is unavailable."
+  },
+  CONTENT_CANDIDATE_COPY_NOT_FOUND: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_CONTENT_CANDIDATE_COPY_NOT_FOUND",
+    message: "The generated HTML does not contain the selected copy."
   }
 } as const;
 
@@ -44,6 +59,12 @@ export const dashboardErrors = {
     ),
   contentCandidateApprovalLocked: () =>
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_APPROVAL_LOCKED),
+  contentCandidateNotEditable: () =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_NOT_EDITABLE),
+  contentCandidateHtmlUnavailable: (cause?: unknown) =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_UNAVAILABLE, { cause }),
+  contentCandidateCopyNotFound: () =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_COPY_NOT_FOUND),
   segmentPreviewNotSaveable: () =>
     createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE)
 } as const;

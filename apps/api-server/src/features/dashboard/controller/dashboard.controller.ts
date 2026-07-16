@@ -1,4 +1,17 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Header,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req
+} from "@nestjs/common";
 import {
   DashboardArchivePromotionScopedSegmentDefinitionResultSchema,
   DashboardAnalyzePromotionSegmentsRequestSchema,
@@ -63,6 +76,8 @@ import {
   DashboardUnapproveContentCandidateRequestSchema,
   DashboardUnapproveContentCandidateResultSchema,
   DashboardUpdateCampaignRequestSchema,
+  DashboardUpdateContentCandidateCopyRequestSchema,
+  DashboardUpdateContentCandidateCopyResultSchema,
   getDashboardCreateCampaignRequestSchema,
   DashboardUpdateFunnelRequestSchema,
   DashboardUpdatePromotionRequestSchema,
@@ -309,6 +324,46 @@ export class DashboardController {
         contentId,
         request
       )
+    );
+  }
+
+  @Patch("promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/copy")
+  async updateContentCandidateCopy(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown,
+    @Req() request: DashboardHttpRequest
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const parsedRequest = DashboardUpdateContentCandidateCopyRequestSchema.parse(body);
+    return DashboardUpdateContentCandidateCopyResultSchema.parse(
+      await this.dashboardQuery.updateContentCandidateCopy(
+        requiredProjectId,
+        promotionId,
+        segmentId,
+        contentId,
+        parsedRequest,
+        dashboardRequestOrigin(request)
+      )
+    );
+  }
+
+  @Get("promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/html")
+  @Header("Cache-Control", "no-store")
+  @Header("Content-Type", "text/html; charset=utf-8")
+  async contentCandidateHtml(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined
+  ) {
+    return this.dashboardQuery.contentCandidateHtml(
+      requireProjectId(projectId),
+      promotionId,
+      segmentId,
+      contentId
     );
   }
 
@@ -680,6 +735,32 @@ function requireProjectId(projectId: string | undefined): string {
     throw dashboardErrors.projectIdRequired();
   }
   return projectId;
+}
+
+type DashboardHttpRequest = {
+  headers?: Record<string, string | string[] | undefined>;
+  protocol?: string;
+};
+
+export function dashboardRequestOrigin(request: DashboardHttpRequest) {
+  const forwardedProtocol = firstHeaderValue(request.headers?.["x-forwarded-proto"]);
+  const forwardedHost = firstHeaderValue(request.headers?.["x-forwarded-host"]);
+  const host = forwardedHost ?? firstHeaderValue(request.headers?.host);
+  const protocol = forwardedProtocol ?? request.protocol;
+  if (!host || (protocol !== "http" && protocol !== "https")) {
+    throw new BadRequestException("Request origin is invalid.");
+  }
+
+  try {
+    return new URL(`${protocol}://${host}`).origin;
+  } catch {
+    throw new BadRequestException("Request origin is invalid.");
+  }
+}
+
+function firstHeaderValue(value: string | string[] | undefined) {
+  const first = Array.isArray(value) ? value[0] : value?.split(",")[0];
+  return first?.trim() || undefined;
 }
 
 function parseFunnelMetricsScope({

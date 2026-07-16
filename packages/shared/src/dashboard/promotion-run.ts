@@ -85,6 +85,30 @@ export type DashboardUnapproveContentCandidateResult = z.infer<
   typeof DashboardUnapproveContentCandidateResultSchema
 >;
 
+export const DashboardUpdateContentCandidateCopyRequestSchema = z.object({
+  headline: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(5000),
+  cta: z.string().trim().min(1).max(100)
+});
+export type DashboardUpdateContentCandidateCopyRequest = z.infer<
+  typeof DashboardUpdateContentCandidateCopyRequestSchema
+>;
+
+export const DashboardUpdateContentCandidateCopyResultSchema = z.object({
+  content_id: z.string(),
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  headline: z.string(),
+  body: z.string(),
+  cta: z.string(),
+  html_url: z.string().url(),
+  status: z.literal("draft"),
+  updated_at: z.string()
+});
+export type DashboardUpdateContentCandidateCopyResult = z.infer<
+  typeof DashboardUpdateContentCandidateCopyResultSchema
+>;
+
 export const DashboardRejectContentCandidateRequestSchema = z.object({
   operator_note: z.string().nullable().optional()
 });

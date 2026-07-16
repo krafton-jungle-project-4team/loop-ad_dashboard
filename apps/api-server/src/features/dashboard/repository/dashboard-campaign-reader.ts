@@ -5,6 +5,7 @@ import type {
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
+  DashboardContentCandidate,
   DashboardConfirmSegmentSuggestionsRequest,
   DashboardConfirmSegmentSuggestionsResult,
   DashboardAttachSegmentRequest,
@@ -34,6 +35,8 @@ import type {
   DashboardStartNextLoopRequest,
   DashboardUnapproveContentCandidateRequest,
   DashboardUnapproveContentCandidateResult,
+  DashboardUpdateContentCandidateCopyRequest,
+  DashboardUpdateContentCandidateCopyResult,
   DashboardUpdateCampaignRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
@@ -71,6 +74,7 @@ import {
   decideDashboardPromotionSegmentSuggestion,
   deleteDashboardCampaign,
   getDashboardCampaignSummary,
+  getDashboardContentCandidate,
   getDashboardContentCandidateForApproval,
   getDashboardPromotionGenerationResult,
   getDashboardPromotionSegment,
@@ -104,6 +108,7 @@ import {
   stopDashboardPromotion,
   stopDashboardPromotionTargetSegment,
   updateDashboardCampaign,
+  updateDashboardContentCandidateCopy,
   updateDashboardPromotion,
   updateDashboardPromotionTargetSegment,
   unapproveDashboardContentCandidate,
@@ -558,6 +563,54 @@ export class DashboardCampaignReader {
     const row = rows[0];
 
     return row ? toStartPromotionGenerationResult(row) : undefined;
+  }
+
+  async getContentCandidate(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string
+  ): Promise<DashboardContentCandidate> {
+    const row = await this.db
+      .query(getDashboardContentCandidate, { contentId, projectId, promotionId, segmentId })
+      .single();
+
+    return toContentCandidate(row);
+  }
+
+  async updateContentCandidateCopy(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardUpdateContentCandidateCopyRequest,
+    metadataJson: Record<string, unknown>,
+    htmlUrl: string
+  ): Promise<DashboardUpdateContentCandidateCopyResult> {
+    const row = await this.db
+      .query(updateDashboardContentCandidateCopy, {
+        body: request.body,
+        contentId,
+        cta: request.cta,
+        headline: request.headline,
+        metadataJson: metadataJson as unknown as Json,
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
+
+    return {
+      body: row.body ?? request.body,
+      content_id: row.contentId,
+      cta: row.cta ?? request.cta,
+      headline: row.headline ?? request.headline,
+      html_url: htmlUrl,
+      promotion_id: row.promotionId,
+      segment_id: row.segmentId,
+      status: "draft",
+      updated_at: row.updatedAt.toISOString()
+    };
   }
 
   async approveContentCandidate(
