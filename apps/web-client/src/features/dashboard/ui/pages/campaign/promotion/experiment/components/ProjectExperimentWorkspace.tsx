@@ -591,7 +591,7 @@ function SelectedProjectExperimentDetail({
             )}
             {isPreparingRepeatCreativesForSelected
               ? "다음 실험용 광고 만드는 중…"
-              : "다음 실험용 광고 만들기"}
+              : "다음 실험 실행"}
           </Button>
         </div>
       </CardHeader>
