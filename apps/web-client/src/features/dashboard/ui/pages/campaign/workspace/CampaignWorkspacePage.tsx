@@ -1,8 +1,9 @@
-import type {
-  DashboardCampaignPromotion,
-  DashboardCampaignSummary,
-  DashboardMain,
-  DashboardUpdatePromotionRequest
+import {
+  campaignDateKey,
+  type DashboardCampaignPromotion,
+  type DashboardCampaignSummary,
+  type DashboardMain,
+  type DashboardUpdatePromotionRequest
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
@@ -15,7 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@loopad/ui/shadcn/alert-dialog";
+import { Badge } from "@loopad/ui/shadcn/badge";
+import { Button } from "@loopad/ui/shadcn/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   createDashboardCampaign,
@@ -54,7 +58,9 @@ import {
 } from "../promotion/promotionUtils.js";
 import { EntityCardGrid } from "./EntityCardGrid.js";
 import { HierarchyBreadcrumbs } from "./HierarchyBreadcrumbs.js";
+import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
 import type {
+  CampaignWorkspaceBadgeVariant,
   CampaignWorkspaceEntityCard,
   CampaignWorkspaceHierarchyItem
 } from "./campaign-workspace-types.js";
@@ -70,6 +76,36 @@ type PromotionCard = CampaignWorkspaceEntityCard & {
   kind: "promotion";
   promotion: DashboardCampaignPromotion;
 };
+
+const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
+  description: string;
+  emptyMessage: string;
+  label: string;
+  status: CampaignScheduleStatus;
+  variant: CampaignWorkspaceBadgeVariant;
+}> = [
+  {
+    description: "종료일이 가까운 순으로 보여요.",
+    emptyMessage: "현재 진행 중인 캠페인이 없어요.",
+    label: "진행 중",
+    status: "in_progress",
+    variant: "default"
+  },
+  {
+    description: "시작일이 가까운 순으로 보여요.",
+    emptyMessage: "시작을 기다리는 캠페인이 없어요.",
+    label: "예정",
+    status: "scheduled",
+    variant: "outline"
+  },
+  {
+    description: "최근에 종료된 순으로 보여요.",
+    emptyMessage: "완료된 캠페인이 없어요.",
+    label: "완료됨",
+    status: "completed",
+    variant: "secondary"
+  }
+];
 
 export function CampaignWorkspacePage({
   data,
@@ -245,7 +281,7 @@ export function CampaignWorkspacePage({
     );
   }, [campaignDetail.data, query.selectedPromotionId, selectedPromotion, setDashboardQueryState]);
 
-  const campaignCards = data.campaigns.map(toCampaignCard);
+  const campaignsBySchedule = groupCampaignsBySchedule(data.campaigns, campaignDateKey());
   const promotionCards = promotions.map(toPromotionCard);
   const hierarchyItems = buildHierarchyItems(selectedCampaign, selectedPromotion, selectedSegment);
   const promotionMutationError =
@@ -331,58 +367,98 @@ export function CampaignWorkspacePage({
 
       {!selectedCampaign ? (
         <section className="grid gap-5">
-          <div className="grid gap-1">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              캠페인을 선택해 주세요
-            </h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
-            </p>
-          </div>
-          <EntityCardGrid
-            actions={(card) => [
-              {
-                id: "edit",
-                label: "캠페인 수정",
-                onSelect: () => {
-                  updateCampaignMutation.reset();
-                  deleteCampaignMutation.reset();
-                  setCampaignFormDialog({ campaignId: card.id, mode: "edit" });
-                }
-              },
-              {
-                id: "delete",
-                label: "캠페인 삭제",
-                onSelect: () => {
-                  deleteCampaignMutation.reset();
-                  setDeletingCampaignId(card.id);
-                },
-                tone: "destructive"
-              }
-            ]}
-            entryActions={(card) => [
-              {
-                id: "workspace",
-                label: "프로모션 관리",
-                onSelect: () => openCampaignView(card.id, "manage")
-              },
-              {
-                id: "performance",
-                label: "성과",
-                onSelect: () => openCampaignView(card.id, "performance")
-              }
-            ]}
-            addAction={{
-              description: "캠페인을 만들고 프로모션을 설정해요.",
-              label: "캠페인 만들기",
-              onSelect: () => {
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                캠페인을 선택해 주세요
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
+              </p>
+            </div>
+            <Button
+              onClick={() => {
                 createCampaignMutation.reset();
                 setCampaignFormDialog({ mode: "create" });
-              }
-            }}
-            ariaLabel="캠페인 목록"
-            items={campaignCards}
-          />
+              }}
+              size="sm"
+              type="button"
+            >
+              <Plus aria-hidden="true" data-icon="inline-start" />
+              캠페인 만들기
+            </Button>
+          </div>
+          <div className="grid gap-8">
+            {CAMPAIGN_SCHEDULE_SECTIONS.map((section) => {
+              const cards = campaignsBySchedule[section.status].map((campaign) =>
+                toCampaignCard(campaign, section.status)
+              );
+
+              return (
+                <section
+                  aria-labelledby={`campaign-schedule-${section.status}`}
+                  className="grid gap-3"
+                  key={section.status}
+                >
+                  <div className="flex flex-wrap items-end justify-between gap-2 border-b pb-3">
+                    <div className="grid gap-1">
+                      <div className="flex items-center gap-2">
+                        <h3
+                          className="text-base font-semibold tracking-tight text-foreground"
+                          id={`campaign-schedule-${section.status}`}
+                        >
+                          {section.label}
+                        </h3>
+                        <Badge variant="secondary">{cards.length}</Badge>
+                      </div>
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        {section.description}
+                      </p>
+                    </div>
+                  </div>
+                  <EntityCardGrid
+                    actions={(card) => [
+                      {
+                        id: "edit",
+                        label: "캠페인 수정",
+                        onSelect: () => {
+                          updateCampaignMutation.reset();
+                          deleteCampaignMutation.reset();
+                          setCampaignFormDialog({ campaignId: card.id, mode: "edit" });
+                        }
+                      },
+                      {
+                        id: "delete",
+                        label: "캠페인 삭제",
+                        onSelect: () => {
+                          deleteCampaignMutation.reset();
+                          setDeletingCampaignId(card.id);
+                        },
+                        tone: "destructive"
+                      }
+                    ]}
+                    ariaLabel={`${section.label} 캠페인 목록`}
+                    density="compact"
+                    emptyState={<EmptyState message={section.emptyMessage} />}
+                    entryActions={(card) => [
+                      {
+                        id: "workspace",
+                        label: "프로모션 관리",
+                        onSelect: () => openCampaignView(card.id, "manage")
+                      },
+                      {
+                        id: "performance",
+                        label: "성과",
+                        onSelect: () => openCampaignView(card.id, "performance")
+                      }
+                    ]}
+                    items={cards}
+                    layout="horizontal"
+                  />
+                </section>
+              );
+            })}
+          </div>
         </section>
       ) : null}
 
@@ -593,7 +669,14 @@ export function CampaignWorkspacePage({
   );
 }
 
-function toCampaignCard(campaign: DashboardCampaignSummary): CampaignCard {
+function toCampaignCard(
+  campaign: DashboardCampaignSummary,
+  scheduleStatus: CampaignScheduleStatus
+): CampaignCard {
+  const schedulePresentation = CAMPAIGN_SCHEDULE_SECTIONS.find(
+    (section) => section.status === scheduleStatus
+  );
+
   return {
     campaign,
     description: campaign.objective ?? "아직 목표가 없어요",
@@ -617,8 +700,8 @@ function toCampaignCard(campaign: DashboardCampaignSummary): CampaignCard {
       }
     ],
     status: {
-      label: formatStatusLabel(campaign.status),
-      variant: statusBadgeVariant(campaign.status)
+      label: schedulePresentation?.label ?? "진행 중",
+      variant: schedulePresentation?.variant ?? "default"
     },
     title: campaign.campaign_name
   };

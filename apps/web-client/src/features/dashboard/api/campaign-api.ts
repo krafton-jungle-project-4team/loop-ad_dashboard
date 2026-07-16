@@ -1,9 +1,9 @@
 import {
   DashboardCampaignDetailSchema,
   DashboardCampaignSummarySchema,
-  DashboardCreateCampaignRequestSchema,
   DashboardDeleteCampaignResultSchema,
   DashboardUpdateCampaignRequestSchema,
+  getDashboardCreateCampaignRequestSchema,
   type DashboardCampaignDetail,
   type DashboardCampaignSummary,
   type DashboardCreateCampaignRequest,
@@ -35,7 +35,7 @@ export function createDashboardCampaign(
   requestBody: DashboardCreateCampaignRequest
 ): Promise<DashboardCampaignSummary> {
   return apiRequest(CAMPAIGNS_PATH, DashboardCampaignSummarySchema, {
-    body: DashboardCreateCampaignRequestSchema.parse(requestBody),
+    body: getDashboardCreateCampaignRequestSchema().parse(requestBody),
     method: "POST",
     searchParams: projectSearchParams(query.projectId)
   });

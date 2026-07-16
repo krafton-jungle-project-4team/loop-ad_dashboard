@@ -52,6 +52,24 @@ test("dashboard controller parses event catalog response", async () => {
   ]);
 });
 
+test("dashboard controller rejects campaign creation with a past start date", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const controller = new DashboardController(emptyDashboardQuery());
+
+  await assert.rejects(
+    () =>
+      controller.createCampaign("hotel-client-a", {
+        campaign_name: "과거 캠페인",
+        end_date: "2000-01-02",
+        start_date: "2000-01-01"
+      }),
+    (error) =>
+      error instanceof z.ZodError && error.issues.some((issue) => issue.path[0] === "start_date")
+  );
+});
+
 test("dashboard controller rejects invalid funnel create body", async () => {
   setRequiredEnv();
   const { DashboardController } =

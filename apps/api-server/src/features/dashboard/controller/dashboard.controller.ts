@@ -11,7 +11,6 @@ import {
   DashboardCampaignSummarySchema,
   DashboardConfirmSegmentSuggestionsRequestSchema,
   DashboardConfirmSegmentSuggestionsResultSchema,
-  DashboardCreateCampaignRequestSchema,
   DashboardCreateNextLoopRequestSchema,
   DashboardCreateNextLoopResultSchema,
   DashboardCreateProjectRequestSchema,
@@ -64,6 +63,7 @@ import {
   DashboardUnapproveContentCandidateRequestSchema,
   DashboardUnapproveContentCandidateResultSchema,
   DashboardUpdateCampaignRequestSchema,
+  getDashboardCreateCampaignRequestSchema,
   DashboardUpdateFunnelRequestSchema,
   DashboardUpdatePromotionRequestSchema,
   DashboardUpdatePromotionSegmentRequestSchema
@@ -146,7 +146,7 @@ export class DashboardController {
   @Post("campaigns")
   async createCampaign(@Query("project_id") projectId: string | undefined, @Body() body: unknown) {
     const requiredProjectId = requireProjectId(projectId);
-    const request = DashboardCreateCampaignRequestSchema.parse(body);
+    const request = getDashboardCreateCampaignRequestSchema().parse(body);
     return DashboardCampaignSummarySchema.parse(
       await this.dashboardQuery.createCampaign(requiredProjectId, request)
     );
