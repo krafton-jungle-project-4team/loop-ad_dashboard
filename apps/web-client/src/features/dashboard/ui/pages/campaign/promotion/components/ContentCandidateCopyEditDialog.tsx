@@ -61,13 +61,13 @@ export function ContentCandidateCopyEditDialog({
       <DialogTrigger asChild>
         <Button disabled={candidate.status !== "draft" || isPending} size="sm" variant="outline">
           <Pencil data-icon="inline-start" />
-          텍스트 수정
+          광고 수정
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <form className="contents" onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>광고 텍스트 수정</DialogTitle>
+            <DialogTitle>광고 수정</DialogTitle>
             <DialogDescription>
               저장하면 HTML 미리보기와 실제 광고에 수정한 내용이 반영돼요.
             </DialogDescription>
