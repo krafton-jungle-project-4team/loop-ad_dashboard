@@ -61,8 +61,12 @@ export function MainPage({ data, query }: { data: DashboardMain; query: Dashboar
       value={query.statisticsView}
     >
       <TabsList className="w-fit" variant="line">
-        <TabsTrigger value="overview">운영 현황</TabsTrigger>
-        <TabsTrigger value="user-paths">사용자 경로</TabsTrigger>
+        <TabsTrigger className="after:hidden" value="overview">
+          운영 현황
+        </TabsTrigger>
+        <TabsTrigger className="after:hidden" value="user-paths">
+          사용자 경로
+        </TabsTrigger>
       </TabsList>
       <TabsContent value="overview">
         {query.statisticsView === "overview" ? <MainOverview data={data} query={query} /> : null}
