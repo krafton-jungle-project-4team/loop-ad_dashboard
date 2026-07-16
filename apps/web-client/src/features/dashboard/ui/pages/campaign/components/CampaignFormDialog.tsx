@@ -1,7 +1,9 @@
 import {
+  campaignDateKey,
   DashboardCampaignPrimaryMetricSchema,
   type DashboardCampaignSummary,
-  isCampaignDateRangeValid
+  isCampaignDateRangeValid,
+  isCampaignStartDateValid
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Button } from "@loopad/ui/shadcn/button";
@@ -112,8 +114,13 @@ function CampaignCreateForm({
     Boolean(campaignName || objective || startDate || endDate || primaryMetric !== "none")
   );
   const dateRangeIsValid = isCampaignDateRangeValid(startDate, endDate);
+  const today = campaignDateKey();
+  const startDateIsValid = isCampaignStartDateValid(startDate, today);
   const canSubmit =
-    Boolean(campaignName.trim() && startDate && endDate) && dateRangeIsValid && !isPending;
+    Boolean(campaignName.trim() && startDate && endDate) &&
+    startDateIsValid &&
+    dateRangeIsValid &&
+    !isPending;
 
   return (
     <section className="grid gap-4">
@@ -128,6 +135,8 @@ function CampaignCreateForm({
         onStartDateChange={setStartDate}
         primaryMetricControl={{ onValueChange: setPrimaryMetric, value: primaryMetric }}
         primaryMetricOptions={campaignCreatePrimaryMetricOptions}
+        startDateIsValid={startDateIsValid}
+        startDateMinimum={today}
         startDate={startDate}
       />
       <DialogFooter className="border-t pt-5">
@@ -140,10 +149,10 @@ function CampaignCreateForm({
           onClick={() =>
             onSubmit({
               campaign_name: campaignName.trim(),
-              end_date: nullableDate(endDate),
+              end_date: endDate,
               objective: nullableText(objective),
               primary_metric: nullableMetric(primaryMetric),
-              start_date: nullableDate(startDate),
+              start_date: startDate,
               status: "draft"
             })
           }
@@ -241,6 +250,8 @@ function CampaignFormFields({
   onStartDateChange,
   primaryMetricControl,
   primaryMetricOptions,
+  startDateIsValid = true,
+  startDateMinimum,
   startDate
 }: {
   campaignName: string;
@@ -253,6 +264,8 @@ function CampaignFormFields({
   onStartDateChange: (value: string) => void;
   primaryMetricControl?: { onValueChange: (value: string) => void; value: string };
   primaryMetricOptions: ReadonlyArray<string>;
+  startDateIsValid?: boolean;
+  startDateMinimum?: string;
   startDate: string;
 }) {
   return (
@@ -306,14 +319,22 @@ function CampaignFormFields({
         <Field>
           <FieldLabel htmlFor="dashboard-campaign-start-date">시작일</FieldLabel>
           <Input
+            aria-describedby={!startDateIsValid ? "dashboard-campaign-start-date-error" : undefined}
+            aria-invalid={!startDateIsValid}
             autoComplete="off"
             id="dashboard-campaign-start-date"
+            min={startDateMinimum}
             name="campaignStartDate"
             onChange={(event) => onStartDateChange(event.target.value)}
             required
             type="date"
             value={startDate}
           />
+          {!startDateIsValid ? (
+            <FieldError id="dashboard-campaign-start-date-error">
+              시작일은 오늘보다 빠를 수 없어요.
+            </FieldError>
+          ) : null}
         </Field>
         <Field>
           <FieldLabel htmlFor="dashboard-campaign-end-date">종료일</FieldLabel>
@@ -322,6 +343,7 @@ function CampaignFormFields({
             autoComplete="off"
             aria-describedby={!dateRangeIsValid ? "dashboard-campaign-date-error" : undefined}
             id="dashboard-campaign-end-date"
+            min={startDate || startDateMinimum}
             name="campaignEndDate"
             onChange={(event) => onEndDateChange(event.target.value)}
             required

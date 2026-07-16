@@ -41,14 +41,31 @@ const ENTRY_ACTION_VARIANT = {
   workspace: "promotion-soft"
 } as const;
 
+const GRID_DENSITY_CLASS = {
+  compact: "grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4",
+  default: "grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+} as const;
+
+const HORIZONTAL_GRID_DENSITY_CLASS = {
+  compact:
+    "grid-flow-col auto-cols-[clamp(16rem,23.5%,20rem)] gap-3 overflow-x-auto overscroll-x-contain pb-2 snap-x snap-mandatory [scrollbar-width:thin]",
+  default:
+    "grid-flow-col auto-cols-[clamp(18rem,32%,24rem)] gap-4 overflow-x-auto overscroll-x-contain pb-2 snap-x snap-mandatory [scrollbar-width:thin]"
+} as const;
+
+type EntityCardGridDensity = keyof typeof GRID_DENSITY_CLASS;
+type EntityCardGridLayout = "grid" | "horizontal";
+
 export type EntityCardGridProps<Entity extends CampaignWorkspaceEntityCard> = {
   actions?: (entity: Entity) => ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
   addAction?: CampaignWorkspaceAddAction;
   ariaLabel: string;
   className?: string;
+  density?: EntityCardGridDensity;
   emptyState?: ReactNode;
   entryActions?: (entity: Entity) => ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
   items: ReadonlyArray<Entity>;
+  layout?: EntityCardGridLayout;
   onSelect?: (entity: Entity) => void;
   selectedId?: string;
 };
@@ -58,9 +75,11 @@ export function EntityCardGrid<Entity extends CampaignWorkspaceEntityCard>({
   addAction,
   ariaLabel,
   className,
+  density = "default",
   emptyState,
   entryActions,
   items,
+  layout = "grid",
   onSelect,
   selectedId
 }: EntityCardGridProps<Entity>) {
@@ -71,23 +90,33 @@ export function EntityCardGrid<Entity extends CampaignWorkspaceEntityCard>({
   return (
     <ul
       aria-label={ariaLabel}
-      className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3", className)}
+      className={cn(
+        "grid",
+        layout === "horizontal"
+          ? HORIZONTAL_GRID_DENSITY_CLASS[density]
+          : GRID_DENSITY_CLASS[density],
+        className
+      )}
       role="list"
     >
       {items.map((item) => (
-        <li key={`${item.kind}:${item.id}`}>
+        <li
+          className={layout === "horizontal" ? "snap-start" : undefined}
+          key={`${item.kind}:${item.id}`}
+        >
           <EntityCard
             actions={actions?.(item) ?? []}
             entity={item}
             entryActions={entryActions?.(item) ?? []}
             isSelected={item.id === selectedId}
             onSelect={onSelect}
+            density={density}
           />
         </li>
       ))}
       {addAction ? (
         <li>
-          <EntityAddCard action={addAction} />
+          <EntityAddCard action={addAction} density={density} />
         </li>
       ) : null}
     </ul>
@@ -99,35 +128,47 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
   entity,
   entryActions,
   isSelected,
-  onSelect
+  onSelect,
+  density
 }: {
   actions: ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
   entity: Entity;
   entryActions: ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
   isSelected: boolean;
   onSelect?: (entity: Entity) => void;
+  density: EntityCardGridDensity;
 }) {
   const entityKindLabel = ENTITY_KIND_LABEL[entity.kind];
+  const isCompact = density === "compact";
 
   return (
     <Card
       className={cn(
-        "h-full min-h-56 shadow-none transition-[border-color,box-shadow]",
+        "h-full shadow-none transition-[border-color,box-shadow]",
+        isCompact ? "min-h-48" : "min-h-56",
         isSelected && "border-primary/40 ring-2 ring-primary/15"
       )}
+      size={isCompact ? "sm" : "default"}
     >
-      <CardHeader className="gap-3">
+      <CardHeader className={isCompact ? "gap-2" : "gap-3"}>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{entityKindLabel}</Badge>
           {entity.status ? (
             <Badge variant={entity.status.variant ?? "outline"}>{entity.status.label}</Badge>
           ) : null}
         </div>
-        <CardTitle className="line-clamp-2 text-lg font-semibold tracking-tight">
+        <CardTitle
+          className={cn(
+            "line-clamp-2 font-semibold tracking-tight",
+            isCompact ? "text-base" : "text-lg"
+          )}
+        >
           {entity.title}
         </CardTitle>
         {entity.description ? (
-          <CardDescription className="line-clamp-2 leading-6">{entity.description}</CardDescription>
+          <CardDescription className={cn("line-clamp-2", isCompact ? "leading-5" : "leading-6")}>
+            {entity.description}
+          </CardDescription>
         ) : null}
         {actions.length > 0 ? (
           <CardAction>
@@ -142,7 +183,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
 
       {entity.metrics && entity.metrics.length > 0 ? (
         <CardContent>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <dl className={cn("grid grid-cols-2 gap-x-4", isCompact ? "gap-y-2" : "gap-y-3")}>
             {entity.metrics.map((metric) => (
               <div className="flex min-w-0 flex-col gap-1" key={metric.id}>
                 <dt className="truncate text-xs text-muted-foreground">{metric.label}</dt>
@@ -167,7 +208,10 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
                   <Fragment key={action.id}>
                     {index > 0 ? <ButtonGroupSeparator /> : null}
                     <Button
-                      className="h-auto min-h-9 min-w-0 flex-1 whitespace-normal px-2 py-2 text-xs"
+                      className={cn(
+                        "h-auto min-h-9 min-w-0 flex-1 whitespace-normal px-2 text-xs",
+                        isCompact ? "py-1.5" : "py-2"
+                      )}
                       disabled={action.disabled}
                       onClick={() => action.onSelect(entity)}
                       type="button"
@@ -247,16 +291,32 @@ function EntityActionsMenu<Entity extends CampaignWorkspaceEntityCard>({
   );
 }
 
-function EntityAddCard({ action }: { action: CampaignWorkspaceAddAction }) {
+function EntityAddCard({
+  action,
+  density
+}: {
+  action: CampaignWorkspaceAddAction;
+  density: EntityCardGridDensity;
+}) {
+  const isCompact = density === "compact";
+
   return (
     <Button
-      className="h-full min-h-56 w-full flex-col gap-3 rounded-[18px] border-dashed px-6 whitespace-normal"
+      className={cn(
+        "h-full w-full flex-col rounded-[18px] border-dashed whitespace-normal",
+        isCompact ? "min-h-48 gap-2 px-4" : "min-h-56 gap-3 px-6"
+      )}
       disabled={action.disabled}
       onClick={action.onSelect}
       type="button"
       variant="outline"
     >
-      <span className="flex size-10 items-center justify-center rounded-full bg-muted text-foreground">
+      <span
+        className={cn(
+          "flex items-center justify-center rounded-full bg-muted text-foreground",
+          isCompact ? "size-9" : "size-10"
+        )}
+      >
         <Plus aria-hidden="true" data-icon="inline-start" />
       </span>
       <span className="flex flex-col items-center gap-1 text-center">

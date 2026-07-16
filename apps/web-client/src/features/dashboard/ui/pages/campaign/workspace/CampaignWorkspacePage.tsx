@@ -1,8 +1,9 @@
-import type {
-  DashboardCampaignPromotion,
-  DashboardCampaignSummary,
-  DashboardMain,
-  DashboardUpdatePromotionRequest
+import {
+  campaignDateKey,
+  type DashboardCampaignPromotion,
+  type DashboardCampaignSummary,
+  type DashboardMain,
+  type DashboardUpdatePromotionRequest
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import {
@@ -16,7 +17,9 @@ import {
   AlertDialogTitle
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
+import { Button } from "@loopad/ui/shadcn/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   createDashboardCampaign,
@@ -55,11 +58,7 @@ import {
 } from "../promotion/promotionUtils.js";
 import { EntityCardGrid } from "./EntityCardGrid.js";
 import { HierarchyBreadcrumbs } from "./HierarchyBreadcrumbs.js";
-import {
-  groupCampaignsBySchedule,
-  localDateKey,
-  type CampaignScheduleStatus
-} from "./campaignSchedule.js";
+import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
 import type {
   CampaignWorkspaceBadgeVariant,
   CampaignWorkspaceEntityCard,
@@ -78,7 +77,6 @@ type PromotionCard = CampaignWorkspaceEntityCard & {
   promotion: DashboardCampaignPromotion;
 };
 
-const EMPTY_CAMPAIGN_CARDS: ReadonlyArray<CampaignCard> = [];
 const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
   description: string;
   emptyMessage: string;
@@ -283,7 +281,7 @@ export function CampaignWorkspacePage({
     );
   }, [campaignDetail.data, query.selectedPromotionId, selectedPromotion, setDashboardQueryState]);
 
-  const campaignsBySchedule = groupCampaignsBySchedule(data.campaigns, localDateKey());
+  const campaignsBySchedule = groupCampaignsBySchedule(data.campaigns, campaignDateKey());
   const promotionCards = promotions.map(toPromotionCard);
   const hierarchyItems = buildHierarchyItems(selectedCampaign, selectedPromotion, selectedSegment);
   const promotionMutationError =
@@ -369,26 +367,27 @@ export function CampaignWorkspacePage({
 
       {!selectedCampaign ? (
         <section className="grid gap-5">
-          <div className="grid gap-1">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              캠페인을 선택해 주세요
-            </h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
-            </p>
-          </div>
-          <EntityCardGrid
-            addAction={{
-              description: "캠페인을 만들고 프로모션을 설정해요.",
-              label: "캠페인 만들기",
-              onSelect: () => {
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                캠페인을 선택해 주세요
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
+              </p>
+            </div>
+            <Button
+              onClick={() => {
                 createCampaignMutation.reset();
                 setCampaignFormDialog({ mode: "create" });
-              }
-            }}
-            ariaLabel="캠페인 만들기"
-            items={EMPTY_CAMPAIGN_CARDS}
-          />
+              }}
+              size="sm"
+              type="button"
+            >
+              <Plus aria-hidden="true" data-icon="inline-start" />
+              캠페인 만들기
+            </Button>
+          </div>
           <div className="grid gap-8">
             {CAMPAIGN_SCHEDULE_SECTIONS.map((section) => {
               const cards = campaignsBySchedule[section.status].map((campaign) =>
@@ -439,6 +438,7 @@ export function CampaignWorkspacePage({
                       }
                     ]}
                     ariaLabel={`${section.label} 캠페인 목록`}
+                    density="compact"
                     emptyState={<EmptyState message={section.emptyMessage} />}
                     entryActions={(card) => [
                       {
@@ -453,6 +453,7 @@ export function CampaignWorkspacePage({
                       }
                     ]}
                     items={cards}
+                    layout="horizontal"
                   />
                 </section>
               );

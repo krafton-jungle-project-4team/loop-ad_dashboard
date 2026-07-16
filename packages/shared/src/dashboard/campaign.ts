@@ -39,6 +39,28 @@ export const DashboardCampaignStatusSchema = z.enum([
 ]);
 export type DashboardCampaignStatus = z.infer<typeof DashboardCampaignStatusSchema>;
 
+export const CAMPAIGN_TIME_ZONE = "Asia/Seoul";
+
+export function campaignDateKey(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: CAMPAIGN_TIME_ZONE,
+    year: "numeric"
+  }).formatToParts(date);
+  const part = (type: "day" | "month" | "year") =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+export function isCampaignStartDateValid(
+  startDate: string | null | undefined,
+  today: string
+): boolean {
+  return !startDate || startDate >= today;
+}
+
 export function isCampaignDateRangeValid(
   startDate: string | null | undefined,
   endDate: string | null | undefined
@@ -51,13 +73,18 @@ const campaignDateRangeValidation = {
   path: ["end_date"]
 };
 
+const campaignStartDateValidation = {
+  message: "시작일은 오늘보다 빠를 수 없습니다.",
+  path: ["start_date"]
+};
+
 export const DashboardCreateCampaignRequestSchema = z
   .object({
     campaign_name: z.string().min(1),
     objective: z.string().nullable().optional(),
     primary_metric: DashboardCampaignPrimaryMetricSchema.nullable().optional(),
-    start_date: z.string().date().nullable().optional(),
-    end_date: z.string().date().nullable().optional(),
+    start_date: z.string().date(),
+    end_date: z.string().date(),
     status: DashboardCampaignStatusSchema.default("draft")
   })
   .refine(
@@ -65,6 +92,13 @@ export const DashboardCreateCampaignRequestSchema = z
     campaignDateRangeValidation
   );
 export type DashboardCreateCampaignRequest = z.infer<typeof DashboardCreateCampaignRequestSchema>;
+
+export function getDashboardCreateCampaignRequestSchema(today = campaignDateKey()) {
+  return DashboardCreateCampaignRequestSchema.refine(
+    ({ start_date: startDate }) => isCampaignStartDateValid(startDate, today),
+    campaignStartDateValidation
+  );
+}
 
 export const DashboardUpdateCampaignRequestSchema = z
   .object({
