@@ -7,6 +7,7 @@ import {
   BreadcrumbSeparator
 } from "@loopad/ui/shadcn/breadcrumb";
 import { Button } from "@loopad/ui/shadcn/button";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { Fragment } from "react";
 
 export type CampaignHierarchyLevel = "campaign" | "promotion" | "segment" | "experiment";
@@ -41,21 +42,22 @@ export function HierarchyBreadcrumbs({
       <BreadcrumbList className="min-w-0 flex-nowrap overflow-clip py-1 text-[15px]">
         {CAMPAIGN_HIERARCHY_LEVELS.map((level, index) => {
           const isCurrent = index === activeIndex;
-          const canSelect = index < activeIndex && onLevelSelect !== undefined;
+          const hasList = level.value === "campaign" || level.value === "promotion";
+          const canSelect =
+            onLevelSelect !== undefined && (index < activeIndex || (isCurrent && hasList));
           const displayLabel = index < activeIndex ? selectedLabels?.[level.value] : level.label;
 
           return (
             <Fragment key={level.value}>
               {index > 0 ? <BreadcrumbSeparator /> : null}
               <BreadcrumbItem className="shrink-0">
-                {isCurrent ? (
-                  <BreadcrumbPage className="font-semibold text-primary">
-                    {level.label}
-                  </BreadcrumbPage>
-                ) : canSelect ? (
+                {canSelect ? (
                   <BreadcrumbLink asChild>
                     <Button
-                      className="h-auto max-w-16 min-w-0 rounded-none border-0 p-0 text-[15px] text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:underline 2xl:max-w-40"
+                      className={cn(
+                        "h-auto max-w-16 min-w-0 rounded-none border-0 p-0 text-[15px] focus-visible:border-0 focus-visible:ring-0 focus-visible:underline 2xl:max-w-40",
+                        isCurrent ? "font-semibold text-primary" : "text-muted-foreground"
+                      )}
                       onClick={() => onLevelSelect(level.value)}
                       size="sm"
                       title={displayLabel ?? level.label}
@@ -65,6 +67,10 @@ export function HierarchyBreadcrumbs({
                       <span className="truncate">{displayLabel ?? level.label}</span>
                     </Button>
                   </BreadcrumbLink>
+                ) : isCurrent ? (
+                  <BreadcrumbPage className="font-semibold text-primary">
+                    {level.label}
+                  </BreadcrumbPage>
                 ) : (
                   <span aria-disabled="true" className="text-muted-foreground/45">
                     {level.label}
