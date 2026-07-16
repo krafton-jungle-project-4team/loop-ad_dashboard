@@ -7,76 +7,68 @@ import {
   BreadcrumbSeparator
 } from "@loopad/ui/shadcn/breadcrumb";
 import { Button } from "@loopad/ui/shadcn/button";
-import { cn } from "@loopad/ui/shadcn/utils";
 import { Fragment } from "react";
-import type { CampaignWorkspaceHierarchyItem } from "./campaign-workspace-types.js";
+
+export type CampaignHierarchyLevel = "campaign" | "promotion" | "segment" | "experiment";
+
+const CAMPAIGN_HIERARCHY_LEVELS: ReadonlyArray<{
+  label: string;
+  value: CampaignHierarchyLevel;
+}> = [
+  { label: "캠페인", value: "campaign" },
+  { label: "프로모션", value: "promotion" },
+  { label: "세그먼트", value: "segment" },
+  { label: "실험", value: "experiment" }
+];
 
 export type HierarchyBreadcrumbsProps = {
-  ariaLabel?: string;
+  activeLevel: CampaignHierarchyLevel;
   className?: string;
-  items: ReadonlyArray<CampaignWorkspaceHierarchyItem>;
-  onItemSelect?: (item: CampaignWorkspaceHierarchyItem, index: number) => void;
-  onRootSelect?: () => void;
-  rootLabel?: string;
+  onLevelSelect?: (level: CampaignHierarchyLevel) => void;
+  selectedLabels?: Partial<Record<CampaignHierarchyLevel, string | undefined>>;
 };
 
 export function HierarchyBreadcrumbs({
-  ariaLabel = "캠페인 계층",
+  activeLevel,
   className,
-  items,
-  onItemSelect,
-  onRootSelect,
-  rootLabel = "캠페인"
+  onLevelSelect,
+  selectedLabels
 }: HierarchyBreadcrumbsProps) {
-  return (
-    <Breadcrumb aria-label={ariaLabel} className={className}>
-      <BreadcrumbList className="min-w-0 flex-nowrap overflow-x-auto py-1 text-[15px]">
-        <BreadcrumbItem className="shrink-0">
-          {items.length === 0 ? (
-            <BreadcrumbPage>{rootLabel}</BreadcrumbPage>
-          ) : onRootSelect ? (
-            <BreadcrumbLink asChild>
-              <Button
-                className="h-auto rounded-none border-0 p-0 text-[15px] text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:underline"
-                onClick={onRootSelect}
-                size="sm"
-                type="button"
-                variant="link"
-              >
-                {rootLabel}
-              </Button>
-            </BreadcrumbLink>
-          ) : (
-            <span>{rootLabel}</span>
-          )}
-        </BreadcrumbItem>
+  const activeIndex = CAMPAIGN_HIERARCHY_LEVELS.findIndex((level) => level.value === activeLevel);
 
-        {items.map((item, index) => {
-          const isCurrent = index === items.length - 1;
-          const canSelect = !isCurrent && onItemSelect !== undefined;
+  return (
+    <Breadcrumb aria-label="캠페인 계층" className={className}>
+      <BreadcrumbList className="min-w-0 flex-nowrap overflow-clip py-1 text-[15px]">
+        {CAMPAIGN_HIERARCHY_LEVELS.map((level, index) => {
+          const isCurrent = index === activeIndex;
+          const canSelect = index < activeIndex && onLevelSelect !== undefined;
+          const displayLabel = index < activeIndex ? selectedLabels?.[level.value] : level.label;
 
           return (
-            <Fragment key={`${item.kind}:${item.id}`}>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem className={cn("min-w-0", isCurrent ? "flex-1" : "shrink-0")}>
+            <Fragment key={level.value}>
+              {index > 0 ? <BreadcrumbSeparator /> : null}
+              <BreadcrumbItem className="shrink-0">
                 {isCurrent ? (
-                  <BreadcrumbPage className="block max-w-64 truncate font-medium">
-                    {item.label}
+                  <BreadcrumbPage className="font-semibold text-primary">
+                    {level.label}
                   </BreadcrumbPage>
                 ) : canSelect ? (
                   <BreadcrumbLink asChild>
                     <Button
-                      className="h-auto max-w-48 truncate rounded-none border-0 p-0 text-[15px] text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:underline"
-                      onClick={() => onItemSelect(item, index)}
+                      className="h-auto max-w-16 min-w-0 rounded-none border-0 p-0 text-[15px] text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:underline 2xl:max-w-40"
+                      onClick={() => onLevelSelect(level.value)}
                       size="sm"
+                      title={displayLabel ?? level.label}
                       type="button"
                       variant="link"
                     >
-                      {item.label}
+                      <span className="truncate">{displayLabel ?? level.label}</span>
                     </Button>
                   </BreadcrumbLink>
                 ) : (
-                  <span className="block max-w-48 truncate">{item.label}</span>
+                  <span aria-disabled="true" className="text-muted-foreground/45">
+                    {level.label}
+                  </span>
                 )}
               </BreadcrumbItem>
             </Fragment>

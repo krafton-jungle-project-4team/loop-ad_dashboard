@@ -44,12 +44,6 @@ export type CampaignWorkspaceAddAction = {
   onSelect: () => void;
 };
 
-export type CampaignWorkspaceHierarchyItem = {
-  id: string;
-  kind: CampaignWorkspaceEntityKind;
-  label: string;
-};
-
 export type CampaignWorkspaceSummaryDetail = {
   id: string;
   label: string;
