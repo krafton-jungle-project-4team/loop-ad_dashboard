@@ -57,12 +57,11 @@ import {
   type PromotionCreateFormState
 } from "../promotion/promotionUtils.js";
 import { EntityCardGrid } from "./EntityCardGrid.js";
-import { HierarchyBreadcrumbs } from "./HierarchyBreadcrumbs.js";
+import { HierarchyBreadcrumbs, type CampaignHierarchyLevel } from "./HierarchyBreadcrumbs.js";
 import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
 import type {
   CampaignWorkspaceBadgeVariant,
-  CampaignWorkspaceEntityCard,
-  CampaignWorkspaceHierarchyItem
+  CampaignWorkspaceEntityCard
 } from "./campaign-workspace-types.js";
 
 type CampaignFormDialogState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
@@ -283,7 +282,13 @@ export function CampaignWorkspacePage({
 
   const campaignsBySchedule = groupCampaignsBySchedule(data.campaigns, campaignDateKey());
   const promotionCards = promotions.map(toPromotionCard);
-  const hierarchyItems = buildHierarchyItems(selectedCampaign, selectedPromotion, selectedSegment);
+  const activeHierarchyLevel = getActiveHierarchyLevel({
+    campaignView: query.campaignView,
+    hasCampaign: Boolean(selectedCampaign),
+    hasPromotion: Boolean(selectedPromotion),
+    hasSegment: Boolean(selectedSegment),
+    promotionView: query.promotionView
+  });
   const promotionMutationError =
     createPromotionMutation.error ?? updatePromotionMutation.error ?? deletePromotionMutation.error;
   const openCampaignView = (campaignId: string, campaignView: DashboardQuery["campaignView"]) => {
@@ -313,10 +318,23 @@ export function CampaignWorkspacePage({
     <div className="grid gap-6">
       <DashboardHeaderPortal>
         <HierarchyBreadcrumbs
-          items={hierarchyItems}
-          onItemSelect={(item) => {
-            if (item.kind === "campaign") {
+          activeLevel={activeHierarchyLevel}
+          onLevelSelect={(level) => {
+            if (level === "campaign") {
               void setDashboardQueryState({
+                campaignView: "manage",
+                promotionView: "manage",
+                segmentView: "manage",
+                selectedAdExperimentId: "",
+                selectedCampaignId: "",
+                selectedPromotionId: "",
+                selectedSegmentId: ""
+              });
+              return;
+            }
+            if (level === "promotion") {
+              void setDashboardQueryState({
+                campaignView: "manage",
                 promotionView: "manage",
                 segmentView: "manage",
                 selectedAdExperimentId: "",
@@ -325,29 +343,21 @@ export function CampaignWorkspacePage({
               });
               return;
             }
-            if (item.kind === "promotion") {
+            if (level === "segment") {
               void setDashboardQueryState({
+                campaignView: "manage",
+                promotionView: "manage",
                 segmentView: "manage",
                 selectedAdExperimentId: "",
                 selectedSegmentId: ""
               });
             }
           }}
-          onRootSelect={
-            selectedCampaign
-              ? () => {
-                  void setDashboardQueryState({
-                    campaignView: "manage",
-                    promotionView: "manage",
-                    segmentView: "manage",
-                    selectedAdExperimentId: "",
-                    selectedCampaignId: "",
-                    selectedPromotionId: "",
-                    selectedSegmentId: ""
-                  });
-                }
-              : undefined
-          }
+          selectedLabels={{
+            campaign: selectedCampaign?.campaign_name,
+            promotion: selectedPromotion?.marketing_theme,
+            segment: selectedSegment?.segment_name
+          }}
         />
       </DashboardHeaderPortal>
 
@@ -739,29 +749,29 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
   };
 }
 
-function buildHierarchyItems(
-  campaign: DashboardCampaignSummary | undefined,
-  promotion: DashboardCampaignPromotion | undefined,
-  segment: { segment_id: string; segment_name: string } | undefined
-): CampaignWorkspaceHierarchyItem[] {
-  if (!campaign) {
-    return [];
+function getActiveHierarchyLevel({
+  campaignView,
+  hasCampaign,
+  hasPromotion,
+  hasSegment,
+  promotionView
+}: {
+  campaignView: DashboardQuery["campaignView"];
+  hasCampaign: boolean;
+  hasPromotion: boolean;
+  hasSegment: boolean;
+  promotionView: DashboardQuery["promotionView"];
+}): CampaignHierarchyLevel {
+  if (!hasCampaign || campaignView === "performance") {
+    return "campaign";
   }
-
-  const items: CampaignWorkspaceHierarchyItem[] = [
-    { id: campaign.campaign_id, kind: "campaign", label: campaign.campaign_name }
-  ];
-  if (promotion) {
-    items.push({
-      id: promotion.promotion_id,
-      kind: "promotion",
-      label: promotion.marketing_theme
-    });
+  if (!hasPromotion || promotionView === "performance") {
+    return "promotion";
   }
-  if (segment) {
-    items.push({ id: segment.segment_id, kind: "segment", label: segment.segment_name });
+  if (!hasSegment) {
+    return "segment";
   }
-  return items;
+  return "experiment";
 }
 
 async function invalidateCampaignWorkspace(
