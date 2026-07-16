@@ -35,10 +35,13 @@ const ENTITY_KIND_LABEL: Record<CampaignWorkspaceEntityKind, string> = {
   segment: "세그먼트"
 };
 
-const ENTRY_ACTION_VARIANT = {
-  manage: "segment-soft",
-  performance: "outline-neutral",
-  workspace: "promotion-soft"
+const ENTRY_ACTION_VARIANT: Record<
+  CampaignWorkspaceEntityKind,
+  "outline-neutral" | "promotion-soft" | "segment-soft"
+> = {
+  campaign: "promotion-soft",
+  promotion: "segment-soft",
+  segment: "outline-neutral"
 } as const;
 
 const GRID_DENSITY_CLASS = {
@@ -145,7 +148,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
     <Card
       className={cn(
         "h-full shadow-none transition-[border-color,box-shadow]",
-        isCompact ? "min-h-48" : "min-h-56",
+        isCompact ? "min-h-[19rem]" : "min-h-56",
         isSelected && "border-primary/40 ring-2 ring-primary/15"
       )}
       size={isCompact ? "sm" : "default"}
@@ -200,28 +203,23 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
         <CardFooter className="mt-auto border-t-0 bg-transparent">
           {entryActions.length > 0 ? (
             <ButtonGroup aria-label={`${entity.title} 빠른 이동`} className="w-full">
-              {entryActions.map((action, index) => {
-                const variant =
-                  ENTRY_ACTION_VARIANT[action.id as keyof typeof ENTRY_ACTION_VARIANT];
-
-                return (
-                  <Fragment key={action.id}>
-                    {index > 0 ? <ButtonGroupSeparator /> : null}
-                    <Button
-                      className={cn(
-                        "h-auto min-h-9 min-w-0 flex-1 whitespace-normal px-2 text-xs",
-                        isCompact ? "py-1.5" : "py-2"
-                      )}
-                      disabled={action.disabled}
-                      onClick={() => action.onSelect(entity)}
-                      type="button"
-                      variant={variant ?? "outline-neutral"}
-                    >
-                      {action.label}
-                    </Button>
-                  </Fragment>
-                );
-              })}
+              {entryActions.map((action, index) => (
+                <Fragment key={action.id}>
+                  {index > 0 ? <ButtonGroupSeparator /> : null}
+                  <Button
+                    className={cn(
+                      "h-auto min-h-9 min-w-0 flex-1 whitespace-normal px-2 text-xs",
+                      isCompact ? "py-1.5" : "py-2"
+                    )}
+                    disabled={action.disabled}
+                    onClick={() => action.onSelect(entity)}
+                    type="button"
+                    variant={ENTRY_ACTION_VARIANT[entity.kind]}
+                  >
+                    {action.label}
+                  </Button>
+                </Fragment>
+              ))}
             </ButtonGroup>
           ) : onSelect ? (
             <Button
@@ -304,7 +302,7 @@ function EntityAddCard({
     <Button
       className={cn(
         "h-full w-full flex-col rounded-[18px] border-dashed whitespace-normal",
-        isCompact ? "min-h-48 gap-2 px-4" : "min-h-56 gap-3 px-6"
+        isCompact ? "min-h-[19rem] gap-2 px-4" : "min-h-56 gap-3 px-6"
       )}
       disabled={action.disabled}
       onClick={action.onSelect}

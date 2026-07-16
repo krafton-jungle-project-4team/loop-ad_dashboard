@@ -15,9 +15,9 @@ const buttonVariants = cva(
         "outline-neutral":
           "border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
         "promotion-soft":
-          "border-promotion-action-border bg-promotion-action text-foreground hover:border-promotion-action-hover hover:bg-promotion-action-hover aria-expanded:border-promotion-action-hover aria-expanded:bg-promotion-action-hover",
+          "border-border bg-background text-foreground hover:border-promotion-action-border hover:bg-promotion-action aria-expanded:border-promotion-action-border aria-expanded:bg-promotion-action",
         "segment-soft":
-          "border-segment-action-border bg-segment-action text-foreground hover:border-segment-action-hover hover:bg-segment-action-hover aria-expanded:border-segment-action-hover aria-expanded:bg-segment-action-hover",
+          "border-border bg-background text-foreground hover:border-segment-action-border hover:bg-segment-action aria-expanded:border-segment-action-border aria-expanded:bg-segment-action",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         soft: "border-primary/20 bg-primary/[0.07] text-primary hover:border-primary/30 hover:bg-primary/[0.12] aria-expanded:border-primary/30 aria-expanded:bg-primary/[0.12]",

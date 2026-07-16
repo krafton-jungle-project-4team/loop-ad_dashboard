@@ -29,11 +29,6 @@ export type DashboardNavigationGroup = {
 export const dashboardTabs = [
   { value: "main", label: "통계", pathSegment: "statistics" },
   { value: "funnels", label: "사용자 경로", pathSegment: "funnels" },
-  {
-    value: "campaign-flow-map",
-    label: "워크플로우 맵",
-    pathSegment: "campaign-flow-map"
-  },
   { value: "campaigns", label: "캠페인 관리", pathSegment: "campaigns" },
   {
     value: "campaign-metrics",
@@ -85,12 +80,6 @@ export const dashboardNavigationGroups: DashboardNavigationGroup[] = [
   {
     label: "",
     items: [
-      {
-        label: "워크플로우",
-        value: "campaign-flow-map",
-        pathSegment: "campaign-flow-map",
-        type: "link"
-      },
       {
         label: "데이터 탐색기",
         value: "dataExplorer",

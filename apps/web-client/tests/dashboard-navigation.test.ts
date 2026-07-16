@@ -26,7 +26,7 @@ test("dashboard sidebar exposes the product-led flat navigation order", () => {
         label: ""
       },
       {
-        items: ["워크플로우", "데이터 탐색기", "이벤트 관리"],
+        items: ["데이터 탐색기", "이벤트 관리"],
         label: ""
       }
     ]
@@ -79,6 +79,7 @@ test("dashboard keeps legacy paths available while exposing the experiment route
   assert.equal(getDashboardTabByPath("campaign-promotions"), "campaigns");
   assert.equal(getDashboardTabByPath("promotion-metrics"), "campaigns");
   assert.equal(getDashboardTabByPath("experiments"), "experiments");
+  assert.equal(getDashboardTabByPath("campaign-flow-map"), null);
   assert.equal(getDashboardTabByPath("statistics"), "main");
   assert.equal(getDashboardTabByPath("main"), "main");
   assert.equal(getDashboardTabByPath("funnels"), "main");

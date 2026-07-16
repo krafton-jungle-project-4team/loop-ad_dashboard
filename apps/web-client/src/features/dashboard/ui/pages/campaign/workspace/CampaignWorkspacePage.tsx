@@ -534,6 +534,7 @@ export function CampaignWorkspacePage({
               }
             }}
             ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
+            density="compact"
             entryActions={(card) => [
               {
                 id: "manage",
@@ -547,6 +548,7 @@ export function CampaignWorkspacePage({
               }
             ]}
             items={promotionCards}
+            layout="horizontal"
           />
         </section>
       ) : null}

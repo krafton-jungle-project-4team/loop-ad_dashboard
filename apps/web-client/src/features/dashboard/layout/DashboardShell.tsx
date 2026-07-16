@@ -82,7 +82,7 @@ export function DashboardShell({
   const [dashboardQuery] = useDashboardQueryState();
   const isCompactViewport = useCompactViewport();
   const queryEffectListeners = useRef(new Set<(effect: DataExplorerChatKitQueryEffect) => void>());
-  const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
+  const isCanvasTab = activeTab === "dataExplorer";
   // Temporary rollout: keep the assistant in Data Explorer and expose it while choosing segments.
   const isSegmentCandidateAssistantAvailable =
     activeTab === "campaigns" &&
@@ -363,7 +363,7 @@ function DashboardGlobalSearch({ projectId }: { projectId: string }) {
 
   return (
     <GlobalEntitySearch
-      className="ml-auto w-full max-w-2xl"
+      className="ml-auto w-full max-w-md"
       onResultSelect={(result) => void handleResultSelect(result)}
       projectId={projectId}
     />
