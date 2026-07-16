@@ -11,16 +11,14 @@ import { Button } from "@loopad/ui/shadcn/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@loopad/ui/shadcn/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useQuery } from "@tanstack/react-query";
-import { Bot, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose } from "lucide-react";
+import { PanelLeft, PanelLeftClose } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ChatKitQueryPanel,
-  type DataExplorerChatKitQueryEffect
-} from "../components/ChatKitQueryPanel.js";
+import type { DataExplorerChatKitQueryEffect } from "../components/ChatKitQueryPanel.js";
 import { QueryResultTable } from "../components/QueryResultTable.js";
 import { SchemaBrowserPanel } from "../components/SchemaBrowserPanel.js";
 import { SqlEditorPanel } from "../components/SqlEditorPanel.js";
 import { VisualizationPanel } from "../components/VisualizationPanel.js";
+import { useDashboardAssistant } from "../../dashboard/layout/DashboardAssistantContext.js";
 import {
   dataExplorerEventCatalogQueryOptions,
   dataExplorerObjectDetailQueryOptions,
@@ -41,7 +39,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<"result" | "visualization">("result");
   const [isSchemaPanelOpen, setIsSchemaPanelOpen] = useState(shouldOpenSidePanelsByDefault);
-  const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(shouldOpenSidePanelsByDefault);
+  const { publishCurrentResult, subscribeToQueryEffects } = useDashboardAssistant();
   const mutations = useDataExplorerMutations();
   const objectsQuery = useQuery(dataExplorerObjectsQueryOptions({ q: objectSearch }));
   const eventCatalogQuery = useQuery(dataExplorerEventCatalogQueryOptions(projectId));
@@ -50,11 +48,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const objectDetailQuery = useQuery(dataExplorerObjectDetailQueryOptions(selectedObject));
   const hasInvalidValidation = validation?.status === "invalid";
   const schemaPanelDefaultSize = 24;
-  const assistantPanelDefaultSize = 28;
-  const mainPanelDefaultSize =
-    100 -
-    (isSchemaPanelOpen ? schemaPanelDefaultSize : 0) -
-    (isAssistantPanelOpen ? assistantPanelDefaultSize : 0);
+  const mainPanelDefaultSize = 100 - (isSchemaPanelOpen ? schemaPanelDefaultSize : 0);
   const chatKitCurrentResult = useMemo(
     () => (queryResult ? toCurrentResult(queryResult) : null),
     [queryResult]
@@ -145,6 +139,22 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
     setResultTab("result");
   }, []);
 
+  useEffect(() => {
+    publishCurrentResult(chatKitCurrentResult);
+  }, [chatKitCurrentResult, publishCurrentResult]);
+
+  useEffect(
+    () => () => {
+      publishCurrentResult(null);
+    },
+    [publishCurrentResult]
+  );
+
+  useEffect(
+    () => subscribeToQueryEffects(handleChatKitQueryRun),
+    [handleChatKitQueryRun, subscribeToQueryEffects]
+  );
+
   if (!projectId.trim()) {
     return (
       <Alert>
@@ -222,19 +232,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                   }
                   onRun={handleRun}
                   onSqlTextChange={handleSqlTextChange}
-                  rightToolbar={
-                    <Button
-                      aria-label={isAssistantPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
-                      className={panelToggleButtonClass}
-                      onClick={() => setIsAssistantPanelOpen((current) => !current)}
-                      size="icon-sm"
-                      title={isAssistantPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
-                      type="button"
-                      variant="ghost"
-                    >
-                      {isAssistantPanelOpen ? <PanelRightClose /> : <PanelRight />}
-                    </Button>
-                  }
                   runDisabled={mutations.runQuery.isPending || !sqlText.trim()}
                   sqlText={sqlText}
                   validation={validation}
@@ -299,39 +296,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
             </ResizablePanelGroup>
           </main>
         </ResizablePanel>
-
-        {isAssistantPanelOpen ? (
-          <>
-            <ResizableHandle
-              className="bg-black/10 transition-colors hover:bg-primary/30"
-              withHandle
-            />
-            <ResizablePanel
-              className="min-w-0 overflow-hidden"
-              defaultSize={`${assistantPanelDefaultSize}%`}
-              maxSize="42%"
-              minSize="20%"
-            >
-              <aside className="h-full min-h-0 min-w-0 overflow-hidden bg-white">
-                <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
-                  <Bot className="size-4 text-primary" />
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    AI 도우미
-                  </div>
-                </div>
-                <div className="h-[calc(100%-49px)] min-h-0">
-                  <ChatKitQueryPanel
-                    currentResult={chatKitCurrentResult}
-                    onError={setQueryError}
-                    onQueryRun={handleChatKitQueryRun}
-                    projectId={projectId}
-                    showTitle={false}
-                  />
-                </div>
-              </aside>
-            </ResizablePanel>
-          </>
-        ) : null}
       </ResizablePanelGroup>
     </div>
   );
