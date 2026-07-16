@@ -1,5 +1,7 @@
-import type { DashboardEntitySearchResult } from "@loopad/shared";
+import type { DashboardEntitySearchResult, DataExplorerAiChatCurrentResult } from "@loopad/shared";
+import { Alert, AlertDescription } from "@loopad/ui/shadcn/alert";
 import { Button } from "@loopad/ui/shadcn/button";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@loopad/ui/shadcn/resizable";
 import { Separator } from "@loopad/ui/shadcn/separator";
 import {
   Sidebar,
@@ -20,16 +22,22 @@ import {
 } from "@loopad/ui/shadcn/sidebar";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Home, ListChecks, Megaphone, MoreHorizontal, Route } from "lucide-react";
+import { Bot, Home, ListChecks, Megaphone, MoreHorizontal, Route, X } from "lucide-react";
 import {
   Fragment,
   useCallback,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type PointerEvent,
   type ReactNode
 } from "react";
+import {
+  ChatKitQueryPanel,
+  type DataExplorerChatKitQueryEffect
+} from "../../data-explorer/components/ChatKitQueryPanel.js";
 import {
   dashboardNavigationGroups,
   getDashboardNavigationSearch,
@@ -43,12 +51,17 @@ import { OnboardingWorkspaceLayout } from "../ui/onboarding/OnboardingWorkspaceL
 import { useProjectOnboarding } from "../ui/onboarding/ProjectOnboardingProvider.js";
 import { ProjectReturnIconLink, ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
 import { GlobalEntitySearch } from "../ui/search/GlobalEntitySearch.js";
+import {
+  DashboardAssistantProvider,
+  type DashboardAssistantContextValue
+} from "./DashboardAssistantContext.js";
 import { DashboardHeaderSlotProvider } from "./DashboardHeaderSlot.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 360;
 const MIN_SIDEBAR_WIDTH = 224;
 const SIDEBAR_WIDTH_STORAGE_KEY = "loopad.dashboard.sidebarWidth";
+const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
 
 export function DashboardShell({
   activeTab,
@@ -61,103 +74,276 @@ export function DashboardShell({
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
   const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
+  const [assistantCurrentResult, setAssistantCurrentResult] =
+    useState<DataExplorerAiChatCurrentResult | null>(null);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(false);
   const [headerSlotElement, setHeaderSlotElement] = useState<HTMLDivElement | null>(null);
+  const [dashboardQuery] = useDashboardQueryState();
+  const isCompactViewport = useCompactViewport();
+  const queryEffectListeners = useRef(new Set<(effect: DataExplorerChatKitQueryEffect) => void>());
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
-  const isFullHeightTab = isCanvasTab;
-  const constrainToViewport = isFullHeightTab || !isDashboardUnlocked;
+  // Temporary rollout: expose the assistant only while choosing segment candidates.
+  const isAssistantAvailable =
+    activeTab === "campaigns" &&
+    dashboardQuery.promotionView === "manage" &&
+    (dashboardQuery.segmentView === "manage" || dashboardQuery.segmentView === "recommendations") &&
+    Boolean(dashboardQuery.selectedCampaignId) &&
+    Boolean(dashboardQuery.selectedPromotionId) &&
+    !dashboardQuery.selectedSegmentId;
+  const isAssistantVisible = isAssistantAvailable && isAssistantPanelOpen;
+
+  useEffect(() => {
+    if (!isAssistantAvailable) {
+      setIsAssistantPanelOpen(false);
+    }
+  }, [isAssistantAvailable]);
+
+  const subscribeToQueryEffects = useCallback(
+    (listener: (effect: DataExplorerChatKitQueryEffect) => void) => {
+      queryEffectListeners.current.add(listener);
+
+      return () => {
+        queryEffectListeners.current.delete(listener);
+      };
+    },
+    []
+  );
+
+  const assistantContextValue = useMemo<DashboardAssistantContextValue>(
+    () => ({
+      publishCurrentResult: setAssistantCurrentResult,
+      subscribeToQueryEffects
+    }),
+    [subscribeToQueryEffects]
+  );
+
+  const handleAssistantQueryRun = useCallback((effect: DataExplorerChatKitQueryEffect) => {
+    setAssistantError(null);
+    queryEffectListeners.current.forEach((listener) => listener(effect));
+  }, []);
+
+  const dashboardContent = (
+    <main
+      className={
+        isCanvasTab
+          ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background pb-20 md:pb-0"
+          : "min-h-0 min-w-0 flex-1 overflow-auto bg-background pb-20 md:pb-0"
+      }
+    >
+      <div
+        className={
+          isCanvasTab
+            ? "h-full min-h-0 w-full"
+            : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
+        }
+      >
+        <OnboardingWorkspaceLayout activeTab={activeTab}>{children}</OnboardingWorkspaceLayout>
+      </div>
+    </main>
+  );
+
+  const assistantPanel = (
+    <DashboardAssistantPanel
+      currentResult={assistantCurrentResult}
+      error={assistantError}
+      onClose={() => setIsAssistantPanelOpen(false)}
+      onError={setAssistantError}
+      onQueryRun={handleAssistantQueryRun}
+      projectId={projectId}
+    />
+  );
 
   return (
     <DashboardHeaderSlotProvider value={headerSlotElement}>
-      <SidebarProvider
-        style={
-          {
-            "--sidebar-width": `${sidebarWidth}px`
-          } as CSSProperties
-        }
-      >
-        <Sidebar className="border-r border-black/10" collapsible="offcanvas">
-          <SidebarHeader className="p-4">
-            <ProjectSidebarBrand projectId={projectId} />
-          </SidebarHeader>
-          <SidebarContent>
-            {dashboardNavigationGroups.map((group, index) => (
-              <Fragment key={group.items[0]?.pathSegment ?? group.label}>
-                {index > 0 ? <SidebarSeparator /> : null}
-                <SidebarGroup>
-                  {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
-                  <SidebarGroupContent>
-                    <DashboardNavigation
-                      activeTab={activeTab}
-                      isTabAllowed={isTabAllowed}
-                      items={group.items}
-                      projectId={projectId}
-                    />
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </Fragment>
-            ))}
-          </SidebarContent>
-          <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
-          <SidebarRail />
-        </Sidebar>
+      <DashboardAssistantProvider value={assistantContextValue}>
+        <SidebarProvider
+          style={
+            {
+              "--sidebar-width": `${sidebarWidth}px`
+            } as CSSProperties
+          }
+        >
+          <Sidebar className="border-r border-black/10" collapsible="offcanvas">
+            <SidebarHeader className="p-4">
+              <ProjectSidebarBrand projectId={projectId} />
+            </SidebarHeader>
+            <SidebarContent>
+              {dashboardNavigationGroups.map((group, index) => (
+                <Fragment key={group.items[0]?.pathSegment ?? group.label}>
+                  {index > 0 ? <SidebarSeparator /> : null}
+                  <SidebarGroup>
+                    {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
+                    <SidebarGroupContent>
+                      <DashboardNavigation
+                        activeTab={activeTab}
+                        isTabAllowed={isTabAllowed}
+                        items={group.items}
+                        projectId={projectId}
+                      />
+                    </SidebarGroupContent>
+                  </SidebarGroup>
+                </Fragment>
+              ))}
+            </SidebarContent>
+            <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
+            <SidebarRail />
+          </Sidebar>
 
-        <SidebarInset className={constrainToViewport ? "h-svh min-w-0 overflow-hidden" : "min-w-0"}>
-          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
-            <div className="flex h-full min-w-0 flex-1 items-center gap-3">
-              <ProjectReturnIconLink />
-              <SidebarTrigger className="-ml-1" />
-              <div className="flex h-6 items-center">
-                <Separator className="h-full" orientation="vertical" />
+          <SidebarInset className="h-svh min-w-0 overflow-hidden">
+            <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
+              <div className="flex h-full min-w-0 flex-1 items-center gap-3">
+                <ProjectReturnIconLink />
+                <SidebarTrigger className="-ml-1" />
+                <div className="flex h-6 items-center">
+                  <Separator className="h-full" orientation="vertical" />
+                </div>
+                <div className="min-w-0 flex-1 empty:hidden" ref={setHeaderSlotElement} />
+                {isDashboardUnlocked ? (
+                  <DashboardGlobalSearch projectId={projectId} />
+                ) : isLoading ? (
+                  <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                    {getDashboardTabLabel(activeTab)}
+                  </div>
+                ) : stage === "welcome" ? (
+                  <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                    프로젝트 시작
+                  </div>
+                ) : (
+                  <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                    {getDashboardTabLabel(activeTab)}
+                  </div>
+                )}
               </div>
-              <div className="min-w-0 flex-1 empty:hidden" ref={setHeaderSlotElement} />
-              {isDashboardUnlocked ? (
-                <DashboardGlobalSearch projectId={projectId} />
-              ) : isLoading ? (
-                <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
-                  {getDashboardTabLabel(activeTab)}
-                </div>
-              ) : stage === "welcome" ? (
-                <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
-                  프로젝트 시작
-                </div>
-              ) : (
-                <div className="min-w-0 truncate text-sm font-semibold leading-none tracking-tight text-foreground">
-                  {getDashboardTabLabel(activeTab)}
-                </div>
-              )}
-            </div>
-          </header>
+            </header>
 
-          <main
-            className={
-              isCanvasTab
-                ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background pb-20 md:pb-0"
-                : "min-h-0 min-w-0 flex-1 overflow-auto bg-background pb-20 md:pb-0"
-            }
-          >
-            <div
-              className={
-                isCanvasTab
-                  ? "h-full min-h-0 w-full"
-                  : "mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 md:px-8 lg:py-8"
-              }
-            >
-              <OnboardingWorkspaceLayout activeTab={activeTab}>
-                {children}
-              </OnboardingWorkspaceLayout>
+            <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+              {isCompactViewport ? (
+                <>
+                  {dashboardContent}
+                  {isAssistantVisible ? (
+                    <div className="absolute inset-0 z-40 min-h-0 min-w-0">{assistantPanel}</div>
+                  ) : null}
+                </>
+              ) : (
+                <ResizablePanelGroup
+                  className="h-full min-h-0 min-w-0 overflow-hidden"
+                  id="loopad-dashboard-assistant-shell"
+                  orientation="horizontal"
+                >
+                  <ResizablePanel
+                    className="flex min-w-0 overflow-hidden"
+                    defaultSize={isAssistantVisible ? "68%" : "100%"}
+                    minSize="360px"
+                  >
+                    {dashboardContent}
+                  </ResizablePanel>
+                  {isAssistantVisible ? (
+                    <>
+                      <ResizableHandle
+                        className="bg-black/10 transition-colors hover:bg-primary/30"
+                        withHandle
+                      />
+                      <ResizablePanel
+                        className="min-w-0 overflow-hidden"
+                        defaultSize="32%"
+                        maxSize="520px"
+                        minSize="300px"
+                      >
+                        {assistantPanel}
+                      </ResizablePanel>
+                    </>
+                  ) : null}
+                </ResizablePanelGroup>
+              )}
+
+              {isAssistantAvailable && !isAssistantVisible ? (
+                <Button
+                  aria-controls="loopad-dashboard-assistant-panel"
+                  aria-expanded="false"
+                  aria-label="AI 도우미 열기"
+                  className="absolute bottom-20 right-4 z-30 size-12 rounded-full shadow-lg md:bottom-6 md:right-6"
+                  onClick={() => setIsAssistantPanelOpen(true)}
+                  size="icon"
+                  title="AI 도우미 열기"
+                  type="button"
+                >
+                  <Bot aria-hidden="true" className="size-5" />
+                </Button>
+              ) : null}
             </div>
-          </main>
-          {stage === "welcome" ? null : (
-            <MobileBottomNavigation
-              activeTab={activeTab}
-              isDashboardUnlocked={isDashboardUnlocked}
-              isTabAllowed={isTabAllowed}
-              projectId={projectId}
-            />
-          )}
-        </SidebarInset>
-      </SidebarProvider>
+            {stage === "welcome" || isAssistantVisible ? null : (
+              <MobileBottomNavigation
+                activeTab={activeTab}
+                isDashboardUnlocked={isDashboardUnlocked}
+                isTabAllowed={isTabAllowed}
+                projectId={projectId}
+              />
+            )}
+          </SidebarInset>
+        </SidebarProvider>
+      </DashboardAssistantProvider>
     </DashboardHeaderSlotProvider>
+  );
+}
+
+function DashboardAssistantPanel({
+  currentResult,
+  error,
+  onClose,
+  onError,
+  onQueryRun,
+  projectId
+}: {
+  currentResult: DataExplorerAiChatCurrentResult | null;
+  error: string | null;
+  onClose: () => void;
+  onError: (message: string) => void;
+  onQueryRun: (effect: DataExplorerChatKitQueryEffect) => void;
+  projectId: string;
+}) {
+  return (
+    <aside
+      aria-labelledby="loopad-dashboard-assistant-title"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white shadow-[-8px_0_24px_rgba(15,23,42,0.06)]"
+      id="loopad-dashboard-assistant-panel"
+    >
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-black/10 px-4">
+        <Bot aria-hidden="true" className="size-4 text-primary" />
+        <h2
+          className="text-xs font-semibold uppercase tracking-wide text-slate-600"
+          id="loopad-dashboard-assistant-title"
+        >
+          AI 도우미
+        </h2>
+        <Button
+          aria-label="AI 도우미 닫기"
+          className="ml-auto"
+          onClick={onClose}
+          size="icon-sm"
+          title="AI 도우미 닫기"
+          type="button"
+          variant="ghost"
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </div>
+      {error ? (
+        <Alert className="m-3 w-auto shrink-0" variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="min-h-0 flex-1">
+        <ChatKitQueryPanel
+          currentResult={currentResult}
+          key={projectId}
+          onError={onError}
+          onQueryRun={onQueryRun}
+          projectId={projectId}
+          showTitle={false}
+        />
+      </div>
+    </aside>
   );
 }
 
@@ -502,4 +688,23 @@ function useResizableSidebarWidth() {
 
 function clampSidebarWidth(width: number) {
   return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, Math.round(width)));
+}
+
+function useCompactViewport() {
+  const [isCompactViewport, setIsCompactViewport] = useState(() =>
+    typeof window === "undefined" || typeof window.matchMedia !== "function"
+      ? false
+      : window.matchMedia(COMPACT_VIEWPORT_MEDIA_QUERY).matches
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(COMPACT_VIEWPORT_MEDIA_QUERY);
+    const handleChange = () => setIsCompactViewport(mediaQuery.matches);
+
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  return isCompactViewport;
 }
