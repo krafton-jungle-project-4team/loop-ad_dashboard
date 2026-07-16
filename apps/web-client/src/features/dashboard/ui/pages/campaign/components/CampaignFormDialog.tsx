@@ -1,6 +1,5 @@
 import {
   DashboardCampaignPrimaryMetricSchema,
-  DashboardCampaignStatusSchema,
   type DashboardCampaignSummary,
   isCampaignDateRangeValid
 } from "@loopad/shared";
@@ -19,11 +18,13 @@ import {
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useState } from "react";
 import { createDashboardCampaign, updateDashboardCampaign } from "../../../../api/dashboard-api.js";
-import { formatMetricLabel, formatStatusLabel } from "../../../../model/dashboard-labels.js";
+import { formatMetricLabel } from "../../../../model/dashboard-labels.js";
 import { DashboardFormDialog, useDashboardFormDraft } from "../../../shared/DashboardFormDialog.js";
 
 const campaignPrimaryMetricOptions = DashboardCampaignPrimaryMetricSchema.options;
-const campaignStatusOptions = DashboardCampaignStatusSchema.options;
+const campaignCreatePrimaryMetricOptions = campaignPrimaryMetricOptions.filter(
+  (metric) => metric !== "promotion_click_rate" && metric !== "goal_achievement_rate"
+);
 type CreateCampaignInput = Parameters<typeof createDashboardCampaign>[1];
 type UpdateCampaignInput = Parameters<typeof updateDashboardCampaign>[2];
 
@@ -61,7 +62,7 @@ export function CampaignFormDialog({
       description={
         isCreateMode
           ? "캠페인을 만들면 바로 관리 화면으로 이동해요."
-          : "캠페인의 이름, 목표, 기간, 상태를 바꿀 수 있어요."
+          : "캠페인의 이름, 목표, 기간을 바꿀 수 있어요."
       }
       onOpenChange={onOpenChange}
       open={open}
@@ -111,7 +112,8 @@ function CampaignCreateForm({
     Boolean(campaignName || objective || startDate || endDate || primaryMetric !== "none")
   );
   const dateRangeIsValid = isCampaignDateRangeValid(startDate, endDate);
-  const canSubmit = Boolean(campaignName.trim()) && dateRangeIsValid && !isPending;
+  const canSubmit =
+    Boolean(campaignName.trim() && startDate && endDate) && dateRangeIsValid && !isPending;
 
   return (
     <section className="grid gap-4">
@@ -125,6 +127,7 @@ function CampaignCreateForm({
         onObjectiveChange={setObjective}
         onStartDateChange={setStartDate}
         primaryMetricControl={{ onValueChange: setPrimaryMetric, value: primaryMetric }}
+        primaryMetricOptions={campaignCreatePrimaryMetricOptions}
         startDate={startDate}
       />
       <DialogFooter className="border-t pt-5">
@@ -165,7 +168,6 @@ function CampaignEditForm({
   const [campaignName, setCampaignName] = useState(campaign?.campaign_name ?? "");
   const [objective, setObjective] = useState(campaign?.objective ?? "");
   const [primaryMetric, setPrimaryMetric] = useState<string>(campaign?.primary_metric ?? "none");
-  const [status, setStatus] = useState<string>(campaign?.status ?? "draft");
   const [startDate, setStartDate] = useState(campaign?.start_date ?? "");
   const [endDate, setEndDate] = useState(campaign?.end_date ?? "");
   useDashboardFormDraft(
@@ -174,7 +176,6 @@ function CampaignEditForm({
       (campaignName !== campaign.campaign_name ||
         objective !== (campaign.objective ?? "") ||
         primaryMetric !== (campaign.primary_metric ?? "none") ||
-        status !== campaign.status ||
         startDate !== (campaign.start_date ?? "") ||
         endDate !== (campaign.end_date ?? ""))
     )
@@ -189,7 +190,8 @@ function CampaignEditForm({
   }
 
   const dateRangeIsValid = isCampaignDateRangeValid(startDate, endDate);
-  const canSubmit = Boolean(campaignName.trim()) && dateRangeIsValid && !isPending;
+  const canSubmit =
+    Boolean(campaignName.trim() && startDate && endDate) && dateRangeIsValid && !isPending;
 
   return (
     <section className="grid gap-4">
@@ -203,8 +205,8 @@ function CampaignEditForm({
         onObjectiveChange={setObjective}
         onStartDateChange={setStartDate}
         primaryMetricControl={{ onValueChange: setPrimaryMetric, value: primaryMetric }}
+        primaryMetricOptions={campaignPrimaryMetricOptions}
         startDate={startDate}
-        statusControl={{ onValueChange: setStatus, value: status }}
       />
       <DialogFooter className="border-t pt-5">
         <Button
@@ -216,8 +218,7 @@ function CampaignEditForm({
               end_date: nullableDate(endDate),
               objective: nullableText(objective),
               primary_metric: nullableMetric(primaryMetric),
-              start_date: nullableDate(startDate),
-              status: status as UpdateCampaignInput["status"]
+              start_date: nullableDate(startDate)
             })
           }
           type="button"
@@ -239,8 +240,8 @@ function CampaignFormFields({
   onObjectiveChange,
   onStartDateChange,
   primaryMetricControl,
-  startDate,
-  statusControl
+  primaryMetricOptions,
+  startDate
 }: {
   campaignName: string;
   dateRangeIsValid: boolean;
@@ -251,8 +252,8 @@ function CampaignFormFields({
   onObjectiveChange: (value: string) => void;
   onStartDateChange: (value: string) => void;
   primaryMetricControl?: { onValueChange: (value: string) => void; value: string };
+  primaryMetricOptions: ReadonlyArray<string>;
   startDate: string;
-  statusControl?: { onValueChange: (value: string) => void; value: string };
 }) {
   return (
     <FieldGroup>
@@ -292,7 +293,7 @@ function CampaignFormFields({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">미설정</SelectItem>
-              {campaignPrimaryMetricOptions.map((metric) => (
+              {primaryMetricOptions.map((metric) => (
                 <SelectItem key={metric} value={metric}>
                   {formatMetricLabel(metric)}
                 </SelectItem>
@@ -301,7 +302,7 @@ function CampaignFormFields({
           </Select>
         </Field>
       ) : null}
-      <div className={`grid gap-3 ${statusControl ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+      <div className="grid gap-3 md:grid-cols-2">
         <Field>
           <FieldLabel htmlFor="dashboard-campaign-start-date">시작일</FieldLabel>
           <Input
@@ -309,6 +310,7 @@ function CampaignFormFields({
             id="dashboard-campaign-start-date"
             name="campaignStartDate"
             onChange={(event) => onStartDateChange(event.target.value)}
+            required
             type="date"
             value={startDate}
           />
@@ -322,6 +324,7 @@ function CampaignFormFields({
             id="dashboard-campaign-end-date"
             name="campaignEndDate"
             onChange={(event) => onEndDateChange(event.target.value)}
+            required
             type="date"
             value={endDate}
           />
@@ -331,23 +334,6 @@ function CampaignFormFields({
             </FieldError>
           ) : null}
         </Field>
-        {statusControl ? (
-          <Field>
-            <FieldLabel id="dashboard-campaign-status-label">상태</FieldLabel>
-            <Select onValueChange={statusControl.onValueChange} value={statusControl.value}>
-              <SelectTrigger aria-labelledby="dashboard-campaign-status-label" className="w-full">
-                <SelectValue placeholder="상태 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {campaignStatusOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {formatStatusLabel(option)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        ) : null}
       </div>
     </FieldGroup>
   );
