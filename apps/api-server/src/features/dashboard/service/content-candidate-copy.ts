@@ -146,13 +146,15 @@ function replaceCopyValue(html: string, previousValue: string, nextValue: string
   const escapedPrevious = escapeHtml(previousValue);
   const escapedNext = escapeHtml(nextValue);
   const lineBreaks = ["<br>", "<br/>", "<br />"] as const;
-  const variants = [
-    { previous: escapedPrevious, next: escapedNext },
-    ...lineBreaks.map((lineBreak) => ({
-      previous: escapedPrevious.replaceAll("\n", lineBreak),
-      next: escapedNext.replaceAll("\n", lineBreak)
-    }))
-  ];
+  const variants = escapedPrevious.includes("\n")
+    ? [
+        { previous: escapedPrevious, next: escapedNext },
+        ...lineBreaks.map((lineBreak) => ({
+          previous: escapedPrevious.replaceAll("\n", lineBreak),
+          next: escapedNext.replaceAll("\n", lineBreak)
+        }))
+      ]
+    : [{ previous: escapedPrevious, next: escapedNext }];
 
   let nextHtml = html;
   let replaced = false;
