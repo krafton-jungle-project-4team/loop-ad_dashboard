@@ -1,9 +1,9 @@
 export const PROJECT_SETUP_PROGRESS_STORAGE_KEY_PREFIX = "loopad.dashboard.setup.v1";
+export const PROJECT_TUTORIAL_PENDING_STORAGE_KEY_PREFIX = "loopad.dashboard.tutorial-pending.v1";
 
 export type ProjectSetupProgress = {
   initializedAt: string;
   guideStartedAt: string | null;
-  onboardingSkippedAt: string | null;
   sdkCompletedAt: string | null;
   funnelCompletedAt: string | null;
 };
@@ -19,10 +19,6 @@ export type CompleteProjectSetupProgressOptions = ProjectSetupProgressOptions & 
   currentProgress?: ProjectSetupProgress | null;
 };
 
-export type InitializeProjectSetupProgressOptions = ProjectSetupProgressOptions & {
-  initialSetupCompleted?: boolean;
-};
-
 export type ProjectOnboardingStage = "welcome" | "sdk" | "campaign" | "complete";
 
 export type ProjectOnboardingPathSegment = "sdk" | "campaigns";
@@ -30,6 +26,7 @@ export type ProjectOnboardingPathSegment = "sdk" | "campaigns";
 export type ProjectOnboardingStageInput = {
   progress: ProjectSetupProgress | null;
   runningExperimentCount?: number;
+  tutorialPending?: boolean;
 };
 
 export type ProjectOnboardingStageResolution = {
@@ -41,6 +38,10 @@ export type ProjectOnboardingStageResolution = {
 
 export function getProjectSetupProgressStorageKey(projectId: string): string {
   return `${PROJECT_SETUP_PROGRESS_STORAGE_KEY_PREFIX}:${projectId.trim()}`;
+}
+
+export function getProjectTutorialPendingStorageKey(projectId: string): string {
+  return `${PROJECT_TUTORIAL_PENDING_STORAGE_KEY_PREFIX}:${projectId.trim()}`;
 }
 
 export function parseProjectSetupProgress(serialized: string | null): ProjectSetupProgress | null {
@@ -58,16 +59,12 @@ export function parseProjectSetupProgress(serialized: string | null): ProjectSet
     const guideStartedAt = Object.hasOwn(value, "guideStartedAt")
       ? parseOptionalTimestamp(value.guideStartedAt)
       : initializedAt;
-    const onboardingSkippedAt = Object.hasOwn(value, "onboardingSkippedAt")
-      ? parseOptionalTimestamp(value.onboardingSkippedAt)
-      : null;
     const sdkCompletedAt = parseOptionalTimestamp(value.sdkCompletedAt);
     const funnelCompletedAt = parseOptionalTimestamp(value.funnelCompletedAt);
 
     if (
       initializedAt === null ||
       guideStartedAt === undefined ||
-      onboardingSkippedAt === undefined ||
       sdkCompletedAt === undefined ||
       funnelCompletedAt === undefined ||
       (sdkCompletedAt !== null && guideStartedAt === null) ||
@@ -80,7 +77,6 @@ export function parseProjectSetupProgress(serialized: string | null): ProjectSet
       funnelCompletedAt,
       guideStartedAt,
       initializedAt,
-      onboardingSkippedAt,
       sdkCompletedAt
     };
   } catch {
@@ -108,7 +104,7 @@ export function readProjectSetupProgress(
 
 export function initializeProjectSetupProgress(
   projectId: string,
-  options: InitializeProjectSetupProgressOptions = {}
+  options: ProjectSetupProgressOptions = {}
 ): ProjectSetupProgress {
   const existing = readProjectSetupProgress(projectId, options.storage);
   if (existing !== null) {
@@ -116,58 +112,15 @@ export function initializeProjectSetupProgress(
   }
 
   const initializedAt = getCurrentTimestamp(options.now);
-  const initialSetupCompleted = options.initialSetupCompleted === true;
   const progress: ProjectSetupProgress = {
-    funnelCompletedAt: initialSetupCompleted ? initializedAt : null,
-    guideStartedAt: initialSetupCompleted ? initializedAt : null,
+    funnelCompletedAt: null,
+    guideStartedAt: null,
     initializedAt,
-    onboardingSkippedAt: null,
-    sdkCompletedAt: initialSetupCompleted ? initializedAt : null
+    sdkCompletedAt: null
   };
 
   persistProjectSetupProgress(projectId, progress, options.storage);
   return progress;
-}
-
-export function skipProjectOnboarding(
-  projectId: string,
-  options: CompleteProjectSetupProgressOptions = {}
-): ProjectSetupProgress {
-  const skippedAt = getCurrentTimestamp(options.now);
-  const current =
-    options.currentProgress ??
-    readProjectSetupProgress(projectId, options.storage) ??
-    createEmptyProgress(skippedAt);
-
-  if (current.onboardingSkippedAt !== null) {
-    return current;
-  }
-
-  const next: ProjectSetupProgress = {
-    ...current,
-    onboardingSkippedAt: skippedAt
-  };
-  persistProjectSetupProgress(projectId, next, options.storage);
-  return next;
-}
-
-export function restartProjectOnboarding(
-  projectId: string,
-  options: CompleteProjectSetupProgressOptions = {}
-): ProjectSetupProgress {
-  const restartedAt = getCurrentTimestamp(options.now);
-  const current =
-    options.currentProgress ??
-    readProjectSetupProgress(projectId, options.storage) ??
-    createEmptyProgress(restartedAt);
-
-  const next: ProjectSetupProgress = {
-    ...current,
-    guideStartedAt: current.sdkCompletedAt === null ? null : current.guideStartedAt,
-    onboardingSkippedAt: null
-  };
-  persistProjectSetupProgress(projectId, next, options.storage);
-  return next;
 }
 
 export function startProjectSetupGuide(
@@ -231,11 +184,60 @@ export function clearProjectSetupProgress(
   }
 }
 
+export function readProjectTutorialPending(
+  projectId: string,
+  storage?: ProjectSetupProgressStorage | null
+): boolean {
+  const resolvedStorage = resolveStorage(storage);
+  if (resolvedStorage === null) {
+    return false;
+  }
+
+  try {
+    return resolvedStorage.getItem(getProjectTutorialPendingStorageKey(projectId)) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function markProjectTutorialPending(
+  projectId: string,
+  storage?: ProjectSetupProgressStorage | null
+): void {
+  const resolvedStorage = resolveStorage(storage);
+  if (resolvedStorage === null) {
+    return;
+  }
+
+  try {
+    resolvedStorage.setItem(getProjectTutorialPendingStorageKey(projectId), "true");
+  } catch {
+    // Browser storage can be unavailable or full. Marking remains best-effort.
+  }
+}
+
+export function clearProjectTutorialPending(
+  projectId: string,
+  storage?: ProjectSetupProgressStorage | null
+): void {
+  const resolvedStorage = resolveStorage(storage);
+  if (resolvedStorage === null) {
+    return;
+  }
+
+  try {
+    resolvedStorage.removeItem(getProjectTutorialPendingStorageKey(projectId));
+  } catch {
+    // Browser storage can be unavailable in privacy modes. Clearing remains best-effort.
+  }
+}
+
 export function resolveProjectOnboardingStage({
   progress,
-  runningExperimentCount = 0
+  runningExperimentCount = 0,
+  tutorialPending = false
 }: ProjectOnboardingStageInput): ProjectOnboardingStageResolution {
-  if (runningExperimentCount > 0 || progress?.onboardingSkippedAt != null) {
+  if (!tutorialPending || runningExperimentCount > 0) {
     return {
       isDashboardUnlocked: true,
       isInitialSetupComplete: true,
@@ -275,7 +277,6 @@ function createEmptyProgress(initializedAt: string): ProjectSetupProgress {
     funnelCompletedAt: null,
     guideStartedAt: null,
     initializedAt,
-    onboardingSkippedAt: null,
     sdkCompletedAt: null
   };
 }

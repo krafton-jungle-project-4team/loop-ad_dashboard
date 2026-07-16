@@ -35,8 +35,10 @@ import {
 import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
 import { clearCampaignOnboardingScope } from "../../model/campaign-onboarding-scope.js";
 import {
+  clearProjectTutorialPending,
   clearProjectSetupProgress,
-  initializeProjectSetupProgress
+  initializeProjectSetupProgress,
+  markProjectTutorialPending
 } from "../../model/project-setup-progress.js";
 import { useBeforeUnloadWarning } from "../shared/use-before-unload-warning.js";
 
@@ -78,6 +80,7 @@ export function ProjectManagementDialog({
     onSuccess: async (project) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       initializeProjectSetupProgress(project.project_id);
+      markProjectTutorialPending(project.project_id);
       setForm(emptyProjectForm);
       setPendingDeleteProjectId(null);
       setOpen(false);
@@ -92,6 +95,7 @@ export function ProjectManagementDialog({
     onSuccess: async (_result, deletedProjectId) => {
       clearCampaignOnboardingScope(deletedProjectId);
       clearProjectSetupProgress(deletedProjectId);
+      clearProjectTutorialPending(deletedProjectId);
       const projectList = await fetchDashboardProjects();
       queryClient.setQueryData(dashboardProjectsQueryKey(), projectList);
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
