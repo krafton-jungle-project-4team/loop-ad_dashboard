@@ -201,8 +201,16 @@ export function PromotionSegmentSuggestionPanel({
             </div>
           </div>
         ) : null}
-        {suggestionsIsLoading ? <EmptyState message="추천 후보를 불러오는 중이에요." /> : null}
-        {suggestions.length > 0 ? (
+        {promotionAnalysisIsPending ? (
+          <EmptyState
+            loading
+            message="분석이 끝나면 추천 후보를 보여드릴게요."
+            title="세그먼트 후보를 찾고 있어요"
+          />
+        ) : suggestionsIsLoading ? (
+          <EmptyState message="추천 후보를 불러오는 중이에요." />
+        ) : null}
+        {!promotionAnalysisIsPending && suggestions.length > 0 ? (
           <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
             {suggestions.map((suggestion) => (
               <SegmentSuggestionCard

@@ -821,7 +821,9 @@ function PromotionSegmentDetailTab({
           />
           <SummaryItem
             label="광고 소재 후보"
-            value={formatInteger(currentContentCandidates.length)}
+            value={
+              generationIsIncomplete ? "생성 중" : formatInteger(currentContentCandidates.length)
+            }
           />
           <SummaryItem
             label="실시간 이벤트"
@@ -864,7 +866,13 @@ function PromotionSegmentDetailTab({
             </div>
           </div>
           <div className="grid gap-3">
-            {currentContentCandidates.length > 0 ? (
+            {generationIsIncomplete ? (
+              <EmptyState
+                loading
+                message="모두 완성되면 한 번에 보여드릴게요."
+                title="광고 소재를 만들고 있어요"
+              />
+            ) : currentContentCandidates.length > 0 ? (
               <div className="grid gap-3 lg:grid-cols-2">
                 {currentContentCandidates.map((candidate) => {
                   const htmlArtifact = contentCandidateHtmlArtifact(candidate);
