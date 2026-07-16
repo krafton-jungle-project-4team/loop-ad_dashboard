@@ -83,14 +83,15 @@ export function DashboardShell({
   const isCompactViewport = useCompactViewport();
   const queryEffectListeners = useRef(new Set<(effect: DataExplorerChatKitQueryEffect) => void>());
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
-  // Temporary rollout: expose the assistant only while choosing segment candidates.
-  const isAssistantAvailable =
+  // Temporary rollout: keep the assistant in Data Explorer and expose it while choosing segments.
+  const isSegmentCandidateAssistantAvailable =
     activeTab === "campaigns" &&
     dashboardQuery.promotionView === "manage" &&
     (dashboardQuery.segmentView === "manage" || dashboardQuery.segmentView === "recommendations") &&
     Boolean(dashboardQuery.selectedCampaignId) &&
     Boolean(dashboardQuery.selectedPromotionId) &&
     !dashboardQuery.selectedSegmentId;
+  const isAssistantAvailable = activeTab === "dataExplorer" || isSegmentCandidateAssistantAvailable;
   const isAssistantVisible = isAssistantAvailable && isAssistantPanelOpen;
 
   useEffect(() => {
