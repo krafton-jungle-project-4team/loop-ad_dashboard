@@ -21,6 +21,7 @@ import type {
 } from "@loopad/shared";
 import type {
   IGetDashboardCampaignSummaryResult,
+  IGetDashboardContentCandidateResult,
   IGetDashboardPromotionGenerationResultResult,
   IGetDashboardPromotionSegmentResult,
   IGetDashboardPromotionSummaryResult,
@@ -293,7 +294,10 @@ export function toCampaignContentCandidate(
 }
 
 export function toContentCandidate(
-  row: IListDashboardCampaignContentCandidatesResult | IListDashboardSegmentContentCandidatesResult
+  row:
+    | IGetDashboardContentCandidateResult
+    | IListDashboardCampaignContentCandidatesResult
+    | IListDashboardSegmentContentCandidatesResult
 ): DashboardContentCandidate {
   return {
     content_id: row.contentId,

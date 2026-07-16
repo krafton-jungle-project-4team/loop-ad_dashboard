@@ -754,6 +754,65 @@ test("dashboard controller parses content selection cancellation before delegati
   assert.equal(response.status, "draft");
 });
 
+test("dashboard controller sends validated copy and public origin to the edit service", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    updateContentCandidateCopy: async (
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      request,
+      publicOrigin
+    ) => {
+      writes.push({ contentId, projectId, promotionId, publicOrigin, request, segmentId });
+      return {
+        body: request.body,
+        content_id: contentId,
+        cta: request.cta,
+        headline: request.headline,
+        html_url: `${publicOrigin}/api/dashboard/v1/content.html`,
+        promotion_id: promotionId,
+        segment_id: segmentId,
+        status: "draft",
+        updated_at: "2026-07-16T00:00:00.000Z"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.updateContentCandidateCopy(
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    "project-a",
+    { headline: " 새 제목 ", body: " 새 본문 ", cta: " 혜택 보기 " },
+    {
+      headers: {
+        host: "api-server:3000",
+        "x-forwarded-host": "dashboard.api.dev.loop-ad.org",
+        "x-forwarded-proto": "https"
+      },
+      protocol: "http"
+    }
+  );
+
+  assert.deepEqual(writes, [
+    {
+      contentId: "content-a",
+      projectId: "project-a",
+      promotionId: "promotion-a",
+      publicOrigin: "https://dashboard.api.dev.loop-ad.org",
+      request: { headline: "새 제목", body: "새 본문", cta: "혜택 보기" },
+      segmentId: "segment-a"
+    }
+  ]);
+  assert.equal(response.headline, "새 제목");
+});
+
 test("dashboard controller starts an ad experiment before dispatch", async () => {
   setRequiredEnv();
   const { DashboardController } =

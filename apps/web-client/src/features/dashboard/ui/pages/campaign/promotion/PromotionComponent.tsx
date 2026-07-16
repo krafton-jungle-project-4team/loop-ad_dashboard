@@ -56,6 +56,7 @@ export function PromotionWorkspace({
     startGenerationMutation,
     visibleTabs,
     workspaceTab,
+    updateContentCandidateCopyMutation,
     updatePromotionMutation
   } = controller;
   const isManagementView = mode === "promotion" && query.promotionView === "manage";
@@ -150,6 +151,19 @@ export function PromotionWorkspace({
                 })
               }
               onTabChange={setWorkspaceTab}
+              onUpdateContentCandidateCopy={async (
+                promotionId,
+                segmentId,
+                contentId,
+                requestBody
+              ) => {
+                await updateContentCandidateCopyMutation.mutateAsync({
+                  contentId,
+                  promotionId,
+                  requestBody,
+                  segmentId
+                });
+              }}
               promotion={selectedOpenPromotion}
               promotionExperiments={campaignDetail.data.ad_experiments.filter(
                 (experiment) => experiment.promotion_id === selectedOpenPromotion.promotion_id
@@ -173,6 +187,7 @@ export function PromotionWorkspace({
               suggestions={segmentSuggestions.data?.suggestions ?? []}
               suggestionsIsLoading={segmentSuggestions.isLoading}
               tab={workspaceTab}
+              updateContentCandidateCopyIsPending={updateContentCandidateCopyMutation.isPending}
               visibleTabs={visibleTabs}
             />
           ) : null}

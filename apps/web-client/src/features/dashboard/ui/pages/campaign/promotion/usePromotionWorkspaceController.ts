@@ -28,6 +28,7 @@ import {
   startDashboardAdExperiment,
   startDashboardPromotionGeneration,
   unapproveDashboardContentCandidate,
+  updateDashboardContentCandidateCopy,
   updateDashboardPromotion
 } from "../../../../api/dashboard-api.js";
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
@@ -484,6 +485,33 @@ export function usePromotionWorkspaceController({
       });
     }
   });
+  const updateContentCandidateCopyMutation = useMutation({
+    mutationFn: ({
+      contentId,
+      promotionId,
+      requestBody,
+      segmentId
+    }: {
+      contentId: string;
+      promotionId: string;
+      requestBody: Parameters<typeof updateDashboardContentCandidateCopy>[4];
+      segmentId: string;
+    }) =>
+      updateDashboardContentCandidateCopy(query, promotionId, segmentId, contentId, requestBody),
+    onSuccess: async (candidate) => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
+      });
+      await queryClient.invalidateQueries({
+        queryKey: dashboardSegmentDetailQueryKey(
+          query.projectId,
+          candidate.promotion_id,
+          candidate.segment_id
+        )
+      });
+    }
+  });
   const launchPromotionExperimentMutation = useMutation({
     mutationFn: ({
       analysisId,
@@ -741,6 +769,7 @@ export function usePromotionWorkspaceController({
     startGenerationMutation,
     recommendPromotionSegments,
     updatePromotionMutation,
+    updateContentCandidateCopyMutation,
     visibleTabs,
     workspaceTab
   };

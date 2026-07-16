@@ -2939,7 +2939,7 @@ export interface IListDashboardSegmentContentCandidatesQuery {
   result: IListDashboardSegmentContentCandidatesResult;
 }
 
-const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":648,"b":657}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":680,"b":691}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":721}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  generation_id AS \"generationId\",\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  image_url AS \"imageUrl\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n\nORDER BY updated_at DESC, created_at DESC                                                      "};
+const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":648,"b":657}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":680,"b":691}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":721}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  generation_id AS \"generationId\",\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  image_url AS \"imageUrl\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n\nORDER BY updated_at DESC, created_at DESC                                     "};
 
 /**
  * Query generated from SQL:
@@ -2977,6 +2977,86 @@ const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId
  * ```
  */
 export const listDashboardSegmentContentCandidates = new PreparedQuery<IListDashboardSegmentContentCandidatesParams,IListDashboardSegmentContentCandidatesResult>(listDashboardSegmentContentCandidatesIR);
+
+
+/** 'GetDashboardContentCandidate' parameters type */
+export interface IGetDashboardContentCandidateParams {
+  contentId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+}
+
+/** 'GetDashboardContentCandidate' return type */
+export interface IGetDashboardContentCandidateResult {
+  analysisId: string;
+  body: string | null;
+  channel: string;
+  contentId: string;
+  contentOptionId: string;
+  cta: string | null;
+  dataEvidenceJson: Json;
+  generationId: string;
+  generationPrompt: string | null;
+  imagePrompt: string | null;
+  imageUrl: string | null;
+  landingUrl: string | null;
+  message: string | null;
+  messageStrategy: string | null;
+  metadataJson: Json;
+  preheader: string | null;
+  promotionId: string;
+  reasonSummary: string | null;
+  segmentId: string;
+  status: string;
+  subject: string | null;
+  title: string | null;
+  updatedAt: Date;
+}
+
+/** 'GetDashboardContentCandidate' query type */
+export interface IGetDashboardContentCandidateQuery {
+  params: IGetDashboardContentCandidateParams;
+  result: IGetDashboardContentCandidateResult;
+}
+
+const getDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true,"contentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":648,"b":657}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":680,"b":691}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":721}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":742,"b":751}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  generation_id AS \"generationId\",\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  image_url AS \"imageUrl\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND content_id = :contentId                                                      "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   content_id AS "contentId",
+ *   content_option_id AS "contentOptionId",
+ *   generation_id AS "generationId",
+ *   analysis_id AS "analysisId",
+ *   promotion_id AS "promotionId",
+ *   segment_id AS "segmentId",
+ *   channel,
+ *   subject,
+ *   preheader,
+ *   title,
+ *   body,
+ *   cta,
+ *   message,
+ *   image_prompt AS "imagePrompt",
+ *   image_url AS "imageUrl",
+ *   landing_url AS "landingUrl",
+ *   generation_prompt AS "generationPrompt",
+ *   reason_summary AS "reasonSummary",
+ *   data_evidence_json AS "dataEvidenceJson",
+ *   message_strategy AS "messageStrategy",
+ *   metadata_json AS "metadataJson",
+ *   status,
+ *   updated_at AS "updatedAt"
+ * FROM content_candidates
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ *   AND segment_id = :segmentId
+ *   AND content_id = :contentId
+ * ```
+ */
+export const getDashboardContentCandidate = new PreparedQuery<IGetDashboardContentCandidateParams,IGetDashboardContentCandidateResult>(getDashboardContentCandidateIR);
 
 
 /** 'GetDashboardPromotionGenerationResult' parameters type */
@@ -3383,7 +3463,7 @@ export interface IUnapproveDashboardContentCandidateQuery {
   result: IUnapproveDashboardContentCandidateResult;
 }
 
-const unapproveDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true,"contentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":90,"b":99}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":122,"b":133}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":154,"b":163}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":184,"b":193}]}],"statement":"UPDATE content_candidates\nSET status = 'draft',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND content_id = :contentId\n  AND status = 'approved'\nRETURNING\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  status                                           "};
+const unapproveDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true,"contentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":90,"b":99}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":122,"b":133}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":154,"b":163}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":184,"b":193}]}],"statement":"UPDATE content_candidates\nSET status = 'draft',\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND content_id = :contentId\n  AND status = 'approved'\nRETURNING\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  status                                                     "};
 
 /**
  * Query generated from SQL:
@@ -3403,6 +3483,67 @@ const unapproveDashboardContentCandidateIR: any = {"usedParamSet":{"projectId":t
  * ```
  */
 export const unapproveDashboardContentCandidate = new PreparedQuery<IUnapproveDashboardContentCandidateParams,IUnapproveDashboardContentCandidateResult>(unapproveDashboardContentCandidateIR);
+
+
+/** 'UpdateDashboardContentCandidateCopy' parameters type */
+export interface IUpdateDashboardContentCandidateCopyParams {
+  body?: string | null | void;
+  contentId?: string | null | void;
+  cta?: string | null | void;
+  headline?: string | null | void;
+  metadataJson?: Json | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+}
+
+/** 'UpdateDashboardContentCandidateCopy' return type */
+export interface IUpdateDashboardContentCandidateCopyResult {
+  body: string | null;
+  contentId: string;
+  cta: string | null;
+  headline: string | null;
+  promotionId: string;
+  segmentId: string;
+  status: string;
+  updatedAt: Date;
+}
+
+/** 'UpdateDashboardContentCandidateCopy' query type */
+export interface IUpdateDashboardContentCandidateCopyQuery {
+  params: IUpdateDashboardContentCandidateCopyParams;
+  result: IUpdateDashboardContentCandidateCopyResult;
+}
+
+const updateDashboardContentCandidateCopyIR: any = {"usedParamSet":{"headline":true,"body":true,"cta":true,"metadataJson":true,"projectId":true,"promotionId":true,"segmentId":true,"contentId":true},"params":[{"name":"headline","required":false,"transform":{"type":"scalar"},"locs":[{"a":73,"b":81},{"a":154,"b":162}]},{"name":"body","required":false,"transform":{"type":"scalar"},"locs":[{"a":191,"b":195}]},{"name":"cta","required":false,"transform":{"type":"scalar"},"locs":[{"a":208,"b":211}]},{"name":"metadataJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":234,"b":246}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":298,"b":307}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":330,"b":341}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":362,"b":371}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":392,"b":401}]}],"statement":"UPDATE content_candidates\nSET subject = CASE WHEN channel = 'email' THEN :headline ELSE subject END,\n    title = CASE WHEN channel = 'onsite_banner' THEN :headline ELSE title END,\n    body = :body,\n    cta = :cta,\n    metadata_json = :metadataJson::jsonb,\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND content_id = :contentId\n  AND status = 'draft'\nRETURNING\n  content_id AS \"contentId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  CASE WHEN channel = 'email' THEN subject ELSE title END AS headline,\n  body,\n  cta,\n  status,\n  updated_at AS \"updatedAt\"                                           "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE content_candidates
+ * SET subject = CASE WHEN channel = 'email' THEN :headline ELSE subject END,
+ *     title = CASE WHEN channel = 'onsite_banner' THEN :headline ELSE title END,
+ *     body = :body,
+ *     cta = :cta,
+ *     metadata_json = :metadataJson::jsonb,
+ *     updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ *   AND segment_id = :segmentId
+ *   AND content_id = :contentId
+ *   AND status = 'draft'
+ * RETURNING
+ *   content_id AS "contentId",
+ *   promotion_id AS "promotionId",
+ *   segment_id AS "segmentId",
+ *   CASE WHEN channel = 'email' THEN subject ELSE title END AS headline,
+ *   body,
+ *   cta,
+ *   status,
+ *   updated_at AS "updatedAt"
+ * ```
+ */
+export const updateDashboardContentCandidateCopy = new PreparedQuery<IUpdateDashboardContentCandidateCopyParams,IUpdateDashboardContentCandidateCopyResult>(updateDashboardContentCandidateCopyIR);
 
 
 /** 'RejectDashboardContentCandidate' parameters type */

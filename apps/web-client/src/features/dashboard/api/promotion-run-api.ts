@@ -14,6 +14,8 @@ import {
   DashboardStartNextLoopRequestSchema,
   DashboardUnapproveContentCandidateRequestSchema,
   DashboardUnapproveContentCandidateResultSchema,
+  DashboardUpdateContentCandidateCopyRequestSchema,
+  DashboardUpdateContentCandidateCopyResultSchema,
   PromotionRunDispatchResponseSchema,
   type DashboardApproveContentCandidateRequest,
   type DashboardApproveContentCandidateResult,
@@ -30,6 +32,8 @@ import {
   type DashboardStartNextLoopRequest,
   type DashboardUnapproveContentCandidateRequest,
   type DashboardUnapproveContentCandidateResult,
+  type DashboardUpdateContentCandidateCopyRequest,
+  type DashboardUpdateContentCandidateCopyResult,
   type PromotionRunDispatchResponse
 } from "@loopad/shared";
 import { apiRequest } from "../../../shared/api/http-client.js";
@@ -81,6 +85,25 @@ export function unapproveDashboardContentCandidate(
       body: DashboardUnapproveContentCandidateRequestSchema.parse(requestBody),
       errorMessage: readDashboardApiErrorMessage,
       method: "POST",
+      searchParams: projectSearchParams(query.projectId)
+    }
+  );
+}
+
+export function updateDashboardContentCandidateCopy(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  requestBody: DashboardUpdateContentCandidateCopyRequest
+): Promise<DashboardUpdateContentCandidateCopyResult> {
+  return apiRequest(
+    contentCandidatePath(promotionId, segmentId, contentId, "copy"),
+    DashboardUpdateContentCandidateCopyResultSchema,
+    {
+      body: DashboardUpdateContentCandidateCopyRequestSchema.parse(requestBody),
+      errorMessage: readDashboardApiErrorMessage,
+      method: "PATCH",
       searchParams: projectSearchParams(query.projectId)
     }
   );
@@ -198,7 +221,7 @@ function contentCandidatePath(
   promotionId: string,
   segmentId: string,
   contentId: string,
-  action: "approve" | "reject" | "unapprove"
+  action: "approve" | "copy" | "reject" | "unapprove"
 ) {
   return `${promotionPath(promotionId)}/segments/${encodeURIComponent(segmentId)}/content-candidates/${encodeURIComponent(contentId)}/${action}`;
 }

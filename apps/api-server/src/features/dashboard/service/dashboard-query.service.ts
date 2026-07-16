@@ -62,6 +62,8 @@ import type {
   DashboardUnapproveContentCandidateRequest,
   DashboardUnapproveContentCandidateResult,
   DashboardUpdateCampaignRequest,
+  DashboardUpdateContentCandidateCopyRequest,
+  DashboardUpdateContentCandidateCopyResult,
   DashboardUpdateFunnelRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
@@ -71,8 +73,17 @@ import {
   DashboardFunnelReader,
   DashboardSegmentQueryRepository
 } from "../repository/index.js";
+import { dashboardErrors } from "../dashboard-errors.js";
 import { DashboardDecisionClient } from "../provider/index.js";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
+import {
+  contentCandidateCopy,
+  contentCandidateHtmlRevision,
+  contentCandidateHtmlUrl,
+  editableCreative,
+  editedCreativeMetadata,
+  rewriteCreativeHtmlCopy
+} from "./content-candidate-copy.js";
 
 @Injectable()
 export class DashboardQueryService {
@@ -568,6 +579,88 @@ export class DashboardQueryService {
   }
 
   @LogContextScope()
+  async updateContentCandidateCopy(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardUpdateContentCandidateCopyRequest,
+    publicOrigin: string
+  ): Promise<DashboardUpdateContentCandidateCopyResult> {
+    const startedAt = Date.now();
+    log.assignContext({ contentId, projectId, promotionId, segmentId });
+    log.info("started", { projectId, promotionId, segmentId, contentId });
+    const candidate = await this.campaignReader.getContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId
+    );
+    if (candidate.status !== "draft") {
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+
+    const creative = editableCreative(candidate);
+    if (!creative) {
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+
+    const sourceHtml = await readContentCandidateHtml(creative);
+    const rewritten = rewriteCreativeHtmlCopy(sourceHtml, contentCandidateCopy(candidate), request);
+    if (rewritten.missingFields.length > 0) {
+      throw dashboardErrors.contentCandidateCopyNotFound();
+    }
+
+    const revision = contentCandidateHtmlRevision(rewritten.html);
+    const htmlUrl = contentCandidateHtmlUrl({
+      contentId,
+      origin: publicOrigin,
+      projectId,
+      promotionId,
+      revision,
+      segmentId
+    });
+    const { metadataJson } = editedCreativeMetadata({
+      candidate,
+      creative,
+      html: rewritten.html,
+      htmlUrl
+    });
+    const response = await this.campaignReader.updateContentCandidateCopy(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      request,
+      metadataJson,
+      htmlUrl
+    );
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  async contentCandidateHtml(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string
+  ): Promise<string> {
+    const candidate = await this.campaignReader.getContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId
+    );
+    const creative = editableCreative(candidate);
+    if (!creative?.editedHtml) {
+      throw dashboardErrors.contentCandidateHtmlUnavailable();
+    }
+
+    return creative.editedHtml;
+  }
+
+  @LogContextScope()
   async createPromotionRun(
     projectId: string,
     promotionId: string,
@@ -902,5 +995,30 @@ export class DashboardQueryService {
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
+  }
+}
+
+async function readContentCandidateHtml(
+  creative: NonNullable<ReturnType<typeof editableCreative>>
+) {
+  if (creative.editedHtml) {
+    return creative.editedHtml;
+  }
+
+  try {
+    const response = await fetch(creative.artifact.public_url as string, {
+      headers: { Accept: "text/html" },
+      signal: AbortSignal.timeout(10_000)
+    });
+    if (!response.ok) {
+      throw new Error(`HTML artifact read failed with ${response.status}.`);
+    }
+    const html = await response.text();
+    if (Buffer.byteLength(html) > 2_000_000) {
+      throw new Error("HTML artifact exceeds the 2 MB edit limit.");
+    }
+    return html;
+  } catch (error) {
+    throw dashboardErrors.contentCandidateHtmlUnavailable(error);
   }
 }

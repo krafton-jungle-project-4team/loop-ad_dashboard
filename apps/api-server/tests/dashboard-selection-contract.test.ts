@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DashboardDecideSegmentSuggestionRequestSchema,
-  DashboardUnapproveContentCandidateResultSchema
+  DashboardUnapproveContentCandidateResultSchema,
+  DashboardUpdateContentCandidateCopyRequestSchema
 } from "@loopad/shared";
 
 test("segment suggestion selection can be checked and unchecked", () => {
@@ -12,6 +13,21 @@ test("segment suggestion selection can be checked and unchecked", () => {
   assert.deepEqual(DashboardDecideSegmentSuggestionRequestSchema.parse({ status: "suggested" }), {
     status: "suggested"
   });
+});
+
+test("content candidate copy update trims and validates editable text", () => {
+  assert.deepEqual(
+    DashboardUpdateContentCandidateCopyRequestSchema.parse({
+      headline: "  여름 휴가를 지금 예약하세요  ",
+      body: "  남은 객실을 특별가로 만나보세요.  ",
+      cta: "  예약하기  "
+    }),
+    {
+      headline: "여름 휴가를 지금 예약하세요",
+      body: "남은 객실을 특별가로 만나보세요.",
+      cta: "예약하기"
+    }
+  );
 });
 
 test("content candidate selection cancellation returns the candidate to draft", () => {
