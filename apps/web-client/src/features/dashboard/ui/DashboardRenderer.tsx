@@ -6,7 +6,6 @@ import { SegmentManagementPage } from "./pages/campaign/promotion/SegmentManagem
 import { ExperimentManagementPage } from "./pages/campaign/promotion/experiment/ExperimentManagementPage.js";
 import { FunnelPage } from "./pages/funnel/FunnelPage.js";
 import { MainPage } from "./pages/main/MainPage.js";
-import { WorkflowMapPage } from "./pages/workflow-map/WorkflowMapPage.js";
 
 export function DashboardPanelRenderer({
   query,
@@ -20,8 +19,6 @@ export function DashboardPanelRenderer({
       return <MainPage data={resource.data} query={query} />;
     case "funnels":
       return <FunnelPage data={resource.data} query={query} />;
-    case "campaign-flow-map":
-      return <WorkflowMapPage data={resource.data} query={query} />;
     case "campaign-promotions":
     case "promotions":
       return <PromotionManagementPage data={resource.data} query={query} />;

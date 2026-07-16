@@ -4,7 +4,6 @@ export const dashboardTabValues = [
   "main",
   "funnels",
   "campaigns",
-  "campaign-flow-map",
   "campaign-promotions",
   "promotions",
   "promotion-metrics",
@@ -59,7 +58,6 @@ export type SegmentWorkspaceView = (typeof segmentWorkspaceViewValues)[number];
 export type DashboardPageResource =
   | { tab: "main"; data: DashboardMain }
   | { tab: "funnels"; data: DashboardFunnelList }
-  | { tab: "campaign-flow-map"; data: DashboardMain }
   | { tab: "campaign-promotions"; data: DashboardMain }
   | { tab: "promotions"; data: DashboardMain }
   | { tab: "promotion-metrics"; data: DashboardMain }
@@ -82,7 +80,6 @@ export type DashboardQuery = {
   selectedPromotionId: string;
   selectedSegmentId: string;
   selectedAdExperimentId: string;
-  selectedWorkflowNodeId: string;
   experimentPromotionFilter: string;
   experimentStatusFilter: string;
   experimentPage: number;
