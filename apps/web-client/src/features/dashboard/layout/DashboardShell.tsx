@@ -363,7 +363,7 @@ function DashboardGlobalSearch({ projectId }: { projectId: string }) {
 
   return (
     <GlobalEntitySearch
-      className="ml-auto w-full max-w-2xl"
+      className="ml-auto w-full max-w-md"
       onResultSelect={(result) => void handleResultSelect(result)}
       projectId={projectId}
     />

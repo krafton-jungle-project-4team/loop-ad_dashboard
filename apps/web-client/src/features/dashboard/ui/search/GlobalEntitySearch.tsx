@@ -1,8 +1,4 @@
-import type {
-  DashboardEntitySearchResult,
-  DashboardEntitySearchType,
-  DashboardEntityType
-} from "@loopad/shared";
+import type { DashboardEntitySearchResult, DashboardEntityType } from "@loopad/shared";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import {
@@ -14,14 +10,6 @@ import {
   CommandList
 } from "@loopad/ui/shadcn/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@loopad/ui/shadcn/popover";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@loopad/ui/shadcn/select";
 import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -32,13 +20,6 @@ import { formatStatusLabel } from "../../model/dashboard-labels.js";
 import { dashboardEntitySearchQueryKey } from "../../model/dashboard-query-keys.js";
 
 const SEARCH_DEBOUNCE_MS = 250;
-
-const ENTITY_TYPE_OPTIONS = [
-  { label: "전체", value: "all" },
-  { label: "캠페인", value: "campaign" },
-  { label: "프로모션", value: "promotion" },
-  { label: "세그먼트", value: "segment" }
-] satisfies ReadonlyArray<{ label: string; value: DashboardEntitySearchType }>;
 
 const ENTITY_GROUPS = [
   { icon: Megaphone, label: "캠페인", value: "campaign" },
@@ -63,7 +44,6 @@ export function GlobalEntitySearch({
   placeholder = "캠페인, 프로모션, 세그먼트 검색",
   projectId
 }: GlobalEntitySearchProps) {
-  const [entityType, setEntityType] = useState<DashboardEntitySearchType>("all");
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim();
@@ -73,9 +53,8 @@ export function GlobalEntitySearch({
   const isQueryReady = normalizedQuery.length >= 1 && debouncedQuery === normalizedQuery;
   const entitySearch = useQuery({
     enabled: canSearch,
-    queryFn: ({ signal }) =>
-      fetchDashboardEntitySearch(projectId, debouncedQuery, entityType, signal),
-    queryKey: dashboardEntitySearchQueryKey(projectId, debouncedQuery, entityType),
+    queryFn: ({ signal }) => fetchDashboardEntitySearch(projectId, debouncedQuery, "all", signal),
+    queryKey: dashboardEntitySearchQueryKey(projectId, debouncedQuery, "all"),
     staleTime: 30_000
   });
   const results = entitySearch.data?.results ?? EMPTY_RESULTS;
@@ -86,26 +65,7 @@ export function GlobalEntitySearch({
   };
 
   return (
-    <div className={cn("flex min-w-0 items-center gap-2", className)}>
-      <Select
-        disabled={isDisabled}
-        onValueChange={(value) => setEntityType(value as DashboardEntitySearchType)}
-        value={entityType}
-      >
-        <SelectTrigger aria-label="검색 대상" className="w-28 shrink-0" size="sm">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent align="start" position="popper">
-          <SelectGroup>
-            {ENTITY_TYPE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-
+    <div className={cn("flex min-w-0", className)}>
       <Popover onOpenChange={setIsOpen} open={isOpen}>
         <PopoverTrigger asChild>
           <Button
