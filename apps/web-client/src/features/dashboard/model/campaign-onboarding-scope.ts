@@ -5,7 +5,6 @@ export const CAMPAIGN_ONBOARDING_SCOPE_STORAGE_KEY_PREFIX =
 
 export type CampaignOnboardingScope = {
   campaignId: string;
-  completedAt: string | null;
   promotionId: string;
   segmentId: string;
 };
@@ -29,23 +28,19 @@ export function parseCampaignOnboardingScope(
 
     const record = value as Record<string, unknown>;
     const campaignId = parseId(record.campaignId);
-    const completedAt = Object.hasOwn(record, "completedAt")
-      ? parseOptionalTimestamp(record.completedAt)
-      : null;
     const promotionId = parseId(record.promotionId);
     const segmentId = parseId(record.segmentId);
 
     if (
       campaignId === null ||
       campaignId.length === 0 ||
-      completedAt === undefined ||
       promotionId === null ||
       segmentId === null
     ) {
       return null;
     }
 
-    return { campaignId, completedAt, promotionId, segmentId };
+    return { campaignId, promotionId, segmentId };
   } catch {
     return null;
   }
@@ -104,16 +99,6 @@ export function clearCampaignOnboardingScope(
 
 function parseId(value: unknown): string | null {
   return typeof value === "string" ? value.trim() : null;
-}
-
-function parseOptionalTimestamp(value: unknown): string | null | undefined {
-  if (value === null) {
-    return null;
-  }
-  if (typeof value !== "string" || value.length === 0) {
-    return undefined;
-  }
-  return Number.isNaN(new Date(value).getTime()) ? undefined : value;
 }
 
 function resolveStorage(

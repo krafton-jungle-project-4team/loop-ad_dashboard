@@ -60,7 +60,6 @@ import {
   publishTrackingPlan,
   updateTrackingPlanEvent as updateConnectedTrackingPlanEvent
 } from "../../../api/tracking-plan-api.js";
-import { useProjectOnboarding } from "../../onboarding/ProjectOnboardingProvider.js";
 
 type PropertyDraft = {
   id: number;
@@ -140,7 +139,6 @@ function TrackingPlanEditorWorkspace({
   projectId: string;
   title: string;
 }) {
-  const { restartGuide } = useProjectOnboarding();
   const [plan, setPlan] = useState<TrackingPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -244,9 +242,6 @@ function TrackingPlanEditorWorkspace({
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={restartGuide} size="sm" type="button" variant="ghost">
-            튜토리얼 다시 보기
-          </Button>
           <Button asChild variant="outline">
             <Link params={{ projectId }} to="/developer/$projectId">
               개발자 페이지

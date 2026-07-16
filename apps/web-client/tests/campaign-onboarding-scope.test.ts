@@ -29,7 +29,6 @@ test("campaign onboarding scope is project scoped and survives refresh", () => {
   const storage = new MemoryStorage();
   const scope = {
     campaignId: "campaign-1",
-    completedAt: "2026-07-13T00:00:00.000Z",
     promotionId: "promotion-1",
     segmentId: "segment-1"
   };

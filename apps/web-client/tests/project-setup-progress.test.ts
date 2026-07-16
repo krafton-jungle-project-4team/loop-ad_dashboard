@@ -2,14 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   clearProjectSetupProgress,
+  clearProjectTutorialPending,
   completeProjectSdkSetup,
   getProjectSetupProgressStorageKey,
+  getProjectTutorialPendingStorageKey,
   initializeProjectSetupProgress,
+  markProjectTutorialPending,
   parseProjectSetupProgress,
   readProjectSetupProgress,
+  readProjectTutorialPending,
   resolveProjectOnboardingStage,
-  restartProjectOnboarding,
-  skipProjectOnboarding,
   startProjectSetupGuide,
   type ProjectSetupProgressStorage
 } from "../src/features/dashboard/model/project-setup-progress.js";
@@ -18,7 +20,6 @@ const INITIALIZED_AT = "2026-07-12T00:00:00.000Z";
 const GUIDE_STARTED_AT = "2026-07-12T00:00:30.000Z";
 const SDK_COMPLETED_AT = "2026-07-12T00:01:00.000Z";
 const FUNNEL_COMPLETED_AT = "2026-07-12T00:02:00.000Z";
-const ONBOARDING_SKIPPED_AT = "2026-07-12T00:03:00.000Z";
 
 class MemoryStorage implements ProjectSetupProgressStorage {
   readonly values = new Map<string, string>();
@@ -43,6 +44,13 @@ test("project setup progress uses the versioned project key", () => {
   );
 });
 
+test("tutorial pending marker uses a separate versioned project key", () => {
+  assert.equal(
+    getProjectTutorialPendingStorageKey(" demo-project "),
+    "loopad.dashboard.tutorial-pending.v1:demo-project"
+  );
+});
+
 test("project setup progress parser accepts valid state and rejects corrupt state", () => {
   assert.deepEqual(
     parseProjectSetupProgress(
@@ -56,7 +64,6 @@ test("project setup progress parser accepts valid state and rejects corrupt stat
       funnelCompletedAt: null,
       guideStartedAt: INITIALIZED_AT,
       initializedAt: INITIALIZED_AT,
-      onboardingSkippedAt: null,
       sdkCompletedAt: SDK_COMPLETED_AT
     }
   );
@@ -100,12 +107,10 @@ test("initialization creates new setup state without replacing valid progress", 
     funnelCompletedAt: null,
     guideStartedAt: null,
     initializedAt: INITIALIZED_AT,
-    onboardingSkippedAt: null,
     sdkCompletedAt: null
   });
 
   const repeated = initializeProjectSetupProgress("project-1", {
-    initialSetupCompleted: true,
     now: () => SDK_COMPLETED_AT,
     storage
   });
@@ -113,49 +118,18 @@ test("initialization creates new setup state without replacing valid progress", 
   assert.deepEqual(readProjectSetupProgress("project-1", storage), initial);
 });
 
-test("legacy initialization can mark SDK and funnel setup as already complete", () => {
+test("tutorial pending marker can be marked and cleared per project", () => {
   const storage = new MemoryStorage();
-  const progress = initializeProjectSetupProgress("legacy-project", {
-    initialSetupCompleted: true,
-    now: () => INITIALIZED_AT,
-    storage
-  });
 
-  assert.deepEqual(progress, {
-    funnelCompletedAt: INITIALIZED_AT,
-    guideStartedAt: INITIALIZED_AT,
-    initializedAt: INITIALIZED_AT,
-    onboardingSkippedAt: null,
-    sdkCompletedAt: INITIALIZED_AT
-  });
-});
+  assert.equal(readProjectTutorialPending("project-1", storage), false);
+  markProjectTutorialPending("project-1", storage);
+  markProjectTutorialPending("project-2", storage);
+  assert.equal(readProjectTutorialPending("project-1", storage), true);
+  assert.equal(readProjectTutorialPending("project-2", storage), true);
 
-test("skipping onboarding unlocks the dashboard without completing setup steps", () => {
-  const storage = new MemoryStorage();
-  initializeProjectSetupProgress("project-1", {
-    now: () => INITIALIZED_AT,
-    storage
-  });
-
-  const skipped = skipProjectOnboarding("project-1", {
-    now: () => ONBOARDING_SKIPPED_AT,
-    storage
-  });
-  const repeated = skipProjectOnboarding("project-1", {
-    now: () => "2026-07-12T00:04:00.000Z",
-    storage
-  });
-
-  assert.equal(skipped.onboardingSkippedAt, ONBOARDING_SKIPPED_AT);
-  assert.equal(skipped.sdkCompletedAt, null);
-  assert.equal(skipped.funnelCompletedAt, null);
-  assert.deepEqual(repeated, skipped);
-  assert.deepEqual(resolveProjectOnboardingStage({ progress: skipped }), {
-    isDashboardUnlocked: true,
-    isInitialSetupComplete: true,
-    requiredPathSegment: null,
-    stage: "complete"
-  });
+  clearProjectTutorialPending("project-1", storage);
+  assert.equal(readProjectTutorialPending("project-1", storage), false);
+  assert.equal(readProjectTutorialPending("project-2", storage), true);
 });
 
 test("starting the guide is persisted, idempotent, and leaves setup incomplete", () => {
@@ -178,33 +152,6 @@ test("starting the guide is persisted, idempotent, and leaves setup incomplete",
   assert.equal(started.sdkCompletedAt, null);
   assert.deepEqual(repeated, started);
   assert.deepEqual(readProjectSetupProgress("project-1", storage), started);
-});
-
-test("a skipped guide can be started again", () => {
-  const storage = new MemoryStorage();
-  const initialized = initializeProjectSetupProgress("project-1", {
-    now: () => INITIALIZED_AT,
-    storage
-  });
-  const skipped = skipProjectOnboarding("project-1", {
-    currentProgress: initialized,
-    now: () => ONBOARDING_SKIPPED_AT,
-    storage
-  });
-  const restarted = restartProjectOnboarding("project-1", {
-    currentProgress: skipped,
-    now: () => GUIDE_STARTED_AT,
-    storage
-  });
-
-  assert.equal(restarted.guideStartedAt, null);
-  assert.equal(restarted.onboardingSkippedAt, null);
-  assert.deepEqual(resolveProjectOnboardingStage({ progress: restarted }), {
-    isDashboardUnlocked: false,
-    isInitialSetupComplete: false,
-    requiredPathSegment: "sdk",
-    stage: "welcome"
-  });
 });
 
 test("SDK completion is persisted and idempotent", () => {
@@ -261,12 +208,6 @@ test("storage failures do not escape setup progress helpers", () => {
     })
   );
   assert.doesNotThrow(() =>
-    skipProjectOnboarding("project-1", {
-      now: () => ONBOARDING_SKIPPED_AT,
-      storage: unavailableStorage
-    })
-  );
-  assert.doesNotThrow(() =>
     startProjectSetupGuide("project-1", {
       now: () => GUIDE_STARTED_AT,
       storage: unavailableStorage
@@ -290,15 +231,43 @@ test("storage failures do not escape setup progress helpers", () => {
   assert.equal(sdkCompleted.sdkCompletedAt, SDK_COMPLETED_AT);
   assert.equal(sdkCompleted.funnelCompletedAt, null);
   assert.doesNotThrow(() => clearProjectSetupProgress("project-1", unavailableStorage));
+  assert.doesNotThrow(() => markProjectTutorialPending("project-1", unavailableStorage));
+  assert.doesNotThrow(() => readProjectTutorialPending("project-1", unavailableStorage));
+  assert.doesNotThrow(() => clearProjectTutorialPending("project-1", unavailableStorage));
 });
 
 test("top-level onboarding resolver covers welcome, SDK, campaign, and complete stages", () => {
-  assert.deepEqual(resolveProjectOnboardingStage({ progress: null }), {
+  assert.deepEqual(resolveProjectOnboardingStage({ progress: null, tutorialPending: true }), {
     isDashboardUnlocked: false,
     isInitialSetupComplete: false,
     requiredPathSegment: "sdk",
     stage: "welcome"
   });
+
+  assert.deepEqual(resolveProjectOnboardingStage({ progress: null }), {
+    isDashboardUnlocked: true,
+    isInitialSetupComplete: true,
+    requiredPathSegment: null,
+    stage: "complete"
+  });
+
+  assert.deepEqual(
+    resolveProjectOnboardingStage({
+      progress: {
+        funnelCompletedAt: null,
+        guideStartedAt: null,
+        initializedAt: INITIALIZED_AT,
+        sdkCompletedAt: null
+      },
+      tutorialPending: false
+    }),
+    {
+      isDashboardUnlocked: true,
+      isInitialSetupComplete: true,
+      requiredPathSegment: null,
+      stage: "complete"
+    }
+  );
 
   assert.deepEqual(
     resolveProjectOnboardingStage({
@@ -306,9 +275,9 @@ test("top-level onboarding resolver covers welcome, SDK, campaign, and complete 
         funnelCompletedAt: null,
         guideStartedAt: GUIDE_STARTED_AT,
         initializedAt: INITIALIZED_AT,
-        onboardingSkippedAt: null,
         sdkCompletedAt: null
-      }
+      },
+      tutorialPending: true
     }),
     {
       isDashboardUnlocked: false,
@@ -324,9 +293,9 @@ test("top-level onboarding resolver covers welcome, SDK, campaign, and complete 
         funnelCompletedAt: null,
         guideStartedAt: GUIDE_STARTED_AT,
         initializedAt: INITIALIZED_AT,
-        onboardingSkippedAt: null,
         sdkCompletedAt: SDK_COMPLETED_AT
-      }
+      },
+      tutorialPending: true
     }),
     {
       isDashboardUnlocked: false,
@@ -339,7 +308,8 @@ test("top-level onboarding resolver covers welcome, SDK, campaign, and complete 
   assert.deepEqual(
     resolveProjectOnboardingStage({
       progress: null,
-      runningExperimentCount: 1
+      runningExperimentCount: 1,
+      tutorialPending: true
     }),
     {
       isDashboardUnlocked: true,

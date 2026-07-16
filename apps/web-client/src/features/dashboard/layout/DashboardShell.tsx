@@ -4,7 +4,6 @@ import { Separator } from "@loopad/ui/shadcn/separator";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -21,7 +20,7 @@ import {
 } from "@loopad/ui/shadcn/sidebar";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { HelpCircle, Home, ListChecks, Megaphone, MoreHorizontal, Route } from "lucide-react";
+import { Home, ListChecks, Megaphone, MoreHorizontal, Route } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -61,8 +60,7 @@ export function DashboardShell({
   projectId: string;
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
-  const { canRestartGuide, isDashboardUnlocked, isLoading, isTabAllowed, restartGuide, stage } =
-    useProjectOnboarding();
+  const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
   const [headerSlotElement, setHeaderSlotElement] = useState<HTMLDivElement | null>(null);
   const isCanvasTab = activeTab === "dataExplorer" || activeTab === "campaign-flow-map";
   const isFullHeightTab = isCanvasTab;
@@ -99,19 +97,6 @@ export function DashboardShell({
               </Fragment>
             ))}
           </SidebarContent>
-          {canRestartGuide ? (
-            <SidebarFooter className="border-t p-3">
-              <Button
-                className="w-full justify-start"
-                onClick={restartGuide}
-                type="button"
-                variant="ghost"
-              >
-                <HelpCircle aria-hidden="true" />
-                시작 가이드 다시 보기
-              </Button>
-            </SidebarFooter>
-          ) : null}
           <SidebarResizeHandle onDoubleClick={resetWidth} onPointerDown={handleResizeStart} />
           <SidebarRail />
         </Sidebar>

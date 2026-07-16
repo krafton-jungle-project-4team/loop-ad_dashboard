@@ -11,7 +11,6 @@ import {
 } from "react";
 import {
   fetchDashboardCampaignDetail,
-  fetchDashboardFunnelList,
   fetchDashboardPageResource,
   fetchDashboardProjectExperiments
 } from "../../api/dashboard-api.js";
@@ -28,17 +27,15 @@ import {
 } from "../../model/dashboard-query.js";
 import {
   dashboardCampaignDetailQueryKey,
-  dashboardFunnelListQueryKey,
   dashboardPageQueryKey,
   dashboardProjectExperimentsQueryKey
 } from "../../model/dashboard-query-keys.js";
 import {
+  clearProjectTutorialPending,
   completeProjectSdkSetup,
-  initializeProjectSetupProgress,
+  readProjectTutorialPending,
   readProjectSetupProgress,
   resolveProjectOnboardingStage,
-  restartProjectOnboarding,
-  skipProjectOnboarding,
   startProjectSetupGuide,
   type ProjectOnboardingPathSegment,
   type ProjectOnboardingStage,
@@ -64,10 +61,14 @@ type CampaignScopeSnapshot = {
   scope: CampaignOnboardingScope;
 };
 
+type TutorialPendingSnapshot = {
+  pending: boolean;
+  projectId: string;
+};
+
 export type ProjectOnboardingContextValue = {
   allowedTabs: ReadonlySet<DashboardTab>;
   campaignSteps: ReadonlyArray<ProjectOnboardingStep>;
-  canRestartGuide: boolean;
   completeSdk: () => void;
   error: Error | null;
   isDashboardUnlocked: boolean;
@@ -80,7 +81,6 @@ export type ProjectOnboardingContextValue = {
   query: DashboardQuery;
   requiredPath: string | null;
   requiredPathSegment: ProjectOnboardingPathSegment | null;
-  restartGuide: () => void;
   retry: () => Promise<void>;
   runningExperimentCount: number;
   setupSteps: ReadonlyArray<ProjectOnboardingStep>;
@@ -105,6 +105,7 @@ export function ProjectOnboardingProvider({
     [projectId]
   );
   const storedProgress = useMemo(() => readProjectSetupProgress(projectId), [projectId]);
+  const storedTutorialPending = useMemo(() => readProjectTutorialPending(projectId), [projectId]);
   const storedCampaignScope = useMemo(() => readCampaignOnboardingScope(projectId), [projectId]);
   const [progressSnapshot, setProgressSnapshot] = useState<ProjectProgressSnapshot | null>(() =>
     storedProgress === null ? null : { progress: storedProgress, projectId }
@@ -112,40 +113,32 @@ export function ProjectOnboardingProvider({
   const [campaignScopeSnapshot, setCampaignScopeSnapshot] = useState<CampaignScopeSnapshot | null>(
     () => (storedCampaignScope === null ? null : { projectId, scope: storedCampaignScope })
   );
+  const [tutorialPendingSnapshot, setTutorialPendingSnapshot] =
+    useState<TutorialPendingSnapshot | null>(() => ({
+      pending: storedTutorialPending,
+      projectId
+    }));
   const progress =
     progressSnapshot?.projectId === projectId ? progressSnapshot.progress : storedProgress;
   const campaignScope =
     campaignScopeSnapshot?.projectId === projectId
       ? campaignScopeSnapshot.scope
       : storedCampaignScope;
+  const tutorialPending =
+    tutorialPendingSnapshot?.projectId === projectId
+      ? tutorialPendingSnapshot.pending
+      : storedTutorialPending;
 
   const mainQuery = useQuery({
     queryFn: ({ signal }) => fetchDashboardPageResource("main", onboardingQuery, signal),
     queryKey: dashboardPageQueryKey("main", onboardingQuery),
     select: (resource): DashboardMain => resource.data as DashboardMain
   });
-  const funnelListQuery = useQuery({
-    enabled: progress === null,
-    queryFn: ({ signal }) => fetchDashboardFunnelList(onboardingQuery, signal),
-    queryKey: dashboardFunnelListQueryKey(query.projectId)
-  });
   const experimentsQuery = useQuery({
     queryFn: ({ signal }) => fetchDashboardProjectExperiments(projectId, signal),
     queryKey: dashboardProjectExperimentsQueryKey(projectId)
   });
   const mainData = mainQuery.data;
-
-  useEffect(() => {
-    if (mainData === undefined || progress !== null || funnelListQuery.isPending) {
-      return;
-    }
-
-    const initializedProgress = initializeProjectSetupProgress(projectId, {
-      initialSetupCompleted:
-        mainData.campaigns.length > 0 || (funnelListQuery.data?.funnels.length ?? 0) > 0
-    });
-    setProgressSnapshot({ progress: initializedProgress, projectId });
-  }, [funnelListQuery.data, funnelListQuery.isPending, mainData, progress, projectId]);
 
   const campaigns = useMemo(() => mainData?.campaigns ?? [], [mainData?.campaigns]);
   const campaignIds = useMemo(
@@ -172,8 +165,6 @@ export function ProjectOnboardingProvider({
     : "";
   const storedCampaignId =
     campaignScope && campaignIds.has(campaignScope.campaignId) ? campaignScope.campaignId : "";
-  const hasPersistedCampaignCompletion =
-    Boolean(storedCampaignId) && campaignScope?.completedAt != null;
   const scopedCampaignId =
     runningScopeExperiment?.campaign_id ||
     selectedCampaignId ||
@@ -182,7 +173,8 @@ export function ProjectOnboardingProvider({
     "";
   const initialStageResolution = resolveProjectOnboardingStage({
     progress,
-    runningExperimentCount: runningScopeExperiment || hasPersistedCampaignCompletion ? 1 : 0
+    runningExperimentCount: runningScopeExperiment ? 1 : 0,
+    tutorialPending
   });
   const shouldLoadCampaignDetail =
     initialStageResolution.stage === "campaign" && Boolean(scopedCampaignId);
@@ -255,13 +247,21 @@ export function ProjectOnboardingProvider({
   )
     ? 1
     : 0;
-  const completedExperimentMilestone =
-    scopedRunningExperimentCount > 0 ||
-    (hasPersistedCampaignCompletion && campaignScope?.campaignId === scopedCampaignId);
+  const completedExperimentMilestone = scopedRunningExperimentCount > 0;
   const stageResolution = resolveProjectOnboardingStage({
     progress,
-    runningExperimentCount: completedExperimentMilestone ? 1 : 0
+    runningExperimentCount: completedExperimentMilestone ? 1 : 0,
+    tutorialPending
   });
+
+  useEffect(() => {
+    if (!tutorialPending || !completedExperimentMilestone) {
+      return;
+    }
+
+    clearProjectTutorialPending(projectId);
+    setTutorialPendingSnapshot({ pending: false, projectId });
+  }, [completedExperimentMilestone, projectId, tutorialPending]);
 
   useEffect(() => {
     if (mainData === undefined) {
@@ -276,9 +276,6 @@ export function ProjectOnboardingProvider({
 
     const nextScope: CampaignOnboardingScope = {
       campaignId: scopedCampaignId,
-      completedAt:
-        campaignScope?.completedAt ??
-        (scopedRunningExperimentCount > 0 ? new Date().toISOString() : null),
       promotionId: scopedPromotionId,
       segmentId: scopedSegmentId
     };
@@ -341,30 +338,16 @@ export function ProjectOnboardingProvider({
     setProgressSnapshot({ progress: nextProgress, projectId });
   }, [progress, projectId]);
   const skipGuide = useCallback(() => {
-    const nextProgress = skipProjectOnboarding(projectId, { currentProgress: progress });
-    setProgressSnapshot({ progress: nextProgress, projectId });
-  }, [progress, projectId]);
-  const restartGuide = useCallback(() => {
-    const nextProgress = restartProjectOnboarding(projectId, { currentProgress: progress });
-    setProgressSnapshot({ progress: nextProgress, projectId });
-  }, [progress, projectId]);
+    clearProjectTutorialPending(projectId);
+    setTutorialPendingSnapshot({ pending: false, projectId });
+  }, [projectId]);
   const retry = useCallback(async () => {
     const requests: Array<Promise<unknown>> = [mainQuery.refetch(), experimentsQuery.refetch()];
-    if (progress === null) {
-      requests.push(funnelListQuery.refetch());
-    }
     if (scopedCampaignId) {
       requests.push(campaignDetailQuery.refetch());
     }
     await Promise.all(requests);
-  }, [
-    campaignDetailQuery,
-    experimentsQuery,
-    funnelListQuery,
-    mainQuery,
-    progress,
-    scopedCampaignId
-  ]);
+  }, [campaignDetailQuery, experimentsQuery, mainQuery, scopedCampaignId]);
   const isTabAllowed = useCallback((tab: DashboardTab) => allowedTabs.has(tab), [allowedTabs]);
   const requiredPath = stageResolution.requiredPathSegment
     ? `/dashboard/${encodeURIComponent(projectId)}/${stageResolution.requiredPathSegment}`
@@ -373,24 +356,15 @@ export function ProjectOnboardingProvider({
     () => ({
       allowedTabs,
       campaignSteps,
-      canRestartGuide:
-        progress?.onboardingSkippedAt != null &&
-        runningExperimentCount === 0 &&
-        !hasPersistedCampaignCompletion,
       completeSdk,
       error: stageResolution.isDashboardUnlocked
         ? null
-        : (mainQuery.error ??
-          experimentsQuery.error ??
-          funnelListQuery.error ??
-          campaignDetailQuery.error),
+        : (mainQuery.error ?? experimentsQuery.error ?? campaignDetailQuery.error),
       isDashboardUnlocked: stageResolution.isDashboardUnlocked,
       isInitialSetupComplete: stageResolution.isInitialSetupComplete,
       isLoading:
         mainQuery.isPending ||
         experimentsQuery.isPending ||
-        (progress === null && funnelListQuery.isPending) ||
-        (mainQuery.isSuccess && progress === null) ||
         (shouldLoadCampaignDetail && campaignDetailQuery.isPending),
       isTabAllowed,
       mainData,
@@ -399,7 +373,6 @@ export function ProjectOnboardingProvider({
       query,
       requiredPath,
       requiredPathSegment: stageResolution.requiredPathSegment,
-      restartGuide,
       retry,
       runningExperimentCount,
       setupSteps,
@@ -415,19 +388,14 @@ export function ProjectOnboardingProvider({
       completeSdk,
       experimentsQuery.error,
       experimentsQuery.isPending,
-      funnelListQuery.error,
-      funnelListQuery.isPending,
-      hasPersistedCampaignCompletion,
       isTabAllowed,
       mainData,
       mainQuery.error,
       mainQuery.isPending,
-      mainQuery.isSuccess,
       progress,
       projectId,
       query,
       requiredPath,
-      restartGuide,
       retry,
       runningExperimentCount,
       setupSteps,
@@ -452,7 +420,6 @@ function campaignScopeEqual(
 ): boolean {
   return (
     left?.campaignId === right.campaignId &&
-    left.completedAt === right.completedAt &&
     left.promotionId === right.promotionId &&
     left.segmentId === right.segmentId
   );
