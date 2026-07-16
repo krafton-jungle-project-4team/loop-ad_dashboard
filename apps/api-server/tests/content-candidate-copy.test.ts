@@ -29,6 +29,17 @@ test("generated HTML copy is replaced without changing the surrounding design", 
   );
 });
 
+test("appending to single-line copy replaces the original text only once", () => {
+  const rewritten = rewriteCreativeHtmlCopy(
+    "<article><p>기존 문구</p></article>",
+    { headline: "제목", body: "기존 문구", cta: "버튼" },
+    { headline: "제목", body: "기존 문구 추가", cta: "버튼" }
+  );
+
+  assert.deepEqual(rewritten.missingFields, []);
+  assert.equal(rewritten.html, "<article><p>기존 문구 추가</p></article>");
+});
+
 test("edited creative metadata points serving to the dashboard HTML revision", () => {
   const candidate = contentCandidate();
   const creative = editableCreative(candidate);
