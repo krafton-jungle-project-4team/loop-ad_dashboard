@@ -65,6 +65,8 @@ import {
   DashboardRejectContentCandidateResultSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
+  DashboardSegmentAssistantRequestSchema,
+  DashboardSegmentAssistantResponseSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
@@ -562,6 +564,19 @@ export class DashboardController {
         promotionId,
         request
       )
+    );
+  }
+
+  @Post("promotions/:promotion_id/segment-assistant")
+  async assistPromotionSegment(
+    @Param("promotion_id") promotionId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const request = DashboardSegmentAssistantRequestSchema.parse(body);
+    return DashboardSegmentAssistantResponseSchema.parse(
+      await this.dashboardQuery.assistPromotionSegment(requiredProjectId, promotionId, request)
     );
   }
 

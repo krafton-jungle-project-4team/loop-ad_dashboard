@@ -340,6 +340,53 @@ test("dashboard controller parses segment query preview body before delegating",
   assert.equal(response.sample_size_status, "valid");
 });
 
+test("dashboard controller parses segment assistant requests and returns audience counts", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    assistPromotionSegment: async (projectId, promotionId, request) => {
+      writes.push({ projectId, promotionId, request });
+      return {
+        action: "audience_query",
+        assistant_message: "조건에 맞는 고객은 120명입니다.",
+        segment_name: "최근 제주 미예약 고객",
+        lookback_days: 30,
+        condition_labels: ["제주 숙소 검색", "예약 완료 없음"],
+        preview: {
+          query_preview_id: "seg_query_preview_002",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 120,
+          total_eligible_user_count: 1000,
+          sample_ratio: 0.12,
+          sample_size_status: "valid",
+          columns: ["user_id"],
+          rows: []
+        }
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.assistPromotionSegment("promo_summer", "hotel-client-a", {
+    message: "최근 제주 미예약 고객은 몇 명이야?"
+  });
+
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo_summer",
+      request: {
+        message: "최근 제주 미예약 고객은 몇 명이야?",
+        conversation: []
+      }
+    }
+  ]);
+  assert.equal(response.action, "audience_query");
+  assert.equal(response.preview?.sample_size, 120);
+});
+
 test("dashboard controller parses save segment body before delegating", async () => {
   setRequiredEnv();
   const { DashboardController } =

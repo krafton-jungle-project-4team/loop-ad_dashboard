@@ -22,6 +22,10 @@ import {
   type Json
 } from "../database/__generated__/dashboard.queries.js";
 import { durationMs, log } from "../../../infra/logger/index.js";
+import type {
+  SegmentAssistantPlan,
+  SegmentAssistantPropertyFilter
+} from "../segment-assistant.types.js";
 
 const PREVIEW_ROW_LIMIT = 500;
 const PREVIEW_TIMEOUT_SECONDS = 10;
@@ -52,14 +56,60 @@ export class DashboardSegmentQueryRepository {
     projectId: string,
     request: DashboardSegmentQueryPreviewRequest
   ): Promise<DashboardSegmentQueryPreview> {
-    const startedAt = Date.now();
     const timeRange = normalizeTimeRange(request.base_time_range);
     const query = planSegmentQuery(projectId, request.natural_language_query, timeRange);
-    log.info("segment_query_planned", { projectId, query, request, timeRange });
+    log.info("segment_query_planned", {
+      projectId,
+      queryType: "legacy_natural_language",
+      timeRange
+    });
+    return this.persistQueryPreview({
+      naturalLanguageQuery: request.natural_language_query,
+      projectId,
+      query,
+      queryParamsJson: {},
+      timeRange
+    });
+  }
+
+  async createAssistantQueryPreview(
+    projectId: string,
+    naturalLanguageQuery: string,
+    plan: SegmentAssistantPlan
+  ): Promise<DashboardSegmentQueryPreview> {
+    if (plan.action === "clarification") {
+      throw new Error("A clarification plan cannot be executed.");
+    }
+    const timeRange = timeRangeForLookbackDays(plan.lookback_days);
+    const query = planStructuredSegmentQuery(projectId, plan, timeRange);
+    log.info("segment_query_planned", {
+      action: plan.action,
+      conditionCount: plan.conditions.length,
+      projectId,
+      queryType: "structured_segment_assistant",
+      timeRange
+    });
+    return this.persistQueryPreview({
+      naturalLanguageQuery,
+      projectId,
+      query,
+      queryParamsJson: toJson({ assistant_plan: plan }),
+      timeRange
+    });
+  }
+
+  private async persistQueryPreview(input: {
+    naturalLanguageQuery: string;
+    projectId: string;
+    query: PlannedSegmentQuery;
+    queryParamsJson: Json;
+    timeRange: SegmentPreviewTimeRange;
+  }): Promise<DashboardSegmentQueryPreview> {
+    const startedAt = Date.now();
     const [preview, sampleSize, totalEligibleUserCount] = await Promise.all([
-      this.executePreviewQuery(query.previewSql),
-      this.executeCountQuery(query.countSql),
-      this.countEligibleUsers(projectId, timeRange)
+      this.executePreviewQuery(input.query.previewSql),
+      this.executeCountQuery(input.query.countSql),
+      this.countEligibleUsers(input.projectId, input.timeRange)
     ]);
     const sampleRatio =
       totalEligibleUserCount > 0 ? roundRatio(sampleSize / totalEligibleUserCount) : 0;
@@ -72,12 +122,12 @@ export class DashboardSegmentQueryRepository {
     });
     const row = await this.db
       .query(insertDashboardSegmentQueryPreview, {
-        baseTimeFrom: timeRange.from,
-        baseTimeTo: timeRange.to,
-        generatedSql: query.generatedSql,
-        naturalLanguageQuery: request.natural_language_query,
-        projectId,
-        queryParamsJson: {},
+        baseTimeFrom: input.timeRange.from,
+        baseTimeTo: input.timeRange.to,
+        generatedSql: input.query.generatedSql,
+        naturalLanguageQuery: input.naturalLanguageQuery,
+        projectId: input.projectId,
+        queryParamsJson: input.queryParamsJson,
         queryPreviewId: `seg_query_preview_${randomUUID()}`,
         resultColumnsJson: preview.columns,
         resultPreviewJson: toJson(preview.rows),
@@ -92,7 +142,10 @@ export class DashboardSegmentQueryRepository {
     log.assignContext({ queryPreviewId: response.query_preview_id });
     log.info("segment_query_preview_created", {
       durationMs: durationMs(startedAt),
-      response
+      sampleRatio: response.sample_ratio,
+      sampleSize: response.sample_size,
+      sampleSizeStatus: response.sample_size_status,
+      totalEligibleUserCount: response.total_eligible_user_count
     });
     return response;
   }
@@ -110,7 +163,10 @@ export class DashboardSegmentQueryRepository {
       .single();
 
     if (preview.sampleSizeStatus !== "valid" || preview.status !== "previewed") {
-      log.warn("segment_preview_not_saveable", { preview, request });
+      log.warn("segment_preview_not_saveable", {
+        previewStatus: preview.status,
+        sampleSizeStatus: preview.sampleSizeStatus
+      });
       throw dashboardErrors.segmentPreviewNotSaveable();
     }
 
@@ -136,7 +192,12 @@ export class DashboardSegmentQueryRepository {
 
     const response = toSavedSegment(segment);
     log.assignContext({ segmentId: response.segment_id });
-    log.info("segment_saved", { durationMs: durationMs(startedAt), response });
+    log.info("segment_saved", {
+      durationMs: durationMs(startedAt),
+      sampleRatio: response.sample_ratio,
+      sampleSize: response.sample_size,
+      totalEligibleUserCount: response.total_eligible_user_count
+    });
     return response;
   }
 
@@ -144,7 +205,7 @@ export class DashboardSegmentQueryRepository {
     sql: string
   ): Promise<{ columns: string[]; rows: PreviewRow[] }> {
     const startedAt = Date.now();
-    log.info("clickhouse_preview_query_started", { sql });
+    log.info("clickhouse_preview_query_started", { queryLength: sql.length });
     const result = await this.clickhouse.query({
       query: sql,
       format: "JSON",
@@ -167,7 +228,7 @@ export class DashboardSegmentQueryRepository {
 
   private async executeCountQuery(sql: string): Promise<number> {
     const startedAt = Date.now();
-    log.info("clickhouse_count_query_started", { sql });
+    log.info("clickhouse_count_query_started", { queryLength: sql.length });
     const result = await this.clickhouse.query({
       query: sql,
       format: "JSONEachRow",
@@ -243,8 +304,8 @@ WHERE ${baseWhere}
 GROUP BY user_id
 HAVING ${having}
 ORDER BY last_event_at DESC
-LIMIT ${PREVIEW_ROW_LIMIT}
 `.trim();
+  const previewSql = `${generatedSql}\nLIMIT ${PREVIEW_ROW_LIMIT}`;
   const countSql = `
 SELECT count() AS sample_size
 FROM (
@@ -259,8 +320,124 @@ FROM (
   return {
     countSql,
     generatedSql,
-    previewSql: generatedSql
+    previewSql
   };
+}
+
+export function planStructuredSegmentQuery(
+  projectId: string,
+  plan: SegmentAssistantPlan,
+  timeRange: SegmentPreviewTimeRange
+): PlannedSegmentQuery {
+  if (plan.action === "clarification" || plan.conditions.length === 0) {
+    throw new Error("Structured segment queries require executable conditions.");
+  }
+
+  const baseWhere = [
+    `project_id = ${sqlString(projectId)}`,
+    `event_time >= parseDateTimeBestEffort(${sqlString(timeRange.from)})`,
+    `event_time < parseDateTimeBestEffort(${sqlString(timeRange.to)})`
+  ].join("\n    AND ");
+  const counters = plan.conditions.map((condition, index) => {
+    const alias = `condition_${index + 1}_count`;
+    return {
+      alias,
+      select: `countIf(${structuredConditionPredicate(condition)}) AS ${alias}`,
+      having: [
+        `${alias} >= ${condition.minimum_count}`,
+        condition.maximum_count === null ? null : `${alias} <= ${condition.maximum_count}`
+      ].filter((item): item is string => Boolean(item))
+    };
+  });
+  const selectCounters = counters.map((counter) => counter.select).join(",\n    ");
+  const having = counters.flatMap((counter) => counter.having).join("\n    AND ");
+  const generatedSql = `
+SELECT
+  user_id,
+  ${selectCounters},
+  max(event_time) AS last_event_at
+FROM funnel_step_events
+WHERE ${baseWhere}
+GROUP BY user_id
+HAVING ${having}
+ORDER BY last_event_at DESC
+`.trim();
+  const previewSql = `${generatedSql}\nLIMIT ${PREVIEW_ROW_LIMIT}`;
+  const countSql = `
+SELECT count() AS sample_size
+FROM (
+  SELECT
+    user_id,
+    ${selectCounters}
+  FROM funnel_step_events
+  WHERE ${baseWhere}
+  GROUP BY user_id
+  HAVING ${having}
+)
+`.trim();
+
+  return {
+    countSql,
+    generatedSql,
+    previewSql
+  };
+}
+
+function structuredConditionPredicate(
+  condition: SegmentAssistantPlan["conditions"][number]
+): string {
+  const predicates = [`event_name = ${sqlString(condition.event_name)}`];
+  if (condition.destination) {
+    predicates.push(destinationPredicate(condition.destination));
+  }
+  if (condition.checkin_months.length > 0) {
+    predicates.push(
+      `toMonth(parseDateTimeBestEffortOrNull(nullIf(JSONExtractString(properties_json, 'checkin_date'), ''))) IN (${condition.checkin_months.join(", ")})`
+    );
+  }
+  predicates.push(...condition.property_filters.map(propertyFilterPredicate));
+  return predicates.map((predicate) => `(${predicate})`).join(" AND ");
+}
+
+function destinationPredicate(destination: string) {
+  const destinationText = [
+    "ifNull(JSONExtractString(properties_json, 'destination_id'), '')",
+    "ifNull(JSONExtractString(properties_json, 'destination_name'), '')",
+    "ifNull(JSONExtractString(properties_json, 'hotel_city'), '')",
+    "ifNull(JSONExtractString(properties_json, 'hotel_country'), '')"
+  ].join(", ' ', ");
+  return `positionCaseInsensitiveUTF8(concat(${destinationText}), ${sqlString(destination)}) > 0`;
+}
+
+function propertyFilterPredicate(filter: SegmentAssistantPropertyFilter) {
+  const extracted = `ifNull(JSONExtractString(properties_json, ${sqlString(filter.key)}), '')`;
+  const normalizedValue = filter.value.trim();
+  if (!normalizedValue) {
+    throw new Error(`Structured segment property filter '${filter.key}' has an empty value.`);
+  }
+
+  if (filter.operator === "exists") {
+    return `nullIf(${extracted}, '') IS NOT NULL`;
+  }
+  if (filter.operator === "contains") {
+    return `positionCaseInsensitiveUTF8(${extracted}, ${sqlString(normalizedValue)}) > 0`;
+  }
+  if (filter.operator === "gte" || filter.operator === "lte") {
+    const numericValue = Number(normalizedValue);
+    if (!Number.isFinite(numericValue)) {
+      throw new Error(`Structured segment property filter '${filter.key}' must be numeric.`);
+    }
+    const operator = filter.operator === "gte" ? ">=" : "<=";
+    return `toFloat64OrNull(nullIf(${extracted}, '')) ${operator} ${numericValue}`;
+  }
+  if (
+    (filter.key === "free_cancellation" || filter.key === "breakfast_included") &&
+    /^(true|false|1|0)$/i.test(normalizedValue)
+  ) {
+    const expected = /^(true|1)$/i.test(normalizedValue) ? 1 : 0;
+    return `toUInt8OrZero(${extracted}) = ${expected}`;
+  }
+  return `lowerUTF8(${extracted}) = lowerUTF8(${sqlString(normalizedValue)})`;
 }
 
 function inferSegmentCondition(naturalLanguageQuery: string) {
@@ -331,6 +508,12 @@ function normalizeTimeRange(
     from: from.toISOString(),
     to: to.toISOString()
   };
+}
+
+function timeRangeForLookbackDays(lookbackDays: number): SegmentPreviewTimeRange {
+  const to = new Date();
+  const from = new Date(to.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
+  return { from: from.toISOString(), to: to.toISOString() };
 }
 
 function getSampleSizeStatus(

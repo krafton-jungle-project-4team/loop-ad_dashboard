@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardArchivePromotionScopedSegmentDefinitionResult,
@@ -52,6 +52,8 @@ import type {
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
+  DashboardSegmentAssistantRequest,
+  DashboardSegmentAssistantResponse,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
   DashboardRecommendPromotionSegmentsRequest,
@@ -74,7 +76,7 @@ import {
   DashboardSegmentQueryRepository
 } from "../repository/index.js";
 import { dashboardErrors } from "../dashboard-errors.js";
-import { DashboardDecisionClient } from "../provider/index.js";
+import { DashboardDecisionClient, DashboardSegmentAssistantAgent } from "../provider/index.js";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import {
   contentCandidateCopy,
@@ -95,7 +97,10 @@ export class DashboardQueryService {
     @Inject(DashboardSegmentQueryRepository)
     private readonly segmentQueryRepository: DashboardSegmentQueryRepository,
     @Inject(DashboardDecisionClient)
-    private readonly decisionClient: DashboardDecisionClient
+    private readonly decisionClient: DashboardDecisionClient,
+    @Optional()
+    @Inject(DashboardSegmentAssistantAgent)
+    private readonly segmentAssistantAgent?: DashboardSegmentAssistantAgent
   ) {}
 
   @LogContextScope()
@@ -1094,6 +1099,74 @@ export class DashboardQueryService {
 
   @LogContextScope()
   @Transactional()
+  async assistPromotionSegment(
+    projectId: string,
+    promotionId: string,
+    request: DashboardSegmentAssistantRequest
+  ): Promise<DashboardSegmentAssistantResponse> {
+    const startedAt = Date.now();
+    log.assignContext({ projectId, promotionId });
+    log.info("started", {
+      conversationCount: request.conversation.length,
+      messageLength: request.message.length
+    });
+    await this.campaignReader.getPromotionSummary(projectId, promotionId);
+
+    if (!this.segmentAssistantAgent) {
+      throw new Error("Dashboard segment assistant agent is not configured.");
+    }
+    const plan = await this.segmentAssistantAgent.plan({
+      conversation: request.conversation,
+      message: request.message
+    });
+    if (plan.action === "clarification") {
+      const response: DashboardSegmentAssistantResponse = {
+        action: "clarification",
+        assistant_message:
+          plan.clarification_message ??
+          "조회하거나 만들 고객군의 목적지, 기간, 행동 조건을 조금 더 구체적으로 알려주세요.",
+        segment_name: null,
+        lookback_days: plan.lookback_days,
+        condition_labels: [],
+        preview: null
+      };
+      log.info("completed", {
+        action: response.action,
+        durationMs: durationMs(startedAt)
+      });
+      return response;
+    }
+
+    const preview = await this.segmentQueryRepository.createAssistantQueryPreview(
+      projectId,
+      request.message,
+      plan
+    );
+    log.assignContext({ queryPreviewId: preview.query_preview_id });
+    const segmentName = plan.segment_name ?? `${plan.conditions[0]?.label ?? "맞춤 행동"} 고객`;
+    const response: DashboardSegmentAssistantResponse = {
+      action: plan.action,
+      assistant_message: segmentAssistantMessage(plan.action, plan.lookback_days, preview),
+      segment_name: segmentName,
+      lookback_days: plan.lookback_days,
+      condition_labels: plan.conditions.map((condition) => condition.label),
+      preview
+    };
+
+    log.info("completed", {
+      action: response.action,
+      conditionCount: response.condition_labels.length,
+      durationMs: durationMs(startedAt),
+      sampleRatio: preview.sample_ratio,
+      sampleSize: preview.sample_size,
+      sampleSizeStatus: preview.sample_size_status,
+      totalEligibleUserCount: preview.total_eligible_user_count
+    });
+    return response;
+  }
+
+  @LogContextScope()
+  @Transactional()
   async saveSegment(
     projectId: string,
     request: DashboardSaveSegmentRequest
@@ -1107,6 +1180,23 @@ export class DashboardQueryService {
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
   }
+}
+
+function segmentAssistantMessage(
+  action: "audience_query" | "segment_preview",
+  lookbackDays: number,
+  preview: DashboardSegmentQueryPreview
+) {
+  if (preview.sample_size === 0) {
+    return `최근 ${lookbackDays}일 기준으로 조건에 맞는 고객을 찾지 못했습니다. 조건이나 조회 기간을 조정해 보세요.`;
+  }
+  const ratio = (preview.sample_ratio * 100).toLocaleString("ko-KR", {
+    maximumFractionDigits: 2
+  });
+  const counts = `최근 ${lookbackDays}일 기준 조건에 맞는 고객은 ${preview.sample_size.toLocaleString("ko-KR")}명이며, 분석 가능 사용자 ${preview.total_eligible_user_count.toLocaleString("ko-KR")}명의 ${ratio}%입니다.`;
+  return action === "audience_query"
+    ? counts
+    : `${counts} 조건을 확인한 뒤 이 고객군을 세그먼트로 추가할 수 있습니다.`;
 }
 
 async function readContentCandidateHtml(

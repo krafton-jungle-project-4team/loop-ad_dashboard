@@ -342,6 +342,71 @@ test("dashboard segment query preview delegates to the segment query repository"
   assert.deepEqual(preview.columns, ["user_id"]);
 });
 
+test("dashboard segment assistant executes a structured plan without calling Decision recommendations", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async (projectId, promotionId) => {
+        calls.push({ kind: "promotion", projectId, promotionId });
+        return {} as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      createAssistantQueryPreview: async (projectId, naturalLanguageQuery, plan) => {
+        calls.push({ kind: "preview", naturalLanguageQuery, plan, projectId });
+        return {
+          query_preview_id: "seg_query_preview_agent",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 125,
+          total_eligible_user_count: 1000,
+          sample_ratio: 0.125,
+          sample_size_status: "valid",
+          columns: ["user_id"],
+          rows: []
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient(),
+    {
+      plan: async () => ({
+        action: "audience_query" as const,
+        segment_name: null,
+        lookback_days: 30,
+        conditions: [
+          {
+            label: "제주 숙소 검색",
+            event_name: "hotel_search" as const,
+            minimum_count: 1,
+            maximum_count: null,
+            destination: "제주",
+            checkin_months: [],
+            property_filters: []
+          }
+        ],
+        clarification_message: null
+      })
+    } as never
+  );
+
+  const response = await service.assistPromotionSegment("hotel-client-a", "promo_summer", {
+    message: "최근 제주 숙소를 검색한 고객은 몇 명이야?",
+    conversation: []
+  });
+
+  assert.equal(response.action, "audience_query");
+  assert.equal(response.preview?.sample_size, 125);
+  assert.equal(response.segment_name, "제주 숙소 검색 고객");
+  assert.equal(calls.length, 2);
+  assert.deepEqual((calls[1] as { kind: string }).kind, "preview");
+});
+
 test("dashboard save segment delegates valid preview save to the segment query repository", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
