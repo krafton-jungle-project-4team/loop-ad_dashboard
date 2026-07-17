@@ -8,6 +8,7 @@ import {
   INITIAL_SEGMENT_ASSISTANT_MESSAGE,
   segmentAssistantFailureMessage
 } from "../src/features/dashboard/model/segment-candidate-assistant.js";
+import { selectedSegmentSummaries } from "../src/features/dashboard/model/segment-selection-summary.js";
 import { promotionSegmentConfirmationRequest } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionSegmentConfirmationFlow.js";
 
 test("confirmation sends only accepted suggestions from the selected analysis", () => {
@@ -71,6 +72,47 @@ test("segment assistant uses a generic message for transport failures", () => {
     segmentAssistantFailureMessage(new Error("Dashboard API request failed. timeout")),
     "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
   );
+});
+
+test("selection summary identifies accepted AI and directly added segments", () => {
+  const accepted = suggestion("suggestion-1", "analysis-current", "accepted");
+  accepted.segment_name = "예약 직전 이탈 고객";
+  accepted.sample_size = 42;
+  accepted.display_copy = {
+    action_hint: "",
+    audience_summary: "",
+    performance_estimate: {
+      availability: "available",
+      basis_label: "",
+      confidence_label: "medium",
+      formatted: "11.9%",
+      label: "예상 예약 전환율",
+      metric: "booking_conversion_rate",
+      value: 0.119,
+      window_label: ""
+    },
+    reason: "",
+    signal_chips: [],
+    strategy_role: "예약 이탈 회수형",
+    title: "예약 직전 이탈 고객"
+  };
+  const pending = suggestion("suggestion-2", "analysis-current", "suggested");
+  const manual = scopedSegment("manual-segment-1");
+  manual.segment_name = "제주 미예약 고객";
+  manual.sample_size = 120;
+
+  assert.deepEqual(selectedSegmentSummaries([accepted, pending], [manual]), [
+    {
+      detail: "예약 이탈 회수형 · 예상 예약 전환율 11.9%",
+      id: "suggestion:suggestion-1",
+      name: "예약 직전 이탈 고객"
+    },
+    {
+      detail: "직접 추가 · 조건 부합 120명",
+      id: "scoped:manual-segment-1",
+      name: "제주 미예약 고객"
+    }
+  ]);
 });
 
 function suggestion(

@@ -46,6 +46,7 @@ import { useState } from "react";
 import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
+import { selectedSegmentSummaries } from "../../../../../model/segment-selection-summary.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
   formatJsonObject,
@@ -111,6 +112,7 @@ export function PromotionSegmentSuggestionPanel({
   ).length;
   const confirmableCount = acceptedCount + scopedSegments.length;
   const candidateCount = visibleSuggestions.length + scopedSegments.length;
+  const selectedSegments = selectedSegmentSummaries(visibleSuggestions, scopedSegments);
   const candidateMenuItems: SegmentColumnDeleteMenuItem<SegmentCandidateDeleteTarget>[] = [
     ...scopedSegments.map((segment) => ({
       id: `scoped:${segment.segment_id}`,
@@ -129,7 +131,7 @@ export function PromotionSegmentSuggestionPanel({
   ];
 
   return (
-    <Card className="min-h-0 overflow-hidden shadow-none xl:h-full">
+    <Card className="min-h-0 overflow-hidden shadow-none">
       <CardHeader className="grid shrink-0 gap-1 border-b sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="grid min-h-[3.25rem] gap-1.5">
           <div className="flex items-center gap-2">
@@ -164,7 +166,7 @@ export function PromotionSegmentSuggestionPanel({
           />
         </div>
       </CardHeader>
-      <CardContent className="grid content-start gap-4 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-width:thin]">
+      <CardContent className="grid content-start gap-4">
         {scopedSegmentsIsLoading ? (
           <EmptyState message="직접 추가한 후보를 불러오는 중이에요." />
         ) : null}
@@ -255,13 +257,31 @@ export function PromotionSegmentSuggestionPanel({
           suggestion={reportSuggestion}
         />
       </CardContent>
-      <CardFooter className="shrink-0 justify-between gap-3 bg-background">
-        <span className="text-xs text-muted-foreground">
-          {confirmableCount > 0
-            ? `${formatInteger(confirmableCount)}개 선택됨`
-            : "확정할 후보를 선택해 주세요"}
-        </span>
+      <CardFooter className="grid shrink-0 gap-4 border-t bg-muted/20 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="grid min-w-0 gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">선택한 세그먼트</span>
+            <Badge variant="secondary">{formatInteger(confirmableCount)}</Badge>
+          </div>
+          {selectedSegments.length > 0 ? (
+            <ul className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {selectedSegments.map((segment) => (
+                <li className="grid min-w-0 gap-0.5 border-l-2 border-primary pl-2" key={segment.id}>
+                  <span className="truncate text-xs font-medium text-foreground" title={segment.name}>
+                    {segment.name}
+                  </span>
+                  <span className="truncate text-[11px] text-muted-foreground" title={segment.detail}>
+                    {segment.detail}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className="text-xs text-muted-foreground">확정할 후보를 선택해 주세요.</span>
+          )}
+        </div>
         <Button
+          className="w-full lg:w-auto"
           disabled={
             confirmableCount === 0 ||
             confirmIsPending ||
