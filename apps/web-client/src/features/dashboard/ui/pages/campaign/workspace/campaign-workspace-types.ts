@@ -21,6 +21,7 @@ export type CampaignWorkspaceMetric = {
 };
 
 export type CampaignWorkspaceEntityCard = {
+  dateRangeLabel?: string;
   description?: string;
   id: string;
   kind: CampaignWorkspaceEntityKind;

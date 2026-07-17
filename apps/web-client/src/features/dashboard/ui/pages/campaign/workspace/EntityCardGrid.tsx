@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger
 } from "@loopad/ui/shadcn/dropdown-menu";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { ArrowRight, Check, Ellipsis, Plus } from "lucide-react";
+import { ArrowRight, Check, Clock3, Ellipsis, Plus } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import type {
   CampaignWorkspaceAddAction,
@@ -154,16 +154,27 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
       size={isCompact ? "sm" : "default"}
     >
       <CardHeader className={isCompact ? "gap-2" : "gap-3"}>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{entityKindLabel}</Badge>
-          {entity.status ? (
-            <Badge variant={entity.status.variant ?? "outline"}>{entity.status.label}</Badge>
-          ) : null}
-        </div>
+        {entity.dateRangeLabel ? (
+          <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="truncate tabular-nums">{entity.dateRangeLabel}</span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{entityKindLabel}</Badge>
+            {entity.status ? (
+              <Badge variant={entity.status.variant ?? "outline"}>{entity.status.label}</Badge>
+            ) : null}
+          </div>
+        )}
         <CardTitle
           className={cn(
             "line-clamp-2 font-semibold tracking-tight",
-            isCompact ? "text-base" : "text-lg"
+            entity.kind === "campaign"
+              ? "text-lg group-data-[size=sm]/card:text-lg"
+              : isCompact
+                ? "text-base"
+                : "text-lg"
           )}
         >
           {entity.title}

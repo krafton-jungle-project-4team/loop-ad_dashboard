@@ -18,8 +18,20 @@ import {
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger
+} from "@loopad/ui/shadcn/dropdown-menu";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Ellipsis, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   createDashboardCampaign,
@@ -59,10 +71,7 @@ import {
 import { EntityCardGrid } from "./EntityCardGrid.js";
 import { HierarchyBreadcrumbs, type CampaignHierarchyLevel } from "./HierarchyBreadcrumbs.js";
 import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
-import type {
-  CampaignWorkspaceBadgeVariant,
-  CampaignWorkspaceEntityCard
-} from "./campaign-workspace-types.js";
+import type { CampaignWorkspaceEntityCard } from "./campaign-workspace-types.js";
 
 type CampaignFormDialogState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
 
@@ -81,28 +90,24 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
   emptyMessage: string;
   label: string;
   status: CampaignScheduleStatus;
-  variant: CampaignWorkspaceBadgeVariant;
 }> = [
-  {
-    description: "종료일이 가까운 순으로 보여요.",
-    emptyMessage: "현재 진행 중인 캠페인이 없어요.",
-    label: "진행 중",
-    status: "in_progress",
-    variant: "default"
-  },
   {
     description: "시작일이 가까운 순으로 보여요.",
     emptyMessage: "시작을 기다리는 캠페인이 없어요.",
     label: "예정",
-    status: "scheduled",
-    variant: "outline"
+    status: "scheduled"
+  },
+  {
+    description: "종료일이 가까운 순으로 보여요.",
+    emptyMessage: "현재 진행 중인 캠페인이 없어요.",
+    label: "진행 중",
+    status: "in_progress"
   },
   {
     description: "최근에 종료된 순으로 보여요.",
     emptyMessage: "완료된 캠페인이 없어요.",
     label: "완료됨",
-    status: "completed",
-    variant: "secondary"
+    status: "completed"
   }
 ];
 
@@ -377,76 +382,69 @@ export function CampaignWorkspacePage({
 
       {!selectedCampaign ? (
         <section className="grid gap-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="grid gap-1">
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                캠페인을 선택해 주세요
-              </h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                createCampaignMutation.reset();
-                setCampaignFormDialog({ mode: "create" });
-              }}
-              size="sm"
-              type="button"
-            >
-              <Plus aria-hidden="true" data-icon="inline-start" />
-              캠페인 만들기
-            </Button>
+          <div className="grid gap-1">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              캠페인을 선택해 주세요
+            </h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
+            </p>
           </div>
-          <div className="grid gap-8">
+          <div className="grid h-[calc(100svh-12.5rem)] min-h-0 grid-cols-[repeat(3,minmax(19rem,1fr))] items-stretch gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
             {CAMPAIGN_SCHEDULE_SECTIONS.map((section) => {
               const cards = campaignsBySchedule[section.status].map((campaign) =>
-                toCampaignCard(campaign, section.status)
+                toCampaignCard(campaign)
               );
 
               return (
                 <section
                   aria-labelledby={`campaign-schedule-${section.status}`}
-                  className="grid gap-3"
+                  className="flex h-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border bg-muted/25 p-3"
                   key={section.status}
                 >
-                  <div className="flex flex-wrap items-end justify-between gap-2 border-b pb-3">
-                    <div className="grid gap-1">
-                      <div className="flex items-center gap-2">
-                        <h3
-                          className="text-base font-semibold tracking-tight text-foreground"
-                          id={`campaign-schedule-${section.status}`}
-                        >
-                          {section.label}
-                        </h3>
-                        <Badge variant="secondary">{cards.length}</Badge>
+                  <div className="grid gap-1 border-b px-1 pb-3">
+                    <div className="flex items-center gap-2">
+                      <h3
+                        className="text-base font-semibold tracking-tight text-foreground"
+                        id={`campaign-schedule-${section.status}`}
+                      >
+                        {section.label}
+                      </h3>
+                      <Badge variant="secondary">{cards.length}</Badge>
+                      <div className="ml-auto flex items-center gap-1">
+                        {section.status !== "completed" ? (
+                          <Button
+                            aria-label={`${section.label} 캠페인 만들기`}
+                            onClick={() => {
+                              createCampaignMutation.reset();
+                              setCampaignFormDialog({ mode: "create" });
+                            }}
+                            size="icon-sm"
+                            title={`${section.label} 캠페인 만들기`}
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Plus aria-hidden="true" data-icon="inline-start" />
+                          </Button>
+                        ) : null}
+                        <CampaignColumnActionsMenu
+                          cards={cards}
+                          label={section.label}
+                          onDelete={(card) => {
+                            deleteCampaignMutation.reset();
+                            setDeletingCampaignId(card.id);
+                          }}
+                          onEdit={(card) => {
+                            updateCampaignMutation.reset();
+                            deleteCampaignMutation.reset();
+                            setCampaignFormDialog({ campaignId: card.id, mode: "edit" });
+                          }}
+                        />
                       </div>
-                      <p className="text-xs leading-5 text-muted-foreground">
-                        {section.description}
-                      </p>
                     </div>
+                    <p className="text-xs leading-5 text-muted-foreground">{section.description}</p>
                   </div>
                   <EntityCardGrid
-                    actions={(card) => [
-                      {
-                        id: "edit",
-                        label: "캠페인 수정",
-                        onSelect: () => {
-                          updateCampaignMutation.reset();
-                          deleteCampaignMutation.reset();
-                          setCampaignFormDialog({ campaignId: card.id, mode: "edit" });
-                        }
-                      },
-                      {
-                        id: "delete",
-                        label: "캠페인 삭제",
-                        onSelect: () => {
-                          deleteCampaignMutation.reset();
-                          setDeletingCampaignId(card.id);
-                        },
-                        tone: "destructive"
-                      }
-                    ]}
                     ariaLabel={`${section.label} 캠페인 목록`}
                     density="compact"
                     emptyState={<EmptyState message={section.emptyMessage} />}
@@ -462,8 +460,8 @@ export function CampaignWorkspacePage({
                         onSelect: () => openCampaignView(card.id, "performance")
                       }
                     ]}
+                    className="!grid-cols-1 min-h-0 flex-1 content-start overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]"
                     items={cards}
-                    layout="horizontal"
                   />
                 </section>
               );
@@ -681,16 +679,63 @@ export function CampaignWorkspacePage({
   );
 }
 
-function toCampaignCard(
-  campaign: DashboardCampaignSummary,
-  scheduleStatus: CampaignScheduleStatus
-): CampaignCard {
-  const schedulePresentation = CAMPAIGN_SCHEDULE_SECTIONS.find(
-    (section) => section.status === scheduleStatus
+function CampaignColumnActionsMenu({
+  cards,
+  label,
+  onDelete,
+  onEdit
+}: {
+  cards: ReadonlyArray<CampaignCard>;
+  label: string;
+  onDelete: (card: CampaignCard) => void;
+  onEdit: (card: CampaignCard) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          aria-label={`${label} 캠페인 작업`}
+          size="icon-sm"
+          title={`${label} 캠페인 작업`}
+          type="button"
+          variant="ghost"
+        >
+          <Ellipsis aria-hidden="true" data-icon="inline-start" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel>{label} 캠페인</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          {cards.length > 0 ? (
+            cards.map((card) => (
+              <DropdownMenuSub key={card.id}>
+                <DropdownMenuSubTrigger>
+                  <span className="truncate">{card.title}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-32">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onSelect={() => onEdit(card)}>수정</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onDelete(card)} variant="destructive">
+                      삭제
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ))
+          ) : (
+            <DropdownMenuItem disabled>관리할 캠페인이 없어요</DropdownMenuItem>
+          )}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
+}
 
+function toCampaignCard(campaign: DashboardCampaignSummary): CampaignCard {
   return {
     campaign,
+    dateRangeLabel: formatCampaignDateRange(campaign),
     description: campaign.objective ?? "아직 목표가 없어요",
     id: campaign.campaign_id,
     kind: "campaign",
@@ -711,12 +756,25 @@ function toCampaignCard(
             : formatPercent(campaign.latest_goal_achievement_rate)
       }
     ],
-    status: {
-      label: schedulePresentation?.label ?? "진행 중",
-      variant: schedulePresentation?.variant ?? "default"
-    },
     title: campaign.campaign_name
   };
+}
+
+function formatCampaignDateRange(campaign: DashboardCampaignSummary): string {
+  return `${formatCampaignDate(campaign.start_date)} ~ ${formatCampaignDate(campaign.end_date)}`;
+}
+
+function formatCampaignDate(value: string | null): string {
+  if (!value) {
+    return "미정";
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return value;
+  }
+
+  return `${Number(match[2])}.${Number(match[3])}`;
 }
 
 function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
