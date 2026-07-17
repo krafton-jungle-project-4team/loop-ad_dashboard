@@ -147,6 +147,17 @@ export function toCampaignSegment(
 ): DashboardCampaignSegment {
   return {
     analysis_id: row.analysisId,
+    audience_snapshot_id: row.audienceSnapshotId,
+    allocation_plan_id: row.allocationPlanId,
+    audience_reservation_state: row.audienceReservationState,
+    audience_snapshot_kind: row.audienceSnapshotKind,
+    final_user_count: row.finalUserCount === null ? null : countValue(row.finalUserCount),
+    audience_min_sample_size:
+      row.audienceMinSampleSize === null ? null : countValue(row.audienceMinSampleSize),
+    audience_meets_min_sample_size: row.audienceMeetsMinSampleSize,
+    audience_status: row.audienceStatus,
+    audience_snapshot_status: row.audienceSnapshotStatus,
+    source_audience_snapshot_id: row.sourceAudienceSnapshotId,
     promotion_id: row.promotionId,
     segment_id: row.segmentId,
     segment_name: row.segmentName,
@@ -176,6 +187,7 @@ export function toPromotionSegmentSuggestion(
 ): DashboardPromotionSegmentSuggestion {
   return {
     analysis_id: requiredText(row.analysisId, "analysisId"),
+    audience_snapshot_id: row.audienceSnapshotId,
     campaign_id: requiredText(row.campaignId, "campaignId"),
     created_at: requiredDate(row.createdAt, "createdAt").toISOString(),
     decided_at: row.decidedAt ? row.decidedAt.toISOString() : null,

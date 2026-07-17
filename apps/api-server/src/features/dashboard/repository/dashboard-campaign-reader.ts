@@ -1,3 +1,4 @@
+import { DashboardAudienceAllocationPreviewContextSchema } from "@loopad/shared";
 import type {
   DashboardArchivePromotionScopedSegmentDefinitionResult,
   DashboardApproveContentCandidateResult,
@@ -70,7 +71,8 @@ import {
   archiveDashboardProject,
   approveDashboardContentCandidate,
   archiveDashboardPromotionScopedSegmentDefinition,
-  confirmDashboardPromotionSegmentSuggestions,
+  confirmDashboardLegacyPromotionSegments,
+  confirmDashboardV2PromotionSegmentSuggestions,
   decideDashboardPromotionSegmentSuggestion,
   deleteDashboardCampaign,
   getDashboardCampaignSummary,
@@ -394,7 +396,14 @@ export class DashboardCampaignReader {
       })
       .multiple();
 
-    return { suggestions: rows.map(toPromotionSegmentSuggestion) };
+    const preview = DashboardAudienceAllocationPreviewContextSchema.safeParse(
+      rows[0]?.audienceAllocationPreviewContext
+    );
+
+    return {
+      suggestions: rows.map(toPromotionSegmentSuggestion),
+      audience_allocation_preview_context: preview.success ? preview.data : null
+    };
   }
 
   async listPromotionScopedSegmentDefinitions(
@@ -493,7 +502,7 @@ export class DashboardCampaignReader {
     return toPromotionSegmentSuggestion(row);
   }
 
-  async confirmPromotionSegmentSuggestions(
+  async confirmLegacyPromotionSegments(
     projectId: string,
     promotionId: string,
     request: DashboardConfirmSegmentSuggestionsRequest
@@ -511,7 +520,7 @@ export class DashboardCampaignReader {
       .single();
 
     const row = await this.db
-      .query(confirmDashboardPromotionSegmentSuggestions, {
+      .query(confirmDashboardLegacyPromotionSegments, {
         analysisId: request.analysis_id,
         confirmedBy: request.confirmed_by ?? null,
         manualAnalysisId,
@@ -523,10 +532,49 @@ export class DashboardCampaignReader {
       .single();
 
     return {
+      analysis_id: manualAnalysisId,
       confirmed_segment_count: countValue(row.confirmedSegmentCount),
       promotion_id: row.promotionId ?? promotionId,
-      status: "confirmed"
+      status: "confirmed",
+      target_segments: []
     };
+  }
+
+  async confirmV2PromotionSegmentSuggestions(request: {
+    confirmationAnalysisId: string;
+    confirmedBy: string | null;
+    projectId: string;
+    promotionId: string;
+    sourceAnalysisId: string;
+    suggestionIds: string[];
+  }): Promise<number> {
+    const row = await this.db
+      .query(confirmDashboardV2PromotionSegmentSuggestions, {
+        confirmationAnalysisId: request.confirmationAnalysisId,
+        confirmedBy: request.confirmedBy,
+        projectId: request.projectId,
+        promotionId: request.promotionId,
+        sourceAnalysisId: request.sourceAnalysisId,
+        suggestionIds: request.suggestionIds
+      })
+      .single();
+
+    const confirmedCount = countValue(row.confirmedSegmentCount);
+    const updatedSuggestionCount = countValue(row.updatedSuggestionCount);
+    if (
+      confirmedCount !== request.suggestionIds.length ||
+      updatedSuggestionCount !== confirmedCount
+    ) {
+      throw dashboardErrors.decisionRequestFailed({
+        detail: {
+          code: "segment_audience_confirmation_write_mismatch",
+          reason: "확정된 고객군 정보를 저장하지 못했어요. 다시 시도해 주세요."
+        },
+        status: 409
+      });
+    }
+
+    return confirmedCount;
   }
 
   async startNextLoopAnalysis(

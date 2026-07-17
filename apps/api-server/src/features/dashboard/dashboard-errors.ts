@@ -52,7 +52,7 @@ export const dashboardErrors = {
     createDomainError(
       {
         statusCode: decisionRequestFailedStatusCode(cause),
-        code: DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.code,
+        code: decisionRequestFailedCode(cause),
         message: decisionRequestFailedMessage(cause)
       },
       { cause }
@@ -70,16 +70,38 @@ export const dashboardErrors = {
 } as const;
 
 function decisionRequestFailedMessage(cause: unknown) {
-  const detail =
-    cause && typeof cause === "object" && "detail" in cause
-      ? (cause as { detail?: unknown }).detail
-      : undefined;
+  const detail = decisionRequestFailedDetail(cause);
 
   if (typeof detail === "string" && detail.length > 0) {
     return `${DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.message} ${detail}`;
   }
 
+  if (detail && typeof detail === "object") {
+    const reason = "reason" in detail ? detail.reason : undefined;
+    const segmentId = "segment_id" in detail ? detail.segment_id : undefined;
+    if (typeof reason === "string" && reason.length > 0) {
+      return typeof segmentId === "string" && segmentId.length > 0
+        ? `${reason} (${segmentId})`
+        : reason;
+    }
+  }
+
   return DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.message;
+}
+
+function decisionRequestFailedCode(cause: unknown) {
+  const detail = decisionRequestFailedDetail(cause);
+  const code = detail && typeof detail === "object" && "code" in detail ? detail.code : undefined;
+
+  return typeof code === "string" && code.length > 0
+    ? code
+    : DASHBOARD_ERRORS.DECISION_REQUEST_FAILED.code;
+}
+
+function decisionRequestFailedDetail(cause: unknown) {
+  return cause && typeof cause === "object" && "detail" in cause
+    ? (cause as { detail?: unknown }).detail
+    : undefined;
 }
 
 function decisionRequestFailedStatusCode(cause: unknown) {

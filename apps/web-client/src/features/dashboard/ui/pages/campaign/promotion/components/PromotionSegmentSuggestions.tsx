@@ -1,4 +1,6 @@
 import type {
+  DashboardAudienceAllocationPreview,
+  DashboardAudienceAllocationPreviewContext,
   DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
@@ -73,6 +75,7 @@ type SegmentCandidateDeleteTarget =
   | { id: string; kind: "suggestion"; name: string };
 
 export function PromotionSegmentSuggestionPanel({
+  audienceAllocationPreviewContext,
   archiveScopedSegmentIsPending,
   confirmIsPending,
   createScopedSegmentIsPending,
@@ -88,12 +91,13 @@ export function PromotionSegmentSuggestionPanel({
   suggestions,
   suggestionsIsLoading
 }: {
+  audienceAllocationPreviewContext: DashboardAudienceAllocationPreviewContext | null;
   archiveScopedSegmentIsPending: boolean;
   confirmIsPending: boolean;
   createScopedSegmentIsPending: boolean;
   decideIsPending: boolean;
   onArchiveScopedSegment: (segmentId: string) => void;
-  onConfirmSuggestions: () => void;
+  onConfirmSuggestions: (segmentIds: string[]) => void;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (
     suggestionId: string,
@@ -108,6 +112,7 @@ export function PromotionSegmentSuggestionPanel({
 }) {
   const [deleteTarget, setDeleteTarget] = useState<SegmentCandidateDeleteTarget | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedScopedSegmentIds, setSelectedScopedSegmentIds] = useState<string[]>([]);
   const [reportSuggestion, setReportSuggestion] =
     useState<DashboardPromotionSegmentSuggestion | null>(null);
   const visibleSuggestions = suggestions.filter(
@@ -117,8 +122,18 @@ export function PromotionSegmentSuggestionPanel({
   const acceptedCount = visibleSuggestions.filter(
     (suggestion) => suggestion.suggestion_status === "accepted"
   ).length;
-  const confirmableCount = acceptedCount + scopedSegments.length;
+  const confirmableCount = acceptedCount + selectedScopedSegmentIds.length;
   const candidateCount = visibleSuggestions.length + scopedSegments.length;
+  const allocationPreview = selectedAudienceAllocationPreview(
+    audienceAllocationPreviewContext,
+    visibleSuggestions
+  );
+  const allocatedUserCountBySegmentId = new Map(
+    allocationPreview?.per_segment.map((segment) => [
+      segment.segment_id,
+      segment.allocated_user_count
+    ]) ?? []
+  );
   const candidateMenuItems: SegmentColumnDeleteMenuItem<SegmentCandidateDeleteTarget>[] = [
     ...scopedSegments.map((segment) => ({
       id: `scoped:${segment.segment_id}`,
@@ -193,9 +208,42 @@ export function PromotionSegmentSuggestionPanel({
                   className="grid gap-3 rounded-lg border bg-muted/30 p-4"
                   key={segment.segment_id}
                 >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="grid gap-1">
+                      <div className="text-xs font-semibold text-primary">{segment.source}</div>
+                      <h3 className="text-base font-semibold">{segment.segment_name}</h3>
+                    </div>
+                    <Field
+                      className={buttonVariants({
+                        className: "w-auto gap-2",
+                        size: "sm",
+                        variant: "outline"
+                      })}
+                      data-disabled={acceptedCount > 0}
+                      orientation="horizontal"
+                    >
+                      <Checkbox
+                        aria-label={`${segment.segment_name} 선택`}
+                        checked={selectedScopedSegmentIds.includes(segment.segment_id)}
+                        disabled={acceptedCount > 0}
+                        id={`scoped-segment-acceptance-${segment.segment_id}`}
+                        onCheckedChange={(checked) =>
+                          setSelectedScopedSegmentIds((current) =>
+                            checked === true
+                              ? [...new Set([...current, segment.segment_id])]
+                              : current.filter((segmentId) => segmentId !== segment.segment_id)
+                          )
+                        }
+                      />
+                      <FieldLabel
+                        className="cursor-pointer font-medium"
+                        htmlFor={`scoped-segment-acceptance-${segment.segment_id}`}
+                      >
+                        선택
+                      </FieldLabel>
+                    </Field>
+                  </div>
                   <div className="grid gap-1">
-                    <div className="text-xs font-semibold text-primary">{segment.source}</div>
-                    <h3 className="text-base font-semibold">{segment.segment_name}</h3>
                     <Badge className="w-fit" variant={statusBadgeVariant(segment.status)}>
                       {formatStatusLabel(segment.status)}
                     </Badge>
@@ -228,11 +276,17 @@ export function PromotionSegmentSuggestionPanel({
           <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visibleSuggestions.map((suggestion) => (
               <SegmentSuggestionCard
+                allocatedUserCount={
+                  suggestion.suggestion_status === "accepted"
+                    ? (allocatedUserCountBySegmentId.get(suggestion.segment_id) ?? null)
+                    : null
+                }
                 decideIsPending={decideIsPending}
                 key={suggestion.suggestion_id}
                 onDecideSuggestion={onDecideSuggestion}
                 onOpenReport={setReportSuggestion}
                 suggestion={suggestion}
+                selectionDisabled={selectedScopedSegmentIds.length > 0}
               />
             ))}
           </div>
@@ -293,7 +347,7 @@ export function PromotionSegmentSuggestionPanel({
             scopedSegmentsIsLoading ||
             promotionAnalysisIsPending
           }
-          onClick={onConfirmSuggestions}
+          onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
           type="button"
         >
           {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
@@ -341,11 +395,14 @@ export function PromotionSegmentSuggestionPanel({
 }
 
 function SegmentSuggestionCard({
+  allocatedUserCount,
   decideIsPending,
   onDecideSuggestion,
   onOpenReport,
-  suggestion
+  suggestion,
+  selectionDisabled
 }: {
+  allocatedUserCount: number | null;
   decideIsPending: boolean;
   onDecideSuggestion: (
     suggestionId: string,
@@ -353,6 +410,7 @@ function SegmentSuggestionCard({
   ) => void;
   onOpenReport: (suggestion: DashboardPromotionSegmentSuggestion) => void;
   suggestion: DashboardPromotionSegmentSuggestion;
+  selectionDisabled: boolean;
 }) {
   const isAccepted = suggestion.suggestion_status === "accepted";
   const displayCopy = suggestion.display_copy;
@@ -400,13 +458,13 @@ function SegmentSuggestionCard({
                 size: "sm",
                 variant: "outline"
               })}
-              data-disabled={decideIsPending}
+              data-disabled={decideIsPending || selectionDisabled}
               orientation="horizontal"
             >
               <Checkbox
                 aria-label={`${displayCopy?.title ?? suggestion.segment_name} 선택`}
                 checked={isAccepted}
-                disabled={decideIsPending}
+                disabled={decideIsPending || selectionDisabled}
                 id={acceptanceId}
                 onCheckedChange={(checked) =>
                   onDecideSuggestion(
@@ -438,6 +496,16 @@ function SegmentSuggestionCard({
           audience={displayCopy?.audience}
           fallbackSummary={displayCopy?.audience_summary ?? fallbackSummary}
         />
+        {isAccepted && allocatedUserCount !== null ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-primary/20 bg-accent/50 px-3 py-2">
+            <span className="text-xs font-medium text-primary">
+              현재 선택 기준 최종 배정 사용자
+            </span>
+            <strong className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+              {formatInteger(allocatedUserCount)}명
+            </strong>
+          </div>
+        ) : null}
         {displayCopy?.signal_chips.length ? (
           <div className="flex flex-wrap gap-1.5">
             {displayCopy.signal_chips.map((chip) => (
@@ -514,8 +582,48 @@ function SegmentAudienceStats({
     <div className="grid grid-cols-3 divide-x rounded-md bg-muted/60 py-2 text-center">
       <AudienceStat label="분석 가능 사용자" value={audience.total_eligible_user_count} />
       <AudienceStat label="행동 조건 부합" value={audience.matching_user_count} />
-      <AudienceStat label="대표 표본" value={audience.selected_user_count} />
+      <AudienceStat label="단독 대상 사용자" value={audience.selected_user_count} />
     </div>
+  );
+}
+
+export function selectedAudienceAllocationPreview(
+  context: DashboardAudienceAllocationPreviewContext | null,
+  suggestions: DashboardPromotionSegmentSuggestion[]
+): DashboardAudienceAllocationPreview | null {
+  if (!context) {
+    return null;
+  }
+
+  const selectedSegmentIds = suggestions
+    .filter((suggestion) => suggestion.suggestion_status === "accepted")
+    .map((suggestion) => suggestion.segment_id)
+    .filter((segmentId, index, segmentIds) => segmentIds.indexOf(segmentId) === index)
+    .sort((left, right) => left.localeCompare(right));
+  if (selectedSegmentIds.length === 0) {
+    return null;
+  }
+
+  const belongsToCurrentBatch = suggestions.every(
+    (suggestion) => suggestion.analysis_id === context.candidate_batch_analysis_id
+  );
+  if (!belongsToCurrentBatch) {
+    return null;
+  }
+
+  return (
+    context.allocation_previews.find((preview) => {
+      const previewSegmentIds = [...preview.selected_segment_ids].sort((left, right) =>
+        left.localeCompare(right)
+      );
+      return (
+        preview.candidate_batch_analysis_id === context.candidate_batch_analysis_id &&
+        preview.preview_version === context.preview_version &&
+        preview.exclusion_revision === context.exclusion_revision &&
+        previewSegmentIds.length === selectedSegmentIds.length &&
+        previewSegmentIds.every((segmentId, index) => segmentId === selectedSegmentIds[index])
+      );
+    }) ?? null
   );
 }
 

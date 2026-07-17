@@ -26,7 +26,8 @@ test("decision client preserves segment recommendation request contract", async 
   assert.deepEqual(result, {
     analysis_id: "analysis-1",
     promotion_id: "promotion/1",
-    status: "completed"
+    status: "completed",
+    target_segments: []
   });
   assertDecisionRequest(requests[0], {
     path: "/decision/v1/promotions/promotion%2F1/segment-suggestions/recommend",
@@ -361,6 +362,32 @@ test("decision client preserves provider error status and detail", async () => {
       error.statusCode === 409 &&
       error.code === "DASHBOARD_DECISION_REQUEST_FAILED" &&
       error.message === "Decision API request failed. promotion is locked"
+  );
+});
+
+test("decision client preserves structured Segment Audience errors", async () => {
+  setRequiredEnv();
+  const { DashboardDecisionClient } =
+    await import("../src/features/dashboard/provider/dashboard-decision-client.js");
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        detail: {
+          code: "segment_audience_allocation_empty",
+          reason: "selected audience is empty",
+          segment_id: "segment-a"
+        }
+      }),
+      { status: 409, headers: { "Content-Type": "application/json" } }
+    );
+
+  await assert.rejects(
+    () => new DashboardDecisionClient().evaluatePromotionRun({ promotionRunId: "run-1" }),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 409 &&
+      error.code === "segment_audience_allocation_empty" &&
+      error.message === "selected audience is empty (segment-a)"
   );
 });
 

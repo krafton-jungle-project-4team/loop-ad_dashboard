@@ -508,11 +508,127 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
     log.info("started", { projectId, promotionId, request });
-    const response = await this.campaignReader.confirmPromotionSegmentSuggestions(
+    if (request.suggestion_ids.length === 0) {
+      const response = await this.campaignReader.confirmLegacyPromotionSegments(
+        projectId,
+        promotionId,
+        request
+      );
+
+      log.info("completed", { response, durationMs: durationMs(startedAt) });
+      return response;
+    }
+
+    const sourceAnalysisId = request.analysis_id;
+    if (!sourceAnalysisId || request.segment_ids.length > 0) {
+      throw dashboardErrors.decisionRequestFailed({
+        detail: {
+          code: "segment_audience_source_batch_mismatch",
+          reason: "같은 추천 회차의 AI 고객군 후보만 함께 확정할 수 있어요."
+        },
+        status: 409
+      });
+    }
+
+    const sourceBatch = await this.campaignReader.listPromotionSegmentSuggestions(
       projectId,
       promotionId,
-      request
+      sourceAnalysisId
     );
+    const selectedSuggestionIds = new Set(request.suggestion_ids);
+    const selectedSuggestions = sourceBatch.suggestions.filter((suggestion) =>
+      selectedSuggestionIds.has(suggestion.suggestion_id)
+    );
+    const validSelection =
+      selectedSuggestions.length === request.suggestion_ids.length &&
+      selectedSuggestions.every(
+        (suggestion) =>
+          suggestion.analysis_id === sourceAnalysisId && suggestion.suggestion_status === "accepted"
+      );
+    if (!validSelection) {
+      throw dashboardErrors.decisionRequestFailed({
+        detail: {
+          code: "segment_audience_source_batch_mismatch",
+          reason: "선택한 후보가 최신 추천 결과와 일치하지 않아요. 후보를 새로 불러와 주세요."
+        },
+        status: 409
+      });
+    }
+
+    const v2SuggestionCount = selectedSuggestions.filter(
+      (suggestion) => suggestion.audience_snapshot_id !== null
+    ).length;
+    if (v2SuggestionCount === 0) {
+      const response = await this.campaignReader.confirmLegacyPromotionSegments(
+        projectId,
+        promotionId,
+        request
+      );
+
+      log.info("completed", { response, durationMs: durationMs(startedAt) });
+      return response;
+    }
+    if (v2SuggestionCount !== selectedSuggestions.length) {
+      throw dashboardErrors.decisionRequestFailed({
+        detail: {
+          code: "segment_audience_contract_mixed",
+          reason: "기존 방식과 새 방식의 고객군 후보를 함께 확정할 수 없어요."
+        },
+        status: 409
+      });
+    }
+
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    const segmentIds = selectedSuggestions
+      .map((suggestion) => suggestion.segment_id)
+      .sort((left, right) => left.localeCompare(right));
+    const analysis = await this.decisionClient.analyzePromotionSegments({
+      campaignId: promotion.campaign_id,
+      projectId,
+      promotionId,
+      request: { operator_instruction: null, segment_ids: segmentIds }
+    });
+    const returnedSegmentIds = analysis.target_segments
+      .map((segment) => segment.segment_id)
+      .sort((left, right) => left.localeCompare(right));
+    const hasCompleteV2Targets =
+      returnedSegmentIds.length === segmentIds.length &&
+      returnedSegmentIds.every((segmentId, index) => segmentId === segmentIds[index]) &&
+      analysis.target_segments.every(
+        (target) => target.audience_snapshot_id != null && target.final_audience_count != null
+      );
+    if (!hasCompleteV2Targets) {
+      throw dashboardErrors.decisionRequestFailed({
+        detail: {
+          code: "segment_audience_confirmation_incomplete",
+          reason: "Decision에서 최종 고객군 배정 정보를 완성하지 못했어요."
+        },
+        status: 502
+      });
+    }
+
+    const confirmedSegmentCount = await this.campaignReader.confirmV2PromotionSegmentSuggestions({
+      confirmationAnalysisId: analysis.analysis_id,
+      confirmedBy: request.confirmed_by ?? null,
+      projectId,
+      promotionId,
+      sourceAnalysisId,
+      suggestionIds: request.suggestion_ids
+    });
+    const response: DashboardConfirmSegmentSuggestionsResult = {
+      analysis_id: analysis.analysis_id,
+      confirmed_segment_count: confirmedSegmentCount,
+      promotion_id: analysis.promotion_id,
+      status: "confirmed",
+      target_segments: analysis.target_segments.map((target) => ({
+        audience_snapshot_id: target.audience_snapshot_id ?? null,
+        audience_status: target.audience_status ?? null,
+        final_audience_count: target.final_audience_count ?? null,
+        meets_min_sample_size: target.meets_min_sample_size ?? null,
+        segment_id: target.segment_id,
+        targetable: target.targetable ?? null
+      }))
+    };
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
