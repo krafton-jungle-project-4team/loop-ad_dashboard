@@ -350,8 +350,12 @@ function SegmentSuggestionCard({
   const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
   const strategyRole = displayCopy?.strategy_role ?? displayCopy?.rank_role;
   const performanceEstimate = displayCopy?.performance_estimate;
-  const strengthSummary = displayCopy?.strength_summary;
-  const tradeoffSummary = displayCopy?.tradeoff_summary ?? displayCopy?.recommendation_tier_reason;
+  const strengthSummary =
+    displayCopy?.strength_summary ?? suggestion.ai_report?.candidate_strengths?.join(" ");
+  const tradeoffSummary =
+    displayCopy?.tradeoff_summary ??
+    displayCopy?.recommendation_tier_reason ??
+    suggestion.ai_report?.selection_considerations?.join(" ");
   const fallbackSummary = segmentAudienceSummary(suggestion.sample_size, suggestion.sample_ratio);
 
   return (
