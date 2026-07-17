@@ -738,7 +738,12 @@ test("dashboard confirms accepted suggestions in DB without calling analysis", a
   const result = await service.confirmPromotionSegmentSuggestions(
     "hotel-client-a",
     "promo_banner_001",
-    { confirmed_by: "operator-1" }
+    {
+      analysis_id: "analysis-current",
+      confirmed_by: "operator-1",
+      segment_ids: ["segment-manual"],
+      suggestion_ids: ["suggestion-current"]
+    }
   );
 
   assert.equal(transactionHost.calls.length, 1);
@@ -746,7 +751,12 @@ test("dashboard confirms accepted suggestions in DB without calling analysis", a
     {
       projectId: "hotel-client-a",
       promotionId: "promo_banner_001",
-      request: { confirmed_by: "operator-1" }
+      request: {
+        analysis_id: "analysis-current",
+        confirmed_by: "operator-1",
+        segment_ids: ["segment-manual"],
+        suggestion_ids: ["suggestion-current"]
+      }
     }
   ]);
   assert.equal(result.confirmed_segment_count, 2);

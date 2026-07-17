@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DashboardConfirmSegmentSuggestionsRequestSchema,
   DashboardDecideSegmentSuggestionRequestSchema,
   DashboardUnapproveContentCandidateResultSchema,
   DashboardUpdateContentCandidateCopyRequestSchema
@@ -13,6 +14,52 @@ test("segment suggestion selection can be checked and unchecked", () => {
   assert.deepEqual(DashboardDecideSegmentSuggestionRequestSchema.parse({ status: "suggested" }), {
     status: "suggested"
   });
+});
+
+test("segment confirmation requires an exact current selection", () => {
+  assert.deepEqual(
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: "analysis-current",
+      suggestion_ids: ["suggestion-current"],
+      segment_ids: ["segment-manual"]
+    }),
+    {
+      analysis_id: "analysis-current",
+      suggestion_ids: ["suggestion-current"],
+      segment_ids: ["segment-manual"]
+    }
+  );
+  assert.deepEqual(
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: null,
+      suggestion_ids: [],
+      segment_ids: ["segment-manual"]
+    }),
+    {
+      analysis_id: null,
+      suggestion_ids: [],
+      segment_ids: ["segment-manual"]
+    }
+  );
+
+  assert.throws(
+    () =>
+      DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+        analysis_id: null,
+        suggestion_ids: ["suggestion-current"],
+        segment_ids: []
+      }),
+    /analysis_id/
+  );
+  assert.throws(
+    () =>
+      DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+        analysis_id: "analysis-current",
+        suggestion_ids: [],
+        segment_ids: []
+      }),
+    /at least one/
+  );
 });
 
 test("content candidate copy update trims and validates editable text", () => {

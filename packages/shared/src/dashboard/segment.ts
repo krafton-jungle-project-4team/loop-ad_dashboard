@@ -385,9 +385,34 @@ export type DashboardDecideSegmentSuggestionRequest = z.infer<
   typeof DashboardDecideSegmentSuggestionRequestSchema
 >;
 
-export const DashboardConfirmSegmentSuggestionsRequestSchema = z.object({
-  confirmed_by: z.string().min(1).nullable().optional()
-});
+const DashboardConfirmSegmentSelectionIdsSchema = z
+  .array(z.string().trim().min(1))
+  .refine((ids) => new Set(ids).size === ids.length, "selection ids must not contain duplicates");
+
+export const DashboardConfirmSegmentSuggestionsRequestSchema = z
+  .object({
+    analysis_id: z.string().trim().min(1).nullable(),
+    suggestion_ids: DashboardConfirmSegmentSelectionIdsSchema,
+    segment_ids: DashboardConfirmSegmentSelectionIdsSchema,
+    confirmed_by: z.string().min(1).nullable().optional()
+  })
+  .superRefine((request, context) => {
+    if (request.suggestion_ids.length > 0 && request.analysis_id === null) {
+      context.addIssue({
+        code: "custom",
+        message: "analysis_id is required when suggestion_ids are provided",
+        path: ["analysis_id"]
+      });
+    }
+
+    if (request.suggestion_ids.length === 0 && request.segment_ids.length === 0) {
+      context.addIssue({
+        code: "custom",
+        message: "at least one suggestion_id or segment_id is required",
+        path: ["suggestion_ids"]
+      });
+    }
+  });
 export type DashboardConfirmSegmentSuggestionsRequest = z.infer<
   typeof DashboardConfirmSegmentSuggestionsRequestSchema
 >;

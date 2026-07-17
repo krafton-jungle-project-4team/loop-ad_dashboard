@@ -283,7 +283,16 @@ export function PromotionSegmentSuggestionPanel({
             : "확정할 후보를 선택해 주세요"}
         </span>
         <Button
-          disabled={confirmableCount === 0 || confirmIsPending}
+          disabled={
+            confirmableCount === 0 ||
+            confirmIsPending ||
+            decideIsPending ||
+            archiveScopedSegmentIsPending ||
+            createScopedSegmentIsPending ||
+            suggestionsIsLoading ||
+            scopedSegmentsIsLoading ||
+            promotionAnalysisIsPending
+          }
           onClick={onConfirmSuggestions}
           type="button"
         >
