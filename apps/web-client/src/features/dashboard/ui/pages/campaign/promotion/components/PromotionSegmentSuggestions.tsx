@@ -350,17 +350,8 @@ function SegmentSuggestionCard({
   const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
   const strategyRole = displayCopy?.strategy_role ?? displayCopy?.rank_role;
   const performanceEstimate = displayCopy?.performance_estimate;
-  const strengthSummary =
-    displayCopy?.strength_summary ?? suggestion.ai_report?.candidate_strengths?.join(" ");
-  const tradeoffSummary =
-    displayCopy?.tradeoff_summary ??
-    displayCopy?.recommendation_tier_reason ??
-    suggestion.ai_report?.selection_considerations?.join(" ");
-  const differenceSummary =
-    displayCopy?.rank_comparison?.summary ??
-    displayCopy?.difference_summary ??
-    suggestion.ai_report?.difference_from_other_ranks?.join(" ");
-  const actionHint = displayCopy?.action_hint ?? suggestion.ai_report?.action_hint;
+  const strengthSummary = displayCopy?.strength_summary;
+  const tradeoffSummary = displayCopy?.tradeoff_summary ?? displayCopy?.recommendation_tier_reason;
   const fallbackSummary = segmentAudienceSummary(suggestion.sample_size, suggestion.sample_ratio);
 
   return (
@@ -459,18 +450,6 @@ function SegmentSuggestionCard({
           strengthSummary={strengthSummary}
           tradeoffSummary={tradeoffSummary}
         />
-        {differenceSummary ? (
-          <div className="grid gap-1 rounded-md border bg-muted/40 p-3 text-xs leading-5 text-foreground">
-            <span className="font-medium">다른 후보와의 차이</span>
-            <p className="[overflow-wrap:anywhere] [word-break:keep-all]">{differenceSummary}</p>
-          </div>
-        ) : null}
-        {actionHint ? (
-          <div className="grid gap-1 rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
-            <span className="font-medium text-foreground">활용 제안</span>
-            <p className="[overflow-wrap:anywhere] [word-break:keep-all]">{actionHint}</p>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );
