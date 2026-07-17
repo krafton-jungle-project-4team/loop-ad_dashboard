@@ -36,7 +36,9 @@ import {
   CircleCheck,
   CirclePlay,
   Ellipsis,
+  FlaskConical,
   Plus,
+  RefreshCw,
   type LucideIcon
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -123,30 +125,35 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
 const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
   description: string;
   emptyMessage: string;
+  icon: LucideIcon;
   label: string;
   status: PromotionBoardStatus;
 }> = [
   {
     description: "첫 실험 실행을 기다리고 있어요.",
     emptyMessage: "준비 중인 프로모션이 없어요.",
+    icon: FlaskConical,
     label: "준비 중",
     status: "preparing"
   },
   {
     description: "현재 실험을 실행하거나 평가하고 있어요.",
     emptyMessage: "진행 중인 프로모션이 없어요.",
+    icon: CirclePlay,
     label: "진행 중",
     status: "in_progress"
   },
   {
     description: "평가 결과에 따라 다음 실험이 필요해요.",
     emptyMessage: "다음 실험이 필요한 프로모션이 없어요.",
+    icon: RefreshCw,
     label: "다음 실험 필요",
     status: "next_experiment"
   },
   {
     description: "목표를 달성했거나 최대 실험 횟수를 마쳤어요.",
     emptyMessage: "완료된 프로모션이 없어요.",
+    icon: CircleCheck,
     label: "완료됨",
     status: "completed"
   }
@@ -572,6 +579,7 @@ export function CampaignWorkspacePage({
           <div className="grid min-w-0 gap-4">
             {PROMOTION_BOARD_SECTIONS.map((section) => {
               const cards = promotionsByBoardStatus[section.status].map(toPromotionCard);
+              const StatusIcon = section.icon;
 
               return (
                 <section
@@ -581,6 +589,9 @@ export function CampaignWorkspacePage({
                 >
                   <div className="grid gap-1 border-b px-1 pb-3">
                     <div className="flex items-center gap-2">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">
+                        <StatusIcon aria-hidden="true" className="size-4" />
+                      </span>
                       <h3
                         className="text-base font-semibold tracking-tight text-foreground"
                         id={`promotion-board-${section.status}`}
