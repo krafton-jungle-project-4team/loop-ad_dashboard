@@ -666,6 +666,77 @@ test("dashboard promotion generation retries when existing result is failed", as
   ]);
 });
 
+test("dashboard promotion generation retries when completed result has no candidates", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const decisionRequests: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () => ({ campaign_id: "camp_summer_2026" }),
+      getPromotionGenerationResult: async (_projectId, promotionId) => ({
+        content_candidate_count: 0,
+        generation_id: "generation_completed_without_candidates",
+        promotion_id: promotionId,
+        status: "completed"
+      })
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      startPromotionGeneration: async (request) => {
+        decisionRequests.push(request);
+        return {
+          content_candidate_count: 3,
+          generation_id: "generation_retry",
+          promotion_id: request.promotionId,
+          status: "queued"
+        };
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  const response = await service.startPromotionGeneration("hotel-client-a", "promo_banner_001", {
+    analysis_id: "analysis_promo_banner_001",
+    content_option_count: 3,
+    operator_instruction: null
+  });
+
+  assert.equal(response.generation_id, "generation_retry");
+  assert.equal(decisionRequests.length, 1);
+});
+
+test("dashboard promotion generation reuses a completed result with candidates", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const existingGeneration = {
+    content_candidate_count: 3,
+    generation_id: "generation_completed",
+    promotion_id: "promo_banner_001",
+    status: "completed"
+  };
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () => ({ campaign_id: "camp_summer_2026" }),
+      getPromotionGenerationResult: async () => existingGeneration
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const response = await service.startPromotionGeneration("hotel-client-a", "promo_banner_001", {
+    analysis_id: "analysis_promo_banner_001",
+    content_option_count: 3,
+    operator_instruction: null
+  });
+
+  assert.deepEqual(response, existingGeneration);
+});
+
 test("dashboard promotion run evaluation prepares legacy data before Decision", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
