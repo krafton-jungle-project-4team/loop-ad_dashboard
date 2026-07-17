@@ -87,7 +87,19 @@ test("fallback 실험 시작이 실패하면 dispatch하지 않는다", async ()
   assert.equal(calls.includes("dispatch:run-1"), false);
 });
 
-test("fallback 실험이 없으면 배정 전에 계약 오류로 실패한다", async () => {
+test("fallback 실험과 배정이 없으면 선택한 세그먼트 실험을 시작한다", async () => {
+  const { calls, operations } = createOperations({
+    experiments: [selectedExperiment()],
+    assignmentResult: assignmentResult(false)
+  });
+
+  const result = await launchPromotionExperiment({ segmentIds: ["segment-1"] }, operations);
+
+  assert.deepEqual(calls, ["create", "build:run-1", "start:experiment-selected", "dispatch:run-1"]);
+  assert.deepEqual(result.startedExperimentIds, ["experiment-selected"]);
+});
+
+test("fallback 배정이 있는데 fallback 실험이 없으면 시작과 dispatch를 중단한다", async () => {
   const { calls, operations } = createOperations({
     experiments: [selectedExperiment()],
     assignmentResult: assignmentResult(true)
@@ -95,9 +107,9 @@ test("fallback 실험이 없으면 배정 전에 계약 오류로 실패한다",
 
   await assert.rejects(
     () => launchPromotionExperiment({ segmentIds: ["segment-1"] }, operations),
-    /기본 광고 실험 정보가 올바르지 않아요/
+    /fallback 배정에 필요한 기본 광고 실험이 없어요/
   );
-  assert.deepEqual(calls, ["create"]);
+  assert.deepEqual(calls, ["create", "build:run-1"]);
 });
 
 test("Run 응답의 세그먼트 범위가 요청과 다르면 계약 오류로 실패한다", async () => {
