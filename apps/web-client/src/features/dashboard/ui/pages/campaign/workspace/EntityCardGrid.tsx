@@ -71,6 +71,7 @@ export type EntityCardGridProps<Entity extends CampaignWorkspaceEntityCard> = {
   layout?: EntityCardGridLayout;
   onSelect?: (entity: Entity) => void;
   selectedId?: string;
+  showBadges?: boolean;
 };
 
 export function EntityCardGrid<Entity extends CampaignWorkspaceEntityCard>({
@@ -84,7 +85,8 @@ export function EntityCardGrid<Entity extends CampaignWorkspaceEntityCard>({
   items,
   layout = "grid",
   onSelect,
-  selectedId
+  selectedId,
+  showBadges = true
 }: EntityCardGridProps<Entity>) {
   if (items.length === 0 && !addAction) {
     return emptyState ?? null;
@@ -114,6 +116,7 @@ export function EntityCardGrid<Entity extends CampaignWorkspaceEntityCard>({
             isSelected={item.id === selectedId}
             onSelect={onSelect}
             density={density}
+            showBadges={showBadges}
           />
         </li>
       ))}
@@ -132,7 +135,8 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
   entryActions,
   isSelected,
   onSelect,
-  density
+  density,
+  showBadges
 }: {
   actions: ReadonlyArray<CampaignWorkspaceEntityAction<Entity>>;
   entity: Entity;
@@ -140,6 +144,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
   isSelected: boolean;
   onSelect?: (entity: Entity) => void;
   density: EntityCardGridDensity;
+  showBadges: boolean;
 }) {
   const entityKindLabel = ENTITY_KIND_LABEL[entity.kind];
   const isCompact = density === "compact";
@@ -159,18 +164,18 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
             <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
             <span className="truncate tabular-nums">{entity.dateRangeLabel}</span>
           </div>
-        ) : (
+        ) : showBadges ? (
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{entityKindLabel}</Badge>
             {entity.status ? (
               <Badge variant={entity.status.variant ?? "outline"}>{entity.status.label}</Badge>
             ) : null}
           </div>
-        )}
+        ) : null}
         <CardTitle
           className={cn(
             "line-clamp-2 font-semibold tracking-tight",
-            entity.kind === "campaign"
+            entity.kind === "campaign" || entity.kind === "promotion"
               ? "text-lg group-data-[size=sm]/card:text-lg"
               : isCompact
                 ? "text-base"

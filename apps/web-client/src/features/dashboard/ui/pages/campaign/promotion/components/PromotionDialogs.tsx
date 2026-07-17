@@ -15,11 +15,7 @@ import {
 } from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useEffect, useState } from "react";
-import {
-  formatBasisLabel,
-  formatChannelLabel,
-  formatStatusLabel
-} from "../../../../../model/dashboard-labels.js";
+import { formatBasisLabel, formatChannelLabel } from "../../../../../model/dashboard-labels.js";
 import { DashboardFormDialog } from "../../../../shared/DashboardFormDialog.js";
 import {
   createEmptyPromotionFormState,
@@ -29,7 +25,6 @@ import {
   promotionGoalBasisOptions,
   promotionGoalMetricOptions,
   promotionFormToUpdateRequest,
-  promotionStatusOptions,
   promotionToFormState,
   type PromotionCreateFormState
 } from "../promotionUtils.js";
@@ -48,18 +43,14 @@ export function PromotionEditDialog({
   promotion: DashboardCampaignPromotion | undefined;
 }) {
   const [form, setForm] = useState<PromotionCreateFormState>(createEmptyPromotionFormState());
-  const [status, setStatus] = useState("draft");
 
   useEffect(() => {
     if (open && promotion) {
       setForm(promotionToFormState(promotion));
-      setStatus(promotion.status);
     }
   }, [open, promotion]);
   const isDirty = Boolean(
-    promotion &&
-    (JSON.stringify(form) !== JSON.stringify(promotionToFormState(promotion)) ||
-      status !== promotion.status)
+    promotion && JSON.stringify(form) !== JSON.stringify(promotionToFormState(promotion))
   );
   const canSubmit =
     Boolean(promotion && form.marketingTheme.trim()) &&
@@ -68,7 +59,7 @@ export function PromotionEditDialog({
 
   return (
     <DashboardFormDialog
-      description="프로모션의 운영 조건과 상태를 바꿀 수 있어요."
+      description="프로모션의 운영 조건을 바꿀 수 있어요."
       dirty={isDirty}
       onOpenChange={onOpenChange}
       open={open}
@@ -77,32 +68,10 @@ export function PromotionEditDialog({
     >
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
         <PromotionFormFields form={form} idPrefix="promotion-edit" onChange={setForm} />
-        <Field>
-          <FieldLabel id="promotion-edit-status-label">상태</FieldLabel>
-          <Select onValueChange={setStatus} value={status}>
-            <SelectTrigger aria-labelledby="promotion-edit-status-label" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {promotionStatusOptions.map((statusOption) => (
-                <SelectItem key={statusOption} value={statusOption}>
-                  {formatStatusLabel(statusOption)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
         <DialogFooter className="border-t pt-5">
           <Button
             disabled={!canSubmit}
-            onClick={() =>
-              onUpdate(
-                promotionFormToUpdateRequest(
-                  form,
-                  status as DashboardUpdatePromotionRequest["status"]
-                )
-              )
-            }
+            onClick={() => onUpdate(promotionFormToUpdateRequest(form))}
             type="button"
           >
             {isPending ? "프로모션 저장 중…" : "프로모션 저장"}

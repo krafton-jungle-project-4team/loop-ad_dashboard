@@ -35,10 +35,7 @@ test("promotion edit maps every field exposed by the create form", () => {
     status: "approved"
   } as DashboardCampaignPromotion;
 
-  const request = promotionFormToUpdateRequest(
-    promotionToFormState(promotion),
-    promotion.status as "approved"
-  );
+  const request = promotionFormToUpdateRequest(promotionToFormState(promotion));
 
   assert.deepEqual(request, {
     channel: "sms",
@@ -49,8 +46,7 @@ test("promotion edit maps every field exposed by the create form", () => {
     marketing_theme: "여름 프로모션",
     max_loop_count: 5,
     message_brief: "예약 전환 프로모션",
-    min_sample_size: 250,
-    status: "approved"
+    min_sample_size: 250
   });
 });
 

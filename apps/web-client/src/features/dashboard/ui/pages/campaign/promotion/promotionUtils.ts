@@ -3,7 +3,6 @@ import {
   DashboardPromotionChannelSchema,
   DashboardPromotionGoalBasisSchema,
   DashboardPromotionGoalMetricSchema,
-  DashboardPromotionStatusSchema,
   normalizePromotionSegmentAudience,
   normalizePromotionSegmentPerformanceEstimate,
   normalizePromotionSegmentRankComparison,
@@ -20,8 +19,6 @@ import { formatInteger } from "../../../../model/dashboard-format.js";
 import { formatMetricLabel } from "../../../../model/dashboard-labels.js";
 
 export const promotionChannelOptions = DashboardPromotionChannelSchema.options;
-export const promotionStatusOptions = DashboardPromotionStatusSchema.options;
-
 export const promotionGoalMetricOptions = DashboardPromotionGoalMetricSchema.options.map(
   (metric) => ({ label: formatMetricLabel(metric), value: metric })
 );
@@ -108,6 +105,19 @@ export function promotionCreateFormToRequest(
   form: PromotionCreateFormState
 ): DashboardCreatePromotionRequest {
   return {
+    ...promotionFormRequestFields(form),
+    status: "draft"
+  };
+}
+
+export function promotionFormToUpdateRequest(
+  form: PromotionCreateFormState
+): DashboardUpdatePromotionRequest {
+  return promotionFormRequestFields(form);
+}
+
+function promotionFormRequestFields(form: PromotionCreateFormState) {
+  return {
     channel: form.channel as DashboardCreatePromotionRequest["channel"],
     goal_basis: form.goalBasis as DashboardCreatePromotionRequest["goal_basis"],
     goal_metric: form.goalMetric,
@@ -116,18 +126,7 @@ export function promotionCreateFormToRequest(
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
     message_brief: form.messageBrief.trim() || null,
-    min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
-    status: "draft"
-  };
-}
-
-export function promotionFormToUpdateRequest(
-  form: PromotionCreateFormState,
-  status: DashboardUpdatePromotionRequest["status"]
-): DashboardUpdatePromotionRequest {
-  return {
-    ...promotionCreateFormToRequest(form),
-    status
+    min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize))
   };
 }
 
@@ -338,9 +337,7 @@ export function contentCandidateIsReadyForSelection(
   }
 
   const htmlArtifact = contentCandidateHtmlArtifact(candidate);
-  return Boolean(
-    htmlArtifact?.artifact_status === "published" && htmlArtifact.public_url
-  );
+  return Boolean(htmlArtifact?.artifact_status === "published" && htmlArtifact.public_url);
 }
 
 export function activeContentCandidates(detail: DashboardSegmentDetail) {
