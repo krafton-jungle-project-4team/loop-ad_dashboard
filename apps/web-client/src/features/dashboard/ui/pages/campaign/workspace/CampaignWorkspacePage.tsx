@@ -43,11 +43,7 @@ import {
   updateDashboardPromotion
 } from "../../../../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../../../../model/dashboard-format.js";
-import {
-  formatChannelLabel,
-  formatMetricLabel,
-  formatStatusLabel
-} from "../../../../model/dashboard-labels.js";
+import { formatChannelLabel, formatMetricLabel } from "../../../../model/dashboard-labels.js";
 import { useDashboardQueryState } from "../../../../model/dashboard-query.js";
 import { dashboardCampaignDetailQueryKey } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
@@ -64,7 +60,6 @@ import {
 import {
   mutationErrorMessage,
   promotionCreateFormToRequest,
-  statusBadgeVariant,
   uniquePromotionsById,
   type PromotionCreateFormState
 } from "../promotion/promotionUtils.js";
@@ -72,6 +67,7 @@ import { EntityCardGrid } from "./EntityCardGrid.js";
 import { HierarchyBreadcrumbs, type CampaignHierarchyLevel } from "./HierarchyBreadcrumbs.js";
 import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
 import type { CampaignWorkspaceEntityCard } from "./campaign-workspace-types.js";
+import { groupPromotionsByBoardStatus, type PromotionBoardStatus } from "./promotionBoardStatus.js";
 
 type CampaignFormDialogState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
 
@@ -106,6 +102,38 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
   {
     description: "최근에 종료된 순으로 보여요.",
     emptyMessage: "완료된 캠페인이 없어요.",
+    label: "완료됨",
+    status: "completed"
+  }
+];
+
+const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
+  description: string;
+  emptyMessage: string;
+  label: string;
+  status: PromotionBoardStatus;
+}> = [
+  {
+    description: "첫 실험 실행을 기다리고 있어요.",
+    emptyMessage: "준비 중인 프로모션이 없어요.",
+    label: "준비 중",
+    status: "preparing"
+  },
+  {
+    description: "현재 실험을 실행하거나 평가하고 있어요.",
+    emptyMessage: "진행 중인 프로모션이 없어요.",
+    label: "진행 중",
+    status: "in_progress"
+  },
+  {
+    description: "평가 결과에 따라 다음 실험이 필요해요.",
+    emptyMessage: "다음 실험이 필요한 프로모션이 없어요.",
+    label: "다음 실험 필요",
+    status: "next_experiment"
+  },
+  {
+    description: "목표를 달성했거나 최대 실험 횟수를 마쳤어요.",
+    emptyMessage: "완료된 프로모션이 없어요.",
     label: "완료됨",
     status: "completed"
   }
@@ -286,7 +314,11 @@ export function CampaignWorkspacePage({
   }, [campaignDetail.data, query.selectedPromotionId, selectedPromotion, setDashboardQueryState]);
 
   const campaignsBySchedule = groupCampaignsBySchedule(data.campaigns, campaignDateKey());
-  const promotionCards = promotions.map(toPromotionCard);
+  const promotionsByBoardStatus = groupPromotionsByBoardStatus(
+    promotions,
+    campaignDetail.data?.ad_experiments ?? [],
+    campaignDetail.data?.experiment_metrics ?? []
+  );
   const activeHierarchyLevel = getActiveHierarchyLevel({
     campaignView: query.campaignView,
     hasCampaign: Boolean(selectedCampaign),
@@ -427,8 +459,9 @@ export function CampaignWorkspacePage({
                             <Plus aria-hidden="true" data-icon="inline-start" />
                           </Button>
                         ) : null}
-                        <CampaignColumnActionsMenu
+                        <EntityColumnActionsMenu
                           cards={cards}
+                          entityLabel="캠페인"
                           label={section.label}
                           onDelete={(card) => {
                             deleteCampaignMutation.reset();
@@ -503,51 +536,83 @@ export function CampaignWorkspacePage({
               프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
             </p>
           </div>
-          <EntityCardGrid
-            actions={(card) => [
-              {
-                id: "edit",
-                label: "프로모션 수정",
-                onSelect: () => {
-                  updatePromotionMutation.reset();
-                  setEditingPromotionId(card.id);
-                }
-              },
-              {
-                id: "delete",
-                label: "프로모션 삭제",
-                onSelect: () => {
-                  deletePromotionMutation.reset();
-                  setDeletingPromotionId(card.id);
-                },
-                tone: "destructive"
-              }
-            ]}
-            addAction={{
-              description: "이 캠페인에 프로모션을 추가해요.",
-              label: "프로모션 만들기",
-              onSelect: () => {
-                createPromotionMutation.reset();
-                setIsPromotionAddDialogOpen(true);
-              }
-            }}
-            ariaLabel={`${selectedCampaign.campaign_name} 프로모션 목록`}
-            density="compact"
-            entryActions={(card) => [
-              {
-                id: "manage",
-                label: "세그먼트 관리",
-                onSelect: () => openPromotionView(card.id, "manage")
-              },
-              {
-                id: "performance",
-                label: "성과",
-                onSelect: () => openPromotionView(card.id, "performance")
-              }
-            ]}
-            items={promotionCards}
-            layout="horizontal"
-          />
+          <div className="grid h-[calc(100svh-12.5rem)] min-h-0 grid-cols-[repeat(4,minmax(15rem,1fr))] items-stretch gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
+            {PROMOTION_BOARD_SECTIONS.map((section) => {
+              const cards = promotionsByBoardStatus[section.status].map(toPromotionCard);
+
+              return (
+                <section
+                  aria-labelledby={`promotion-board-${section.status}`}
+                  className="flex h-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border bg-muted/25 p-3"
+                  key={section.status}
+                >
+                  <div className="grid gap-1 border-b px-1 pb-3">
+                    <div className="flex items-center gap-2">
+                      <h3
+                        className="text-base font-semibold tracking-tight text-foreground"
+                        id={`promotion-board-${section.status}`}
+                      >
+                        {section.label}
+                      </h3>
+                      <Badge variant="secondary">{cards.length}</Badge>
+                      <div className="ml-auto flex items-center gap-1">
+                        {section.status === "preparing" ? (
+                          <Button
+                            aria-label="프로모션 만들기"
+                            onClick={() => {
+                              createPromotionMutation.reset();
+                              setIsPromotionAddDialogOpen(true);
+                            }}
+                            size="icon-sm"
+                            title="프로모션 만들기"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Plus aria-hidden="true" data-icon="inline-start" />
+                          </Button>
+                        ) : null}
+                        <EntityColumnActionsMenu
+                          cards={cards}
+                          entityLabel="프로모션"
+                          label={section.label}
+                          onDelete={(card) => {
+                            deletePromotionMutation.reset();
+                            setDeletingPromotionId(card.id);
+                          }}
+                          onEdit={(card) => {
+                            updatePromotionMutation.reset();
+                            deletePromotionMutation.reset();
+                            setEditingPromotionId(card.id);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs leading-5 text-muted-foreground">{section.description}</p>
+                  </div>
+                  <EntityCardGrid
+                    ariaLabel={`${section.label} 프로모션 목록`}
+                    className="!grid-cols-1 min-h-0 flex-1 content-start overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]"
+                    density="compact"
+                    emptyState={<EmptyState message={section.emptyMessage} />}
+                    entryActions={(card) => [
+                      {
+                        id: "manage",
+                        label: "세그먼트 관리",
+                        onSelect: () => openPromotionView(card.id, "manage")
+                      },
+                      {
+                        id: "performance",
+                        label: "성과",
+                        onSelect: () => openPromotionView(card.id, "performance")
+                      }
+                    ]}
+                    items={cards}
+                    showBadges={false}
+                  />
+                </section>
+              );
+            })}
+          </div>
         </section>
       ) : null}
 
@@ -679,24 +744,26 @@ export function CampaignWorkspacePage({
   );
 }
 
-function CampaignColumnActionsMenu({
+function EntityColumnActionsMenu<Entity extends CampaignWorkspaceEntityCard>({
   cards,
+  entityLabel,
   label,
   onDelete,
   onEdit
 }: {
-  cards: ReadonlyArray<CampaignCard>;
+  cards: ReadonlyArray<Entity>;
+  entityLabel: string;
   label: string;
-  onDelete: (card: CampaignCard) => void;
-  onEdit: (card: CampaignCard) => void;
+  onDelete: (card: Entity) => void;
+  onEdit: (card: Entity) => void;
 }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={`${label} 캠페인 작업`}
+          aria-label={`${label} ${entityLabel} 작업`}
           size="icon-sm"
-          title={`${label} 캠페인 작업`}
+          title={`${label} ${entityLabel} 작업`}
           type="button"
           variant="ghost"
         >
@@ -704,7 +771,9 @@ function CampaignColumnActionsMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel>{label} 캠페인</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {label} {entityLabel}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           {cards.length > 0 ? (
@@ -724,7 +793,7 @@ function CampaignColumnActionsMenu({
               </DropdownMenuSub>
             ))
           ) : (
-            <DropdownMenuItem disabled>관리할 캠페인이 없어요</DropdownMenuItem>
+            <DropdownMenuItem disabled>관리할 {entityLabel}이 없어요</DropdownMenuItem>
           )}
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -801,10 +870,6 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
       }
     ],
     promotion,
-    status: {
-      label: formatStatusLabel(promotion.status),
-      variant: statusBadgeVariant(promotion.status)
-    },
     title: promotion.marketing_theme
   };
 }
