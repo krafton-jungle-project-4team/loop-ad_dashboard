@@ -13,7 +13,7 @@ import {
   AlertDialogTitle
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
+import { Button } from "@loopad/ui/shadcn/button";
 import {
   Card,
   CardContent,
@@ -361,18 +361,47 @@ function SegmentSuggestionCard({
       size="sm"
     >
       <CardHeader className="gap-3">
-        <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
           <Badge
             className="min-w-0 max-w-full whitespace-normal border-primary/20 bg-accent px-2 py-1 text-left leading-4 text-primary [word-break:keep-all]"
             variant="outline"
           >
             {strategyRole ?? "추천 전략 후보"}
           </Badge>
-          {isAccepted ? (
-            <Badge className="shrink-0" variant="default">
-              선택됨
-            </Badge>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {suggestion.ai_report ? (
+              <Button
+                onClick={() => onOpenReport(suggestion)}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                <FileText data-icon="inline-start" />
+                리포트
+              </Button>
+            ) : null}
+            <Field
+              className="w-auto gap-1.5"
+              data-disabled={decideIsPending}
+              orientation="horizontal"
+            >
+              <Checkbox
+                aria-label={`${displayCopy?.title ?? suggestion.segment_name} 선택`}
+                checked={isAccepted}
+                disabled={decideIsPending}
+                id={acceptanceId}
+                onCheckedChange={(checked) =>
+                  onDecideSuggestion(
+                    suggestion.suggestion_id,
+                    checked === true ? "accepted" : "suggested"
+                  )
+                }
+              />
+              <FieldLabel className="cursor-pointer text-xs font-medium" htmlFor={acceptanceId}>
+                선택
+              </FieldLabel>
+            </Field>
+          </div>
         </div>
         <div className="grid min-w-0 gap-1">
           <CardTitle className="text-base leading-6 font-semibold [overflow-wrap:anywhere] [word-break:keep-all]">
@@ -400,44 +429,6 @@ function SegmentSuggestionCard({
           </p>
         </div>
       </CardContent>
-      <CardFooter className="mt-auto flex-wrap justify-between gap-2 bg-background">
-        {suggestion.ai_report ? (
-          <Button
-            onClick={() => onOpenReport(suggestion)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <FileText data-icon="inline-start" />
-            추천 리포트
-          </Button>
-        ) : null}
-        <Field
-          className={buttonVariants({
-            className: "w-auto gap-2",
-            size: "sm",
-            variant: "outline"
-          })}
-          data-disabled={decideIsPending}
-          orientation="horizontal"
-        >
-          <Checkbox
-            aria-label={`${displayCopy?.title ?? suggestion.segment_name} 후보 선택`}
-            checked={isAccepted}
-            disabled={decideIsPending}
-            id={acceptanceId}
-            onCheckedChange={(checked) =>
-              onDecideSuggestion(
-                suggestion.suggestion_id,
-                checked === true ? "accepted" : "suggested"
-              )
-            }
-          />
-          <FieldLabel className="cursor-pointer text-[0.8rem] font-medium" htmlFor={acceptanceId}>
-            후보 선택
-          </FieldLabel>
-        </Field>
-      </CardFooter>
     </Card>
   );
 }
