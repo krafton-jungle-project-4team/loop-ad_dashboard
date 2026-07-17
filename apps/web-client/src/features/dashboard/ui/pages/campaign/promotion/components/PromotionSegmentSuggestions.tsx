@@ -225,7 +225,7 @@ export function PromotionSegmentSuggestionPanel({
           <EmptyState message="추천 후보를 불러오는 중이에요." />
         ) : null}
         {!promotionAnalysisIsPending && visibleSuggestions.length > 0 ? (
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
+          <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visibleSuggestions.map((suggestion) => (
               <SegmentSuggestionCard
                 decideIsPending={decideIsPending}
@@ -350,6 +350,17 @@ function SegmentSuggestionCard({
   const acceptanceId = `segment-suggestion-acceptance-${suggestion.suggestion_id}`;
   const strategyRole = displayCopy?.strategy_role ?? displayCopy?.rank_role;
   const performanceEstimate = displayCopy?.performance_estimate;
+  const strengthSummary =
+    displayCopy?.strength_summary ?? suggestion.ai_report?.candidate_strengths?.join(" ");
+  const tradeoffSummary =
+    displayCopy?.tradeoff_summary ??
+    displayCopy?.recommendation_tier_reason ??
+    suggestion.ai_report?.selection_considerations?.join(" ");
+  const differenceSummary =
+    displayCopy?.rank_comparison?.summary ??
+    displayCopy?.difference_summary ??
+    suggestion.ai_report?.difference_from_other_ranks?.join(" ");
+  const actionHint = displayCopy?.action_hint ?? suggestion.ai_report?.action_hint;
   const fallbackSummary = segmentAudienceSummary(suggestion.sample_size, suggestion.sample_ratio);
 
   return (
@@ -358,7 +369,6 @@ function SegmentSuggestionCard({
         "min-w-0 shadow-none",
         isAccepted && "border-primary bg-accent/40 ring-2 ring-primary/10"
       )}
-      size="sm"
     >
       <CardHeader className="gap-3">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
@@ -424,6 +434,19 @@ function SegmentSuggestionCard({
           audience={displayCopy?.audience}
           fallbackSummary={displayCopy?.audience_summary ?? fallbackSummary}
         />
+        {displayCopy?.signal_chips.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {displayCopy.signal_chips.map((chip) => (
+              <Badge
+                className="h-auto max-w-full whitespace-normal py-1 text-[11px] leading-4 [overflow-wrap:anywhere] [word-break:keep-all]"
+                key={chip}
+                variant="outline"
+              >
+                {chip}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
         <div className="grid gap-1">
           <span className="text-[11px] font-medium text-foreground">추천 이유</span>
           <p className="leading-5 [overflow-wrap:anywhere] [word-break:keep-all]">
@@ -432,6 +455,22 @@ function SegmentSuggestionCard({
               "추천 이유가 없어요."}
           </p>
         </div>
+        <SegmentCandidateGuidance
+          strengthSummary={strengthSummary}
+          tradeoffSummary={tradeoffSummary}
+        />
+        {differenceSummary ? (
+          <div className="grid gap-1 rounded-md border bg-muted/40 p-3 text-xs leading-5 text-foreground">
+            <span className="font-medium">다른 후보와의 차이</span>
+            <p className="[overflow-wrap:anywhere] [word-break:keep-all]">{differenceSummary}</p>
+          </div>
+        ) : null}
+        {actionHint ? (
+          <div className="grid gap-1 rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
+            <span className="font-medium text-foreground">활용 제안</span>
+            <p className="[overflow-wrap:anywhere] [word-break:keep-all]">{actionHint}</p>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -497,6 +536,35 @@ function AudienceStat({ label, value }: { label: string; value: number }) {
       <strong className="text-sm font-semibold tabular-nums text-foreground">
         {formatInteger(value)}명
       </strong>
+    </div>
+  );
+}
+
+function SegmentCandidateGuidance({
+  strengthSummary,
+  tradeoffSummary
+}: {
+  strengthSummary: string | undefined;
+  tradeoffSummary: string | undefined;
+}) {
+  if (!strengthSummary && !tradeoffSummary) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-3 border-l-2 border-primary bg-accent/40 px-3 py-2 text-xs leading-5 text-foreground">
+      {strengthSummary ? (
+        <div className="grid gap-1">
+          <span className="font-medium">후보 강점</span>
+          <p className="[overflow-wrap:anywhere] [word-break:keep-all]">{strengthSummary}</p>
+        </div>
+      ) : null}
+      {tradeoffSummary ? (
+        <div className="grid gap-1">
+          <span className="font-medium">선택 시 고려사항</span>
+          <p className="[overflow-wrap:anywhere] [word-break:keep-all]">{tradeoffSummary}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
