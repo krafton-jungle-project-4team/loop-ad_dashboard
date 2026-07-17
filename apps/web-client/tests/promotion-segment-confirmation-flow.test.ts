@@ -8,6 +8,7 @@ import {
   createSegmentAssistantSession,
   INITIAL_SEGMENT_ASSISTANT_MESSAGE,
   segmentAssistantFailureMessage,
+  segmentAssistantResponseMessage,
   segmentAssistantSessionKey,
   updateSegmentAssistantSessionStore
 } from "../src/features/dashboard/model/segment-candidate-assistant.js";
@@ -97,6 +98,31 @@ test("segment assistant preserves an independent session for each promotion", ()
   assert.deepEqual(createSegmentAssistantSession().messages, [
     { id: 0, role: "assistant", text: INITIAL_SEGMENT_ASSISTANT_MESSAGE }
   ]);
+});
+
+test("segment assistant stores a query result with the assistant message", () => {
+  const response = {
+    action: "audience_query",
+    assistant_message:
+      "최근 30일 기준 조건에 맞는 고객은 10,012명이며, 분석 가능 사용자 20,312명의 49.29%입니다.",
+    condition_labels: ["제주·오키나와 숙소 검색", "예약 완료 없음"],
+    lookback_days: 30,
+    preview: {
+      query_preview_id: "preview-1",
+      sample_ratio: 0.4929,
+      sample_size: 10012,
+      sample_size_status: "valid",
+      total_eligible_user_count: 20312
+    },
+    segment_name: "제주·오키나와 숙소 검색 고객"
+  } as const;
+
+  assert.deepEqual(segmentAssistantResponseMessage(3, response), {
+    id: 3,
+    role: "assistant",
+    text: response.assistant_message,
+    result: response
+  });
 });
 
 test("selection summary identifies accepted AI and directly added segments", () => {

@@ -7,6 +7,7 @@ export type SegmentAssistantMessage = {
   id: number;
   role: "assistant" | "user";
   text: string;
+  result?: DashboardSegmentAssistantResponse;
 };
 
 export type SegmentAssistantSession = {
@@ -53,4 +54,16 @@ export function updateSegmentAssistantSessionStore(
 
 export function segmentAssistantFailureMessage(_error: unknown) {
   return "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+}
+
+export function segmentAssistantResponseMessage(
+  id: number,
+  response: DashboardSegmentAssistantResponse
+): SegmentAssistantMessage {
+  return {
+    id,
+    role: "assistant",
+    text: response.assistant_message,
+    result: response.preview ? response : undefined
+  };
 }

@@ -17,6 +17,7 @@ import {
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import {
   segmentAssistantFailureMessage,
+  segmentAssistantResponseMessage,
   type SegmentAssistantSession,
   type SegmentAssistantSessionUpdater
 } from "../model/segment-candidate-assistant.js";
@@ -70,7 +71,7 @@ export function SegmentCandidateAssistantPanel({
         isLoading: false,
         messages: [
           ...current.messages,
-          { id: current.nextMessageId, role: "assistant", text: response.assistant_message }
+          segmentAssistantResponseMessage(current.nextMessageId, response)
         ],
         nextMessageId: current.nextMessageId + 1,
         result: response
@@ -179,18 +180,35 @@ export function SegmentCandidateAssistantPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="grid gap-3">
-          {messages.map((message) => (
-            <div
-              className={
-                message.role === "assistant"
-                  ? "max-w-[92%] rounded-md bg-muted px-3 py-2 text-sm leading-6 text-foreground"
-                  : "ml-auto max-w-[92%] rounded-md bg-primary px-3 py-2 text-sm leading-6 text-primary-foreground"
-              }
-              key={message.id}
-            >
-              {message.text}
-            </div>
-          ))}
+          {messages.map((message) => {
+            if (message.role === "assistant" && message.result?.preview) {
+              const isCurrentResult =
+                result?.preview?.query_preview_id === message.result.preview.query_preview_id;
+              return (
+                <SegmentAssistantResult
+                  isSaved={isCurrentResult && isSaved}
+                  isSaving={isCurrentResult && isSaving}
+                  key={message.id}
+                  onSave={() => void saveSegment()}
+                  result={message.result}
+                  showSaveAction={isCurrentResult}
+                />
+              );
+            }
+
+            return (
+              <div
+                className={
+                  message.role === "assistant"
+                    ? "max-w-[92%] rounded-md bg-muted px-3 py-2 text-sm leading-6 text-foreground"
+                    : "ml-auto max-w-[92%] rounded-md bg-primary px-3 py-2 text-sm leading-6 text-primary-foreground"
+                }
+                key={message.id}
+              >
+                {message.text}
+              </div>
+            );
+          })}
           {isLoading ? (
             <div className="flex w-fit items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
               <Spinner className="size-4" />
@@ -198,15 +216,6 @@ export function SegmentCandidateAssistantPanel({
             </div>
           ) : null}
         </div>
-
-        {result?.preview ? (
-          <SegmentAssistantResult
-            isSaved={isSaved}
-            isSaving={isSaving}
-            onSave={() => void saveSegment()}
-            result={result}
-          />
-        ) : null}
       </div>
 
       <div className="shrink-0 border-t bg-background p-3">
@@ -247,12 +256,14 @@ function SegmentAssistantResult({
   isSaved,
   isSaving,
   onSave,
-  result
+  result,
+  showSaveAction
 }: {
   isSaved: boolean;
   isSaving: boolean;
   onSave: () => void;
   result: DashboardSegmentAssistantResponse;
+  showSaveAction: boolean;
 }) {
   const preview = result.preview;
   if (!preview) {
@@ -260,8 +271,9 @@ function SegmentAssistantResult({
   }
 
   const isSaveable = preview.sample_size_status === "valid" && preview.sample_size > 0;
+  const ratioPercent = Math.min(100, Math.max(0, preview.sample_ratio * 100));
   return (
-    <section className="mt-5 grid gap-3 rounded-md border p-3" aria-label="세그먼트 조건 조회 결과">
+    <section className="grid gap-3 rounded-md border p-3" aria-label="세그먼트 조건 조회 결과">
       <div className="flex items-center gap-2">
         <Database aria-hidden="true" className="size-4 text-primary" />
         <h3 className="text-sm font-semibold">
@@ -272,14 +284,39 @@ function SegmentAssistantResult({
         </Badge>
       </div>
 
-      <dl className="grid grid-cols-3 divide-x rounded-md bg-muted/60 py-3 text-center">
-        <Metric
-          label="분석 가능"
-          value={`${preview.total_eligible_user_count.toLocaleString()}명`}
-        />
-        <Metric label="조건 부합" value={`${preview.sample_size.toLocaleString()}명`} />
-        <Metric label="비율" value={`${(preview.sample_ratio * 100).toFixed(2)}%`} />
-      </dl>
+      <div className="grid gap-3 rounded-md bg-primary/5 p-3">
+        <div>
+          <p className="text-xs font-medium text-primary">조건에 맞는 고객</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">
+            {preview.sample_size.toLocaleString()}명
+          </p>
+        </div>
+        <div
+          aria-label={`분석 가능 사용자 중 ${ratioPercent.toFixed(2)}%`}
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={ratioPercent}
+          className="h-2 overflow-hidden rounded-full bg-primary/10"
+          role="progressbar"
+        >
+          <div className="h-full rounded-full bg-primary" style={{ width: `${ratioPercent}%` }} />
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-md border">
+        <table className="w-full table-fixed text-sm">
+          <caption className="sr-only">고객 데이터 조회 결과</caption>
+          <tbody className="divide-y">
+            <ResultRow label="조회 기간" value={`최근 ${result.lookback_days}일`} />
+            <ResultRow
+              label="분석 가능 사용자"
+              value={`${preview.total_eligible_user_count.toLocaleString()}명`}
+            />
+            <ResultRow label="행동 조건 부합" value={`${preview.sample_size.toLocaleString()}명`} />
+            <ResultRow label="전체 대비" value={`${ratioPercent.toFixed(2)}%`} />
+          </tbody>
+        </table>
+      </div>
 
       <div className="flex flex-wrap gap-1.5">
         {result.condition_labels.map((label) => (
@@ -296,11 +333,13 @@ function SegmentAssistantResult({
         </div>
       ) : null}
 
-      <Button disabled={!isSaveable || isSaving || isSaved} onClick={onSave} type="button">
-        <Plus aria-hidden="true" />
-        {isSaved ? "추가됨" : isSaving ? "추가하고 있어요…" : "이 조건으로 세그먼트 추가"}
-      </Button>
-      {!isSaveable && preview.sample_size > 0 ? (
+      {showSaveAction ? (
+        <Button disabled={!isSaveable || isSaving || isSaved} onClick={onSave} type="button">
+          <Plus aria-hidden="true" />
+          {isSaved ? "추가됨" : isSaving ? "추가하고 있어요…" : "이 조건으로 세그먼트 추가"}
+        </Button>
+      ) : null}
+      {showSaveAction && !isSaveable && preview.sample_size > 0 ? (
         <p className="text-xs leading-5 text-muted-foreground">
           현재 조건의 고객 수가 세그먼트 운영 기준보다 적습니다. 기간이나 조건을 조정해 주세요.
         </p>
@@ -309,11 +348,13 @@ function SegmentAssistantResult({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function ResultRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid min-w-0 gap-1 px-1">
-      <dt className="text-[11px] text-muted-foreground">{label}</dt>
-      <dd className="text-sm font-semibold tabular-nums">{value}</dd>
-    </div>
+    <tr>
+      <th className="w-1/2 bg-muted/40 px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+        {label}
+      </th>
+      <td className="px-3 py-2 text-right font-semibold tabular-nums">{value}</td>
+    </tr>
   );
 }
