@@ -18,7 +18,7 @@ import type {
 const ENTITY_KIND_LABEL: Record<CampaignWorkspaceEntityKind, string> = {
   campaign: "캠페인",
   promotion: "프로모션",
-  segment: "세그먼트"
+  segment: "고객군"
 };
 
 export type SelectionSummaryProps = {

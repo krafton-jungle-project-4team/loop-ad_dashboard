@@ -73,10 +73,10 @@ export function createCampaignOnboardingSteps(
       label: "프로모션 생성"
     },
     {
-      completionCondition: "사용할 세그먼트 후보를 확정하면 완료돼요.",
+      completionCondition: "사용할 고객군 후보를 확정하면 완료돼요.",
       description: "프로모션을 보여 줄 대상을 정해요.",
       id: "segment",
-      label: "세그먼트 생성"
+      label: "고객군 생성"
     },
     {
       completionCondition: "광고 소재를 만들고 사용할 소재를 선택하면 완료돼요.",

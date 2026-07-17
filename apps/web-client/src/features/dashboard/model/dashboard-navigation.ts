@@ -48,7 +48,7 @@ export const dashboardTabs = [
   },
   {
     value: "segments",
-    label: "세그먼트 관리",
+    label: "고객군 관리",
     pathSegment: "segments"
   },
   {

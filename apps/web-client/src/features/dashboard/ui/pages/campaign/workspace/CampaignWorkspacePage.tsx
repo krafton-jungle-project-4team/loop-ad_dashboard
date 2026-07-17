@@ -560,7 +560,7 @@ export function CampaignWorkspacePage({
             <div className="grid gap-1">
               <h2 className="text-xl font-semibold tracking-tight text-foreground">프로모션</h2>
               <p className="text-sm leading-6 text-muted-foreground">
-                프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
+                프로모션을 선택하면 고객군 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
               </p>
             </div>
             <Button
@@ -626,7 +626,7 @@ export function CampaignWorkspacePage({
                     entryActions={(card) => [
                       {
                         id: "manage",
-                        label: "세그먼트 관리",
+                        label: "고객군 관리",
                         onSelect: () => openPromotionView(card.id, "manage")
                       },
                       {
@@ -751,7 +751,7 @@ export function CampaignWorkspacePage({
             <AlertDialogTitle>프로모션을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
               {deletingPromotion?.marketing_theme ?? "선택한 프로모션"}이 목록에서 사라져요. 연결된
-              세그먼트, 광고 소재, 실행과 실험도 모두 사라지고 되돌릴 수 없어요.
+              고객군, 광고 소재, 실행과 실험도 모두 사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -840,7 +840,7 @@ function toCampaignCard(campaign: DashboardCampaignSummary): CampaignCard {
     kind: "campaign",
     metrics: [
       { id: "promotions", label: "프로모션", value: formatInteger(campaign.promotion_count) },
-      { id: "segments", label: "세그먼트", value: formatInteger(campaign.segment_count) },
+      { id: "segments", label: "고객군", value: formatInteger(campaign.segment_count) },
       {
         id: "experiments",
         label: "광고 실험",
@@ -890,7 +890,7 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
       },
       {
         id: "segments",
-        label: "세그먼트",
+        label: "고객군",
         value: formatInteger(promotion.target_segment_count)
       },
       {

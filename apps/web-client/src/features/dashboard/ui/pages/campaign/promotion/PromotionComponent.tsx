@@ -96,7 +96,7 @@ export function PromotionWorkspace({
             <EmptyState
               message={
                 mode === "segment"
-                  ? "세그먼트를 관리할 프로모션을 선택해 주세요."
+                  ? "고객군을 관리할 프로모션을 선택해 주세요."
                   : "성과를 확인할 프로모션을 선택해 주세요."
               }
             />

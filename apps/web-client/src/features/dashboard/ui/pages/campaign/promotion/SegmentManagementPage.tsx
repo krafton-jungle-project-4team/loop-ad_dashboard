@@ -13,9 +13,9 @@ export function SegmentManagementPage({
   return (
     <div className="grid gap-6">
       <WorkspacePageHeader
-        description="세그먼트를 관리하고 세그먼트별 광고 실험을 시작해요."
+        description="고객군을 관리하고 고객군별 광고 실험을 시작해요."
         eyebrow="Segment workspace"
-        title="세그먼트"
+        title="고객군"
       />
       <PromotionWorkspace data={data} mode="segment" query={query} />
     </div>

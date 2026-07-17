@@ -101,7 +101,7 @@ function validateRunContract(run: PromotionRunLaunchTarget, requestedSegmentIds:
     requestedScope.length !== requestedSegmentIds.length ||
     !sameStringArray(scope, requestedScope)
   ) {
-    throw new Error("만든 실험의 세그먼트 범위가 요청과 달라요. 다시 시도해 주세요.");
+    throw new Error("만든 실험의 고객군 범위가 요청과 달라요. 다시 시도해 주세요.");
   }
 
   const fallbackExperiments = run.experiments.filter(
@@ -127,7 +127,7 @@ function validateRunContract(run: PromotionRunLaunchTarget, requestedSegmentIds:
         selectedExperiments.filter((experiment) => experiment.segmentId === segmentId).length !== 1
     )
   ) {
-    throw new Error("실험의 세그먼트와 광고 범위가 달라요. 다시 시도해 주세요.");
+    throw new Error("실험의 고객군과 광고 범위가 달라요. 다시 시도해 주세요.");
   }
 
   return {

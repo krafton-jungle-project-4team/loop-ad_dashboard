@@ -84,8 +84,8 @@ import { ContentCandidateCopyEditDialog } from "./ContentCandidateCopyEditDialog
 
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   overview: "프로모션 성과",
-  segments: "세그먼트 관리",
-  "segment-detail": "세그먼트 맞춤 광고 생성"
+  segments: "고객군 관리",
+  "segment-detail": "고객군 맞춤 광고 생성"
 };
 
 type PromotionSegmentListTab = "candidates" | "confirmed";
@@ -153,7 +153,7 @@ export function PromotionManagementList({
                   <TableHead>노출 방식</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>목표</TableHead>
-                  <TableHead className="text-right">세그먼트</TableHead>
+                  <TableHead className="text-right">고객군</TableHead>
                   <TableHead className="text-right">실험</TableHead>
                   <TableHead className="w-40">
                     <span className="sr-only">작업</span>
@@ -225,7 +225,7 @@ export function PromotionManagementList({
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
                   <SummaryItem label="상태" value={formatStatusLabel(promotion.status)} />
                   <SummaryItem
-                    label="세그먼트"
+                    label="고객군"
                     value={formatInteger(promotion.target_segment_count)}
                   />
                   <SummaryItem label="실험" value={formatInteger(promotion.ad_experiment_count)} />
@@ -274,7 +274,7 @@ function PromotionRowActions({
           <AlertDialogHeader>
             <AlertDialogTitle>프로모션을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              {promotion.marketing_theme} 프로모션과 연결된 세그먼트, 광고 소재, 실험이 모두
+              {promotion.marketing_theme} 프로모션과 연결된 고객군, 광고 소재, 실험이 모두
               사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -297,7 +297,7 @@ export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <EntityWorkspaceEmptyState
       actionLabel="프로모션 만들기"
-      description="프로모션을 만들면 세그먼트와 실험을 설정할 수 있어요."
+      description="프로모션을 만들면 고객군과 실험을 설정할 수 있어요."
       guideCards={[
         {
           icon: <Target className="size-5" />,
@@ -307,7 +307,7 @@ export function PromotionEmptyState({ onAdd }: { onAdd: () => void }) {
         {
           icon: <Users className="size-5" />,
           title: "대상 설정",
-          value: "프로모션을 보여 줄 고객을 세그먼트로 정할 수 있어요."
+          value: "프로모션을 보여 줄 고객을 고객군으로 정할 수 있어요."
         },
         {
           icon: <BarChart3 className="size-5" />,
@@ -473,7 +473,7 @@ export function PromotionTabWorkspace({
                   : formatGoalValue(promotion.latest_actual_value)
               }
             />
-            <PromotionMetricCard label="세그먼트" value={formatInteger(activeSegments.length)} />
+            <PromotionMetricCard label="고객군" value={formatInteger(activeSegments.length)} />
             <PromotionMetricCard
               label="실험"
               value={formatInteger(promotion.ad_experiment_count)}
@@ -507,13 +507,13 @@ export function PromotionTabWorkspace({
               onValueChange={(value) => setSegmentListTab(value as PromotionSegmentListTab)}
               value={segmentListTab}
             >
-              <TabsList aria-label="세그먼트 목록" className="w-fit">
+              <TabsList aria-label="고객군 목록" className="w-fit">
                 <TabsTrigger value="candidates">
-                  세그먼트 후보
+                  고객군 후보
                   <Badge variant="secondary">{formatInteger(candidateCount)}</Badge>
                 </TabsTrigger>
                 <TabsTrigger value="confirmed">
-                  확정 세그먼트
+                  확정 고객군
                   <Badge variant="secondary">{formatInteger(confirmedSegmentCount)}</Badge>
                 </TabsTrigger>
               </TabsList>
@@ -638,18 +638,18 @@ function PromotionCurrentSegmentsPanel({
       <CardHeader className="shrink-0 border-b">
         <div className="grid gap-1">
           <div className="flex items-center gap-2">
-            <CardTitle>확정 세그먼트</CardTitle>
+            <CardTitle>확정 고객군</CardTitle>
             <Badge variant="secondary">{formatInteger(visibleSegments.length)}</Badge>
             <SegmentColumnDeleteMenu
-              ariaLabel="확정 세그먼트 작업"
+              ariaLabel="확정 고객군 작업"
               disabled={deleteIsPending}
-              emptyLabel="관리할 세그먼트가 없어요"
+              emptyLabel="관리할 고객군이 없어요"
               items={visibleSegments.map((segment) => ({
                 id: `${segment.segment_id}:${segment.analysis_id}`,
                 label: campaignSegmentDisplayCopy(segment)?.title ?? segment.segment_name,
                 value: segment
               }))}
-              label="확정 세그먼트"
+              label="확정 고객군"
               onDelete={setSegmentToDelete}
             />
           </div>
@@ -660,7 +660,7 @@ function PromotionCurrentSegmentsPanel({
         {visibleSegments.length === 0 ? (
           <EmptyState
             message="후보를 선택해 확정하면 이곳에서 광고 소재와 실험을 이어갈 수 있어요."
-            title="아직 확정된 세그먼트가 없어요"
+            title="아직 확정된 고객군이 없어요"
           />
         ) : null}
         {visibleSegments.map((segment) => {
@@ -733,9 +733,9 @@ function PromotionCurrentSegmentsPanel({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>확정 세그먼트를 삭제할까요?</AlertDialogTitle>
+            <AlertDialogTitle>확정 고객군을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              {segmentToDelete?.segment_name} 세그먼트가 이 프로모션에서 사라지고 되돌릴 수 없어요.
+              {segmentToDelete?.segment_name} 고객군이 이 프로모션에서 사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -750,7 +750,7 @@ function PromotionCurrentSegmentsPanel({
               }}
               variant="destructive"
             >
-              확정 세그먼트 삭제
+              확정 고객군 삭제
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -817,14 +817,14 @@ function PromotionSegmentDetailTab({
   view: SegmentWorkspaceView;
 }) {
   if (!selectedSegmentId) {
-    return <EmptyState message="세그먼트를 선택해 주세요." />;
+    return <EmptyState message="고객군을 선택해 주세요." />;
   }
   if (isError) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>세그먼트 정보를 불러올 수 없어요</AlertTitle>
+        <AlertTitle>고객군 정보를 불러올 수 없어요</AlertTitle>
         <AlertDescription>
-          세그먼트를 다시 선택해 주세요. 같은 문제가 계속되면 잠시 후 다시 시도해 주세요.
+          고객군을 다시 선택해 주세요. 같은 문제가 계속되면 잠시 후 다시 시도해 주세요.
         </AlertDescription>
       </Alert>
     );
@@ -834,7 +834,7 @@ function PromotionSegmentDetailTab({
       <Card className="shadow-none" role="status">
         <CardContent className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
           <Spinner aria-hidden="true" className="size-5" />
-          {generationIsPending ? "광고 소재를 만드는 중…" : "세그먼트 정보를 불러오는 중…"}
+          {generationIsPending ? "광고 소재를 만드는 중…" : "고객군 정보를 불러오는 중…"}
         </CardContent>
       </Card>
     );
@@ -859,7 +859,7 @@ function PromotionSegmentDetailTab({
           <div className="grid gap-1">
             <CardTitle>{detail.segment.segment_name}</CardTitle>
             <CardDescription>
-              {detail.segment.natural_language_query ?? "세그먼트 조건 미등록"}
+              {detail.segment.natural_language_query ?? "고객군 조건 미등록"}
             </CardDescription>
           </div>
           <Badge variant={statusBadgeVariant(detail.segment.status)}>
@@ -897,9 +897,9 @@ function PromotionSegmentDetailTab({
         <section className="grid gap-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="grid gap-1">
-              <h3 className="text-base font-semibold">이 세그먼트의 광고 소재</h3>
+              <h3 className="text-base font-semibold">이 고객군의 광고 소재</h3>
               <p className="text-sm text-muted-foreground">
-                이 세그먼트에 사용할 광고 소재 후보를 확인하고 하나를 선택해 주세요.
+                이 고객군에 사용할 광고 소재 후보를 확인하고 하나를 선택해 주세요.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1133,7 +1133,7 @@ function contentCandidateSelectionReason(
     return "거절한 광고 소재는 선택할 수 없어요. 다른 소재를 선택해 주세요.";
   }
   if (hasDifferentApprovedCandidate) {
-    return "한 세그먼트에는 광고 소재를 1개만 선택할 수 있어요. 다른 소재를 사용하려면 현재 선택을 먼저 해제해 주세요.";
+    return "한 고객군에는 광고 소재를 1개만 선택할 수 있어요. 다른 소재를 사용하려면 현재 선택을 먼저 해제해 주세요.";
   }
   if (status === "approved") {
     return "이 광고 소재가 다음 실험에 사용돼요. 다른 소재로 바꾸려면 먼저 선택을 해제해 주세요.";

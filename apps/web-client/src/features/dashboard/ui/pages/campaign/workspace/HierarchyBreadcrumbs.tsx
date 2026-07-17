@@ -18,7 +18,7 @@ const CAMPAIGN_HIERARCHY_LEVELS: ReadonlyArray<{
 }> = [
   { label: "캠페인", value: "campaign" },
   { label: "프로모션", value: "promotion" },
-  { label: "세그먼트", value: "segment" },
+  { label: "고객군", value: "segment" },
   { label: "실험", value: "experiment" }
 ];
 
