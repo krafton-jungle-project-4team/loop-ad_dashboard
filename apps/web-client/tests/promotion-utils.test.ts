@@ -54,7 +54,8 @@ test("creative selection only uses candidates from the segment's active analysis
   const detail = {
     content_candidates: [
       { analysis_id: "analysis_old", content_id: "content_old" },
-      { analysis_id: "analysis_repeat", content_id: "content_repeat" }
+      { analysis_id: "analysis_repeat", content_id: "content_repeat", status: "draft" },
+      { analysis_id: "analysis_repeat", content_id: "content_archived", status: "archived" }
     ],
     segment: { analysis_id: "analysis_repeat" }
   } as DashboardSegmentDetail;

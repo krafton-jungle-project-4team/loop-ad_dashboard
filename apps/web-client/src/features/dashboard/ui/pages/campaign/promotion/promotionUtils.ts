@@ -342,7 +342,8 @@ export function contentCandidateIsReadyForSelection(
 
 export function activeContentCandidates(detail: DashboardSegmentDetail) {
   return detail.content_candidates.filter(
-    (candidate) => candidate.analysis_id === detail.segment.analysis_id
+    (candidate) =>
+      candidate.analysis_id === detail.segment.analysis_id && candidate.status !== "archived"
   );
 }
 

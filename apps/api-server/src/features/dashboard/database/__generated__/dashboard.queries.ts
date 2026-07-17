@@ -2267,21 +2267,58 @@ export interface IStopDashboardPromotionTargetSegmentQuery {
   result: IStopDashboardPromotionTargetSegmentResult;
 }
 
-const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":125,"b":134}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":159,"b":170}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":193,"b":202}]}],"statement":"WITH target_segment AS (\n  SELECT project_id, promotion_id, segment_id\n  FROM promotion_target_segments\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND segment_id = :segmentId\n),\ndeleted_dispatch_jobs AS (\n  DELETE FROM ad_dispatch_jobs adj\n  USING target_segment target\n  WHERE adj.project_id = target.project_id\n    AND adj.promotion_id = target.promotion_id\n    AND adj.ad_experiment_id IN (\n      SELECT ae.ad_experiment_id\n      FROM ad_experiments ae\n      WHERE ae.project_id = target.project_id\n        AND ae.promotion_id = target.promotion_id\n        AND ae.segment_id = target.segment_id\n    )\n  RETURNING adj.ad_dispatch_job_id\n),\ndeleted_promotion_evaluations AS (\n  DELETE FROM promotion_evaluations pe\n  USING target_segment target,\n        (SELECT count(*) FROM deleted_dispatch_jobs) dependency\n  WHERE pe.project_id = target.project_id\n    AND pe.promotion_id = target.promotion_id\n    AND pe.segment_id = target.segment_id\n  RETURNING pe.promotion_run_id\n),\ndeleted_ad_experiments AS (\n  DELETE FROM ad_experiments ae\n  USING target_segment target,\n        (SELECT count(*) FROM deleted_promotion_evaluations) dependency\n  WHERE ae.project_id = target.project_id\n    AND ae.promotion_id = target.promotion_id\n    AND ae.segment_id = target.segment_id\n  RETURNING ae.ad_experiment_id\n),\ndeleted_content_candidates AS (\n  DELETE FROM content_candidates cc\n  USING target_segment target,\n        (SELECT count(*) FROM deleted_ad_experiments) dependency\n  WHERE cc.project_id = target.project_id\n    AND cc.promotion_id = target.promotion_id\n    AND cc.segment_id = target.segment_id\n  RETURNING cc.content_id\n),\ndeleted_target_segment AS (\n  DELETE FROM promotion_target_segments pts\n  USING target_segment target,\n        (SELECT count(*) FROM deleted_content_candidates) dependency\n  WHERE pts.project_id = target.project_id\n    AND pts.promotion_id = target.promotion_id\n    AND pts.segment_id = target.segment_id\n  RETURNING pts.promotion_id, pts.segment_id, 'stopped'::text AS status\n)\nSELECT promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status\nFROM deleted_target_segment                                                  "};
+const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":138,"b":147}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":172,"b":183}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":206,"b":215}]}],"statement":"WITH target_segment AS (\n  SELECT project_id, promotion_id, segment_id, analysis_id\n  FROM promotion_target_segments\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND segment_id = :segmentId\n),\ninvalidated_generation_runs AS (\n  UPDATE generation_runs gr\n  SET status = 'failed',\n      started_at = COALESCE(gr.started_at, now()),\n      finished_at = now(),\n      next_retry_at = NULL,\n      last_error_code = 'generation_invalidated_by_segment_change',\n      last_error_message = 'promotion target segments changed after generation',\n      worker_id = NULL,\n      lease_token = NULL,\n      heartbeat_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  FROM target_segment target\n  WHERE gr.project_id = target.project_id\n    AND gr.promotion_id = target.promotion_id\n    AND gr.analysis_id = target.analysis_id\n    AND gr.status <> 'failed'\n  RETURNING gr.generation_id\n),\narchived_generation_content_candidates AS (\n  UPDATE content_candidates cc\n  SET status = 'archived',\n      updated_at = now()\n  FROM generation_runs gr,\n       target_segment target,\n       (SELECT count(*) FROM invalidated_generation_runs) dependency\n  WHERE gr.project_id = target.project_id\n    AND gr.promotion_id = target.promotion_id\n    AND gr.analysis_id = target.analysis_id\n    AND cc.project_id = gr.project_id\n    AND cc.generation_id = gr.generation_id\n    AND cc.segment_id <> target.segment_id\n    AND cc.status IN ('draft', 'approved', 'active')\n  RETURNING cc.content_id\n),\ndeleted_dispatch_jobs AS (\n  DELETE FROM ad_dispatch_jobs adj\n  USING target_segment target,\n        (SELECT count(*) FROM archived_generation_content_candidates) dependency\n  WHERE adj.project_id = target.project_id\n    AND adj.promotion_id = target.promotion_id\n    AND adj.ad_experiment_id IN (\n      SELECT ae.ad_experiment_id\n      FROM ad_experiments ae\n      WHERE ae.project_id = target.project_id\n        AND ae.promotion_id = target.promotion_id\n        AND ae.segment_id = target.segment_id\n    )\n  RETURNING adj.ad_dispatch_job_id\n),\ndeleted_promotion_evaluations AS (\n  DELETE FROM promotion_evaluations pe\n  USING target_segment target,\n        (SELECT count(*) FROM deleted_dispatch_jobs) dependency\n  WHERE pe.project_id = target.project_id\n    AND pe.promotion_id = target.promotion_id\n    AND pe.segment_id = target.segment_id\n  RETURNING pe.promotion_run_id\n),\ndeleted_ad_experiments AS (\n  DELETE FROM ad_experiments ae\n  USING target_segment target,\n        (SELECT count(*) FROM deleted_promotion_evaluations) dependency\n  WHERE ae.project_id = target.project_id\n    AND ae.promotion_id = target.promotion_id\n    AND ae.segment_id = target.segment_id\n  RETURNING ae.ad_experiment_id\n),\ndeleted_content_candidates AS (\n  DELETE FROM content_candidates cc\n  USING target_segment target,\n        (SELECT count(*) FROM deleted_ad_experiments) dependency\n  WHERE cc.project_id = target.project_id\n    AND cc.promotion_id = target.promotion_id\n    AND cc.segment_id = target.segment_id\n  RETURNING cc.content_id\n),\ndeleted_target_segment AS (\n  DELETE FROM promotion_target_segments pts\n  USING target_segment target,\n        (SELECT count(*) FROM deleted_content_candidates) dependency\n  WHERE pts.project_id = target.project_id\n    AND pts.promotion_id = target.promotion_id\n    AND pts.segment_id = target.segment_id\n  RETURNING pts.promotion_id, pts.segment_id, 'stopped'::text AS status\n)\nSELECT promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status\nFROM deleted_target_segment                                                  "};
 
 /**
  * Query generated from SQL:
  * ```
  * WITH target_segment AS (
- *   SELECT project_id, promotion_id, segment_id
+ *   SELECT project_id, promotion_id, segment_id, analysis_id
  *   FROM promotion_target_segments
  *   WHERE project_id = :projectId
  *     AND promotion_id = :promotionId
  *     AND segment_id = :segmentId
  * ),
+ * invalidated_generation_runs AS (
+ *   UPDATE generation_runs gr
+ *   SET status = 'failed',
+ *       started_at = COALESCE(gr.started_at, now()),
+ *       finished_at = now(),
+ *       next_retry_at = NULL,
+ *       last_error_code = 'generation_invalidated_by_segment_change',
+ *       last_error_message = 'promotion target segments changed after generation',
+ *       worker_id = NULL,
+ *       lease_token = NULL,
+ *       heartbeat_at = NULL,
+ *       lease_expires_at = NULL,
+ *       updated_at = now()
+ *   FROM target_segment target
+ *   WHERE gr.project_id = target.project_id
+ *     AND gr.promotion_id = target.promotion_id
+ *     AND gr.analysis_id = target.analysis_id
+ *     AND gr.status <> 'failed'
+ *   RETURNING gr.generation_id
+ * ),
+ * archived_generation_content_candidates AS (
+ *   UPDATE content_candidates cc
+ *   SET status = 'archived',
+ *       updated_at = now()
+ *   FROM generation_runs gr,
+ *        target_segment target,
+ *        (SELECT count(*) FROM invalidated_generation_runs) dependency
+ *   WHERE gr.project_id = target.project_id
+ *     AND gr.promotion_id = target.promotion_id
+ *     AND gr.analysis_id = target.analysis_id
+ *     AND cc.project_id = gr.project_id
+ *     AND cc.generation_id = gr.generation_id
+ *     AND cc.segment_id <> target.segment_id
+ *     AND cc.status IN ('draft', 'approved', 'active')
+ *   RETURNING cc.content_id
+ * ),
  * deleted_dispatch_jobs AS (
  *   DELETE FROM ad_dispatch_jobs adj
- *   USING target_segment target
+ *   USING target_segment target,
+ *         (SELECT count(*) FROM archived_generation_content_candidates) dependency
  *   WHERE adj.project_id = target.project_id
  *     AND adj.promotion_id = target.promotion_id
  *     AND adj.ad_experiment_id IN (

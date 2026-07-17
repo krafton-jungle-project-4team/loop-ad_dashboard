@@ -389,7 +389,15 @@ export class DashboardQueryService {
       request.analysis_id
     );
 
-    if (existingGeneration && existingGeneration.status !== "failed") {
+    const completedWithoutCandidates =
+      existingGeneration?.status === "completed" &&
+      existingGeneration.content_candidate_count === 0;
+
+    if (
+      existingGeneration &&
+      existingGeneration.status !== "failed" &&
+      !completedWithoutCandidates
+    ) {
       log.info("promotion_generation_reused", { existingGeneration });
       log.info("completed", { response: existingGeneration, durationMs: durationMs(startedAt) });
       return existingGeneration;
