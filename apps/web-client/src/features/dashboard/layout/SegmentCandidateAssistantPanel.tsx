@@ -5,7 +5,6 @@ import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bot, Database, Plus, Send, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import {
   assistDashboardPromotionSegment,
   createDashboardPromotionScopedSegmentDefinition
@@ -17,49 +16,26 @@ import {
 } from "../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import {
-  INITIAL_SEGMENT_ASSISTANT_MESSAGE,
-  segmentAssistantFailureMessage
+  segmentAssistantFailureMessage,
+  type SegmentAssistantSession,
+  type SegmentAssistantSessionUpdater
 } from "../model/segment-candidate-assistant.js";
-
-type AssistantMessage = {
-  id: number;
-  role: "assistant" | "user";
-  text: string;
-};
 
 export function SegmentCandidateAssistantPanel({
   onClose,
   promotionId,
-  query
+  query,
+  session,
+  updateSession
 }: {
   onClose: () => void;
   promotionId: string;
   query: DashboardQuery;
+  session: SegmentAssistantSession;
+  updateSession: (updater: SegmentAssistantSessionUpdater) => void;
 }) {
   const queryClient = useQueryClient();
-  const nextMessageId = useRef(1);
-  const [messages, setMessages] = useState<AssistantMessage[]>(() => [
-    { id: 0, role: "assistant", text: INITIAL_SEGMENT_ASSISTANT_MESSAGE }
-  ]);
-  const [draft, setDraft] = useState("");
-  const [result, setResult] = useState<DashboardSegmentAssistantResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-
-  useEffect(() => {
-    nextMessageId.current = 1;
-    setMessages([{ id: 0, role: "assistant", text: INITIAL_SEGMENT_ASSISTANT_MESSAGE }]);
-    setDraft("");
-    setResult(null);
-    setIsSaved(false);
-  }, [promotionId]);
-
-  const appendMessage = (role: AssistantMessage["role"], text: string) => {
-    const id = nextMessageId.current;
-    nextMessageId.current += 1;
-    setMessages((current) => [...current, { id, role, text }]);
-  };
+  const { draft, isLoading, isSaved, isSaving, messages, result } = session;
 
   const submit = async () => {
     const userMessage = draft.trim();
@@ -71,24 +47,49 @@ export function SegmentCandidateAssistantPanel({
       role: message.role,
       content: message.text
     }));
-    appendMessage("user", userMessage);
-    setDraft("");
-    setIsLoading(true);
-    setResult(null);
-    setIsSaved(false);
+    updateSession((current) => ({
+      ...current,
+      draft: "",
+      isLoading: true,
+      isSaved: false,
+      messages: [
+        ...current.messages,
+        { id: current.nextMessageId, role: "user", text: userMessage }
+      ],
+      nextMessageId: current.nextMessageId + 1,
+      result: null
+    }));
 
     try {
       const response = await assistDashboardPromotionSegment(query, promotionId, {
         message: userMessage,
         conversation
       });
-      setResult(response);
-      appendMessage("assistant", response.assistant_message);
+      updateSession((current) => ({
+        ...current,
+        isLoading: false,
+        messages: [
+          ...current.messages,
+          { id: current.nextMessageId, role: "assistant", text: response.assistant_message }
+        ],
+        nextMessageId: current.nextMessageId + 1,
+        result: response
+      }));
     } catch (error) {
-      setResult(null);
-      appendMessage("assistant", segmentAssistantFailureMessage(error));
-    } finally {
-      setIsLoading(false);
+      updateSession((current) => ({
+        ...current,
+        isLoading: false,
+        messages: [
+          ...current.messages,
+          {
+            id: current.nextMessageId,
+            role: "assistant",
+            text: segmentAssistantFailureMessage(error)
+          }
+        ],
+        nextMessageId: current.nextMessageId + 1,
+        result: null
+      }));
     }
   };
 
@@ -97,7 +98,7 @@ export function SegmentCandidateAssistantPanel({
       return;
     }
 
-    setIsSaving(true);
+    updateSession((current) => ({ ...current, isSaving: true }));
     try {
       const segment = await createDashboardPromotionScopedSegmentDefinition(query, promotionId, {
         segment_name: result.segment_name,
@@ -110,11 +111,20 @@ export function SegmentCandidateAssistantPanel({
         total_eligible_user_count: result.preview.total_eligible_user_count,
         sample_ratio: result.preview.sample_ratio
       });
-      setIsSaved(true);
-      appendMessage(
-        "assistant",
-        `'${segment.segment_name}' 세그먼트를 추가했습니다. 후보 목록에서 선택해 확정할 수 있습니다.`
-      );
+      updateSession((current) => ({
+        ...current,
+        isSaved: true,
+        isSaving: false,
+        messages: [
+          ...current.messages,
+          {
+            id: current.nextMessageId,
+            role: "assistant",
+            text: `'${segment.segment_name}' 세그먼트를 추가했습니다. 후보 목록에서 선택해 확정할 수 있습니다.`
+          }
+        ],
+        nextMessageId: current.nextMessageId + 1
+      }));
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: dashboardCampaignDetailQueryKey(query.projectId, query.selectedCampaignId)
@@ -127,9 +137,19 @@ export function SegmentCandidateAssistantPanel({
         })
       ]);
     } catch (error) {
-      appendMessage("assistant", segmentAssistantFailureMessage(error));
-    } finally {
-      setIsSaving(false);
+      updateSession((current) => ({
+        ...current,
+        isSaving: false,
+        messages: [
+          ...current.messages,
+          {
+            id: current.nextMessageId,
+            role: "assistant",
+            text: segmentAssistantFailureMessage(error)
+          }
+        ],
+        nextMessageId: current.nextMessageId + 1
+      }));
     }
   };
 
@@ -195,7 +215,9 @@ export function SegmentCandidateAssistantPanel({
             aria-label="고객 데이터 질문 또는 세그먼트 조건"
             className="max-h-32 min-h-20 resize-none"
             disabled={isLoading}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) =>
+              updateSession((current) => ({ ...current, draft: event.target.value }))
+            }
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();

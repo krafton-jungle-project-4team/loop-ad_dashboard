@@ -41,6 +41,13 @@ import {
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import { entitySearchResultToDashboardPatch } from "../model/entity-search-navigation.js";
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
+import {
+  createSegmentAssistantSession,
+  segmentAssistantSessionKey,
+  updateSegmentAssistantSessionStore,
+  type SegmentAssistantSessionStore,
+  type SegmentAssistantSessionUpdater
+} from "../model/segment-candidate-assistant.js";
 import { OnboardingWorkspaceLayout } from "../ui/onboarding/OnboardingWorkspaceLayout.js";
 import { useProjectOnboarding } from "../ui/onboarding/ProjectOnboardingProvider.js";
 import { ProjectReturnIconLink, ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
@@ -70,6 +77,7 @@ export function DashboardShell({
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
   const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
   const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(false);
+  const [assistantSessions, setAssistantSessions] = useState<SegmentAssistantSessionStore>({});
   const [headerSlotElement, setHeaderSlotElement] = useState<HTMLDivElement | null>(null);
   const [dashboardQuery] = useDashboardQueryState();
   const isCompactViewport = useCompactViewport();
@@ -86,6 +94,23 @@ export function DashboardShell({
   const assistantQuery = useMemo<DashboardQuery>(
     () => ({ ...dashboardQuery, projectId }),
     [dashboardQuery, projectId]
+  );
+  const assistantSessionKey = dashboardQuery.selectedPromotionId
+    ? segmentAssistantSessionKey(projectId, dashboardQuery.selectedPromotionId)
+    : null;
+  const assistantSession = assistantSessionKey
+    ? (assistantSessions[assistantSessionKey] ?? createSegmentAssistantSession())
+    : createSegmentAssistantSession();
+  const updateAssistantSession = useCallback(
+    (updater: SegmentAssistantSessionUpdater) => {
+      if (!assistantSessionKey) {
+        return;
+      }
+      setAssistantSessions((current) =>
+        updateSegmentAssistantSessionStore(current, assistantSessionKey, updater)
+      );
+    },
+    [assistantSessionKey]
   );
 
   useEffect(() => {
@@ -126,6 +151,8 @@ export function DashboardShell({
       onClose={() => setIsAssistantPanelOpen(false)}
       promotionId={dashboardQuery.selectedPromotionId}
       query={assistantQuery}
+      session={assistantSession}
+      updateSession={updateAssistantSession}
     />
   );
 

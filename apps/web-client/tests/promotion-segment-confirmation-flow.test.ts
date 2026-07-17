@@ -5,8 +5,11 @@ import type {
   DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
 import {
+  createSegmentAssistantSession,
   INITIAL_SEGMENT_ASSISTANT_MESSAGE,
-  segmentAssistantFailureMessage
+  segmentAssistantFailureMessage,
+  segmentAssistantSessionKey,
+  updateSegmentAssistantSessionStore
 } from "../src/features/dashboard/model/segment-candidate-assistant.js";
 import { selectedSegmentSummaries } from "../src/features/dashboard/model/segment-selection-summary.js";
 import { promotionSegmentConfirmationRequest } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionSegmentConfirmationFlow.js";
@@ -72,6 +75,28 @@ test("segment assistant uses a generic message for transport failures", () => {
     segmentAssistantFailureMessage(new Error("Dashboard API request failed. timeout")),
     "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
   );
+});
+
+test("segment assistant preserves an independent session for each promotion", () => {
+  const firstKey = segmentAssistantSessionKey("demo_project", "promotion-1");
+  const secondKey = segmentAssistantSessionKey("demo_project", "promotion-2");
+  let store = updateSegmentAssistantSessionStore({}, firstKey, (session) => ({
+    ...session,
+    draft: "제주 미예약 고객",
+    messages: [...session.messages, { id: 1, role: "user", text: "몇 명이야?" }],
+    nextMessageId: 2
+  }));
+  store = updateSegmentAssistantSessionStore(store, secondKey, (session) => ({
+    ...session,
+    draft: "오키나와 반복 검색 고객"
+  }));
+
+  assert.equal(store[firstKey]?.draft, "제주 미예약 고객");
+  assert.equal(store[firstKey]?.messages.at(-1)?.text, "몇 명이야?");
+  assert.equal(store[secondKey]?.draft, "오키나와 반복 검색 고객");
+  assert.deepEqual(createSegmentAssistantSession().messages, [
+    { id: 0, role: "assistant", text: INITIAL_SEGMENT_ASSISTANT_MESSAGE }
+  ]);
 });
 
 test("selection summary identifies accepted AI and directly added segments", () => {
