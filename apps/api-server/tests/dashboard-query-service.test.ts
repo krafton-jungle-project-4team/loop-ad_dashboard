@@ -440,7 +440,8 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
   );
 
   const response = await service.recommendPromotionSegments("hotel-client-a", "promo_email_001", {
-    operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
+    operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천",
+    segment_instruction: "최근 제주 숙소를 반복 검색했고 예약 완료하지 않은 고객"
   });
 
   assert.equal(response.analysis_id, "analysis_promo_email_001");
@@ -457,7 +458,8 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
         projectId: "hotel-client-a",
         promotionId: "promo_email_001",
         request: {
-          operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
+          operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천",
+          segment_instruction: "최근 제주 숙소를 반복 검색했고 예약 완료하지 않은 고객"
         }
       }
     }
@@ -783,27 +785,55 @@ test("dashboard promotion run evaluation prepares legacy data before Decision", 
   ]);
 });
 
-test("dashboard confirms accepted suggestions in DB without calling analysis", async () => {
+test("dashboard confirms selected candidates after Decision prepares analysis vectors", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
-  const writes: unknown[] = [];
+  const calls: unknown[] = [];
   const transactionHost = installCountingTransactionHost();
   const service = new DashboardQueryService(
     {
       ...emptyCampaignReader(),
-      confirmPromotionSegmentSuggestions: async (projectId, promotionId, request) => {
-        writes.push({ projectId, promotionId, request });
+      listPromotionSegmentSuggestions: async (projectId, promotionId, analysisId) => {
+        calls.push({ kind: "list-suggestions", projectId, promotionId, analysisId });
         return {
+          suggestions: [
+            {
+              segment_id: "seg_destination",
+              suggestion_id: "suggestion-current",
+              suggestion_status: "accepted"
+            }
+          ]
+        } as never;
+      },
+      listPromotionScopedSegmentDefinitions: async () =>
+        ({ segments: [{ segment_id: "segment-manual" }] }) as never,
+      getPromotionSummary: async (projectId, promotionId) => {
+        calls.push({ kind: "read-promotion", projectId, promotionId });
+        return { campaign_id: "camp_summer_2026" } as never;
+      },
+      confirmPromotionSegmentSuggestions: async (projectId, promotionId, request, analysisId) => {
+        calls.push({ kind: "confirm", projectId, promotionId, request, analysisId });
+        return {
+          analysis_id: analysisId,
           promotion_id: promotionId,
-          confirmed_segment_count: 2,
+          confirmed_segment_count: 1,
           status: "confirmed"
         };
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
     emptySegmentQueryRepository(),
-    emptyDecisionClient()
+    {
+      analyzePromotionSegments: async (request) => {
+        calls.push({ kind: "decision-analysis", request });
+        return {
+          analysis_id: "analysis-confirmed",
+          promotion_id: request.promotionId,
+          status: "completed"
+        };
+      }
+    } as unknown as DashboardDecisionClient
   );
 
   const result = await service.confirmPromotionSegmentSuggestions(
@@ -817,9 +847,33 @@ test("dashboard confirms accepted suggestions in DB without calling analysis", a
     }
   );
 
-  assert.equal(transactionHost.calls.length, 1);
-  assert.deepEqual(writes, [
+  assert.equal(transactionHost.calls.length, 0);
+  assert.deepEqual(calls, [
     {
+      kind: "list-suggestions",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001",
+      analysisId: "analysis-current"
+    },
+    {
+      kind: "read-promotion",
+      projectId: "hotel-client-a",
+      promotionId: "promo_banner_001"
+    },
+    {
+      kind: "decision-analysis",
+      request: {
+        campaignId: "camp_summer_2026",
+        projectId: "hotel-client-a",
+        promotionId: "promo_banner_001",
+        request: {
+          operator_instruction: null,
+          segment_ids: ["seg_destination", "segment-manual"]
+        }
+      }
+    },
+    {
+      kind: "confirm",
       projectId: "hotel-client-a",
       promotionId: "promo_banner_001",
       request: {
@@ -827,10 +881,54 @@ test("dashboard confirms accepted suggestions in DB without calling analysis", a
         confirmed_by: "operator-1",
         segment_ids: ["segment-manual"],
         suggestion_ids: ["suggestion-current"]
-      }
+      },
+      analysisId: "analysis-confirmed"
     }
   ]);
+  assert.equal(result.analysis_id, "analysis-confirmed");
   assert.equal(result.confirmed_segment_count, 2);
+});
+
+test("dashboard rejects suggestion ids outside the source analysis before Decision call", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  let decisionCalled = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      listPromotionSegmentSuggestions: async () =>
+        ({
+          suggestions: [
+            {
+              segment_id: "seg_destination",
+              suggestion_id: "suggestion-current",
+              suggestion_status: "suggested"
+            }
+          ]
+        }) as never
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      analyzePromotionSegments: async () => {
+        decisionCalled = true;
+        throw new Error("Unexpected analyzePromotionSegments call.");
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  await assert.rejects(
+    service.confirmPromotionSegmentSuggestions("hotel-client-a", "promo_banner_001", {
+      analysis_id: "analysis-current",
+      segment_ids: [],
+      suggestion_ids: ["suggestion-unknown"]
+    }),
+    (error: unknown) =>
+      error instanceof Error &&
+      (error as Error & { code?: string }).code === "DASHBOARD_SEGMENT_SUGGESTION_SELECTION_INVALID"
+  );
+  assert.equal(decisionCalled, false);
 });
 
 test("dashboard reject content candidate runs inside transaction host", async () => {

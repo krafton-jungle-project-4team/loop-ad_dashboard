@@ -1953,11 +1953,8 @@ export const decideDashboardPromotionSegmentSuggestion = new PreparedQuery<IDeci
 /** 'ConfirmDashboardPromotionSegmentSuggestions' parameters type */
 export interface IConfirmDashboardPromotionSegmentSuggestionsParams {
   analysisId?: string | null | void;
-  confirmedBy?: string | null | void;
-  manualAnalysisId?: string | null | void;
   projectId?: string | null | void;
   promotionId?: string | null | void;
-  segmentIds?: stringArray | null | void;
   suggestionIds?: stringArray | null | void;
 }
 
@@ -1973,226 +1970,21 @@ export interface IConfirmDashboardPromotionSegmentSuggestionsQuery {
   result: IConfirmDashboardPromotionSegmentSuggestionsResult;
 }
 
-const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"manualAnalysisId":true,"projectId":true,"promotionId":true,"analysisId":true,"suggestionIds":true,"segmentIds":true,"confirmedBy":true},"params":[{"name":"manualAnalysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":45,"b":61},{"a":975,"b":991}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":768,"b":777},{"a":1510,"b":1519},{"a":3442,"b":3451},{"a":5843,"b":5852}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":806,"b":817},{"a":1547,"b":1558},{"a":3480,"b":3491},{"a":5881,"b":5892},{"a":6046,"b":6057}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":845,"b":855}]},{"name":"suggestionIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":889,"b":902}]},{"name":"segmentIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1588,"b":1598}]},{"name":"confirmedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":4925,"b":4936}]}],"statement":"WITH accepted_suggestions AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    pss.project_id,\n    pss.campaign_id,\n    pss.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    pss.suggestion_id,\n    pss.analysis_id AS source_analysis_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'suggestion_id', pss.suggestion_id,\n      'score', pss.score_json,\n      'reason', pss.reason_json,\n      'display_copy', pss.metadata_json->'display_copy',\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM promotion_segment_suggestions pss\n  JOIN segment_definitions sd\n    ON sd.segment_id = pss.segment_id\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.analysis_id = :analysisId\n    AND pss.suggestion_id = ANY(:suggestionIds)\n    AND pss.status = 'accepted'\n),\nmanual_segments AS (\n  SELECT\n    (:manualAnalysisId)::varchar AS analysis_id,\n    sd.project_id,\n    sd.campaign_id,\n    sd.promotion_id,\n    sd.segment_id,\n    sd.segment_name,\n    sd.rule_json,\n    sd.profile_json,\n    sd.sample_size,\n    NULL::varchar AS suggestion_id,\n    NULL::varchar AS source_analysis_id,\n    jsonb_build_object(\n      'source', sd.source,\n      'query_preview_id', sd.query_preview_id,\n      'sample_size', sd.sample_size,\n      'sample_ratio', sd.sample_ratio\n    ) AS data_evidence_json\n  FROM segment_definitions sd\n  WHERE sd.project_id = :projectId\n    AND sd.promotion_id = :promotionId\n    AND sd.segment_id = ANY(:segmentIds)\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n),\nselected_segments AS (\n  SELECT * FROM accepted_suggestions\n  UNION ALL\n  SELECT * FROM manual_segments\n),\nconfirmed_vectors AS (\n  INSERT INTO segment_vectors (\n    segment_vector_id,\n    project_id,\n    segment_id,\n    promotion_id,\n    promotion_run_id,\n    analysis_id,\n    vector_dim,\n    vector_values,\n    embedding,\n    vector_version,\n    source\n  )\n  SELECT\n    'segvec_' || substr(\n      encode(\n        digest(\n          selected.analysis_id || ':' || selected.segment_id || ':' || source_vector.vector_version,\n          'sha256'\n        ),\n        'hex'\n      ),\n      1,\n      40\n    ),\n    selected.project_id,\n    selected.segment_id,\n    selected.promotion_id,\n    NULL,\n    selected.analysis_id,\n    source_vector.vector_dim,\n    source_vector.vector_values,\n    source_vector.embedding,\n    source_vector.vector_version,\n    'manual'\n  FROM selected_segments selected\n  JOIN LATERAL (\n    SELECT\n      sv.vector_dim,\n      sv.vector_values,\n      sv.embedding,\n      sv.vector_version\n    FROM segment_vectors sv\n    WHERE sv.project_id = selected.project_id\n      AND sv.promotion_id = selected.promotion_id\n      AND sv.segment_id = selected.segment_id\n      AND (\n        selected.source_analysis_id IS NULL\n        OR sv.analysis_id = selected.source_analysis_id\n      )\n    ORDER BY sv.created_at DESC, sv.segment_vector_id DESC\n    LIMIT 1\n  ) source_vector ON true\n  ON CONFLICT (segment_vector_id) DO UPDATE\n  SET\n    vector_dim = EXCLUDED.vector_dim,\n    vector_values = EXCLUDED.vector_values,\n    embedding = EXCLUDED.embedding,\n    source = EXCLUDED.source\n  RETURNING segment_id, segment_vector_id\n),\nreset_unselected_approved AS (\n  UPDATE promotion_target_segments pts\n  SET status = 'planned'\n  WHERE pts.project_id = :projectId\n    AND pts.promotion_id = :promotionId\n    AND pts.status = 'approved'\n    AND EXISTS (\n      SELECT 1\n      FROM selected_segments selected\n      WHERE selected.project_id = pts.project_id\n        AND selected.campaign_id = pts.campaign_id\n        AND selected.promotion_id = pts.promotion_id\n        AND selected.analysis_id = pts.analysis_id\n    )\n    AND NOT EXISTS (\n      SELECT 1\n      FROM selected_segments selected\n      WHERE selected.project_id = pts.project_id\n        AND selected.campaign_id = pts.campaign_id\n        AND selected.promotion_id = pts.promotion_id\n        AND selected.analysis_id = pts.analysis_id\n        AND selected.segment_id = pts.segment_id\n    )\n  RETURNING pts.segment_id\n),\nconfirmed AS (\n  INSERT INTO promotion_target_segments (\n    analysis_id,\n    project_id,\n    campaign_id,\n    promotion_id,\n    segment_id,\n    segment_name,\n    segment_vector_id,\n    rule_json,\n    profile_json,\n    content_brief_json,\n    data_evidence_json,\n    estimated_size,\n    priority,\n    status,\n    suggestion_id,\n    confirmed_by,\n    confirmed_at\n  )\n  SELECT\n    selected.analysis_id,\n    selected.project_id,\n    selected.campaign_id,\n    selected.promotion_id,\n    selected.segment_id,\n    selected.segment_name,\n    confirmed_vector.segment_vector_id,\n    selected.rule_json,\n    selected.profile_json,\n    '{}'::jsonb,\n    selected.data_evidence_json,\n    selected.sample_size,\n    NULL,\n    'approved',\n    selected.suggestion_id,\n    :confirmedBy,\n    now()\n  FROM selected_segments selected\n  LEFT JOIN confirmed_vectors confirmed_vector\n    ON confirmed_vector.segment_id = selected.segment_id\n  CROSS JOIN (SELECT count(*) FROM reset_unselected_approved) dependency\n  ON CONFLICT (analysis_id, segment_id) DO UPDATE\n  SET\n    segment_vector_id = EXCLUDED.segment_vector_id,\n    suggestion_id = EXCLUDED.suggestion_id,\n    confirmed_by = EXCLUDED.confirmed_by,\n    confirmed_at = EXCLUDED.confirmed_at,\n    status = CASE\n      WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'\n      ELSE promotion_target_segments.status\n    END\n  RETURNING promotion_id AS \"promotionId\", segment_id AS \"segmentId\", suggestion_id AS \"suggestionId\"\n),\nupdated AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND EXISTS (\n      SELECT 1\n      FROM confirmed c\n      WHERE c.\"suggestionId\" = pss.suggestion_id\n    )\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed                                      "};
+const confirmDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true,"suggestionIds":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":194,"b":202}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":232,"b":242},{"a":434,"b":444}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":271,"b":280}]},{"name":"suggestionIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":315,"b":327}]}],"statement":"WITH confirmed AS (\n  UPDATE promotion_segment_suggestions pss\n  SET status = 'confirmed',\n      decided_at = COALESCE(pss.decided_at, now()),\n      updated_at = now()\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.analysis_id = :analysisId\n    AND pss.suggestion_id = ANY(:suggestionIds)\n    AND pss.status IN ('suggested', 'accepted', 'confirmed')\n  RETURNING pss.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\"\nFROM confirmed"};
 
 /**
  * Query generated from SQL:
  * ```
- * WITH accepted_suggestions AS (
- *   SELECT
- *     (:manualAnalysisId)::varchar AS analysis_id,
- *     pss.project_id,
- *     pss.campaign_id,
- *     pss.promotion_id,
- *     sd.segment_id,
- *     sd.segment_name,
- *     sd.rule_json,
- *     sd.profile_json,
- *     sd.sample_size,
- *     pss.suggestion_id,
- *     pss.analysis_id AS source_analysis_id,
- *     jsonb_build_object(
- *       'source', sd.source,
- *       'suggestion_id', pss.suggestion_id,
- *       'score', pss.score_json,
- *       'reason', pss.reason_json,
- *       'display_copy', pss.metadata_json->'display_copy',
- *       'sample_size', sd.sample_size,
- *       'sample_ratio', sd.sample_ratio
- *     ) AS data_evidence_json
- *   FROM promotion_segment_suggestions pss
- *   JOIN segment_definitions sd
- *     ON sd.segment_id = pss.segment_id
- *   WHERE pss.project_id = :projectId
- *     AND pss.promotion_id = :promotionId
- *     AND pss.analysis_id = :analysisId
- *     AND pss.suggestion_id = ANY(:suggestionIds)
- *     AND pss.status = 'accepted'
- * ),
- * manual_segments AS (
- *   SELECT
- *     (:manualAnalysisId)::varchar AS analysis_id,
- *     sd.project_id,
- *     sd.campaign_id,
- *     sd.promotion_id,
- *     sd.segment_id,
- *     sd.segment_name,
- *     sd.rule_json,
- *     sd.profile_json,
- *     sd.sample_size,
- *     NULL::varchar AS suggestion_id,
- *     NULL::varchar AS source_analysis_id,
- *     jsonb_build_object(
- *       'source', sd.source,
- *       'query_preview_id', sd.query_preview_id,
- *       'sample_size', sd.sample_size,
- *       'sample_ratio', sd.sample_ratio
- *     ) AS data_evidence_json
- *   FROM segment_definitions sd
- *   WHERE sd.project_id = :projectId
- *     AND sd.promotion_id = :promotionId
- *     AND sd.segment_id = ANY(:segmentIds)
- *     AND sd.source IN ('custom_chatkit', 'manual_rule')
- *     AND sd.status = 'active'
- * ),
- * selected_segments AS (
- *   SELECT * FROM accepted_suggestions
- *   UNION ALL
- *   SELECT * FROM manual_segments
- * ),
- * confirmed_vectors AS (
- *   INSERT INTO segment_vectors (
- *     segment_vector_id,
- *     project_id,
- *     segment_id,
- *     promotion_id,
- *     promotion_run_id,
- *     analysis_id,
- *     vector_dim,
- *     vector_values,
- *     embedding,
- *     vector_version,
- *     source
- *   )
- *   SELECT
- *     'segvec_' || substr(
- *       encode(
- *         digest(
- *           selected.analysis_id || ':' || selected.segment_id || ':' || source_vector.vector_version,
- *           'sha256'
- *         ),
- *         'hex'
- *       ),
- *       1,
- *       40
- *     ),
- *     selected.project_id,
- *     selected.segment_id,
- *     selected.promotion_id,
- *     NULL,
- *     selected.analysis_id,
- *     source_vector.vector_dim,
- *     source_vector.vector_values,
- *     source_vector.embedding,
- *     source_vector.vector_version,
- *     'manual'
- *   FROM selected_segments selected
- *   JOIN LATERAL (
- *     SELECT
- *       sv.vector_dim,
- *       sv.vector_values,
- *       sv.embedding,
- *       sv.vector_version
- *     FROM segment_vectors sv
- *     WHERE sv.project_id = selected.project_id
- *       AND sv.promotion_id = selected.promotion_id
- *       AND sv.segment_id = selected.segment_id
- *       AND (
- *         selected.source_analysis_id IS NULL
- *         OR sv.analysis_id = selected.source_analysis_id
- *       )
- *     ORDER BY sv.created_at DESC, sv.segment_vector_id DESC
- *     LIMIT 1
- *   ) source_vector ON true
- *   ON CONFLICT (segment_vector_id) DO UPDATE
- *   SET
- *     vector_dim = EXCLUDED.vector_dim,
- *     vector_values = EXCLUDED.vector_values,
- *     embedding = EXCLUDED.embedding,
- *     source = EXCLUDED.source
- *   RETURNING segment_id, segment_vector_id
- * ),
- * reset_unselected_approved AS (
- *   UPDATE promotion_target_segments pts
- *   SET status = 'planned'
- *   WHERE pts.project_id = :projectId
- *     AND pts.promotion_id = :promotionId
- *     AND pts.status = 'approved'
- *     AND EXISTS (
- *       SELECT 1
- *       FROM selected_segments selected
- *       WHERE selected.project_id = pts.project_id
- *         AND selected.campaign_id = pts.campaign_id
- *         AND selected.promotion_id = pts.promotion_id
- *         AND selected.analysis_id = pts.analysis_id
- *     )
- *     AND NOT EXISTS (
- *       SELECT 1
- *       FROM selected_segments selected
- *       WHERE selected.project_id = pts.project_id
- *         AND selected.campaign_id = pts.campaign_id
- *         AND selected.promotion_id = pts.promotion_id
- *         AND selected.analysis_id = pts.analysis_id
- *         AND selected.segment_id = pts.segment_id
- *     )
- *   RETURNING pts.segment_id
- * ),
- * confirmed AS (
- *   INSERT INTO promotion_target_segments (
- *     analysis_id,
- *     project_id,
- *     campaign_id,
- *     promotion_id,
- *     segment_id,
- *     segment_name,
- *     segment_vector_id,
- *     rule_json,
- *     profile_json,
- *     content_brief_json,
- *     data_evidence_json,
- *     estimated_size,
- *     priority,
- *     status,
- *     suggestion_id,
- *     confirmed_by,
- *     confirmed_at
- *   )
- *   SELECT
- *     selected.analysis_id,
- *     selected.project_id,
- *     selected.campaign_id,
- *     selected.promotion_id,
- *     selected.segment_id,
- *     selected.segment_name,
- *     confirmed_vector.segment_vector_id,
- *     selected.rule_json,
- *     selected.profile_json,
- *     '{}'::jsonb,
- *     selected.data_evidence_json,
- *     selected.sample_size,
- *     NULL,
- *     'approved',
- *     selected.suggestion_id,
- *     :confirmedBy,
- *     now()
- *   FROM selected_segments selected
- *   LEFT JOIN confirmed_vectors confirmed_vector
- *     ON confirmed_vector.segment_id = selected.segment_id
- *   CROSS JOIN (SELECT count(*) FROM reset_unselected_approved) dependency
- *   ON CONFLICT (analysis_id, segment_id) DO UPDATE
- *   SET
- *     segment_vector_id = EXCLUDED.segment_vector_id,
- *     suggestion_id = EXCLUDED.suggestion_id,
- *     confirmed_by = EXCLUDED.confirmed_by,
- *     confirmed_at = EXCLUDED.confirmed_at,
- *     status = CASE
- *       WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'
- *       ELSE promotion_target_segments.status
- *     END
- *   RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", suggestion_id AS "suggestionId"
- * ),
- * updated AS (
+ * WITH confirmed AS (
  *   UPDATE promotion_segment_suggestions pss
  *   SET status = 'confirmed',
  *       decided_at = COALESCE(pss.decided_at, now()),
  *       updated_at = now()
  *   WHERE pss.project_id = :projectId
  *     AND pss.promotion_id = :promotionId
- *     AND EXISTS (
- *       SELECT 1
- *       FROM confirmed c
- *       WHERE c."suggestionId" = pss.suggestion_id
- *     )
+ *     AND pss.analysis_id = :analysisId
+ *     AND pss.suggestion_id = ANY(:suggestionIds)
+ *     AND pss.status IN ('suggested', 'accepted', 'confirmed')
  *   RETURNING pss.suggestion_id
  * )
  * SELECT

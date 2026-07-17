@@ -29,7 +29,6 @@ export function PromotionWorkspace({
     campaignDetail,
     confirmSuggestionsMutation,
     createPromotionMutation,
-    createScopedSegmentMutation,
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
@@ -125,7 +124,6 @@ export function PromotionWorkspace({
               onConfirmSuggestions={async () => {
                 await confirmSuggestionsMutation.mutateAsync();
               }}
-              onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
               onDecideSuggestion={(suggestionId, status) =>
                 decideSuggestionMutation.mutate({ status, suggestionId })
               }
@@ -173,7 +171,6 @@ export function PromotionWorkspace({
               promotionAnalysisIsPending={promotionAnalysisIsPending}
               promotionGenerationIsPending={promotionGenerationIsPending}
               rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
-              scopedSegmentCreateIsPending={createScopedSegmentMutation.isPending}
               scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
               scopedSegmentsIsLoading={scopedSegmentDefinitions.isLoading}
               segmentView={query.segmentView}

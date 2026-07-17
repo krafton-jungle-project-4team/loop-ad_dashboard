@@ -1,5 +1,4 @@
-import type { DashboardEntitySearchResult, DataExplorerAiChatCurrentResult } from "@loopad/shared";
-import { Alert, AlertDescription } from "@loopad/ui/shadcn/alert";
+import type { DashboardEntitySearchResult } from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@loopad/ui/shadcn/resizable";
 import { Separator } from "@loopad/ui/shadcn/separator";
@@ -22,22 +21,17 @@ import {
 } from "@loopad/ui/shadcn/sidebar";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bot, Home, ListChecks, Megaphone, MoreHorizontal, Route, X } from "lucide-react";
+import { Bot, Home, ListChecks, Megaphone, MoreHorizontal, Route } from "lucide-react";
 import {
   Fragment,
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
   type PointerEvent,
   type ReactNode
 } from "react";
-import {
-  ChatKitQueryPanel,
-  type DataExplorerChatKitQueryEffect
-} from "../../data-explorer/components/ChatKitQueryPanel.js";
 import {
   dashboardNavigationGroups,
   getDashboardNavigationSearch,
@@ -46,7 +40,7 @@ import {
 } from "../model/dashboard-navigation.js";
 import { useDashboardQueryState } from "../model/dashboard-query.js";
 import { entitySearchResultToDashboardPatch } from "../model/entity-search-navigation.js";
-import type { DashboardTab } from "../model/dashboard-types.js";
+import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import { OnboardingWorkspaceLayout } from "../ui/onboarding/OnboardingWorkspaceLayout.js";
 import { useProjectOnboarding } from "../ui/onboarding/ProjectOnboardingProvider.js";
 import { ProjectReturnIconLink, ProjectSidebarBrand } from "../ui/project/ProjectSidebarBrand.js";
@@ -56,6 +50,7 @@ import {
   type DashboardAssistantContextValue
 } from "./DashboardAssistantContext.js";
 import { DashboardHeaderSlotProvider } from "./DashboardHeaderSlot.js";
+import { SegmentCandidateAssistantPanel } from "./SegmentCandidateAssistantPanel.js";
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 360;
@@ -74,16 +69,11 @@ export function DashboardShell({
 }) {
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
   const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
-  const [assistantCurrentResult, setAssistantCurrentResult] =
-    useState<DataExplorerAiChatCurrentResult | null>(null);
-  const [assistantError, setAssistantError] = useState<string | null>(null);
   const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(false);
   const [headerSlotElement, setHeaderSlotElement] = useState<HTMLDivElement | null>(null);
   const [dashboardQuery] = useDashboardQueryState();
   const isCompactViewport = useCompactViewport();
-  const queryEffectListeners = useRef(new Set<(effect: DataExplorerChatKitQueryEffect) => void>());
   const isCanvasTab = activeTab === "dataExplorer";
-  // Temporary rollout: keep the assistant in Data Explorer and expose it while choosing segments.
   const isSegmentCandidateAssistantAvailable =
     activeTab === "campaigns" &&
     dashboardQuery.promotionView === "manage" &&
@@ -91,8 +81,12 @@ export function DashboardShell({
     Boolean(dashboardQuery.selectedCampaignId) &&
     Boolean(dashboardQuery.selectedPromotionId) &&
     !dashboardQuery.selectedSegmentId;
-  const isAssistantAvailable = activeTab === "dataExplorer" || isSegmentCandidateAssistantAvailable;
+  const isAssistantAvailable = isSegmentCandidateAssistantAvailable;
   const isAssistantVisible = isAssistantAvailable && isAssistantPanelOpen;
+  const assistantQuery = useMemo<DashboardQuery>(
+    () => ({ ...dashboardQuery, projectId }),
+    [dashboardQuery, projectId]
+  );
 
   useEffect(() => {
     if (!isAssistantAvailable) {
@@ -100,29 +94,12 @@ export function DashboardShell({
     }
   }, [isAssistantAvailable]);
 
-  const subscribeToQueryEffects = useCallback(
-    (listener: (effect: DataExplorerChatKitQueryEffect) => void) => {
-      queryEffectListeners.current.add(listener);
-
-      return () => {
-        queryEffectListeners.current.delete(listener);
-      };
-    },
-    []
-  );
-
   const assistantContextValue = useMemo<DashboardAssistantContextValue>(
     () => ({
-      publishCurrentResult: setAssistantCurrentResult,
-      subscribeToQueryEffects
+      openSegmentCandidateAssistant: () => setIsAssistantPanelOpen(true)
     }),
-    [subscribeToQueryEffects]
+    []
   );
-
-  const handleAssistantQueryRun = useCallback((effect: DataExplorerChatKitQueryEffect) => {
-    setAssistantError(null);
-    queryEffectListeners.current.forEach((listener) => listener(effect));
-  }, []);
 
   const dashboardContent = (
     <main
@@ -145,13 +122,10 @@ export function DashboardShell({
   );
 
   const assistantPanel = (
-    <DashboardAssistantPanel
-      currentResult={assistantCurrentResult}
-      error={assistantError}
+    <SegmentCandidateAssistantPanel
       onClose={() => setIsAssistantPanelOpen(false)}
-      onError={setAssistantError}
-      onQueryRun={handleAssistantQueryRun}
-      projectId={projectId}
+      promotionId={dashboardQuery.selectedPromotionId}
+      query={assistantQuery}
     />
   );
 
@@ -285,66 +259,6 @@ export function DashboardShell({
         </SidebarProvider>
       </DashboardAssistantProvider>
     </DashboardHeaderSlotProvider>
-  );
-}
-
-function DashboardAssistantPanel({
-  currentResult,
-  error,
-  onClose,
-  onError,
-  onQueryRun,
-  projectId
-}: {
-  currentResult: DataExplorerAiChatCurrentResult | null;
-  error: string | null;
-  onClose: () => void;
-  onError: (message: string) => void;
-  onQueryRun: (effect: DataExplorerChatKitQueryEffect) => void;
-  projectId: string;
-}) {
-  return (
-    <aside
-      aria-labelledby="loopad-dashboard-assistant-title"
-      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white shadow-[-8px_0_24px_rgba(15,23,42,0.06)]"
-      id="loopad-dashboard-assistant-panel"
-    >
-      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-black/10 px-4">
-        <Bot aria-hidden="true" className="size-4 text-primary" />
-        <h2
-          className="text-xs font-semibold uppercase tracking-wide text-slate-600"
-          id="loopad-dashboard-assistant-title"
-        >
-          AI 도우미
-        </h2>
-        <Button
-          aria-label="AI 도우미 닫기"
-          className="ml-auto"
-          onClick={onClose}
-          size="icon-sm"
-          title="AI 도우미 닫기"
-          type="button"
-          variant="ghost"
-        >
-          <X aria-hidden="true" />
-        </Button>
-      </div>
-      {error ? (
-        <Alert className="m-3 w-auto shrink-0" variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-      <div className="min-h-0 flex-1">
-        <ChatKitQueryPanel
-          currentResult={currentResult}
-          key={projectId}
-          onError={onError}
-          onQueryRun={onQueryRun}
-          projectId={projectId}
-          showTitle={false}
-        />
-      </div>
-    </aside>
   );
 }
 

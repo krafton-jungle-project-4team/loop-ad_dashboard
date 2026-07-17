@@ -74,7 +74,6 @@ import {
   contentCandidateIsReadyForSelection,
   contentCandidateTitle,
   mutationErrorMessage,
-  type PromotionSegmentCreateFormState,
   type PromotionWorkspaceTab
 } from "../promotionUtils.js";
 import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow.js";
@@ -334,7 +333,6 @@ export function PromotionTabWorkspace({
   onArchiveScopedSegment,
   onContentCandidateSelectionChange,
   onConfirmSuggestions,
-  onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
   onLaunchExperiment,
@@ -349,7 +347,6 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
-  scopedSegmentCreateIsPending,
   scopedSegments,
   scopedSegmentsIsLoading,
   segmentView,
@@ -381,7 +378,6 @@ export function PromotionTabWorkspace({
     selected: boolean
   ) => void;
   onConfirmSuggestions: () => Promise<void>;
-  onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (
     suggestionId: string,
     status: "suggested" | "accepted" | "dismissed"
@@ -410,7 +406,6 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
-  scopedSegmentCreateIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
   scopedSegmentsIsLoading: boolean;
   segmentView: SegmentWorkspaceView;
@@ -520,7 +515,6 @@ export function PromotionTabWorkspace({
               <TabsContent className="min-h-0 xl:overflow-hidden" value="candidates">
                 <PromotionSegmentSuggestionPanel
                   confirmIsPending={confirmIsPending}
-                  createScopedSegmentIsPending={scopedSegmentCreateIsPending}
                   decideIsPending={decideIsPending}
                   archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
                   onArchiveScopedSegment={onArchiveScopedSegment}
@@ -530,7 +524,6 @@ export function PromotionTabWorkspace({
                       () => undefined
                     );
                   }}
-                  onCreateScopedSegment={onCreateScopedSegment}
                   onDecideSuggestion={onDecideSuggestion}
                   onRecommendSegments={onRecommendSegments}
                   promotionAnalysisIsPending={promotionAnalysisIsPending}

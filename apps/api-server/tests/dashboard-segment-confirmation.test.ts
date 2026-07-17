@@ -1,19 +1,41 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { promotionConfirmationAnalysisId } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
+import { DashboardConfirmSegmentSuggestionsRequestSchema } from "@loopad/shared";
 
-test("promotion confirmation reuses one bounded analysis id", () => {
-  const first = promotionConfirmationAnalysisId("project-1", "promotion-1");
-  const repeated = promotionConfirmationAnalysisId("project-1", "promotion-1");
-  const otherPromotion = promotionConfirmationAnalysisId("project-1", "promotion-2");
+test("promotion confirmation accepts current-analysis suggestions and active manual ids", () => {
+  const parsed = DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+    analysis_id: "analysis_recommend_001",
+    segment_ids: ["seg_manual"],
+    suggestion_ids: ["suggestion_destination"]
+  });
 
-  assert.equal(first, repeated);
-  assert.notEqual(first, otherPromotion);
-  assert.ok(first.length <= 100);
+  assert.deepEqual(parsed.segment_ids, ["seg_manual"]);
+  assert.deepEqual(parsed.suggestion_ids, ["suggestion_destination"]);
+  assert.throws(() =>
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: null,
+      segment_ids: [],
+      suggestion_ids: []
+    })
+  );
+  assert.throws(() =>
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: null,
+      segment_ids: [],
+      suggestion_ids: ["suggestion_destination"]
+    })
+  );
+  assert.throws(() =>
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: "analysis_recommend_001",
+      segment_ids: [],
+      suggestion_ids: ["suggestion_destination", "suggestion_destination"]
+    })
+  );
 });
 
-test("promotion confirmation scopes AI and manual selections to requested ids", () => {
+test("promotion confirmation updates selected suggestions without synthesizing targets", () => {
   const dashboardSql = readFileSync(
     new URL("../src/features/dashboard/database/dashboard.sql", import.meta.url),
     "utf8"
@@ -29,7 +51,8 @@ test("promotion confirmation scopes AI and manual selections to requested ids", 
 
   assert.match(confirmationSql, /pss\.analysis_id = :analysisId/);
   assert.match(confirmationSql, /pss\.suggestion_id = ANY\(:suggestionIds\)/);
-  assert.match(confirmationSql, /sd\.segment_id = ANY\(:segmentIds\)/);
+  assert.doesNotMatch(confirmationSql, /INSERT INTO promotion_target_segments/);
+  assert.doesNotMatch(confirmationSql, /INSERT INTO segment_vectors/);
 });
 
 test("removing a target segment invalidates its generation scope", () => {

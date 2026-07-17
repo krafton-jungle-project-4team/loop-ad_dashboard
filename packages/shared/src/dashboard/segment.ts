@@ -418,6 +418,7 @@ export type DashboardConfirmSegmentSuggestionsRequest = z.infer<
 >;
 
 export const DashboardConfirmSegmentSuggestionsResultSchema = z.object({
+  analysis_id: z.string(),
   promotion_id: z.string(),
   confirmed_segment_count: CountSchema,
   status: z.literal("confirmed")
@@ -427,7 +428,8 @@ export type DashboardConfirmSegmentSuggestionsResult = z.infer<
 >;
 
 export const DashboardRecommendPromotionSegmentsRequestSchema = z.object({
-  operator_instruction: z.string().nullable().optional()
+  operator_instruction: z.string().trim().min(1).max(2_000).nullable().optional(),
+  segment_instruction: z.string().trim().min(1).max(2_000).nullable().optional()
 });
 export type DashboardRecommendPromotionSegmentsRequest = z.infer<
   typeof DashboardRecommendPromotionSegmentsRequestSchema

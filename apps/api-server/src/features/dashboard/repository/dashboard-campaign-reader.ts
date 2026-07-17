@@ -496,33 +496,20 @@ export class DashboardCampaignReader {
   async confirmPromotionSegmentSuggestions(
     projectId: string,
     promotionId: string,
-    request: DashboardConfirmSegmentSuggestionsRequest
+    request: DashboardConfirmSegmentSuggestionsRequest,
+    analysisId: string
   ): Promise<DashboardConfirmSegmentSuggestionsResult> {
-    const promotion = await this.getPromotionSummary(projectId, promotionId);
-    const manualAnalysisId = promotionConfirmationAnalysisId(projectId, promotionId);
-
-    await this.db
-      .query(insertDashboardManualPromotionAnalysis, {
-        analysisId: manualAnalysisId,
-        campaignId: promotion.campaign_id,
-        projectId,
-        promotionId
-      })
-      .single();
-
     const row = await this.db
       .query(confirmDashboardPromotionSegmentSuggestions, {
         analysisId: request.analysis_id,
-        confirmedBy: request.confirmed_by ?? null,
-        manualAnalysisId,
         projectId,
         promotionId,
-        segmentIds: request.segment_ids,
         suggestionIds: request.suggestion_ids
       })
       .single();
 
     return {
+      analysis_id: analysisId,
       confirmed_segment_count: countValue(row.confirmedSegmentCount),
       promotion_id: row.promotionId ?? promotionId,
       status: "confirmed"

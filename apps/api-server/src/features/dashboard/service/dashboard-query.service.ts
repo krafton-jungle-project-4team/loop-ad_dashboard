@@ -333,10 +333,19 @@ export class DashboardQueryService {
   ): Promise<DashboardPromotionAnalysisResult> {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
-    log.info("started", { projectId, promotionId, request });
+    log.info("started", {
+      hasOperatorInstruction: Boolean(request.operator_instruction),
+      operatorInstructionLength: request.operator_instruction?.length ?? 0,
+      hasSegmentInstruction: Boolean(request.segment_instruction),
+      segmentInstructionLength: request.segment_instruction?.length ?? 0
+    });
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     log.assignContext({ campaignId: promotion.campaign_id });
-    log.info("promotion_loaded", { promotion });
+    log.info("promotion_loaded", {
+      channel: promotion.channel,
+      goalMetric: promotion.goal_metric,
+      status: promotion.status
+    });
     const response = await this.decisionClient.recommendPromotionSegments({
       campaignId: promotion.campaign_id,
       projectId,
@@ -344,7 +353,11 @@ export class DashboardQueryService {
       request
     });
 
-    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    log.info("completed", {
+      analysisId: response.analysis_id,
+      status: response.status,
+      durationMs: durationMs(startedAt)
+    });
     return response;
   }
 
@@ -356,10 +369,18 @@ export class DashboardQueryService {
   ): Promise<DashboardPromotionAnalysisResult> {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
-    log.info("started", { projectId, promotionId, request });
+    log.info("started", {
+      hasOperatorInstruction: Boolean(request.operator_instruction),
+      operatorInstructionLength: request.operator_instruction?.length ?? 0,
+      selectedSegmentCount: request.segment_ids.length
+    });
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     log.assignContext({ campaignId: promotion.campaign_id });
-    log.info("promotion_loaded", { promotion });
+    log.info("promotion_loaded", {
+      channel: promotion.channel,
+      goalMetric: promotion.goal_metric,
+      status: promotion.status
+    });
     const response = await this.decisionClient.analyzePromotionSegments({
       campaignId: promotion.campaign_id,
       projectId,
@@ -367,7 +388,11 @@ export class DashboardQueryService {
       request
     });
 
-    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    log.info("completed", {
+      analysisId: response.analysis_id,
+      status: response.status,
+      durationMs: durationMs(startedAt)
+    });
     return response;
   }
 
@@ -499,23 +524,101 @@ export class DashboardQueryService {
   }
 
   @LogContextScope()
-  @Transactional()
   async confirmPromotionSegmentSuggestions(
     projectId: string,
     promotionId: string,
     request: DashboardConfirmSegmentSuggestionsRequest
   ): Promise<DashboardConfirmSegmentSuggestionsResult> {
     const startedAt = Date.now();
-    log.assignContext({ projectId, promotionId });
-    log.info("started", { projectId, promotionId, request });
+    log.assignContext({ analysisId: request.analysis_id, projectId, promotionId });
+    log.info("started", {
+      manualSegmentCount: request.segment_ids.length,
+      selectedSuggestionCount: request.suggestion_ids.length
+    });
+    const selectedSuggestionSegmentIds: string[] = [];
+    if (request.suggestion_ids.length > 0 && request.analysis_id) {
+      const suggestions = await this.campaignReader.listPromotionSegmentSuggestions(
+        projectId,
+        promotionId,
+        request.analysis_id
+      );
+      const selectableSuggestions = new Map(
+        suggestions.suggestions
+          .filter((suggestion) =>
+            ["suggested", "accepted", "confirmed"].includes(suggestion.suggestion_status)
+          )
+          .map((suggestion) => [suggestion.suggestion_id, suggestion] as const)
+      );
+      const selectedSuggestions = request.suggestion_ids.flatMap((suggestionId) => {
+        const suggestion = selectableSuggestions.get(suggestionId);
+        return suggestion ? [suggestion] : [];
+      });
+      if (selectedSuggestions.length !== request.suggestion_ids.length) {
+        log.warn("segment_suggestion_selection_invalid", {
+          invalidSuggestionCount: request.suggestion_ids.length - selectedSuggestions.length,
+          selectedSuggestionCount: request.suggestion_ids.length
+        });
+        throw dashboardErrors.segmentSuggestionSelectionInvalid();
+      }
+      selectedSuggestionSegmentIds.push(
+        ...selectedSuggestions.map((suggestion) => suggestion.segment_id)
+      );
+    }
+
+    const scopedSegments = await this.campaignReader.listPromotionScopedSegmentDefinitions(
+      projectId,
+      promotionId
+    );
+    const activeScopedSegmentIds = new Set(
+      scopedSegments.segments.map((segment) => segment.segment_id)
+    );
+    const invalidManualSegmentCount = request.segment_ids.filter(
+      (segmentId) => !activeScopedSegmentIds.has(segmentId)
+    ).length;
+    if (invalidManualSegmentCount > 0) {
+      log.warn("segment_suggestion_selection_invalid", {
+        invalidManualSegmentCount,
+        manualSegmentCount: request.segment_ids.length
+      });
+      throw dashboardErrors.segmentSuggestionSelectionInvalid();
+    }
+
+    const selectedSegmentIds = [
+      ...new Set([...selectedSuggestionSegmentIds, ...request.segment_ids])
+    ];
+
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    log.assignContext({ campaignId: promotion.campaign_id });
+    const analysis = await this.decisionClient.analyzePromotionSegments({
+      campaignId: promotion.campaign_id,
+      projectId,
+      promotionId,
+      request: {
+        operator_instruction: null,
+        segment_ids: selectedSegmentIds
+      }
+    });
+    log.assignContext({ analysisId: analysis.analysis_id });
     const response = await this.campaignReader.confirmPromotionSegmentSuggestions(
       projectId,
       promotionId,
-      request
+      request,
+      analysis.analysis_id
     );
+    if (response.confirmed_segment_count !== request.suggestion_ids.length) {
+      log.warn("segment_suggestion_confirmation_mismatch", {
+        confirmedSegmentCount: response.confirmed_segment_count,
+        selectedSuggestionCount: request.suggestion_ids.length
+      });
+      throw dashboardErrors.segmentSuggestionSelectionInvalid();
+    }
 
-    log.info("completed", { response, durationMs: durationMs(startedAt) });
-    return response;
+    const result = {
+      ...response,
+      confirmed_segment_count: selectedSegmentIds.length
+    };
+    log.info("completed", { response: result, durationMs: durationMs(startedAt) });
+    return result;
   }
 
   @LogContextScope()

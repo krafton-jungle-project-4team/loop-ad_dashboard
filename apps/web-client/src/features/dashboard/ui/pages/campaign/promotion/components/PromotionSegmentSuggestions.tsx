@@ -39,23 +39,19 @@ import {
   EmptyMedia,
   EmptyTitle
 } from "@loopad/ui/shadcn/empty";
-import { Field, FieldError, FieldLabel } from "@loopad/ui/shadcn/field";
-import { Input } from "@loopad/ui/shadcn/input";
-import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { BarChart3, CheckCircle2, FileText, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { BarChart3, Bot, CheckCircle2, FileText } from "lucide-react";
+import { useState } from "react";
+import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
-  createEmptyPromotionSegmentFormState,
   formatJsonObject,
   formatPercentValue,
-  parseJsonObject,
   segmentAudienceSummary,
-  statusBadgeVariant,
-  type PromotionSegmentCreateFormState
+  statusBadgeVariant
 } from "../promotionUtils.js";
 import {
   SegmentColumnDeleteMenu,
@@ -75,11 +71,9 @@ type SegmentCandidateDeleteTarget =
 export function PromotionSegmentSuggestionPanel({
   archiveScopedSegmentIsPending,
   confirmIsPending,
-  createScopedSegmentIsPending,
   decideIsPending,
   onArchiveScopedSegment,
   onConfirmSuggestions,
-  onCreateScopedSegment,
   onDecideSuggestion,
   onRecommendSegments,
   promotionAnalysisIsPending,
@@ -90,11 +84,9 @@ export function PromotionSegmentSuggestionPanel({
 }: {
   archiveScopedSegmentIsPending: boolean;
   confirmIsPending: boolean;
-  createScopedSegmentIsPending: boolean;
   decideIsPending: boolean;
   onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: () => void;
-  onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (
     suggestionId: string,
     status: "suggested" | "accepted" | "dismissed"
@@ -106,8 +98,8 @@ export function PromotionSegmentSuggestionPanel({
   suggestions: DashboardPromotionSegmentSuggestion[];
   suggestionsIsLoading: boolean;
 }) {
+  const { openSegmentCandidateAssistant } = useDashboardAssistant();
   const [deleteTarget, setDeleteTarget] = useState<SegmentCandidateDeleteTarget | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [reportSuggestion, setReportSuggestion] =
     useState<DashboardPromotionSegmentSuggestion | null>(null);
   const visibleSuggestions = suggestions.filter(
@@ -158,14 +150,9 @@ export function PromotionSegmentSuggestionPanel({
               {promotionAnalysisIsPending ? "후보를 찾고 있어요…" : "AI로 후보 찾기"}
             </Button>
           ) : null}
-          <Button
-            onClick={() => setIsCreateDialogOpen(true)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <Plus data-icon="inline-start" />
-            직접 추가
+          <Button onClick={openSegmentCandidateAssistant} size="sm" type="button" variant="outline">
+            <Bot data-icon="inline-start" />
+            챗봇으로 직접 만들기
           </Button>
           <SegmentColumnDeleteMenu
             ariaLabel="고객군 후보 작업"
@@ -267,14 +254,6 @@ export function PromotionSegmentSuggestionPanel({
           }}
           suggestion={reportSuggestion}
         />
-        {isCreateDialogOpen ? (
-          <PromotionSegmentCreateDialog
-            createIsPending={createScopedSegmentIsPending}
-            onCreate={onCreateScopedSegment}
-            onOpenChange={setIsCreateDialogOpen}
-            open
-          />
-        ) : null}
       </CardContent>
       <CardFooter className="shrink-0 justify-between gap-3 bg-background">
         <span className="text-xs text-muted-foreground">
@@ -288,7 +267,6 @@ export function PromotionSegmentSuggestionPanel({
             confirmIsPending ||
             decideIsPending ||
             archiveScopedSegmentIsPending ||
-            createScopedSegmentIsPending ||
             suggestionsIsLoading ||
             scopedSegmentsIsLoading ||
             promotionAnalysisIsPending
@@ -739,146 +717,4 @@ function formatObservedPerformance(
       : "";
 
   return `최근 관찰 ${metricLabel} ${formatPercentValue(estimate.observed_value ?? 0)}${sampleLabel}`;
-}
-
-function PromotionSegmentCreateDialog({
-  createIsPending,
-  onCreate,
-  onOpenChange,
-  open
-}: {
-  createIsPending: boolean;
-  onCreate: (form: PromotionSegmentCreateFormState) => void;
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-}) {
-  const [form, setForm] = useState<PromotionSegmentCreateFormState>(
-    createEmptyPromotionSegmentFormState()
-  );
-  const [ruleJsonError, setRuleJsonError] = useState<string | null>(null);
-  const ruleJsonRef = useRef<HTMLTextAreaElement>(null);
-
-  const canSubmit = Boolean(form.segmentName.trim()) && !createIsPending;
-
-  return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>고객군 후보 추가</DialogTitle>
-          <DialogDescription>
-            이 프로모션에서 사용할 고객군 후보를 저장해요. 저장한 뒤 후보 확정 버튼을 눌러 최종
-            고객군으로 바꿀 수 있어요.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <Field>
-            <FieldLabel htmlFor="promotion-segment-name">고객군 이름</FieldLabel>
-            <Input
-              autoComplete="off"
-              id="promotion-segment-name"
-              name="promotionSegmentName"
-              onChange={(event) => setForm({ ...form, segmentName: event.target.value })}
-              placeholder="VIP 장기 미구매 고객"
-              value={form.segmentName}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="promotion-segment-natural-query">만든 이유와 조건</FieldLabel>
-            <Textarea
-              id="promotion-segment-natural-query"
-              name="promotionSegmentNaturalLanguageQuery"
-              onChange={(event) => setForm({ ...form, naturalLanguageQuery: event.target.value })}
-              placeholder="최근 30일 내 상세 조회는 했지만 예약 전환이 없는 고객"
-              value={form.naturalLanguageQuery}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="promotion-segment-rule-json">조건 JSON</FieldLabel>
-            <Textarea
-              aria-describedby={ruleJsonError ? "promotion-segment-rule-json-error" : undefined}
-              aria-invalid={Boolean(ruleJsonError)}
-              className="font-mono text-xs"
-              id="promotion-segment-rule-json"
-              name="promotionSegmentRuleJson"
-              onChange={(event) => {
-                setForm({ ...form, ruleJsonText: event.target.value });
-                if (ruleJsonError) {
-                  setRuleJsonError(null);
-                }
-              }}
-              ref={ruleJsonRef}
-              value={form.ruleJsonText}
-            />
-            {ruleJsonError ? (
-              <FieldError id="promotion-segment-rule-json-error">{ruleJsonError}</FieldError>
-            ) : null}
-          </Field>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field>
-              <FieldLabel htmlFor="promotion-segment-sample-size">대상 수</FieldLabel>
-              <Input
-                id="promotion-segment-sample-size"
-                inputMode="numeric"
-                min="0"
-                name="promotionSegmentSampleSize"
-                onChange={(event) => setForm({ ...form, sampleSize: event.target.value })}
-                type="number"
-                value={form.sampleSize}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="promotion-segment-eligible-size">전체 대상 수</FieldLabel>
-              <Input
-                id="promotion-segment-eligible-size"
-                inputMode="numeric"
-                min="0"
-                name="promotionSegmentEligibleSize"
-                onChange={(event) =>
-                  setForm({ ...form, totalEligibleUserCount: event.target.value })
-                }
-                type="number"
-                value={form.totalEligibleUserCount}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="promotion-segment-sample-ratio">대상 비율</FieldLabel>
-              <Input
-                id="promotion-segment-sample-ratio"
-                inputMode="decimal"
-                min="0"
-                name="promotionSegmentSampleRatio"
-                onChange={(event) => setForm({ ...form, sampleRatio: event.target.value })}
-                step="0.001"
-                type="number"
-                value={form.sampleRatio}
-              />
-            </Field>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
-            취소
-          </Button>
-          <Button
-            disabled={!canSubmit}
-            onClick={() => {
-              const ruleJson = parseJsonObject(form.ruleJsonText);
-              if (!ruleJson) {
-                setRuleJsonError(
-                  '조건 JSON을 읽을 수 없어요. { "source": "manual_rule" }처럼 객체 형태로 입력해 주세요.'
-                );
-                ruleJsonRef.current?.focus();
-                return;
-              }
-              onCreate({ ...form, ruleJsonText: JSON.stringify(ruleJson) });
-              onOpenChange(false);
-            }}
-            type="button"
-          >
-            {createIsPending ? "고객군 후보 추가 중…" : "고객군 후보 추가"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 }
