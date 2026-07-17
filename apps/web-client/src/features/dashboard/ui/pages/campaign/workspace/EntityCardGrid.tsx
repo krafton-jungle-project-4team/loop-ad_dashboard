@@ -170,7 +170,11 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
         <CardTitle
           className={cn(
             "line-clamp-2 font-semibold tracking-tight",
-            isCompact ? "text-base" : "text-lg"
+            entity.kind === "campaign"
+              ? "text-lg group-data-[size=sm]/card:text-lg"
+              : isCompact
+                ? "text-base"
+                : "text-lg"
           )}
         >
           {entity.title}
