@@ -5,7 +5,6 @@ import type {
   DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
 import {
-  buildSegmentAssistantInstruction,
   INITIAL_SEGMENT_ASSISTANT_MESSAGE,
   segmentAssistantFailureMessage
 } from "../src/features/dashboard/model/segment-candidate-assistant.js";
@@ -60,45 +59,18 @@ test("confirmation does not choose an arbitrary analysis from mixed suggestions"
   });
 });
 
-test("segment assistant starts with a planner-friendly message", () => {
+test("segment assistant introduces both data lookup and segment creation", () => {
   assert.equal(
     INITIAL_SEGMENT_ASSISTANT_MESSAGE,
-    "세그먼트 후보를 챗봇을 통해 직접 생성할 수 있습니다. 원하시는 세그먼트나 조건 등을 알려주세요."
+    "고객 행동 데이터의 인원과 비율을 물어보거나, 원하는 조건의 세그먼트를 직접 만들 수 있습니다."
   );
 });
 
-test("segment assistant keeps recent follow-up context as one segment instruction", () => {
+test("segment assistant uses a generic message for transport failures", () => {
   assert.equal(
-    buildSegmentAssistantInstruction([" 최근 제주 숙소를 검색한 고객 ", "예약 완료 고객은 빼줘"]),
-    "최근 제주 숙소를 검색한 고객\n후속 요청: 예약 완료 고객은 빼줘"
+    segmentAssistantFailureMessage(new Error("Dashboard API request failed. timeout")),
+    "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
   );
-});
-
-test("segment assistant asks for detail only when Decision reports no matching audience", () => {
-  assert.match(
-    segmentAssistantFailureMessage(
-      new Error("Decision API request failed. no segment candidates matched segment instruction")
-    ),
-    /조금 더 구체적으로/
-  );
-  assert.equal(
-    segmentAssistantFailureMessage(new Error("Decision API request failed. timeout")),
-    "세그먼트 후보를 만들지 못했습니다. 잠시 후 다시 시도해 주세요."
-  );
-});
-
-test("segment assistant retains at most six recent user turns", () => {
-  assert.equal(
-    buildSegmentAssistantInstruction(["1", "2", "3", "4", "5", "6", "7"]),
-    "2\n후속 요청: 3\n후속 요청: 4\n후속 요청: 5\n후속 요청: 6\n후속 요청: 7"
-  );
-});
-
-test("segment assistant always retains the latest request within the API limit", () => {
-  const instruction = buildSegmentAssistantInstruction(["제".repeat(2_100)]);
-
-  assert.equal(instruction.length, 2_000);
-  assert.equal(instruction, "제".repeat(2_000));
 });
 
 function suggestion(

@@ -13,6 +13,8 @@ import {
   DashboardPromotionSegmentSuggestionSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
+  DashboardSegmentAssistantRequestSchema,
+  DashboardSegmentAssistantResponseSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
@@ -30,6 +32,8 @@ import {
   type DashboardPromotionSegmentSuggestionList,
   type DashboardSavedSegment,
   type DashboardSaveSegmentRequest,
+  type DashboardSegmentAssistantRequest,
+  type DashboardSegmentAssistantResponse,
   type DashboardSegmentDetail,
   type DashboardSegmentQueryPreview,
   type DashboardSegmentQueryPreviewRequest
@@ -126,6 +130,22 @@ export function createDashboardPromotionScopedSegmentDefinition(
     DashboardPromotionScopedSegmentDefinitionSchema,
     {
       body: DashboardCreatePromotionSegmentDefinitionRequestSchema.parse(requestBody),
+      method: "POST",
+      searchParams: projectSearchParams(query.projectId)
+    }
+  );
+}
+
+export function assistDashboardPromotionSegment(
+  query: DashboardQuery,
+  promotionId: string,
+  requestBody: DashboardSegmentAssistantRequest
+): Promise<DashboardSegmentAssistantResponse> {
+  return apiRequest(
+    `${promotionPath(promotionId)}/segment-assistant`,
+    DashboardSegmentAssistantResponseSchema,
+    {
+      body: DashboardSegmentAssistantRequestSchema.parse(requestBody),
       method: "POST",
       searchParams: projectSearchParams(query.projectId)
     }
