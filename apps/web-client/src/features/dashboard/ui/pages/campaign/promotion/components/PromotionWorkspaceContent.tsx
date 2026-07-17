@@ -37,6 +37,7 @@ import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
+import { cn } from "@loopad/ui/shadcn/utils";
 import {
   Table,
   TableBody,
@@ -45,17 +46,8 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import {
-  BarChart3,
-  CheckCircle2,
-  ImageIcon,
-  Plus,
-  Search,
-  Target,
-  Trash2,
-  Users,
-  X
-} from "lucide-react";
+import { BarChart3, CheckCircle2, ImageIcon, Plus, Search, Target, Users, X } from "lucide-react";
+import { useState } from "react";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import {
   formatActionLabel,
@@ -87,6 +79,7 @@ import {
 } from "../promotionUtils.js";
 import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow.js";
 import { PromotionSegmentSuggestionPanel } from "./PromotionSegmentSuggestions.js";
+import { SegmentColumnDeleteMenu } from "./SegmentColumnDeleteMenu.js";
 import { ContentCandidateCopyEditDialog } from "./ContentCandidateCopyEditDialog.js";
 
 const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
@@ -498,8 +491,8 @@ export function PromotionTabWorkspace({
           </TabsContent>
         ) : null}
         {showsSegmentsTab ? (
-          <TabsContent value="segments">
-            <div className="grid gap-4">
+          <TabsContent className="min-h-0 xl:overflow-hidden" value="segments">
+            <div className="grid gap-4 xl:h-[calc(100svh-11rem)] xl:min-h-0 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)] xl:overflow-hidden">
               <PromotionSegmentSuggestionPanel
                 confirmIsPending={confirmIsPending}
                 createScopedSegmentIsPending={scopedSegmentCreateIsPending}
@@ -605,16 +598,38 @@ function PromotionCurrentSegmentsPanel({
   selectedSegmentId: string;
 }) {
   const visibleSegments = latestSegmentPerSegmentId(segments);
+  const [segmentToDelete, setSegmentToDelete] = useState<DashboardCampaignSegment | null>(null);
 
   return (
-    <Card className="h-full shadow-none">
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <Card className="min-h-0 overflow-hidden shadow-none xl:h-full">
+      <CardHeader className="shrink-0 border-b">
         <div className="grid gap-1">
-          <CardTitle className="text-base">확정 세그먼트</CardTitle>
-          <CardDescription>이 프로모션에 연결된 세그먼트예요.</CardDescription>
+          <div className="flex items-center gap-2">
+            <CardTitle>확정 세그먼트</CardTitle>
+            <Badge variant="secondary">{formatInteger(visibleSegments.length)}</Badge>
+            <SegmentColumnDeleteMenu
+              ariaLabel="확정 세그먼트 작업"
+              disabled={deleteIsPending}
+              emptyLabel="관리할 세그먼트가 없어요"
+              items={visibleSegments.map((segment) => ({
+                id: `${segment.segment_id}:${segment.analysis_id}`,
+                label: campaignSegmentDisplayCopy(segment)?.title ?? segment.segment_name,
+                value: segment
+              }))}
+              label="확정 세그먼트"
+              onDelete={setSegmentToDelete}
+            />
+          </div>
+          <CardDescription>광고 소재를 만들고 실험할 고객군이에요.</CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-2">
+      <CardContent className="grid content-start gap-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-width:thin]">
+        {visibleSegments.length === 0 ? (
+          <EmptyState
+            message="후보를 선택해 확정하면 이곳에서 광고 소재와 실험을 이어갈 수 있어요."
+            title="아직 확정된 세그먼트가 없어요"
+          />
+        ) : null}
         {visibleSegments.map((segment) => {
           const isSelected = segment.segment_id === selectedSegmentId;
           const loopCount = segmentLoopCount(segment);
@@ -625,97 +640,86 @@ function PromotionCurrentSegmentsPanel({
               candidate.analysis_id !== segment.analysis_id
           ).length;
           return (
-            <div
-              className={`rounded-md border p-3 text-left transition ${
-                isSelected ? "border-primary bg-accent" : "bg-background hover:bg-muted/30"
-              }`}
+            <Card
+              className={cn(
+                "shadow-none transition-[border-color,box-shadow]",
+                isSelected && "border-primary bg-accent/30 ring-2 ring-primary/10"
+              )}
               key={`${segment.segment_id}:${segment.analysis_id}`}
+              size="sm"
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="truncate font-medium">
-                      {displayCopy?.title ?? segment.segment_name}
-                    </span>
-                    <Badge variant="secondary">{formatInteger(loopCount)}번째 실험</Badge>
-                    {loopCount > 1 ? <Badge variant="default">반복 실험</Badge> : null}
-                  </div>
-                  {displayCopy?.signal_chips.length ? (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {displayCopy.signal_chips.map((chip) => (
-                        <Badge className="text-[11px]" key={chip} variant="outline">
-                          {chip}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {displayCopy?.audience_summary ??
-                      `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
-                        segment.sample_size
-                      )} · ${formatMetricLabel(segment.goal_metric)}`}
-                    {hiddenLoopCount > 0
-                      ? ` · 이전 실험 ${formatInteger(hiddenLoopCount)}개 숨김`
-                      : ""}
-                  </div>
-                  {displayCopy?.reason ? (
-                    <div className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                      {displayCopy.reason}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+              <CardHeader className="gap-3">
+                <CardTitle className="truncate text-base font-semibold">
+                  {displayCopy?.title ?? segment.segment_name}
+                </CardTitle>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant="secondary">{formatInteger(loopCount)}번째 실험</Badge>
                   <Badge variant={statusBadgeVariant(segment.status)}>
                     {formatStatusLabel(segment.status)}
                   </Badge>
-                  <Button
-                    aria-pressed={isSelected}
-                    onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
-                    size="sm"
-                    type="button"
-                    variant={isSelected ? "default" : "outline"}
-                  >
-                    광고 소재 · 실험
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        aria-label={`${segment.segment_name} 확정 세그먼트 삭제`}
-                        disabled={deleteIsPending}
-                        size="icon"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>확정 세그먼트를 삭제할까요?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {segment.segment_name} 세그먼트가 이 프로모션에서 사라지고 되돌릴 수
-                          없어요.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>취소</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() =>
-                            onDeleteSegment(promotion.promotion_id, segment.segment_id)
-                          }
-                          variant="destructive"
-                        >
-                          확정 세그먼트 삭제
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  {loopCount > 1 ? <Badge variant="outline">반복 실험</Badge> : null}
                 </div>
-              </div>
-            </div>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {displayCopy?.audience_summary ??
+                    `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
+                      segment.sample_size
+                    )} · ${formatMetricLabel(segment.goal_metric)}`}
+                  {hiddenLoopCount > 0
+                    ? ` · 이전 실험 ${formatInteger(hiddenLoopCount)}개 숨김`
+                    : ""}
+                </p>
+                {displayCopy?.reason ? (
+                  <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                    {displayCopy.reason}
+                  </p>
+                ) : null}
+                <Button
+                  className="w-full"
+                  onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
+                  size="sm"
+                  type="button"
+                >
+                  광고 소재 · 실험
+                </Button>
+              </CardContent>
+            </Card>
           );
         })}
       </CardContent>
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setSegmentToDelete(null);
+          }
+        }}
+        open={Boolean(segmentToDelete)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>확정 세그먼트를 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {segmentToDelete?.segment_name} 세그먼트가 이 프로모션에서 사라지고 되돌릴 수 없어요.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!segmentToDelete || deleteIsPending}
+              onClick={() => {
+                if (segmentToDelete) {
+                  onDeleteSegment(promotion.promotion_id, segmentToDelete.segment_id);
+                  setSegmentToDelete(null);
+                }
+              }}
+              variant="destructive"
+            >
+              확정 세그먼트 삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
