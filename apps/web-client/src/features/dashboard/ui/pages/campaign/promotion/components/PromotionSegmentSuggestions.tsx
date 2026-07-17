@@ -205,7 +205,7 @@ export function PromotionSegmentSuggestionPanel({
                       평가 대상 {formatInteger(segment.sample_size)}명 · 비율{" "}
                       {formatInteger(segment.sample_ratio * 100)}%
                     </div>
-                    <div className="line-clamp-2">
+                    <div className="[overflow-wrap:anywhere] [word-break:keep-all]">
                       {(segment.natural_language_query ?? formatJsonObject(segment.rule_json)) ||
                         "조건 설명이 없어요."}
                     </div>
@@ -355,7 +355,7 @@ function SegmentSuggestionCard({
   return (
     <Card
       className={cn(
-        "min-h-full min-w-0 shadow-none",
+        "min-w-0 shadow-none",
         isAccepted && "border-primary bg-accent/40 ring-2 ring-primary/10"
       )}
       size="sm"
@@ -426,7 +426,7 @@ function SegmentSuggestionCard({
         />
         <div className="grid gap-1">
           <span className="text-[11px] font-medium text-foreground">추천 이유</span>
-          <p className="line-clamp-2 leading-5">
+          <p className="leading-5 [overflow-wrap:anywhere] [word-break:keep-all]">
             {displayCopy?.reason ||
               formatJsonObject(suggestion.reason_json) ||
               "추천 이유가 없어요."}

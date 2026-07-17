@@ -428,6 +428,13 @@ export function PromotionTabWorkspace({
   const showsSegmentsTab = visibleTabs.includes("segments");
   const showsSegmentDetailTab = visibleTabs.includes("segment-detail");
   const showsPromotionSummary = showsOverviewTab;
+  const candidateCount =
+    scopedSegments.length +
+    suggestions.filter(
+      (suggestion) =>
+        suggestion.suggestion_status === "suggested" || suggestion.suggestion_status === "accepted"
+    ).length;
+  const confirmedSegmentCount = latestSegmentPerSegmentId(activeSegments).length;
   return (
     <section className="grid gap-5">
       {showsPromotionSummary ? (
@@ -492,32 +499,49 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsSegmentsTab ? (
           <TabsContent className="min-h-0 xl:overflow-hidden" value="segments">
-            <div className="grid gap-4 xl:h-[calc(100svh-11rem)] xl:min-h-0 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)] xl:overflow-hidden">
-              <PromotionSegmentSuggestionPanel
-                confirmIsPending={confirmIsPending}
-                createScopedSegmentIsPending={scopedSegmentCreateIsPending}
-                decideIsPending={decideIsPending}
-                archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
-                onArchiveScopedSegment={onArchiveScopedSegment}
-                onConfirmSuggestions={onConfirmSuggestions}
-                onCreateScopedSegment={onCreateScopedSegment}
-                onDecideSuggestion={onDecideSuggestion}
-                onRecommendSegments={onRecommendSegments}
-                promotionAnalysisIsPending={promotionAnalysisIsPending}
-                scopedSegments={scopedSegments}
-                scopedSegmentsIsLoading={scopedSegmentsIsLoading}
-                suggestions={suggestions}
-                suggestionsIsLoading={suggestionsIsLoading}
-              />
-              <PromotionCurrentSegmentsPanel
-                deleteIsPending={deleteConfirmedSegmentIsPending}
-                onDeleteSegment={onDeleteConfirmedSegment}
-                onSelectSegment={onSelectSegment}
-                promotion={promotion}
-                segments={activeSegments}
-                selectedSegmentId={selectedSegmentId}
-              />
-            </div>
+            <Tabs
+              className="min-h-0 gap-3 xl:h-[calc(100svh-11rem)] xl:overflow-hidden"
+              defaultValue="candidates"
+            >
+              <TabsList aria-label="세그먼트 목록" className="w-fit">
+                <TabsTrigger value="candidates">
+                  세그먼트 후보
+                  <Badge variant="secondary">{formatInteger(candidateCount)}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="confirmed">
+                  확정 세그먼트
+                  <Badge variant="secondary">{formatInteger(confirmedSegmentCount)}</Badge>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent className="min-h-0 xl:overflow-hidden" value="candidates">
+                <PromotionSegmentSuggestionPanel
+                  confirmIsPending={confirmIsPending}
+                  createScopedSegmentIsPending={scopedSegmentCreateIsPending}
+                  decideIsPending={decideIsPending}
+                  archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+                  onArchiveScopedSegment={onArchiveScopedSegment}
+                  onConfirmSuggestions={onConfirmSuggestions}
+                  onCreateScopedSegment={onCreateScopedSegment}
+                  onDecideSuggestion={onDecideSuggestion}
+                  onRecommendSegments={onRecommendSegments}
+                  promotionAnalysisIsPending={promotionAnalysisIsPending}
+                  scopedSegments={scopedSegments}
+                  scopedSegmentsIsLoading={scopedSegmentsIsLoading}
+                  suggestions={suggestions}
+                  suggestionsIsLoading={suggestionsIsLoading}
+                />
+              </TabsContent>
+              <TabsContent className="min-h-0 xl:overflow-hidden" value="confirmed">
+                <PromotionCurrentSegmentsPanel
+                  deleteIsPending={deleteConfirmedSegmentIsPending}
+                  onDeleteSegment={onDeleteConfirmedSegment}
+                  onSelectSegment={onSelectSegment}
+                  promotion={promotion}
+                  segments={activeSegments}
+                  selectedSegmentId={selectedSegmentId}
+                />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         ) : null}
         {showsSegmentDetailTab ? (
@@ -649,7 +673,7 @@ function PromotionCurrentSegmentsPanel({
               size="sm"
             >
               <CardHeader className="gap-3">
-                <CardTitle className="truncate text-base font-semibold">
+                <CardTitle className="text-base leading-6 font-semibold [overflow-wrap:anywhere] [word-break:keep-all]">
                   {displayCopy?.title ?? segment.segment_name}
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -671,7 +695,7 @@ function PromotionCurrentSegmentsPanel({
                     : ""}
                 </p>
                 {displayCopy?.reason ? (
-                  <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                  <p className="text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere] [word-break:keep-all]">
                     {displayCopy.reason}
                   </p>
                 ) : null}
