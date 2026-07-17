@@ -132,6 +132,58 @@ test("structured segment conditions compile to whitelisted read-only ClickHouse 
   assert.match(query.previewSql, /LIMIT 500$/);
 });
 
+test("structured segment destination conditions match Korean and source-data aliases", async () => {
+  const { planStructuredSegmentQuery } =
+    await import("../src/features/dashboard/repository/dashboard-segment-query-repository.js");
+  const query = planStructuredSegmentQuery(
+    "demo_project",
+    {
+      action: "audience_query",
+      segment_name: null,
+      lookback_days: 30,
+      conditions: [
+        {
+          label: "제주 또는 오키나와 숙소 검색",
+          event_name: "hotel_search",
+          minimum_count: 1,
+          maximum_count: null,
+          destination: "제주, 오키나와",
+          checkin_months: [],
+          property_filters: []
+        }
+      ],
+      clarification_message: null
+    },
+    {
+      from: "2026-06-01T00:00:00.000Z",
+      to: "2026-07-01T00:00:00.000Z"
+    }
+  );
+
+  assert.match(query.generatedSql, /'제주'/);
+  assert.match(query.generatedSql, /'jeju'/);
+  assert.match(query.generatedSql, /'오키나와'/);
+  assert.match(query.generatedSql, /'okinawa'/);
+  assert.match(query.generatedSql, / OR /);
+});
+
+test("segment assistant keeps alternative destinations in one event condition", async () => {
+  setRequiredEnv();
+  const { fallbackSegmentAssistantPlan } =
+    await import("../src/features/dashboard/provider/dashboard-segment-assistant-agent.js");
+
+  const plan = fallbackSegmentAssistantPlan(
+    "최근 제주, 오키나와 숙소를 검색했지만 예약하지 않은 고객은 몇 명이야?"
+  );
+
+  assert.equal(plan.action, "audience_query");
+  assert.equal(plan.conditions[0]?.destination, "제주, 오키나와");
+  assert.equal(
+    plan.conditions.filter((condition) => condition.event_name === "hotel_search").length,
+    1
+  );
+});
+
 function setRequiredEnv() {
   process.env.LOOPAD_ENV ??= "test";
   process.env.LOOPAD_SERVICE_ID ??= "dashboard-api";

@@ -406,7 +406,36 @@ function destinationPredicate(destination: string) {
     "ifNull(JSONExtractString(properties_json, 'hotel_city'), '')",
     "ifNull(JSONExtractString(properties_json, 'hotel_country'), '')"
   ].join(", ' ', ");
-  return `positionCaseInsensitiveUTF8(concat(${destinationText}), ${sqlString(destination)}) > 0`;
+  const predicates = destinationSearchTerms(destination).map(
+    (term) => `positionCaseInsensitiveUTF8(concat(${destinationText}), ${sqlString(term)}) > 0`
+  );
+  return predicates.length === 1 ? predicates[0]! : `(${predicates.join(" OR ")})`;
+}
+
+const DESTINATION_ALIAS_GROUPS = [
+  ["제주", "jeju"],
+  ["오키나와", "okinawa"],
+  ["삿포로", "sapporo"],
+  ["도쿄", "tokyo"],
+  ["오사카", "osaka"],
+  ["부산", "busan"],
+  ["서울", "seoul"],
+  ["다낭", "da nang", "danang"]
+] as const;
+
+function destinationSearchTerms(destination: string) {
+  const requestedDestinations = destination
+    .split(/\s*(?:,|，|\/|·|또는|혹은)\s*/u)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const terms = requestedDestinations.flatMap((requestedDestination) => {
+    const normalized = requestedDestination.toLocaleLowerCase("en-US");
+    const aliases = DESTINATION_ALIAS_GROUPS.find((group) =>
+      group.some((alias) => alias.toLocaleLowerCase("en-US") === normalized)
+    );
+    return aliases ? [...aliases] : [requestedDestination];
+  });
+  return [...new Set(terms)];
 }
 
 function propertyFilterPredicate(filter: SegmentAssistantPropertyFilter) {

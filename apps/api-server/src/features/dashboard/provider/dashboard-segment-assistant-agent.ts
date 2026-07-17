@@ -326,6 +326,7 @@ function segmentAssistantInstructions() {
     "For 'recent' without a number, use 30 lookback days. For repeated behavior without a count, use minimum_count 2.",
     "For users who did not book, add booking_complete with minimum_count 0 and maximum_count 0.",
     "Apply a named destination to the relevant search/detail/booking conditions.",
+    "When multiple destinations are alternatives, put them in one destination string separated by commas. Do not create duplicate event conditions for each destination.",
     `Allowed events: ${SEGMENT_ASSISTANT_EVENT_NAMES.join(", ")}.`,
     `Allowed property filters: ${SEGMENT_ASSISTANT_PROPERTY_KEYS.join(", ")}.`,
     "Do not invent events, properties, user attributes, or observed counts.",
@@ -368,9 +369,9 @@ function inferDestination(text: string): string | null {
     "서울",
     "다낭"
   ];
-  const known = knownDestinations.find((destination) => text.includes(destination));
-  if (known) {
-    return known;
+  const known = knownDestinations.filter((destination) => text.includes(destination));
+  if (known.length > 0) {
+    return known.join(", ");
   }
   const match = text.match(/(?:최근\s+)?([가-힣A-Za-z][가-힣A-Za-z0-9·-]{1,19})\s+(?:숙소|호텔)/);
   return match?.[1] ?? null;
