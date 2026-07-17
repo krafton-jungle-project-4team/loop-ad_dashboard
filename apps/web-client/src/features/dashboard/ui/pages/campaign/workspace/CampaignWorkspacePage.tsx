@@ -65,6 +65,8 @@ import {
   PromotionEditDialog
 } from "../promotion/components/PromotionDialogs.js";
 import {
+  campaignSegmentDisplayCopy,
+  latestSegmentPerSegmentId,
   mutationErrorMessage,
   promotionCreateFormToRequest,
   uniquePromotionsById,
@@ -177,11 +179,11 @@ export function CampaignWorkspacePage({
   const selectedPromotion = promotions.find(
     (promotion) => promotion.promotion_id === query.selectedPromotionId
   );
-  const selectedSegment = campaignDetail.data?.segments.find(
-    (segment) =>
-      segment.promotion_id === selectedPromotion?.promotion_id &&
-      segment.segment_id === query.selectedSegmentId
-  );
+  const selectedSegment = latestSegmentPerSegmentId(
+    campaignDetail.data?.segments.filter(
+      (segment) => segment.promotion_id === selectedPromotion?.promotion_id
+    ) ?? []
+  ).find((segment) => segment.segment_id === query.selectedSegmentId);
   const editingCampaign =
     campaignFormDialog?.mode === "edit"
       ? data.campaigns.find((campaign) => campaign.campaign_id === campaignFormDialog.campaignId)
@@ -404,7 +406,9 @@ export function CampaignWorkspacePage({
           selectedLabels={{
             campaign: selectedCampaign?.campaign_name,
             promotion: selectedPromotion?.marketing_theme,
-            segment: selectedSegment?.segment_name
+            segment: selectedSegment
+              ? (campaignSegmentDisplayCopy(selectedSegment)?.title ?? selectedSegment.segment_name)
+              : undefined
           }}
         />
       </DashboardHeaderPortal>

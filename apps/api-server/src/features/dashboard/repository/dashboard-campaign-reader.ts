@@ -512,10 +512,13 @@ export class DashboardCampaignReader {
 
     const row = await this.db
       .query(confirmDashboardPromotionSegmentSuggestions, {
+        analysisId: request.analysis_id,
         confirmedBy: request.confirmed_by ?? null,
         manualAnalysisId,
         projectId,
-        promotionId
+        promotionId,
+        segmentIds: request.segment_ids,
+        suggestionIds: request.suggestion_ids
       })
       .single();
 

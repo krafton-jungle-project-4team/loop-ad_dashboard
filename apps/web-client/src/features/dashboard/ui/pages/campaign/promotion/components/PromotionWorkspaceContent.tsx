@@ -88,6 +88,8 @@ const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   "segment-detail": "세그먼트 맞춤 광고 생성"
 };
 
+type PromotionSegmentListTab = "candidates" | "confirmed";
+
 export function PromotionManagementList({
   filter,
   onAdd,
@@ -378,7 +380,7 @@ export function PromotionTabWorkspace({
     contentId: string,
     selected: boolean
   ) => void;
-  onConfirmSuggestions: () => void;
+  onConfirmSuggestions: () => Promise<void>;
   onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (
     suggestionId: string,
@@ -423,6 +425,7 @@ export function PromotionTabWorkspace({
   updateContentCandidateCopyIsPending: boolean;
   visibleTabs: PromotionWorkspaceTab[];
 }) {
+  const [segmentListTab, setSegmentListTab] = useState<PromotionSegmentListTab>("candidates");
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
   const showsOverviewTab = visibleTabs.includes("overview");
   const showsSegmentsTab = visibleTabs.includes("segments");
@@ -501,7 +504,8 @@ export function PromotionTabWorkspace({
           <TabsContent className="min-h-0 xl:overflow-hidden" value="segments">
             <Tabs
               className="min-h-0 gap-3 xl:h-[calc(100svh-11rem)] xl:overflow-hidden"
-              defaultValue="candidates"
+              onValueChange={(value) => setSegmentListTab(value as PromotionSegmentListTab)}
+              value={segmentListTab}
             >
               <TabsList aria-label="세그먼트 목록" className="w-fit">
                 <TabsTrigger value="candidates">
@@ -520,7 +524,12 @@ export function PromotionTabWorkspace({
                   decideIsPending={decideIsPending}
                   archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
                   onArchiveScopedSegment={onArchiveScopedSegment}
-                  onConfirmSuggestions={onConfirmSuggestions}
+                  onConfirmSuggestions={() => {
+                    void onConfirmSuggestions().then(
+                      () => setSegmentListTab("confirmed"),
+                      () => undefined
+                    );
+                  }}
                   onCreateScopedSegment={onCreateScopedSegment}
                   onDecideSuggestion={onDecideSuggestion}
                   onRecommendSegments={onRecommendSegments}

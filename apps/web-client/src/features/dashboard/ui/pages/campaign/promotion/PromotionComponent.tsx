@@ -122,7 +122,9 @@ export function PromotionWorkspace({
                   selected
                 })
               }
-              onConfirmSuggestions={() => confirmSuggestionsMutation.mutate()}
+              onConfirmSuggestions={async () => {
+                await confirmSuggestionsMutation.mutateAsync();
+              }}
               onCreateScopedSegment={(form) => createScopedSegmentMutation.mutate(form)}
               onDecideSuggestion={(suggestionId, status) =>
                 decideSuggestionMutation.mutate({ status, suggestionId })

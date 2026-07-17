@@ -57,7 +57,7 @@ import {
   type PromotionWorkspaceTab
 } from "./promotionUtils.js";
 import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
-import { confirmedSegmentSelectionId } from "./promotionSegmentConfirmationFlow.js";
+import { promotionSegmentConfirmationRequest } from "./promotionSegmentConfirmationFlow.js";
 
 const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
   promotion: ["overview"],
@@ -335,7 +335,7 @@ export function usePromotionWorkspaceController({
     refetchIntervalInBackground: false
   });
   const segmentSuggestions = useQuery({
-    enabled: Boolean(selectedOpenPromotion?.promotion_id),
+    enabled: Boolean(selectedOpenPromotionId && promotionDetail.isSuccess && activeAnalysisId),
     queryFn: ({ signal }) =>
       fetchDashboardPromotionSegmentSuggestions(
         query,
@@ -631,7 +631,11 @@ export function usePromotionWorkspaceController({
       confirmDashboardPromotionSegmentSuggestions(
         query,
         selectedOpenPromotion?.promotion_id ?? "",
-        {}
+        promotionSegmentConfirmationRequest(
+          segmentSuggestions.data?.suggestions ?? [],
+          scopedSegmentDefinitions.data?.segments ?? [],
+          activeAnalysisId
+        )
       ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -645,23 +649,11 @@ export function usePromotionWorkspaceController({
           activeAnalysisId
         )
       });
-      const firstConfirmedSegmentId = confirmedSegmentSelectionId(
-        segmentSuggestions.data?.suggestions
-          .filter(
-            (suggestion) =>
-              suggestion.suggestion_status === "accepted" ||
-              suggestion.suggestion_status === "confirmed"
-          )
-          .map((suggestion) => suggestion.segment_id) ?? [],
-        scopedSegmentDefinitions.data?.segments.map((segment) => segment.segment_id) ?? []
-      );
-      if (firstConfirmedSegmentId) {
-        await setDashboardQueryState({
-          segmentView: "manage",
-          selectedAdExperimentId: "",
-          selectedSegmentId: firstConfirmedSegmentId
-        });
-      }
+      await setDashboardQueryState({
+        segmentView: "manage",
+        selectedAdExperimentId: "",
+        selectedSegmentId: ""
+      });
     }
   });
   const deleteConfirmedSegmentMutation = useMutation({

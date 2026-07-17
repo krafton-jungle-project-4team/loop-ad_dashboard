@@ -1106,6 +1106,8 @@ WITH accepted_suggestions AS (
     ON sd.segment_id = pss.segment_id
   WHERE pss.project_id = :projectId
     AND pss.promotion_id = :promotionId
+    AND pss.analysis_id = :analysisId
+    AND pss.suggestion_id = ANY(:suggestionIds)
     AND pss.status = 'accepted'
 ),
 manual_segments AS (
@@ -1130,6 +1132,7 @@ manual_segments AS (
   FROM segment_definitions sd
   WHERE sd.project_id = :projectId
     AND sd.promotion_id = :promotionId
+    AND sd.segment_id = ANY(:segmentIds)
     AND sd.source IN ('custom_chatkit', 'manual_rule')
     AND sd.status = 'active'
 ),
