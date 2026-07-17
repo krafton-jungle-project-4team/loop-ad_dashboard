@@ -425,13 +425,27 @@ export function CampaignWorkspacePage({
 
       {!selectedCampaign ? (
         <section className="grid gap-5">
-          <div className="grid gap-1">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              캠페인을 선택해 주세요
-            </h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                캠페인을 선택해 주세요
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
+              </p>
+            </div>
+            <Button
+              className="shrink-0"
+              onClick={() => {
+                createCampaignMutation.reset();
+                setCampaignFormDialog({ mode: "create" });
+              }}
+              size="sm"
+              type="button"
+            >
+              <Plus aria-hidden="true" data-icon="inline-start" />
+              캠페인 만들기
+            </Button>
           </div>
           <div className="grid min-w-0 gap-4">
             {CAMPAIGN_SCHEDULE_SECTIONS.map((section) => {
@@ -459,21 +473,6 @@ export function CampaignWorkspacePage({
                       </h3>
                       <Badge variant="secondary">{cards.length}</Badge>
                       <div className="ml-auto flex items-center gap-1">
-                        {section.status !== "completed" ? (
-                          <Button
-                            aria-label={`${section.label} 캠페인 만들기`}
-                            onClick={() => {
-                              createCampaignMutation.reset();
-                              setCampaignFormDialog({ mode: "create" });
-                            }}
-                            size="icon-sm"
-                            title={`${section.label} 캠페인 만들기`}
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Plus aria-hidden="true" data-icon="inline-start" />
-                          </Button>
-                        ) : null}
                         <EntityColumnActionsMenu
                           cards={cards}
                           entityLabel="캠페인"
@@ -546,11 +545,25 @@ export function CampaignWorkspacePage({
       query.campaignView === "manage" &&
       campaignDetail.data ? (
         <section className="grid gap-5">
-          <div className="grid gap-1">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">프로모션</h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">프로모션</h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
+              </p>
+            </div>
+            <Button
+              className="shrink-0"
+              onClick={() => {
+                createPromotionMutation.reset();
+                setIsPromotionAddDialogOpen(true);
+              }}
+              size="sm"
+              type="button"
+            >
+              <Plus aria-hidden="true" data-icon="inline-start" />
+              프로모션 만들기
+            </Button>
           </div>
           <div className="grid min-w-0 gap-4">
             {PROMOTION_BOARD_SECTIONS.map((section) => {
@@ -572,21 +585,6 @@ export function CampaignWorkspacePage({
                       </h3>
                       <Badge variant="secondary">{cards.length}</Badge>
                       <div className="ml-auto flex items-center gap-1">
-                        {section.status === "preparing" ? (
-                          <Button
-                            aria-label="프로모션 만들기"
-                            onClick={() => {
-                              createPromotionMutation.reset();
-                              setIsPromotionAddDialogOpen(true);
-                            }}
-                            size="icon-sm"
-                            title="프로모션 만들기"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Plus aria-hidden="true" data-icon="inline-start" />
-                          </Button>
-                        ) : null}
                         <EntityColumnActionsMenu
                           cards={cards}
                           entityLabel="프로모션"
