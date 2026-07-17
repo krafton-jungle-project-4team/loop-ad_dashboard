@@ -435,7 +435,7 @@ function ProjectExperimentTable({
                 value={statusFilterValue}
               />
             </TableHead>
-            <TableHead>세그먼트</TableHead>
+            <TableHead>고객군</TableHead>
             <TableHead>노출 방식</TableHead>
             <TableHead className="text-right">배정</TableHead>
             <TableHead>현황 / 목표</TableHead>
@@ -687,11 +687,11 @@ function SelectedProjectExperimentDetail({
               <Alert>
                 <AlertTitle>반복 실험이 필요해요</AlertTitle>
                 <AlertDescription>
-                  이 프로모션의 타깃 세그먼트 광고를 새로 만들 수 있어요.
+                  이 프로모션의 타깃 고객군 광고를 새로 만들 수 있어요.
                 </AlertDescription>
               </Alert>
             ) : evaluation?.next_loop_required ? (
-              <EmptyState message="반복 실험에 사용할 타깃 세그먼트가 없어요." />
+              <EmptyState message="반복 실험에 사용할 타깃 고객군이 없어요." />
             ) : (
               <EmptyState message="지금은 다시 실험할 대상이 없어요." />
             )}

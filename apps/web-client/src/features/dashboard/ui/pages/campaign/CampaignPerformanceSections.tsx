@@ -153,7 +153,7 @@ function EvaluationOutcomePanel({
       <div className="grid gap-1">
         <h3 className="text-base font-semibold text-[#1d1d1f]">완료된 실험과 재실험</h3>
         <p className="text-sm text-muted-foreground">
-          목표에 미치지 못한 세그먼트만 다음 반복 실험 후보로 보여 줘요.
+          목표에 미치지 못한 고객군만 다음 반복 실험 후보로 보여 줘요.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
@@ -162,7 +162,7 @@ function EvaluationOutcomePanel({
         <SummaryItem label="목표 미달" value={formatInteger(goalNotMetMetrics.length)} />
         <SummaryItem label="대상 부족" value={formatInteger(insufficientMetrics.length)} />
         <SummaryItem label="반복 실험 후보" value={formatInteger(nextLoopMetrics.length)} />
-        <SummaryItem label="실패 세그먼트" value={formatInteger(failedSegmentIds.length)} />
+        <SummaryItem label="실패 고객군" value={formatInteger(failedSegmentIds.length)} />
         <SummaryItem label="실패 실험" value={formatInteger(failedExperimentIds.length)} />
       </div>
       {nextLoopMetrics.length === 0 ? (

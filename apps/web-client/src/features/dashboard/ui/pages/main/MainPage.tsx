@@ -116,7 +116,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
               value={formatInteger(summary.totalPromotions)}
             />
             <MainSummaryCard
-              label="확정 세그먼트"
+              label="확정 고객군"
               note="실행 가능한 대상 그룹"
               value={formatInteger(summary.totalSegments)}
             />
@@ -153,7 +153,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
                       <TableHead>상태</TableHead>
                       <TableHead>기간</TableHead>
                       <TableHead className="text-right">프로모션</TableHead>
-                      <TableHead className="text-right">세그먼트</TableHead>
+                      <TableHead className="text-right">고객군</TableHead>
                       <TableHead className="text-right">실험</TableHead>
                       <TableHead className="text-right">최근 목표 달성률</TableHead>
                       <TableHead>다음 할 일</TableHead>

@@ -24,7 +24,7 @@ const SEARCH_DEBOUNCE_MS = 250;
 const ENTITY_GROUPS = [
   { icon: Megaphone, label: "캠페인", value: "campaign" },
   { icon: Tag, label: "프로모션", value: "promotion" },
-  { icon: Users, label: "세그먼트", value: "segment" }
+  { icon: Users, label: "고객군", value: "segment" }
 ] satisfies ReadonlyArray<{ icon: LucideIcon; label: string; value: DashboardEntityType }>;
 
 const EMPTY_RESULTS: DashboardEntitySearchResult[] = [];
@@ -41,7 +41,7 @@ export function GlobalEntitySearch({
   className,
   disabled = false,
   onResultSelect,
-  placeholder = "캠페인, 프로모션, 세그먼트 검색",
+  placeholder = "캠페인, 프로모션, 고객군 검색",
   projectId
 }: GlobalEntitySearchProps) {
   const [isOpen, setIsOpen] = useState(false);

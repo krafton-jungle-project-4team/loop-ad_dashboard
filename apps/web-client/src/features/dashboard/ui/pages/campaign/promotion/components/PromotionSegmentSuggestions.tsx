@@ -141,7 +141,7 @@ export function PromotionSegmentSuggestionPanel({
       <CardHeader className="grid shrink-0 gap-1 border-b sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="grid min-h-[3.25rem] gap-1.5">
           <div className="flex items-center gap-2">
-            <CardTitle>세그먼트 후보</CardTitle>
+            <CardTitle>고객군 후보</CardTitle>
             <Badge variant="secondary">{formatInteger(candidateCount)}</Badge>
           </div>
           <CardDescription>사용할 고객군을 비교하고 선택해 주세요.</CardDescription>
@@ -168,11 +168,11 @@ export function PromotionSegmentSuggestionPanel({
             직접 추가
           </Button>
           <SegmentColumnDeleteMenu
-            ariaLabel="세그먼트 후보 작업"
+            ariaLabel="고객군 후보 작업"
             disabled={archiveScopedSegmentIsPending || decideIsPending}
             emptyLabel="관리할 후보가 없어요"
             items={candidateMenuItems}
-            label="세그먼트 후보"
+            label="고객군 후보"
             onDelete={setDeleteTarget}
           />
         </div>
@@ -184,7 +184,7 @@ export function PromotionSegmentSuggestionPanel({
         {scopedSegments.length > 0 ? (
           <div className="grid gap-3">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">직접 추가 세그먼트 후보</h3>
+              <h3 className="text-sm font-semibold">직접 추가 고객군 후보</h3>
               <Badge variant="secondary">{formatInteger(scopedSegments.length)}</Badge>
             </div>
             <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
@@ -219,7 +219,7 @@ export function PromotionSegmentSuggestionPanel({
           <EmptyState
             loading
             message="분석이 끝나면 추천 후보를 보여드릴게요."
-            title="세그먼트 후보를 찾고 있어요"
+            title="고객군 후보를 찾고 있어요"
           />
         ) : suggestionsIsLoading ? (
           <EmptyState message="추천 후보를 불러오는 중이에요." />
@@ -246,7 +246,7 @@ export function PromotionSegmentSuggestionPanel({
               <EmptyMedia variant="icon">
                 <BarChart3 aria-hidden="true" />
               </EmptyMedia>
-              <EmptyTitle>아직 세그먼트 후보가 없어요</EmptyTitle>
+              <EmptyTitle>아직 고객군 후보가 없어요</EmptyTitle>
               <EmptyDescription>
                 고객 데이터를 분석해 후보를 찾거나 직접 추가해 주세요.
               </EmptyDescription>
@@ -309,7 +309,7 @@ export function PromotionSegmentSuggestionPanel({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>세그먼트 후보를 삭제할까요?</AlertDialogTitle>
+            <AlertDialogTitle>고객군 후보를 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget?.name} 후보가 목록에서 사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
@@ -331,7 +331,7 @@ export function PromotionSegmentSuggestionPanel({
               }}
               variant="destructive"
             >
-              세그먼트 후보 삭제
+              고객군 후보 삭제
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -427,7 +427,7 @@ function SegmentSuggestionCard({
           </CardTitle>
           <CardDescription className="text-xs">
             {displayCopy
-              ? "AI 추천 세그먼트"
+              ? "AI 추천 고객군"
               : `${suggestion.segment_source} · ${suggestion.suggestion_source}`}
           </CardDescription>
         </div>
@@ -764,15 +764,15 @@ function PromotionSegmentCreateDialog({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>세그먼트 후보 추가</DialogTitle>
+          <DialogTitle>고객군 후보 추가</DialogTitle>
           <DialogDescription>
-            이 프로모션에서 사용할 세그먼트 후보를 저장해요. 저장한 뒤 후보 확정 버튼을 눌러 최종
-            세그먼트로 바꿀 수 있어요.
+            이 프로모션에서 사용할 고객군 후보를 저장해요. 저장한 뒤 후보 확정 버튼을 눌러 최종
+            고객군으로 바꿀 수 있어요.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <Field>
-            <FieldLabel htmlFor="promotion-segment-name">세그먼트 이름</FieldLabel>
+            <FieldLabel htmlFor="promotion-segment-name">고객군 이름</FieldLabel>
             <Input
               autoComplete="off"
               id="promotion-segment-name"
@@ -875,7 +875,7 @@ function PromotionSegmentCreateDialog({
             }}
             type="button"
           >
-            {createIsPending ? "세그먼트 후보 추가 중…" : "세그먼트 후보 추가"}
+            {createIsPending ? "고객군 후보 추가 중…" : "고객군 후보 추가"}
           </Button>
         </DialogFooter>
       </DialogContent>

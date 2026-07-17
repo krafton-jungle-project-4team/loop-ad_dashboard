@@ -288,7 +288,7 @@ export function ProjectManagementDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>프로젝트를 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingDeleteProject?.project_name} 프로젝트와 연결된 캠페인, 프로모션, 세그먼트,
+              {pendingDeleteProject?.project_name} 프로젝트와 연결된 캠페인, 프로모션, 고객군,
               실험이 모두 사라지고 되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>

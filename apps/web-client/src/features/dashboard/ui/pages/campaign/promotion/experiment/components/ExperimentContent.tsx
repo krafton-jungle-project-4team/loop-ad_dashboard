@@ -184,7 +184,7 @@ export function ExperimentContent({
     <>
       <div className="grid gap-3 md:grid-cols-5">
         <ExperimentSummaryCard label="프로모션" value={formatInteger(detail.promotions.length)} />
-        <ExperimentSummaryCard label="세그먼트" value={formatInteger(detail.segments.length)} />
+        <ExperimentSummaryCard label="고객군" value={formatInteger(detail.segments.length)} />
         <ExperimentSummaryCard label="실험" value={formatInteger(rows.length)} />
         <ExperimentSummaryCard label="배정 합계" value={formatInteger(totalAssignmentCount)} />
         <ExperimentSummaryCard
@@ -212,7 +212,7 @@ export function ExperimentContent({
           <div className="grid gap-1">
             <CardTitle>진행 실험 목록</CardTitle>
             <CardDescription>
-              프로모션과 세그먼트에 연결된 실험, 평가 지표, 반복 실험 여부를 함께 볼 수 있어요.
+              프로모션과 고객군에 연결된 실험, 평가 지표, 반복 실험 여부를 함께 볼 수 있어요.
             </CardDescription>
           </div>
           <Field className="w-full md:w-56">
@@ -325,7 +325,7 @@ function ExperimentSegmentPanel({
   segments: DashboardCampaignSegment[];
 }) {
   if (segments.length === 0) {
-    return <EmptyState message="실험을 확인할 세그먼트가 없어요." />;
+    return <EmptyState message="실험을 확인할 고객군이 없어요." />;
   }
   return (
     <section className="grid gap-4">
@@ -373,13 +373,13 @@ function SelectedSegmentExperimentCards({
   selectedSegmentId: string;
 }) {
   if (!selectedSegmentId) {
-    return <EmptyState message="세그먼트를 선택해 주세요." />;
+    return <EmptyState message="고객군을 선택해 주세요." />;
   }
   if (isError) {
     return null;
   }
   if (isLoading || !detail) {
-    return <EmptyState message="세그먼트 실험을 불러오는 중이에요." />;
+    return <EmptyState message="고객군 실험을 불러오는 중이에요." />;
   }
 
   const activePromotionRunId = detail.ad_experiments[0]?.promotion_run_id ?? null;
@@ -439,7 +439,7 @@ function SelectedSegmentExperimentCards({
                 <AlertDialogHeader>
                   <AlertDialogTitle>실패한 대상을 다시 실험할까요?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    실패한 세그먼트를 다시 분석해 광고 소재와 실험을 만들고, 사용자 배정과 광고
+                    실패한 고객군을 다시 분석해 광고 소재와 실험을 만들고, 사용자 배정과 광고
                     전달까지 이어서 진행해요.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -628,7 +628,7 @@ function ExperimentTable({ rows }: { rows: ExperimentRow[] }) {
           <TableRow>
             <TableHead>실험</TableHead>
             <TableHead>프로모션</TableHead>
-            <TableHead>세그먼트</TableHead>
+            <TableHead>고객군</TableHead>
             <TableHead>광고 소재</TableHead>
             <TableHead className="text-right">목표 / 실제</TableHead>
             <TableHead className="text-right">평가 대상 / 배정</TableHead>

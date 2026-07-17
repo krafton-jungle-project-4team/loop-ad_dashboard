@@ -59,7 +59,7 @@ const METRIC_LABELS: Record<string, string> = {
 };
 
 const BASIS_LABELS: Record<string, string> = {
-  all_segments: "전체 세그먼트",
+  all_segments: "전체 고객군",
   promotion_average: "프로모션 평균"
 };
 
@@ -75,7 +75,7 @@ const ACTION_LABELS: Record<string, string> = {
   next_loop: "다음 반복 실험",
   none: "없음",
   review: "검토",
-  segment_analysis: "세그먼트 분석",
+  segment_analysis: "고객군 분석",
   start_experiment: "실험 시작"
 };
 
@@ -105,7 +105,7 @@ export function formatWorkflowLabel(value: string | null | undefined): string {
     evaluation: "평가",
     loop: "반복 실험",
     promotion: "프로모션",
-    segment: "세그먼트"
+    segment: "고객군"
   });
 }
 

@@ -66,7 +66,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     promotionId
   }: RepeatCreativePreparationInput) {
     if (failedSegmentIds.length === 0) {
-      throw new Error("다시 실험할 실패 세그먼트가 없어요.");
+      throw new Error("다시 실험할 실패 고객군이 없어요.");
     }
 
     const analysis = await analyzeDashboardPromotionSegments(query, promotionId, {
@@ -110,7 +110,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
       return;
     }
 
-    throw new Error("세그먼트 분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.");
+    throw new Error("고객군 분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.");
   }
 
   async function refreshRunningEvaluations(
@@ -175,7 +175,7 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
 
 function assertAnalysisSucceeded(status: string) {
   if (status === "failed" || status === "cancelled" || status === "canceled") {
-    throw new Error("세그먼트 분석을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    throw new Error("고객군 분석을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.");
   }
 }
 
