@@ -1317,15 +1317,52 @@ RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 /* 목적: 프로모션 세그먼트와 하위 실험 실행 단위를 물리 삭제합니다. */
 /* @name StopDashboardPromotionTargetSegment */
 WITH target_segment AS (
-  SELECT project_id, promotion_id, segment_id
+  SELECT project_id, promotion_id, segment_id, analysis_id
   FROM promotion_target_segments
   WHERE project_id = :projectId
     AND promotion_id = :promotionId
     AND segment_id = :segmentId
 ),
+invalidated_generation_runs AS (
+  UPDATE generation_runs gr
+  SET status = 'failed',
+      started_at = COALESCE(gr.started_at, now()),
+      finished_at = now(),
+      next_retry_at = NULL,
+      last_error_code = 'generation_invalidated_by_segment_change',
+      last_error_message = 'promotion target segments changed after generation',
+      worker_id = NULL,
+      lease_token = NULL,
+      heartbeat_at = NULL,
+      lease_expires_at = NULL,
+      updated_at = now()
+  FROM target_segment target
+  WHERE gr.project_id = target.project_id
+    AND gr.promotion_id = target.promotion_id
+    AND gr.analysis_id = target.analysis_id
+    AND gr.status <> 'failed'
+  RETURNING gr.generation_id
+),
+archived_generation_content_candidates AS (
+  UPDATE content_candidates cc
+  SET status = 'archived',
+      updated_at = now()
+  FROM generation_runs gr,
+       target_segment target,
+       (SELECT count(*) FROM invalidated_generation_runs) dependency
+  WHERE gr.project_id = target.project_id
+    AND gr.promotion_id = target.promotion_id
+    AND gr.analysis_id = target.analysis_id
+    AND cc.project_id = gr.project_id
+    AND cc.generation_id = gr.generation_id
+    AND cc.segment_id <> target.segment_id
+    AND cc.status IN ('draft', 'approved', 'active')
+  RETURNING cc.content_id
+),
 deleted_dispatch_jobs AS (
   DELETE FROM ad_dispatch_jobs adj
-  USING target_segment target
+  USING target_segment target,
+        (SELECT count(*) FROM archived_generation_content_candidates) dependency
   WHERE adj.project_id = target.project_id
     AND adj.promotion_id = target.promotion_id
     AND adj.ad_experiment_id IN (
