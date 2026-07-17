@@ -59,6 +59,16 @@ function dashboardApiErrorMessage(code: string, message: string) {
       return "실행할 광고 실험을 찾지 못했어요. 광고 소재를 선택한 뒤 다시 시도해 주세요.";
     case "UNSUPPORTED_DISPATCH_CHANNEL":
       return "지금은 이메일과 문자 광고만 보낼 수 있어요.";
+    case "segment_audience_source_batch_mismatch":
+      return "서로 다른 추천 회차의 후보가 섞였어요. 최신 후보를 다시 불러와 주세요.";
+    case "segment_audience_source_already_confirmed":
+      return "이미 확정된 추천 후보예요. 고객군 목록을 새로 불러와 주세요.";
+    case "segment_audience_segment_already_confirmed":
+      return "이미 이 프로모션에서 사용 중인 고객군이에요.";
+    case "segment_audience_allocation_empty":
+      return "현재 조합에서는 최종 배정 사용자가 없는 고객군이 있어요. 선택을 바꿔 주세요.";
+    case "segment_audience_exclusion_conflict":
+      return "동시에 다른 고객군이 확정됐어요. 최신 후보를 불러온 뒤 다시 시도해 주세요.";
     default:
       return message;
   }

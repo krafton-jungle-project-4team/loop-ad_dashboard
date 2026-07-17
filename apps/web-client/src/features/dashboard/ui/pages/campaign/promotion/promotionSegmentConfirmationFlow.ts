@@ -1,12 +1,10 @@
 import type {
   DashboardConfirmSegmentSuggestionsRequest,
-  DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
 
 export function promotionSegmentConfirmationRequest(
   suggestions: DashboardPromotionSegmentSuggestion[],
-  scopedSegments: DashboardPromotionScopedSegmentDefinition[],
   fallbackAnalysisId: string | null
 ): DashboardConfirmSegmentSuggestionsRequest {
   const acceptedSuggestions = suggestions.filter(
@@ -23,7 +21,7 @@ export function promotionSegmentConfirmationRequest(
 
   return {
     analysis_id: analysisId,
-    segment_ids: scopedSegments.map((segment) => segment.segment_id),
+    segment_ids: [],
     suggestion_ids: acceptedSuggestions
       .filter((suggestion) => suggestion.analysis_id === analysisId)
       .map((suggestion) => suggestion.suggestion_id)

@@ -13,13 +13,13 @@ test("promotion confirmation reuses one bounded analysis id", () => {
   assert.ok(first.length <= 100);
 });
 
-test("promotion confirmation scopes AI and manual selections to requested ids", () => {
+test("V2 confirmation only enriches Decision-created target rows", () => {
   const dashboardSql = readFileSync(
     new URL("../src/features/dashboard/database/dashboard.sql", import.meta.url),
     "utf8"
   );
   const queryStart = dashboardSql.indexOf(
-    "/* @name ConfirmDashboardPromotionSegmentSuggestions */"
+    "/* @name ConfirmDashboardV2PromotionSegmentSuggestions */"
   );
   const queryEnd = dashboardSql.indexOf(
     "/* @name UpdateDashboardPromotionTargetSegment */",
@@ -27,9 +27,13 @@ test("promotion confirmation scopes AI and manual selections to requested ids", 
   );
   const confirmationSql = dashboardSql.slice(queryStart, queryEnd);
 
-  assert.match(confirmationSql, /pss\.analysis_id = :analysisId/);
+  assert.match(confirmationSql, /pss\.analysis_id = :sourceAnalysisId/);
   assert.match(confirmationSql, /pss\.suggestion_id = ANY\(:suggestionIds\)/);
-  assert.match(confirmationSql, /sd\.segment_id = ANY\(:segmentIds\)/);
+  assert.match(confirmationSql, /target\.analysis_id = :confirmationAnalysisId/);
+  assert.match(confirmationSql, /target\.audience_snapshot_id IS NOT NULL/);
+  assert.match(confirmationSql, /target\.allocation_plan_id IS NOT NULL/);
+  assert.doesNotMatch(confirmationSql, /INSERT INTO promotion_target_segments/);
+  assert.doesNotMatch(confirmationSql, /INSERT INTO segment_vectors/);
 });
 
 test("removing a target segment invalidates its generation scope", () => {

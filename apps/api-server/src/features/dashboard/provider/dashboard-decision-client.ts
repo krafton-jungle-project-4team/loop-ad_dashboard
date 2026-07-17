@@ -21,7 +21,30 @@ import { dashboardErrors } from "../dashboard-errors.js";
 const decisionPromotionAnalysisResponseSchema = z.object({
   analysis_id: z.string(),
   promotion_id: z.string(),
-  status: z.string()
+  status: z.string(),
+  target_segments: z
+    .array(
+      z.object({
+        segment_id: z.string(),
+        segment_name: z.string(),
+        segment_vector_id: z.string(),
+        estimated_size: z.number().int().nonnegative(),
+        audience_snapshot_id: z.string().nullable().optional(),
+        eligible_user_count: z.number().int().nonnegative().nullable().optional(),
+        behavior_match_count: z.number().int().nonnegative().nullable().optional(),
+        final_audience_count: z.number().int().nonnegative().nullable().optional(),
+        meets_min_sample_size: z.boolean().nullable().optional(),
+        targetable: z.boolean().nullable().optional(),
+        audience_status: z.string().nullable().optional(),
+        selection_method: z.string().nullable().optional(),
+        recall_lower_bound: z.number().nullable().optional(),
+        content_brief: z.object({
+          message_direction: z.string(),
+          keywords: z.array(z.string())
+        })
+      })
+    )
+    .default([])
 });
 
 const decisionPromotionGenerationResponseSchema = z
@@ -333,7 +356,7 @@ async function readDecisionError(response: Response) {
   }
 }
 
-function readDecisionErrorDetail(body: unknown): string | undefined {
+function readDecisionErrorDetail(body: unknown): unknown {
   if (!body || typeof body !== "object" || !("detail" in body)) {
     return undefined;
   }
@@ -342,10 +365,5 @@ function readDecisionErrorDetail(body: unknown): string | undefined {
   if (typeof detail === "string") {
     return detail;
   }
-
-  try {
-    return JSON.stringify(detail);
-  } catch {
-    return undefined;
-  }
+  return detail;
 }

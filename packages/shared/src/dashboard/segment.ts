@@ -3,6 +3,16 @@ import { CountSchema, JsonObjectSchema, RateSchema } from "./schema-primitives.j
 
 export const DashboardCampaignSegmentSchema = z.object({
   analysis_id: z.string(),
+  audience_snapshot_id: z.string().nullable(),
+  allocation_plan_id: z.string().nullable(),
+  audience_reservation_state: z.string().nullable(),
+  audience_snapshot_kind: z.string().nullable(),
+  final_user_count: CountSchema.nullable(),
+  audience_min_sample_size: CountSchema.nullable(),
+  audience_meets_min_sample_size: z.boolean().nullable(),
+  audience_status: z.string().nullable(),
+  audience_snapshot_status: z.string().nullable(),
+  source_audience_snapshot_id: z.string().nullable(),
   promotion_id: z.string(),
   segment_id: z.string(),
   segment_name: z.string(),
@@ -187,8 +197,12 @@ export const DashboardPromotionSegmentSuggestionAudienceSchema = z.object({
   total_eligible_user_count: CountSchema,
   matching_user_count: CountSchema,
   selected_user_count: CountSchema,
+  matching_user_ratio: RateSchema.optional(),
   selected_user_ratio: RateSchema.optional(),
-  selection_limited: z.boolean().optional()
+  selection_ratio_within_matching: RateSchema.optional(),
+  selection_limited: z.boolean().optional(),
+  selection_basis: z.string().optional(),
+  selected_user_role: z.string().optional()
 });
 export type DashboardPromotionSegmentSuggestionAudience = z.infer<
   typeof DashboardPromotionSegmentSuggestionAudienceSchema
@@ -211,9 +225,14 @@ export function normalizePromotionSegmentAudience(
     total_eligible_user_count: totalEligibleUserCount,
     matching_user_count: matchingUserCount,
     selected_user_count: selectedUserCount,
+    matching_user_ratio: normalizedRate(raw.matching_user_ratio) ?? undefined,
     selected_user_ratio: normalizedRate(raw.selected_user_ratio) ?? undefined,
+    selection_ratio_within_matching:
+      normalizedRate(raw.selection_ratio_within_matching) ?? undefined,
     selection_limited:
-      typeof raw.selection_limited === "boolean" ? raw.selection_limited : undefined
+      typeof raw.selection_limited === "boolean" ? raw.selection_limited : undefined,
+    selection_basis: normalizedNonEmptyString(raw.selection_basis) ?? undefined,
+    selected_user_role: normalizedNonEmptyString(raw.selected_user_role) ?? undefined
   };
 }
 
@@ -347,6 +366,7 @@ export type DashboardPromotionSegmentSuggestionReport = z.infer<
 export const DashboardPromotionSegmentSuggestionSchema = z.object({
   suggestion_id: z.string(),
   analysis_id: z.string(),
+  audience_snapshot_id: z.string().nullable(),
   campaign_id: z.string(),
   promotion_id: z.string(),
   segment_id: z.string(),
@@ -371,8 +391,47 @@ export type DashboardPromotionSegmentSuggestion = z.infer<
   typeof DashboardPromotionSegmentSuggestionSchema
 >;
 
+export const DashboardAudienceAllocationPreviewSegmentSchema = z.object({
+  segment_id: z.string(),
+  allocated_user_count: CountSchema,
+  targetable: z.boolean(),
+  meets_min_sample_size: z.boolean(),
+  audience_status: z.string()
+});
+export type DashboardAudienceAllocationPreviewSegment = z.infer<
+  typeof DashboardAudienceAllocationPreviewSegmentSchema
+>;
+
+export const DashboardAudienceAllocationPreviewSchema = z.object({
+  selected_segment_ids: z.array(z.string()),
+  candidate_batch_analysis_id: z.string(),
+  exclusion_revision: CountSchema,
+  preview_version: z.string(),
+  allocation_policy_version: z.string(),
+  allocation_policy_hash: z.string(),
+  total_allocated_user_count: CountSchema,
+  per_segment: z.array(DashboardAudienceAllocationPreviewSegmentSchema)
+});
+export type DashboardAudienceAllocationPreview = z.infer<
+  typeof DashboardAudienceAllocationPreviewSchema
+>;
+
+export const DashboardAudienceAllocationPreviewContextSchema = z.object({
+  preview_version: z.string(),
+  candidate_batch_analysis_id: z.string(),
+  candidate_segment_ids: z.array(z.string()),
+  exclusion_revision: CountSchema,
+  allocation_policy_version: z.string(),
+  allocation_policy_hash: z.string(),
+  allocation_previews: z.array(DashboardAudienceAllocationPreviewSchema)
+});
+export type DashboardAudienceAllocationPreviewContext = z.infer<
+  typeof DashboardAudienceAllocationPreviewContextSchema
+>;
+
 export const DashboardPromotionSegmentSuggestionListSchema = z.object({
-  suggestions: z.array(DashboardPromotionSegmentSuggestionSchema)
+  suggestions: z.array(DashboardPromotionSegmentSuggestionSchema),
+  audience_allocation_preview_context: DashboardAudienceAllocationPreviewContextSchema.nullable()
 });
 export type DashboardPromotionSegmentSuggestionList = z.infer<
   typeof DashboardPromotionSegmentSuggestionListSchema
@@ -412,15 +471,42 @@ export const DashboardConfirmSegmentSuggestionsRequestSchema = z
         path: ["suggestion_ids"]
       });
     }
+
+    if (request.suggestion_ids.length > 0 && request.segment_ids.length > 0) {
+      context.addIssue({
+        code: "custom",
+        message: "AI suggestions and manual segments must be confirmed separately",
+        path: ["segment_ids"]
+      });
+    }
+
+    if (request.suggestion_ids.length > 3) {
+      context.addIssue({
+        code: "custom",
+        message: "at most three suggestion_ids can be confirmed together",
+        path: ["suggestion_ids"]
+      });
+    }
   });
 export type DashboardConfirmSegmentSuggestionsRequest = z.infer<
   typeof DashboardConfirmSegmentSuggestionsRequestSchema
 >;
 
 export const DashboardConfirmSegmentSuggestionsResultSchema = z.object({
+  analysis_id: z.string(),
   promotion_id: z.string(),
   confirmed_segment_count: CountSchema,
-  status: z.literal("confirmed")
+  status: z.literal("confirmed"),
+  target_segments: z.array(
+    z.object({
+      segment_id: z.string(),
+      audience_snapshot_id: z.string().nullable(),
+      final_audience_count: CountSchema.nullable(),
+      meets_min_sample_size: z.boolean().nullable(),
+      targetable: z.boolean().nullable(),
+      audience_status: z.string().nullable()
+    })
+  )
 });
 export type DashboardConfirmSegmentSuggestionsResult = z.infer<
   typeof DashboardConfirmSegmentSuggestionsResultSchema
@@ -433,10 +519,34 @@ export type DashboardRecommendPromotionSegmentsRequest = z.infer<
   typeof DashboardRecommendPromotionSegmentsRequestSchema
 >;
 
+export const DashboardPromotionAnalysisTargetSegmentSchema = z.object({
+  segment_id: z.string(),
+  segment_name: z.string(),
+  segment_vector_id: z.string(),
+  estimated_size: CountSchema,
+  audience_snapshot_id: z.string().nullable().optional(),
+  eligible_user_count: CountSchema.nullable().optional(),
+  behavior_match_count: CountSchema.nullable().optional(),
+  final_audience_count: CountSchema.nullable().optional(),
+  meets_min_sample_size: z.boolean().nullable().optional(),
+  targetable: z.boolean().nullable().optional(),
+  audience_status: z.string().nullable().optional(),
+  selection_method: z.string().nullable().optional(),
+  recall_lower_bound: z.number().nullable().optional(),
+  content_brief: z.object({
+    message_direction: z.string(),
+    keywords: z.array(z.string())
+  })
+});
+export type DashboardPromotionAnalysisTargetSegment = z.infer<
+  typeof DashboardPromotionAnalysisTargetSegmentSchema
+>;
+
 export const DashboardPromotionAnalysisResultSchema = z.object({
   analysis_id: z.string(),
   promotion_id: z.string(),
-  status: z.string()
+  status: z.string(),
+  target_segments: z.array(DashboardPromotionAnalysisTargetSegmentSchema).default([])
 });
 export type DashboardPromotionAnalysisResult = z.infer<
   typeof DashboardPromotionAnalysisResultSchema
@@ -446,6 +556,7 @@ export const DashboardAnalyzePromotionSegmentsRequestSchema = z.object({
   segment_ids: z
     .array(z.string().trim().min(1))
     .min(1)
+    .max(3)
     .refine(
       (segmentIds) => new Set(segmentIds).size === segmentIds.length,
       "segment_ids must not contain duplicates"
