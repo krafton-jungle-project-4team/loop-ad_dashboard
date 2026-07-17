@@ -266,11 +266,20 @@ export function PromotionSegmentSuggestionPanel({
           {selectedSegments.length > 0 ? (
             <ul className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {selectedSegments.map((segment) => (
-                <li className="grid min-w-0 gap-0.5 border-l-2 border-primary pl-2" key={segment.id}>
-                  <span className="truncate text-xs font-medium text-foreground" title={segment.name}>
+                <li
+                  className="grid min-w-0 gap-0.5 border-l-2 border-primary pl-2"
+                  key={segment.id}
+                >
+                  <span
+                    className="truncate text-xs font-medium text-foreground"
+                    title={segment.name}
+                  >
                     {segment.name}
                   </span>
-                  <span className="truncate text-[11px] text-muted-foreground" title={segment.detail}>
+                  <span
+                    className="truncate text-[11px] text-muted-foreground"
+                    title={segment.detail}
+                  >
                     {segment.detail}
                   </span>
                 </li>

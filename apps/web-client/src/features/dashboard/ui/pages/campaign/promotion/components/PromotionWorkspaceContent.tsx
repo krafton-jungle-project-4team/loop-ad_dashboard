@@ -273,8 +273,8 @@ function PromotionRowActions({
           <AlertDialogHeader>
             <AlertDialogTitle>프로모션을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              {promotion.marketing_theme} 프로모션과 연결된 고객군, 광고 소재, 실험이 모두
-              사라지고 되돌릴 수 없어요.
+              {promotion.marketing_theme} 프로모션과 연결된 고객군, 광고 소재, 실험이 모두 사라지고
+              되돌릴 수 없어요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
