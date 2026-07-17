@@ -13,7 +13,7 @@ import {
   AlertDialogTitle
 } from "@loopad/ui/shadcn/alert-dialog";
 import { Badge } from "@loopad/ui/shadcn/badge";
-import { Button } from "@loopad/ui/shadcn/button";
+import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import {
   Card,
   CardContent,
@@ -374,14 +374,18 @@ function SegmentSuggestionCard({
                 onClick={() => onOpenReport(suggestion)}
                 size="sm"
                 type="button"
-                variant="ghost"
+                variant="outline"
               >
                 <FileText data-icon="inline-start" />
                 리포트
               </Button>
             ) : null}
             <Field
-              className="w-auto gap-1.5"
+              className={buttonVariants({
+                className: "w-auto gap-2",
+                size: "sm",
+                variant: "outline"
+              })}
               data-disabled={decideIsPending}
               orientation="horizontal"
             >
@@ -397,7 +401,7 @@ function SegmentSuggestionCard({
                   )
                 }
               />
-              <FieldLabel className="cursor-pointer text-xs font-medium" htmlFor={acceptanceId}>
+              <FieldLabel className="cursor-pointer font-medium" htmlFor={acceptanceId}>
                 선택
               </FieldLabel>
             </Field>

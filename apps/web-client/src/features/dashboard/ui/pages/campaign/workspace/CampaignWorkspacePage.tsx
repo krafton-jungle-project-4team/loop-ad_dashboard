@@ -31,7 +31,14 @@ import {
   DropdownMenuTrigger
 } from "@loopad/ui/shadcn/dropdown-menu";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ellipsis, Plus } from "lucide-react";
+import {
+  CalendarClock,
+  CircleCheck,
+  CirclePlay,
+  Ellipsis,
+  Plus,
+  type LucideIcon
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   createDashboardCampaign,
@@ -84,24 +91,28 @@ type PromotionCard = CampaignWorkspaceEntityCard & {
 const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
   description: string;
   emptyMessage: string;
+  icon: LucideIcon;
   label: string;
   status: CampaignScheduleStatus;
 }> = [
   {
     description: "시작일이 가까운 순으로 보여요.",
     emptyMessage: "시작을 기다리는 캠페인이 없어요.",
+    icon: CalendarClock,
     label: "예정",
     status: "scheduled"
   },
   {
     description: "종료일이 가까운 순으로 보여요.",
     emptyMessage: "현재 진행 중인 캠페인이 없어요.",
+    icon: CirclePlay,
     label: "진행 중",
     status: "in_progress"
   },
   {
     description: "최근에 종료된 순으로 보여요.",
     emptyMessage: "완료된 캠페인이 없어요.",
+    icon: CircleCheck,
     label: "완료됨",
     status: "completed"
   }
@@ -422,20 +433,24 @@ export function CampaignWorkspacePage({
               캠페인을 선택하면 프로모션을 관리하고 성과를 볼 수 있어요.
             </p>
           </div>
-          <div className="grid h-[calc(100svh-12.5rem)] min-h-0 grid-cols-[repeat(3,minmax(19rem,1fr))] items-stretch gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
+          <div className="grid min-w-0 gap-4">
             {CAMPAIGN_SCHEDULE_SECTIONS.map((section) => {
               const cards = campaignsBySchedule[section.status].map((campaign) =>
                 toCampaignCard(campaign)
               );
+              const StatusIcon = section.icon;
 
               return (
                 <section
                   aria-labelledby={`campaign-schedule-${section.status}`}
-                  className="flex h-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border bg-muted/25 p-3"
+                  className="grid min-w-0 gap-3 rounded-xl border bg-muted/25 p-3"
                   key={section.status}
                 >
                   <div className="grid gap-1 border-b px-1 pb-3">
                     <div className="flex items-center gap-2">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">
+                        <StatusIcon aria-hidden="true" className="size-4" />
+                      </span>
                       <h3
                         className="text-base font-semibold tracking-tight text-foreground"
                         id={`campaign-schedule-${section.status}`}
@@ -493,8 +508,9 @@ export function CampaignWorkspacePage({
                         onSelect: () => openCampaignView(card.id, "performance")
                       }
                     ]}
-                    className="!grid-cols-1 min-h-0 flex-1 content-start overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]"
+                    className="min-w-0"
                     items={cards}
+                    layout="horizontal"
                   />
                 </section>
               );
@@ -536,14 +552,14 @@ export function CampaignWorkspacePage({
               프로모션을 선택하면 세그먼트 생성부터 광고 소재 승인과 실험 실행까지 이어집니다.
             </p>
           </div>
-          <div className="grid h-[calc(100svh-12.5rem)] min-h-0 grid-cols-[repeat(4,minmax(15rem,1fr))] items-stretch gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
+          <div className="grid min-w-0 gap-4">
             {PROMOTION_BOARD_SECTIONS.map((section) => {
               const cards = promotionsByBoardStatus[section.status].map(toPromotionCard);
 
               return (
                 <section
                   aria-labelledby={`promotion-board-${section.status}`}
-                  className="flex h-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border bg-muted/25 p-3"
+                  className="grid min-w-0 gap-3 rounded-xl border bg-muted/25 p-3"
                   key={section.status}
                 >
                   <div className="grid gap-1 border-b px-1 pb-3">
@@ -591,7 +607,7 @@ export function CampaignWorkspacePage({
                   </div>
                   <EntityCardGrid
                     ariaLabel={`${section.label} 프로모션 목록`}
-                    className="!grid-cols-1 min-h-0 flex-1 content-start overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]"
+                    className="min-w-0"
                     density="compact"
                     emptyState={<EmptyState message={section.emptyMessage} />}
                     entryActions={(card) => [
@@ -607,6 +623,7 @@ export function CampaignWorkspacePage({
                       }
                     ]}
                     items={cards}
+                    layout="horizontal"
                     showBadges={false}
                   />
                 </section>

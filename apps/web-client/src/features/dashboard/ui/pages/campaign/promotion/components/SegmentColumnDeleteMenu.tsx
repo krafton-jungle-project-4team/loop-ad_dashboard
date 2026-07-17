@@ -52,10 +52,19 @@ export function SegmentColumnDeleteMenu<Value>({
         <DropdownMenuGroup>
           {items.length > 0 ? (
             items.map((item) => (
-              <DropdownMenuItem key={item.id} onSelect={() => onDelete(item.value)}>
+              <div className="flex min-w-0 items-center gap-2 px-1.5 py-1" key={item.id}>
                 <span className="truncate">{item.label}</span>
-                <span className="ml-auto shrink-0 text-destructive">삭제</span>
-              </DropdownMenuItem>
+                <DropdownMenuItem
+                  aria-label={`${item.label} 삭제`}
+                  asChild
+                  onSelect={() => onDelete(item.value)}
+                  variant="destructive"
+                >
+                  <Button className="ml-auto" size="xs" type="button" variant="destructive">
+                    삭제
+                  </Button>
+                </DropdownMenuItem>
+              </div>
             ))
           ) : (
             <DropdownMenuItem disabled>{emptyLabel}</DropdownMenuItem>

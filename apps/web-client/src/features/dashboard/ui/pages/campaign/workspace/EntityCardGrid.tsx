@@ -153,7 +153,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
     <Card
       className={cn(
         "h-full shadow-none transition-[border-color,box-shadow]",
-        isCompact ? "min-h-[19rem]" : "min-h-56",
+        isCompact ? "min-h-48" : "min-h-56",
         isSelected && "border-primary/40 ring-2 ring-primary/15"
       )}
       size={isCompact ? "sm" : "default"}
@@ -318,7 +318,7 @@ function EntityAddCard({
     <Button
       className={cn(
         "h-full w-full flex-col rounded-[18px] border-dashed whitespace-normal",
-        isCompact ? "min-h-[19rem] gap-2 px-4" : "min-h-56 gap-3 px-6"
+        isCompact ? "min-h-48 gap-2 px-4" : "min-h-56 gap-3 px-6"
       )}
       disabled={action.disabled}
       onClick={action.onSelect}
