@@ -124,7 +124,7 @@ export function SchemaBrowserPanel({
                   <div key={key}>
                     <div
                       className={cn(
-                        "group flex min-h-7 min-w-0 items-center gap-1 rounded px-1 py-0.5",
+                        "group mx-1 flex min-h-7 min-w-0 items-center gap-1 rounded-lg px-1.5 py-0.5",
                         isSelected ? "bg-accent text-primary" : "hover:bg-white"
                       )}
                     >
@@ -141,13 +141,11 @@ export function SchemaBrowserPanel({
                           className={cn("transition-none", isExpanded ? "rotate-90" : "")}
                         />
                       </Button>
-                      <Button
-                        className="min-h-6 min-w-0 flex-1 justify-start gap-1.5 px-0 text-left text-xs font-normal leading-none"
+                      <button
+                        className="flex min-h-6 min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-normal leading-none"
                         onClick={() => onSelectObject(object)}
                         onDoubleClick={() => onBuildObjectQuery(object)}
-                        size="sm"
                         type="button"
-                        variant="ghost"
                       >
                         {object.object_type === "view" ? (
                           <Database className="size-3 shrink-0" />
@@ -162,7 +160,7 @@ export function SchemaBrowserPanel({
                             {object.engine}
                           </span>
                         ) : null}
-                      </Button>
+                      </button>
                       <ObjectActionMenu
                         object={object}
                         onBuildObjectDdlQuery={onBuildObjectDdlQuery}
@@ -204,23 +202,21 @@ export function SchemaBrowserPanel({
             <div className="grid gap-px">
               {filteredEvents.map((event) => (
                 <div
-                  className="group flex min-h-7 min-w-0 items-center gap-1 rounded px-1 py-0.5 hover:bg-white"
+                  className="group mx-1 flex min-h-7 min-w-0 items-center gap-1 rounded-lg px-1.5 py-0.5 hover:bg-white"
                   key={event.event_name}
                 >
                   <span aria-hidden="true" className="size-6 shrink-0" />
-                  <Button
-                    className="min-h-6 min-w-0 flex-1 justify-start gap-1.5 px-0 text-left text-xs font-normal leading-none"
+                  <button
+                    className="flex min-h-6 min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-normal leading-none"
                     onDoubleClick={() => onBuildEventQuery(event.event_name)}
-                    size="sm"
                     title={event.event_name}
                     type="button"
-                    variant="ghost"
                   >
                     <Zap className="size-3 shrink-0" />
                     <span className="min-w-0 flex-1 truncate leading-none text-[#1d1d1f]">
                       {event.event_name}
                     </span>
-                  </Button>
+                  </button>
                   <Button
                     className={cn(
                       schemaIconButtonClass,
