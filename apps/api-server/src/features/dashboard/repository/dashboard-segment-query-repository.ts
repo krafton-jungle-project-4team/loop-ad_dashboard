@@ -18,14 +18,14 @@ import {
   insertDashboardSegmentQueryPreview,
   markDashboardSegmentQueryPreviewSaved,
   type IInsertDashboardCustomSegmentDefinitionResult,
-  type IInsertDashboardSegmentQueryPreviewResult,
-  type Json
+  type IInsertDashboardSegmentQueryPreviewResult
 } from "../database/__generated__/dashboard.queries.js";
 import { durationMs, log } from "../../../infra/logger/index.js";
 import type {
   SegmentAssistantPlan,
   SegmentAssistantPropertyFilter
 } from "../segment-assistant.types.js";
+import { serializeJsonDatabaseParameter } from "./dashboard-json-parameter.js";
 
 const PREVIEW_ROW_LIMIT = 500;
 const PREVIEW_TIMEOUT_SECONDS = 10;
@@ -93,7 +93,7 @@ export class DashboardSegmentQueryRepository {
       naturalLanguageQuery,
       projectId,
       query,
-      queryParamsJson: toJson({ assistant_plan: plan }),
+      queryParamsJson: { assistant_plan: plan },
       timeRange
     });
   }
@@ -102,7 +102,7 @@ export class DashboardSegmentQueryRepository {
     naturalLanguageQuery: string;
     projectId: string;
     query: PlannedSegmentQuery;
-    queryParamsJson: Json;
+    queryParamsJson: unknown;
     timeRange: SegmentPreviewTimeRange;
   }): Promise<DashboardSegmentQueryPreview> {
     const startedAt = Date.now();
@@ -127,10 +127,10 @@ export class DashboardSegmentQueryRepository {
         generatedSql: input.query.generatedSql,
         naturalLanguageQuery: input.naturalLanguageQuery,
         projectId: input.projectId,
-        queryParamsJson: input.queryParamsJson,
+        queryParamsJson: serializeJsonDatabaseParameter(input.queryParamsJson),
         queryPreviewId: `seg_query_preview_${randomUUID()}`,
-        resultColumnsJson: preview.columns,
-        resultPreviewJson: toJson(preview.rows),
+        resultColumnsJson: serializeJsonDatabaseParameter(preview.columns),
+        resultPreviewJson: serializeJsonDatabaseParameter(preview.rows),
         sampleRatio,
         sampleSize,
         sampleSizeStatus,
@@ -590,8 +590,4 @@ function numberValue(value: number | string | null): number {
 
 function sqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
-}
-
-function toJson(value: unknown): Json {
-  return JSON.parse(JSON.stringify(value)) as Json;
 }
