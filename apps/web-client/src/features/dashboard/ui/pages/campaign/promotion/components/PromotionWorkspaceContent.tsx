@@ -672,35 +672,37 @@ function PromotionCurrentSegmentsPanel({
               key={`${segment.segment_id}:${segment.analysis_id}`}
               size="sm"
             >
-              <CardHeader className="gap-3">
-                <CardTitle className="text-base leading-6 font-semibold [overflow-wrap:anywhere] [word-break:keep-all]">
-                  {displayCopy?.title ?? segment.segment_name}
-                </CardTitle>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant="secondary">{formatInteger(loopCount)}번째 실험</Badge>
-                  <Badge variant={statusBadgeVariant(segment.status)}>
-                    {formatStatusLabel(segment.status)}
-                  </Badge>
-                  {loopCount > 1 ? <Badge variant="outline">반복 실험</Badge> : null}
+              <CardContent className="grid min-w-0 gap-4 sm:grid-cols-[minmax(12rem,0.8fr)_minmax(0,1.7fr)_auto] sm:items-center">
+                <div className="grid min-w-0 gap-2">
+                  <CardTitle className="text-base leading-6 font-semibold [overflow-wrap:anywhere] [word-break:keep-all]">
+                    {displayCopy?.title ?? segment.segment_name}
+                  </CardTitle>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant="secondary">{formatInteger(loopCount)}번째 실험</Badge>
+                    <Badge variant={statusBadgeVariant(segment.status)}>
+                      {formatStatusLabel(segment.status)}
+                    </Badge>
+                    {loopCount > 1 ? <Badge variant="outline">반복 실험</Badge> : null}
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                <p className="text-xs leading-5 text-muted-foreground">
-                  {displayCopy?.audience_summary ??
-                    `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
-                      segment.sample_size
-                    )} · ${formatMetricLabel(segment.goal_metric)}`}
-                  {hiddenLoopCount > 0
-                    ? ` · 이전 실험 ${formatInteger(hiddenLoopCount)}개 숨김`
-                    : ""}
-                </p>
-                {displayCopy?.reason ? (
-                  <p className="text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere] [word-break:keep-all]">
-                    {displayCopy.reason}
+                <div className="grid min-w-0 gap-1.5">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {displayCopy?.audience_summary ??
+                      `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
+                        segment.sample_size
+                      )} · ${formatMetricLabel(segment.goal_metric)}`}
+                    {hiddenLoopCount > 0
+                      ? ` · 이전 실험 ${formatInteger(hiddenLoopCount)}개 숨김`
+                      : ""}
                   </p>
-                ) : null}
+                  {displayCopy?.reason ? (
+                    <p className="text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere] [word-break:keep-all]">
+                      {displayCopy.reason}
+                    </p>
+                  ) : null}
+                </div>
                 <Button
-                  className="w-full"
+                  className="justify-self-start whitespace-nowrap sm:justify-self-end"
                   onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
                   size="sm"
                   type="button"
