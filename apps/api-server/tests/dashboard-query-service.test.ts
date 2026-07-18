@@ -783,7 +783,7 @@ test("dashboard promotion run evaluation prepares legacy data before Decision", 
   ]);
 });
 
-test("dashboard confirms V2 suggestions through Decision before enriching targets", async () => {
+test("dashboard idempotently confirms V2 suggestions through Decision before enriching targets", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
@@ -804,7 +804,7 @@ test("dashboard confirms V2 suggestions through Decision before enriching target
             audience_snapshot_id: "snapshot-source-1",
             segment_id: "segment-ai",
             suggestion_id: "suggestion-current",
-            suggestion_status: "accepted"
+            suggestion_status: "confirmed"
           }
         ]
       }),

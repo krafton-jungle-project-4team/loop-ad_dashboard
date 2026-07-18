@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { promotionConfirmationAnalysisId } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
+import {
+  DashboardCampaignReader,
+  promotionConfirmationAnalysisId
+} from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 
 test("promotion confirmation reuses one bounded analysis id", () => {
   const first = promotionConfirmationAnalysisId("project-1", "promotion-1");
@@ -29,11 +32,42 @@ test("V2 confirmation only enriches Decision-created target rows", () => {
 
   assert.match(confirmationSql, /pss\.analysis_id = :sourceAnalysisId/);
   assert.match(confirmationSql, /pss\.suggestion_id = ANY\(:suggestionIds\)/);
+  assert.match(confirmationSql, /pss\.status IN \('accepted', 'confirmed'\)/);
   assert.match(confirmationSql, /target\.analysis_id = :confirmationAnalysisId/);
   assert.match(confirmationSql, /target\.audience_snapshot_id IS NOT NULL/);
   assert.match(confirmationSql, /target\.allocation_plan_id IS NOT NULL/);
   assert.doesNotMatch(confirmationSql, /INSERT INTO promotion_target_segments/);
   assert.doesNotMatch(confirmationSql, /INSERT INTO segment_vectors/);
+});
+
+test("V2 confirmation waits until Decision target rows become visible", async () => {
+  const rows = [
+    { confirmedSegmentCount: 0, updatedSuggestionCount: 0 },
+    { confirmedSegmentCount: 2, updatedSuggestionCount: 2 }
+  ];
+  let queryCount = 0;
+  const reader = new DashboardCampaignReader({
+    query: () => ({
+      single: async () => {
+        const row = rows[queryCount];
+        queryCount += 1;
+        assert.ok(row);
+        return row;
+      }
+    })
+  } as never);
+
+  const confirmedCount = await reader.confirmV2PromotionSegmentSuggestions({
+    confirmationAnalysisId: "analysis-confirmed",
+    confirmedBy: "operator-1",
+    projectId: "project-1",
+    promotionId: "promotion-1",
+    sourceAnalysisId: "analysis-source",
+    suggestionIds: ["suggestion-1", "suggestion-2"]
+  });
+
+  assert.equal(confirmedCount, 2);
+  assert.equal(queryCount, 2);
 });
 
 test("removing a target segment invalidates its generation scope", () => {
