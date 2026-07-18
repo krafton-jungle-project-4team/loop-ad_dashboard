@@ -1,6 +1,7 @@
 import type {
   CreativeArtifact,
   DashboardAdExperiment,
+  DashboardAudienceAllocationPreviewContext,
   DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardPromotionScopedSegmentDefinition,
@@ -356,6 +357,7 @@ export function PromotionTabWorkspace({
   selectedSegmentDetailIsLoading,
   selectedSegmentId,
   suggestions,
+  audienceAllocationPreviewContext,
   suggestionsIsLoading,
   tab,
   updateContentCandidateCopyIsPending,
@@ -377,7 +379,7 @@ export function PromotionTabWorkspace({
     contentId: string,
     selected: boolean
   ) => void;
-  onConfirmSuggestions: () => Promise<void>;
+  onConfirmSuggestions: (segmentIds: string[]) => Promise<void>;
   onDecideSuggestion: (
     suggestionId: string,
     status: "suggested" | "accepted" | "dismissed"
@@ -415,6 +417,7 @@ export function PromotionTabWorkspace({
   selectedSegmentDetailIsLoading: boolean;
   selectedSegmentId: string;
   suggestions: DashboardPromotionSegmentSuggestion[];
+  audienceAllocationPreviewContext: DashboardAudienceAllocationPreviewContext | null;
   suggestionsIsLoading: boolean;
   tab: PromotionWorkspaceTab;
   updateContentCandidateCopyIsPending: boolean;
@@ -496,9 +499,9 @@ export function PromotionTabWorkspace({
           </TabsContent>
         ) : null}
         {showsSegmentsTab ? (
-          <TabsContent className="min-h-0 xl:overflow-hidden" value="segments">
+          <TabsContent className="min-h-0" value="segments">
             <Tabs
-              className="min-h-0 gap-3 xl:h-[calc(100svh-11rem)] xl:overflow-hidden"
+              className="min-h-0 gap-3"
               onValueChange={(value) => setSegmentListTab(value as PromotionSegmentListTab)}
               value={segmentListTab}
             >
@@ -512,14 +515,15 @@ export function PromotionTabWorkspace({
                   <Badge variant="secondary">{formatInteger(confirmedSegmentCount)}</Badge>
                 </TabsTrigger>
               </TabsList>
-              <TabsContent className="min-h-0 xl:overflow-hidden" value="candidates">
+              <TabsContent className="min-h-0" value="candidates">
                 <PromotionSegmentSuggestionPanel
+                  audienceAllocationPreviewContext={audienceAllocationPreviewContext}
                   confirmIsPending={confirmIsPending}
                   decideIsPending={decideIsPending}
                   archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
                   onArchiveScopedSegment={onArchiveScopedSegment}
-                  onConfirmSuggestions={() => {
-                    void onConfirmSuggestions().then(
+                  onConfirmSuggestions={(segmentIds) => {
+                    void onConfirmSuggestions(segmentIds).then(
                       () => setSegmentListTab("confirmed"),
                       () => undefined
                     );
@@ -533,7 +537,7 @@ export function PromotionTabWorkspace({
                   suggestionsIsLoading={suggestionsIsLoading}
                 />
               </TabsContent>
-              <TabsContent className="min-h-0 xl:overflow-hidden" value="confirmed">
+              <TabsContent className="min-h-0" value="confirmed">
                 <PromotionCurrentSegmentsPanel
                   deleteIsPending={deleteConfirmedSegmentIsPending}
                   onDeleteSegment={onDeleteConfirmedSegment}
@@ -637,11 +641,13 @@ function PromotionCurrentSegmentsPanel({
               ariaLabel="확정 고객군 작업"
               disabled={deleteIsPending}
               emptyLabel="관리할 고객군이 없어요"
-              items={visibleSegments.map((segment) => ({
-                id: `${segment.segment_id}:${segment.analysis_id}`,
-                label: campaignSegmentDisplayCopy(segment)?.title ?? segment.segment_name,
-                value: segment
-              }))}
+              items={visibleSegments
+                .filter((segment) => segment.audience_snapshot_id === null)
+                .map((segment) => ({
+                  id: `${segment.segment_id}:${segment.analysis_id}`,
+                  label: campaignSegmentDisplayCopy(segment)?.title ?? segment.segment_name,
+                  value: segment
+                }))}
               label="확정 고객군"
               onDelete={setSegmentToDelete}
             />
@@ -689,10 +695,12 @@ function PromotionCurrentSegmentsPanel({
                 </div>
                 <div className="grid min-w-0 gap-1.5">
                   <p className="text-xs leading-5 text-muted-foreground">
-                    {displayCopy?.audience_summary ??
-                      `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
-                        segment.sample_size
-                      )} · ${formatMetricLabel(segment.goal_metric)}`}
+                    {segment.final_user_count !== null
+                      ? `최종 배정 사용자 ${formatInteger(segment.final_user_count)}명 · ${formatMetricLabel(segment.goal_metric)}`
+                      : (displayCopy?.audience_summary ??
+                        `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
+                          segment.sample_size
+                        )} · ${formatMetricLabel(segment.goal_metric)}`)}
                     {hiddenLoopCount > 0
                       ? ` · 이전 실험 ${formatInteger(hiddenLoopCount)}개 숨김`
                       : ""}
@@ -860,7 +868,10 @@ function PromotionSegmentDetailTab({
           </Badge>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-4">
-          <SummaryItem label="대상 규모" value={formatInteger(detail.segment.estimated_size)} />
+          <SummaryItem
+            label="대상 규모"
+            value={formatInteger(detail.segment.final_user_count ?? detail.segment.estimated_size)}
+          />
           <SummaryItem label="평가 대상" value={formatInteger(detail.segment.sample_size)} />
           <SummaryItem label="대상 비율" value={formatPercentValue(detail.segment.sample_ratio)} />
           <SummaryItem label="연결 실험" value={formatInteger(detail.ad_experiments.length)} />

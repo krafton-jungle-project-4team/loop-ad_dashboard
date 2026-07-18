@@ -35,13 +35,13 @@ test("promotion confirmation accepts current-analysis suggestions and active man
   );
 });
 
-test("promotion confirmation updates selected suggestions without synthesizing targets", () => {
+test("V2 confirmation only enriches Decision-created target rows", () => {
   const dashboardSql = readFileSync(
     new URL("../src/features/dashboard/database/dashboard.sql", import.meta.url),
     "utf8"
   );
   const queryStart = dashboardSql.indexOf(
-    "/* @name ConfirmDashboardPromotionSegmentSuggestions */"
+    "/* @name ConfirmDashboardV2PromotionSegmentSuggestions */"
   );
   const queryEnd = dashboardSql.indexOf(
     "/* @name UpdateDashboardPromotionTargetSegment */",
@@ -49,8 +49,11 @@ test("promotion confirmation updates selected suggestions without synthesizing t
   );
   const confirmationSql = dashboardSql.slice(queryStart, queryEnd);
 
-  assert.match(confirmationSql, /pss\.analysis_id = :analysisId/);
+  assert.match(confirmationSql, /pss\.analysis_id = :sourceAnalysisId/);
   assert.match(confirmationSql, /pss\.suggestion_id = ANY\(:suggestionIds\)/);
+  assert.match(confirmationSql, /target\.analysis_id = :confirmationAnalysisId/);
+  assert.match(confirmationSql, /target\.audience_snapshot_id IS NOT NULL/);
+  assert.match(confirmationSql, /target\.allocation_plan_id IS NOT NULL/);
   assert.doesNotMatch(confirmationSql, /INSERT INTO promotion_target_segments/);
   assert.doesNotMatch(confirmationSql, /INSERT INTO segment_vectors/);
 });

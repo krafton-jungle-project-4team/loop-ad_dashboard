@@ -12,6 +12,7 @@ import type {
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
 import { dashboardErrors } from "../dashboard-errors.js";
+import { buildCustomStructuredAudienceRule } from "../segment-audience-v2-contract.js";
 import {
   getDashboardSegmentQueryPreviewForSave,
   insertDashboardCustomSegmentDefinition,
@@ -169,6 +170,13 @@ export class DashboardSegmentQueryRepository {
       });
       throw dashboardErrors.segmentPreviewNotSaveable();
     }
+    let ruleJson: ReturnType<typeof buildCustomStructuredAudienceRule>;
+    try {
+      ruleJson = buildCustomStructuredAudienceRule(preview.queryParamsJson);
+    } catch (err) {
+      log.warn("segment_audience_contract_invalid", { err });
+      throw dashboardErrors.segmentPreviewNotSaveable();
+    }
 
     const segment = await this.db
       .query(insertDashboardCustomSegmentDefinition, {
@@ -176,6 +184,7 @@ export class DashboardSegmentQueryRepository {
         naturalLanguageQuery: preview.naturalLanguageQuery,
         projectId,
         queryPreviewId: preview.queryPreviewId,
+        ruleJson: serializeJsonDatabaseParameter(ruleJson),
         sampleRatio: numberValue(preview.sampleRatio),
         sampleSize: countValue(preview.sampleSize),
         segmentId: `seg_custom_${randomUUID()}`,

@@ -850,52 +850,79 @@ test("dashboard promotion run evaluation prepares legacy data before Decision", 
   ]);
 });
 
-test("dashboard confirms selected candidates after Decision prepares analysis vectors", async () => {
+test("dashboard confirms V2 suggestions through Decision before enriching targets", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
-  const calls: unknown[] = [];
+  const writes: unknown[] = [];
   const transactionHost = installCountingTransactionHost();
   const service = new DashboardQueryService(
     {
       ...emptyCampaignReader(),
-      listPromotionSegmentSuggestions: async (projectId, promotionId, analysisId) => {
-        calls.push({ kind: "list-suggestions", projectId, promotionId, analysisId });
-        return {
-          suggestions: [
-            {
-              segment_id: "seg_destination",
-              suggestion_id: "suggestion-current",
-              suggestion_status: "accepted"
-            }
-          ]
-        } as never;
+      getPromotionSummary: async (_projectId, promotionId) => ({
+        campaign_id: "campaign-1",
+        promotion_id: promotionId
+      }),
+      listPromotionSegmentSuggestions: async () => ({
+        audience_allocation_preview_context: null,
+        suggestions: [
+          {
+            analysis_id: "analysis-current",
+            audience_snapshot_id: "snapshot-source-1",
+            segment_id: "segment-ai",
+            suggestion_id: "suggestion-current",
+            suggestion_status: "accepted"
+          }
+        ]
+      }),
+      confirmV2PromotionSegmentSuggestions: async (request) => {
+        writes.push(request);
+        return 1;
       },
-      listPromotionScopedSegmentDefinitions: async () =>
-        ({ segments: [{ segment_id: "segment-manual" }] }) as never,
-      getPromotionSummary: async (projectId, promotionId) => {
-        calls.push({ kind: "read-promotion", projectId, promotionId });
-        return { campaign_id: "camp_summer_2026" } as never;
-      },
-      confirmPromotionSegmentSuggestions: async (projectId, promotionId, request, analysisId) => {
-        calls.push({ kind: "confirm", projectId, promotionId, request, analysisId });
-        return {
-          analysis_id: analysisId,
-          promotion_id: promotionId,
-          confirmed_segment_count: 1,
-          status: "confirmed"
-        };
-      }
+      listPromotionScopedSegmentDefinitions: async () => ({
+        segments: [
+          {
+            rule_json: { audience_resolution_contract: "segment_audience.v1" },
+            segment_id: "segment-direct"
+          }
+        ]
+      })
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
     emptySegmentQueryRepository(),
     {
       analyzePromotionSegments: async (request) => {
-        calls.push({ kind: "decision-analysis", request });
+        writes.push({ decision: request });
         return {
-          analysis_id: "analysis-confirmed",
+          analysis_id: "analysis-confirmation",
           promotion_id: request.promotionId,
-          status: "completed"
+          status: "completed",
+          target_segments: [
+            {
+              audience_snapshot_id: "snapshot-final-1",
+              audience_status: "targetable",
+              content_brief: { keywords: [], message_direction: "예약 유도" },
+              estimated_size: 85,
+              final_audience_count: 85,
+              meets_min_sample_size: true,
+              segment_id: "segment-ai",
+              segment_name: "AI 고객군",
+              segment_vector_id: "vector-1",
+              targetable: true
+            },
+            {
+              audience_snapshot_id: "snapshot-final-2",
+              audience_status: "targetable",
+              content_brief: { keywords: [], message_direction: "예약 유도" },
+              estimated_size: 40,
+              final_audience_count: 40,
+              meets_min_sample_size: true,
+              segment_id: "segment-direct",
+              segment_name: "직접 생성 고객군",
+              segment_vector_id: "vector-2",
+              targetable: true
+            }
+          ]
         };
       }
     } as unknown as DashboardDecisionClient
@@ -907,51 +934,103 @@ test("dashboard confirms selected candidates after Decision prepares analysis ve
     {
       analysis_id: "analysis-current",
       confirmed_by: "operator-1",
-      segment_ids: ["segment-manual"],
+      segment_ids: ["segment-direct"],
       suggestion_ids: ["suggestion-current"]
     }
   );
 
   assert.equal(transactionHost.calls.length, 0);
-  assert.deepEqual(calls, [
+  assert.deepEqual(writes, [
     {
-      kind: "list-suggestions",
-      projectId: "hotel-client-a",
-      promotionId: "promo_banner_001",
-      analysisId: "analysis-current"
-    },
-    {
-      kind: "read-promotion",
-      projectId: "hotel-client-a",
-      promotionId: "promo_banner_001"
-    },
-    {
-      kind: "decision-analysis",
-      request: {
-        campaignId: "camp_summer_2026",
+      decision: {
+        campaignId: "campaign-1",
         projectId: "hotel-client-a",
         promotionId: "promo_banner_001",
         request: {
           operator_instruction: null,
-          segment_ids: ["seg_destination", "segment-manual"]
+          segment_ids: ["segment-ai", "segment-direct"]
         }
       }
     },
     {
-      kind: "confirm",
+      confirmationAnalysisId: "analysis-confirmation",
+      confirmedBy: "operator-1",
       projectId: "hotel-client-a",
       promotionId: "promo_banner_001",
-      request: {
-        analysis_id: "analysis-current",
-        confirmed_by: "operator-1",
-        segment_ids: ["segment-manual"],
-        suggestion_ids: ["suggestion-current"]
-      },
-      analysisId: "analysis-confirmed"
+      sourceAnalysisId: "analysis-current",
+      suggestionIds: ["suggestion-current"]
     }
   ]);
-  assert.equal(result.analysis_id, "analysis-confirmed");
+  assert.equal(result.analysis_id, "analysis-confirmation");
   assert.equal(result.confirmed_segment_count, 2);
+});
+
+test("dashboard keeps legacy AI suggestion confirmation on the direct path", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const writes: unknown[] = [];
+  installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      listPromotionSegmentSuggestions: async () => ({
+        audience_allocation_preview_context: null,
+        suggestions: [
+          {
+            analysis_id: "analysis-legacy",
+            audience_snapshot_id: null,
+            segment_id: "segment-legacy",
+            suggestion_id: "suggestion-legacy",
+            suggestion_status: "accepted"
+          }
+        ]
+      }),
+      confirmLegacyPromotionSegments: async (projectId, promotionId, request) => {
+        writes.push({ projectId, promotionId, request });
+        return {
+          analysis_id: "analysis-legacy-confirmation",
+          confirmed_segment_count: 1,
+          promotion_id: promotionId,
+          status: "confirmed",
+          target_segments: []
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      analyzePromotionSegments: async () => {
+        throw new Error("Legacy suggestions must not call Decision analyses.");
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  const result = await service.confirmPromotionSegmentSuggestions(
+    "hotel-client-a",
+    "promo-banner-legacy",
+    {
+      analysis_id: "analysis-legacy",
+      confirmed_by: "operator-1",
+      segment_ids: [],
+      suggestion_ids: ["suggestion-legacy"]
+    }
+  );
+
+  assert.deepEqual(writes, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo-banner-legacy",
+      request: {
+        analysis_id: "analysis-legacy",
+        confirmed_by: "operator-1",
+        segment_ids: [],
+        suggestion_ids: ["suggestion-legacy"]
+      }
+    }
+  ]);
+  assert.equal(result.analysis_id, "analysis-legacy-confirmation");
+  assert.equal(result.confirmed_segment_count, 1);
 });
 
 test("dashboard rejects suggestion ids outside the source analysis before Decision call", async () => {

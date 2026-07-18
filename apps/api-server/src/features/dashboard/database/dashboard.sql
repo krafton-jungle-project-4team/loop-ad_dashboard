@@ -575,6 +575,16 @@ FROM stopped_promotion;
 /* @name ListDashboardCampaignSegments */
 SELECT
   pts.analysis_id AS "analysisId",
+  pts.audience_snapshot_id AS "audienceSnapshotId",
+  CAST(pts.allocation_plan_id AS varchar) AS "allocationPlanId",
+  pts.audience_reservation_state AS "audienceReservationState",
+  audience_snapshot.snapshot_kind AS "audienceSnapshotKind",
+  audience_snapshot.final_user_count AS "finalUserCount",
+  audience_snapshot.min_sample_size AS "audienceMinSampleSize",
+  audience_snapshot.meets_min_sample_size AS "audienceMeetsMinSampleSize",
+  audience_snapshot.audience_status AS "audienceStatus",
+  audience_snapshot.status AS "audienceSnapshotStatus",
+  audience_snapshot.source_snapshot_id AS "sourceAudienceSnapshotId",
   pts.promotion_id AS "promotionId",
   pts.segment_id AS "segmentId",
   pts.segment_name AS "segmentName",
@@ -603,6 +613,8 @@ SELECT
 FROM promotion_target_segments pts
 LEFT JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
+LEFT JOIN segment_audience_snapshots audience_snapshot
+  ON audience_snapshot.snapshot_id = pts.audience_snapshot_id
 JOIN promotions p
   ON p.promotion_id = pts.promotion_id
 LEFT JOIN ad_experiments ae
@@ -616,6 +628,16 @@ WHERE pts.project_id = :projectId
   AND pts.status <> 'stopped'
 GROUP BY
   pts.analysis_id,
+  pts.audience_snapshot_id,
+  pts.allocation_plan_id,
+  pts.audience_reservation_state,
+  audience_snapshot.snapshot_kind,
+  audience_snapshot.final_user_count,
+  audience_snapshot.min_sample_size,
+  audience_snapshot.meets_min_sample_size,
+  audience_snapshot.audience_status,
+  audience_snapshot.status,
+  audience_snapshot.source_snapshot_id,
   pts.promotion_id,
   pts.segment_id,
   pts.segment_name,
@@ -639,6 +661,16 @@ ORDER BY pts.promotion_id ASC, pts.created_at DESC;
 /* @name ListDashboardPromotionSegments */
 SELECT
   pts.analysis_id AS "analysisId",
+  pts.audience_snapshot_id AS "audienceSnapshotId",
+  CAST(pts.allocation_plan_id AS varchar) AS "allocationPlanId",
+  pts.audience_reservation_state AS "audienceReservationState",
+  audience_snapshot.snapshot_kind AS "audienceSnapshotKind",
+  audience_snapshot.final_user_count AS "finalUserCount",
+  audience_snapshot.min_sample_size AS "audienceMinSampleSize",
+  audience_snapshot.meets_min_sample_size AS "audienceMeetsMinSampleSize",
+  audience_snapshot.audience_status AS "audienceStatus",
+  audience_snapshot.status AS "audienceSnapshotStatus",
+  audience_snapshot.source_snapshot_id AS "sourceAudienceSnapshotId",
   pts.promotion_id AS "promotionId",
   pts.segment_id AS "segmentId",
   pts.segment_name AS "segmentName",
@@ -667,6 +699,8 @@ SELECT
 FROM promotion_target_segments pts
 LEFT JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
+LEFT JOIN segment_audience_snapshots audience_snapshot
+  ON audience_snapshot.snapshot_id = pts.audience_snapshot_id
 JOIN promotions p
   ON p.promotion_id = pts.promotion_id
 LEFT JOIN ad_experiments ae
@@ -680,6 +714,16 @@ WHERE pts.project_id = :projectId
   AND pts.status <> 'stopped'
 GROUP BY
   pts.analysis_id,
+  pts.audience_snapshot_id,
+  pts.allocation_plan_id,
+  pts.audience_reservation_state,
+  audience_snapshot.snapshot_kind,
+  audience_snapshot.final_user_count,
+  audience_snapshot.min_sample_size,
+  audience_snapshot.meets_min_sample_size,
+  audience_snapshot.audience_status,
+  audience_snapshot.status,
+  audience_snapshot.source_snapshot_id,
   pts.promotion_id,
   pts.segment_id,
   pts.segment_name,
@@ -703,6 +747,16 @@ ORDER BY pts.created_at DESC;
 /* @name GetDashboardPromotionSegment */
 SELECT
   pts.analysis_id AS "analysisId",
+  pts.audience_snapshot_id AS "audienceSnapshotId",
+  CAST(pts.allocation_plan_id AS varchar) AS "allocationPlanId",
+  pts.audience_reservation_state AS "audienceReservationState",
+  audience_snapshot.snapshot_kind AS "audienceSnapshotKind",
+  audience_snapshot.final_user_count AS "finalUserCount",
+  audience_snapshot.min_sample_size AS "audienceMinSampleSize",
+  audience_snapshot.meets_min_sample_size AS "audienceMeetsMinSampleSize",
+  audience_snapshot.audience_status AS "audienceStatus",
+  audience_snapshot.status AS "audienceSnapshotStatus",
+  audience_snapshot.source_snapshot_id AS "sourceAudienceSnapshotId",
   pts.promotion_id AS "promotionId",
   pts.segment_id AS "segmentId",
   pts.segment_name AS "segmentName",
@@ -731,6 +785,8 @@ SELECT
 FROM promotion_target_segments pts
 LEFT JOIN segment_definitions sd
   ON sd.segment_id = pts.segment_id
+LEFT JOIN segment_audience_snapshots audience_snapshot
+  ON audience_snapshot.snapshot_id = pts.audience_snapshot_id
 JOIN promotions p
   ON p.promotion_id = pts.promotion_id
 LEFT JOIN ad_experiments ae
@@ -746,6 +802,16 @@ WHERE pts.project_id = :projectId
 
 GROUP BY
   pts.analysis_id,
+  pts.audience_snapshot_id,
+  pts.allocation_plan_id,
+  pts.audience_reservation_state,
+  audience_snapshot.snapshot_kind,
+  audience_snapshot.final_user_count,
+  audience_snapshot.min_sample_size,
+  audience_snapshot.meets_min_sample_size,
+  audience_snapshot.audience_status,
+  audience_snapshot.status,
+  audience_snapshot.source_snapshot_id,
   pts.promotion_id,
   pts.segment_id,
   pts.segment_name,
@@ -914,7 +980,7 @@ SELECT
   sqp.query_preview_id,
   sqp.natural_language_query,
   sqp.generated_sql,
-  '{}'::jsonb,
+  :ruleJson,
   '{}'::jsonb,
   sqp.sample_size,
   sqp.total_eligible_user_count,
@@ -998,6 +1064,8 @@ RETURNING
 SELECT
   pss.suggestion_id AS "suggestionId",
   pss.analysis_id AS "analysisId",
+  pss.audience_snapshot_id AS "audienceSnapshotId",
+  pa.output_json->'audience_allocation_preview_context' AS "audienceAllocationPreviewContext",
   pss.campaign_id AS "campaignId",
   pss.promotion_id AS "promotionId",
   pss.segment_id AS "segmentId",
@@ -1019,10 +1087,22 @@ SELECT
 FROM promotion_segment_suggestions pss
 JOIN segment_definitions sd
   ON sd.segment_id = pss.segment_id
+JOIN promotion_analyses pa
+  ON pa.analysis_id = pss.analysis_id
 WHERE pss.project_id = :projectId
   AND pss.promotion_id = :promotionId
-  AND (:analysisId::varchar IS NULL OR pss.analysis_id = :analysisId)
-ORDER BY pss.analysis_id DESC, pss.suggested_rank ASC, pss.created_at ASC;
+  AND pss.analysis_id = COALESCE(
+    :analysisId::varchar,
+    (
+      SELECT latest.analysis_id
+      FROM promotion_segment_suggestions latest
+      WHERE latest.project_id = :projectId
+        AND latest.promotion_id = :promotionId
+      ORDER BY latest.created_at DESC, latest.analysis_id DESC
+      LIMIT 1
+    )
+  )
+ORDER BY pss.suggested_rank ASC, pss.created_at ASC;
 
 /* 목적: 추천 세그먼트 후보의 확정 선택을 변경하거나 후보 row를 삭제합니다. */
 /* @name DecideDashboardPromotionSegmentSuggestion */
@@ -1055,6 +1135,7 @@ decided AS (
 SELECT
   d.suggestion_id AS "suggestionId",
   d.analysis_id AS "analysisId",
+  d.audience_snapshot_id AS "audienceSnapshotId",
   d.campaign_id AS "campaignId",
   d.promotion_id AS "promotionId",
   d.segment_id AS "segmentId",
@@ -1077,9 +1158,212 @@ FROM decided d
 JOIN segment_definitions sd
   ON sd.segment_id = d.segment_id;
 
-/* 목적: Decision 분석으로 확정된 추천 후보의 표시 상태를 갱신합니다. */
-/* @name ConfirmDashboardPromotionSegmentSuggestions */
-WITH confirmed AS (
+/* 목적: 사용자 추가 후보를 레거시 프로모션 타겟 세그먼트로 확정합니다. */
+/* @name ConfirmDashboardLegacyPromotionSegments */
+WITH accepted_suggestions AS (
+  SELECT
+    (:manualAnalysisId)::varchar AS analysis_id,
+    pss.project_id,
+    pss.campaign_id,
+    pss.promotion_id,
+    sd.segment_id,
+    sd.segment_name,
+    sd.rule_json,
+    sd.profile_json,
+    sd.sample_size,
+    pss.suggestion_id,
+    pss.analysis_id AS source_analysis_id,
+    jsonb_build_object(
+      'source', sd.source,
+      'suggestion_id', pss.suggestion_id,
+      'score', pss.score_json,
+      'reason', pss.reason_json,
+      'display_copy', pss.metadata_json->'display_copy',
+      'sample_size', sd.sample_size,
+      'sample_ratio', sd.sample_ratio
+    ) AS data_evidence_json
+  FROM promotion_segment_suggestions pss
+  JOIN segment_definitions sd
+    ON sd.segment_id = pss.segment_id
+  WHERE pss.project_id = :projectId
+    AND pss.promotion_id = :promotionId
+    AND pss.analysis_id = :analysisId
+    AND pss.suggestion_id = ANY(:suggestionIds)
+    AND pss.status = 'accepted'
+),
+manual_segments AS (
+  SELECT
+    (:manualAnalysisId)::varchar AS analysis_id,
+    sd.project_id,
+    sd.campaign_id,
+    sd.promotion_id,
+    sd.segment_id,
+    sd.segment_name,
+    sd.rule_json,
+    sd.profile_json,
+    sd.sample_size,
+    NULL::varchar AS suggestion_id,
+    NULL::varchar AS source_analysis_id,
+    jsonb_build_object(
+      'source', sd.source,
+      'query_preview_id', sd.query_preview_id,
+      'sample_size', sd.sample_size,
+      'sample_ratio', sd.sample_ratio
+    ) AS data_evidence_json
+  FROM segment_definitions sd
+  WHERE sd.project_id = :projectId
+    AND sd.promotion_id = :promotionId
+    AND sd.segment_id = ANY(:segmentIds)
+    AND sd.source IN ('custom_chatkit', 'manual_rule')
+    AND sd.status = 'active'
+),
+selected_segments AS (
+  SELECT * FROM accepted_suggestions
+  UNION ALL
+  SELECT * FROM manual_segments
+),
+confirmed_vectors AS (
+  INSERT INTO segment_vectors (
+    segment_vector_id,
+    project_id,
+    segment_id,
+    promotion_id,
+    promotion_run_id,
+    analysis_id,
+    vector_dim,
+    vector_values,
+    embedding,
+    vector_version,
+    source
+  )
+  SELECT
+    'segvec_' || substr(
+      encode(
+        digest(
+          selected.analysis_id || ':' || selected.segment_id || ':' || source_vector.vector_version,
+          'sha256'
+        ),
+        'hex'
+      ),
+      1,
+      40
+    ),
+    selected.project_id,
+    selected.segment_id,
+    selected.promotion_id,
+    NULL,
+    selected.analysis_id,
+    source_vector.vector_dim,
+    source_vector.vector_values,
+    source_vector.embedding,
+    source_vector.vector_version,
+    'manual'
+  FROM selected_segments selected
+  JOIN LATERAL (
+    SELECT
+      sv.vector_dim,
+      sv.vector_values,
+      sv.embedding,
+      sv.vector_version
+    FROM segment_vectors sv
+    WHERE sv.project_id = selected.project_id
+      AND sv.promotion_id = selected.promotion_id
+      AND sv.segment_id = selected.segment_id
+      AND (
+        selected.source_analysis_id IS NULL
+        OR sv.analysis_id = selected.source_analysis_id
+      )
+    ORDER BY sv.created_at DESC, sv.segment_vector_id DESC
+    LIMIT 1
+  ) source_vector ON true
+  ON CONFLICT (segment_vector_id) DO UPDATE
+  SET
+    vector_dim = EXCLUDED.vector_dim,
+    vector_values = EXCLUDED.vector_values,
+    embedding = EXCLUDED.embedding,
+    source = EXCLUDED.source
+  RETURNING segment_id, segment_vector_id
+),
+reset_unselected_approved AS (
+  UPDATE promotion_target_segments pts
+  SET status = 'planned'
+  WHERE pts.project_id = :projectId
+    AND pts.promotion_id = :promotionId
+    AND pts.status = 'approved'
+    AND EXISTS (
+      SELECT 1
+      FROM selected_segments selected
+      WHERE selected.project_id = pts.project_id
+        AND selected.campaign_id = pts.campaign_id
+        AND selected.promotion_id = pts.promotion_id
+        AND selected.analysis_id = pts.analysis_id
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM selected_segments selected
+      WHERE selected.project_id = pts.project_id
+        AND selected.campaign_id = pts.campaign_id
+        AND selected.promotion_id = pts.promotion_id
+        AND selected.analysis_id = pts.analysis_id
+        AND selected.segment_id = pts.segment_id
+    )
+  RETURNING pts.segment_id
+),
+confirmed AS (
+  INSERT INTO promotion_target_segments (
+    analysis_id,
+    project_id,
+    campaign_id,
+    promotion_id,
+    segment_id,
+    segment_name,
+    segment_vector_id,
+    rule_json,
+    profile_json,
+    content_brief_json,
+    data_evidence_json,
+    estimated_size,
+    priority,
+    status,
+    suggestion_id,
+    confirmed_by,
+    confirmed_at
+  )
+  SELECT
+    selected.analysis_id,
+    selected.project_id,
+    selected.campaign_id,
+    selected.promotion_id,
+    selected.segment_id,
+    selected.segment_name,
+    confirmed_vector.segment_vector_id,
+    selected.rule_json,
+    selected.profile_json,
+    '{}'::jsonb,
+    selected.data_evidence_json,
+    selected.sample_size,
+    NULL,
+    'approved',
+    selected.suggestion_id,
+    :confirmedBy,
+    now()
+  FROM selected_segments selected
+  LEFT JOIN confirmed_vectors confirmed_vector
+    ON confirmed_vector.segment_id = selected.segment_id
+  CROSS JOIN (SELECT count(*) FROM reset_unselected_approved) dependency
+  ON CONFLICT (analysis_id, segment_id) DO UPDATE
+  SET
+    segment_vector_id = EXCLUDED.segment_vector_id,
+    suggestion_id = EXCLUDED.suggestion_id,
+    confirmed_by = EXCLUDED.confirmed_by,
+    confirmed_at = EXCLUDED.confirmed_at,
+    status = CASE
+      WHEN promotion_target_segments.status IN ('planned', 'stopped') THEN 'approved'
+      ELSE promotion_target_segments.status
+    END
+  RETURNING promotion_id AS "promotionId", segment_id AS "segmentId", suggestion_id AS "suggestionId"
+),
+updated AS (
   UPDATE promotion_segment_suggestions pss
   SET status = 'confirmed',
       decided_at = COALESCE(pss.decided_at, now()),
@@ -1095,6 +1379,55 @@ SELECT
   (:promotionId)::varchar AS "promotionId",
   COUNT(*)::int AS "confirmedSegmentCount"
 FROM confirmed;
+
+/* 목적: Decision이 만든 V2 최종 타겟에 선택 출처와 확정 메타데이터만 보강합니다. */
+/* @name ConfirmDashboardV2PromotionSegmentSuggestions */
+WITH selected_suggestions AS (
+  SELECT
+    pss.suggestion_id,
+    pss.segment_id
+  FROM promotion_segment_suggestions pss
+  WHERE pss.project_id = :projectId
+    AND pss.promotion_id = :promotionId
+    AND pss.analysis_id = :sourceAnalysisId
+    AND pss.suggestion_id = ANY(:suggestionIds)
+    AND pss.status = 'accepted'
+    AND pss.audience_snapshot_id IS NOT NULL
+),
+enriched_targets AS (
+  UPDATE promotion_target_segments target
+  SET
+    suggestion_id = selected.suggestion_id,
+    confirmed_by = :confirmedBy,
+    confirmed_at = COALESCE(target.confirmed_at, now())
+  FROM selected_suggestions selected
+  WHERE target.project_id = :projectId
+    AND target.promotion_id = :promotionId
+    AND target.analysis_id = :confirmationAnalysisId
+    AND target.segment_id = selected.segment_id
+    AND target.audience_snapshot_id IS NOT NULL
+    AND target.allocation_plan_id IS NOT NULL
+    AND target.audience_reservation_state = 'reserved'
+  RETURNING target.promotion_id, target.segment_id, target.suggestion_id
+),
+updated_suggestions AS (
+  UPDATE promotion_segment_suggestions suggestion
+  SET
+    status = 'confirmed',
+    decided_at = COALESCE(suggestion.decided_at, now()),
+    updated_at = now()
+  FROM enriched_targets target
+  WHERE suggestion.project_id = :projectId
+    AND suggestion.promotion_id = :promotionId
+    AND suggestion.analysis_id = :sourceAnalysisId
+    AND suggestion.suggestion_id = target.suggestion_id
+  RETURNING suggestion.suggestion_id
+)
+SELECT
+  (:promotionId)::varchar AS "promotionId",
+  COUNT(*)::int AS "confirmedSegmentCount",
+  (SELECT COUNT(*)::int FROM updated_suggestions) AS "updatedSuggestionCount"
+FROM enriched_targets;
 
 /* 목적: 프로모션에 연결된 세그먼트 표시 정보를 수정합니다. */
 /* @name UpdateDashboardPromotionTargetSegment */
@@ -1117,6 +1450,7 @@ WITH target_segment AS (
   WHERE project_id = :projectId
     AND promotion_id = :promotionId
     AND segment_id = :segmentId
+    AND audience_snapshot_id IS NULL
 ),
 invalidated_generation_runs AS (
   UPDATE generation_runs gr
@@ -1795,6 +2129,7 @@ SELECT
   project_id AS "projectId",
   natural_language_query AS "naturalLanguageQuery",
   generated_sql AS "generatedSql",
+  query_params_json AS "queryParamsJson",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
   CAST(sample_ratio AS float8) AS "sampleRatio",
@@ -1829,7 +2164,7 @@ VALUES (
   :queryPreviewId,
   :naturalLanguageQuery,
   :generatedSql,
-  '{}'::jsonb,
+  :ruleJson,
   '{}'::jsonb,
   :sampleSize,
   :totalEligibleUserCount,

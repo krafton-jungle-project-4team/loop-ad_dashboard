@@ -2,6 +2,7 @@ import type {
   DashboardApproveContentCandidateResult,
   DashboardCampaignDetail,
   DashboardMain,
+  DashboardPromotionSegmentSuggestionList,
   DashboardUnapproveContentCandidateResult
 } from "@loopad/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -284,7 +285,6 @@ export function usePromotionWorkspaceController({
     queryClient,
     selectedPromotionSegmentId
   ]);
-  const latestAnalysisId = promotionDetail.data?.analyses[0]?.analysis_id ?? null;
   const selectedOpenPromotionId = selectedOpenPromotion?.promotion_id ?? "";
   const analysisProgressKey = dashboardPromotionAnalysisProgressQueryKey(
     query.projectId,
@@ -298,7 +298,7 @@ export function usePromotionWorkspaceController({
     queryKey: analysisProgressKey,
     staleTime: Infinity
   });
-  const activeAnalysisId = analysisProgress.data.analysisId ?? latestAnalysisId;
+  const activeAnalysisId = analysisProgress.data.analysisId;
 
   useEffect(() => {
     if (query.selectedSegmentId && !selectedPromotionSegmentId) {
@@ -332,7 +332,7 @@ export function usePromotionWorkspaceController({
     refetchIntervalInBackground: false
   });
   const segmentSuggestions = useQuery({
-    enabled: Boolean(selectedOpenPromotionId && promotionDetail.isSuccess && activeAnalysisId),
+    enabled: Boolean(selectedOpenPromotionId && promotionDetail.isSuccess),
     queryFn: ({ signal }) =>
       fetchDashboardPromotionSegmentSuggestions(
         query,
@@ -346,7 +346,6 @@ export function usePromotionWorkspaceController({
       activeAnalysisId
     ),
     refetchInterval: (suggestionQuery) =>
-      activeAnalysisId &&
       (suggestionQuery.state.data?.suggestions.length ?? 0) === 0 &&
       shouldPollAsyncStatus(promotionDetail.data?.analyses[0]?.status)
         ? 2500
@@ -591,6 +590,33 @@ export function usePromotionWorkspaceController({
         suggestionId,
         { status }
       ),
+    onMutate: async ({ status, suggestionId }) => {
+      const queryKey = dashboardPromotionSegmentSuggestionsQueryKey(
+        query.projectId,
+        selectedOpenPromotion?.promotion_id ?? "",
+        activeAnalysisId
+      );
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<DashboardPromotionSegmentSuggestionList>(queryKey);
+      queryClient.setQueryData<DashboardPromotionSegmentSuggestionList>(queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              suggestions: current.suggestions.map((suggestion) =>
+                suggestion.suggestion_id === suggestionId
+                  ? { ...suggestion, suggestion_status: status }
+                  : suggestion
+              )
+            }
+          : current
+      );
+      return { previous, queryKey };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(context.queryKey, context.previous);
+      }
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: dashboardPromotionSegmentSuggestionsQueryKey(
@@ -608,14 +634,14 @@ export function usePromotionWorkspaceController({
     }
   });
   const confirmSuggestionsMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (manualSegmentIds: string[]) =>
       confirmDashboardPromotionSegmentSuggestions(
         query,
         selectedOpenPromotion?.promotion_id ?? "",
         promotionSegmentConfirmationRequest(
           segmentSuggestions.data?.suggestions ?? [],
-          scopedSegmentDefinitions.data?.segments ?? [],
-          activeAnalysisId
+          activeAnalysisId,
+          manualSegmentIds
         )
       ),
     onSuccess: async () => {

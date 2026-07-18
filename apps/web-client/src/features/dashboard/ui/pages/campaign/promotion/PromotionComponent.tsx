@@ -121,8 +121,8 @@ export function PromotionWorkspace({
                   selected
                 })
               }
-              onConfirmSuggestions={async () => {
-                await confirmSuggestionsMutation.mutateAsync();
+              onConfirmSuggestions={async (segmentIds) => {
+                await confirmSuggestionsMutation.mutateAsync(segmentIds);
               }}
               onDecideSuggestion={(suggestionId, status) =>
                 decideSuggestionMutation.mutate({ status, suggestionId })
@@ -184,6 +184,9 @@ export function PromotionWorkspace({
               launchExperimentIsError={launchPromotionExperimentMutation.isError}
               launchExperimentResult={launchPromotionExperimentMutation.data ?? null}
               suggestions={segmentSuggestions.data?.suggestions ?? []}
+              audienceAllocationPreviewContext={
+                segmentSuggestions.data?.audience_allocation_preview_context ?? null
+              }
               suggestionsIsLoading={segmentSuggestions.isLoading}
               tab={workspaceTab}
               updateContentCandidateCopyIsPending={updateContentCandidateCopyMutation.isPending}

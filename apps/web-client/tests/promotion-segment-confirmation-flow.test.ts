@@ -22,27 +22,22 @@ test("confirmation sends only accepted suggestions from the selected analysis", 
       suggestion("suggestion-1", "analysis-current", "accepted"),
       suggestion("suggestion-2", "analysis-current", "suggested")
     ],
-    [scopedSegment("manual-segment-1")],
     "analysis-current"
   );
 
   assert.deepEqual(request, {
     analysis_id: "analysis-current",
-    segment_ids: ["manual-segment-1"],
+    segment_ids: [],
     suggestion_ids: ["suggestion-1"]
   });
 });
 
-test("manual-only confirmation does not select a stale analysis", () => {
-  const request = promotionSegmentConfirmationRequest(
-    [],
-    [scopedSegment("manual-segment-1")],
-    "analysis-previous"
-  );
+test("empty AI confirmation does not select a stale analysis", () => {
+  const request = promotionSegmentConfirmationRequest([], "analysis-previous");
 
   assert.deepEqual(request, {
     analysis_id: null,
-    segment_ids: ["manual-segment-1"],
+    segment_ids: [],
     suggestion_ids: []
   });
 });
@@ -53,14 +48,27 @@ test("confirmation does not choose an arbitrary analysis from mixed suggestions"
       suggestion("suggestion-old", "analysis-old", "accepted"),
       suggestion("suggestion-current", "analysis-current", "accepted")
     ],
-    [scopedSegment("manual-segment-1")],
     null
   );
 
   assert.deepEqual(request, {
     analysis_id: null,
-    segment_ids: ["manual-segment-1"],
+    segment_ids: [],
     suggestion_ids: []
+  });
+});
+
+test("confirmation includes directly created segments with accepted AI suggestions", () => {
+  const request = promotionSegmentConfirmationRequest(
+    [suggestion("suggestion-1", "analysis-current", "accepted")],
+    "analysis-current",
+    ["segment-direct", "segment-direct"]
+  );
+
+  assert.deepEqual(request, {
+    analysis_id: "analysis-current",
+    segment_ids: ["segment-direct"],
+    suggestion_ids: ["suggestion-1"]
   });
 });
 
@@ -179,5 +187,9 @@ function suggestion(
 }
 
 function scopedSegment(segmentId: string) {
-  return { segment_id: segmentId } as DashboardPromotionScopedSegmentDefinition;
+  return {
+    segment_id: segmentId,
+    segment_name: segmentId,
+    sample_size: 0
+  } as DashboardPromotionScopedSegmentDefinition;
 }
