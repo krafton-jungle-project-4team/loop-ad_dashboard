@@ -490,14 +490,14 @@ function SegmentSuggestionCard({
           <CardTitle className="text-base leading-6 font-semibold [overflow-wrap:anywhere] [word-break:keep-all]">
             {displayCopy?.title ?? suggestion.segment_name}
           </CardTitle>
-          <CardDescription className="text-xs">
+          <CardDescription className="text-xs text-foreground/65">
             {displayCopy
               ? "AI 추천 고객군"
               : `${suggestion.segment_source} · ${suggestion.suggestion_source}`}
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-3 text-sm text-muted-foreground">
+      <CardContent className="grid gap-3 text-sm text-foreground/80">
         {performanceEstimate ? <SegmentPerformanceSummary estimate={performanceEstimate} /> : null}
         <SegmentAudienceStats
           audience={displayCopy?.audience}
@@ -563,7 +563,7 @@ function SegmentPerformanceSummary({ estimate }: { estimate: SegmentPerformanceE
       ) : (
         <strong className="text-sm font-semibold text-foreground">지금은 계산할 수 없어요</strong>
       )}
-      <div className="grid min-w-0 gap-0.5 text-[11px] leading-4 text-muted-foreground">
+      <div className="grid min-w-0 gap-0.5 text-[11px] leading-4 text-foreground/70">
         {estimate.window_label ? <span>{estimate.window_label}</span> : null}
         {isAvailable && estimate.basis_label ? <span>{estimate.basis_label}</span> : null}
         {!isAvailable && estimate.unavailable_reason ? (
@@ -582,7 +582,7 @@ function SegmentAudienceStats({
   fallbackSummary: string;
 }) {
   if (!audience) {
-    return <p className="text-xs leading-5 text-muted-foreground">{fallbackSummary}</p>;
+    return <p className="text-xs leading-5 text-foreground/70">{fallbackSummary}</p>;
   }
 
   return (
@@ -637,7 +637,7 @@ export function selectedAudienceAllocationPreview(
 function AudienceStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="grid min-w-0 gap-0.5 px-2">
-      <span className="text-[10px] leading-4 text-muted-foreground [word-break:keep-all]">
+      <span className="text-[10px] leading-4 text-foreground/65 [word-break:keep-all]">
         {label}
       </span>
       <strong className="text-sm font-semibold tabular-nums text-foreground">
@@ -697,7 +697,7 @@ function SegmentSuggestionReportDialog({
               <Badge variant="outline">AI 추천 보고서</Badge>
             </div>
             <DialogTitle>{report.title}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-foreground/70">
               후보를 확정하기 전에 고객 특성과 추천 이유를 확인해 봐요.
             </DialogDescription>
           </DialogHeader>
@@ -749,7 +749,7 @@ function SegmentSuggestionReportContent({
           <div className="grid gap-2">
             <SegmentPerformanceSummary estimate={performanceEstimate} />
             {performanceEstimate.observed_value !== undefined ? (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-[11px] text-foreground/70">
                 {formatObservedPerformance(
                   performanceEstimate,
                   displayCopy?.audience?.selected_user_count
@@ -757,7 +757,7 @@ function SegmentSuggestionReportContent({
               </span>
             ) : null}
             {performanceEstimate.confidence_reason ? (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-[11px] text-foreground/70">
                 {performanceEstimate.confidence_reason}
               </span>
             ) : null}
@@ -796,7 +796,7 @@ function SegmentSuggestionReportContent({
       />
       <section className="grid gap-2 rounded-md border p-4">
         <h4 className="text-sm font-semibold">활용 방법</h4>
-        <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
+        <p className="text-sm leading-6 text-foreground/80">{report.action_hint}</p>
       </section>
       <section className="grid gap-2 rounded-md border border-[#fee2e2] bg-[#fff7f7] p-4">
         <h4 className="text-sm font-semibold text-[#b42318]">주의할 점</h4>
@@ -814,7 +814,7 @@ function ReportSection({ items, title }: { items: string[] | undefined; title: s
   return (
     <section className="grid gap-2 rounded-md border p-4">
       <h4 className="text-sm font-semibold">{title}</h4>
-      <ul className="grid gap-2 text-sm leading-6 text-muted-foreground">
+      <ul className="grid gap-2 text-sm leading-6 text-foreground/80">
         {items.map((item, index) => (
           <li className="flex gap-2" key={`${title}-${index}-${item}`}>
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
