@@ -162,10 +162,15 @@ test("creative selection waits for every required image and HTML artifact", () =
 
 test("the next experiment increments the highest loop for its segment", () => {
   const detail = {
-    ad_experiments: [{ loop_count: 1 }, { loop_count: 2 }]
+    ad_experiments: [
+      { loop_count: 1, promotion_run_id: "run-1" },
+      { loop_count: 2, promotion_run_id: "run-2" }
+    ]
   } as DashboardSegmentDetail;
 
   assert.equal(nextExperimentLoopCount(detail), 3);
+  assert.equal(nextExperimentLoopCount(detail, "run-2"), 2);
+  assert.equal(nextExperimentLoopCount(detail, "run-1"), 3);
   assert.equal(nextExperimentLoopCount({ ad_experiments: [] } as DashboardSegmentDetail), 1);
 });
 

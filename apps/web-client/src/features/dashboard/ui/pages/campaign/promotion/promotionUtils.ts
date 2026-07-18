@@ -305,11 +305,27 @@ export function activeContentCandidates(detail: DashboardSegmentDetail) {
   );
 }
 
-export function nextExperimentLoopCount(detail: DashboardSegmentDetail) {
+export function nextExperimentLoopCount(
+  detail: DashboardSegmentDetail,
+  resumablePromotionRunId?: string | null
+) {
   const latestLoopCount = detail.ad_experiments.reduce(
     (highestLoopCount, experiment) => Math.max(highestLoopCount, experiment.loop_count),
     0
   );
+  const resumableLoopCount = resumablePromotionRunId
+    ? detail.ad_experiments.reduce(
+        (highestLoopCount, experiment) =>
+          experiment.promotion_run_id === resumablePromotionRunId
+            ? Math.max(highestLoopCount, experiment.loop_count)
+            : highestLoopCount,
+        0
+      )
+    : 0;
+
+  if (resumableLoopCount > 0 && resumableLoopCount === latestLoopCount) {
+    return resumableLoopCount;
+  }
 
   return latestLoopCount + 1;
 }

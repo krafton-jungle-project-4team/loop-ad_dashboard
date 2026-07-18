@@ -144,8 +144,6 @@ const decisionNextLoopResponseSchema = z.object({
   )
 });
 
-const DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT = 10_000;
-
 @Injectable()
 export class DashboardDecisionClient {
   recommendPromotionSegments(request: {
@@ -232,9 +230,7 @@ export class DashboardDecisionClient {
     promotionRunId: string;
   }): Promise<DashboardBuildPromotionRunAssignmentsResult> {
     return requestDecisionApi({
-      body: {
-        eligible_user_limit: DEFAULT_ASSIGNMENT_ELIGIBLE_USER_LIMIT
-      },
+      body: {},
       path: `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/segment-assignments/build`,
       request,
       schema: decisionSegmentAssignmentBuildResponseSchema
