@@ -1357,7 +1357,7 @@ WITH selected_suggestions AS (
     AND pss.promotion_id = :promotionId
     AND pss.analysis_id = :sourceAnalysisId
     AND pss.suggestion_id = ANY(:suggestionIds)
-    AND pss.status = 'accepted'
+    AND pss.status IN ('accepted', 'confirmed')
     AND pss.audience_snapshot_id IS NOT NULL
 ),
 enriched_targets AS (
