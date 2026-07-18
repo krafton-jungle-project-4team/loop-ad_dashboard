@@ -5,6 +5,7 @@ import {
   DashboardCampaignReader,
   promotionConfirmationAnalysisId
 } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
+import { confirmDashboardV2PromotionSegmentSuggestions } from "../src/features/dashboard/database/__generated__/dashboard.queries.js";
 
 test("promotion confirmation reuses one bounded analysis id", () => {
   const first = promotionConfirmationAnalysisId("project-1", "promotion-1");
@@ -68,6 +69,45 @@ test("V2 confirmation waits until Decision target rows become visible", async ()
 
   assert.equal(confirmedCount, 2);
   assert.equal(queryCount, 2);
+});
+
+test("V2 confirmation generated query binds parameters at valid SQL positions", async () => {
+  let executedSql = "";
+  let executedValues: unknown[] = [];
+
+  await confirmDashboardV2PromotionSegmentSuggestions.run(
+    {
+      confirmationAnalysisId: "analysis-confirmed",
+      confirmedBy: "operator-1",
+      projectId: "project-1",
+      promotionId: "promotion-1",
+      sourceAnalysisId: "analysis-source",
+      suggestionIds: ["suggestion-1", "suggestion-2"]
+    },
+    {
+      query: async (sql: string, values: unknown[]) => {
+        executedSql = sql;
+        executedValues = values;
+        return { rowCount: 0, rows: [] };
+      }
+    } as never
+  );
+
+  assert.match(executedSql, /pss\.project_id = \$1/);
+  assert.match(executedSql, /pss\.promotion_id = \$2/);
+  assert.match(executedSql, /pss\.analysis_id = \$3/);
+  assert.match(executedSql, /pss\.suggestion_id = ANY\(\$4\)/);
+  assert.match(executedSql, /confirmed_by = \$5/);
+  assert.match(executedSql, /target\.analysis_id = \$6/);
+  assert.doesNotMatch(executedSql, /\$\d+[A-Za-z_]/);
+  assert.deepEqual(executedValues, [
+    "project-1",
+    "promotion-1",
+    "analysis-source",
+    ["suggestion-1", "suggestion-2"],
+    "operator-1",
+    "analysis-confirmed"
+  ]);
 });
 
 test("removing a target segment invalidates its generation scope", () => {
