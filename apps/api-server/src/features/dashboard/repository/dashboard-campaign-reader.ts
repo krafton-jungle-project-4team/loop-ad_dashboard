@@ -125,6 +125,8 @@ import {
   normalizeDashboardPromotionRunLegacyGoalNearEvaluations
 } from "../database/__generated__/promotion-run-compatibility.queries.js";
 
+const confirmationWriteRetryDelaysMs = [50, 100, 200, 400, 500, 750] as const;
+
 @Injectable()
 export class DashboardCampaignReader {
   constructor(
@@ -566,33 +568,43 @@ export class DashboardCampaignReader {
     sourceAnalysisId: string;
     suggestionIds: string[];
   }): Promise<number> {
-    const row = await this.db
-      .query(confirmDashboardV2PromotionSegmentSuggestions, {
-        confirmationAnalysisId: request.confirmationAnalysisId,
-        confirmedBy: request.confirmedBy,
-        projectId: request.projectId,
-        promotionId: request.promotionId,
-        sourceAnalysisId: request.sourceAnalysisId,
-        suggestionIds: request.suggestionIds
-      })
-      .single();
+    for (let attempt = 0; attempt <= confirmationWriteRetryDelaysMs.length; attempt += 1) {
+      const row = await this.db
+        .query(confirmDashboardV2PromotionSegmentSuggestions, {
+          confirmationAnalysisId: request.confirmationAnalysisId,
+          confirmedBy: request.confirmedBy,
+          projectId: request.projectId,
+          promotionId: request.promotionId,
+          sourceAnalysisId: request.sourceAnalysisId,
+          suggestionIds: request.suggestionIds
+        })
+        .single();
 
-    const confirmedCount = countValue(row.confirmedSegmentCount);
-    const updatedSuggestionCount = countValue(row.updatedSuggestionCount);
-    if (
-      confirmedCount !== request.suggestionIds.length ||
-      updatedSuggestionCount !== confirmedCount
-    ) {
-      throw dashboardErrors.decisionRequestFailed({
-        detail: {
-          code: "segment_audience_confirmation_write_mismatch",
-          reason: "확정된 고객군 정보를 저장하지 못했어요. 다시 시도해 주세요."
-        },
-        status: 409
-      });
+      const confirmedCount = countValue(row.confirmedSegmentCount);
+      const updatedSuggestionCount = countValue(row.updatedSuggestionCount);
+      if (
+        confirmedCount === request.suggestionIds.length &&
+        updatedSuggestionCount === confirmedCount
+      ) {
+        return confirmedCount;
+      }
+
+      const decisionWriteIsNotVisible = confirmedCount === 0 && updatedSuggestionCount === 0;
+      const retryDelayMs = confirmationWriteRetryDelaysMs[attempt];
+      if (!decisionWriteIsNotVisible || retryDelayMs === undefined) {
+        throw dashboardErrors.decisionRequestFailed({
+          detail: {
+            code: "segment_audience_confirmation_write_mismatch",
+            reason: "확정된 고객군 정보를 저장하지 못했어요. 다시 시도해 주세요."
+          },
+          status: 409
+        });
+      }
+
+      await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
     }
 
-    return confirmedCount;
+    throw new Error("unreachable");
   }
 
   async startNextLoopAnalysis(

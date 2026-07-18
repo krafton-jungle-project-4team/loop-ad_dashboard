@@ -499,9 +499,9 @@ export function PromotionTabWorkspace({
           </TabsContent>
         ) : null}
         {showsSegmentsTab ? (
-          <TabsContent className="min-h-0" value="segments">
+          <TabsContent className="flex-none" value="segments">
             <Tabs
-              className="min-h-0 gap-3"
+              className="gap-3"
               onValueChange={(value) => setSegmentListTab(value as PromotionSegmentListTab)}
               value={segmentListTab}
             >
@@ -515,7 +515,7 @@ export function PromotionTabWorkspace({
                   <Badge variant="secondary">{formatInteger(confirmedSegmentCount)}</Badge>
                 </TabsTrigger>
               </TabsList>
-              <TabsContent className="min-h-0" value="candidates">
+              <TabsContent className="flex-none" value="candidates">
                 <PromotionSegmentSuggestionPanel
                   audienceAllocationPreviewContext={audienceAllocationPreviewContext}
                   confirmIsPending={confirmIsPending}

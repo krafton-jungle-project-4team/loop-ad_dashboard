@@ -149,7 +149,7 @@ export function PromotionSegmentSuggestionPanel({
   ];
 
   return (
-    <Card className="min-h-0 shadow-none">
+    <Card className="shrink-0 shadow-none">
       <CardHeader className="grid shrink-0 gap-1 border-b sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="grid min-h-[3.25rem] gap-1.5">
           <div className="flex items-center gap-2">
@@ -184,7 +184,7 @@ export function PromotionSegmentSuggestionPanel({
           />
         </div>
       </CardHeader>
-      <CardContent className="grid min-h-0 content-start gap-4">
+      <CardContent className="grid content-start gap-4">
         {scopedSegmentsIsLoading ? (
           <EmptyState message="직접 추가한 후보를 불러오는 중이에요." />
         ) : null}

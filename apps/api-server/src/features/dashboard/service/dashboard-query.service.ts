@@ -567,7 +567,9 @@ export class DashboardQueryService {
       selectedSuggestions.length === request.suggestion_ids.length &&
       selectedSuggestions.every(
         (suggestion) =>
-          suggestion.analysis_id === sourceAnalysisId && suggestion.suggestion_status === "accepted"
+          suggestion.analysis_id === sourceAnalysisId &&
+          (suggestion.suggestion_status === "accepted" ||
+            suggestion.suggestion_status === "confirmed")
       );
     if (!validSelection) {
       log.warn("segment_suggestion_selection_invalid", {
