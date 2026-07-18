@@ -497,12 +497,14 @@ export function usePromotionWorkspaceController({
       analysisId,
       generationId,
       loopCount,
+      nextLoopPreparationId,
       promotionId,
       segmentId
     }: {
       analysisId?: string;
       generationId?: string;
       loopCount?: number;
+      nextLoopPreparationId?: string;
       promotionId: string;
       segmentId: string;
     }) =>
@@ -519,7 +521,8 @@ export function usePromotionWorkspaceController({
               analysis_id: analysisId,
               generation_id: generationId,
               segment_ids: [segmentId],
-              loop_count: loopCount ?? 1
+              loop_count: loopCount ?? 1,
+              next_loop_preparation_id: nextLoopPreparationId
             });
             return {
               experiments: run.ad_experiments.map((experiment) => ({

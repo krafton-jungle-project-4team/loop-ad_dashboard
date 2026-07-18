@@ -390,7 +390,8 @@ export function PromotionTabWorkspace({
     segmentId: string,
     analysisId?: string,
     generationId?: string,
-    loopCount?: number
+    loopCount?: number,
+    nextLoopPreparationId?: string
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
@@ -801,7 +802,8 @@ function PromotionSegmentDetailTab({
     segmentId: string,
     analysisId?: string,
     generationId?: string,
-    loopCount?: number
+    loopCount?: number,
+    nextLoopPreparationId?: string
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onStartGeneration: (analysisId: string) => void;
@@ -1301,7 +1303,8 @@ function SegmentConnectedExperimentsCard({
     segmentId: string,
     analysisId?: string,
     generationId?: string,
-    loopCount?: number
+    loopCount?: number,
+    nextLoopPreparationId?: string
   ) => void;
   promotionExperiments: DashboardAdExperiment[];
 }) {
@@ -1370,7 +1373,8 @@ function SegmentConnectedExperimentsCard({
                 detail.segment.segment_id,
                 approvedContentCandidate?.analysis_id,
                 approvedContentCandidate?.generation_id,
-                nextLoopCount
+                nextLoopCount,
+                approvedContentCandidate?.next_loop_preparation_id ?? undefined
               );
             }}
             type="button"

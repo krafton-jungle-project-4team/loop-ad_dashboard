@@ -1751,6 +1751,15 @@ SELECT
   data_evidence_json AS "dataEvidenceJson",
   message_strategy AS "messageStrategy",
   metadata_json AS "metadataJson",
+  (
+    SELECT preparation.next_loop_preparation_id
+    FROM next_loop_preparations AS preparation
+    WHERE preparation.analysis_id = content_candidates.analysis_id
+      AND preparation.generation_id = content_candidates.generation_id
+      AND preparation.status IN ('awaiting_content_approval', 'activated')
+    ORDER BY preparation.updated_at DESC
+    LIMIT 1
+  ) AS "nextLoopPreparationId",
   status,
   updated_at AS "updatedAt"
 FROM content_candidates

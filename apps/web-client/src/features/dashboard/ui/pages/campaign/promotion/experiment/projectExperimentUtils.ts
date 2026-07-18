@@ -36,6 +36,7 @@ export type RepeatCreativePreparationInput = {
   failedAdExperimentIds: string[];
   failedSegmentIds: string[];
   promotionId: string;
+  sourcePromotionRunId: string;
 };
 
 export function normalizeProjectExperimentFilters(
@@ -160,7 +161,8 @@ export function repeatCreativeTargetForExperiment(
     failedAdExperimentIds: uniqueValues(
       targetExperiments.map((candidate) => candidate.ad_experiment_id)
     ),
-    failedSegmentIds: uniqueValues(targetExperiments.map((candidate) => candidate.segment_id))
+    failedSegmentIds: uniqueValues(targetExperiments.map((candidate) => candidate.segment_id)),
+    sourcePromotionRunId: experiment.promotion_run_id
   };
 }
 

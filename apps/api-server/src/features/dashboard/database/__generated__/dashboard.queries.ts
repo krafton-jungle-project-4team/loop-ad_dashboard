@@ -3127,6 +3127,7 @@ export interface IListDashboardSegmentContentCandidatesResult {
   message: string | null;
   messageStrategy: string | null;
   metadataJson: Json;
+  nextLoopPreparationId: string | null;
   preheader: string | null;
   promotionId: string;
   reasonSummary: string | null;
@@ -3143,7 +3144,7 @@ export interface IListDashboardSegmentContentCandidatesQuery {
   result: IListDashboardSegmentContentCandidatesResult;
 }
 
-const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":648,"b":657}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":680,"b":691}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":712,"b":721}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  generation_id AS \"generationId\",\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  image_url AS \"imageUrl\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n\nORDER BY updated_at DESC, created_at DESC                                     "};
+const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1045,"b":1054}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1077,"b":1088}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1109,"b":1118}]}],"statement":"SELECT\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  generation_id AS \"generationId\",\n  analysis_id AS \"analysisId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  channel,\n  subject,\n  preheader,\n  title,\n  body,\n  cta,\n  message,\n  image_prompt AS \"imagePrompt\",\n  image_url AS \"imageUrl\",\n  landing_url AS \"landingUrl\",\n  generation_prompt AS \"generationPrompt\",\n  reason_summary AS \"reasonSummary\",\n  data_evidence_json AS \"dataEvidenceJson\",\n  message_strategy AS \"messageStrategy\",\n  metadata_json AS \"metadataJson\",\n  (\n    SELECT preparation.next_loop_preparation_id\n    FROM next_loop_preparations AS preparation\n    WHERE preparation.analysis_id = content_candidates.analysis_id\n      AND preparation.generation_id = content_candidates.generation_id\n      AND preparation.status IN ('awaiting_content_approval', 'activated')\n    ORDER BY preparation.updated_at DESC\n    LIMIT 1\n  ) AS \"nextLoopPreparationId\",\n  status,\n  updated_at AS \"updatedAt\"\nFROM content_candidates\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n\nORDER BY updated_at DESC, created_at DESC                                     "};
 
 /**
  * Query generated from SQL:
@@ -3170,6 +3171,15 @@ const listDashboardSegmentContentCandidatesIR: any = {"usedParamSet":{"projectId
  *   data_evidence_json AS "dataEvidenceJson",
  *   message_strategy AS "messageStrategy",
  *   metadata_json AS "metadataJson",
+ *   (
+ *     SELECT preparation.next_loop_preparation_id
+ *     FROM next_loop_preparations AS preparation
+ *     WHERE preparation.analysis_id = content_candidates.analysis_id
+ *       AND preparation.generation_id = content_candidates.generation_id
+ *       AND preparation.status IN ('awaiting_content_approval', 'activated')
+ *     ORDER BY preparation.updated_at DESC
+ *     LIMIT 1
+ *   ) AS "nextLoopPreparationId",
  *   status,
  *   updated_at AS "updatedAt"
  * FROM content_candidates
