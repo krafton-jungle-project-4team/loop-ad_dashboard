@@ -1,12 +1,7 @@
-import type { DataExplorerAiChatCurrentResult } from "@loopad/shared";
 import { createContext, useContext, type ReactNode } from "react";
-import type { DataExplorerChatKitQueryEffect } from "../../data-explorer/components/ChatKitQueryPanel.js";
-
-type DashboardAssistantQueryEffectListener = (effect: DataExplorerChatKitQueryEffect) => void;
 
 export type DashboardAssistantContextValue = {
-  publishCurrentResult: (result: DataExplorerAiChatCurrentResult | null) => void;
-  subscribeToQueryEffects: (listener: DashboardAssistantQueryEffectListener) => () => void;
+  openSegmentCandidateAssistant: () => void;
 };
 
 const DashboardAssistantContext = createContext<DashboardAssistantContextValue | null>(null);

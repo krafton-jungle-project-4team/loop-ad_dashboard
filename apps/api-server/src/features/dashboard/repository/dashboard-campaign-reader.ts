@@ -81,6 +81,7 @@ import {
   getDashboardPromotionGenerationResult,
   getDashboardPromotionSegment,
   getDashboardPromotionSummary,
+  getDashboardSegmentQueryPreviewForSave,
   insertDashboardCampaign,
   insertDashboardManualPromotionAnalysis,
   insertDashboardNextLoopAnalysis,
@@ -117,6 +118,7 @@ import {
   type IListDashboardSegmentContentCandidatesResult,
   type Json
 } from "../database/__generated__/dashboard.queries.js";
+import { buildCustomStructuredAudienceRule } from "../segment-audience-v2-contract.js";
 import { listDashboardRunningAdExperimentCounts } from "../database/__generated__/project-experiments.queries.js";
 import {
   backfillDashboardPromotionRunMinSampleSize,
@@ -429,12 +431,28 @@ export class DashboardCampaignReader {
 
     if (request.source === "custom_chatkit") {
       const queryPreviewId = request.query_preview_id ?? "";
+      const preview = await this.db
+        .query(getDashboardSegmentQueryPreviewForSave, {
+          projectId,
+          queryPreviewId
+        })
+        .single();
+      if (preview.sampleSizeStatus !== "valid" || preview.status !== "previewed") {
+        throw dashboardErrors.segmentPreviewNotSaveable();
+      }
+      let ruleJson: ReturnType<typeof buildCustomStructuredAudienceRule>;
+      try {
+        ruleJson = buildCustomStructuredAudienceRule(preview.queryParamsJson);
+      } catch {
+        throw dashboardErrors.segmentPreviewNotSaveable();
+      }
       const row = await this.db
         .query(insertDashboardPromotionCustomSegmentDefinition, {
           campaignId: promotion.campaign_id,
           projectId,
           promotionId,
           queryPreviewId,
+          ruleJson: ruleJson as unknown as Json,
           segmentId,
           segmentName: request.segment_name
         })

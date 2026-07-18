@@ -5,7 +5,8 @@ import type {
 
 export function promotionSegmentConfirmationRequest(
   suggestions: DashboardPromotionSegmentSuggestion[],
-  fallbackAnalysisId: string | null
+  fallbackAnalysisId: string | null,
+  directSegmentIds: string[] = []
 ): DashboardConfirmSegmentSuggestionsRequest {
   const acceptedSuggestions = suggestions.filter(
     (suggestion) => suggestion.suggestion_status === "accepted"
@@ -21,7 +22,7 @@ export function promotionSegmentConfirmationRequest(
 
   return {
     analysis_id: analysisId,
-    segment_ids: [],
+    segment_ids: [...new Set(directSegmentIds)],
     suggestion_ids: acceptedSuggestions
       .filter((suggestion) => suggestion.analysis_id === analysisId)
       .map((suggestion) => suggestion.suggestion_id)

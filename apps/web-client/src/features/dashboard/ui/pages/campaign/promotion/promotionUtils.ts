@@ -9,7 +9,6 @@ import {
   type DashboardCampaignPromotion,
   type DashboardCampaignSegment,
   type CreativeArtifact,
-  type DashboardCreatePromotionSegmentDefinitionRequest,
   type DashboardCreatePromotionRequest,
   type DashboardUpdatePromotionRequest,
   type DashboardPromotionSegmentSuggestion,
@@ -138,47 +137,6 @@ export function isValidHttpUrl(value: string) {
   } catch {
     return false;
   }
-}
-
-export type PromotionSegmentCreateFormState = {
-  naturalLanguageQuery: string;
-  ruleJsonText: string;
-  sampleRatio: string;
-  sampleSize: string;
-  segmentName: string;
-  totalEligibleUserCount: string;
-};
-
-export function createEmptyPromotionSegmentFormState(): PromotionSegmentCreateFormState {
-  return {
-    naturalLanguageQuery: "",
-    ruleJsonText: JSON.stringify({ source: "manual_rule" }, null, 2),
-    sampleRatio: "0",
-    sampleSize: "0",
-    segmentName: "",
-    totalEligibleUserCount: "0"
-  };
-}
-
-export function promotionSegmentCreateFormToRequest(
-  form: PromotionSegmentCreateFormState
-): DashboardCreatePromotionSegmentDefinitionRequest {
-  const sampleSize = Math.trunc(nonnegativeNumber(form.sampleSize));
-  const totalEligibleUserCount = Math.trunc(nonnegativeNumber(form.totalEligibleUserCount));
-
-  return {
-    natural_language_query: form.naturalLanguageQuery.trim() || null,
-    profile_json: {
-      source: "dashboard_manual",
-      total_eligible_user_count: totalEligibleUserCount
-    },
-    rule_json: parseJsonObject(form.ruleJsonText) ?? {},
-    sample_ratio: nonnegativeNumber(form.sampleRatio),
-    sample_size: sampleSize,
-    segment_name: form.segmentName.trim(),
-    source: "manual_rule",
-    total_eligible_user_count: totalEligibleUserCount
-  };
 }
 
 export function latestSegmentPerSegmentId(segments: DashboardCampaignSegment[]) {
@@ -464,17 +422,6 @@ export function formatJsonValue(value: unknown): string {
     return Object.keys(value).join(", ");
   }
   return "";
-}
-
-export function parseJsonObject(value: string): Record<string, unknown> | null {
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 export function mutationErrorMessage(error: unknown) {

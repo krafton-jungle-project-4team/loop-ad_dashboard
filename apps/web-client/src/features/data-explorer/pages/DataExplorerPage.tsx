@@ -1,5 +1,4 @@
 import type {
-  DataExplorerAiChatCurrentResult,
   DataExplorerColumn,
   DataExplorerObjectSummary,
   DataExplorerQueryRunResponse,
@@ -12,13 +11,11 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@loopad/ui
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { PanelLeft, PanelLeftClose } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DataExplorerChatKitQueryEffect } from "../components/ChatKitQueryPanel.js";
+import { useCallback, useEffect, useState } from "react";
 import { QueryResultTable } from "../components/QueryResultTable.js";
 import { SchemaBrowserPanel } from "../components/SchemaBrowserPanel.js";
 import { SqlEditorPanel } from "../components/SqlEditorPanel.js";
 import { VisualizationPanel } from "../components/VisualizationPanel.js";
-import { useDashboardAssistant } from "../../dashboard/layout/DashboardAssistantContext.js";
 import {
   dataExplorerEventCatalogQueryOptions,
   dataExplorerObjectDetailQueryOptions,
@@ -39,7 +36,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<"result" | "visualization">("result");
   const [isSchemaPanelOpen, setIsSchemaPanelOpen] = useState(shouldOpenSidePanelsByDefault);
-  const { publishCurrentResult, subscribeToQueryEffects } = useDashboardAssistant();
   const mutations = useDataExplorerMutations();
   const objectsQuery = useQuery(dataExplorerObjectsQueryOptions({ q: objectSearch }));
   const eventCatalogQuery = useQuery(dataExplorerEventCatalogQueryOptions(projectId));
@@ -49,10 +45,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   const hasInvalidValidation = validation?.status === "invalid";
   const schemaPanelDefaultSize = 24;
   const mainPanelDefaultSize = 100 - (isSchemaPanelOpen ? schemaPanelDefaultSize : 0);
-  const chatKitCurrentResult = useMemo(
-    () => (queryResult ? toCurrentResult(queryResult) : null),
-    [queryResult]
-  );
 
   useEffect(() => {
     if (!objects.length) {
@@ -122,37 +114,6 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
       setSqlText(recentEventSqlText(projectId, eventName));
     },
     [projectId]
-  );
-
-  const handleChatKitQueryRun = useCallback((effect: DataExplorerChatKitQueryEffect) => {
-    setQueryError(null);
-    setSqlText(effect.query_plan.generated_sql);
-    setValidation(effect.query_plan.validation);
-
-    if (effect.action === "query_run") {
-      setQueryResult(effect.query_result);
-      setResultTab("result");
-      return;
-    }
-
-    setQueryResult(null);
-    setResultTab("result");
-  }, []);
-
-  useEffect(() => {
-    publishCurrentResult(chatKitCurrentResult);
-  }, [chatKitCurrentResult, publishCurrentResult]);
-
-  useEffect(
-    () => () => {
-      publishCurrentResult(null);
-    },
-    [publishCurrentResult]
-  );
-
-  useEffect(
-    () => subscribeToQueryEffects(handleChatKitQueryRun),
-    [handleChatKitQueryRun, subscribeToQueryEffects]
   );
 
   if (!projectId.trim()) {
@@ -312,16 +273,6 @@ function preferredObject(objects: DataExplorerObjectSummary[]): DataExplorerObje
     objects[0] ??
     null
   );
-}
-
-function toCurrentResult(result: DataExplorerQueryRunResponse): DataExplorerAiChatCurrentResult {
-  return {
-    columns: result.columns,
-    query_run_id: result.query_run_id,
-    row_count: result.row_count,
-    rows: result.rows.slice(0, 100),
-    truncated: result.truncated
-  };
 }
 
 function defaultSqlText(projectId: string) {

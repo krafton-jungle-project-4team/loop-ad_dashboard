@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { Transactional } from "@nestjs-cls/transactional";
 import type {
   DashboardArchivePromotionScopedSegmentDefinitionResult,
@@ -52,6 +52,8 @@ import type {
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
+  DashboardSegmentAssistantRequest,
+  DashboardSegmentAssistantResponse,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
   DashboardRecommendPromotionSegmentsRequest,
@@ -74,7 +76,7 @@ import {
   DashboardSegmentQueryRepository
 } from "../repository/index.js";
 import { dashboardErrors } from "../dashboard-errors.js";
-import { DashboardDecisionClient } from "../provider/index.js";
+import { DashboardDecisionClient, DashboardSegmentAssistantAgent } from "../provider/index.js";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import {
   contentCandidateCopy,
@@ -95,7 +97,10 @@ export class DashboardQueryService {
     @Inject(DashboardSegmentQueryRepository)
     private readonly segmentQueryRepository: DashboardSegmentQueryRepository,
     @Inject(DashboardDecisionClient)
-    private readonly decisionClient: DashboardDecisionClient
+    private readonly decisionClient: DashboardDecisionClient,
+    @Optional()
+    @Inject(DashboardSegmentAssistantAgent)
+    private readonly segmentAssistantAgent?: DashboardSegmentAssistantAgent
   ) {}
 
   @LogContextScope()
@@ -333,10 +338,19 @@ export class DashboardQueryService {
   ): Promise<DashboardPromotionAnalysisResult> {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
-    log.info("started", { projectId, promotionId, request });
+    log.info("started", {
+      hasOperatorInstruction: Boolean(request.operator_instruction),
+      operatorInstructionLength: request.operator_instruction?.length ?? 0,
+      hasSegmentInstruction: Boolean(request.segment_instruction),
+      segmentInstructionLength: request.segment_instruction?.length ?? 0
+    });
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     log.assignContext({ campaignId: promotion.campaign_id });
-    log.info("promotion_loaded", { promotion });
+    log.info("promotion_loaded", {
+      channel: promotion.channel,
+      goalMetric: promotion.goal_metric,
+      status: promotion.status
+    });
     const response = await this.decisionClient.recommendPromotionSegments({
       campaignId: promotion.campaign_id,
       projectId,
@@ -344,7 +358,11 @@ export class DashboardQueryService {
       request
     });
 
-    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    log.info("completed", {
+      analysisId: response.analysis_id,
+      status: response.status,
+      durationMs: durationMs(startedAt)
+    });
     return response;
   }
 
@@ -356,10 +374,18 @@ export class DashboardQueryService {
   ): Promise<DashboardPromotionAnalysisResult> {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
-    log.info("started", { projectId, promotionId, request });
+    log.info("started", {
+      hasOperatorInstruction: Boolean(request.operator_instruction),
+      operatorInstructionLength: request.operator_instruction?.length ?? 0,
+      selectedSegmentCount: request.segment_ids.length
+    });
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     log.assignContext({ campaignId: promotion.campaign_id });
-    log.info("promotion_loaded", { promotion });
+    log.info("promotion_loaded", {
+      channel: promotion.channel,
+      goalMetric: promotion.goal_metric,
+      status: promotion.status
+    });
     const response = await this.decisionClient.analyzePromotionSegments({
       campaignId: promotion.campaign_id,
       projectId,
@@ -367,7 +393,11 @@ export class DashboardQueryService {
       request
     });
 
-    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    log.info("completed", {
+      analysisId: response.analysis_id,
+      status: response.status,
+      durationMs: durationMs(startedAt)
+    });
     return response;
   }
 
@@ -499,7 +529,6 @@ export class DashboardQueryService {
   }
 
   @LogContextScope()
-  @Transactional()
   async confirmPromotionSegmentSuggestions(
     projectId: string,
     promotionId: string,
@@ -507,38 +536,33 @@ export class DashboardQueryService {
   ): Promise<DashboardConfirmSegmentSuggestionsResult> {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
-    log.info("started", { projectId, promotionId, request });
-    if (request.suggestion_ids.length === 0) {
-      const response = await this.campaignReader.confirmLegacyPromotionSegments(
-        projectId,
-        promotionId,
-        request
-      );
-
-      log.info("completed", { response, durationMs: durationMs(startedAt) });
-      return response;
-    }
+    log.info("started", {
+      directSegmentCount: request.segment_ids.length,
+      selectedSuggestionCount: request.suggestion_ids.length
+    });
 
     const sourceAnalysisId = request.analysis_id;
-    if (!sourceAnalysisId || request.segment_ids.length > 0) {
+    if (request.suggestion_ids.length > 0 && !sourceAnalysisId) {
       throw dashboardErrors.decisionRequestFailed({
         detail: {
           code: "segment_audience_source_batch_mismatch",
-          reason: "같은 추천 회차의 AI 고객군 후보만 함께 확정할 수 있어요."
+          reason: "AI 고객군 후보의 추천 회차를 확인할 수 없어요."
         },
         status: 409
       });
     }
 
-    const sourceBatch = await this.campaignReader.listPromotionSegmentSuggestions(
-      projectId,
-      promotionId,
-      sourceAnalysisId
-    );
-    const selectedSuggestionIds = new Set(request.suggestion_ids);
-    const selectedSuggestions = sourceBatch.suggestions.filter((suggestion) =>
-      selectedSuggestionIds.has(suggestion.suggestion_id)
-    );
+    const selectedSuggestions = sourceAnalysisId
+      ? (
+          await this.campaignReader.listPromotionSegmentSuggestions(
+            projectId,
+            promotionId,
+            sourceAnalysisId
+          )
+        ).suggestions.filter((suggestion) =>
+          request.suggestion_ids.includes(suggestion.suggestion_id)
+        )
+      : [];
     const validSelection =
       selectedSuggestions.length === request.suggestion_ids.length &&
       selectedSuggestions.every(
@@ -548,19 +572,41 @@ export class DashboardQueryService {
             suggestion.suggestion_status === "confirmed")
       );
     if (!validSelection) {
-      throw dashboardErrors.decisionRequestFailed({
-        detail: {
-          code: "segment_audience_source_batch_mismatch",
-          reason: "선택한 후보가 최신 추천 결과와 일치하지 않아요. 후보를 새로 불러와 주세요."
-        },
-        status: 409
+      log.warn("segment_suggestion_selection_invalid", {
+        requestedSuggestionCount: request.suggestion_ids.length,
+        resolvedSuggestionCount: selectedSuggestions.length
       });
+      throw dashboardErrors.segmentSuggestionSelectionInvalid();
+    }
+
+    const selectedDirectSegmentIds = new Set(request.segment_ids);
+    const scopedSegments =
+      selectedDirectSegmentIds.size > 0
+        ? await this.campaignReader.listPromotionScopedSegmentDefinitions(projectId, promotionId)
+        : { segments: [] };
+    const selectedDirectSegments = scopedSegments.segments.filter((segment) =>
+      selectedDirectSegmentIds.has(segment.segment_id)
+    );
+    if (selectedDirectSegments.length !== selectedDirectSegmentIds.size) {
+      log.warn("segment_suggestion_selection_invalid", {
+        invalidDirectSegmentCount: selectedDirectSegmentIds.size - selectedDirectSegments.length,
+        selectedDirectSegmentCount: selectedDirectSegmentIds.size
+      });
+      throw dashboardErrors.segmentSuggestionSelectionInvalid();
     }
 
     const v2SuggestionCount = selectedSuggestions.filter(
       (suggestion) => suggestion.audience_snapshot_id !== null
     ).length;
-    if (v2SuggestionCount === 0) {
+    const v2DirectSegmentCount = selectedDirectSegments.filter(
+      (segment) => segment.rule_json.audience_resolution_contract === "segment_audience.v1"
+    ).length;
+    const totalSelectedCount = selectedSuggestions.length + selectedDirectSegments.length;
+    const totalV2Count = v2SuggestionCount + v2DirectSegmentCount;
+    if (totalSelectedCount === 0) {
+      throw dashboardErrors.segmentSuggestionSelectionInvalid();
+    }
+    if (totalV2Count === 0) {
       const response = await this.campaignReader.confirmLegacyPromotionSegments(
         projectId,
         promotionId,
@@ -570,7 +616,7 @@ export class DashboardQueryService {
       log.info("completed", { response, durationMs: durationMs(startedAt) });
       return response;
     }
-    if (v2SuggestionCount !== selectedSuggestions.length) {
+    if (totalV2Count !== totalSelectedCount) {
       throw dashboardErrors.decisionRequestFailed({
         detail: {
           code: "segment_audience_contract_mixed",
@@ -581,9 +627,13 @@ export class DashboardQueryService {
     }
 
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
-    const segmentIds = selectedSuggestions
-      .map((suggestion) => suggestion.segment_id)
-      .sort((left, right) => left.localeCompare(right));
+    const segmentIds = [
+      ...new Set([
+        ...selectedSuggestions.map((suggestion) => suggestion.segment_id),
+        ...selectedDirectSegments.map((segment) => segment.segment_id)
+      ])
+    ].sort((left, right) => left.localeCompare(right));
+    log.assignContext({ campaignId: promotion.campaign_id });
     const analysis = await this.decisionClient.analyzePromotionSegments({
       campaignId: promotion.campaign_id,
       projectId,
@@ -609,17 +659,28 @@ export class DashboardQueryService {
       });
     }
 
-    const confirmedSegmentCount = await this.campaignReader.confirmV2PromotionSegmentSuggestions({
-      confirmationAnalysisId: analysis.analysis_id,
-      confirmedBy: request.confirmed_by ?? null,
-      projectId,
-      promotionId,
-      sourceAnalysisId,
-      suggestionIds: request.suggestion_ids
-    });
+    log.assignContext({ analysisId: analysis.analysis_id });
+    const confirmedSuggestionCount =
+      request.suggestion_ids.length > 0 && sourceAnalysisId
+        ? await this.campaignReader.confirmV2PromotionSegmentSuggestions({
+            confirmationAnalysisId: analysis.analysis_id,
+            confirmedBy: request.confirmed_by ?? null,
+            projectId,
+            promotionId,
+            sourceAnalysisId,
+            suggestionIds: request.suggestion_ids
+          })
+        : 0;
+    if (confirmedSuggestionCount !== request.suggestion_ids.length) {
+      log.warn("segment_suggestion_confirmation_mismatch", {
+        confirmedSuggestionCount,
+        selectedSuggestionCount: request.suggestion_ids.length
+      });
+      throw dashboardErrors.segmentSuggestionSelectionInvalid();
+    }
     const response: DashboardConfirmSegmentSuggestionsResult = {
       analysis_id: analysis.analysis_id,
-      confirmed_segment_count: confirmedSegmentCount,
+      confirmed_segment_count: segmentIds.length,
       promotion_id: analysis.promotion_id,
       status: "confirmed",
       target_segments: analysis.target_segments.map((target) => ({
@@ -1109,6 +1170,74 @@ export class DashboardQueryService {
 
   @LogContextScope()
   @Transactional()
+  async assistPromotionSegment(
+    projectId: string,
+    promotionId: string,
+    request: DashboardSegmentAssistantRequest
+  ): Promise<DashboardSegmentAssistantResponse> {
+    const startedAt = Date.now();
+    log.assignContext({ projectId, promotionId });
+    log.info("started", {
+      conversationCount: request.conversation.length,
+      messageLength: request.message.length
+    });
+    await this.campaignReader.getPromotionSummary(projectId, promotionId);
+
+    if (!this.segmentAssistantAgent) {
+      throw new Error("Dashboard segment assistant agent is not configured.");
+    }
+    const plan = await this.segmentAssistantAgent.plan({
+      conversation: request.conversation,
+      message: request.message
+    });
+    if (plan.action === "clarification") {
+      const response: DashboardSegmentAssistantResponse = {
+        action: "clarification",
+        assistant_message:
+          plan.clarification_message ??
+          "조회하거나 만들 고객군의 목적지, 기간, 행동 조건을 조금 더 구체적으로 알려주세요.",
+        segment_name: null,
+        lookback_days: plan.lookback_days,
+        condition_labels: [],
+        preview: null
+      };
+      log.info("completed", {
+        action: response.action,
+        durationMs: durationMs(startedAt)
+      });
+      return response;
+    }
+
+    const preview = await this.segmentQueryRepository.createAssistantQueryPreview(
+      projectId,
+      request.message,
+      plan
+    );
+    log.assignContext({ queryPreviewId: preview.query_preview_id });
+    const segmentName = plan.segment_name ?? `${plan.conditions[0]?.label ?? "맞춤 행동"} 고객`;
+    const response: DashboardSegmentAssistantResponse = {
+      action: plan.action,
+      assistant_message: segmentAssistantMessage(plan.action, plan.lookback_days, preview),
+      segment_name: segmentName,
+      lookback_days: plan.lookback_days,
+      condition_labels: plan.conditions.map((condition) => condition.label),
+      preview
+    };
+
+    log.info("completed", {
+      action: response.action,
+      conditionCount: response.condition_labels.length,
+      durationMs: durationMs(startedAt),
+      sampleRatio: preview.sample_ratio,
+      sampleSize: preview.sample_size,
+      sampleSizeStatus: preview.sample_size_status,
+      totalEligibleUserCount: preview.total_eligible_user_count
+    });
+    return response;
+  }
+
+  @LogContextScope()
+  @Transactional()
   async saveSegment(
     projectId: string,
     request: DashboardSaveSegmentRequest
@@ -1122,6 +1251,23 @@ export class DashboardQueryService {
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
   }
+}
+
+function segmentAssistantMessage(
+  action: "audience_query" | "segment_preview",
+  lookbackDays: number,
+  preview: DashboardSegmentQueryPreview
+) {
+  if (preview.sample_size === 0) {
+    return `최근 ${lookbackDays}일 기준으로 조건에 맞는 고객을 찾지 못했습니다. 조건이나 조회 기간을 조정해 보세요.`;
+  }
+  const ratio = (preview.sample_ratio * 100).toLocaleString("ko-KR", {
+    maximumFractionDigits: 2
+  });
+  const counts = `최근 ${lookbackDays}일 기준 조건에 맞는 고객은 ${preview.sample_size.toLocaleString("ko-KR")}명이며, 분석 가능 사용자 ${preview.total_eligible_user_count.toLocaleString("ko-KR")}명의 ${ratio}%입니다.`;
+  return action === "audience_query"
+    ? counts
+    : `${counts} 조건을 확인한 뒤 이 고객군을 세그먼트로 추가할 수 있습니다.`;
 }
 
 async function readContentCandidateHtml(

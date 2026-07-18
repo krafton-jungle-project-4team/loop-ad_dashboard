@@ -12,6 +12,11 @@ export const DASHBOARD_ERRORS = {
     code: "DASHBOARD_SEGMENT_PREVIEW_NOT_SAVEABLE",
     message: "segment query preview is not valid or already saved."
   },
+  SEGMENT_SUGGESTION_SELECTION_INVALID: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_SEGMENT_SUGGESTION_SELECTION_INVALID",
+    message: "Selected segment suggestions do not match the current analysis."
+  },
   DECISION_REQUEST_FAILED: {
     statusCode: HttpStatus.BAD_GATEWAY,
     code: "DASHBOARD_DECISION_REQUEST_FAILED",
@@ -66,7 +71,9 @@ export const dashboardErrors = {
   contentCandidateCopyNotFound: () =>
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_COPY_NOT_FOUND),
   segmentPreviewNotSaveable: () =>
-    createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE)
+    createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE),
+  segmentSuggestionSelectionInvalid: () =>
+    createDashboardError(DASHBOARD_ERRORS.SEGMENT_SUGGESTION_SELECTION_INVALID)
 } as const;
 
 function decisionRequestFailedMessage(cause: unknown) {

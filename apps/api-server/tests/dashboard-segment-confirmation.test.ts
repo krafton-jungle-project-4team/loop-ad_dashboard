@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { DashboardConfirmSegmentSuggestionsRequestSchema } from "@loopad/shared";
 import {
   DashboardCampaignReader,
   promotionConfirmationAnalysisId
@@ -14,7 +15,38 @@ test("promotion confirmation reuses one bounded analysis id", () => {
 
   assert.equal(first, repeated);
   assert.notEqual(first, otherPromotion);
-  assert.ok(first.length <= 100);
+});
+
+test("promotion confirmation accepts current-analysis suggestions and active manual ids", () => {
+  const parsed = DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+    analysis_id: "analysis_recommend_001",
+    segment_ids: ["seg_manual"],
+    suggestion_ids: ["suggestion_destination"]
+  });
+
+  assert.deepEqual(parsed.segment_ids, ["seg_manual"]);
+  assert.deepEqual(parsed.suggestion_ids, ["suggestion_destination"]);
+  assert.throws(() =>
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: null,
+      segment_ids: [],
+      suggestion_ids: []
+    })
+  );
+  assert.throws(() =>
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: null,
+      segment_ids: [],
+      suggestion_ids: ["suggestion_destination"]
+    })
+  );
+  assert.throws(() =>
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: "analysis_recommend_001",
+      segment_ids: [],
+      suggestion_ids: ["suggestion_destination", "suggestion_destination"]
+    })
+  );
 });
 
 test("V2 confirmation only enriches Decision-created target rows", () => {

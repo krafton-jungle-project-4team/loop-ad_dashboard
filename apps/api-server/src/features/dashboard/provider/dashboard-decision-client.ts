@@ -157,7 +157,8 @@ export class DashboardDecisionClient {
         project_id: request.projectId,
         campaign_id: request.campaignId,
         promotion_id: request.promotionId,
-        operator_instruction: request.request.operator_instruction ?? null
+        operator_instruction: request.request.operator_instruction ?? null,
+        segment_instruction: request.request.segment_instruction ?? null
       },
       path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/segment-suggestions/recommend`,
       request,
@@ -275,7 +276,8 @@ async function requestDecisionApi<T>(input: {
   const startedAt = Date.now();
   const provider = "decision-api";
   const endpoint = url.pathname;
-  log.info("provider_request_prepared", { endpoint, provider, request: input.request });
+  const requestSummary = decisionRequestLogSummary(input.request);
+  log.info("provider_request_prepared", { endpoint, provider, request: requestSummary });
 
   let response: Response;
   try {
@@ -295,7 +297,7 @@ async function requestDecisionApi<T>(input: {
       endpoint,
       err: error,
       provider,
-      request: input.request
+      request: requestSummary
     });
     throw dashboardErrors.decisionRequestFailed(error);
   }
@@ -316,10 +318,10 @@ async function requestDecisionApi<T>(input: {
   const parsed = input.schema.safeParse(body);
   if (!parsed.success) {
     log.warn("provider_response_invalid", {
-      body,
       endpoint,
       err: parsed.error,
       provider,
+      responseKeys: objectKeys(body),
       statusCode: response.status
     });
     throw dashboardErrors.decisionRequestFailed(parsed.error);
@@ -329,10 +331,70 @@ async function requestDecisionApi<T>(input: {
     durationMs: durationMs(startedAt),
     endpoint,
     provider,
-    result: parsed.data,
+    result: decisionResponseLogSummary(parsed.data),
     statusCode: response.status
   });
   return parsed.data;
+}
+
+function decisionRequestLogSummary(request: unknown) {
+  if (!request || typeof request !== "object") {
+    return {};
+  }
+
+  const envelope = request as Record<string, unknown>;
+  const body =
+    envelope.request && typeof envelope.request === "object"
+      ? (envelope.request as Record<string, unknown>)
+      : {};
+  const operatorInstruction = body.operator_instruction;
+  const segmentInstruction = body.segment_instruction;
+  const segmentIds = body.segment_ids;
+
+  return {
+    analysisId: stringValue(body.analysis_id),
+    campaignId: stringValue(envelope.campaignId),
+    generationId: stringValue(body.generation_id),
+    hasOperatorInstruction:
+      typeof operatorInstruction === "string" && operatorInstruction.length > 0,
+    operatorInstructionLength:
+      typeof operatorInstruction === "string" ? operatorInstruction.length : 0,
+    hasSegmentInstruction: typeof segmentInstruction === "string" && segmentInstruction.length > 0,
+    segmentInstructionLength:
+      typeof segmentInstruction === "string" ? segmentInstruction.length : 0,
+    projectId: stringValue(envelope.projectId),
+    promotionId: stringValue(envelope.promotionId),
+    promotionRunId: stringValue(envelope.promotionRunId),
+    selectedSegmentCount: Array.isArray(segmentIds) ? segmentIds.length : 0
+  };
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function decisionResponseLogSummary(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return { responseType: typeof value };
+  }
+
+  const response = value as Record<string, unknown>;
+  return {
+    analysisId: stringValue(response.analysis_id),
+    assignmentCount: Array.isArray(response.assignments) ? response.assignments.length : undefined,
+    experimentCount: Array.isArray(response.experiments) ? response.experiments.length : undefined,
+    generationId: stringValue(response.generation_id),
+    promotionId: stringValue(response.promotion_id),
+    promotionRunId: stringValue(response.promotion_run_id),
+    responseKeys: objectKeys(response),
+    status: stringValue(response.status)
+  };
+}
+
+function objectKeys(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? Object.keys(value as Record<string, unknown>)
+    : [];
 }
 
 async function readDecisionError(response: Response) {

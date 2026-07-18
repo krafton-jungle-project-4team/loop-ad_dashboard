@@ -20,7 +20,7 @@ test("decision client preserves segment recommendation request contract", async 
     campaignId: "campaign-1",
     projectId: "project-1",
     promotionId: "promotion/1",
-    request: {}
+    request: { segment_instruction: "최근 제주 숙소를 반복 검색한 고객" }
   });
 
   assert.deepEqual(result, {
@@ -35,7 +35,8 @@ test("decision client preserves segment recommendation request contract", async 
       project_id: "project-1",
       campaign_id: "campaign-1",
       promotion_id: "promotion/1",
-      operator_instruction: null
+      operator_instruction: null,
+      segment_instruction: "최근 제주 숙소를 반복 검색한 고객"
     }
   });
 });

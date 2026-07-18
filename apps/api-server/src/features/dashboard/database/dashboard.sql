@@ -944,7 +944,7 @@ SELECT
   sqp.query_preview_id,
   sqp.natural_language_query,
   sqp.generated_sql,
-  '{}'::jsonb,
+  :ruleJson,
   '{}'::jsonb,
   sqp.sample_size,
   sqp.total_eligible_user_count,
@@ -1334,11 +1334,9 @@ updated AS (
       updated_at = now()
   WHERE pss.project_id = :projectId
     AND pss.promotion_id = :promotionId
-    AND EXISTS (
-      SELECT 1
-      FROM confirmed c
-      WHERE c."suggestionId" = pss.suggestion_id
-    )
+    AND pss.analysis_id = :analysisId
+    AND pss.suggestion_id = ANY(:suggestionIds)
+    AND pss.status IN ('suggested', 'accepted', 'confirmed')
   RETURNING pss.suggestion_id
 )
 SELECT
@@ -2095,6 +2093,7 @@ SELECT
   project_id AS "projectId",
   natural_language_query AS "naturalLanguageQuery",
   generated_sql AS "generatedSql",
+  query_params_json AS "queryParamsJson",
   sample_size AS "sampleSize",
   total_eligible_user_count AS "totalEligibleUserCount",
   CAST(sample_ratio AS float8) AS "sampleRatio",
@@ -2129,7 +2128,7 @@ VALUES (
   :queryPreviewId,
   :naturalLanguageQuery,
   :generatedSql,
-  '{}'::jsonb,
+  :ruleJson,
   '{}'::jsonb,
   :sampleSize,
   :totalEligibleUserCount,

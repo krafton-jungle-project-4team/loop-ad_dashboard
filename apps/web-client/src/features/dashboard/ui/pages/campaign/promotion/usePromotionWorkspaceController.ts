@@ -14,7 +14,6 @@ import {
   confirmDashboardPromotionSegmentSuggestions,
   createDashboardPromotion,
   createDashboardPromotionRun,
-  createDashboardPromotionScopedSegmentDefinition,
   decideDashboardPromotionSegmentSuggestion,
   deleteDashboardPromotion,
   deleteDashboardPromotionSegment,
@@ -49,11 +48,9 @@ import {
   onsiteBannerImagePollIntervalMs,
   promotionAnalysisProgressCacheTimeMs,
   promotionCreateFormToRequest,
-  promotionSegmentCreateFormToRequest,
   uniquePromotionsById,
   type PromotionAnalysisProgress,
   type PromotionCreateFormState,
-  type PromotionSegmentCreateFormState,
   type PromotionWorkspaceMode,
   type PromotionWorkspaceTab
 } from "./promotionUtils.js";
@@ -367,22 +364,6 @@ export function usePromotionWorkspaceController({
       selectedOpenPromotion?.promotion_id ?? ""
     )
   });
-  const createScopedSegmentMutation = useMutation({
-    mutationFn: (form: PromotionSegmentCreateFormState) =>
-      createDashboardPromotionScopedSegmentDefinition(
-        query,
-        selectedOpenPromotion?.promotion_id ?? "",
-        promotionSegmentCreateFormToRequest(form)
-      ),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: dashboardPromotionScopedSegmentDefinitionsQueryKey(
-          query.projectId,
-          selectedOpenPromotion?.promotion_id ?? ""
-        )
-      });
-    }
-  });
   const recommendSegmentsMutation = useMutation({
     mutationFn: (promotionId: string) =>
       recommendDashboardPromotionSegments(query, promotionId, { operator_instruction: null })
@@ -657,16 +638,11 @@ export function usePromotionWorkspaceController({
       confirmDashboardPromotionSegmentSuggestions(
         query,
         selectedOpenPromotion?.promotion_id ?? "",
-        manualSegmentIds.length > 0
-          ? {
-              analysis_id: null,
-              segment_ids: manualSegmentIds,
-              suggestion_ids: []
-            }
-          : promotionSegmentConfirmationRequest(
-              segmentSuggestions.data?.suggestions ?? [],
-              activeAnalysisId
-            )
+        promotionSegmentConfirmationRequest(
+          segmentSuggestions.data?.suggestions ?? [],
+          activeAnalysisId,
+          manualSegmentIds
+        )
       ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -765,7 +741,6 @@ export function usePromotionWorkspaceController({
     campaignDetail,
     confirmSuggestionsMutation,
     createPromotionMutation,
-    createScopedSegmentMutation,
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,

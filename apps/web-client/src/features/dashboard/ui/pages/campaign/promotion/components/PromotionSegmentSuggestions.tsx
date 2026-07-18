@@ -41,23 +41,20 @@ import {
   EmptyMedia,
   EmptyTitle
 } from "@loopad/ui/shadcn/empty";
-import { Field, FieldError, FieldLabel } from "@loopad/ui/shadcn/field";
-import { Input } from "@loopad/ui/shadcn/input";
-import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { BarChart3, CheckCircle2, FileText, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { BarChart3, Bot, CheckCircle2, FileText } from "lucide-react";
+import { useState } from "react";
+import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
+import { selectedSegmentSummaries } from "../../../../../model/segment-selection-summary.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
-  createEmptyPromotionSegmentFormState,
   formatJsonObject,
   formatPercentValue,
-  parseJsonObject,
   segmentAudienceSummary,
-  statusBadgeVariant,
-  type PromotionSegmentCreateFormState
+  statusBadgeVariant
 } from "../promotionUtils.js";
 import {
   SegmentColumnDeleteMenu,
@@ -78,11 +75,9 @@ export function PromotionSegmentSuggestionPanel({
   audienceAllocationPreviewContext,
   archiveScopedSegmentIsPending,
   confirmIsPending,
-  createScopedSegmentIsPending,
   decideIsPending,
   onArchiveScopedSegment,
   onConfirmSuggestions,
-  onCreateScopedSegment,
   onDecideSuggestion,
   onRecommendSegments,
   promotionAnalysisIsPending,
@@ -94,11 +89,9 @@ export function PromotionSegmentSuggestionPanel({
   audienceAllocationPreviewContext: DashboardAudienceAllocationPreviewContext | null;
   archiveScopedSegmentIsPending: boolean;
   confirmIsPending: boolean;
-  createScopedSegmentIsPending: boolean;
   decideIsPending: boolean;
   onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: (segmentIds: string[]) => void;
-  onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (
     suggestionId: string,
     status: "suggested" | "accepted" | "dismissed"
@@ -110,8 +103,8 @@ export function PromotionSegmentSuggestionPanel({
   suggestions: DashboardPromotionSegmentSuggestion[];
   suggestionsIsLoading: boolean;
 }) {
+  const { openSegmentCandidateAssistant } = useDashboardAssistant();
   const [deleteTarget, setDeleteTarget] = useState<SegmentCandidateDeleteTarget | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedScopedSegmentIds, setSelectedScopedSegmentIds] = useState<string[]>([]);
   const [reportSuggestion, setReportSuggestion] =
     useState<DashboardPromotionSegmentSuggestion | null>(null);
@@ -124,10 +117,14 @@ export function PromotionSegmentSuggestionPanel({
   ).length;
   const confirmableCount = acceptedCount + selectedScopedSegmentIds.length;
   const candidateCount = visibleSuggestions.length + scopedSegments.length;
-  const allocationPreview = selectedAudienceAllocationPreview(
-    audienceAllocationPreviewContext,
-    visibleSuggestions
+  const selectedSegments = selectedSegmentSummaries(
+    visibleSuggestions,
+    scopedSegments.filter((segment) => selectedScopedSegmentIds.includes(segment.segment_id))
   );
+  const allocationPreview =
+    selectedScopedSegmentIds.length > 0
+      ? null
+      : selectedAudienceAllocationPreview(audienceAllocationPreviewContext, visibleSuggestions);
   const allocatedUserCountBySegmentId = new Map(
     allocationPreview?.per_segment.map((segment) => [
       segment.segment_id,
@@ -152,7 +149,7 @@ export function PromotionSegmentSuggestionPanel({
   ];
 
   return (
-    <Card className="min-h-0 overflow-hidden shadow-none xl:h-full">
+    <Card className="shrink-0 shadow-none">
       <CardHeader className="grid shrink-0 gap-1 border-b sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="grid min-h-[3.25rem] gap-1.5">
           <div className="flex items-center gap-2">
@@ -173,14 +170,9 @@ export function PromotionSegmentSuggestionPanel({
               {promotionAnalysisIsPending ? "후보를 찾고 있어요…" : "AI로 후보 찾기"}
             </Button>
           ) : null}
-          <Button
-            onClick={() => setIsCreateDialogOpen(true)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <Plus data-icon="inline-start" />
-            직접 추가
+          <Button onClick={openSegmentCandidateAssistant} size="sm" type="button" variant="outline">
+            <Bot data-icon="inline-start" />
+            챗봇으로 직접 만들기
           </Button>
           <SegmentColumnDeleteMenu
             ariaLabel="고객군 후보 작업"
@@ -192,7 +184,7 @@ export function PromotionSegmentSuggestionPanel({
           />
         </div>
       </CardHeader>
-      <CardContent className="grid content-start gap-4 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-width:thin]">
+      <CardContent className="grid content-start gap-4">
         {scopedSegmentsIsLoading ? (
           <EmptyState message="직접 추가한 후보를 불러오는 중이에요." />
         ) : null}
@@ -219,13 +211,13 @@ export function PromotionSegmentSuggestionPanel({
                         size: "sm",
                         variant: "outline"
                       })}
-                      data-disabled={acceptedCount > 0}
+                      data-disabled={archiveScopedSegmentIsPending}
                       orientation="horizontal"
                     >
                       <Checkbox
                         aria-label={`${segment.segment_name} 선택`}
                         checked={selectedScopedSegmentIds.includes(segment.segment_id)}
-                        disabled={acceptedCount > 0}
+                        disabled={archiveScopedSegmentIsPending}
                         id={`scoped-segment-acceptance-${segment.segment_id}`}
                         onCheckedChange={(checked) =>
                           setSelectedScopedSegmentIds((current) =>
@@ -286,7 +278,6 @@ export function PromotionSegmentSuggestionPanel({
                 onDecideSuggestion={onDecideSuggestion}
                 onOpenReport={setReportSuggestion}
                 suggestion={suggestion}
-                selectionDisabled={selectedScopedSegmentIds.length > 0}
               />
             ))}
           </div>
@@ -321,28 +312,46 @@ export function PromotionSegmentSuggestionPanel({
           }}
           suggestion={reportSuggestion}
         />
-        {isCreateDialogOpen ? (
-          <PromotionSegmentCreateDialog
-            createIsPending={createScopedSegmentIsPending}
-            onCreate={onCreateScopedSegment}
-            onOpenChange={setIsCreateDialogOpen}
-            open
-          />
-        ) : null}
       </CardContent>
-      <CardFooter className="shrink-0 justify-between gap-3 bg-background">
-        <span className="text-xs text-muted-foreground">
-          {confirmableCount > 0
-            ? `${formatInteger(confirmableCount)}개 선택됨`
-            : "확정할 후보를 선택해 주세요"}
-        </span>
+      <CardFooter className="grid shrink-0 gap-4 border-t bg-muted/20 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="grid min-w-0 gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">선택한 세그먼트</span>
+            <Badge variant="secondary">{formatInteger(confirmableCount)}</Badge>
+          </div>
+          {selectedSegments.length > 0 ? (
+            <ul className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {selectedSegments.map((segment) => (
+                <li
+                  className="grid min-w-0 gap-0.5 border-l-2 border-primary pl-2"
+                  key={segment.id}
+                >
+                  <span
+                    className="truncate text-xs font-medium text-foreground"
+                    title={segment.name}
+                  >
+                    {segment.name}
+                  </span>
+                  <span
+                    className="truncate text-[11px] text-muted-foreground"
+                    title={segment.detail}
+                  >
+                    {segment.detail}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className="text-xs text-muted-foreground">확정할 후보를 선택해 주세요.</span>
+          )}
+        </div>
         <Button
+          className="w-full lg:w-auto"
           disabled={
             confirmableCount === 0 ||
             confirmIsPending ||
             decideIsPending ||
             archiveScopedSegmentIsPending ||
-            createScopedSegmentIsPending ||
             suggestionsIsLoading ||
             scopedSegmentsIsLoading ||
             promotionAnalysisIsPending
@@ -399,8 +408,7 @@ function SegmentSuggestionCard({
   decideIsPending,
   onDecideSuggestion,
   onOpenReport,
-  suggestion,
-  selectionDisabled
+  suggestion
 }: {
   allocatedUserCount: number | null;
   decideIsPending: boolean;
@@ -410,7 +418,6 @@ function SegmentSuggestionCard({
   ) => void;
   onOpenReport: (suggestion: DashboardPromotionSegmentSuggestion) => void;
   suggestion: DashboardPromotionSegmentSuggestion;
-  selectionDisabled: boolean;
 }) {
   const isAccepted = suggestion.suggestion_status === "accepted";
   const displayCopy = suggestion.display_copy;
@@ -458,13 +465,13 @@ function SegmentSuggestionCard({
                 size: "sm",
                 variant: "outline"
               })}
-              data-disabled={decideIsPending || selectionDisabled}
+              data-disabled={decideIsPending}
               orientation="horizontal"
             >
               <Checkbox
                 aria-label={`${displayCopy?.title ?? suggestion.segment_name} 선택`}
                 checked={isAccepted}
-                disabled={decideIsPending || selectionDisabled}
+                disabled={decideIsPending}
                 id={acceptanceId}
                 onCheckedChange={(checked) =>
                   onDecideSuggestion(
@@ -483,14 +490,14 @@ function SegmentSuggestionCard({
           <CardTitle className="text-base leading-6 font-semibold [overflow-wrap:anywhere] [word-break:keep-all]">
             {displayCopy?.title ?? suggestion.segment_name}
           </CardTitle>
-          <CardDescription className="text-xs">
+          <CardDescription className="text-xs text-foreground/65">
             {displayCopy
               ? "AI 추천 고객군"
               : `${suggestion.segment_source} · ${suggestion.suggestion_source}`}
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-3 text-sm text-muted-foreground">
+      <CardContent className="grid gap-3 text-sm text-foreground/80">
         {performanceEstimate ? <SegmentPerformanceSummary estimate={performanceEstimate} /> : null}
         <SegmentAudienceStats
           audience={displayCopy?.audience}
@@ -556,7 +563,7 @@ function SegmentPerformanceSummary({ estimate }: { estimate: SegmentPerformanceE
       ) : (
         <strong className="text-sm font-semibold text-foreground">지금은 계산할 수 없어요</strong>
       )}
-      <div className="grid min-w-0 gap-0.5 text-[11px] leading-4 text-muted-foreground">
+      <div className="grid min-w-0 gap-0.5 text-[11px] leading-4 text-foreground/70">
         {estimate.window_label ? <span>{estimate.window_label}</span> : null}
         {isAvailable && estimate.basis_label ? <span>{estimate.basis_label}</span> : null}
         {!isAvailable && estimate.unavailable_reason ? (
@@ -575,7 +582,7 @@ function SegmentAudienceStats({
   fallbackSummary: string;
 }) {
   if (!audience) {
-    return <p className="text-xs leading-5 text-muted-foreground">{fallbackSummary}</p>;
+    return <p className="text-xs leading-5 text-foreground/70">{fallbackSummary}</p>;
   }
 
   return (
@@ -630,7 +637,7 @@ export function selectedAudienceAllocationPreview(
 function AudienceStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="grid min-w-0 gap-0.5 px-2">
-      <span className="text-[10px] leading-4 text-muted-foreground [word-break:keep-all]">
+      <span className="text-[10px] leading-4 text-foreground/65 [word-break:keep-all]">
         {label}
       </span>
       <strong className="text-sm font-semibold tabular-nums text-foreground">
@@ -690,7 +697,7 @@ function SegmentSuggestionReportDialog({
               <Badge variant="outline">AI 추천 보고서</Badge>
             </div>
             <DialogTitle>{report.title}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-foreground/70">
               후보를 확정하기 전에 고객 특성과 추천 이유를 확인해 봐요.
             </DialogDescription>
           </DialogHeader>
@@ -742,7 +749,7 @@ function SegmentSuggestionReportContent({
           <div className="grid gap-2">
             <SegmentPerformanceSummary estimate={performanceEstimate} />
             {performanceEstimate.observed_value !== undefined ? (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-[11px] text-foreground/70">
                 {formatObservedPerformance(
                   performanceEstimate,
                   displayCopy?.audience?.selected_user_count
@@ -750,7 +757,7 @@ function SegmentSuggestionReportContent({
               </span>
             ) : null}
             {performanceEstimate.confidence_reason ? (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-[11px] text-foreground/70">
                 {performanceEstimate.confidence_reason}
               </span>
             ) : null}
@@ -789,7 +796,7 @@ function SegmentSuggestionReportContent({
       />
       <section className="grid gap-2 rounded-md border p-4">
         <h4 className="text-sm font-semibold">활용 방법</h4>
-        <p className="text-sm leading-6 text-muted-foreground">{report.action_hint}</p>
+        <p className="text-sm leading-6 text-foreground/80">{report.action_hint}</p>
       </section>
       <section className="grid gap-2 rounded-md border border-[#fee2e2] bg-[#fff7f7] p-4">
         <h4 className="text-sm font-semibold text-[#b42318]">주의할 점</h4>
@@ -807,7 +814,7 @@ function ReportSection({ items, title }: { items: string[] | undefined; title: s
   return (
     <section className="grid gap-2 rounded-md border p-4">
       <h4 className="text-sm font-semibold">{title}</h4>
-      <ul className="grid gap-2 text-sm leading-6 text-muted-foreground">
+      <ul className="grid gap-2 text-sm leading-6 text-foreground/80">
         {items.map((item, index) => (
           <li className="flex gap-2" key={`${title}-${index}-${item}`}>
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -847,146 +854,4 @@ function formatObservedPerformance(
       : "";
 
   return `최근 관찰 ${metricLabel} ${formatPercentValue(estimate.observed_value ?? 0)}${sampleLabel}`;
-}
-
-function PromotionSegmentCreateDialog({
-  createIsPending,
-  onCreate,
-  onOpenChange,
-  open
-}: {
-  createIsPending: boolean;
-  onCreate: (form: PromotionSegmentCreateFormState) => void;
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-}) {
-  const [form, setForm] = useState<PromotionSegmentCreateFormState>(
-    createEmptyPromotionSegmentFormState()
-  );
-  const [ruleJsonError, setRuleJsonError] = useState<string | null>(null);
-  const ruleJsonRef = useRef<HTMLTextAreaElement>(null);
-
-  const canSubmit = Boolean(form.segmentName.trim()) && !createIsPending;
-
-  return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>고객군 후보 추가</DialogTitle>
-          <DialogDescription>
-            이 프로모션에서 사용할 고객군 후보를 저장해요. 저장한 뒤 후보 확정 버튼을 눌러 최종
-            고객군으로 바꿀 수 있어요.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <Field>
-            <FieldLabel htmlFor="promotion-segment-name">고객군 이름</FieldLabel>
-            <Input
-              autoComplete="off"
-              id="promotion-segment-name"
-              name="promotionSegmentName"
-              onChange={(event) => setForm({ ...form, segmentName: event.target.value })}
-              placeholder="VIP 장기 미구매 고객"
-              value={form.segmentName}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="promotion-segment-natural-query">만든 이유와 조건</FieldLabel>
-            <Textarea
-              id="promotion-segment-natural-query"
-              name="promotionSegmentNaturalLanguageQuery"
-              onChange={(event) => setForm({ ...form, naturalLanguageQuery: event.target.value })}
-              placeholder="최근 30일 내 상세 조회는 했지만 예약 전환이 없는 고객"
-              value={form.naturalLanguageQuery}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="promotion-segment-rule-json">조건 JSON</FieldLabel>
-            <Textarea
-              aria-describedby={ruleJsonError ? "promotion-segment-rule-json-error" : undefined}
-              aria-invalid={Boolean(ruleJsonError)}
-              className="font-mono text-xs"
-              id="promotion-segment-rule-json"
-              name="promotionSegmentRuleJson"
-              onChange={(event) => {
-                setForm({ ...form, ruleJsonText: event.target.value });
-                if (ruleJsonError) {
-                  setRuleJsonError(null);
-                }
-              }}
-              ref={ruleJsonRef}
-              value={form.ruleJsonText}
-            />
-            {ruleJsonError ? (
-              <FieldError id="promotion-segment-rule-json-error">{ruleJsonError}</FieldError>
-            ) : null}
-          </Field>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field>
-              <FieldLabel htmlFor="promotion-segment-sample-size">대상 수</FieldLabel>
-              <Input
-                id="promotion-segment-sample-size"
-                inputMode="numeric"
-                min="0"
-                name="promotionSegmentSampleSize"
-                onChange={(event) => setForm({ ...form, sampleSize: event.target.value })}
-                type="number"
-                value={form.sampleSize}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="promotion-segment-eligible-size">전체 대상 수</FieldLabel>
-              <Input
-                id="promotion-segment-eligible-size"
-                inputMode="numeric"
-                min="0"
-                name="promotionSegmentEligibleSize"
-                onChange={(event) =>
-                  setForm({ ...form, totalEligibleUserCount: event.target.value })
-                }
-                type="number"
-                value={form.totalEligibleUserCount}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="promotion-segment-sample-ratio">대상 비율</FieldLabel>
-              <Input
-                id="promotion-segment-sample-ratio"
-                inputMode="decimal"
-                min="0"
-                name="promotionSegmentSampleRatio"
-                onChange={(event) => setForm({ ...form, sampleRatio: event.target.value })}
-                step="0.001"
-                type="number"
-                value={form.sampleRatio}
-              />
-            </Field>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
-            취소
-          </Button>
-          <Button
-            disabled={!canSubmit}
-            onClick={() => {
-              const ruleJson = parseJsonObject(form.ruleJsonText);
-              if (!ruleJson) {
-                setRuleJsonError(
-                  '조건 JSON을 읽을 수 없어요. { "source": "manual_rule" }처럼 객체 형태로 입력해 주세요.'
-                );
-                ruleJsonRef.current?.focus();
-                return;
-              }
-              onCreate({ ...form, ruleJsonText: JSON.stringify(ruleJson) });
-              onOpenChange(false);
-            }}
-            type="button"
-          >
-            {createIsPending ? "고객군 후보 추가 중…" : "고객군 후보 추가"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 }

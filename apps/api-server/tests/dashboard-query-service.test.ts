@@ -342,6 +342,71 @@ test("dashboard segment query preview delegates to the segment query repository"
   assert.deepEqual(preview.columns, ["user_id"]);
 });
 
+test("dashboard segment assistant executes a structured plan without calling Decision recommendations", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async (projectId, promotionId) => {
+        calls.push({ kind: "promotion", projectId, promotionId });
+        return {} as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      createAssistantQueryPreview: async (projectId, naturalLanguageQuery, plan) => {
+        calls.push({ kind: "preview", naturalLanguageQuery, plan, projectId });
+        return {
+          query_preview_id: "seg_query_preview_agent",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 125,
+          total_eligible_user_count: 1000,
+          sample_ratio: 0.125,
+          sample_size_status: "valid",
+          columns: ["user_id"],
+          rows: []
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient(),
+    {
+      plan: async () => ({
+        action: "audience_query" as const,
+        segment_name: null,
+        lookback_days: 30,
+        conditions: [
+          {
+            label: "제주 숙소 검색",
+            event_name: "hotel_search" as const,
+            minimum_count: 1,
+            maximum_count: null,
+            destination: "제주",
+            checkin_months: [],
+            property_filters: []
+          }
+        ],
+        clarification_message: null
+      })
+    } as never
+  );
+
+  const response = await service.assistPromotionSegment("hotel-client-a", "promo_summer", {
+    message: "최근 제주 숙소를 검색한 고객은 몇 명이야?",
+    conversation: []
+  });
+
+  assert.equal(response.action, "audience_query");
+  assert.equal(response.preview?.sample_size, 125);
+  assert.equal(response.segment_name, "제주 숙소 검색 고객");
+  assert.equal(calls.length, 2);
+  assert.deepEqual((calls[1] as { kind: string }).kind, "preview");
+});
+
 test("dashboard save segment delegates valid preview save to the segment query repository", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -440,7 +505,8 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
   );
 
   const response = await service.recommendPromotionSegments("hotel-client-a", "promo_email_001", {
-    operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
+    operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천",
+    segment_instruction: "최근 제주 숙소를 반복 검색했고 예약 완료하지 않은 고객"
   });
 
   assert.equal(response.analysis_id, "analysis_promo_email_001");
@@ -457,7 +523,8 @@ test("dashboard promotion analysis resolves campaign and calls decision API clie
         projectId: "hotel-client-a",
         promotionId: "promo_email_001",
         request: {
-          operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천"
+          operator_instruction: "숙소 상세 조회 후 미예약 고객 중심으로 추천",
+          segment_instruction: "최근 제주 숙소를 반복 검색했고 예약 완료하지 않은 고객"
         }
       }
     }
@@ -811,7 +878,15 @@ test("dashboard idempotently confirms V2 suggestions through Decision before enr
       confirmV2PromotionSegmentSuggestions: async (request) => {
         writes.push(request);
         return 1;
-      }
+      },
+      listPromotionScopedSegmentDefinitions: async () => ({
+        segments: [
+          {
+            rule_json: { audience_resolution_contract: "segment_audience.v1" },
+            segment_id: "segment-direct"
+          }
+        ]
+      })
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
     emptySegmentQueryRepository(),
@@ -834,6 +909,18 @@ test("dashboard idempotently confirms V2 suggestions through Decision before enr
               segment_name: "AI 고객군",
               segment_vector_id: "vector-1",
               targetable: true
+            },
+            {
+              audience_snapshot_id: "snapshot-final-2",
+              audience_status: "targetable",
+              content_brief: { keywords: [], message_direction: "예약 유도" },
+              estimated_size: 40,
+              final_audience_count: 40,
+              meets_min_sample_size: true,
+              segment_id: "segment-direct",
+              segment_name: "직접 생성 고객군",
+              segment_vector_id: "vector-2",
+              targetable: true
             }
           ]
         };
@@ -847,12 +934,12 @@ test("dashboard idempotently confirms V2 suggestions through Decision before enr
     {
       analysis_id: "analysis-current",
       confirmed_by: "operator-1",
-      segment_ids: [],
+      segment_ids: ["segment-direct"],
       suggestion_ids: ["suggestion-current"]
     }
   );
 
-  assert.equal(transactionHost.calls.length, 1);
+  assert.equal(transactionHost.calls.length, 0);
   assert.deepEqual(writes, [
     {
       decision: {
@@ -861,7 +948,7 @@ test("dashboard idempotently confirms V2 suggestions through Decision before enr
         promotionId: "promo_banner_001",
         request: {
           operator_instruction: null,
-          segment_ids: ["segment-ai"]
+          segment_ids: ["segment-ai", "segment-direct"]
         }
       }
     },
@@ -875,7 +962,7 @@ test("dashboard idempotently confirms V2 suggestions through Decision before enr
     }
   ]);
   assert.equal(result.analysis_id, "analysis-confirmation");
-  assert.equal(result.confirmed_segment_count, 1);
+  assert.equal(result.confirmed_segment_count, 2);
 });
 
 test("dashboard keeps legacy AI suggestion confirmation on the direct path", async () => {
@@ -944,6 +1031,48 @@ test("dashboard keeps legacy AI suggestion confirmation on the direct path", asy
   ]);
   assert.equal(result.analysis_id, "analysis-legacy-confirmation");
   assert.equal(result.confirmed_segment_count, 1);
+});
+
+test("dashboard rejects suggestion ids outside the source analysis before Decision call", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  let decisionCalled = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      listPromotionSegmentSuggestions: async () =>
+        ({
+          suggestions: [
+            {
+              segment_id: "seg_destination",
+              suggestion_id: "suggestion-current",
+              suggestion_status: "suggested"
+            }
+          ]
+        }) as never
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      analyzePromotionSegments: async () => {
+        decisionCalled = true;
+        throw new Error("Unexpected analyzePromotionSegments call.");
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  await assert.rejects(
+    service.confirmPromotionSegmentSuggestions("hotel-client-a", "promo_banner_001", {
+      analysis_id: "analysis-current",
+      segment_ids: [],
+      suggestion_ids: ["suggestion-unknown"]
+    }),
+    (error: unknown) =>
+      error instanceof Error &&
+      (error as Error & { code?: string }).code === "DASHBOARD_SEGMENT_SUGGESTION_SELECTION_INVALID"
+  );
+  assert.equal(decisionCalled, false);
 });
 
 test("dashboard reject content candidate runs inside transaction host", async () => {

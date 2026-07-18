@@ -3,15 +3,7 @@ import type {
   DashboardMain,
   DashboardRealtimeMetrics
 } from "@loopad/shared";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis
-} from "@loopad/ui/charts";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
@@ -29,10 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { fetchDashboardFunnelList } from "../../../api/dashboard-api.js";
 import { formatInteger, formatPercent } from "../../../model/dashboard-format.js";
-import {
-  formatActionLabel,
-  formatStatusLabel
-} from "../../../model/dashboard-labels.js";
+import { formatActionLabel, formatStatusLabel } from "../../../model/dashboard-labels.js";
 import { useDashboardQueryState } from "../../../model/dashboard-query.js";
 import { dashboardFunnelListQueryKey } from "../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../model/dashboard-types.js";

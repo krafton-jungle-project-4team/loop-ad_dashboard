@@ -42,14 +42,17 @@ test("segment confirmation requires an exact current selection", () => {
     }
   );
 
-  assert.throws(
-    () =>
-      DashboardConfirmSegmentSuggestionsRequestSchema.parse({
-        analysis_id: "analysis-current",
-        suggestion_ids: ["suggestion-current"],
-        segment_ids: ["segment-manual"]
-      }),
-    /separately/
+  assert.deepEqual(
+    DashboardConfirmSegmentSuggestionsRequestSchema.parse({
+      analysis_id: "analysis-current",
+      suggestion_ids: ["suggestion-current"],
+      segment_ids: ["segment-manual"]
+    }),
+    {
+      analysis_id: "analysis-current",
+      suggestion_ids: ["suggestion-current"],
+      segment_ids: ["segment-manual"]
+    }
   );
   assert.throws(
     () =>

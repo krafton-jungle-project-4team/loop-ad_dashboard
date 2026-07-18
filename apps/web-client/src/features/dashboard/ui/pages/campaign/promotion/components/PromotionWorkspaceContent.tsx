@@ -75,7 +75,6 @@ import {
   contentCandidateIsReadyForSelection,
   contentCandidateTitle,
   mutationErrorMessage,
-  type PromotionSegmentCreateFormState,
   type PromotionWorkspaceTab
 } from "../promotionUtils.js";
 import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow.js";
@@ -335,7 +334,6 @@ export function PromotionTabWorkspace({
   onArchiveScopedSegment,
   onContentCandidateSelectionChange,
   onConfirmSuggestions,
-  onCreateScopedSegment,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
   onLaunchExperiment,
@@ -350,7 +348,6 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
-  scopedSegmentCreateIsPending,
   scopedSegments,
   scopedSegmentsIsLoading,
   segmentView,
@@ -383,7 +380,6 @@ export function PromotionTabWorkspace({
     selected: boolean
   ) => void;
   onConfirmSuggestions: (segmentIds: string[]) => Promise<void>;
-  onCreateScopedSegment: (form: PromotionSegmentCreateFormState) => void;
   onDecideSuggestion: (
     suggestionId: string,
     status: "suggested" | "accepted" | "dismissed"
@@ -412,7 +408,6 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
-  scopedSegmentCreateIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
   scopedSegmentsIsLoading: boolean;
   segmentView: SegmentWorkspaceView;
@@ -504,9 +499,9 @@ export function PromotionTabWorkspace({
           </TabsContent>
         ) : null}
         {showsSegmentsTab ? (
-          <TabsContent className="min-h-0 xl:overflow-hidden" value="segments">
+          <TabsContent className="flex-none" value="segments">
             <Tabs
-              className="min-h-0 gap-3 xl:h-[calc(100svh-11rem)] xl:overflow-hidden"
+              className="gap-3"
               onValueChange={(value) => setSegmentListTab(value as PromotionSegmentListTab)}
               value={segmentListTab}
             >
@@ -520,11 +515,10 @@ export function PromotionTabWorkspace({
                   <Badge variant="secondary">{formatInteger(confirmedSegmentCount)}</Badge>
                 </TabsTrigger>
               </TabsList>
-              <TabsContent className="min-h-0 xl:overflow-hidden" value="candidates">
+              <TabsContent className="flex-none" value="candidates">
                 <PromotionSegmentSuggestionPanel
                   audienceAllocationPreviewContext={audienceAllocationPreviewContext}
                   confirmIsPending={confirmIsPending}
-                  createScopedSegmentIsPending={scopedSegmentCreateIsPending}
                   decideIsPending={decideIsPending}
                   archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
                   onArchiveScopedSegment={onArchiveScopedSegment}
@@ -534,7 +528,6 @@ export function PromotionTabWorkspace({
                       () => undefined
                     );
                   }}
-                  onCreateScopedSegment={onCreateScopedSegment}
                   onDecideSuggestion={onDecideSuggestion}
                   onRecommendSegments={onRecommendSegments}
                   promotionAnalysisIsPending={promotionAnalysisIsPending}
@@ -544,7 +537,7 @@ export function PromotionTabWorkspace({
                   suggestionsIsLoading={suggestionsIsLoading}
                 />
               </TabsContent>
-              <TabsContent className="min-h-0 xl:overflow-hidden" value="confirmed">
+              <TabsContent className="min-h-0" value="confirmed">
                 <PromotionCurrentSegmentsPanel
                   deleteIsPending={deleteConfirmedSegmentIsPending}
                   onDeleteSegment={onDeleteConfirmedSegment}

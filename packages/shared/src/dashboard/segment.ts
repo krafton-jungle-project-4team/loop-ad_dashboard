@@ -73,6 +73,41 @@ export const DashboardSegmentQueryPreviewSchema = z.object({
 });
 export type DashboardSegmentQueryPreview = z.infer<typeof DashboardSegmentQueryPreviewSchema>;
 
+export const DashboardSegmentAssistantMessageSchema = z.object({
+  role: z.enum(["assistant", "user"]),
+  content: z.string().trim().min(1).max(2_000)
+});
+export type DashboardSegmentAssistantMessage = z.infer<
+  typeof DashboardSegmentAssistantMessageSchema
+>;
+
+export const DashboardSegmentAssistantRequestSchema = z.object({
+  message: z.string().trim().min(1).max(2_000),
+  conversation: z.array(DashboardSegmentAssistantMessageSchema).max(12).default([])
+});
+export type DashboardSegmentAssistantRequest = z.infer<
+  typeof DashboardSegmentAssistantRequestSchema
+>;
+
+export const DashboardSegmentAssistantActionSchema = z.enum([
+  "audience_query",
+  "segment_preview",
+  "clarification"
+]);
+export type DashboardSegmentAssistantAction = z.infer<typeof DashboardSegmentAssistantActionSchema>;
+
+export const DashboardSegmentAssistantResponseSchema = z.object({
+  action: DashboardSegmentAssistantActionSchema,
+  assistant_message: z.string().min(1),
+  segment_name: z.string().nullable(),
+  lookback_days: CountSchema,
+  condition_labels: z.array(z.string()),
+  preview: DashboardSegmentQueryPreviewSchema.nullable()
+});
+export type DashboardSegmentAssistantResponse = z.infer<
+  typeof DashboardSegmentAssistantResponseSchema
+>;
+
 export const DashboardSaveSegmentRequestSchema = z.object({
   query_preview_id: z.string().min(1),
   segment_name: z.string().min(1)
@@ -472,14 +507,6 @@ export const DashboardConfirmSegmentSuggestionsRequestSchema = z
       });
     }
 
-    if (request.suggestion_ids.length > 0 && request.segment_ids.length > 0) {
-      context.addIssue({
-        code: "custom",
-        message: "AI suggestions and manual segments must be confirmed separately",
-        path: ["segment_ids"]
-      });
-    }
-
     if (request.suggestion_ids.length > 3) {
       context.addIssue({
         code: "custom",
@@ -513,7 +540,8 @@ export type DashboardConfirmSegmentSuggestionsResult = z.infer<
 >;
 
 export const DashboardRecommendPromotionSegmentsRequestSchema = z.object({
-  operator_instruction: z.string().nullable().optional()
+  operator_instruction: z.string().trim().min(1).max(2_000).nullable().optional(),
+  segment_instruction: z.string().trim().min(1).max(2_000).nullable().optional()
 });
 export type DashboardRecommendPromotionSegmentsRequest = z.infer<
   typeof DashboardRecommendPromotionSegmentsRequestSchema
