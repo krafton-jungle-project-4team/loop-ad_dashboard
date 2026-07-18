@@ -333,6 +333,10 @@ export function toContentCandidate(
     data_evidence_json: jsonObject(row.dataEvidenceJson),
     message_strategy: row.messageStrategy,
     metadata_json: jsonObject(row.metadataJson),
+    next_loop_preparation_id:
+      "nextLoopPreparationId" in row && typeof row.nextLoopPreparationId === "string"
+        ? row.nextLoopPreparationId
+        : null,
     status: row.status,
     updated_at: row.updatedAt.toISOString()
   };

@@ -216,7 +216,8 @@ test("next-loop targets stay within the selected promotion run", () => {
 test("repeat creative generation targets only the selected experiment", () => {
   assert.deepEqual(repeatCreativeTargetForExperiment(experiments, experiments[1]!), {
     failedAdExperimentIds: ["experiment-b"],
-    failedSegmentIds: ["segment-b"]
+    failedSegmentIds: ["segment-b"],
+    sourcePromotionRunId: "run-shared"
   });
 });
 
@@ -247,7 +248,8 @@ test("fallback repeat creative generation targets non-fallback experiments in th
     ),
     {
       failedAdExperimentIds: ["experiment-target"],
-      failedSegmentIds: ["segment-target"]
+      failedSegmentIds: ["segment-target"],
+      sourcePromotionRunId: "run-repeat"
     }
   );
 });
@@ -262,7 +264,8 @@ test("fallback repeat creative generation stays disabled without a non-fallback 
 
   assert.deepEqual(repeatCreativeTargetForExperiment([fallbackExperiment], fallbackExperiment), {
     failedAdExperimentIds: [],
-    failedSegmentIds: []
+    failedSegmentIds: [],
+    sourcePromotionRunId: "run-fallback-only"
   });
 });
 

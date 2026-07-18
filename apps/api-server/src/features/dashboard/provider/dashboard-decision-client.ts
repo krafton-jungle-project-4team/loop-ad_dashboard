@@ -141,7 +141,11 @@ const decisionNextLoopResponseSchema = z.object({
       loop_count: z.number().int().min(1),
       status: z.string()
     })
-  )
+  ),
+  status: z.enum(["awaiting_content_approval", "activated", "rejected"]).nullable().default(null),
+  content_approval_required: z.boolean().default(false),
+  next_loop_preparation_id: z.string().min(1).nullable().default(null),
+  pending_content_ids: z.array(z.string()).default([])
 });
 
 @Injectable()
@@ -216,7 +220,8 @@ export class DashboardDecisionClient {
         analysis_id: request.request.analysis_id,
         generation_id: request.request.generation_id,
         segment_ids: request.request.segment_ids,
-        loop_count: request.request.loop_count
+        loop_count: request.request.loop_count,
+        next_loop_preparation_id: request.request.next_loop_preparation_id
       },
       path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/runs`,
       request,
@@ -255,7 +260,8 @@ export class DashboardDecisionClient {
       body: {
         failed_segment_ids: request.request.failed_segment_ids,
         failed_ad_experiment_ids: request.request.failed_ad_experiment_ids,
-        operator_instruction: request.request.operator_instruction ?? null
+        operator_instruction: request.request.operator_instruction ?? null,
+        content_approval_mode: request.request.content_approval_mode
       },
       path: `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/next-loop`,
       request,

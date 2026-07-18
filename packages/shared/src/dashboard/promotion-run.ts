@@ -25,6 +25,7 @@ export const DashboardContentCandidateSchema = z.object({
   data_evidence_json: JsonObjectSchema,
   message_strategy: z.string().nullable(),
   metadata_json: JsonObjectSchema,
+  next_loop_preparation_id: z.string().min(1).nullable().default(null),
   status: z.string(),
   updated_at: z.string()
 });
@@ -156,7 +157,8 @@ export const DashboardCreatePromotionRunRequestSchema = z.object({
   analysis_id: z.string().min(1).optional(),
   generation_id: z.string().min(1).optional(),
   segment_ids: z.array(z.string().min(1)).length(1),
-  loop_count: z.number().int().min(1).default(1)
+  loop_count: z.number().int().min(1).default(1),
+  next_loop_preparation_id: z.string().min(1).nullable().optional()
 });
 export type DashboardCreatePromotionRunRequest = z.infer<
   typeof DashboardCreatePromotionRunRequestSchema
@@ -248,7 +250,8 @@ export type DashboardEvaluatePromotionRunResult = z.infer<
 export const DashboardCreateNextLoopRequestSchema = z.object({
   failed_segment_ids: z.array(z.string()).default([]),
   failed_ad_experiment_ids: z.array(z.string()).default([]),
-  operator_instruction: z.string().nullable().optional()
+  operator_instruction: z.string().nullable().optional(),
+  content_approval_mode: z.enum(["automatic", "manual"]).default("automatic")
 });
 export type DashboardCreateNextLoopRequest = z.infer<typeof DashboardCreateNextLoopRequestSchema>;
 
@@ -260,7 +263,11 @@ export const DashboardCreateNextLoopResultSchema = z.object({
   segment_ids: z.array(z.string().min(1)).min(1),
   next_analysis_id: z.string().nullable(),
   next_generation_id: z.string().nullable(),
-  next_ad_experiments: z.array(DashboardPromotionRunAdExperimentSchema)
+  next_ad_experiments: z.array(DashboardPromotionRunAdExperimentSchema),
+  status: z.enum(["awaiting_content_approval", "activated", "rejected"]).nullable().default(null),
+  content_approval_required: z.boolean().default(false),
+  next_loop_preparation_id: z.string().min(1).nullable().default(null),
+  pending_content_ids: z.array(z.string()).default([])
 });
 export type DashboardCreateNextLoopResult = z.infer<typeof DashboardCreateNextLoopResultSchema>;
 

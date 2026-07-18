@@ -133,6 +133,32 @@ test("decision client preserves promotion run request contract", async () => {
   });
 });
 
+test("decision client forwards next loop preparation when creating a promotion run", async () => {
+  const { client, requests } = await createClientWithResponse(promotionRunResponse());
+
+  await client.createPromotionRun({
+    promotionId: "promotion-1",
+    request: {
+      analysis_id: "analysis-2",
+      generation_id: "generation-2",
+      segment_ids: ["segment-1"],
+      loop_count: 2,
+      next_loop_preparation_id: "preparation-1"
+    }
+  });
+
+  assertDecisionRequest(requests[0], {
+    path: "/decision/v1/promotions/promotion-1/runs",
+    body: {
+      analysis_id: "analysis-2",
+      generation_id: "generation-2",
+      segment_ids: ["segment-1"],
+      loop_count: 2,
+      next_loop_preparation_id: "preparation-1"
+    }
+  });
+});
+
 test("decision client preserves segment assignment request contract", async () => {
   const response = {
     promotion_run_id: "run-1",
@@ -224,7 +250,53 @@ test("decision client preserves next loop request contract", async () => {
     promotionRunId: "run-1",
     request: {
       failed_segment_ids: ["segment-1"],
-      failed_ad_experiment_ids: ["experiment-1"]
+      failed_ad_experiment_ids: ["experiment-1"],
+      content_approval_mode: "automatic"
+    }
+  });
+
+  assert.deepEqual(result, {
+    ...response,
+    status: null,
+    content_approval_required: false,
+    next_loop_preparation_id: null,
+    pending_content_ids: []
+  });
+  assertDecisionRequest(requests[0], {
+    path: "/decision/v1/promotion-runs/run-1/next-loop",
+    body: {
+      failed_segment_ids: ["segment-1"],
+      failed_ad_experiment_ids: ["experiment-1"],
+      operator_instruction: null,
+      content_approval_mode: "automatic"
+    }
+  });
+});
+
+test("decision client preserves manual next loop preparation contract", async () => {
+  const response = {
+    previous_promotion_run_id: "run-1",
+    next_promotion_run_id: null,
+    promotion_id: "promotion-1",
+    loop_count: 2,
+    segment_ids: ["segment-1"],
+    next_analysis_id: "analysis-2",
+    next_generation_id: "generation-2",
+    next_ad_experiments: [],
+    status: "awaiting_content_approval",
+    content_approval_required: true,
+    next_loop_preparation_id: "preparation-1",
+    pending_content_ids: ["content-1", "content-2", "content-3"]
+  };
+  const { client, requests } = await createClientWithResponse(response);
+
+  const result = await client.createNextLoop({
+    promotionRunId: "run-1",
+    request: {
+      failed_segment_ids: ["segment-1"],
+      failed_ad_experiment_ids: ["experiment-1"],
+      operator_instruction: "새 소재를 검토해 주세요",
+      content_approval_mode: "manual"
     }
   });
 
@@ -234,7 +306,8 @@ test("decision client preserves next loop request contract", async () => {
     body: {
       failed_segment_ids: ["segment-1"],
       failed_ad_experiment_ids: ["experiment-1"],
-      operator_instruction: null
+      operator_instruction: "새 소재를 검토해 주세요",
+      content_approval_mode: "manual"
     }
   });
 });
