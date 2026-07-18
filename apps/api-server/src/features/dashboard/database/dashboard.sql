@@ -96,6 +96,7 @@ LEFT JOIN promotion_evaluations pe
  AND pe.ad_experiment_id IS NOT NULL
  AND pe.segment_id <> 'seg_existing_all'
 WHERE c.project_id = :projectId
+  AND c.status <> 'stopped'
 
 GROUP BY c.campaign_id
 ORDER BY c.updated_at DESC, c.created_at DESC;
@@ -144,6 +145,7 @@ LEFT JOIN promotion_evaluations pe
  AND pe.segment_id <> 'seg_existing_all'
 WHERE c.project_id = :projectId
   AND c.campaign_id = :campaignId
+  AND c.status <> 'stopped'
 
 GROUP BY c.campaign_id;
 
@@ -187,149 +189,111 @@ WHERE project_id = :projectId
   AND status <> 'stopped'
 RETURNING campaign_id AS "campaignId";
 
-/* 목적: 대시보드에서 캠페인과 하위 데이터를 물리 삭제합니다. */
+/* 목적: 캠페인과 하위 실행 데이터를 보존하면서 중지 상태로 전환합니다. */
 /* @name DeleteDashboardCampaign */
-WITH target_campaign AS (
-  SELECT project_id, campaign_id
-  FROM campaigns
+WITH stopped_campaign AS (
+  UPDATE campaigns
+  SET status = 'stopped',
+      updated_at = now()
   WHERE project_id = :projectId
     AND campaign_id = :campaignId
+  RETURNING campaign_id
 ),
-deleted_redirect_links AS (
-  DELETE FROM redirect_links rl
-  USING target_campaign target
-  WHERE rl.project_id = target.project_id
-    AND rl.campaign_id = target.campaign_id
-  RETURNING rl.redirect_id
+stopped_promotions AS (
+  UPDATE promotions
+  SET status = 'stopped',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND status <> 'stopped'
+  RETURNING promotion_id
 ),
-deleted_ad_dispatch_jobs AS (
-  DELETE FROM ad_dispatch_jobs adj
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_redirect_links) dependency
-  WHERE adj.project_id = target.project_id
-    AND adj.campaign_id = target.campaign_id
-  RETURNING adj.ad_dispatch_job_id
+stopped_segments AS (
+  UPDATE promotion_target_segments
+  SET status = 'stopped'
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND status <> 'stopped'
+  RETURNING segment_id
 ),
-deleted_user_segment_assignments AS (
-  DELETE FROM user_segment_assignments usa
-  USING promotion_runs pr,
-        target_campaign target,
-        (SELECT count(*) FROM deleted_ad_dispatch_jobs) dependency
-  WHERE pr.project_id = target.project_id
-    AND pr.campaign_id = target.campaign_id
-    AND usa.project_id = pr.project_id
-    AND usa.promotion_run_id = pr.promotion_run_id
-  RETURNING usa.user_id
+archived_segment_definitions AS (
+  UPDATE segment_definitions
+  SET status = 'archived',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND source IN ('custom_chatkit', 'manual_rule')
+    AND status = 'active'
+  RETURNING segment_id
 ),
-deleted_segment_vectors AS (
-  DELETE FROM segment_vectors sv
-  USING promotions p,
-        target_campaign target,
-        (SELECT count(*) FROM deleted_user_segment_assignments) dependency
-  WHERE p.project_id = target.project_id
-    AND p.campaign_id = target.campaign_id
-    AND sv.project_id = p.project_id
-    AND sv.promotion_id = p.promotion_id
-  RETURNING sv.segment_id
+dismissed_suggestions AS (
+  UPDATE promotion_segment_suggestions
+  SET status = 'dismissed',
+      decided_at = COALESCE(decided_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND status IN ('suggested', 'accepted')
+  RETURNING suggestion_id
 ),
-deleted_promotion_evaluations AS (
-  DELETE FROM promotion_evaluations pe
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_segment_vectors) dependency
-  WHERE pe.project_id = target.project_id
-    AND pe.campaign_id = target.campaign_id
-  RETURNING pe.promotion_run_id
+archived_content_candidates AS (
+  UPDATE content_candidates
+  SET status = 'archived',
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND status IN ('draft', 'approved', 'active')
+  RETURNING content_id
 ),
-deleted_ad_experiments AS (
-  DELETE FROM ad_experiments ae
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_promotion_evaluations) dependency
-  WHERE ae.project_id = target.project_id
-    AND ae.campaign_id = target.campaign_id
-  RETURNING ae.ad_experiment_id
+failed_generation_runs AS (
+  UPDATE generation_runs
+  SET status = 'failed',
+      started_at = COALESCE(started_at, now()),
+      finished_at = now(),
+      next_retry_at = NULL,
+      last_error_code = 'generation_invalidated_by_campaign_stop',
+      last_error_message = 'campaign stopped',
+      worker_id = NULL,
+      lease_token = NULL,
+      heartbeat_at = NULL,
+      lease_expires_at = NULL,
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND status IN ('requested', 'running')
+  RETURNING generation_id
 ),
-deleted_content_candidates AS (
-  DELETE FROM content_candidates cc
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_ad_experiments) dependency
-  WHERE cc.project_id = target.project_id
-    AND cc.campaign_id = target.campaign_id
-  RETURNING cc.content_id
+cancelled_dispatch_jobs AS (
+  UPDATE ad_dispatch_jobs
+  SET status = 'cancelled',
+      completed_at = COALESCE(completed_at, now())
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND status IN ('queued', 'scheduled', 'running')
+  RETURNING ad_dispatch_job_id
 ),
-deleted_promotion_target_segments AS (
-  DELETE FROM promotion_target_segments pts
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_content_candidates) dependency
-  WHERE pts.project_id = target.project_id
-    AND pts.campaign_id = target.campaign_id
-  RETURNING pts.segment_id
+stopped_runs AS (
+  UPDATE promotion_runs
+  SET status = 'stopped',
+      ended_at = COALESCE(ended_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND status <> 'stopped'
+  RETURNING promotion_run_id
 ),
-deleted_promotion_segment_suggestions AS (
-  DELETE FROM promotion_segment_suggestions pss
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_promotion_target_segments) dependency
-  WHERE pss.project_id = target.project_id
-    AND pss.campaign_id = target.campaign_id
-  RETURNING pss.suggestion_id
-),
-deleted_funnel_definitions AS (
-  DELETE FROM funnel_definitions fd
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_promotion_segment_suggestions) dependency
-  WHERE fd.project_id = target.project_id
-    AND fd.campaign_id = target.campaign_id
-  RETURNING fd.funnel_id
-),
-deleted_promotion_runs AS (
-  DELETE FROM promotion_runs pr
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_funnel_definitions) dependency
-  WHERE pr.project_id = target.project_id
-    AND pr.campaign_id = target.campaign_id
-  RETURNING pr.promotion_run_id
-),
-deleted_generation_runs AS (
-  DELETE FROM generation_runs gr
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_promotion_runs) dependency
-  WHERE gr.project_id = target.project_id
-    AND gr.campaign_id = target.campaign_id
-  RETURNING gr.generation_id
-),
-deleted_promotion_analyses AS (
-  DELETE FROM promotion_analyses pa
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_generation_runs) dependency
-  WHERE pa.project_id = target.project_id
-    AND pa.campaign_id = target.campaign_id
-  RETURNING pa.analysis_id
-),
-deleted_segment_definitions AS (
-  DELETE FROM segment_definitions sd
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_promotion_analyses) dependency
-  WHERE sd.project_id = target.project_id
-    AND sd.campaign_id = target.campaign_id
-  RETURNING sd.segment_id
-),
-deleted_promotions AS (
-  DELETE FROM promotions p
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_segment_definitions) dependency
-  WHERE p.project_id = target.project_id
-    AND p.campaign_id = target.campaign_id
-  RETURNING p.promotion_id
-),
-deleted_campaign AS (
-  DELETE FROM campaigns c
-  USING target_campaign target,
-        (SELECT count(*) FROM deleted_promotions) dependency
-  WHERE c.project_id = target.project_id
-    AND c.campaign_id = target.campaign_id
-  RETURNING c.campaign_id, 'deleted'::text AS status
+stopped_experiments AS (
+  UPDATE ad_experiments
+  SET status = 'stopped',
+      ended_at = COALESCE(ended_at, now()),
+      updated_at = now()
+  WHERE project_id = :projectId
+    AND campaign_id = :campaignId
+    AND status <> 'stopped'
+  RETURNING ad_experiment_id
 )
-SELECT campaign_id AS "campaignId", status
-FROM deleted_campaign;
+SELECT campaign_id AS "campaignId", 'deleted'::text AS status
+FROM stopped_campaign;
 
 /* 목적: 캠페인에 연결된 프로모션 요약 목록을 조회합니다. */
 /* @name ListDashboardCampaignPromotions */

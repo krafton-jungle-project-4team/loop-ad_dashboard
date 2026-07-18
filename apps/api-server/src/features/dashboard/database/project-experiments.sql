@@ -89,6 +89,8 @@ LEFT JOIN LATERAL (
   LIMIT 1
 ) next_run ON TRUE
 WHERE ae.project_id = :projectId
+  AND c.status <> 'stopped'
+  AND p.status <> 'stopped'
 ORDER BY ae.updated_at DESC, ae.created_at DESC, ae.ad_experiment_id ASC;
 
 /* 목적: 캠페인별 실행 중 광고 실험 수를 조회합니다. */
@@ -105,4 +107,5 @@ LEFT JOIN ad_experiments ae
   ON ae.project_id = c.project_id
  AND ae.campaign_id = c.campaign_id
 WHERE c.project_id = :projectId
+  AND c.status <> 'stopped'
 GROUP BY c.campaign_id;
