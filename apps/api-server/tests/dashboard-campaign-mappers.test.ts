@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   toCampaignSummary,
+  toPromotionSummary,
   toPromotionSegmentSuggestion
 } from "../src/features/dashboard/repository/dashboard-campaign-mappers.js";
 
@@ -45,6 +46,44 @@ test("campaign mapper preserves date and numeric conversion contracts", () => {
     next_action: "monitor",
     updated_at: "2026-07-10T00:00:00.000Z"
   });
+});
+
+test("promotion mapper exposes offer links stored in metadata", () => {
+  const summary = toPromotionSummary({
+    adExperimentCount: 0,
+    campaignId: "campaign-1",
+    channel: "email",
+    currentLoopCount: 0,
+    goalBasis: "promotion_average",
+    goalMetric: "inflow_rate",
+    goalTargetValue: 0.1,
+    landingType: null,
+    landingUrl: "https://example.com/promotion",
+    latestActualValue: null,
+    marketingTheme: "여름 프로모션",
+    maxLoopCount: 3,
+    messageBrief: null,
+    minSampleSize: 100,
+    nextAction: "complete_plan",
+    offerLinks: [
+      {
+        offer_id: "jeju-ocean-breeze-006",
+        destination_url: "https://example.com/hotel/jeju-ocean-breeze-006"
+      }
+    ],
+    offerType: null,
+    promotionId: "promotion-1",
+    status: "draft",
+    targetSegmentCount: 0,
+    updatedAt: new Date("2026-07-10T00:00:00.000Z")
+  });
+
+  assert.deepEqual(summary.offer_links, [
+    {
+      offer_id: "jeju-ocean-breeze-006",
+      destination_url: "https://example.com/hotel/jeju-ocean-breeze-006"
+    }
+  ]);
 });
 
 test("segment suggestion mapper preserves enriched AI metadata", () => {

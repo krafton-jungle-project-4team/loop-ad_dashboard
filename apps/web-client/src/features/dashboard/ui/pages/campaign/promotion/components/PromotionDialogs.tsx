@@ -14,6 +14,7 @@ import {
   SelectValue
 } from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatBasisLabel, formatChannelLabel } from "../../../../../model/dashboard-labels.js";
 import { DashboardFormDialog } from "../../../../shared/DashboardFormDialog.js";
@@ -24,6 +25,7 @@ import {
   promotionChannelOptions,
   promotionGoalBasisOptions,
   promotionGoalMetricOptions,
+  promotionOfferLinksAreValid,
   promotionFormToUpdateRequest,
   promotionToFormState,
   type PromotionCreateFormState
@@ -55,6 +57,7 @@ export function PromotionEditDialog({
   const canSubmit =
     Boolean(promotion && form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
+    promotionOfferLinksAreValid(form) &&
     !isPending;
 
   return (
@@ -102,7 +105,10 @@ export function PromotionAddDialog({
   }, [open]);
 
   const canSubmit =
-    Boolean(form.marketingTheme.trim()) && isValidHttpUrl(form.landingUrl) && !createIsPending;
+    Boolean(form.marketingTheme.trim()) &&
+    isValidHttpUrl(form.landingUrl) &&
+    promotionOfferLinksAreValid(form) &&
+    !createIsPending;
   const isDirty = JSON.stringify(form) !== JSON.stringify(createEmptyPromotionFormState());
 
   return (
@@ -288,6 +294,101 @@ function PromotionFormFields({
           발송 링크와 리다이렉트 목적지로 사용할 실제 URL입니다.
         </p>
       </Field>
+      {form.channel === "email" ? (
+        <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <p className="text-sm font-medium">숙소 상세 링크</p>
+              <p className="text-xs text-muted-foreground">
+                카드형 이메일에서 숙소별 버튼이 이동할 주소예요. 최대 8개까지 추가할 수 있어요.
+              </p>
+            </div>
+            <Button
+              disabled={form.offerLinks.length >= 8}
+              onClick={() =>
+                onChange({
+                  ...form,
+                  offerLinks: [...form.offerLinks, { destinationUrl: "", offerId: "" }]
+                })
+              }
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <Plus data-icon="inline-start" />
+              링크 추가
+            </Button>
+          </div>
+          {form.offerLinks.length > 0 ? (
+            <div className="grid gap-3">
+              {form.offerLinks.map((link, index) => (
+                <div
+                  className="grid items-end gap-2 rounded-lg border bg-background p-3 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)_auto]"
+                  key={`${idPrefix}-offer-link-${index}`}
+                >
+                  <Field>
+                    <FieldLabel htmlFor={`${idPrefix}-offer-id-${index}`}>숙소 ID</FieldLabel>
+                    <Input
+                      autoComplete="off"
+                      id={`${idPrefix}-offer-id-${index}`}
+                      onChange={(event) =>
+                        onChange({
+                          ...form,
+                          offerLinks: form.offerLinks.map((current, currentIndex) =>
+                            currentIndex === index
+                              ? { ...current, offerId: event.target.value }
+                              : current
+                          )
+                        })
+                      }
+                      placeholder="jeju-ocean-breeze-006"
+                      value={link.offerId}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor={`${idPrefix}-offer-url-${index}`}>
+                      숙소 상세 URL
+                    </FieldLabel>
+                    <Input
+                      autoComplete="url"
+                      id={`${idPrefix}-offer-url-${index}`}
+                      onChange={(event) =>
+                        onChange({
+                          ...form,
+                          offerLinks: form.offerLinks.map((current, currentIndex) =>
+                            currentIndex === index
+                              ? { ...current, destinationUrl: event.target.value }
+                              : current
+                          )
+                        })
+                      }
+                      placeholder="https://demo-shoppingmall.dev.loop-ad.org/hotel/..."
+                      type="url"
+                      value={link.destinationUrl}
+                    />
+                  </Field>
+                  <Button
+                    aria-label={`${index + 1}번째 숙소 링크 삭제`}
+                    onClick={() =>
+                      onChange({
+                        ...form,
+                        offerLinks: form.offerLinks.filter(
+                          (_current, currentIndex) => currentIndex !== index
+                        )
+                      })
+                    }
+                    size="icon-sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

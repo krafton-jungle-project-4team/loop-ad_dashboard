@@ -33,7 +33,8 @@ type DispatchFailureCode =
   | "ARTIFACT_FAILED"
   | "ARTIFACT_NOT_READY"
   | "CONTENT_INVALID"
-  | "RECIPIENT_CONTACT_INVALID";
+  | "RECIPIENT_CONTACT_INVALID"
+  | "REDIRECT_TARGET_INVALID";
 
 export class PromotionChannelExecutor {
   constructor(
@@ -58,6 +59,7 @@ export class PromotionChannelExecutor {
     channel: DispatchChannel;
     contact: string;
     openPixelUrl: string;
+    placeholderUrls: Readonly<Record<string, string>>;
     targetUrl: string;
   }): Promise<DispatchSendResult> {
     switch (input.channel) {
@@ -66,7 +68,8 @@ export class PromotionChannelExecutor {
           input.assignment,
           input.targetUrl,
           input.contact,
-          input.openPixelUrl
+          input.openPixelUrl,
+          input.placeholderUrls
         );
         log.info("send_input_prepared", {
           assignment: input.assignment,
@@ -93,7 +96,8 @@ export class PromotionChannelExecutor {
     assignment: ActiveAdServingAssignmentEntity,
     targetUrl: string,
     recipient: string,
-    openPixelUrl: string
+    openPixelUrl: string,
+    placeholderUrls: Readonly<Record<string, string>>
   ): Promise<EmailSendInput> {
     const content = emailContentSchema.parse(assignment);
     const artifact = creativeArtifact(assignment);
@@ -114,7 +118,7 @@ export class PromotionChannelExecutor {
     const template = await this.artifactReader.readHtml(artifact);
     const htmlBody = fillEmailPlaceholders(template, {
       openPixelUrl,
-      redirectUrl: targetUrl
+      placeholderUrls
     });
     const textBody = [content.preheader, content.body, ctaLine(content.cta, targetUrl)]
       .filter(Boolean)
@@ -166,14 +170,23 @@ function ctaLine(cta: string | null, targetUrl: string) {
 
 function fillEmailPlaceholders(
   template: string,
-  replacements: { redirectUrl: string; openPixelUrl: string }
+  replacements: {
+    openPixelUrl: string;
+    placeholderUrls: Readonly<Record<string, string>>;
+  }
 ) {
-  const htmlBody = template
-    .replaceAll("{{redirect_url}}", replacements.redirectUrl)
-    .replaceAll("{{open_pixel_url}}", replacements.openPixelUrl);
+  let htmlBody = template;
+  for (const [placeholder, targetUrl] of Object.entries(replacements.placeholderUrls)) {
+    htmlBody = htmlBody.replaceAll(placeholder, targetUrl);
+  }
+  htmlBody = htmlBody.replaceAll("{{open_pixel_url}}", replacements.openPixelUrl);
 
-  if (htmlBody.includes("{{redirect_url}}") || htmlBody.includes("{{open_pixel_url}}")) {
-    return throwDispatchFailure("CONTENT_INVALID");
+  if (
+    htmlBody.includes("{{redirect_url}}") ||
+    /\{\{offer_redirect_url_[^}]+\}\}/.test(htmlBody) ||
+    htmlBody.includes("{{open_pixel_url}}")
+  ) {
+    return throwDispatchFailure("REDIRECT_TARGET_INVALID");
   }
   return htmlBody;
 }
@@ -182,7 +195,7 @@ function throwUnsupportedDispatchChannel(promotionRunId: string, channel: never)
   throw adExecutionErrors.unsupportedDispatchChannel(promotionRunId, String(channel));
 }
 
-function throwDispatchFailure(code: DispatchFailureCode): never {
+export function throwDispatchFailure(code: DispatchFailureCode): never {
   throw new DispatchFailureError(code);
 }
 

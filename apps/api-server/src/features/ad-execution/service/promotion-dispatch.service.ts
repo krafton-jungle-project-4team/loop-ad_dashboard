@@ -30,7 +30,8 @@ import {
   getDispatchErrorCode,
   PromotionChannelExecutor,
   requireValidEmailContact,
-  requireValidSmsContact
+  requireValidSmsContact,
+  throwDispatchFailure
 } from "./promotion-channel-executor.js";
 
 const LOCAL_DASHBOARD_PUBLIC_BASE_URL = "http://localhost:8080";
@@ -52,6 +53,48 @@ const storedDispatchResultSchema = z.object({
     })
   )
 });
+
+const promotionLinkTargetSchema = z.object({
+  placeholder: z.literal("{{redirect_url}}"),
+  target_type: z.literal("promotion")
+});
+const offerLinkTargetSchema = z.object({
+  placeholder: z.string().regex(/^\{\{offer_redirect_url_[1-8]\}\}$/),
+  target_type: z.literal("offer"),
+  offer_id: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,99}$/),
+  destination_url: z.string().refine(isAbsoluteHttpUrl)
+});
+const creativeLinkTargetsSchema = z
+  .array(z.discriminatedUnion("target_type", [promotionLinkTargetSchema, offerLinkTargetSchema]))
+  .min(1)
+  .max(9)
+  .superRefine((targets, context) => {
+    const placeholders = new Set<string>();
+    for (const [index, target] of targets.entries()) {
+      if (placeholders.has(target.placeholder)) {
+        context.addIssue({
+          code: "custom",
+          message: "redirect placeholders must be unique",
+          path: [index, "placeholder"]
+        });
+      }
+      placeholders.add(target.placeholder);
+    }
+    if (targets.filter((target) => target.target_type === "promotion").length !== 1) {
+      context.addIssue({
+        code: "custom",
+        message: "exactly one promotion redirect target is required"
+      });
+    }
+  });
+
+type DispatchLinkTarget = z.infer<typeof creativeLinkTargetsSchema>[number];
+
+interface DispatchRedirects {
+  placeholderUrls: Record<string, string>;
+  primaryRedirectId: string;
+  primaryRedirectUrl: string;
+}
 
 /** 프로모션 외부 발행 요청을 저장된 assignment 기반으로 처리합니다. */
 @Injectable()
@@ -377,14 +420,16 @@ export class PromotionDispatchService {
         return attempt;
       }
 
-      redirectId = await this.createRedirectLink(assignment);
-      const targetUrl = redirectUrl(redirectId);
+      const redirects = await this.createRedirectLinks(channel, assignment);
+      redirectId = redirects.primaryRedirectId;
+      const targetUrl = redirects.primaryRedirectUrl;
       const openPixelUrl = openPixelUrlFor(assignment, redirectId);
       const sendResult = await this.channelExecutor.send({
         assignment,
         channel,
         contact,
         openPixelUrl,
+        placeholderUrls: redirects.placeholderUrls,
         targetUrl
       });
       const attempt = toSentAttempt(assignment.userId, redirectId, sendResult);
@@ -425,9 +470,45 @@ export class PromotionDispatchService {
   }
 
   @Transactional()
-  private async createRedirectLink(assignment: ActiveAdServingAssignmentEntity): Promise<string> {
+  private async createRedirectLinks(
+    channel: DispatchChannel,
+    assignment: ActiveAdServingAssignmentEntity
+  ): Promise<DispatchRedirects> {
+    const targets = channel === "email" ? linkTargetsForEmail(assignment) : [promotionLinkTarget()];
+    const redirectEntries: Array<{
+      redirectId: string;
+      target: DispatchLinkTarget;
+      url: string;
+    }> = [];
+
+    for (const target of targets) {
+      const destinationUrl =
+        target.target_type === "promotion"
+          ? requirePromotionLandingUrl(assignment)
+          : target.destination_url;
+      const redirectId = await this.createRedirectLink(assignment, destinationUrl);
+      redirectEntries.push({ redirectId, target, url: redirectUrl(redirectId) });
+    }
+
+    const primary = redirectEntries.find((entry) => entry.target.target_type === "promotion");
+    if (!primary) {
+      return throwDispatchFailure("REDIRECT_TARGET_INVALID");
+    }
+
+    return {
+      placeholderUrls: Object.fromEntries(
+        redirectEntries.map((entry) => [entry.target.placeholder, entry.url])
+      ),
+      primaryRedirectId: primary.redirectId,
+      primaryRedirectUrl: primary.url
+    };
+  }
+
+  private async createRedirectLink(
+    assignment: ActiveAdServingAssignmentEntity,
+    destinationUrl: string
+  ): Promise<string> {
     const redirectId = randomUUID();
-    const destinationUrl = requirePromotionLandingUrl(assignment);
     const input = {
       redirectLinkId: redirectId,
       redirectToken: redirectId,
@@ -617,6 +698,50 @@ function requireFirstAssignment(assignments: readonly ActiveAdServingAssignmentE
   }
 
   return first;
+}
+
+function linkTargetsForEmail(assignment: ActiveAdServingAssignmentEntity): DispatchLinkTarget[] {
+  const creative = isRecord(assignment.contentMetadataJson.creative)
+    ? assignment.contentMetadataJson.creative
+    : null;
+  if (!creative || !Object.hasOwn(creative, "link_targets")) {
+    return [promotionLinkTarget()];
+  }
+
+  const parsed = creativeLinkTargetsSchema.safeParse(creative.link_targets);
+  if (!parsed.success) {
+    log.warn("creative_link_targets_invalid", {
+      assignment,
+      issues: parsed.error.issues
+    });
+    return throwDispatchFailure("REDIRECT_TARGET_INVALID");
+  }
+  return parsed.data;
+}
+
+function promotionLinkTarget(): DispatchLinkTarget {
+  return {
+    placeholder: "{{redirect_url}}",
+    target_type: "promotion"
+  };
+}
+
+function isAbsoluteHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      Boolean(url.host) &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function assignmentsForDemoRecipients(

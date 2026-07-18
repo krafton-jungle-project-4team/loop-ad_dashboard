@@ -162,6 +162,119 @@ test("dispatch uses stored assignments and records sender success", async () => 
   );
 });
 
+test("email offer cards create and replace one redirect per link target", async () => {
+  const reader = new FakeAdExecutionReader();
+  const writer = new FakeAdExecutionWriter();
+  const emailSender = new RecordingEmailSender();
+  reader.dispatchAssignments = [
+    assignment({
+      contentMetadataJson: {
+        creative: {
+          artifact: {
+            creative_format: "email_html",
+            artifact_status: "published",
+            public_url: "https://gen-ai.asset.dev.loop-ad.org/generated/cards.html"
+          },
+          link_targets: [
+            { placeholder: "{{redirect_url}}", target_type: "promotion" },
+            {
+              placeholder: "{{offer_redirect_url_1}}",
+              target_type: "offer",
+              offer_id: "jeju-ocean-breeze-006",
+              destination_url: "https://shop.example/hotel/jeju-ocean-breeze-006"
+            },
+            {
+              placeholder: "{{offer_redirect_url_2}}",
+              target_type: "offer",
+              offer_id: "jeju-aewol-sunset-007",
+              destination_url: "https://shop.example/hotel/jeju-aewol-sunset-007"
+            }
+          ]
+        }
+      }
+    })
+  ];
+  const artifactReader = new FakeHtmlArtifactReader(
+    [
+      '<a href="{{redirect_url}}">전체 보기</a>',
+      '<a href="{{offer_redirect_url_1}}">첫 번째 숙소</a>',
+      '<a href="{{offer_redirect_url_2}}">두 번째 숙소</a>',
+      '<img src="{{open_pixel_url}}">'
+    ].join("")
+  );
+
+  const response = await createDispatchService(
+    reader,
+    writer,
+    emailSender,
+    new RecordingSmsSender(),
+    new FakeRecipientDirectory(),
+    artifactReader
+  ).dispatchPromotionRun("run-1");
+
+  assert.equal(response.dispatched_count, 1);
+  assert.deepEqual(
+    writer.redirectLinks.map((link) => link.destinationUrl),
+    [
+      "https://loop-ad.example/landing",
+      "https://shop.example/hotel/jeju-ocean-breeze-006",
+      "https://shop.example/hotel/jeju-aewol-sunset-007"
+    ]
+  );
+  const htmlBody = emailSender.inputs[0]?.htmlBody ?? "";
+  assert.equal(htmlBody.includes("{{redirect_url}}"), false);
+  assert.equal(htmlBody.includes("{{offer_redirect_url_"), false);
+  assert.equal(new Set(htmlBody.match(/\/r\/[a-f0-9-]+/g)).size, 3);
+});
+
+test("email dispatch rejects duplicate and unresolved redirect placeholders", async () => {
+  const duplicateReader = new FakeAdExecutionReader();
+  const duplicateWriter = new FakeAdExecutionWriter();
+  duplicateReader.dispatchAssignments = [
+    assignment({
+      contentMetadataJson: {
+        creative: {
+          artifact: {
+            creative_format: "email_html",
+            artifact_status: "published",
+            public_url: "https://gen-ai.asset.dev.loop-ad.org/generated/duplicate.html"
+          },
+          link_targets: [
+            { placeholder: "{{redirect_url}}", target_type: "promotion" },
+            { placeholder: "{{redirect_url}}", target_type: "promotion" }
+          ]
+        }
+      }
+    })
+  ];
+
+  const duplicateResponse = await createDispatchService(
+    duplicateReader,
+    duplicateWriter
+  ).dispatchPromotionRun("run-1");
+
+  assert.equal(duplicateResponse.dispatched_count, 0);
+  assert.deepEqual(dispatchAttemptErrorCodes(duplicateWriter), ["REDIRECT_TARGET_INVALID"]);
+  assert.equal(duplicateWriter.redirectLinks.length, 0);
+
+  const unresolvedReader = new FakeAdExecutionReader();
+  const unresolvedWriter = new FakeAdExecutionWriter();
+  unresolvedReader.dispatchAssignments = [assignment()];
+  const unresolvedResponse = await createDispatchService(
+    unresolvedReader,
+    unresolvedWriter,
+    new RecordingEmailSender(),
+    new RecordingSmsSender(),
+    new FakeRecipientDirectory(),
+    new FakeHtmlArtifactReader(
+      '<a href="{{redirect_url}}">전체</a><a href="{{offer_redirect_url_1}}">숙소</a>'
+    )
+  ).dispatchPromotionRun("run-1");
+
+  assert.equal(unresolvedResponse.dispatched_count, 0);
+  assert.deepEqual(dispatchAttemptErrorCodes(unresolvedWriter), ["REDIRECT_TARGET_INVALID"]);
+});
+
 test("completed dispatch job is returned without sending again", async () => {
   const reader = new FakeAdExecutionReader();
   const writer = new FakeAdExecutionWriter();
@@ -986,13 +1099,17 @@ class RecordingEmailSender {
 }
 
 class FakeHtmlArtifactReader {
-  async readHtml() {
-    return [
+  constructor(
+    private readonly html = [
       "<html>",
       '<body><a href="{{redirect_url}}">Open</a>',
       '<img src="{{open_pixel_url}}" width="1" height="1" alt=""></body>',
       "</html>"
-    ].join("");
+    ].join("")
+  ) {}
+
+  async readHtml() {
+    return this.html;
   }
 }
 
@@ -1174,6 +1291,7 @@ class FakeAdExecutionWriter {
     segmentId: string;
     contentId: string;
     contentOptionId: string;
+    destinationUrl: string;
   }> = [];
   restartedDispatchJobIds: string[] = [];
 
@@ -1202,6 +1320,7 @@ class FakeAdExecutionWriter {
     segmentId: string;
     contentId: string;
     contentOptionId: string;
+    destinationUrl: string;
   }) {
     this.redirectLinks.push(input);
     return input.redirectToken;

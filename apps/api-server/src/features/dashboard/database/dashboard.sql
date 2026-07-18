@@ -309,6 +309,7 @@ SELECT
   COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
   p.message_brief AS "messageBrief",
   p.offer_type AS "offerType",
+  COALESCE(p.metadata_json -> 'offer_links', '[]'::jsonb) AS "offerLinks",
   p.landing_url AS "landingUrl",
   p.landing_type AS "landingType",
   p.status,
@@ -359,6 +360,7 @@ SELECT
   COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
   p.message_brief AS "messageBrief",
   p.offer_type AS "offerType",
+  COALESCE(p.metadata_json -> 'offer_links', '[]'::jsonb) AS "offerLinks",
   p.landing_url AS "landingUrl",
   p.landing_type AS "landingType",
   p.status,
@@ -408,6 +410,7 @@ INSERT INTO promotions (
   max_loop_count,
   message_brief,
   offer_type,
+  metadata_json,
   landing_url,
   landing_type,
   status
@@ -425,6 +428,10 @@ SELECT
   :maxLoopCount,
   :messageBrief,
   :offerType,
+  CASE
+    WHEN :offerLinksIsSet THEN jsonb_build_object('offer_links', :offerLinksJson::jsonb)
+    ELSE '{}'::jsonb
+  END,
   :landingUrl,
   :landingType,
   :status
@@ -447,6 +454,11 @@ SET
   max_loop_count = COALESCE(:maxLoopCount, max_loop_count),
   message_brief = CASE WHEN :messageBriefIsSet THEN :messageBrief ELSE message_brief END,
   offer_type = CASE WHEN :offerTypeIsSet THEN :offerType ELSE offer_type END,
+  metadata_json = CASE
+    WHEN :offerLinksIsSet
+      THEN jsonb_set(metadata_json, '{offer_links}', :offerLinksJson::jsonb, true)
+    ELSE metadata_json
+  END,
   landing_url = CASE WHEN :landingUrlIsSet THEN :landingUrl ELSE landing_url END,
   landing_type = CASE WHEN :landingTypeIsSet THEN :landingType ELSE landing_type END,
   status = COALESCE(:status, status),
