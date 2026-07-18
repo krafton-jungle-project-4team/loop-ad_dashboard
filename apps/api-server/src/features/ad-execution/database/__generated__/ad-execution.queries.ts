@@ -55,7 +55,7 @@ const findPromotionRunIR: any = {"usedParamSet":{"promotionRunId":true},"params"
  *   created_at AS "createdAt",
  *   updated_at AS "updatedAt"
  * FROM promotion_runs
- * WHERE promotion_run_id = :promotionRunId
+ * WHERE promotion_run_id = :promotionRunId                                                        
  * ```
  */
 export const findPromotionRun = new PreparedQuery<IFindPromotionRunParams,IFindPromotionRunResult>(findPromotionRunIR);
@@ -107,7 +107,7 @@ const findPromotionIR: any = {"usedParamSet":{"promotionId":true},"params":[{"na
  *   created_at AS "createdAt",
  *   updated_at AS "updatedAt"
  * FROM promotions
- * WHERE promotion_id = :promotionId
+ * WHERE promotion_id = :promotionId                                                            
  * ```
  */
 export const findPromotion = new PreparedQuery<IFindPromotionParams,IFindPromotionResult>(findPromotionIR);
@@ -149,7 +149,7 @@ export interface IFindAdExperimentQuery {
   result: IFindAdExperimentResult;
 }
 
-const findAdExperimentIR: any = {"usedParamSet":{"adExperimentId":true},"params":[{"name":"adExperimentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":687,"b":701}]}],"statement":"SELECT\n  ad_experiment_id AS \"adExperimentId\",\n  project_id AS \"projectId\",\n  campaign_id AS \"campaignId\",\n  promotion_id AS \"promotionId\",\n  promotion_run_id AS \"promotionRunId\",\n  analysis_id AS \"analysisId\",\n  generation_id AS \"generationId\",\n  segment_id AS \"segmentId\",\n  segment_name AS \"segmentName\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  channel,\n  loop_count AS \"loopCount\",\n  status,\n  goal_metric AS \"goalMetric\",\n  goal_target_value AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  started_at AS \"startedAt\",\n  ended_at AS \"endedAt\",\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM ad_experiments\nWHERE ad_experiment_id = :adExperimentId                                                                                  "};
+const findAdExperimentIR: any = {"usedParamSet":{"adExperimentId":true},"params":[{"name":"adExperimentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":687,"b":701}]}],"statement":"SELECT\n  ad_experiment_id AS \"adExperimentId\",\n  project_id AS \"projectId\",\n  campaign_id AS \"campaignId\",\n  promotion_id AS \"promotionId\",\n  promotion_run_id AS \"promotionRunId\",\n  analysis_id AS \"analysisId\",\n  generation_id AS \"generationId\",\n  segment_id AS \"segmentId\",\n  segment_name AS \"segmentName\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  channel,\n  loop_count AS \"loopCount\",\n  status,\n  goal_metric AS \"goalMetric\",\n  goal_target_value AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  started_at AS \"startedAt\",\n  ended_at AS \"endedAt\",\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\"\nFROM ad_experiments\nWHERE ad_experiment_id = :adExperimentId                                                                                            "};
 
 /**
  * Query generated from SQL:
@@ -177,7 +177,7 @@ const findAdExperimentIR: any = {"usedParamSet":{"adExperimentId":true},"params"
  *   created_at AS "createdAt",
  *   updated_at AS "updatedAt"
  * FROM ad_experiments
- * WHERE ad_experiment_id = :adExperimentId
+ * WHERE ad_experiment_id = :adExperimentId                                                                                            
  * ```
  */
 export const findAdExperiment = new PreparedQuery<IFindAdExperimentParams,IFindAdExperimentResult>(findAdExperimentIR);
@@ -274,8 +274,8 @@ const listActiveAdServingAssignmentsIR: any = {"usedParamSet":{"promotionRunId":
  *       LIMIT 1
  *     )
  *   )
- *
- * ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC
+ * 
+ * ORDER BY aas.ad_experiment_id ASC, aas.user_id ASC                                                                               
  * ```
  */
 export const listActiveAdServingAssignments = new PreparedQuery<IListActiveAdServingAssignmentsParams,IListActiveAdServingAssignmentsResult>(listActiveAdServingAssignmentsIR);
@@ -364,7 +364,7 @@ const findActiveBannerAssignmentIR: any = {"usedParamSet":{"projectId":true,"pro
  *   AND aas.promotion_run_id = :promotionRunId
  *   AND aas.user_id = :userId
  *   AND aas.channel = 'onsite_banner'
- * LIMIT 1
+ * LIMIT 1                                                                                                 
  * ```
  */
 export const findActiveBannerAssignment = new PreparedQuery<IFindActiveBannerAssignmentParams,IFindActiveBannerAssignmentResult>(findActiveBannerAssignmentIR);
@@ -410,7 +410,7 @@ const findDispatchJobByIdIR: any = {"usedParamSet":{"dispatchJobId":true},"param
  *   failed_count AS "failedCount",
  *   metadata_json AS "metadataJson"
  * FROM ad_dispatch_jobs
- * WHERE ad_dispatch_job_id = :dispatchJobId
+ * WHERE ad_dispatch_job_id = :dispatchJobId                                                                  
  * ```
  */
 export const findDispatchJobById = new PreparedQuery<IFindDispatchJobByIdParams,IFindDispatchJobByIdResult>(findDispatchJobByIdIR);
@@ -480,7 +480,7 @@ const insertDispatchJobIR: any = {"usedParamSet":{"dispatchJobId":true,"projectI
  * )
  * ON CONFLICT (ad_dispatch_job_id) DO NOTHING
  * RETURNING
- *   ad_dispatch_job_id AS "dispatchJobId"
+ *   ad_dispatch_job_id AS "dispatchJobId"                                                                                            
  * ```
  */
 export const insertDispatchJob = new PreparedQuery<IInsertDispatchJobParams,IInsertDispatchJobResult>(insertDispatchJobIR);
@@ -517,7 +517,7 @@ const restartFailedDispatchJobIR: any = {"usedParamSet":{"dispatchJobId":true},"
  * WHERE ad_dispatch_job_id = :dispatchJobId
  *   AND status = 'failed'
  * RETURNING
- *   ad_dispatch_job_id AS "dispatchJobId"
+ *   ad_dispatch_job_id AS "dispatchJobId"                                                                        
  * ```
  */
 export const restartFailedDispatchJob = new PreparedQuery<IRestartFailedDispatchJobParams,IRestartFailedDispatchJobResult>(restartFailedDispatchJobIR);
@@ -556,9 +556,9 @@ const updateDispatchJobResultIR: any = {"usedParamSet":{"status":true,"sentCount
  *   metadata_json = metadata_json || jsonb_build_object('result', :resultJson::jsonb),
  *   completed_at = now()
  * WHERE ad_dispatch_job_id = :dispatchJobId
- *
+ * 
  * RETURNING
- *   ad_dispatch_job_id AS "dispatchJobId"
+ *   ad_dispatch_job_id AS "dispatchJobId"                                                                                
  * ```
  */
 export const updateDispatchJobResult = new PreparedQuery<IUpdateDispatchJobResultParams,IUpdateDispatchJobResultResult>(updateDispatchJobResultIR);
@@ -625,7 +625,7 @@ const insertRedirectLinkIR: any = {"usedParamSet":{"redirectToken":true,"project
  *   :expiresAt::timestamptz
  * )
  * RETURNING
- *   redirect_id AS "redirectId"
+ *   redirect_id AS "redirectId"                                                                     
  * ```
  */
 export const insertRedirectLink = new PreparedQuery<IInsertRedirectLinkParams,IInsertRedirectLinkResult>(insertRedirectLinkIR);
@@ -644,15 +644,15 @@ export interface IFindRedirectLinkByTokenResult {
   contentId: string;
   contentOptionId: string;
   createdAt: Date;
-  destinationUrl: string | null;
+  destinationUrl: string;
   expiresAt: Date | null;
   metadataJson: Json | null;
   projectId: string;
-  sdkKey: string;
   promotionId: string;
   promotionRunId: string;
   redirectLinkId: string;
   redirectToken: string;
+  sdkKey: string;
   segmentId: string;
   status: string | null;
   updatedAt: Date;
@@ -665,7 +665,7 @@ export interface IFindRedirectLinkByTokenQuery {
   result: IFindRedirectLinkByTokenResult;
 }
 
-const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"params":[{"name":"redirectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":859,"b":869}]}],"statement":"SELECT\n  rl.redirect_id AS \"redirectLinkId\",\n  rl.project_id AS \"projectId\",\n  project.write_key AS \"sdkKey\",\n  rl.campaign_id AS \"campaignId\",\n  rl.promotion_id AS \"promotionId\",\n  rl.promotion_run_id AS \"promotionRunId\",\n  rl.ad_experiment_id AS \"adExperimentId\",\n  rl.segment_id AS \"segmentId\",\n  rl.user_id AS \"userId\",\n  rl.content_id AS \"contentId\",\n  rl.content_option_id AS \"contentOptionId\",\n  rl.redirect_id AS \"redirectToken\",\n  p.landing_url AS \"destinationUrl\",\n  'active' AS status,\n  '{}'::jsonb AS \"metadataJson\",\n  rl.expires_at AS \"expiresAt\",\n  NULL::timestamptz AS \"clickedAt\",\n  rl.created_at AS \"createdAt\",\n  rl.created_at AS \"updatedAt\"\nFROM redirect_links rl\nJOIN projects project\n  ON project.project_id = rl.project_id\nJOIN promotions p\n  ON p.project_id = rl.project_id\n AND p.promotion_id = rl.promotion_id\nWHERE rl.redirect_id = :redirectId\n\n LIMIT 1"};
+const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"params":[{"name":"redirectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":769,"b":779}]}],"statement":"SELECT\n  rl.redirect_id AS \"redirectLinkId\",\n  rl.project_id AS \"projectId\",\n  project.write_key AS \"sdkKey\",\n  rl.campaign_id AS \"campaignId\",\n  rl.promotion_id AS \"promotionId\",\n  rl.promotion_run_id AS \"promotionRunId\",\n  rl.ad_experiment_id AS \"adExperimentId\",\n  rl.segment_id AS \"segmentId\",\n  rl.user_id AS \"userId\",\n  rl.content_id AS \"contentId\",\n  rl.content_option_id AS \"contentOptionId\",\n  rl.redirect_id AS \"redirectToken\",\n  rl.target_url AS \"destinationUrl\",\n  'active' AS status,\n  '{}'::jsonb AS \"metadataJson\",\n  rl.expires_at AS \"expiresAt\",\n  NULL::timestamptz AS \"clickedAt\",\n  rl.created_at AS \"createdAt\",\n  rl.created_at AS \"updatedAt\"\nFROM redirect_links rl\nJOIN projects project\n  ON project.project_id = rl.project_id\nWHERE rl.redirect_id = :redirectId\n\n LIMIT 1"};
 
 /**
  * Query generated from SQL:
@@ -683,7 +683,7 @@ const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"para
  *   rl.content_id AS "contentId",
  *   rl.content_option_id AS "contentOptionId",
  *   rl.redirect_id AS "redirectToken",
- *   p.landing_url AS "destinationUrl",
+ *   rl.target_url AS "destinationUrl",
  *   'active' AS status,
  *   '{}'::jsonb AS "metadataJson",
  *   rl.expires_at AS "expiresAt",
@@ -693,12 +693,11 @@ const findRedirectLinkByTokenIR: any = {"usedParamSet":{"redirectId":true},"para
  * FROM redirect_links rl
  * JOIN projects project
  *   ON project.project_id = rl.project_id
- * JOIN promotions p
- *   ON p.project_id = rl.project_id
- *  AND p.promotion_id = rl.promotion_id
  * WHERE rl.redirect_id = :redirectId
- *
+ * 
  *  LIMIT 1
  * ```
  */
 export const findRedirectLinkByToken = new PreparedQuery<IFindRedirectLinkByTokenParams,IFindRedirectLinkByTokenResult>(findRedirectLinkByTokenIR);
+
+

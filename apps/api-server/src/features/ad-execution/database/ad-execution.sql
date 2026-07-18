@@ -285,7 +285,7 @@ SELECT
   rl.content_id AS "contentId",
   rl.content_option_id AS "contentOptionId",
   rl.redirect_id AS "redirectToken",
-  p.landing_url AS "destinationUrl",
+  rl.target_url AS "destinationUrl",
   'active' AS status,
   '{}'::jsonb AS "metadataJson",
   rl.expires_at AS "expiresAt",
@@ -295,9 +295,6 @@ SELECT
 FROM redirect_links rl
 JOIN projects project
   ON project.project_id = rl.project_id
-JOIN promotions p
-  ON p.project_id = rl.project_id
- AND p.promotion_id = rl.promotion_id
 WHERE rl.redirect_id = :redirectId
 
  LIMIT 1;

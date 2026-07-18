@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { DashboardCampaignPromotion, DashboardSegmentDetail } from "@loopad/shared";
+import {
+  DashboardCreatePromotionRequestSchema,
+  type DashboardCampaignPromotion,
+  type DashboardSegmentDetail
+} from "@loopad/shared";
 import {
   activeContentCandidates,
   canStartAdExperiment,
@@ -9,6 +13,7 @@ import {
   contentCandidateTitle,
   nextExperimentLoopCount,
   normalizeSegmentDisplayCopy,
+  promotionOfferLinksAreValid,
   promotionFormToUpdateRequest,
   promotionToFormState
 } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionUtils.js";
@@ -46,8 +51,66 @@ test("promotion edit maps every field exposed by the create form", () => {
     marketing_theme: "여름 프로모션",
     max_loop_count: 5,
     message_brief: "예약 전환 프로모션",
-    min_sample_size: 250
+    min_sample_size: 250,
+    offer_links: []
   });
+});
+
+test("promotion form preserves offer links for Decision generation metadata", () => {
+  const promotion = {
+    channel: "email",
+    goal_basis: "all_segments",
+    goal_metric: "booking_conversion_rate",
+    goal_target_value: 0.25,
+    landing_url: "https://example.com/promotion",
+    marketing_theme: "여름 프로모션",
+    max_loop_count: 5,
+    message_brief: "예약 전환 프로모션",
+    min_sample_size: 250,
+    offer_links: [
+      {
+        offer_id: "jeju-ocean-breeze-006",
+        destination_url: "https://example.com/hotel/jeju-ocean-breeze-006"
+      }
+    ],
+    status: "approved"
+  } as DashboardCampaignPromotion;
+
+  const form = promotionToFormState(promotion);
+  const request = promotionFormToUpdateRequest(form);
+
+  assert.equal(promotionOfferLinksAreValid(form), true);
+  assert.deepEqual(request.offer_links, promotion.offer_links);
+});
+
+test("promotion offer link contract remains optional and rejects invalid entries", () => {
+  const legacyRequest = {
+    channel: "email",
+    marketing_theme: "legacy",
+    goal_metric: "inflow_rate",
+    goal_target_value: 0.1,
+    goal_basis: "promotion_average",
+    landing_url: "https://example.com/promotion"
+  };
+
+  assert.equal(DashboardCreatePromotionRequestSchema.safeParse(legacyRequest).success, true);
+  assert.equal(
+    DashboardCreatePromotionRequestSchema.safeParse({
+      ...legacyRequest,
+      offer_links: [{ offer_id: "hotel-1", destination_url: "ftp://example.com/hotel/1" }]
+    }).success,
+    false
+  );
+  assert.equal(
+    DashboardCreatePromotionRequestSchema.safeParse({
+      ...legacyRequest,
+      offer_links: [
+        { offer_id: "hotel-1", destination_url: "https://example.com/hotel/1" },
+        { offer_id: "hotel-1", destination_url: "https://example.com/hotel/2" }
+      ]
+    }).success,
+    false
+  );
 });
 
 test("creative selection only uses candidates from the segment's active analysis", () => {

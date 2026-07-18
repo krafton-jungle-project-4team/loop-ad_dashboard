@@ -68,6 +68,10 @@ export type PromotionCreateFormState = {
   maxLoopCount: string;
   messageBrief: string;
   minSampleSize: string;
+  offerLinks: Array<{
+    destinationUrl: string;
+    offerId: string;
+  }>;
 };
 
 export function createEmptyPromotionFormState(): PromotionCreateFormState {
@@ -80,7 +84,8 @@ export function createEmptyPromotionFormState(): PromotionCreateFormState {
     marketingTheme: "",
     maxLoopCount: "3",
     messageBrief: "",
-    minSampleSize: "1000"
+    minSampleSize: "1000",
+    offerLinks: []
   };
 }
 
@@ -96,7 +101,11 @@ export function promotionToFormState(
     marketingTheme: promotion.marketing_theme,
     maxLoopCount: String(promotion.max_loop_count),
     messageBrief: promotion.message_brief ?? "",
-    minSampleSize: String(promotion.min_sample_size)
+    minSampleSize: String(promotion.min_sample_size),
+    offerLinks: (promotion.offer_links ?? []).map((link) => ({
+      destinationUrl: link.destination_url,
+      offerId: link.offer_id
+    }))
   };
 }
 
@@ -125,8 +134,34 @@ function promotionFormRequestFields(form: PromotionCreateFormState) {
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
     message_brief: form.messageBrief.trim() || null,
-    min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize))
+    min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
+    offer_links:
+      form.channel === "email"
+        ? form.offerLinks.map((link) => ({
+            destination_url: link.destinationUrl.trim(),
+            offer_id: link.offerId.trim()
+          }))
+        : []
   };
+}
+
+export function promotionOfferLinksAreValid(form: PromotionCreateFormState) {
+  if (form.channel !== "email") {
+    return true;
+  }
+  if (form.offerLinks.length > 8) {
+    return false;
+  }
+
+  const offerIds = form.offerLinks.map((link) => link.offerId.trim());
+  return (
+    new Set(offerIds).size === offerIds.length &&
+    form.offerLinks.every(
+      (link) =>
+        /^[a-z0-9][a-z0-9._-]{0,99}$/.test(link.offerId.trim()) &&
+        isValidHttpUrl(link.destinationUrl)
+    )
+  );
 }
 
 export function isValidHttpUrl(value: string) {

@@ -1,5 +1,6 @@
 import {
   DASHBOARD_FALLBACK_SEGMENT_ID,
+  DashboardPromotionOfferLinksSchema,
   normalizePromotionSegmentAudience,
   normalizePromotionSegmentPerformanceEstimate,
   normalizePromotionSegmentRankComparison
@@ -101,6 +102,7 @@ export function toCampaignPromotion(
     current_loop_count: countValue(row.currentLoopCount),
     message_brief: row.messageBrief,
     offer_type: row.offerType,
+    offer_links: DashboardPromotionOfferLinksSchema.parse(row.offerLinks),
     landing_url: row.landingUrl,
     landing_type: row.landingType,
     status: row.status,
@@ -128,6 +130,7 @@ export function toPromotionSummary(
     current_loop_count: countValue(row.currentLoopCount),
     message_brief: row.messageBrief,
     offer_type: row.offerType,
+    offer_links: DashboardPromotionOfferLinksSchema.parse(row.offerLinks),
     landing_url: row.landingUrl,
     landing_type: row.landingType,
     status: row.status,

@@ -1,6 +1,49 @@
 import { z } from "zod";
 import { CountSchema, RateSchema } from "./schema-primitives.js";
 
+const DashboardPromotionOfferIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[a-z0-9][a-z0-9._-]{0,99}$/);
+
+const DashboardPromotionOfferDestinationUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .refine((value) => {
+    try {
+      const url = new URL(value);
+      return (
+        (url.protocol === "http:" || url.protocol === "https:") && !url.username && !url.password
+      );
+    } catch {
+      return false;
+    }
+  });
+
+export const DashboardPromotionOfferLinkSchema = z.object({
+  offer_id: DashboardPromotionOfferIdSchema,
+  destination_url: DashboardPromotionOfferDestinationUrlSchema
+});
+export type DashboardPromotionOfferLink = z.infer<typeof DashboardPromotionOfferLinkSchema>;
+
+export const DashboardPromotionOfferLinksSchema = z
+  .array(DashboardPromotionOfferLinkSchema)
+  .max(8)
+  .superRefine((links, context) => {
+    const seenOfferIds = new Set<string>();
+    for (const [index, link] of links.entries()) {
+      if (seenOfferIds.has(link.offer_id)) {
+        context.addIssue({
+          code: "custom",
+          message: "offer_id must be unique",
+          path: [index, "offer_id"]
+        });
+      }
+      seenOfferIds.add(link.offer_id);
+    }
+  });
+
 export const DashboardCampaignPromotionSchema = z.object({
   promotion_id: z.string(),
   channel: z.string(),
@@ -13,6 +56,7 @@ export const DashboardCampaignPromotionSchema = z.object({
   current_loop_count: CountSchema,
   message_brief: z.string().nullable(),
   offer_type: z.string().nullable(),
+  offer_links: DashboardPromotionOfferLinksSchema.default([]),
   landing_url: z.string().nullable(),
   landing_type: z.string().nullable(),
   status: z.string(),
@@ -70,6 +114,7 @@ export const DashboardCreatePromotionRequestSchema = z.object({
   max_loop_count: z.number().int().min(1).default(3),
   message_brief: z.string().nullable().optional(),
   offer_type: z.string().nullable().optional(),
+  offer_links: DashboardPromotionOfferLinksSchema.optional(),
   landing_url: DashboardPromotionLandingUrlSchema,
   landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
   status: DashboardPromotionStatusSchema.default("draft")
@@ -86,6 +131,7 @@ export const DashboardUpdatePromotionRequestSchema = z.object({
   max_loop_count: z.number().int().min(1).optional(),
   message_brief: z.string().nullable().optional(),
   offer_type: z.string().nullable().optional(),
+  offer_links: DashboardPromotionOfferLinksSchema.optional(),
   landing_url: DashboardPromotionLandingUrlSchema.optional(),
   landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
   status: DashboardPromotionStatusSchema.optional()
