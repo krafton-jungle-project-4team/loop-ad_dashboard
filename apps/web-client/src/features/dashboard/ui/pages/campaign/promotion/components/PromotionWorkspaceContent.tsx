@@ -1335,7 +1335,11 @@ function SegmentConnectedExperimentsCard({
       experiment.segment_id === detail.segment.segment_id ||
       (experiment.is_fallback && experiment.assignment_count > 0)
   );
+  const hasStartableRequiredExperiment = requiredActiveRunExperiments.some((experiment) =>
+    canStartAdExperiment(experiment.status)
+  );
   const launchNeedsRetry =
+    Boolean(selectedCandidateExperiment) &&
     launchExperimentResult?.promotionRunId === activePromotionRunId &&
     (launchExperimentResult.dispatchFailed ||
       launchExperimentResult.failedExperimentIds.length > 0);
@@ -1347,8 +1351,14 @@ function SegmentConnectedExperimentsCard({
   const canLaunchExperiment =
     launchNeedsRetry ||
     Boolean(approvedContentCandidate && !selectedCandidateExperiment) ||
-    requiredActiveRunExperiments.some((experiment) => canStartAdExperiment(experiment.status));
-  const nextLoopCount = nextExperimentLoopCount(detail);
+    hasStartableRequiredExperiment;
+  const resumablePromotionRunId = launchNeedsRetry
+    ? activePromotionRunId
+    : selectedCandidateExperiment &&
+        (canStartAdExperiment(selectedCandidateExperiment.status) || hasStartableRequiredExperiment)
+      ? selectedCandidateExperiment.promotion_run_id
+      : null;
+  const nextLoopCount = nextExperimentLoopCount(detail, resumablePromotionRunId);
   return (
     <Card className="shadow-none">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

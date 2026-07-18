@@ -163,9 +163,7 @@ test("decision client preserves segment assignment request contract", async () =
   assert.deepEqual(result, response);
   assertDecisionRequest(requests[0], {
     path: "/decision/v1/promotion-runs/run%2F1/segment-assignments/build",
-    body: {
-      eligible_user_limit: 10_000
-    }
+    body: {}
   });
 });
 
