@@ -4,6 +4,7 @@ import {
   DashboardDeletePromotionResultSchema,
   DashboardPromotionAnalysisResultSchema,
   DashboardPromotionDetailSchema,
+  DashboardPromotionOfferCatalogSchema,
   DashboardPromotionSummarySchema,
   DashboardRecommendPromotionSegmentsRequestSchema,
   DashboardStartPromotionGenerationRequestSchema,
@@ -14,6 +15,7 @@ import {
   type DashboardDeletePromotionResult,
   type DashboardPromotionAnalysisResult,
   type DashboardPromotionDetail,
+  type DashboardPromotionOfferCatalog,
   type DashboardPromotionSummary,
   type DashboardRecommendPromotionSegmentsRequest,
   type DashboardStartPromotionGenerationRequest,
@@ -30,6 +32,18 @@ import {
 import { projectSearchParams, readDashboardApiErrorMessage } from "./dashboard-request.js";
 
 const PROMOTIONS_PATH = "/dashboard/v1/promotions";
+
+export function fetchDashboardPromotionOffers(
+  query: DashboardQuery,
+  signal: AbortSignal
+): Promise<DashboardPromotionOfferCatalog> {
+  return fetchDashboardResource(
+    "/dashboard/v1/promotion-offers",
+    DashboardPromotionOfferCatalogSchema,
+    query,
+    signal
+  );
+}
 
 export function fetchDashboardPromotionDetail(
   query: DashboardQuery,

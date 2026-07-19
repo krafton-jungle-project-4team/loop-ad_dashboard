@@ -31,7 +31,10 @@ export const DashboardPromotionOfferSchema = z.object({
   offer_id: DashboardPromotionOfferIdSchema,
   hotel_name: z.string().trim().min(1),
   destination_id: z.string().trim().min(1),
-  currency: z.string().trim().min(1),
+  currency: z
+    .string()
+    .trim()
+    .regex(/^[A-Z]{3}$/),
   sale_price_per_night: z.number().int().nonnegative(),
   original_price_per_night: z.number().int().nonnegative().nullable(),
   discount_rate_percent: z.number().int().nonnegative().nullable(),

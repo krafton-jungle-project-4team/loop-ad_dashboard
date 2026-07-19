@@ -719,6 +719,7 @@ export function CampaignWorkspacePage({
           }
         }}
         open={isPromotionAddDialogOpen || (query.createPromotion && Boolean(selectedCampaign))}
+        query={query}
       />
       <PromotionEditDialog
         isPending={updatePromotionMutation.isPending}
@@ -737,6 +738,7 @@ export function CampaignWorkspacePage({
         }}
         open={Boolean(editingPromotionId)}
         promotion={editingPromotion}
+        query={query}
       />
       <AlertDialog
         onOpenChange={(open) => {

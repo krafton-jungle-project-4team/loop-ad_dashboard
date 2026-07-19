@@ -208,6 +208,7 @@ export function PromotionWorkspace({
                 onCreate={(form) => createPromotionMutation.mutate(form)}
                 onOpenChange={setIsAddDialogOpen}
                 open={isAddDialogOpen}
+                query={query}
               />
               <PromotionEditDialog
                 isPending={updatePromotionMutation.isPending}
@@ -228,6 +229,7 @@ export function PromotionWorkspace({
                 promotion={openPromotions.find(
                   (promotion) => promotion.promotion_id === editingPromotionId
                 )}
+                query={query}
               />
             </>
           ) : null}
