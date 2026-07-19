@@ -1,18 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
-import type {
-  DashboardBuildPromotionRunAssignmentsResult,
-  DashboardAnalyzePromotionSegmentsRequest,
-  DashboardCreateNextLoopRequest,
-  DashboardCreateNextLoopResult,
-  DashboardCreatePromotionRunRequest,
-  DashboardCreatePromotionRunResult,
-  DashboardEvaluatePromotionRunResult,
-  DashboardPromotionAnalysisResult,
-  DashboardRecommendPromotionSegmentsRequest,
-  DashboardStartPromotionGenerationRequest,
-  DashboardStartPromotionGenerationResult
+import {
+  DashboardPromotionOfferCatalogSchema,
+  type DashboardAnalyzePromotionSegmentsRequest,
+  type DashboardBuildPromotionRunAssignmentsResult,
+  type DashboardCreateNextLoopRequest,
+  type DashboardCreateNextLoopResult,
+  type DashboardCreatePromotionRunRequest,
+  type DashboardCreatePromotionRunResult,
+  type DashboardEvaluatePromotionRunResult,
+  type DashboardPromotionAnalysisResult,
+  type DashboardPromotionOfferCatalog,
+  type DashboardRecommendPromotionSegmentsRequest,
+  type DashboardStartPromotionGenerationRequest,
+  type DashboardStartPromotionGenerationResult
 } from "@loopad/shared";
 import { env } from "../../../infra/env/env.js";
 import { durationMs, log } from "../../../infra/logger/index.js";
@@ -150,6 +152,15 @@ const decisionNextLoopResponseSchema = z.object({
 
 @Injectable()
 export class DashboardDecisionClient {
+  promotionOffers(request: { projectId: string }): Promise<DashboardPromotionOfferCatalog> {
+    return requestDecisionApi({
+      method: "GET",
+      path: `/decision/v1/projects/${encodeURIComponent(request.projectId)}/promotion-offers`,
+      request,
+      schema: DashboardPromotionOfferCatalogSchema
+    });
+  }
+
   recommendPromotionSegments(request: {
     campaignId: string;
     projectId: string;
@@ -272,8 +283,9 @@ export class DashboardDecisionClient {
 }
 
 async function requestDecisionApi<T>(input: {
-  body: unknown;
+  body?: unknown;
   idempotencyKey?: string;
+  method?: "GET" | "POST";
   path: string;
   request: unknown;
   schema: z.ZodType<T>;
@@ -287,15 +299,16 @@ async function requestDecisionApi<T>(input: {
 
   let response: Response;
   try {
+    const hasBody = input.body !== undefined;
     response = await fetch(url, {
-      body: JSON.stringify(input.body),
+      body: hasBody ? JSON.stringify(input.body) : undefined,
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/json",
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
         ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}),
         "X-Loop-Ad-Internal-Key": env.decision.internalApiKey
       },
-      method: "POST"
+      method: input.method ?? "POST"
     });
   } catch (error) {
     log.warn("provider_request_failed", {
@@ -390,6 +403,7 @@ function decisionResponseLogSummary(value: unknown) {
     assignmentCount: Array.isArray(response.assignments) ? response.assignments.length : undefined,
     experimentCount: Array.isArray(response.experiments) ? response.experiments.length : undefined,
     generationId: stringValue(response.generation_id),
+    offerCount: Array.isArray(response.offers) ? response.offers.length : undefined,
     promotionId: stringValue(response.promotion_id),
     promotionRunId: stringValue(response.promotion_run_id),
     responseKeys: objectKeys(response),

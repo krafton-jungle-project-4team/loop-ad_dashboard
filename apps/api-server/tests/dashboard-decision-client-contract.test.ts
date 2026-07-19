@@ -9,6 +9,43 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
+test("decision client preserves promotion offer catalog request contract", async () => {
+  const response = {
+    project_id: "project-1",
+    catalog_id: "hotel-catalog",
+    catalog_version: "v2",
+    offers: [
+      {
+        offer_id: "jeju-ocean-breeze-006",
+        hotel_name: "Jeju Ocean Breeze Resort",
+        destination_id: "jeju",
+        currency: "KRW",
+        sale_price_per_night: 278000,
+        original_price_per_night: 342000,
+        discount_rate_percent: 19,
+        image_url: "https://example.com/hotels/jeju-ocean-breeze-006.jpg",
+        destination_url: "https://example.com/hotel/jeju-ocean-breeze-006"
+      }
+    ]
+  };
+  const { client, requests } = await createClientWithResponse(response);
+
+  const result = await client.promotionOffers({ projectId: "project/1" });
+
+  assert.deepEqual(result, response);
+  const request = requests[0];
+  assert.ok(request);
+  const url = new URL(request.url);
+  assert.equal(url.origin, "http://localhost:8081");
+  assert.equal(url.pathname, "/decision/v1/projects/project%2F1/promotion-offers");
+  assert.equal(request.init?.method, "GET");
+  assert.deepEqual(request.init?.headers, {
+    Accept: "application/json",
+    "X-Loop-Ad-Internal-Key": "test-internal-key"
+  });
+  assert.equal(request.init?.body, undefined);
+});
+
 test("decision client preserves segment recommendation request contract", async () => {
   const { client, requests } = await createClientWithResponse({
     analysis_id: "analysis-1",

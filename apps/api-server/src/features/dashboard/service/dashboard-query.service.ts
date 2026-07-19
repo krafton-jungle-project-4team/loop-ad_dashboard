@@ -42,6 +42,7 @@ import type {
   DashboardProjectList,
   DashboardPromotionDetail,
   DashboardPromotionAnalysisResult,
+  DashboardPromotionOfferCatalog,
   DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionScopedSegmentDefinitionList,
   DashboardPromotionSegmentSuggestion,
@@ -212,6 +213,17 @@ export class DashboardQueryService {
     log.info("started", { projectId, campaignId, request });
     const response = await this.campaignReader.createPromotion(projectId, campaignId, request);
     log.assignContext({ promotionId: response.promotion_id });
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  @LogContextScope()
+  async promotionOffers(projectId: string): Promise<DashboardPromotionOfferCatalog> {
+    const startedAt = Date.now();
+    log.assignContext({ projectId });
+    log.info("started", { projectId });
+    const response = await this.decisionClient.promotionOffers({ projectId });
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;

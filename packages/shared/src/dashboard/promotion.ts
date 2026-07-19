@@ -27,6 +27,27 @@ export const DashboardPromotionOfferLinkSchema = z.object({
 });
 export type DashboardPromotionOfferLink = z.infer<typeof DashboardPromotionOfferLinkSchema>;
 
+export const DashboardPromotionOfferSchema = z.object({
+  offer_id: DashboardPromotionOfferIdSchema,
+  hotel_name: z.string().trim().min(1),
+  destination_id: z.string().trim().min(1),
+  currency: z.string().trim().min(1),
+  sale_price_per_night: z.number().int().nonnegative(),
+  original_price_per_night: z.number().int().nonnegative().nullable(),
+  discount_rate_percent: z.number().int().nonnegative().nullable(),
+  image_url: DashboardPromotionOfferDestinationUrlSchema,
+  destination_url: DashboardPromotionOfferDestinationUrlSchema
+});
+export type DashboardPromotionOffer = z.infer<typeof DashboardPromotionOfferSchema>;
+
+export const DashboardPromotionOfferCatalogSchema = z.object({
+  project_id: z.string().trim().min(1),
+  catalog_id: z.string().trim().min(1),
+  catalog_version: z.string().trim().min(1),
+  offers: z.array(DashboardPromotionOfferSchema)
+});
+export type DashboardPromotionOfferCatalog = z.infer<typeof DashboardPromotionOfferCatalogSchema>;
+
 export const DashboardPromotionOfferLinksSchema = z
   .array(DashboardPromotionOfferLinkSchema)
   .max(8)

@@ -52,6 +52,42 @@ test("dashboard controller parses event catalog response", async () => {
   ]);
 });
 
+test("dashboard controller returns promotion offers for the selected project", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const reads: string[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    promotionOffers: async (projectId: string) => {
+      reads.push(projectId);
+      return {
+        project_id: projectId,
+        catalog_id: "hotel-catalog",
+        catalog_version: "v2",
+        offers: [
+          {
+            offer_id: "jeju-ocean-breeze-006",
+            hotel_name: "Jeju Ocean Breeze Resort",
+            destination_id: "jeju",
+            currency: "KRW",
+            sale_price_per_night: 278000,
+            original_price_per_night: null,
+            discount_rate_percent: null,
+            image_url: "https://example.com/hotels/jeju-ocean-breeze-006.jpg",
+            destination_url: "https://example.com/hotel/jeju-ocean-breeze-006"
+          }
+        ]
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.promotionOffers("hotel-client-a");
+
+  assert.deepEqual(reads, ["hotel-client-a"]);
+  assert.equal(response.offers[0]?.offer_id, "jeju-ocean-breeze-006");
+});
+
 test("dashboard controller rejects campaign creation with a past start date", async () => {
   setRequiredEnv();
   const { DashboardController } =
