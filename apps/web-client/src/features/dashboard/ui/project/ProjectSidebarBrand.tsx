@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, LayoutGrid } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { fetchDashboardProjects } from "../../api/dashboard-api.js";
 import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
 
@@ -52,8 +52,8 @@ export function ProjectReturnIconLink() {
 
 function ProjectMark() {
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-      <LayoutGrid aria-hidden="true" className="size-[18px]" strokeWidth={2.25} />
+    <span className="flex size-9 shrink-0 items-center justify-center">
+      <img alt="" aria-hidden="true" className="h-auto w-full" src="/loop-ad-icon-512.png" />
     </span>
   );
 }
