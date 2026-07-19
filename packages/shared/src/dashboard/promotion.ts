@@ -22,7 +22,7 @@ const DashboardPromotionOfferDestinationUrlSchema = z
   });
 
 export const DashboardPromotionOfferLinkSchema = z.object({
-  offer_id: DashboardPromotionOfferIdSchema,
+  offer_id: DashboardPromotionOfferIdSchema.optional(),
   destination_url: DashboardPromotionOfferDestinationUrlSchema
 });
 export type DashboardPromotionOfferLink = z.infer<typeof DashboardPromotionOfferLinkSchema>;
@@ -32,15 +32,26 @@ export const DashboardPromotionOfferLinksSchema = z
   .max(8)
   .superRefine((links, context) => {
     const seenOfferIds = new Set<string>();
+    const seenDestinationUrls = new Set<string>();
     for (const [index, link] of links.entries()) {
-      if (seenOfferIds.has(link.offer_id)) {
+      if (link.offer_id && seenOfferIds.has(link.offer_id)) {
         context.addIssue({
           code: "custom",
           message: "offer_id must be unique",
           path: [index, "offer_id"]
         });
       }
-      seenOfferIds.add(link.offer_id);
+      if (seenDestinationUrls.has(link.destination_url)) {
+        context.addIssue({
+          code: "custom",
+          message: "destination_url must be unique",
+          path: [index, "destination_url"]
+        });
+      }
+      if (link.offer_id) {
+        seenOfferIds.add(link.offer_id);
+      }
+      seenDestinationUrls.add(link.destination_url);
     }
   });
 
