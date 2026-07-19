@@ -69,6 +69,10 @@ function dashboardApiErrorMessage(code: string, message: string) {
       return "현재 조합에서는 최종 배정 사용자가 없는 고객군이 있어요. 선택을 바꿔 주세요.";
     case "segment_audience_exclusion_conflict":
       return "동시에 다른 고객군이 확정됐어요. 최신 후보를 불러온 뒤 다시 시도해 주세요.";
+    case "promotion_offer_catalog_not_found":
+      return "프로모션에 사용할 숙소 목록이 아직 준비되지 않았어요.";
+    case "promotion_offer_catalog_unavailable":
+      return "숙소 목록을 불러올 수 없어요. 잠시 후 다시 시도해 주세요.";
     default:
       return message;
   }

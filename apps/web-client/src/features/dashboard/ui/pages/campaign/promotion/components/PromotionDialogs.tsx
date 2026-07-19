@@ -1,5 +1,6 @@
 import {
   type DashboardCampaignPromotion,
+  type DashboardPromotionOffer,
   type DashboardUpdatePromotionRequest
 } from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
@@ -14,9 +15,9 @@ import {
   SelectValue
 } from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
-import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatBasisLabel, formatChannelLabel } from "../../../../../model/dashboard-labels.js";
+import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
 import { DashboardFormDialog } from "../../../../shared/DashboardFormDialog.js";
 import {
   createEmptyPromotionFormState,
@@ -26,25 +27,30 @@ import {
   promotionGoalBasisOptions,
   promotionGoalMetricOptions,
   promotionOfferLinksAreValid,
+  promotionOfferLinksMatchCatalog,
   promotionFormToUpdateRequest,
   promotionToFormState,
   type PromotionCreateFormState
 } from "../promotionUtils.js";
+import { PromotionOfferSelector, usePromotionOfferCatalog } from "./PromotionOfferSelector.js";
 
 export function PromotionEditDialog({
   isPending,
   onOpenChange,
   onUpdate,
   open,
-  promotion
+  promotion,
+  query
 }: {
   isPending: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: (requestBody: DashboardUpdatePromotionRequest) => void;
   open: boolean;
   promotion: DashboardCampaignPromotion | undefined;
+  query: DashboardQuery;
 }) {
   const [form, setForm] = useState<PromotionCreateFormState>(createEmptyPromotionFormState());
+  const offerCatalog = usePromotionOfferCatalog(query, open && form.channel === "email");
 
   useEffect(() => {
     if (open && promotion) {
@@ -58,6 +64,9 @@ export function PromotionEditDialog({
     Boolean(promotion && form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
     promotionOfferLinksAreValid(form) &&
+    (form.channel !== "email" ||
+      (offerCatalog.isSuccess &&
+        promotionOfferLinksMatchCatalog(form, offerCatalog.data.offers))) &&
     !isPending;
 
   return (
@@ -70,7 +79,17 @@ export function PromotionEditDialog({
       width="promotion"
     >
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
-        <PromotionFormFields form={form} idPrefix="promotion-edit" onChange={setForm} />
+        <PromotionFormFields
+          form={form}
+          idPrefix="promotion-edit"
+          offerCatalogErrorMessage={
+            offerCatalog.error instanceof Error ? offerCatalog.error.message : null
+          }
+          offerCatalogLoading={offerCatalog.isLoading}
+          offers={offerCatalog.data?.offers ?? []}
+          onChange={setForm}
+          onRetryOfferCatalog={() => void offerCatalog.refetch()}
+        />
         <DialogFooter className="border-t pt-5">
           <Button
             disabled={!canSubmit}
@@ -89,14 +108,17 @@ export function PromotionAddDialog({
   createIsPending,
   onCreate,
   onOpenChange,
-  open
+  open,
+  query
 }: {
   createIsPending: boolean;
   onCreate: (form: PromotionCreateFormState) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
+  query: DashboardQuery;
 }) {
   const [form, setForm] = useState<PromotionCreateFormState>(createEmptyPromotionFormState());
+  const offerCatalog = usePromotionOfferCatalog(query, open && form.channel === "email");
 
   useEffect(() => {
     if (open) {
@@ -108,6 +130,9 @@ export function PromotionAddDialog({
     Boolean(form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
     promotionOfferLinksAreValid(form) &&
+    (form.channel !== "email" ||
+      (offerCatalog.isSuccess &&
+        promotionOfferLinksMatchCatalog(form, offerCatalog.data.offers))) &&
     !createIsPending;
   const isDirty = JSON.stringify(form) !== JSON.stringify(createEmptyPromotionFormState());
 
@@ -138,7 +163,17 @@ export function PromotionAddDialog({
       width="promotion"
     >
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
-        <PromotionFormFields form={form} idPrefix="promotion-create" onChange={setForm} />
+        <PromotionFormFields
+          form={form}
+          idPrefix="promotion-create"
+          offerCatalogErrorMessage={
+            offerCatalog.error instanceof Error ? offerCatalog.error.message : null
+          }
+          offerCatalogLoading={offerCatalog.isLoading}
+          offers={offerCatalog.data?.offers ?? []}
+          onChange={setForm}
+          onRetryOfferCatalog={() => void offerCatalog.refetch()}
+        />
       </div>
     </DashboardFormDialog>
   );
@@ -147,11 +182,19 @@ export function PromotionAddDialog({
 function PromotionFormFields({
   form,
   idPrefix,
-  onChange
+  offerCatalogErrorMessage,
+  offerCatalogLoading,
+  offers,
+  onChange,
+  onRetryOfferCatalog
 }: {
   form: PromotionCreateFormState;
   idPrefix: string;
+  offerCatalogErrorMessage: string | null;
+  offerCatalogLoading: boolean;
+  offers: DashboardPromotionOffer[];
   onChange: (form: PromotionCreateFormState) => void;
+  onRetryOfferCatalog: () => void;
 }) {
   return (
     <div className="grid gap-4">
@@ -295,85 +338,15 @@ function PromotionFormFields({
         </p>
       </Field>
       {form.channel === "email" ? (
-        <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="grid gap-1">
-              <p className="text-sm font-medium">숙소 상세 링크 (필수)</p>
-              <p className="text-xs text-muted-foreground">
-                광고를 클릭하면 입력한 숙소 상세 페이지로 이동해요.
-              </p>
-            </div>
-            <Button
-              disabled={form.offerLinks.length >= 8}
-              onClick={() =>
-                onChange({
-                  ...form,
-                  offerLinks: [...form.offerLinks, { destinationUrl: "" }]
-                })
-              }
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <Plus data-icon="inline-start" />
-              링크 추가
-            </Button>
-          </div>
-          {form.offerLinks.length > 0 ? (
-            <div className="grid gap-3">
-              {form.offerLinks.map((link, index) => (
-                <div
-                  className="grid items-end gap-2 rounded-lg border bg-background p-3 md:grid-cols-[minmax(0,1fr)_auto]"
-                  key={`${idPrefix}-offer-link-${index}`}
-                >
-                  <Field>
-                    <FieldLabel htmlFor={`${idPrefix}-offer-url-${index}`}>
-                      숙소 상세 URL
-                    </FieldLabel>
-                    <Input
-                      autoComplete="url"
-                      id={`${idPrefix}-offer-url-${index}`}
-                      onChange={(event) =>
-                        onChange({
-                          ...form,
-                          offerLinks: form.offerLinks.map((current, currentIndex) =>
-                            currentIndex === index
-                              ? { ...current, destinationUrl: event.target.value }
-                              : current
-                          )
-                        })
-                      }
-                      placeholder="https://demo-shoppingmall.dev.loop-ad.org/hotel/..."
-                      required
-                      type="url"
-                      value={link.destinationUrl}
-                    />
-                  </Field>
-                  <Button
-                    aria-label={`${index + 1}번째 숙소 링크 삭제`}
-                    onClick={() =>
-                      onChange({
-                        ...form,
-                        offerLinks: form.offerLinks.filter(
-                          (_current, currentIndex) => currentIndex !== index
-                        )
-                      })
-                    }
-                    size="icon-sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs font-medium text-destructive">
-              이메일 광고를 만들려면 숙소 상세 링크를 1개 이상 추가해 주세요.
-            </p>
-          )}
-        </div>
+        <PromotionOfferSelector
+          errorMessage={offerCatalogErrorMessage}
+          form={form}
+          idPrefix={idPrefix}
+          loading={offerCatalogLoading}
+          offers={offers}
+          onChange={onChange}
+          onRetry={onRetryOfferCatalog}
+        />
       ) : null}
     </div>
   );

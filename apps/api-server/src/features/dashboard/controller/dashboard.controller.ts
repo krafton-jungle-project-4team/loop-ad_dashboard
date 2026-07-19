@@ -56,6 +56,7 @@ import {
   DashboardProjectExperimentListSchema,
   DashboardPromotionDetailSchema,
   DashboardPromotionAnalysisResultSchema,
+  DashboardPromotionOfferCatalogSchema,
   DashboardPromotionScopedSegmentDefinitionListSchema,
   DashboardPromotionScopedSegmentDefinitionSchema,
   DashboardPromotionSegmentSuggestionListSchema,
@@ -203,6 +204,14 @@ export class DashboardController {
     const request = DashboardCreatePromotionRequestSchema.parse(body);
     return DashboardPromotionSummarySchema.parse(
       await this.dashboardQuery.createPromotion(requiredProjectId, campaignId, request)
+    );
+  }
+
+  @Get("promotion-offers")
+  async promotionOffers(@Query("project_id") projectId?: string) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardPromotionOfferCatalogSchema.parse(
+      await this.dashboardQuery.promotionOffers(requiredProjectId)
     );
   }
 
