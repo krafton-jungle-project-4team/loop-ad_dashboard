@@ -300,7 +300,7 @@ function PromotionFormFields({
             <div className="grid gap-1">
               <p className="text-sm font-medium">숙소 상세 링크 (필수)</p>
               <p className="text-xs text-muted-foreground">
-                광고가 숙소 상세 링크에 적은 URL로 이동을 해줘요.
+                광고를 클릭하면 입력한 숙소 상세 페이지로 이동해요.
               </p>
             </div>
             <Button
