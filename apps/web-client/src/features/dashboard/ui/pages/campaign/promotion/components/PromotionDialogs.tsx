@@ -300,8 +300,7 @@ function PromotionFormFields({
             <div className="grid gap-1">
               <p className="text-sm font-medium">숙소 상세 링크 (필수)</p>
               <p className="text-xs text-muted-foreground">
-                숙소 ID는 광고에 사용할 숙소 데이터의 ID와 같아야 해요. 최대 8개까지 추가할 수
-                있어요.
+                광고에 연결할 숙소 URL을 최대 8개까지 추가할 수 있어요.
               </p>
             </div>
             <Button
@@ -309,7 +308,7 @@ function PromotionFormFields({
               onClick={() =>
                 onChange({
                   ...form,
-                  offerLinks: [...form.offerLinks, { destinationUrl: "", offerId: "" }]
+                  offerLinks: [...form.offerLinks, { destinationUrl: "" }]
                 })
               }
               size="sm"
@@ -324,29 +323,9 @@ function PromotionFormFields({
             <div className="grid gap-3">
               {form.offerLinks.map((link, index) => (
                 <div
-                  className="grid items-end gap-2 rounded-lg border bg-background p-3 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)_auto]"
+                  className="grid items-end gap-2 rounded-lg border bg-background p-3 md:grid-cols-[minmax(0,1fr)_auto]"
                   key={`${idPrefix}-offer-link-${index}`}
                 >
-                  <Field>
-                    <FieldLabel htmlFor={`${idPrefix}-offer-id-${index}`}>숙소 ID</FieldLabel>
-                    <Input
-                      autoComplete="off"
-                      id={`${idPrefix}-offer-id-${index}`}
-                      onChange={(event) =>
-                        onChange({
-                          ...form,
-                          offerLinks: form.offerLinks.map((current, currentIndex) =>
-                            currentIndex === index
-                              ? { ...current, offerId: event.target.value }
-                              : current
-                          )
-                        })
-                      }
-                      placeholder="jeju-ocean-breeze-006"
-                      required
-                      value={link.offerId}
-                    />
-                  </Field>
                   <Field>
                     <FieldLabel htmlFor={`${idPrefix}-offer-url-${index}`}>
                       숙소 상세 URL

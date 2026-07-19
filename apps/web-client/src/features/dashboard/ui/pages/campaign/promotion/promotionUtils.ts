@@ -70,7 +70,6 @@ export type PromotionCreateFormState = {
   minSampleSize: string;
   offerLinks: Array<{
     destinationUrl: string;
-    offerId: string;
   }>;
 };
 
@@ -85,7 +84,7 @@ export function createEmptyPromotionFormState(): PromotionCreateFormState {
     maxLoopCount: "3",
     messageBrief: "",
     minSampleSize: "1000",
-    offerLinks: [{ destinationUrl: "", offerId: "" }]
+    offerLinks: [{ destinationUrl: "" }]
   };
 }
 
@@ -103,8 +102,7 @@ export function promotionToFormState(
     messageBrief: promotion.message_brief ?? "",
     minSampleSize: String(promotion.min_sample_size),
     offerLinks: (promotion.offer_links ?? []).map((link) => ({
-      destinationUrl: link.destination_url,
-      offerId: link.offer_id
+      destinationUrl: link.destination_url
     }))
   };
 }
@@ -137,10 +135,14 @@ function promotionFormRequestFields(form: PromotionCreateFormState) {
     min_sample_size: Math.trunc(nonnegativeNumber(form.minSampleSize)),
     offer_links:
       form.channel === "email"
-        ? form.offerLinks.map((link) => ({
-            destination_url: link.destinationUrl.trim(),
-            offer_id: link.offerId.trim()
-          }))
+        ? form.offerLinks.map((link) => {
+            const destinationUrl = link.destinationUrl.trim();
+            const offerId = promotionOfferIdFromUrl(destinationUrl);
+            return {
+              destination_url: destinationUrl,
+              ...(offerId ? { offer_id: offerId } : {})
+            };
+          })
         : []
   };
 }
@@ -153,15 +155,31 @@ export function promotionOfferLinksAreValid(form: PromotionCreateFormState) {
     return false;
   }
 
-  const offerIds = form.offerLinks.map((link) => link.offerId.trim());
+  const destinationUrls = form.offerLinks.map((link) => link.destinationUrl.trim());
   return (
-    new Set(offerIds).size === offerIds.length &&
-    form.offerLinks.every(
-      (link) =>
-        /^[a-z0-9][a-z0-9._-]{0,99}$/.test(link.offerId.trim()) &&
-        isValidHttpUrl(link.destinationUrl)
-    )
+    new Set(destinationUrls).size === destinationUrls.length &&
+    destinationUrls.every(isValidHttpUrl)
   );
+}
+
+export function promotionOfferIdFromUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+    const match = /\/hotel\/([^/]+)\/?$/.exec(url.pathname);
+    if (!match) {
+      return undefined;
+    }
+
+    const encodedOfferId = match[1];
+    if (!encodedOfferId) {
+      return undefined;
+    }
+
+    const offerId = decodeURIComponent(encodedOfferId);
+    return /^[a-z0-9][a-z0-9._-]{0,99}$/.test(offerId) ? offerId : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function isValidHttpUrl(value: string) {

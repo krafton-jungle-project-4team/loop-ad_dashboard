@@ -14,6 +14,8 @@ import {
   createEmptyPromotionFormState,
   nextExperimentLoopCount,
   normalizeSegmentDisplayCopy,
+  promotionCreateFormToRequest,
+  promotionOfferIdFromUrl,
   promotionOfferLinksAreValid,
   promotionFormToUpdateRequest,
   promotionToFormState
@@ -87,7 +89,7 @@ test("promotion form preserves offer links for Decision generation metadata", ()
 test("new email promotions require at least one complete offer link", () => {
   const form = createEmptyPromotionFormState();
 
-  assert.deepEqual(form.offerLinks, [{ destinationUrl: "", offerId: "" }]);
+  assert.deepEqual(form.offerLinks, [{ destinationUrl: "" }]);
   assert.equal(promotionOfferLinksAreValid(form), false);
   assert.equal(promotionOfferLinksAreValid({ ...form, offerLinks: [] }), false);
   assert.equal(
@@ -95,14 +97,32 @@ test("new email promotions require at least one complete offer link", () => {
       ...form,
       offerLinks: [
         {
-          destinationUrl: "https://demo-shoppingmall.dev.loop-ad.org/hotel/jeju-ocean-breeze-006",
-          offerId: "jeju-ocean-breeze-006"
+          destinationUrl: "https://demo-shoppingmall.dev.loop-ad.org/hotel/jeju-ocean-breeze-006"
         }
       ]
     }),
     true
   );
   assert.equal(promotionOfferLinksAreValid({ ...form, channel: "sms", offerLinks: [] }), true);
+});
+
+test("promotion form derives a known offer id but accepts other HTTP URLs", () => {
+  const knownUrl =
+    "https://demo-shoppingmall.dev.loop-ad.org/hotel/jeju-ocean-breeze-006?source=email";
+  const arbitraryUrl = "https://partner.example.com/summer-special";
+  const form = {
+    ...createEmptyPromotionFormState(),
+    marketingTheme: "여름 프로모션",
+    offerLinks: [{ destinationUrl: knownUrl }, { destinationUrl: arbitraryUrl }]
+  };
+
+  assert.equal(promotionOfferLinksAreValid(form), true);
+  assert.equal(promotionOfferIdFromUrl(knownUrl), "jeju-ocean-breeze-006");
+  assert.equal(promotionOfferIdFromUrl(arbitraryUrl), undefined);
+  assert.deepEqual(promotionCreateFormToRequest(form).offer_links, [
+    { destination_url: knownUrl, offer_id: "jeju-ocean-breeze-006" },
+    { destination_url: arbitraryUrl }
+  ]);
 });
 
 test("promotion offer link contract remains optional and rejects invalid entries", () => {
@@ -126,9 +146,16 @@ test("promotion offer link contract remains optional and rejects invalid entries
   assert.equal(
     DashboardCreatePromotionRequestSchema.safeParse({
       ...legacyRequest,
+      offer_links: [{ destination_url: "https://example.com/summer-special" }]
+    }).success,
+    true
+  );
+  assert.equal(
+    DashboardCreatePromotionRequestSchema.safeParse({
+      ...legacyRequest,
       offer_links: [
-        { offer_id: "hotel-1", destination_url: "https://example.com/hotel/1" },
-        { offer_id: "hotel-1", destination_url: "https://example.com/hotel/2" }
+        { destination_url: "https://example.com/hotel/1" },
+        { destination_url: "https://example.com/hotel/1" }
       ]
     }).success,
     false
