@@ -280,7 +280,7 @@ function PromotionFormFields({
         </Field>
       </div>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-landing-url`}>연결 페이지 주소</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-landing-url`}>프로모션 페이지 주소</FieldLabel>
         <Input
           autoComplete="url"
           id={`${idPrefix}-landing-url`}
@@ -300,7 +300,7 @@ function PromotionFormFields({
             <div className="grid gap-1">
               <p className="text-sm font-medium">숙소 상세 링크 (필수)</p>
               <p className="text-xs text-muted-foreground">
-                광고에 연결할 숙소 URL을 최대 8개까지 추가할 수 있어요.
+                광고가 숙소 상세 링크에 적은 URL로 이동을 해줘요.
               </p>
             </div>
             <Button
