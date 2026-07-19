@@ -37,12 +37,12 @@ export function fetchDashboardPromotionOffers(
   query: DashboardQuery,
   signal: AbortSignal
 ): Promise<DashboardPromotionOfferCatalog> {
-  return fetchDashboardResource(
-    "/dashboard/v1/promotion-offers",
-    DashboardPromotionOfferCatalogSchema,
-    query,
+  return apiRequest("/dashboard/v1/promotion-offers", DashboardPromotionOfferCatalogSchema, {
+    errorMessage: readDashboardApiErrorMessage,
+    method: "GET",
+    searchParams: projectSearchParams(query.projectId),
     signal
-  );
+  });
 }
 
 export function fetchDashboardPromotionDetail(

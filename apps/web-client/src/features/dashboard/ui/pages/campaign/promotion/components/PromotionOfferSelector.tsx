@@ -32,7 +32,7 @@ const promotionOfferSelectionLimit = 8;
 const promotionOfferCatalogStaleTimeMs = 60_000;
 
 export function PromotionOfferSelector({
-  error,
+  errorMessage,
   form,
   idPrefix,
   loading,
@@ -40,7 +40,7 @@ export function PromotionOfferSelector({
   onChange,
   onRetry
 }: {
-  error: boolean;
+  errorMessage: string | null;
   form: PromotionCreateFormState;
   idPrefix: string;
   loading: boolean;
@@ -80,11 +80,11 @@ export function PromotionOfferSelector({
         </p>
       </div>
       {loading ? <PromotionOfferListSkeleton /> : null}
-      {error ? (
+      {errorMessage ? (
         <Alert variant="destructive">
           <AlertTitle>숙소 목록을 불러오지 못했어요</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-3">
-            잠시 후 다시 시도해 주세요.
+            {errorMessage}
             <Button onClick={onRetry} size="sm" type="button" variant="outline">
               <RefreshCw data-icon="inline-start" />
               다시 불러오기
@@ -92,7 +92,7 @@ export function PromotionOfferSelector({
           </AlertDescription>
         </Alert>
       ) : null}
-      {!loading && !error && offers.length === 0 ? (
+      {!loading && !errorMessage && offers.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -103,7 +103,7 @@ export function PromotionOfferSelector({
           </EmptyHeader>
         </Empty>
       ) : null}
-      {!loading && !error && offers.length > 0 ? (
+      {!loading && !errorMessage && offers.length > 0 ? (
         <ScrollArea className="h-80 rounded-xl border">
           <div className="grid gap-3 p-3 md:grid-cols-2">
             {offers.map((offer) => {
@@ -162,7 +162,7 @@ export function PromotionOfferSelector({
           </div>
         </ScrollArea>
       ) : null}
-      {unavailableOfferLinks.length > 0 && !loading && !error ? (
+      {unavailableOfferLinks.length > 0 && !loading && !errorMessage ? (
         <Alert variant="destructive">
           <AlertTitle>현재 목록에서 찾을 수 없는 숙소가 있어요</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-3">
@@ -185,7 +185,7 @@ export function PromotionOfferSelector({
           </AlertDescription>
         </Alert>
       ) : null}
-      {!loading && !error && form.offerLinks.length === 0 ? (
+      {!loading && !errorMessage && form.offerLinks.length === 0 ? (
         <p className="text-xs font-medium text-destructive">
           이메일 광고를 만들려면 숙소를 1개 이상 선택해 주세요.
         </p>

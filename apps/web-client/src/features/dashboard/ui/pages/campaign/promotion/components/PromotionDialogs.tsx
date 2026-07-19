@@ -82,7 +82,9 @@ export function PromotionEditDialog({
         <PromotionFormFields
           form={form}
           idPrefix="promotion-edit"
-          offerCatalogError={offerCatalog.isError}
+          offerCatalogErrorMessage={
+            offerCatalog.error instanceof Error ? offerCatalog.error.message : null
+          }
           offerCatalogLoading={offerCatalog.isLoading}
           offers={offerCatalog.data?.offers ?? []}
           onChange={setForm}
@@ -164,7 +166,9 @@ export function PromotionAddDialog({
         <PromotionFormFields
           form={form}
           idPrefix="promotion-create"
-          offerCatalogError={offerCatalog.isError}
+          offerCatalogErrorMessage={
+            offerCatalog.error instanceof Error ? offerCatalog.error.message : null
+          }
           offerCatalogLoading={offerCatalog.isLoading}
           offers={offerCatalog.data?.offers ?? []}
           onChange={setForm}
@@ -178,7 +182,7 @@ export function PromotionAddDialog({
 function PromotionFormFields({
   form,
   idPrefix,
-  offerCatalogError,
+  offerCatalogErrorMessage,
   offerCatalogLoading,
   offers,
   onChange,
@@ -186,7 +190,7 @@ function PromotionFormFields({
 }: {
   form: PromotionCreateFormState;
   idPrefix: string;
-  offerCatalogError: boolean;
+  offerCatalogErrorMessage: string | null;
   offerCatalogLoading: boolean;
   offers: DashboardPromotionOffer[];
   onChange: (form: PromotionCreateFormState) => void;
@@ -335,7 +339,7 @@ function PromotionFormFields({
       </Field>
       {form.channel === "email" ? (
         <PromotionOfferSelector
-          error={offerCatalogError}
+          errorMessage={offerCatalogErrorMessage}
           form={form}
           idPrefix={idPrefix}
           loading={offerCatalogLoading}
