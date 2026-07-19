@@ -85,7 +85,7 @@ export function createEmptyPromotionFormState(): PromotionCreateFormState {
     maxLoopCount: "3",
     messageBrief: "",
     minSampleSize: "1000",
-    offerLinks: []
+    offerLinks: [{ destinationUrl: "", offerId: "" }]
   };
 }
 
@@ -149,7 +149,7 @@ export function promotionOfferLinksAreValid(form: PromotionCreateFormState) {
   if (form.channel !== "email") {
     return true;
   }
-  if (form.offerLinks.length > 8) {
+  if (form.offerLinks.length === 0 || form.offerLinks.length > 8) {
     return false;
   }
 

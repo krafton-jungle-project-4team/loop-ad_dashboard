@@ -298,9 +298,10 @@ function PromotionFormFields({
         <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="grid gap-1">
-              <p className="text-sm font-medium">숙소 상세 링크</p>
+              <p className="text-sm font-medium">숙소 상세 링크 (필수)</p>
               <p className="text-xs text-muted-foreground">
-                카드형 이메일에서 숙소별 버튼이 이동할 주소예요. 최대 8개까지 추가할 수 있어요.
+                숙소 ID는 광고에 사용할 숙소 데이터의 ID와 같아야 해요. 최대 8개까지 추가할 수
+                있어요.
               </p>
             </div>
             <Button
@@ -342,6 +343,7 @@ function PromotionFormFields({
                         })
                       }
                       placeholder="jeju-ocean-breeze-006"
+                      required
                       value={link.offerId}
                     />
                   </Field>
@@ -363,6 +365,7 @@ function PromotionFormFields({
                         })
                       }
                       placeholder="https://demo-shoppingmall.dev.loop-ad.org/hotel/..."
+                      required
                       type="url"
                       value={link.destinationUrl}
                     />
@@ -386,7 +389,11 @@ function PromotionFormFields({
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : (
+            <p className="text-xs font-medium text-destructive">
+              이메일 광고를 만들려면 숙소 상세 링크를 1개 이상 추가해 주세요.
+            </p>
+          )}
         </div>
       ) : null}
     </div>

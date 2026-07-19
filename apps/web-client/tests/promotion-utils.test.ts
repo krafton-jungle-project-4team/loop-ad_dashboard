@@ -11,6 +11,7 @@ import {
   contentCandidateHtmlArtifact,
   contentCandidateIsReadyForSelection,
   contentCandidateTitle,
+  createEmptyPromotionFormState,
   nextExperimentLoopCount,
   normalizeSegmentDisplayCopy,
   promotionOfferLinksAreValid,
@@ -81,6 +82,27 @@ test("promotion form preserves offer links for Decision generation metadata", ()
 
   assert.equal(promotionOfferLinksAreValid(form), true);
   assert.deepEqual(request.offer_links, promotion.offer_links);
+});
+
+test("new email promotions require at least one complete offer link", () => {
+  const form = createEmptyPromotionFormState();
+
+  assert.deepEqual(form.offerLinks, [{ destinationUrl: "", offerId: "" }]);
+  assert.equal(promotionOfferLinksAreValid(form), false);
+  assert.equal(promotionOfferLinksAreValid({ ...form, offerLinks: [] }), false);
+  assert.equal(
+    promotionOfferLinksAreValid({
+      ...form,
+      offerLinks: [
+        {
+          destinationUrl: "https://demo-shoppingmall.dev.loop-ad.org/hotel/jeju-ocean-breeze-006",
+          offerId: "jeju-ocean-breeze-006"
+        }
+      ]
+    }),
+    true
+  );
+  assert.equal(promotionOfferLinksAreValid({ ...form, channel: "sms", offerLinks: [] }), true);
 });
 
 test("promotion offer link contract remains optional and rejects invalid entries", () => {
