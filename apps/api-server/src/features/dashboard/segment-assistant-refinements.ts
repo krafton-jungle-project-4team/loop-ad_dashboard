@@ -267,6 +267,16 @@ export function isSourceBaseConditionEditRequest(
   return baseConditions.some((condition) => mentionedEvents.has(condition.event_name));
 }
 
+export function removeRequestedSourceRefinements(
+  conditions: SegmentAssistantAudienceCondition[],
+  message: string
+) {
+  const removedEvents = sourceConditionRemovalEvents(message);
+  if (removedEvents.size === 0) return null;
+  const retained = conditions.filter((condition) => !removedEvents.has(condition.event_name));
+  return retained.length < conditions.length ? retained : null;
+}
+
 export function applySourceBaseConditionEdit(
   currentConditions: SegmentAssistantAudienceCondition[],
   plannedConditions: SegmentAssistantAudienceCondition[],

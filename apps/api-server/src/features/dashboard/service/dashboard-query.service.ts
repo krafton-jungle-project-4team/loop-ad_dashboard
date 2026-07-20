@@ -109,6 +109,7 @@ import {
   applySourceBaseConditionEdit,
   buildSourceEditableConditions,
   isSourceBaseConditionEditRequest,
+  removeRequestedSourceRefinements,
   removeUnchangedSourceConditions,
   selectSourceRefinementCandidates,
   sourceBaseConditionLabels,
@@ -498,6 +499,7 @@ export class DashboardQueryService {
 
     const rule = jsonObject(suggestion.rule_json);
     const audienceSpec = jsonObject(rule?.segment_audience_spec);
+    const audienceParameters = jsonObject(audienceSpec?.parameters);
     const candidateType = nonEmptyString(rule?.candidate_type);
     const legacyBaseUserIds = canonicalSourceUserIds(rule?.candidate_user_ids);
     const hardPredicateKeys = canonicalStringArray(audienceSpec?.hard_predicate_keys);
@@ -528,6 +530,7 @@ export class DashboardQueryService {
         suggestion.display_copy?.strategy_role ?? suggestion.display_copy?.rank_role ?? null,
       base_condition_labels: sourceBaseConditionLabels(hardPredicateKeys),
       hard_predicate_keys: hardPredicateKeys,
+      destination_ids: canonicalStringArray(audienceParameters?.destination_ids),
       reference_labels: referenceLabels,
       base_conditions: buildSourceEditableConditions(hardPredicateKeys, referenceLabels),
       base_user_ids: baseUserIds
@@ -1758,6 +1761,10 @@ export class DashboardQueryService {
           ? previousPlan
           : sourceBasePlan(source, sourceConditionsWithPreviousRefinements)
         : previousPlan;
+    const retainedSourceRefinements =
+      source && previousPlan && !previousPlanEditsSource && !editingSourceBase
+        ? removeRequestedSourceRefinements(previousPlan.conditions, request.message)
+        : null;
 
     let plan: SegmentAssistantPlan;
     if (request.refinement_key) {
@@ -1780,6 +1787,15 @@ export class DashboardQueryService {
         conditions: upsertRefinementCondition(previousPlan?.conditions ?? [], definition.condition),
         clarification_message: null
       };
+    } else if (source && previousPlan && retainedSourceRefinements) {
+      plan = {
+        ...previousPlan,
+        action: "segment_preview",
+        segment_name:
+          retainedSourceRefinements.length === 0 ? source.title : previousPlan.segment_name,
+        conditions: retainedSourceRefinements,
+        clarification_message: null
+      };
     } else {
       if (!this.segmentAssistantAgent) {
         throw new Error("Dashboard segment assistant agent is not configured.");
@@ -1792,6 +1808,7 @@ export class DashboardQueryService {
         sourceAudience: source
       });
       if (source && plan.action !== "clarification") {
+        plan = bindImplicitSourceDestination(plan, request.message, source);
         plan = editingSourceBase
           ? sourceBaseEditPlan(plan, editableCurrentPlan?.conditions ?? [], source, request.message)
           : {
@@ -1858,10 +1875,7 @@ export class DashboardQueryService {
       ),
       segment_name: segmentName,
       lookback_days: plan.lookback_days,
-      condition_labels:
-        plan.conditions.length > 0
-          ? plan.conditions.map((condition) => condition.label)
-          : (sourceMembership?.reference_labels ?? []),
+      condition_labels: effectiveSegmentConditionLabels(plan, sourceMembership),
       minimum_sample_size: MIN_SEGMENT_USER_COUNT,
       condition_diagnostics: diagnostics.conditionDiagnostics,
       suggested_adjustments: diagnostics.suggestedAdjustments,
@@ -1952,6 +1966,57 @@ function segmentAssistantNaturalLanguageQuery(request: DashboardSegmentAssistant
 type ResolvedSegmentAssistantSource = SegmentAssistantSourceAudience & {
   strategy_role: string | null;
 };
+
+function effectiveSegmentConditionLabels(
+  plan: SegmentAssistantPlan,
+  source: ResolvedSegmentAssistantSource | undefined
+) {
+  if (!source) {
+    return uniqueConditionLabels(plan.conditions.map((condition) => condition.label));
+  }
+  const baseConditions = source.base_conditions ?? [];
+  const effectiveConditions = applySourceBaseConditionEdit(baseConditions, plan.conditions, "");
+  const labels =
+    effectiveConditions.length > 0
+      ? effectiveConditions.map((condition) => condition.label)
+      : source.reference_labels;
+  return uniqueConditionLabels(labels);
+}
+
+function uniqueConditionLabels(labels: string[]) {
+  return [...new Set(labels.map((label) => label.trim()).filter(Boolean))];
+}
+
+function bindImplicitSourceDestination(
+  plan: SegmentAssistantPlan,
+  message: string,
+  source: ResolvedSegmentAssistantSource
+): SegmentAssistantPlan {
+  const destinationIds = source.destination_ids ?? [];
+  if (
+    destinationIds.length === 0 ||
+    !/(?:목적지|여행지)/.test(message) ||
+    hasExplicitDestinationReference(message)
+  ) {
+    return plan;
+  }
+  const destination = destinationIds.join(", ");
+  return {
+    ...plan,
+    conditions: plan.conditions.map((condition) =>
+      condition.destination === null &&
+      (condition.event_name === "hotel_search" || /(?:목적지|여행지)/.test(condition.label))
+        ? { ...condition, destination }
+        : condition
+    )
+  };
+}
+
+function hasExplicitDestinationReference(message: string) {
+  const match = message.match(/([가-힣A-Za-z][가-힣A-Za-z0-9·-]{1,39})\s*(?:목적지|여행지)/);
+  if (!match?.[1]) return false;
+  return !/^(?:기존|추천|프로모션|해당|현재|그|이|새|다른)$/.test(match[1]);
+}
 
 function sourceBasePlan(
   source: ResolvedSegmentAssistantSource,

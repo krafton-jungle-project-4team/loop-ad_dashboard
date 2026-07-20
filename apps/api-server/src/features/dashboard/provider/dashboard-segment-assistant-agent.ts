@@ -80,7 +80,8 @@ export class DashboardSegmentAssistantAgent {
       const fallback = fallbackSegmentAssistantPlan(
         input.message,
         input.conversation,
-        input.currentPlan
+        input.currentPlan,
+        input.sourceAudience
       );
       log.warn("segment_assistant_planning_fallback_used", {
         action: fallback.action,
@@ -211,7 +212,8 @@ function parseOpenAiPlan(payload: unknown): SegmentAssistantPlan {
 export function fallbackSegmentAssistantPlan(
   message: string,
   conversation: SegmentAssistantConversationMessage[] = [],
-  currentPlan?: SegmentAssistantPlan
+  currentPlan?: SegmentAssistantPlan,
+  sourceAudience?: SegmentAssistantSourceAudience
 ): SegmentAssistantPlan {
   const latestMessage = message.replace(/\s+/g, " ").trim();
   const priorUserMessages = conversation
@@ -223,7 +225,8 @@ export function fallbackSegmentAssistantPlan(
     ? [...priorUserMessages, latestMessage].join(" ")
     : latestMessage;
   const lookbackDays = inferLookbackDays(text);
-  const destination = inferDestination(text);
+  const destination =
+    inferDestination(text) ?? inferImplicitSourceDestination(text, sourceAudience?.destination_ids);
   const propertyFilters = inferPropertyFilters(text);
   let conditions: SegmentAssistantAudienceCondition[] = [];
   const repeated = /반복|여러\s*번|두\s*번|2\s*(회|번)/.test(text);
@@ -371,6 +374,12 @@ function segmentAssistantInstructions(input: SegmentAssistantPlanInput) {
       `The authoritative base audience is the AI recommendation '${input.sourceAudience.title}' (${input.sourceAudience.base_user_ids.length} users).`,
       `Its base predicates are ${JSON.stringify(input.sourceAudience.base_condition_labels)} and its descriptive reference signals are ${JSON.stringify(input.sourceAudience.reference_labels)}.`
     );
+    if (input.sourceAudience.destination_ids?.length) {
+      instructions.push(
+        `Its authoritative promotion destination ids are ${JSON.stringify(input.sourceAudience.destination_ids)}.`,
+        `When the user requests a destination search or destination behavior without naming a different destination, set destination to ${JSON.stringify(input.sourceAudience.destination_ids.join(", "))}.`
+      );
+    }
     if (input.editingSourceBase) {
       instructions.push(
         `The user is editing the recommendation's base conditions. The complete editable base is ${JSON.stringify(input.sourceAudience.base_conditions ?? [])}.`,
@@ -425,9 +434,20 @@ function inferDestination(text: string): string | null {
   if (known.length > 0) {
     return known.join(", ");
   }
-  const match = text.match(/(?:최근\s+)?([가-힣A-Za-z][가-힣A-Za-z0-9·-]{1,19})\s+(?:숙소|호텔)/);
+  const match =
+    text.match(/([가-힣A-Za-z][가-힣A-Za-z0-9·-]{1,19})\s*(?:목적지|여행지)/) ??
+    text.match(/(?:최근\s+)?([가-힣A-Za-z][가-힣A-Za-z0-9·-]{1,19})\s+(?:숙소|호텔)/);
   const inferred = match?.[1] ?? null;
-  return inferred && !/^(기존|조건에서|추천|해당|현재|그|이)$/.test(inferred) ? inferred : null;
+  return inferred && !/^(기존|조건에서|추천|프로모션|해당|현재|그|이|새|다른)$/.test(inferred)
+    ? inferred
+    : null;
+}
+
+function inferImplicitSourceDestination(text: string, destinationIds?: string[]) {
+  if (!destinationIds?.length || !/(?:목적지|여행지)/.test(text)) {
+    return null;
+  }
+  return destinationIds.join(", ");
 }
 
 function inferCheckinMonths(text: string) {
