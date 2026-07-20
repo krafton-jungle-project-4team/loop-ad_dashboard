@@ -1,8 +1,10 @@
-import type {
-  DashboardProjectExperiment,
-  DashboardProjectExperimentLatestEvaluation,
-  DashboardProjectExperimentList,
-  DashboardProjectExperimentNextLoop
+import {
+  DashboardExperimentEvaluationDiagnosisSchema,
+  type DashboardExperimentEvaluationDiagnosis,
+  type DashboardProjectExperiment,
+  type DashboardProjectExperimentLatestEvaluation,
+  type DashboardProjectExperimentList,
+  type DashboardProjectExperimentNextLoop
 } from "@loopad/shared";
 import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Injectable } from "@nestjs/common";
@@ -11,7 +13,7 @@ import {
   listDashboardProjectExperiments,
   type IListDashboardProjectExperimentsResult
 } from "../database/__generated__/project-experiments.queries.js";
-import { countValue } from "./dashboard-campaign-mappers.js";
+import { countValue, jsonObject } from "./dashboard-campaign-mappers.js";
 
 @Injectable()
 export class DashboardProjectExperimentsReader {
@@ -68,20 +70,29 @@ function toLatestEvaluation(
   if (!row.evaluationCreatedAt) {
     return null;
   }
+  const resultJson = jsonObject(row.evaluationResultJson);
 
   return {
     actual_value: numberValue(row.evaluationActualValue),
     basis: requiredText(row.evaluationBasis, "evaluationBasis"),
     created_at: row.evaluationCreatedAt.toISOString(),
     denominator_count: countValue(row.evaluationDenominatorCount),
+    diagnosis: toEvaluationDiagnosis(resultJson.diagnosis),
+    evaluation_cutoff_at: optionalText(resultJson.evaluation_cutoff_at),
     feedback: row.evaluationFeedback,
     metric: requiredText(row.evaluationMetric, "evaluationMetric"),
     next_loop_required: row.evaluationNextLoopRequired ?? false,
     numerator_count: countValue(row.evaluationNumeratorCount),
     sample_size: countValue(row.evaluationSampleSize),
     status: requiredText(row.evaluationStatus, "evaluationStatus"),
-    target_value: numberValue(row.evaluationTargetValue)
+    target_value: numberValue(row.evaluationTargetValue),
+    window_start: optionalText(resultJson.window_start)
   };
+}
+
+function toEvaluationDiagnosis(value: unknown): DashboardExperimentEvaluationDiagnosis | null {
+  const parsed = DashboardExperimentEvaluationDiagnosisSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 function toNextLoop(
@@ -108,4 +119,8 @@ function requiredText(value: string | null, fieldName: string): string {
     throw new Error(`Dashboard experiment query returned empty '${fieldName}'.`);
   }
   return value;
+}
+
+function optionalText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
 }

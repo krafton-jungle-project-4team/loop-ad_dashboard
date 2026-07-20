@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   DASHBOARD_FALLBACK_SEGMENT_ID,
@@ -18,6 +19,14 @@ import {
   repeatCreativeTargetForExperiment,
   userVisibleProjectExperiments
 } from "../src/features/dashboard/ui/pages/campaign/promotion/experiment/projectExperimentUtils.js";
+
+const workspaceSource = readFileSync(
+  new URL(
+    "../src/features/dashboard/ui/pages/campaign/promotion/experiment/components/ProjectExperimentWorkspace.tsx",
+    import.meta.url
+  ),
+  "utf8"
+);
 
 const experiments = [
   createExperiment({
@@ -261,6 +270,14 @@ test("fresh evaluation results take precedence over stale project-list evaluatio
   });
 });
 
+test("experiment detail renders structured funnel evidence and demo provenance", () => {
+  assert.match(workspaceSource, /평가 퍼널과 원인/);
+  assert.match(workspaceSource, /가장 큰 이탈 구간/);
+  assert.match(workspaceSource, /다음 실험에서 확인할 항목/);
+  assert.match(workspaceSource, /demo_fixture/);
+  assert.match(workspaceSource, /diagnosis\.funnel\.stages/);
+});
+
 function createExperiment(
   overrides: Partial<DashboardProjectExperiment>
 ): DashboardProjectExperiment {
@@ -305,6 +322,8 @@ function createEvaluation(
     basis: "all_segments",
     created_at: "2026-07-12T00:00:00.000Z",
     denominator_count: 100,
+    diagnosis: null,
+    evaluation_cutoff_at: null,
     feedback: null,
     metric: "booking_conversion_rate",
     next_loop_required: false,
@@ -312,6 +331,7 @@ function createEvaluation(
     sample_size: 100,
     status: "goal_met",
     target_value: 0.1,
+    window_start: null,
     ...overrides
   };
 }

@@ -33,6 +33,67 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
             evaluationMetric: "booking_conversion_rate",
             evaluationNextLoopRequired: true,
             evaluationNumeratorCount: 24,
+            evaluationResultJson: {
+              diagnosis: {
+                data_origin: { kind: "demo_fixture", label: "시연 데이터" },
+                evidence: ["광고 반응 고객 100명 중 예약 완료 24명"],
+                evidence_strength: {
+                  level: "sufficient",
+                  reason: "단계별 이탈을 비교할 수 있는 관측 표본이 확보되었습니다.",
+                  sample_size: 100
+                },
+                funnel: {
+                  counting_method: "cumulative_user_reach_after_ad_response",
+                  largest_dropoff: {
+                    dropoff_count: 40,
+                    dropoff_rate: "0.500000",
+                    from_count: 80,
+                    from_stage_key: "hotel_detail_view",
+                    from_stage_label: "숙소 상세 조회",
+                    to_count: 40,
+                    to_stage_key: "booking_start",
+                    to_stage_label: "예약 시작"
+                  },
+                  stages: [
+                    {
+                      conversion_rate_from_previous: null,
+                      dropoff_count_from_previous: null,
+                      dropoff_rate_from_previous: null,
+                      key: "campaign_landing",
+                      label: "광고 랜딩 도달",
+                      user_count: 100
+                    },
+                    {
+                      conversion_rate_from_previous: "0.800000",
+                      dropoff_count_from_previous: 20,
+                      dropoff_rate_from_previous: "0.200000",
+                      key: "hotel_detail_view",
+                      label: "숙소 상세 조회",
+                      user_count: 80
+                    }
+                  ]
+                },
+                gap_percentage_points: "6.00",
+                improvement_directions: ["예약 시작 CTA를 점검"],
+                largest_dropoff: {
+                  dropoff_count: 40,
+                  dropoff_rate: "0.500000",
+                  from_count: 80,
+                  from_stage_key: "hotel_detail_view",
+                  from_stage_label: "숙소 상세 조회",
+                  to_count: 40,
+                  to_stage_key: "booking_start",
+                  to_stage_label: "예약 시작"
+                },
+                limitations: ["유효 이벤트의 고유 사용자만 집계했습니다."],
+                observed_bottleneck: "hotel_detail_view_to_booking_start",
+                status: "goal_not_met",
+                summary: "숙소 상세 조회 이후 예약 시작 전 이탈이 가장 큽니다.",
+                version: "dec.evaluation-diagnosis.v2"
+              },
+              evaluation_cutoff_at: "2026-07-11T01:00:00.000Z",
+              window_start: "2026-07-10T01:00:00.000Z"
+            },
             evaluationSampleSize: 100,
             evaluationStatus: "goal_not_met",
             evaluationTargetValue: 0.3,
@@ -73,6 +134,18 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
   assert.equal(response.experiments[0]?.assignment_count, 120);
   assert.equal(response.experiments[0]?.latest_evaluation?.actual_value, 0.24);
   assert.equal(response.experiments[0]?.latest_evaluation?.next_loop_required, true);
+  assert.equal(
+    response.experiments[0]?.latest_evaluation?.diagnosis?.largest_dropoff?.dropoff_rate,
+    0.5
+  );
+  assert.equal(
+    response.experiments[0]?.latest_evaluation?.diagnosis?.data_origin.kind,
+    "demo_fixture"
+  );
+  assert.equal(
+    response.experiments[0]?.latest_evaluation?.evaluation_cutoff_at,
+    "2026-07-11T01:00:00.000Z"
+  );
   assert.equal(response.experiments[0]?.execution_mode, "automatic");
   assert.equal(response.experiments[0]?.loop_interval_value, 6);
   assert.deepEqual(response.experiments[0]?.next_loop, {
