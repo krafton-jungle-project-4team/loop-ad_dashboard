@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   createDashboardNextLoop,
-  evaluateDashboardPromotionRun,
+  evaluateDashboardAdExperiment,
   fetchDashboardProjectExperiments
 } from "../../../../../api/dashboard-api.js";
 import { useDashboardQueryState } from "../../../../../model/dashboard-query.js";
@@ -11,10 +11,8 @@ import { dashboardProjectExperimentsQueryKey } from "../../../../../model/dashbo
 import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
 import { ProjectExperimentWorkspace } from "./components/ProjectExperimentWorkspace.js";
 import { toErrorMessage } from "./experimentUtils.js";
-import type {
-  RepeatCreativePreparationInput,
-  RunningEvaluationRefreshResult
-} from "./projectExperimentUtils.js";
+import type { DashboardProjectExperiment } from "@loopad/shared";
+import type { RepeatCreativePreparationInput } from "./projectExperimentUtils.js";
 
 export function ExperimentComponent({ query }: { query: DashboardQuery }) {
   const navigate = useNavigate();
@@ -24,8 +22,14 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     queryFn: ({ signal }) => fetchDashboardProjectExperiments(query.projectId, signal),
     queryKey: dashboardProjectExperimentsQueryKey(query.projectId)
   });
-  const refreshRunningEvaluationsMutation = useMutation({
-    mutationFn: (promotionRunIds: string[]) => refreshRunningEvaluations(promotionRunIds),
+  const refreshEvaluationMutation = useMutation({
+    mutationFn: (experiment: DashboardProjectExperiment) =>
+      evaluateDashboardAdExperiment(
+        query.projectId,
+        experiment.promotion_id,
+        experiment.segment_id,
+        experiment.ad_experiment_id
+      ),
     onSettled: invalidateExperimentData
   });
   const prepareRepeatCreativesMutation = useMutation({
@@ -78,26 +82,6 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     return result;
   }
 
-  async function refreshRunningEvaluations(
-    promotionRunIds: string[]
-  ): Promise<RunningEvaluationRefreshResult> {
-    const evaluations = await Promise.allSettled(
-      promotionRunIds.map((promotionRunId) => evaluateDashboardPromotionRun(query, promotionRunId))
-    );
-    const succeededEvaluations = evaluations.filter(
-      (evaluation) => evaluation.status === "fulfilled"
-    );
-    const failedEvaluations = evaluations.filter((evaluation) => evaluation.status === "rejected");
-    const firstFailedEvaluation = failedEvaluations[0];
-
-    return {
-      failedRunCount: failedEvaluations.length,
-      failureMessage: firstFailedEvaluation ? toErrorMessage(firstFailedEvaluation.reason) : null,
-      succeededRunCount: succeededEvaluations.length,
-      totalRunCount: promotionRunIds.length
-    };
-  }
-
   async function invalidateExperimentData() {
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   }
@@ -120,14 +104,15 @@ export function ExperimentComponent({ query }: { query: DashboardQuery }) {
     <div className="grid gap-6">
       <ExperimentPageHeader />
       <ProjectExperimentWorkspace
-        evaluationRefreshIsPending={refreshRunningEvaluationsMutation.isPending}
-        evaluationRefreshResult={refreshRunningEvaluationsMutation.data ?? null}
+        evaluationRefreshError={refreshEvaluationMutation.error}
+        evaluationRefreshIsError={refreshEvaluationMutation.isError}
+        evaluationRefreshIsPending={refreshEvaluationMutation.isPending}
+        evaluationRefreshResult={refreshEvaluationMutation.data ?? null}
+        evaluationRefreshTargetId={refreshEvaluationMutation.variables?.ad_experiment_id ?? null}
         experiments={experimentsQuery.data?.experiments ?? []}
         isLoading={experimentsQuery.isLoading}
         onPrepareRepeatCreatives={(input) => prepareRepeatCreativesMutation.mutate(input)}
-        onRefreshRunningEvaluations={(promotionRunIds) =>
-          refreshRunningEvaluationsMutation.mutate(promotionRunIds)
-        }
+        onRefreshEvaluation={(experiment) => refreshEvaluationMutation.mutate(experiment)}
         prepareRepeatCreativesError={prepareRepeatCreativesMutation.error}
         prepareRepeatCreativesIsError={prepareRepeatCreativesMutation.isError}
         prepareRepeatCreativesIsPending={prepareRepeatCreativesMutation.isPending}
