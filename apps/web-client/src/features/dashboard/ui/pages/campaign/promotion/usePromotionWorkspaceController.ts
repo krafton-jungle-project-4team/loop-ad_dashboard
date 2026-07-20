@@ -3,6 +3,7 @@ import type {
   DashboardCampaignDetail,
   DashboardMain,
   DashboardPromotionSegmentSuggestionList,
+  DashboardSegmentDetail,
   DashboardUnapproveContentCandidateResult
 } from "@loopad/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +58,7 @@ import {
 } from "./promotionUtils.js";
 import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
 import { promotionSegmentConfirmationRequest } from "./promotionSegmentConfirmationFlow.js";
+import { reconcileContentCandidateRevision } from "./promotionContentCandidateCache.js";
 
 const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
   promotion: ["overview"],
@@ -476,18 +478,23 @@ export function usePromotionWorkspaceController({
       reviseDashboardContentCandidateHtml(query, promotionId, segmentId, contentId, {
         feedback
       }),
-    onSuccess: async (candidate) => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await queryClient.invalidateQueries({
-        queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
-      });
-      await queryClient.invalidateQueries({
-        queryKey: dashboardSegmentDetailQueryKey(
-          query.projectId,
-          candidate.promotion_id,
-          candidate.segment_id
-        )
-      });
+    onSuccess: (candidate) => {
+      const campaignKey = dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId);
+      const segmentKey = dashboardSegmentDetailQueryKey(
+        query.projectId,
+        candidate.promotion_id,
+        candidate.segment_id
+      );
+      queryClient.setQueryData<DashboardCampaignDetail>(campaignKey, (current) =>
+        reconcileContentCandidateRevision(current, candidate)
+      );
+      queryClient.setQueryData<DashboardSegmentDetail>(segmentKey, (current) =>
+        reconcileContentCandidateRevision(current, candidate)
+      );
+      void Promise.all([
+        queryClient.invalidateQueries({ exact: true, queryKey: campaignKey }),
+        queryClient.invalidateQueries({ exact: true, queryKey: segmentKey })
+      ]);
     }
   });
   const launchPromotionExperimentMutation = useMutation({

@@ -9,8 +9,16 @@ import sanitizeHtml from "sanitize-html";
 
 const HTML_CONTENT_TYPE = "text/html; charset=utf-8";
 const MAX_REVISED_HTML_BYTES = 2_000_000;
+const MAX_CREATIVE_HTML_PATCH_OPERATIONS = 12;
+const MAX_CREATIVE_HTML_PATCH_FRAGMENT_BYTES = 8_000;
+const MAX_CREATIVE_HTML_PATCH_BYTES = 32_000;
 
 type ContentCandidateCopy = DashboardUpdateContentCandidateCopyRequest;
+
+export type CreativeHtmlReplacement = {
+  after: string;
+  before: string;
+};
 
 export function contentCandidateCopy(candidate: DashboardContentCandidate): ContentCandidateCopy {
   return {
@@ -68,6 +76,59 @@ export function rewriteCreativeHtmlCopy(
   }
 
   return { html: nextHtml, missingFields };
+}
+
+export function applyCreativeHtmlReplacementPatch(
+  sourceHtml: string,
+  replacements: CreativeHtmlReplacement[]
+) {
+  if (replacements.length === 0 || replacements.length > MAX_CREATIVE_HTML_PATCH_OPERATIONS) {
+    throw new Error("Creative revision patch has an invalid operation count.");
+  }
+
+  let patchBytes = 0;
+  const resolved = replacements.map((replacement, index) => {
+    const beforeBytes = Buffer.byteLength(replacement.before);
+    const afterBytes = Buffer.byteLength(replacement.after);
+    patchBytes += beforeBytes + afterBytes;
+    if (
+      beforeBytes === 0 ||
+      beforeBytes > MAX_CREATIVE_HTML_PATCH_FRAGMENT_BYTES ||
+      afterBytes > MAX_CREATIVE_HTML_PATCH_FRAGMENT_BYTES ||
+      replacement.before === replacement.after
+    ) {
+      throw new Error(`Creative revision patch operation ${index} is invalid.`);
+    }
+
+    const start = sourceHtml.indexOf(replacement.before);
+    if (start < 0) {
+      throw new Error(`Creative revision patch operation ${index} did not match.`);
+    }
+    if (sourceHtml.indexOf(replacement.before, start + replacement.before.length) >= 0) {
+      throw new Error(`Creative revision patch operation ${index} is ambiguous.`);
+    }
+    return { ...replacement, end: start + replacement.before.length, start };
+  });
+
+  if (patchBytes > MAX_CREATIVE_HTML_PATCH_BYTES) {
+    throw new Error("Creative revision patch exceeds the byte limit.");
+  }
+
+  const ordered = resolved.toSorted((left, right) => left.start - right.start);
+  for (let index = 1; index < ordered.length; index += 1) {
+    if (ordered[index]!.start < ordered[index - 1]!.end) {
+      throw new Error("Creative revision patch operations overlap.");
+    }
+  }
+
+  let revisedHtml = sourceHtml;
+  for (const replacement of ordered.toReversed()) {
+    revisedHtml =
+      revisedHtml.slice(0, replacement.start) +
+      replacement.after +
+      revisedHtml.slice(replacement.end);
+  }
+  return revisedHtml;
 }
 
 export function sanitizeCreativeHtmlRevision({
