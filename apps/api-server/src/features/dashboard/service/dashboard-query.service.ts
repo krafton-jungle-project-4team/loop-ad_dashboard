@@ -57,6 +57,7 @@ import type {
   DashboardSegmentDetail,
   DashboardSegmentAssistantRequest,
   DashboardSegmentAssistantResponse,
+  DashboardSegmentAssistantSourceContext,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
   DashboardRecommendPromotionSegmentsRequest,
@@ -102,6 +103,16 @@ import {
   rewriteCreativeHtmlCopy,
   sanitizeCreativeHtmlRevision
 } from "./content-candidate-copy.js";
+import {
+  removeUnchangedSourceConditions,
+  selectSourceRefinementCandidates,
+  sourceBaseConditionLabels,
+  upsertRefinementCondition
+} from "../segment-assistant-refinements.js";
+import type {
+  SegmentAssistantPlan,
+  SegmentAssistantSourceAudience
+} from "../segment-assistant.types.js";
 
 const AI_CREATIVE_HTML_INPUT_LIMIT_BYTES = 500_000;
 
@@ -414,6 +425,91 @@ export class DashboardQueryService {
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
+  }
+
+  @LogContextScope()
+  async promotionSegmentAssistantSourceContext(
+    projectId: string,
+    promotionId: string,
+    suggestionId: string
+  ): Promise<DashboardSegmentAssistantSourceContext> {
+    const startedAt = Date.now();
+    log.assignContext({ projectId, promotionId, suggestionId });
+    log.info("started", { projectId, promotionId, suggestionId });
+    await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    const source = await this.resolveSegmentAssistantSource(projectId, promotionId, suggestionId);
+    const candidates = await this.segmentQueryRepository.analyzeSourceRefinements(
+      projectId,
+      source
+    );
+    const suggestedRefinements = selectSourceRefinementCandidates(
+      candidates,
+      source.base_user_ids.length,
+      MIN_SEGMENT_USER_COUNT
+    ).map((candidate) => ({
+      refinement_key: candidate.key,
+      label: candidate.condition.label,
+      prompt: candidate.prompt,
+      estimated_user_count: candidate.sampleSize,
+      retention_ratio: roundRate(candidate.sampleSize / source.base_user_ids.length),
+      meets_min_sample_size: candidate.sampleSize >= MIN_SEGMENT_USER_COUNT
+    }));
+    const response: DashboardSegmentAssistantSourceContext = {
+      suggestion_id: source.suggestion_id,
+      segment_id: source.segment_id,
+      title: source.title,
+      strategy_role: source.strategy_role,
+      candidate_type: source.candidate_type,
+      sample_size: source.base_user_ids.length,
+      base_condition_labels: source.base_condition_labels,
+      reference_labels: source.reference_labels,
+      suggested_refinements: suggestedRefinements
+    };
+    log.info("completed", {
+      candidateType: source.candidate_type,
+      durationMs: durationMs(startedAt),
+      refinementCount: suggestedRefinements.length,
+      sampleSize: response.sample_size
+    });
+    return response;
+  }
+
+  private async resolveSegmentAssistantSource(
+    projectId: string,
+    promotionId: string,
+    suggestionId: string
+  ): Promise<ResolvedSegmentAssistantSource> {
+    const suggestions = await this.campaignReader.listPromotionSegmentSuggestions(
+      projectId,
+      promotionId
+    );
+    const suggestion = suggestions.suggestions.find((item) => item.suggestion_id === suggestionId);
+    if (!suggestion) {
+      throw dashboardErrors.segmentAssistantSourceInvalid();
+    }
+
+    const rule = jsonObject(suggestion.rule_json);
+    const audienceSpec = jsonObject(rule?.segment_audience_spec);
+    const candidateType = nonEmptyString(rule?.candidate_type);
+    const baseUserIds = canonicalSourceUserIds(rule?.candidate_user_ids);
+    const hardPredicateKeys = canonicalStringArray(audienceSpec?.hard_predicate_keys);
+    if (!rule || !audienceSpec || !candidateType || baseUserIds.length === 0) {
+      throw dashboardErrors.segmentAssistantSourceInvalid();
+    }
+
+    const referenceLabels = suggestion.display_copy?.signal_chips ?? [];
+    return {
+      suggestion_id: suggestion.suggestion_id,
+      segment_id: suggestion.segment_id,
+      candidate_type: candidateType,
+      title: suggestion.display_copy?.title ?? suggestion.segment_name,
+      strategy_role:
+        suggestion.display_copy?.strategy_role ?? suggestion.display_copy?.rank_role ?? null,
+      base_condition_labels: sourceBaseConditionLabels(hardPredicateKeys),
+      hard_predicate_keys: hardPredicateKeys,
+      reference_labels: referenceLabels,
+      base_user_ids: baseUserIds
+    };
   }
 
   @LogContextScope()
@@ -1500,13 +1596,73 @@ export class DashboardQueryService {
     });
     await this.campaignReader.getPromotionSummary(projectId, promotionId);
 
-    if (!this.segmentAssistantAgent) {
-      throw new Error("Dashboard segment assistant agent is not configured.");
+    const source = request.source_suggestion
+      ? await this.resolveSegmentAssistantSource(
+          projectId,
+          promotionId,
+          request.source_suggestion.suggestion_id
+        )
+      : undefined;
+    if (source && source.segment_id !== request.source_suggestion?.segment_id) {
+      throw dashboardErrors.segmentAssistantSourceInvalid();
     }
-    const plan = await this.segmentAssistantAgent.plan({
-      conversation: request.conversation,
-      message: request.message
-    });
+
+    let previousPlan: SegmentAssistantPlan | undefined;
+    if (request.previous_query_preview_id) {
+      let previousState;
+      try {
+        previousState = await this.segmentQueryRepository.readAssistantExecutionState(
+          projectId,
+          request.previous_query_preview_id
+        );
+      } catch (error) {
+        log.warn("segment_assistant_previous_preview_invalid", { error });
+        throw dashboardErrors.segmentAssistantSourceInvalid();
+      }
+      if (!assistantSourcesMatch(source, previousState.source_audience)) {
+        throw dashboardErrors.segmentAssistantSourceInvalid();
+      }
+      previousPlan = previousState.assistant_plan;
+    }
+
+    let plan: SegmentAssistantPlan;
+    if (request.refinement_key) {
+      if (!source) {
+        throw dashboardErrors.segmentAssistantSourceInvalid();
+      }
+      const candidates = await this.segmentQueryRepository.analyzeSourceRefinements(
+        projectId,
+        source
+      );
+      const definition = candidates.find((candidate) => candidate.key === request.refinement_key);
+      if (!definition) {
+        throw dashboardErrors.segmentAssistantSourceInvalid();
+      }
+      plan = {
+        action: "segment_preview",
+        segment_name: sourceRefinementSegmentName(source.title, definition.condition.label),
+        lookback_days: 30,
+        conditions: upsertRefinementCondition(previousPlan?.conditions ?? [], definition.condition),
+        clarification_message: null
+      };
+    } else {
+      if (!this.segmentAssistantAgent) {
+        throw new Error("Dashboard segment assistant agent is not configured.");
+      }
+      plan = await this.segmentAssistantAgent.plan({
+        conversation: request.conversation,
+        currentPlan: previousPlan,
+        message: request.message,
+        sourceAudience: source
+      });
+      if (source && plan.action !== "clarification") {
+        plan = {
+          ...plan,
+          lookback_days: 30,
+          conditions: removeUnchangedSourceConditions(plan.conditions, source.reference_labels)
+        };
+      }
+    }
     if (plan.action === "clarification") {
       const response: DashboardSegmentAssistantResponse = {
         action: "clarification",
@@ -1519,6 +1675,7 @@ export class DashboardQueryService {
         minimum_sample_size: MIN_SEGMENT_USER_COUNT,
         condition_diagnostics: [],
         suggested_adjustments: [],
+        base_audience: source ? sourceAudienceResponse(source) : null,
         preview: null
       };
       log.info("completed", {
@@ -1531,7 +1688,8 @@ export class DashboardQueryService {
     const preview = await this.segmentQueryRepository.createAssistantQueryPreview(
       projectId,
       segmentAssistantNaturalLanguageQuery(request),
-      plan
+      plan,
+      source
     );
     log.assignContext({ queryPreviewId: preview.query_preview_id });
     const diagnostics =
@@ -1539,17 +1697,24 @@ export class DashboardQueryService {
         ? await this.segmentQueryRepository.diagnoseAssistantPlan(
             projectId,
             plan,
-            preview.sample_size
+            preview.sample_size,
+            source
           )
         : emptySegmentAssistantDiagnostics();
-    const segmentName = plan.segment_name ?? `${plan.conditions[0]?.label ?? "맞춤 행동"} 고객`;
+    const segmentName =
+      plan.segment_name ??
+      (source
+        ? sourceRefinementSegmentName(source.title, plan.conditions.at(-1)?.label)
+        : `${plan.conditions[0]?.label ?? "맞춤 행동"} 고객`);
     const response: DashboardSegmentAssistantResponse = {
       action: plan.action,
       assistant_message: segmentAssistantMessage(
         plan.action,
         plan.lookback_days,
         preview,
-        diagnostics
+        diagnostics,
+        source,
+        plan.conditions.length
       ),
       segment_name: segmentName,
       lookback_days: plan.lookback_days,
@@ -1557,6 +1722,7 @@ export class DashboardQueryService {
       minimum_sample_size: MIN_SEGMENT_USER_COUNT,
       condition_diagnostics: diagnostics.conditionDiagnostics,
       suggested_adjustments: diagnostics.suggestedAdjustments,
+      base_audience: source ? sourceAudienceResponse(source) : null,
       preview
     };
 
@@ -1593,15 +1759,23 @@ function segmentAssistantMessage(
   action: "audience_query" | "segment_preview",
   lookbackDays: number,
   preview: DashboardSegmentQueryPreview,
-  diagnostics: SegmentAssistantDiagnostics
+  diagnostics: SegmentAssistantDiagnostics,
+  source: ResolvedSegmentAssistantSource | undefined,
+  refinementCount: number
 ) {
   if (preview.sample_size === 0) {
-    return `최근 ${lookbackDays}일 기준으로 조건에 맞는 고객을 찾지 못했습니다. 조건이나 조회 기간을 조정해 보세요.`;
+    return source
+      ? `'${source.title}' ${source.base_user_ids.length.toLocaleString("ko-KR")}명 중 추가 조건에 맞는 고객을 찾지 못했습니다.`
+      : `최근 ${lookbackDays}일 기준으로 조건에 맞는 고객을 찾지 못했습니다. 조건이나 조회 기간을 조정해 보세요.`;
   }
   const ratio = (preview.sample_ratio * 100).toLocaleString("ko-KR", {
     maximumFractionDigits: 2
   });
-  const counts = `최근 ${lookbackDays}일 기준 조건에 맞는 고객은 ${preview.sample_size.toLocaleString("ko-KR")}명이며, 분석 가능 사용자 ${preview.total_eligible_user_count.toLocaleString("ko-KR")}명의 ${ratio}%입니다.`;
+  const counts = source
+    ? refinementCount === 0
+      ? `'${source.title}' 추천 고객군 ${preview.sample_size.toLocaleString("ko-KR")}명을 그대로 사용합니다.`
+      : `'${source.title}' 추천 고객군 ${source.base_user_ids.length.toLocaleString("ko-KR")}명 중 추가 조건에 맞는 고객은 ${preview.sample_size.toLocaleString("ko-KR")}명입니다.`
+    : `최근 ${lookbackDays}일 기준 조건에 맞는 고객은 ${preview.sample_size.toLocaleString("ko-KR")}명이며, 분석 가능 사용자 ${preview.total_eligible_user_count.toLocaleString("ko-KR")}명의 ${ratio}%입니다.`;
   if (preview.sample_size_status === "too_small") {
     const bottleneck = diagnostics.conditionDiagnostics.find(
       (condition) => condition.is_bottleneck
@@ -1630,6 +1804,66 @@ function segmentAssistantNaturalLanguageQuery(request: DashboardSegmentAssistant
   return request.source_suggestion
     ? `${request.source_suggestion.title} 수정: ${request.message}`
     : request.message;
+}
+
+type ResolvedSegmentAssistantSource = SegmentAssistantSourceAudience & {
+  strategy_role: string | null;
+};
+
+function sourceAudienceResponse(source: ResolvedSegmentAssistantSource) {
+  return {
+    suggestion_id: source.suggestion_id,
+    title: source.title,
+    sample_size: source.base_user_ids.length
+  };
+}
+
+function assistantSourcesMatch(
+  current: ResolvedSegmentAssistantSource | undefined,
+  previous: SegmentAssistantSourceAudience | undefined
+) {
+  if (!current || !previous) return current === undefined && previous === undefined;
+  return (
+    current.suggestion_id === previous.suggestion_id &&
+    current.segment_id === previous.segment_id &&
+    current.base_user_ids.length === previous.base_user_ids.length &&
+    current.base_user_ids.every((userId, index) => userId === previous.base_user_ids[index])
+  );
+}
+
+function sourceRefinementSegmentName(sourceTitle: string, refinementLabel?: string) {
+  const name = refinementLabel ? `${sourceTitle} · ${refinementLabel}` : sourceTitle;
+  return name.slice(0, 100);
+}
+
+function roundRate(value: number) {
+  return Math.round(value * 1_000_000) / 1_000_000;
+}
+
+function jsonObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function nonEmptyString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function canonicalStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return [
+    ...new Set(value.map(nonEmptyString).filter((item): item is string => Boolean(item)))
+  ].sort((left, right) => left.localeCompare(right));
+}
+
+function canonicalSourceUserIds(value: unknown) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 5_000) return [];
+  const userIds = value.map(nonEmptyString);
+  if (userIds.some((userId) => !userId)) return [];
+  const unique = new Set(userIds as string[]);
+  if (unique.size !== userIds.length) return [];
+  return [...unique].sort((left, right) => left.localeCompare(right));
 }
 
 async function readContentCandidateHtml(

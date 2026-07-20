@@ -184,6 +184,191 @@ test("segment assistant keeps alternative destinations in one event condition", 
   );
 });
 
+test("source audience membership compiles without rebuilding recommendation signals", async () => {
+  const { planStructuredSegmentQuery } =
+    await import("../src/features/dashboard/repository/dashboard-segment-query-repository.js");
+  const query = planStructuredSegmentQuery(
+    "demo_project",
+    {
+      action: "segment_preview",
+      segment_name: "예약 직전 이탈 고객",
+      lookback_days: 30,
+      conditions: [],
+      clarification_message: null
+    },
+    {
+      from: "2026-06-01T00:00:00.000Z",
+      to: "2026-07-01T00:00:00.000Z"
+    },
+    ["user-001", "user-002"]
+  );
+
+  assert.match(query.generatedSql, /arrayJoin\(\{baseUserIds:Array\(String\)\}\)/);
+  assert.equal(query.countSql, "SELECT length({baseUserIds:Array(String)}) AS sample_size");
+  assert.deepEqual(query.queryParams, { baseUserIds: ["user-001", "user-002"] });
+  assert.doesNotMatch(query.generatedSql, /booking_start|booking_complete|hotel_detail_view/);
+});
+
+test("source refinement contract stores exact recommendation membership with no duplicate predicates", async () => {
+  const { buildCustomStructuredAudienceRule } =
+    await import("../src/features/dashboard/segment-audience-v2-contract.js");
+  const rule = buildCustomStructuredAudienceRule({
+    assistant_plan: {
+      action: "segment_preview",
+      segment_name: "예약 직전 이탈 고객",
+      lookback_days: 30,
+      conditions: [],
+      clarification_message: null
+    },
+    source_audience: {
+      suggestion_id: "suggestion-1",
+      segment_id: "segment-1",
+      candidate_type: "funnel_recovery",
+      title: "예약 직전 이탈 고객",
+      base_condition_labels: ["예약 시작 후 미완료"],
+      hard_predicate_keys: ["booking_start_without_complete"],
+      reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+      base_user_ids: ["user-001", "user-002"]
+    }
+  });
+
+  assert.equal(rule.segment_audience_spec.template_version, 2);
+  assert.deepEqual(rule.segment_audience_spec.hard_predicate_keys, ["source_audience_membership"]);
+  assert.deepEqual(rule.segment_audience_spec.parameters.conditions, []);
+  assert.deepEqual(rule.segment_audience_spec.parameters.base_user_ids, ["user-001", "user-002"]);
+});
+
+test("a stricter detail-view follow-up replaces the existing refinement threshold", async () => {
+  setRequiredEnv();
+  const { fallbackSegmentAssistantPlan } =
+    await import("../src/features/dashboard/provider/dashboard-segment-assistant-agent.js");
+  const plan = fallbackSegmentAssistantPlan(
+    "기존 조건에서 호텔 상세 조회를 2회 이상으로 바꿔줘",
+    [],
+    {
+      action: "segment_preview",
+      segment_name: "상세 조회 고객",
+      lookback_days: 30,
+      conditions: [
+        {
+          label: "호텔 상세 조회",
+          event_name: "hotel_detail_view",
+          minimum_count: 1,
+          maximum_count: null,
+          destination: null,
+          checkin_months: [],
+          property_filters: []
+        }
+      ],
+      clarification_message: null
+    }
+  );
+
+  assert.equal(plan.conditions.length, 1);
+  assert.equal(plan.conditions[0]?.event_name, "hotel_detail_view");
+  assert.equal(plan.conditions[0]?.minimum_count, 2);
+});
+
+test("refinement analysis omits conditions already guaranteed by the AI audience", async () => {
+  const { buildSourceRefinementCandidates, removeUnchangedSourceConditions } =
+    await import("../src/features/dashboard/segment-assistant-refinements.js");
+  const candidates = buildSourceRefinementCandidates(
+    [
+      {
+        eventName: "booking_start",
+        usersAtLeastOnce: 200,
+        usersAtLeastTwice: 85,
+        usersAtLeastThreeTimes: 30,
+        freeCancellationUsers: 0,
+        breakfastIncludedUsers: 0
+      },
+      {
+        eventName: "booking_complete",
+        usersAtLeastOnce: 0,
+        usersAtLeastTwice: 0,
+        usersAtLeastThreeTimes: 0,
+        freeCancellationUsers: 0,
+        breakfastIncludedUsers: 0
+      },
+      {
+        eventName: "hotel_detail_view",
+        usersAtLeastOnce: 180,
+        usersAtLeastTwice: 120,
+        usersAtLeastThreeTimes: 40,
+        freeCancellationUsers: 70,
+        breakfastIncludedUsers: 55
+      }
+    ],
+    {
+      suggestion_id: "suggestion-1",
+      segment_id: "segment-1",
+      candidate_type: "funnel_recovery",
+      title: "예약 직전 이탈 고객",
+      base_condition_labels: ["예약 시작 후 미완료"],
+      hard_predicate_keys: ["booking_start_without_complete"],
+      reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+      base_user_ids: Array.from({ length: 200 }, (_, index) => `user-${index}`)
+    }
+  );
+
+  assert.equal(
+    candidates.some(
+      (item) => item.condition.event_name === "booking_start" && item.condition.minimum_count === 1
+    ),
+    false
+  );
+  assert.equal(
+    candidates.some(
+      (item) =>
+        item.condition.event_name === "booking_complete" && item.condition.maximum_count === 0
+    ),
+    false
+  );
+  assert.equal(
+    candidates.some(
+      (item) =>
+        item.condition.event_name === "hotel_detail_view" && item.condition.minimum_count === 2
+    ),
+    true
+  );
+  assert.ok(candidates.every((item) => /^ref_[a-f0-9]{16}$/.test(item.key)));
+  assert.deepEqual(
+    removeUnchangedSourceConditions(
+      [
+        {
+          label: "예약 시작",
+          event_name: "booking_start",
+          minimum_count: 1,
+          maximum_count: null,
+          destination: null,
+          checkin_months: [],
+          property_filters: []
+        },
+        {
+          label: "예약 미완료",
+          event_name: "booking_complete",
+          minimum_count: 0,
+          maximum_count: 0,
+          destination: null,
+          checkin_months: [],
+          property_filters: []
+        },
+        {
+          label: "호텔 상세 조회 2회 이상",
+          event_name: "hotel_detail_view",
+          minimum_count: 2,
+          maximum_count: null,
+          destination: null,
+          checkin_months: [],
+          property_filters: []
+        }
+      ],
+      ["예약 시작", "예약 미완료", "호텔 상세 조회"]
+    ).map((condition) => [condition.event_name, condition.minimum_count]),
+    [["hotel_detail_view", 2]]
+  );
+});
+
 function setRequiredEnv() {
   process.env.LOOPAD_ENV ??= "test";
   process.env.LOOPAD_SERVICE_ID ??= "dashboard-api";

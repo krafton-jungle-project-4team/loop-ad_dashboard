@@ -70,6 +70,7 @@ import {
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentAssistantRequestSchema,
   DashboardSegmentAssistantResponseSchema,
+  DashboardSegmentAssistantSourceContextSchema,
   DashboardSegmentDetailSchema,
   DashboardSegmentQueryPreviewRequestSchema,
   DashboardSegmentQueryPreviewSchema,
@@ -546,6 +547,22 @@ export class DashboardController {
     const request = DashboardRecommendPromotionSegmentsRequestSchema.parse(body ?? {});
     return DashboardPromotionAnalysisResultSchema.parse(
       await this.dashboardQuery.recommendPromotionSegments(requiredProjectId, promotionId, request)
+    );
+  }
+
+  @Get("promotions/:promotion_id/segment-suggestions/:suggestion_id/assistant-context")
+  async promotionSegmentAssistantSourceContext(
+    @Param("promotion_id") promotionId: string,
+    @Param("suggestion_id") suggestionId: string,
+    @Query("project_id") projectId?: string
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardSegmentAssistantSourceContextSchema.parse(
+      await this.dashboardQuery.promotionSegmentAssistantSourceContext(
+        requiredProjectId,
+        promotionId,
+        suggestionId
+      )
     );
   }
 

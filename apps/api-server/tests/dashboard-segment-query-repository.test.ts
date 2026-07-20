@@ -104,6 +104,85 @@ test("운영 기준 미달 고객군은 실제 조건별 제외 인원으로 병
   );
 });
 
+test("AI 추천 고객군의 실제 행동 분포에서 추가 조건 후보를 만든다", async () => {
+  setRequiredEnv();
+  const { DashboardSegmentQueryRepository } =
+    await import("../src/features/dashboard/repository/dashboard-segment-query-repository.js");
+  const calls: Array<{ query: string; query_params?: Record<string, unknown> }> = [];
+  const repository = new DashboardSegmentQueryRepository(
+    {} as never,
+    {
+      query: async (input: { query: string; query_params?: Record<string, unknown> }) => {
+        calls.push(input);
+        return {
+          json: async () => [
+            {
+              event_name: "hotel_detail_view",
+              users_at_least_once: "180",
+              users_at_least_twice: "120",
+              users_at_least_three_times: "30",
+              free_cancellation_users: "70",
+              breakfast_included_users: "55"
+            },
+            {
+              event_name: "booking_start",
+              users_at_least_once: "200",
+              users_at_least_twice: "85",
+              users_at_least_three_times: "20",
+              free_cancellation_users: "0",
+              breakfast_included_users: "0"
+            },
+            {
+              event_name: "booking_complete",
+              users_at_least_once: "0",
+              users_at_least_twice: "0",
+              users_at_least_three_times: "0",
+              free_cancellation_users: "0",
+              breakfast_included_users: "0"
+            }
+          ]
+        };
+      }
+    } as never
+  );
+  const baseUserIds = Array.from({ length: 200 }, (_, index) => `user-${index}`);
+
+  const candidates = await repository.analyzeSourceRefinements("demo_project", {
+    suggestion_id: "suggestion-1",
+    segment_id: "segment-1",
+    candidate_type: "funnel_recovery",
+    title: "예약 직전 이탈 고객",
+    base_condition_labels: ["예약 시작 후 미완료"],
+    hard_predicate_keys: ["booking_start_without_complete"],
+    reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+    base_user_ids: baseUserIds
+  });
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0]?.query ?? "", /countIf\(event_count >= 2\)/);
+  assert.deepEqual(calls[0]?.query_params?.baseUserIds, baseUserIds);
+  assert.equal(
+    candidates.find(
+      (item) =>
+        item.condition.event_name === "hotel_detail_view" && item.condition.minimum_count === 2
+    )?.sampleSize,
+    120
+  );
+  assert.equal(
+    candidates.some(
+      (item) => item.condition.event_name === "booking_start" && item.condition.minimum_count === 1
+    ),
+    false
+  );
+  assert.equal(
+    candidates.some(
+      (item) =>
+        item.condition.event_name === "booking_complete" && item.condition.maximum_count === 0
+    ),
+    false
+  );
+});
+
 function setRequiredEnv() {
   process.env.LOOPAD_ENV ??= "local";
   process.env.LOOPAD_SERVICE_ID ??= "dashboard-api";

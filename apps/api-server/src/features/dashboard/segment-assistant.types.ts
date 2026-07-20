@@ -13,6 +13,7 @@ export const SEGMENT_ASSISTANT_EVENT_NAMES = [
   "booking_complete",
   "booking_cancel"
 ] as const;
+export type SegmentAssistantEventName = (typeof SEGMENT_ASSISTANT_EVENT_NAMES)[number];
 
 export const SEGMENT_ASSISTANT_PROPERTY_KEYS = [
   "deal",
@@ -92,13 +93,6 @@ export const SegmentAssistantPlanSchema = z
     clarification_message: z.string().trim().min(1).max(500).nullable()
   })
   .superRefine((plan, context) => {
-    if (plan.action !== "clarification" && plan.conditions.length === 0) {
-      context.addIssue({
-        code: "custom",
-        message: "audience query and segment preview require at least one condition",
-        path: ["conditions"]
-      });
-    }
     if (plan.action === "segment_preview" && !plan.segment_name) {
       context.addIssue({
         code: "custom",
@@ -108,3 +102,21 @@ export const SegmentAssistantPlanSchema = z
     }
   });
 export type SegmentAssistantPlan = z.infer<typeof SegmentAssistantPlanSchema>;
+
+export const SegmentAssistantSourceAudienceSchema = z.object({
+  suggestion_id: z.string().min(1),
+  segment_id: z.string().min(1),
+  candidate_type: z.string().min(1),
+  title: z.string().min(1),
+  base_condition_labels: z.array(z.string().min(1)).max(12),
+  hard_predicate_keys: z.array(z.string().min(1)).max(12),
+  reference_labels: z.array(z.string().min(1)).max(12),
+  base_user_ids: z.array(z.string().min(1)).min(1).max(5_000)
+});
+export type SegmentAssistantSourceAudience = z.infer<typeof SegmentAssistantSourceAudienceSchema>;
+
+export const SegmentAssistantExecutionStateSchema = z.object({
+  assistant_plan: SegmentAssistantPlanSchema,
+  source_audience: SegmentAssistantSourceAudienceSchema.optional()
+});
+export type SegmentAssistantExecutionState = z.infer<typeof SegmentAssistantExecutionStateSchema>;

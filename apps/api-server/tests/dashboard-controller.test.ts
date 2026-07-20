@@ -426,6 +426,54 @@ test("dashboard controller parses segment assistant requests and returns audienc
   assert.equal(response.preview?.sample_size, 120);
 });
 
+test("dashboard controller returns measured refinement options for an AI suggestion", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const reads: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    promotionSegmentAssistantSourceContext: async (projectId, promotionId, suggestionId) => {
+      reads.push({ projectId, promotionId, suggestionId });
+      return {
+        suggestion_id: suggestionId,
+        segment_id: "segment-1",
+        title: "예약 직전 이탈 고객",
+        strategy_role: "예약 이탈 회수형",
+        candidate_type: "funnel_recovery",
+        sample_size: 100,
+        base_condition_labels: ["예약 시작 후 미완료"],
+        reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+        suggested_refinements: [
+          {
+            refinement_key: "ref_1111111111111111",
+            label: "호텔 상세 조회 2회 이상",
+            prompt: "추천 고객군 안에서 호텔 상세 조회를 2회 이상 한 고객으로 좁혀줘",
+            estimated_user_count: 84,
+            retention_ratio: 0.84,
+            meets_min_sample_size: false
+          }
+        ]
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.promotionSegmentAssistantSourceContext(
+    "promo_summer",
+    "suggestion-1",
+    "hotel-client-a"
+  );
+
+  assert.deepEqual(reads, [
+    {
+      projectId: "hotel-client-a",
+      promotionId: "promo_summer",
+      suggestionId: "suggestion-1"
+    }
+  ]);
+  assert.equal(response.suggested_refinements[0]?.estimated_user_count, 84);
+});
+
 test("dashboard controller parses save segment body before delegating", async () => {
   setRequiredEnv();
   const { DashboardController } =
