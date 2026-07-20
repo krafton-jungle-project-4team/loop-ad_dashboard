@@ -1234,7 +1234,7 @@ function ContentCandidateHtmlPreview({
               </Button>
             </DialogTrigger>
           </div>
-          <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
+          <DialogContent className="grid h-[calc(100svh-2rem)] w-[calc(100%-2rem)] max-w-none grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:h-[min(90svh,900px)] sm:w-[min(94vw,1440px)] sm:max-w-[min(94vw,1440px)]">
             <DialogHeader className="pr-8">
               <DialogTitle>{title}</DialogTitle>
               <DialogDescription>
@@ -1242,7 +1242,7 @@ function ContentCandidateHtmlPreview({
               </DialogDescription>
             </DialogHeader>
             <iframe
-              className="h-[min(30rem,50vh)] w-full rounded-md border bg-background"
+              className="h-full min-h-0 w-full rounded-md border bg-background"
               loading="lazy"
               referrerPolicy="no-referrer"
               sandbox="allow-scripts"
