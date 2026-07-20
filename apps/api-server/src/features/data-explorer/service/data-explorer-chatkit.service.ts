@@ -37,7 +37,7 @@ export class DataExplorerChatKitService {
     log.info("started", { body });
     const request = parseChatKitRequest(body);
     if (!request.success) {
-      log.warn("chatkit_request_invalid", { error: request.error, body });
+      log.warn("chatkit_request_invalid", { err: request.error, body });
       return {
         body: { message: "Invalid ChatKit request." },
         kind: "json",

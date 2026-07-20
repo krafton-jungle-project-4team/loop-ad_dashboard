@@ -1,7 +1,7 @@
 import { hostname } from "node:os";
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import { PromotionDispatchService } from "../../ad-execution/service/index.js";
-import { durationMs, log } from "../../../infra/logger/index.js";
+import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import {
   DashboardPromotionAutomationRepository,
   type PromotionAutomationJob
@@ -41,8 +41,11 @@ export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy
     }
   }
 
+  @LogContextScope()
   async runOnce() {
+    log.assignContext({ workerId: this.workerId });
     if (this.running) {
+      log.info("promotion_automation_poll_skipped", { reason: "poll_already_running" });
       return;
     }
     this.running = true;
@@ -52,9 +55,15 @@ export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy
         await this.repository.completeExpiredCampaigns(CAMPAIGN_COMPLETION_LIMIT);
       for (const campaign of completedCampaigns) {
         log.info("campaign_schedule_completed", {
+          cancelledAutomationJobCount: campaign.cancelledAutomationJobCount,
+          cancelledDispatchJobCount: campaign.cancelledDispatchJobCount,
           campaignId: campaign.campaignId,
+          failedGenerationRunCount: campaign.failedGenerationRunCount,
           projectId: campaign.projectId,
-          workerId: this.workerId
+          stoppedExperimentCount: campaign.stoppedExperimentCount,
+          stoppedPromotionCount: campaign.stoppedPromotionCount,
+          stoppedPromotionRunCount: campaign.stoppedPromotionRunCount,
+          stoppedSegmentCount: campaign.stoppedSegmentCount
         });
       }
       const jobs = await this.repository.claimDueJobs({
@@ -65,8 +74,7 @@ export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy
       if (jobs.length > 0) {
         log.info("promotion_automation_jobs_claimed", {
           durationMs: durationMs(startedAt),
-          jobCount: jobs.length,
-          workerId: this.workerId
+          jobCount: jobs.length
         });
       }
       for (const job of jobs) {
@@ -75,28 +83,31 @@ export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy
     } catch (err) {
       log.error("promotion_automation_poll_failed", {
         durationMs: durationMs(startedAt),
-        err,
-        workerId: this.workerId
+        err
       });
     } finally {
       this.running = false;
     }
   }
 
+  @LogContextScope()
   private async processClaimedJob(job: PromotionAutomationJob) {
     const startedAt = Date.now();
-    log.info("promotion_automation_job_started", {
-      attemptCount: job.attemptCount,
+    log.assignContext({
+      campaignId: job.campaignId,
       jobId: job.jobId,
-      jobType: job.jobType,
-      loopCount: job.loopCount,
+      projectId: job.projectId,
       promotionId: job.promotionId,
       promotionRunId: job.promotionRunId
+    });
+    log.info("promotion_automation_job_started", {
+      attemptCount: job.attemptCount,
+      jobType: job.jobType,
+      loopCount: job.loopCount
     });
     try {
       if (automationWindowClosed(job)) {
         log.info("promotion_automation_job_skipped", {
-          jobId: job.jobId,
           reason: "promotion_window_closed"
         });
       } else if (job.jobType === "launch_run") {
@@ -105,7 +116,6 @@ export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy
         await this.dashboardQuery.evaluatePromotionRun(job.projectId, job.promotionRunId);
       } else {
         log.info("promotion_automation_job_skipped", {
-          jobId: job.jobId,
           reason: "execution_mode_changed_to_manual"
         });
       }
@@ -113,7 +123,6 @@ export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy
       await this.repository.completeJob(job);
       log.info("promotion_automation_job_completed", {
         durationMs: durationMs(startedAt),
-        jobId: job.jobId,
         jobType: job.jobType
       });
     } catch (err) {
@@ -122,7 +131,6 @@ export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy
         attemptCount: job.attemptCount,
         durationMs: durationMs(startedAt),
         err,
-        jobId: job.jobId,
         jobType: job.jobType,
         nextStatus: failure?.status ?? "lease_lost"
       });

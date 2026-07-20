@@ -9,6 +9,7 @@ import {
 import type { Pool } from "pg";
 import type { TrackingPlanObservedEventReader } from "../src/features/tracking-plan/tracking-plan-observed-event-reader.js";
 import type { TrackingPlanRepository } from "../src/features/tracking-plan/tracking-plan.repository.js";
+import { captureJsonLogs } from "./log-capture.js";
 
 setRequiredEnv();
 
@@ -321,6 +322,36 @@ test("developer page reports an absent published event schema", async () => {
   await assert.rejects(() => service.publishedSchema("demo-shoppingmall"), hasStatus(404));
 });
 
+test("tracking plan public connection logs context without SDK credentials", async () => {
+  const { TrackingPlanService } =
+    await import("../src/features/tracking-plan/tracking-plan.service.js");
+  const repository = {
+    getPublicConnection: async () => ({
+      projectId: "demo-shoppingmall",
+      writeKey: "secret-write-key",
+      allowedOrigins: ["https://demo-shoppingmall.dev.loop-ad.org"],
+      schema: {
+        schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
+        revision: 1,
+        events: []
+      }
+    })
+  } as unknown as TrackingPlanRepository;
+  const service = new TrackingPlanService(repository);
+
+  const { logs } = await captureJsonLogs(() =>
+    service.connection("secret-sdk-key", {
+      origin: "https://demo-shoppingmall.dev.loop-ad.org"
+    })
+  );
+
+  const completed = logs.find((entry) => entry.event === "completed");
+  assert.equal(completed?.operation, "TrackingPlanService.connection");
+  assert.equal(completed?.projectId, "demo-shoppingmall");
+  assert.equal(JSON.stringify(logs).includes("secret-sdk-key"), false);
+  assert.equal(JSON.stringify(logs).includes("secret-write-key"), false);
+});
+
 test("tracking plan creation forwards the requested allowed Origins", async () => {
   const { TrackingPlanService } =
     await import("../src/features/tracking-plan/tracking-plan.service.js");
@@ -328,7 +359,7 @@ test("tracking plan creation forwards the requested allowed Origins", async () =
   const repository = {
     create: async (projectId: string, name: string, allowedOrigins?: string[]) => {
       received = [projectId, name, allowedOrigins];
-      return {};
+      return trackingPlanFixture(projectId, allowedOrigins ?? []);
     }
   } as unknown as TrackingPlanRepository;
   const service = new TrackingPlanService(repository);
@@ -433,7 +464,7 @@ test("observed event creation seeds the demo Origin and inferred event contracts
   const repository = {
     create: async (...args: unknown[]) => {
       received = args;
-      return {};
+      return trackingPlanFixture(String(args[0]), args[2] as string[]);
     }
   } as unknown as TrackingPlanRepository;
   const reader = {
@@ -469,6 +500,20 @@ test("observed event creation stops before creating an empty plan", async () => 
     /최근 30일 동안 수집된 이벤트가 없습니다/
   );
 });
+
+function trackingPlanFixture(projectId: string, allowedOrigins: string[]) {
+  return {
+    allowedOrigins,
+    currentRevision: 0,
+    events: [],
+    name: "Default Tracking Plan",
+    projectId,
+    publishedRevision: null,
+    sdkKey: "sdk-key",
+    status: "draft" as const,
+    trackingPlanId: "tracking-plan-1"
+  };
+}
 
 function fakePublishDatabase(failSettingsUpdate = false) {
   const queries: string[] = [];

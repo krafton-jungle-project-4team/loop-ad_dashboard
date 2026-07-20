@@ -11,7 +11,14 @@ export interface ICompleteExpiredDashboardCampaignsParams {
 /** 'CompleteExpiredDashboardCampaigns' return type */
 export interface ICompleteExpiredDashboardCampaignsResult {
   campaignId: string;
+  cancelledAutomationJobCount: number | null;
+  cancelledDispatchJobCount: number | null;
+  failedGenerationRunCount: number | null;
   projectId: string;
+  stoppedExperimentCount: number | null;
+  stoppedPromotionCount: number | null;
+  stoppedPromotionRunCount: number | null;
+  stoppedSegmentCount: number | null;
 }
 
 /** 'CompleteExpiredDashboardCampaigns' query type */
@@ -20,7 +27,7 @@ export interface ICompleteExpiredDashboardCampaignsQuery {
   result: ICompleteExpiredDashboardCampaignsResult;
 }
 
-const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit":true},"params":[{"name":"campaignLimit","required":false,"transform":{"type":"scalar"},"locs":[{"a":300,"b":313}]}],"statement":"WITH expired_campaign_candidates AS (\n  SELECT project_id, campaign_id\n  FROM campaigns\n  WHERE status NOT IN ('completed', 'stopped')\n    AND end_date IS NOT NULL\n    AND (end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul' <= now()\n  ORDER BY end_date, campaign_id\n  FOR UPDATE SKIP LOCKED\n  LIMIT (:campaignLimit)::int\n), completed_campaigns AS (\n  UPDATE campaigns campaign\n  SET status = 'completed',\n      updated_at = now()\n  FROM expired_campaign_candidates expired\n  WHERE campaign.project_id = expired.project_id\n    AND campaign.campaign_id = expired.campaign_id\n  RETURNING campaign.project_id, campaign.campaign_id\n), stopped_promotions AS (\n  UPDATE promotions promotion\n  SET status = 'stopped',\n      updated_at = now()\n  FROM completed_campaigns campaign\n  WHERE promotion.project_id = campaign.project_id\n    AND promotion.campaign_id = campaign.campaign_id\n    AND promotion.status <> 'stopped'\n  RETURNING promotion.promotion_id\n), stopped_segments AS (\n  UPDATE promotion_target_segments segment\n  SET status = 'stopped'\n  FROM completed_campaigns campaign\n  WHERE segment.project_id = campaign.project_id\n    AND segment.campaign_id = campaign.campaign_id\n    AND segment.status <> 'stopped'\n  RETURNING segment.segment_id\n), failed_generation_runs AS (\n  UPDATE generation_runs generation\n  SET status = 'failed',\n      started_at = COALESCE(generation.started_at, now()),\n      finished_at = now(),\n      next_retry_at = NULL,\n      last_error_code = 'generation_invalidated_by_campaign_end',\n      last_error_message = 'campaign ended',\n      worker_id = NULL,\n      lease_token = NULL,\n      heartbeat_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  FROM completed_campaigns campaign\n  WHERE generation.project_id = campaign.project_id\n    AND generation.campaign_id = campaign.campaign_id\n    AND generation.status IN ('requested', 'running')\n  RETURNING generation.generation_id\n), cancelled_dispatch_jobs AS (\n  UPDATE ad_dispatch_jobs dispatch\n  SET status = 'cancelled',\n      completed_at = COALESCE(dispatch.completed_at, now())\n  FROM completed_campaigns campaign\n  WHERE dispatch.project_id = campaign.project_id\n    AND dispatch.campaign_id = campaign.campaign_id\n    AND dispatch.status IN ('queued', 'scheduled', 'running')\n  RETURNING dispatch.ad_dispatch_job_id\n), stopped_runs AS (\n  UPDATE promotion_runs promotion_run\n  SET status = 'stopped',\n      ended_at = COALESCE(promotion_run.ended_at, now()),\n      updated_at = now()\n  FROM completed_campaigns campaign\n  WHERE promotion_run.project_id = campaign.project_id\n    AND promotion_run.campaign_id = campaign.campaign_id\n    AND promotion_run.status <> 'stopped'\n  RETURNING promotion_run.promotion_run_id\n), cancelled_automation_jobs AS (\n  UPDATE promotion_automation_jobs job\n  SET status = 'cancelled',\n      worker_id = NULL,\n      lease_token = NULL,\n      locked_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  WHERE job.promotion_run_id IN (\n      SELECT promotion_run.promotion_run_id\n      FROM promotion_runs promotion_run\n      JOIN completed_campaigns campaign\n        ON campaign.project_id = promotion_run.project_id\n       AND campaign.campaign_id = promotion_run.campaign_id\n    )\n    AND job.status IN ('pending', 'running')\n  RETURNING job.job_id\n), stopped_experiments AS (\n  UPDATE ad_experiments experiment\n  SET status = 'stopped',\n      ended_at = COALESCE(experiment.ended_at, now()),\n      updated_at = now()\n  FROM completed_campaigns campaign\n  WHERE experiment.project_id = campaign.project_id\n    AND experiment.campaign_id = campaign.campaign_id\n    AND experiment.status <> 'stopped'\n  RETURNING experiment.ad_experiment_id\n)\nSELECT\n  project_id AS \"projectId\",\n  campaign_id AS \"campaignId\"\nFROM completed_campaigns\nORDER BY campaign_id                                                           "};
+const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit":true},"params":[{"name":"campaignLimit","required":false,"transform":{"type":"scalar"},"locs":[{"a":300,"b":313}]}],"statement":"WITH expired_campaign_candidates AS (\n  SELECT project_id, campaign_id\n  FROM campaigns\n  WHERE status NOT IN ('completed', 'stopped')\n    AND end_date IS NOT NULL\n    AND (end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul' <= now()\n  ORDER BY end_date, campaign_id\n  FOR UPDATE SKIP LOCKED\n  LIMIT (:campaignLimit)::int\n), completed_campaigns AS (\n  UPDATE campaigns campaign\n  SET status = 'completed',\n      updated_at = now()\n  FROM expired_campaign_candidates expired\n  WHERE campaign.project_id = expired.project_id\n    AND campaign.campaign_id = expired.campaign_id\n  RETURNING campaign.project_id, campaign.campaign_id\n), stopped_promotions AS (\n  UPDATE promotions promotion\n  SET status = 'stopped',\n      updated_at = now()\n  FROM completed_campaigns campaign\n  WHERE promotion.project_id = campaign.project_id\n    AND promotion.campaign_id = campaign.campaign_id\n    AND promotion.status <> 'stopped'\n  RETURNING promotion.project_id, promotion.campaign_id\n), stopped_segments AS (\n  UPDATE promotion_target_segments segment\n  SET status = 'stopped'\n  FROM completed_campaigns campaign\n  WHERE segment.project_id = campaign.project_id\n    AND segment.campaign_id = campaign.campaign_id\n    AND segment.status <> 'stopped'\n  RETURNING segment.project_id, segment.campaign_id\n), failed_generation_runs AS (\n  UPDATE generation_runs generation\n  SET status = 'failed',\n      started_at = COALESCE(generation.started_at, now()),\n      finished_at = now(),\n      next_retry_at = NULL,\n      last_error_code = 'generation_invalidated_by_campaign_end',\n      last_error_message = 'campaign ended',\n      worker_id = NULL,\n      lease_token = NULL,\n      heartbeat_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  FROM completed_campaigns campaign\n  WHERE generation.project_id = campaign.project_id\n    AND generation.campaign_id = campaign.campaign_id\n    AND generation.status IN ('requested', 'running')\n  RETURNING generation.project_id, generation.campaign_id\n), cancelled_dispatch_jobs AS (\n  UPDATE ad_dispatch_jobs dispatch\n  SET status = 'cancelled',\n      completed_at = COALESCE(dispatch.completed_at, now())\n  FROM completed_campaigns campaign\n  WHERE dispatch.project_id = campaign.project_id\n    AND dispatch.campaign_id = campaign.campaign_id\n    AND dispatch.status IN ('queued', 'scheduled', 'running')\n  RETURNING dispatch.project_id, dispatch.campaign_id\n), stopped_runs AS (\n  UPDATE promotion_runs promotion_run\n  SET status = 'stopped',\n      ended_at = COALESCE(promotion_run.ended_at, now()),\n      updated_at = now()\n  FROM completed_campaigns campaign\n  WHERE promotion_run.project_id = campaign.project_id\n    AND promotion_run.campaign_id = campaign.campaign_id\n    AND promotion_run.status <> 'stopped'\n  RETURNING promotion_run.project_id, promotion_run.campaign_id, promotion_run.promotion_run_id\n), cancelled_automation_jobs AS (\n  UPDATE promotion_automation_jobs job\n  SET status = 'cancelled',\n      worker_id = NULL,\n      lease_token = NULL,\n      locked_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  WHERE job.promotion_run_id IN (\n      SELECT promotion_run.promotion_run_id\n      FROM promotion_runs promotion_run\n      JOIN completed_campaigns campaign\n        ON campaign.project_id = promotion_run.project_id\n       AND campaign.campaign_id = promotion_run.campaign_id\n    )\n    AND job.status IN ('pending', 'running')\n  RETURNING job.promotion_run_id\n), stopped_experiments AS (\n  UPDATE ad_experiments experiment\n  SET status = 'stopped',\n      ended_at = COALESCE(experiment.ended_at, now()),\n      updated_at = now()\n  FROM completed_campaigns campaign\n  WHERE experiment.project_id = campaign.project_id\n    AND experiment.campaign_id = campaign.campaign_id\n    AND experiment.status <> 'stopped'\n  RETURNING experiment.project_id, experiment.campaign_id\n)\nSELECT\n  campaign.project_id AS \"projectId\",\n  campaign.campaign_id AS \"campaignId\",\n  (\n    SELECT count(*)::int\n    FROM stopped_promotions promotion\n    WHERE promotion.project_id = campaign.project_id\n      AND promotion.campaign_id = campaign.campaign_id\n  ) AS \"stoppedPromotionCount\",\n  (\n    SELECT count(*)::int\n    FROM stopped_segments segment\n    WHERE segment.project_id = campaign.project_id\n      AND segment.campaign_id = campaign.campaign_id\n  ) AS \"stoppedSegmentCount\",\n  (\n    SELECT count(*)::int\n    FROM failed_generation_runs generation\n    WHERE generation.project_id = campaign.project_id\n      AND generation.campaign_id = campaign.campaign_id\n  ) AS \"failedGenerationRunCount\",\n  (\n    SELECT count(*)::int\n    FROM cancelled_dispatch_jobs dispatch\n    WHERE dispatch.project_id = campaign.project_id\n      AND dispatch.campaign_id = campaign.campaign_id\n  ) AS \"cancelledDispatchJobCount\",\n  (\n    SELECT count(*)::int\n    FROM stopped_runs promotion_run\n    WHERE promotion_run.project_id = campaign.project_id\n      AND promotion_run.campaign_id = campaign.campaign_id\n  ) AS \"stoppedPromotionRunCount\",\n  (\n    SELECT count(*)::int\n    FROM cancelled_automation_jobs job\n    JOIN promotion_runs promotion_run\n      ON promotion_run.promotion_run_id = job.promotion_run_id\n    WHERE promotion_run.project_id = campaign.project_id\n      AND promotion_run.campaign_id = campaign.campaign_id\n  ) AS \"cancelledAutomationJobCount\",\n  (\n    SELECT count(*)::int\n    FROM stopped_experiments experiment\n    WHERE experiment.project_id = campaign.project_id\n      AND experiment.campaign_id = campaign.campaign_id\n  ) AS \"stoppedExperimentCount\"\nFROM completed_campaigns campaign\nORDER BY campaign.campaign_id                                                           "};
 
 /**
  * Query generated from SQL:
@@ -50,7 +57,7 @@ const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit
  *   WHERE promotion.project_id = campaign.project_id
  *     AND promotion.campaign_id = campaign.campaign_id
  *     AND promotion.status <> 'stopped'
- *   RETURNING promotion.promotion_id
+ *   RETURNING promotion.project_id, promotion.campaign_id
  * ), stopped_segments AS (
  *   UPDATE promotion_target_segments segment
  *   SET status = 'stopped'
@@ -58,7 +65,7 @@ const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit
  *   WHERE segment.project_id = campaign.project_id
  *     AND segment.campaign_id = campaign.campaign_id
  *     AND segment.status <> 'stopped'
- *   RETURNING segment.segment_id
+ *   RETURNING segment.project_id, segment.campaign_id
  * ), failed_generation_runs AS (
  *   UPDATE generation_runs generation
  *   SET status = 'failed',
@@ -76,7 +83,7 @@ const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit
  *   WHERE generation.project_id = campaign.project_id
  *     AND generation.campaign_id = campaign.campaign_id
  *     AND generation.status IN ('requested', 'running')
- *   RETURNING generation.generation_id
+ *   RETURNING generation.project_id, generation.campaign_id
  * ), cancelled_dispatch_jobs AS (
  *   UPDATE ad_dispatch_jobs dispatch
  *   SET status = 'cancelled',
@@ -85,7 +92,7 @@ const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit
  *   WHERE dispatch.project_id = campaign.project_id
  *     AND dispatch.campaign_id = campaign.campaign_id
  *     AND dispatch.status IN ('queued', 'scheduled', 'running')
- *   RETURNING dispatch.ad_dispatch_job_id
+ *   RETURNING dispatch.project_id, dispatch.campaign_id
  * ), stopped_runs AS (
  *   UPDATE promotion_runs promotion_run
  *   SET status = 'stopped',
@@ -95,7 +102,7 @@ const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit
  *   WHERE promotion_run.project_id = campaign.project_id
  *     AND promotion_run.campaign_id = campaign.campaign_id
  *     AND promotion_run.status <> 'stopped'
- *   RETURNING promotion_run.promotion_run_id
+ *   RETURNING promotion_run.project_id, promotion_run.campaign_id, promotion_run.promotion_run_id
  * ), cancelled_automation_jobs AS (
  *   UPDATE promotion_automation_jobs job
  *   SET status = 'cancelled',
@@ -112,7 +119,7 @@ const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit
  *        AND campaign.campaign_id = promotion_run.campaign_id
  *     )
  *     AND job.status IN ('pending', 'running')
- *   RETURNING job.job_id
+ *   RETURNING job.promotion_run_id
  * ), stopped_experiments AS (
  *   UPDATE ad_experiments experiment
  *   SET status = 'stopped',
@@ -122,13 +129,57 @@ const completeExpiredDashboardCampaignsIR: any = {"usedParamSet":{"campaignLimit
  *   WHERE experiment.project_id = campaign.project_id
  *     AND experiment.campaign_id = campaign.campaign_id
  *     AND experiment.status <> 'stopped'
- *   RETURNING experiment.ad_experiment_id
+ *   RETURNING experiment.project_id, experiment.campaign_id
  * )
  * SELECT
- *   project_id AS "projectId",
- *   campaign_id AS "campaignId"
- * FROM completed_campaigns
- * ORDER BY campaign_id
+ *   campaign.project_id AS "projectId",
+ *   campaign.campaign_id AS "campaignId",
+ *   (
+ *     SELECT count(*)::int
+ *     FROM stopped_promotions promotion
+ *     WHERE promotion.project_id = campaign.project_id
+ *       AND promotion.campaign_id = campaign.campaign_id
+ *   ) AS "stoppedPromotionCount",
+ *   (
+ *     SELECT count(*)::int
+ *     FROM stopped_segments segment
+ *     WHERE segment.project_id = campaign.project_id
+ *       AND segment.campaign_id = campaign.campaign_id
+ *   ) AS "stoppedSegmentCount",
+ *   (
+ *     SELECT count(*)::int
+ *     FROM failed_generation_runs generation
+ *     WHERE generation.project_id = campaign.project_id
+ *       AND generation.campaign_id = campaign.campaign_id
+ *   ) AS "failedGenerationRunCount",
+ *   (
+ *     SELECT count(*)::int
+ *     FROM cancelled_dispatch_jobs dispatch
+ *     WHERE dispatch.project_id = campaign.project_id
+ *       AND dispatch.campaign_id = campaign.campaign_id
+ *   ) AS "cancelledDispatchJobCount",
+ *   (
+ *     SELECT count(*)::int
+ *     FROM stopped_runs promotion_run
+ *     WHERE promotion_run.project_id = campaign.project_id
+ *       AND promotion_run.campaign_id = campaign.campaign_id
+ *   ) AS "stoppedPromotionRunCount",
+ *   (
+ *     SELECT count(*)::int
+ *     FROM cancelled_automation_jobs job
+ *     JOIN promotion_runs promotion_run
+ *       ON promotion_run.promotion_run_id = job.promotion_run_id
+ *     WHERE promotion_run.project_id = campaign.project_id
+ *       AND promotion_run.campaign_id = campaign.campaign_id
+ *   ) AS "cancelledAutomationJobCount",
+ *   (
+ *     SELECT count(*)::int
+ *     FROM stopped_experiments experiment
+ *     WHERE experiment.project_id = campaign.project_id
+ *       AND experiment.campaign_id = campaign.campaign_id
+ *   ) AS "stoppedExperimentCount"
+ * FROM completed_campaigns campaign
+ * ORDER BY campaign.campaign_id
  * ```
  */
 export const completeExpiredDashboardCampaigns = new PreparedQuery<ICompleteExpiredDashboardCampaignsParams,ICompleteExpiredDashboardCampaignsResult>(completeExpiredDashboardCampaignsIR);
@@ -850,4 +901,3 @@ const getDashboardPromotionRunAutomationConfigIR: any = {"usedParamSet":{"projec
  * ```
  */
 export const getDashboardPromotionRunAutomationConfig = new PreparedQuery<IGetDashboardPromotionRunAutomationConfigParams,IGetDashboardPromotionRunAutomationConfigResult>(getDashboardPromotionRunAutomationConfigIR);
-

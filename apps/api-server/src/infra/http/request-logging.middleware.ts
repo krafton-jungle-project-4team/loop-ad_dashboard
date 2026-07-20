@@ -27,7 +27,7 @@ export function requestLoggingMiddleware(
   const startedAt = Date.now();
   const requestId = ensureRequestId(request);
   const method = request.method ?? "REQUEST";
-  const path = request.originalUrl ?? request.url ?? "";
+  const path = requestLogPath(request.originalUrl ?? request.url ?? "");
 
   setRequestIdHeader(response, requestId);
 
@@ -45,4 +45,15 @@ export function requestLoggingMiddleware(
   });
 
   next();
+}
+
+function requestLogPath(value: string) {
+  const path = value.split("?", 1)[0] ?? "";
+
+  return path
+    .replace(
+      /^\/api\/public\/v1\/sdk\/connections\/[^/]+/,
+      "/api/public/v1/sdk/connections/:sdkKey"
+    )
+    .replace(/^\/r\/[^/]+/, "/r/:redirectId");
 }

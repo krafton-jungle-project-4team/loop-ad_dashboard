@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { BannerResolveQuery, BannerResolveResponse } from "@loopad/shared";
-import { LogContextScope, log } from "../../../infra/logger/index.js";
+import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
 import {
   AdExecutionDomain,
@@ -21,6 +21,7 @@ export class BannerResolveService {
   /** 사용자에게 배정된 banner 콘텐츠를 반환합니다. */
   @LogContextScope()
   async resolveBanner(request: BannerResolveQuery): Promise<BannerResolveResponse> {
+    const startedAt = Date.now();
     log.assignContext({
       placementId: request.placement_id,
       projectId: request.project_id,
@@ -36,7 +37,7 @@ export class BannerResolveService {
         placement_id: request.placement_id,
         reason: "assignment_not_found"
       };
-      log.info("completed", { request, response });
+      log.info("completed", { request, response, durationMs: durationMs(startedAt) });
       return response;
     }
     log.assignContext({
@@ -55,13 +56,23 @@ export class BannerResolveService {
         placement_id: request.placement_id,
         reason: emptyReason
       };
-      log.info("completed", { request, assignment, response });
+      log.info("completed", {
+        request,
+        assignment,
+        response,
+        durationMs: durationMs(startedAt)
+      });
       return response;
     }
     requirePromotionLandingUrl(assignment);
     const response = AdExecutionDomain.toBannerResponse(assignment, request.placement_id);
 
-    log.info("completed", { request, assignment, response });
+    log.info("completed", {
+      request,
+      assignment,
+      response,
+      durationMs: durationMs(startedAt)
+    });
 
     return response;
   }

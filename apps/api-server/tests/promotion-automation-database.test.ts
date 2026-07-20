@@ -51,8 +51,8 @@ test(
             $1,
             $2,
             'Automation SQL Test',
-            CURRENT_DATE - 1,
-            CURRENT_DATE + 5,
+            (now() AT TIME ZONE 'Asia/Seoul')::date - 1,
+            (now() AT TIME ZONE 'Asia/Seoul')::date + 5,
             'active'
           )
         `,
@@ -215,7 +215,7 @@ test(
       await client.query(
         `
           UPDATE campaigns
-          SET start_date = CURRENT_DATE + 1
+          SET start_date = (now() AT TIME ZONE 'Asia/Seoul')::date + 1
           WHERE campaign_id = $1
         `,
         [campaignId]
@@ -241,7 +241,7 @@ test(
       await client.query(
         `
           UPDATE campaigns
-          SET start_date = CURRENT_DATE - 1
+          SET start_date = (now() AT TIME ZONE 'Asia/Seoul')::date - 1
           WHERE campaign_id = $1
         `,
         [campaignId]
@@ -284,7 +284,7 @@ test(
       await client.query(
         `
           UPDATE campaigns
-          SET end_date = CURRENT_DATE - 1
+          SET end_date = (now() AT TIME ZONE 'Asia/Seoul')::date - 1
           WHERE campaign_id = $1
         `,
         [campaignId]
@@ -293,7 +293,17 @@ test(
       const completedCampaign = await db
         .query(completeExpiredDashboardCampaigns, { campaignLimit: 10 })
         .single();
-      assert.equal(completedCampaign.campaignId, campaignId);
+      assert.deepEqual(completedCampaign, {
+        campaignId,
+        projectId,
+        stoppedPromotionCount: 1,
+        stoppedSegmentCount: 0,
+        failedGenerationRunCount: 0,
+        cancelledDispatchJobCount: 0,
+        stoppedPromotionRunCount: 0,
+        cancelledAutomationJobCount: 2,
+        stoppedExperimentCount: 0
+      });
 
       const completedState = await client.query<{
         campaign_status: string;

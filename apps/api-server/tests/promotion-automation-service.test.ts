@@ -3,6 +3,7 @@ import test from "node:test";
 import type { PromotionDispatchService } from "../src/features/ad-execution/service/promotion-dispatch.service.js";
 import type { DashboardPromotionAutomationRepository } from "../src/features/dashboard/repository/dashboard-promotion-automation-repository.js";
 import type { DashboardQueryService } from "../src/features/dashboard/service/dashboard-query.service.js";
+import { captureJsonLogs } from "./log-capture.js";
 
 test("자동 실행 작업은 실험 시작과 발송 뒤 평가 작업을 예약한다", async () => {
   setRequiredEnv();
@@ -109,7 +110,19 @@ test("campaign completion runs before due automation jobs are claimed", async ()
     {
       completeExpiredCampaigns: async () => {
         calls.push("complete-campaigns");
-        return [{ campaignId: "campaign-1", projectId: "project-1" }];
+        return [
+          {
+            campaignId: "campaign-1",
+            cancelledAutomationJobCount: 2,
+            cancelledDispatchJobCount: 3,
+            failedGenerationRunCount: 4,
+            projectId: "project-1",
+            stoppedExperimentCount: 5,
+            stoppedPromotionCount: 6,
+            stoppedPromotionRunCount: 7,
+            stoppedSegmentCount: 8
+          }
+        ];
       },
       claimDueJobs: async () => {
         calls.push("claim-jobs");
@@ -120,9 +133,14 @@ test("campaign completion runs before due automation jobs are claimed", async ()
     {} as PromotionDispatchService
   );
 
-  await service.runOnce();
+  const { logs } = await captureJsonLogs(() => service.runOnce());
 
   assert.deepEqual(calls, ["complete-campaigns", "claim-jobs"]);
+  const completion = logs.find((entry) => entry.event === "campaign_schedule_completed");
+  assert.equal(completion?.operation, "PromotionAutomationService.runOnce");
+  assert.equal(completion?.workerId !== undefined, true);
+  assert.equal(completion?.stoppedPromotionCount, 6);
+  assert.equal(completion?.cancelledAutomationJobCount, 2);
 });
 
 function automationJob(jobType: "evaluate_run" | "launch_run") {

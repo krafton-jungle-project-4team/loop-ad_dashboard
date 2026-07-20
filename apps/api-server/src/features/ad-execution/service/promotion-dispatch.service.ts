@@ -526,9 +526,10 @@ export class PromotionDispatchService {
       expiresAt: daysFromNow(7)
     };
 
-    log.info("redirect_link_created", { assignment, input });
+    const savedRedirectId = await this.writer.insertRedirectLink(input);
+    log.info("redirect_link_created", { expiresAt: input.expiresAt });
 
-    return this.writer.insertRedirectLink(input);
+    return savedRedirectId;
   }
 
   private assertDispatchAssignments(

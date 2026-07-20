@@ -141,6 +141,7 @@ test("dispatch uses stored assignments and records sender success", async () => 
     logs.find((entry) => entry.event === "after_dispatch_scope")?.promotionRunId,
     undefined
   );
+  assert.equal(JSON.stringify(logs).includes('"redirectToken"'), false);
   assert.equal(emailSender.inputs.length, 2);
   assert.equal(emailSender.inputs[0]?.htmlBody.includes("{{redirect_url}}"), false);
   assert.equal(emailSender.inputs[0]?.htmlBody.includes("{{open_pixel_url}}"), false);
@@ -812,7 +813,7 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   const reader = new FakeAdExecutionReader();
   const service = createRedirectService(reader);
 
-  const { result: page } = await captureDispatchLogs(() =>
+  const { result: page, logs } = await captureDispatchLogs(() =>
     service.resolveRedirectPage("redirect-1")
   );
   const html = renderRedirectPage(page);
@@ -854,6 +855,9 @@ test("redirect returns an SDK handoff page with ad_experiment_id context", async
   assert.match(html, /\.\.\.redirect\.event\.fields/);
   assert.match(html, /device:\s*detectDevice\(\)/);
   assert.match(html, /window\.location\.replace/);
+  assert.equal(JSON.stringify(logs).includes('"sdkKey"'), false);
+  assert.equal(JSON.stringify(logs).includes('"redirectToken"'), false);
+  assert.equal(JSON.stringify(logs).includes("sdk-key-1"), false);
 });
 
 test("open pixel endpoint returns an uncacheable transparent image", async () => {
