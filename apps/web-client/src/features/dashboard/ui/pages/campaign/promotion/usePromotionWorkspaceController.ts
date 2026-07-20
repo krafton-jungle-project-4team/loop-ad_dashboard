@@ -734,6 +734,14 @@ export function usePromotionWorkspaceController({
       selectedSegmentId: segmentId
     });
   };
+  const selectSegmentView = (segmentView: "manage" | "experiments") => {
+    setWorkspaceTab(segmentView === "experiments" ? "segment-detail" : "segments");
+    void setDashboardQueryState({
+      segmentView,
+      selectedAdExperimentId: "",
+      selectedSegmentId: segmentView === "experiments" ? selectedPromotionSegmentId : ""
+    });
+  };
   return {
     activeAnalysisId,
     analysisProgress,
@@ -758,6 +766,7 @@ export function usePromotionWorkspaceController({
     segmentSuggestions,
     selectPromotion,
     selectSegment,
+    selectSegmentView,
     selectedCampaign,
     selectedOpenPromotion,
     selectedPromotionSegmentId,
