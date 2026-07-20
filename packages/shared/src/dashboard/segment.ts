@@ -94,10 +94,44 @@ export type DashboardSegmentAssistantSourceSuggestion = z.infer<
   typeof DashboardSegmentAssistantSourceSuggestionSchema
 >;
 
+export const DashboardSegmentAssistantRefinementKeySchema = z.string().regex(/^ref_[a-f0-9]{16}$/);
+export type DashboardSegmentAssistantRefinementKey = z.infer<
+  typeof DashboardSegmentAssistantRefinementKeySchema
+>;
+
+export const DashboardSegmentAssistantRefinementSuggestionSchema = z.object({
+  refinement_key: DashboardSegmentAssistantRefinementKeySchema,
+  label: z.string().trim().min(1).max(120),
+  prompt: z.string().trim().min(1).max(500),
+  estimated_user_count: CountSchema,
+  retention_ratio: RateSchema,
+  meets_min_sample_size: z.boolean()
+});
+export type DashboardSegmentAssistantRefinementSuggestion = z.infer<
+  typeof DashboardSegmentAssistantRefinementSuggestionSchema
+>;
+
+export const DashboardSegmentAssistantSourceContextSchema = z.object({
+  suggestion_id: z.string().min(1),
+  segment_id: z.string().min(1),
+  title: z.string().trim().min(1).max(200),
+  strategy_role: z.string().trim().min(1).max(200).nullable(),
+  candidate_type: z.string().trim().min(1).max(120),
+  sample_size: CountSchema,
+  base_condition_labels: z.array(z.string().trim().min(1).max(120)).max(12),
+  reference_labels: z.array(z.string().trim().min(1).max(120)).max(12),
+  suggested_refinements: z.array(DashboardSegmentAssistantRefinementSuggestionSchema).max(3)
+});
+export type DashboardSegmentAssistantSourceContext = z.infer<
+  typeof DashboardSegmentAssistantSourceContextSchema
+>;
+
 export const DashboardSegmentAssistantRequestSchema = z.object({
   message: z.string().trim().min(1).max(2_000),
   conversation: z.array(DashboardSegmentAssistantMessageSchema).max(12).default([]),
-  source_suggestion: DashboardSegmentAssistantSourceSuggestionSchema.optional()
+  source_suggestion: DashboardSegmentAssistantSourceSuggestionSchema.optional(),
+  refinement_key: DashboardSegmentAssistantRefinementKeySchema.optional(),
+  previous_query_preview_id: z.string().min(1).optional()
 });
 export type DashboardSegmentAssistantRequest = z.infer<
   typeof DashboardSegmentAssistantRequestSchema
@@ -139,6 +173,14 @@ export const DashboardSegmentAssistantResponseSchema = z.object({
   minimum_sample_size: CountSchema,
   condition_diagnostics: z.array(DashboardSegmentConditionDiagnosticSchema),
   suggested_adjustments: z.array(DashboardSegmentSuggestedAdjustmentSchema),
+  base_audience: z
+    .object({
+      suggestion_id: z.string().min(1),
+      title: z.string().trim().min(1),
+      sample_size: CountSchema
+    })
+    .nullable()
+    .default(null),
   preview: DashboardSegmentQueryPreviewSchema.nullable()
 });
 export type DashboardSegmentAssistantResponse = z.infer<

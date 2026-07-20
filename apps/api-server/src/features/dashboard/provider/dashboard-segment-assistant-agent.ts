@@ -9,8 +9,10 @@ import {
   SegmentAssistantPlanSchema,
   type SegmentAssistantAudienceCondition,
   type SegmentAssistantPlan,
-  type SegmentAssistantPropertyFilter
+  type SegmentAssistantPropertyFilter,
+  type SegmentAssistantSourceAudience
 } from "../segment-assistant.types.js";
+import { upsertRefinementCondition } from "../segment-assistant-refinements.js";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const OPENAI_REQUEST_TIMEOUT_MS = 20_000;
@@ -46,12 +48,16 @@ type SegmentAssistantConversationMessage = {
   content: string;
 };
 
+type SegmentAssistantPlanInput = {
+  conversation: SegmentAssistantConversationMessage[];
+  currentPlan?: SegmentAssistantPlan;
+  message: string;
+  sourceAudience?: SegmentAssistantSourceAudience;
+};
+
 @Injectable()
 export class DashboardSegmentAssistantAgent {
-  async plan(input: {
-    conversation: SegmentAssistantConversationMessage[];
-    message: string;
-  }): Promise<SegmentAssistantPlan> {
+  async plan(input: SegmentAssistantPlanInput): Promise<SegmentAssistantPlan> {
     const startedAt = Date.now();
     log.assignContext({ model: SEGMENT_ASSISTANT_MODEL, provider: "openai" });
     log.info("segment_assistant_planning_started", {
@@ -70,7 +76,11 @@ export class DashboardSegmentAssistantAgent {
       });
       return plan;
     } catch (error) {
-      const fallback = fallbackSegmentAssistantPlan(input.message, input.conversation);
+      const fallback = fallbackSegmentAssistantPlan(
+        input.message,
+        input.conversation,
+        input.currentPlan
+      );
       log.warn("segment_assistant_planning_fallback_used", {
         action: fallback.action,
         conditionCount: fallback.conditions.length,
@@ -83,10 +93,7 @@ export class DashboardSegmentAssistantAgent {
   }
 }
 
-async function requestOpenAiPlan(input: {
-  conversation: SegmentAssistantConversationMessage[];
-  message: string;
-}) {
+async function requestOpenAiPlan(input: SegmentAssistantPlanInput) {
   const startedAt = Date.now();
   log.info("provider_request_prepared", {
     conversationCount: input.conversation.length,
@@ -105,7 +112,7 @@ async function requestOpenAiPlan(input: {
       },
       body: JSON.stringify({
         model: SEGMENT_ASSISTANT_MODEL,
-        instructions: segmentAssistantInstructions(),
+        instructions: segmentAssistantInstructions(input),
         input: [
           ...input.conversation.map((message) => ({
             role: message.role,
@@ -202,7 +209,8 @@ function parseOpenAiPlan(payload: unknown): SegmentAssistantPlan {
 
 export function fallbackSegmentAssistantPlan(
   message: string,
-  conversation: SegmentAssistantConversationMessage[] = []
+  conversation: SegmentAssistantConversationMessage[] = [],
+  currentPlan?: SegmentAssistantPlan
 ): SegmentAssistantPlan {
   const latestMessage = message.replace(/\s+/g, " ").trim();
   const priorUserMessages = conversation
@@ -216,7 +224,7 @@ export function fallbackSegmentAssistantPlan(
   const lookbackDays = inferLookbackDays(text);
   const destination = inferDestination(text);
   const propertyFilters = inferPropertyFilters(text);
-  const conditions: SegmentAssistantAudienceCondition[] = [];
+  let conditions: SegmentAssistantAudienceCondition[] = [];
   const repeated = /반복|여러\s*번|두\s*번|2\s*(회|번)/.test(text);
   const minimumCount = repeated ? 2 : inferExplicitMinimumCount(text);
 
@@ -293,6 +301,13 @@ export function fallbackSegmentAssistantPlan(
     });
   }
 
+  if (currentPlan && currentPlan.action !== "clarification") {
+    conditions = conditions.reduce(
+      (merged, condition) => upsertRefinementCondition(merged, condition),
+      currentPlan.conditions
+    );
+  }
+
   if (conditions.length === 0) {
     return SegmentAssistantPlanSchema.parse({
       action: "clarification",
@@ -314,8 +329,8 @@ export function fallbackSegmentAssistantPlan(
   });
 }
 
-function segmentAssistantInstructions() {
-  return [
+function segmentAssistantInstructions(input: SegmentAssistantPlanInput) {
+  const instructions = [
     "You are the LoopAd segment assistant for a hotel booking service.",
     "Choose exactly one tool. Never write SQL.",
     "Use query_audience when the user asks how many users, what percentage, the size, status, or a numeric data question.",
@@ -331,7 +346,21 @@ function segmentAssistantInstructions() {
     `Allowed property filters: ${SEGMENT_ASSISTANT_PROPERTY_KEYS.join(", ")}.`,
     "Do not invent events, properties, user attributes, or observed counts.",
     "Create concise Korean condition labels and a concise Korean segment name."
-  ].join("\n");
+  ];
+  if (input.currentPlan && input.currentPlan.action !== "clarification") {
+    instructions.push(
+      `Current executable refinement plan: ${JSON.stringify(input.currentPlan)}. Return the complete updated refinement list, replacing a matching event condition when the user changes its threshold.`
+    );
+  }
+  if (input.sourceAudience) {
+    instructions.push(
+      `The authoritative base audience is the AI recommendation '${input.sourceAudience.title}' (${input.sourceAudience.base_user_ids.length} users).`,
+      `Its base predicates are ${JSON.stringify(input.sourceAudience.base_condition_labels)} and its descriptive reference signals are ${JSON.stringify(input.sourceAudience.reference_labels)}.`,
+      "The server already applies that base audience. Conditions returned by tools are refinements inside it, never a reconstruction of the base audience.",
+      "Do not emit an unchanged base predicate or descriptive reference signal as a new condition. Emit it only when the user adds a stricter threshold, destination, month, or property filter."
+    );
+  }
+  return instructions.join("\n");
 }
 
 function addConditionForKeywords(
@@ -374,7 +403,8 @@ function inferDestination(text: string): string | null {
     return known.join(", ");
   }
   const match = text.match(/(?:최근\s+)?([가-힣A-Za-z][가-힣A-Za-z0-9·-]{1,19})\s+(?:숙소|호텔)/);
-  return match?.[1] ?? null;
+  const inferred = match?.[1] ?? null;
+  return inferred && !/^(기존|조건에서|추천|해당|현재|그|이)$/.test(inferred) ? inferred : null;
 }
 
 function inferCheckinMonths(text: string) {

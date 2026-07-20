@@ -25,9 +25,21 @@ import {
 } from "../database/__generated__/dashboard.queries.js";
 import { durationMs, log } from "../../../infra/logger/index.js";
 import type {
+  SegmentAssistantExecutionState,
+  SegmentAssistantEventName,
   SegmentAssistantPlan,
-  SegmentAssistantPropertyFilter
+  SegmentAssistantPropertyFilter,
+  SegmentAssistantSourceAudience
 } from "../segment-assistant.types.js";
+import {
+  SEGMENT_ASSISTANT_EVENT_NAMES,
+  SegmentAssistantExecutionStateSchema
+} from "../segment-assistant.types.js";
+import {
+  buildSourceRefinementCandidates,
+  type SegmentAssistantSourceEventProfile,
+  type SegmentAssistantSourceRefinementCandidate
+} from "../segment-assistant-refinements.js";
 import { serializeJsonDatabaseParameter } from "./dashboard-json-parameter.js";
 
 const PREVIEW_ROW_LIMIT = 500;
@@ -44,6 +56,15 @@ type ClickHouseJsonResponse = {
 
 type CountRow = {
   sample_size: number | string;
+};
+
+type SourceEventProfileRow = {
+  event_name: string;
+  users_at_least_once: number | string;
+  users_at_least_twice: number | string;
+  users_at_least_three_times: number | string;
+  free_cancellation_users: number | string;
+  breakfast_included_users: number | string;
 };
 
 export type SegmentAssistantDiagnostics = {
@@ -83,13 +104,19 @@ export class DashboardSegmentQueryRepository {
   async createAssistantQueryPreview(
     projectId: string,
     naturalLanguageQuery: string,
-    plan: SegmentAssistantPlan
+    plan: SegmentAssistantPlan,
+    sourceAudience?: SegmentAssistantSourceAudience
   ): Promise<DashboardSegmentQueryPreview> {
     if (plan.action === "clarification") {
       throw new Error("A clarification plan cannot be executed.");
     }
     const timeRange = timeRangeForLookbackDays(plan.lookback_days);
-    const query = planStructuredSegmentQuery(projectId, plan, timeRange);
+    const query = planStructuredSegmentQuery(
+      projectId,
+      plan,
+      timeRange,
+      sourceAudience?.base_user_ids
+    );
     log.info("segment_query_planned", {
       action: plan.action,
       conditionCount: plan.conditions.length,
@@ -101,7 +128,10 @@ export class DashboardSegmentQueryRepository {
       naturalLanguageQuery,
       projectId,
       query,
-      queryParamsJson: { assistant_plan: plan },
+      queryParamsJson: {
+        assistant_plan: plan,
+        ...(sourceAudience ? { source_audience: sourceAudience } : {})
+      },
       timeRange
     });
   }
@@ -109,7 +139,8 @@ export class DashboardSegmentQueryRepository {
   async diagnoseAssistantPlan(
     projectId: string,
     plan: SegmentAssistantPlan,
-    currentSampleSize: number
+    currentSampleSize: number,
+    sourceAudience?: SegmentAssistantSourceAudience
   ): Promise<SegmentAssistantDiagnostics> {
     if (plan.action === "clarification" || plan.conditions.length === 0) {
       return { conditionDiagnostics: [], suggestedAdjustments: [] };
@@ -120,10 +151,17 @@ export class DashboardSegmentQueryRepository {
       plan.conditions.map(async (_condition, index) => {
         const conditions = plan.conditions.filter((_item, itemIndex) => itemIndex !== index);
         if (conditions.length === 0) {
-          return this.countEligibleUsers(projectId, timeRange);
+          return sourceAudience
+            ? sourceAudience.base_user_ids.length
+            : this.countEligibleUsers(projectId, timeRange);
         }
-        const query = planStructuredSegmentQuery(projectId, { ...plan, conditions }, timeRange);
-        return this.executeCountQuery(query.countSql);
+        const query = planStructuredSegmentQuery(
+          projectId,
+          { ...plan, conditions },
+          timeRange,
+          sourceAudience?.base_user_ids
+        );
+        return this.executeCountQuery(query.countSql, query.queryParams);
       })
     );
     const recoveredCounts = countsWithoutCondition.map((count) =>
@@ -160,8 +198,16 @@ export class DashboardSegmentQueryRepository {
           index === bottleneckIndex ? { ...condition, minimum_count: relaxedMinimum } : condition
         )
       };
-      const relaxedQuery = planStructuredSegmentQuery(projectId, relaxedPlan, timeRange);
-      const relaxedSampleSize = await this.executeCountQuery(relaxedQuery.countSql);
+      const relaxedQuery = planStructuredSegmentQuery(
+        projectId,
+        relaxedPlan,
+        timeRange,
+        sourceAudience?.base_user_ids
+      );
+      const relaxedSampleSize = await this.executeCountQuery(
+        relaxedQuery.countSql,
+        relaxedQuery.queryParams
+      );
       suggestedAdjustments.push({
         kind: "relax_condition",
         label: `'${bottleneck.label}' ${relaxedMinimum}회 이상으로 완화`,
@@ -170,7 +216,7 @@ export class DashboardSegmentQueryRepository {
       });
     }
 
-    if (plan.lookback_days < 365) {
+    if (!sourceAudience && plan.lookback_days < 365) {
       const expandedLookbackDays = Math.min(
         365,
         Math.max(plan.lookback_days * 2, plan.lookback_days + 30)
@@ -181,7 +227,10 @@ export class DashboardSegmentQueryRepository {
         { ...plan, lookback_days: expandedLookbackDays },
         expandedTimeRange
       );
-      const expandedSampleSize = await this.executeCountQuery(expandedQuery.countSql);
+      const expandedSampleSize = await this.executeCountQuery(
+        expandedQuery.countSql,
+        expandedQuery.queryParams
+      );
       suggestedAdjustments.push({
         kind: "expand_window",
         label: `조회 기간을 ${expandedLookbackDays}일로 확대`,
@@ -199,6 +248,100 @@ export class DashboardSegmentQueryRepository {
     return { conditionDiagnostics, suggestedAdjustments };
   }
 
+  async analyzeSourceRefinements(
+    projectId: string,
+    sourceAudience: SegmentAssistantSourceAudience
+  ): Promise<SegmentAssistantSourceRefinementCandidate[]> {
+    const startedAt = Date.now();
+    const timeRange = timeRangeForLookbackDays(30);
+    log.info("source_refinement_profile_started", {
+      baseAudienceSize: sourceAudience.base_user_ids.length,
+      projectId,
+      suggestionId: sourceAudience.suggestion_id
+    });
+    const result = await this.clickhouse.query({
+      query: `
+        SELECT
+          event_name,
+          count() AS users_at_least_once,
+          countIf(event_count >= 2) AS users_at_least_twice,
+          countIf(event_count >= 3) AS users_at_least_three_times,
+          countIf(free_cancellation_count > 0) AS free_cancellation_users,
+          countIf(breakfast_included_count > 0) AS breakfast_included_users
+        FROM (
+          SELECT
+            user_id,
+            event_name,
+            count() AS event_count,
+            countIf(
+              toUInt8OrZero(
+                ifNull(JSONExtractString(properties_json, 'free_cancellation'), '')
+              ) = 1
+            ) AS free_cancellation_count,
+            countIf(
+              toUInt8OrZero(
+                ifNull(JSONExtractString(properties_json, 'breakfast_included'), '')
+              ) = 1
+            ) AS breakfast_included_count
+          FROM funnel_step_events
+          WHERE project_id = {projectId:String}
+            AND event_time >= parseDateTimeBestEffort({from:String})
+            AND event_time < parseDateTimeBestEffort({to:String})
+            AND user_id IN {baseUserIds:Array(String)}
+            AND event_name IN {eventNames:Array(String)}
+          GROUP BY user_id, event_name
+        )
+        GROUP BY event_name
+        ORDER BY event_name ASC
+      `,
+      format: "JSONEachRow",
+      query_params: {
+        projectId,
+        from: timeRange.from,
+        to: timeRange.to,
+        baseUserIds: sourceAudience.base_user_ids,
+        eventNames: [...SEGMENT_ASSISTANT_EVENT_NAMES]
+      },
+      clickhouse_settings: {
+        max_execution_time: PREVIEW_TIMEOUT_SECONDS,
+        readonly: "1"
+      }
+    });
+    const rows = await result.json<SourceEventProfileRow>();
+    const profiles = rows.flatMap((row): SegmentAssistantSourceEventProfile[] => {
+      if (!isSegmentAssistantEventName(row.event_name)) return [];
+      return [
+        {
+          eventName: row.event_name,
+          usersAtLeastOnce: countValue(row.users_at_least_once),
+          usersAtLeastTwice: countValue(row.users_at_least_twice),
+          usersAtLeastThreeTimes: countValue(row.users_at_least_three_times),
+          freeCancellationUsers: countValue(row.free_cancellation_users),
+          breakfastIncludedUsers: countValue(row.breakfast_included_users)
+        }
+      ];
+    });
+    const candidates = buildSourceRefinementCandidates(profiles, sourceAudience);
+    log.info("source_refinement_profile_completed", {
+      candidateCount: candidates.length,
+      durationMs: durationMs(startedAt),
+      eventCount: profiles.length,
+      projectId,
+      suggestionId: sourceAudience.suggestion_id
+    });
+    return candidates;
+  }
+
+  async readAssistantExecutionState(
+    projectId: string,
+    queryPreviewId: string
+  ): Promise<SegmentAssistantExecutionState> {
+    const preview = await this.db
+      .query(getDashboardSegmentQueryPreviewForSave, { projectId, queryPreviewId })
+      .single();
+    return SegmentAssistantExecutionStateSchema.parse(preview.queryParamsJson);
+  }
+
   private async persistQueryPreview(input: {
     naturalLanguageQuery: string;
     projectId: string;
@@ -208,8 +351,8 @@ export class DashboardSegmentQueryRepository {
   }): Promise<DashboardSegmentQueryPreview> {
     const startedAt = Date.now();
     const [preview, sampleSize, totalEligibleUserCount] = await Promise.all([
-      this.executePreviewQuery(input.query.previewSql),
-      this.executeCountQuery(input.query.countSql),
+      this.executePreviewQuery(input.query.previewSql, input.query.queryParams),
+      this.executeCountQuery(input.query.countSql, input.query.queryParams),
       this.countEligibleUsers(input.projectId, input.timeRange)
     ]);
     const sampleRatio =
@@ -311,13 +454,15 @@ export class DashboardSegmentQueryRepository {
   }
 
   private async executePreviewQuery(
-    sql: string
+    sql: string,
+    queryParams: Record<string, unknown> = {}
   ): Promise<{ columns: string[]; rows: PreviewRow[] }> {
     const startedAt = Date.now();
     log.info("clickhouse_preview_query_started", { queryLength: sql.length });
     const result = await this.clickhouse.query({
       query: sql,
       format: "JSON",
+      query_params: queryParams,
       clickhouse_settings: {
         max_execution_time: PREVIEW_TIMEOUT_SECONDS,
         max_result_rows: String(PREVIEW_ROW_LIMIT),
@@ -335,12 +480,16 @@ export class DashboardSegmentQueryRepository {
     return response;
   }
 
-  private async executeCountQuery(sql: string): Promise<number> {
+  private async executeCountQuery(
+    sql: string,
+    queryParams: Record<string, unknown> = {}
+  ): Promise<number> {
     const startedAt = Date.now();
     log.info("clickhouse_count_query_started", { queryLength: sql.length });
     const result = await this.clickhouse.query({
       query: sql,
       format: "JSONEachRow",
+      query_params: queryParams,
       clickhouse_settings: {
         max_execution_time: PREVIEW_TIMEOUT_SECONDS,
         readonly: "1"
@@ -386,6 +535,7 @@ type PlannedSegmentQuery = {
   generatedSql: string;
   previewSql: string;
   countSql: string;
+  queryParams: Record<string, unknown>;
 };
 
 function planSegmentQuery(
@@ -429,23 +579,47 @@ FROM (
   return {
     countSql,
     generatedSql,
-    previewSql
+    previewSql,
+    queryParams: {}
   };
 }
 
 export function planStructuredSegmentQuery(
   projectId: string,
   plan: SegmentAssistantPlan,
-  timeRange: SegmentPreviewTimeRange
+  timeRange: SegmentPreviewTimeRange,
+  baseUserIds: string[] = []
 ): PlannedSegmentQuery {
-  if (plan.action === "clarification" || plan.conditions.length === 0) {
+  if (
+    plan.action === "clarification" ||
+    (plan.conditions.length === 0 && baseUserIds.length === 0)
+  ) {
     throw new Error("Structured segment queries require executable conditions.");
+  }
+
+  if (plan.conditions.length === 0) {
+    const generatedSql = `
+SELECT
+  user_id,
+  now() AS last_event_at
+FROM (
+  SELECT arrayJoin({baseUserIds:Array(String)}) AS user_id
+)
+ORDER BY user_id ASC
+`.trim();
+    return {
+      countSql: "SELECT length({baseUserIds:Array(String)}) AS sample_size",
+      generatedSql,
+      previewSql: `${generatedSql}\nLIMIT ${PREVIEW_ROW_LIMIT}`,
+      queryParams: { baseUserIds }
+    };
   }
 
   const baseWhere = [
     `project_id = ${sqlString(projectId)}`,
     `event_time >= parseDateTimeBestEffort(${sqlString(timeRange.from)})`,
-    `event_time < parseDateTimeBestEffort(${sqlString(timeRange.to)})`
+    `event_time < parseDateTimeBestEffort(${sqlString(timeRange.to)})`,
+    ...(baseUserIds.length > 0 ? ["user_id IN {baseUserIds:Array(String)}"] : [])
   ].join("\n    AND ");
   const counters = plan.conditions.map((condition, index) => {
     const alias = `condition_${index + 1}_count`;
@@ -488,7 +662,8 @@ FROM (
   return {
     countSql,
     generatedSql,
-    previewSql
+    previewSql,
+    queryParams: baseUserIds.length > 0 ? { baseUserIds } : {}
   };
 }
 
@@ -576,6 +751,10 @@ function propertyFilterPredicate(filter: SegmentAssistantPropertyFilter) {
     return `toUInt8OrZero(${extracted}) = ${expected}`;
   }
   return `lowerUTF8(${extracted}) = lowerUTF8(${sqlString(normalizedValue)})`;
+}
+
+function isSegmentAssistantEventName(value: string): value is SegmentAssistantEventName {
+  return (SEGMENT_ASSISTANT_EVENT_NAMES as readonly string[]).includes(value);
 }
 
 function inferSegmentCondition(naturalLanguageQuery: string) {

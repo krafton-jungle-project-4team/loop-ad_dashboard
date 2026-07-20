@@ -17,6 +17,11 @@ export const DASHBOARD_ERRORS = {
     code: "DASHBOARD_SEGMENT_SUGGESTION_SELECTION_INVALID",
     message: "Selected segment suggestions do not match the current analysis."
   },
+  SEGMENT_ASSISTANT_SOURCE_INVALID: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_SEGMENT_ASSISTANT_SOURCE_INVALID",
+    message: "참고 중인 AI 추천 고객군이 현재 추천 결과와 일치하지 않습니다."
+  },
   DECISION_REQUEST_FAILED: {
     statusCode: HttpStatus.BAD_GATEWAY,
     code: "DASHBOARD_DECISION_REQUEST_FAILED",
@@ -103,6 +108,8 @@ export const dashboardErrors = {
     createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE),
   segmentSuggestionSelectionInvalid: () =>
     createDashboardError(DASHBOARD_ERRORS.SEGMENT_SUGGESTION_SELECTION_INVALID),
+  segmentAssistantSourceInvalid: () =>
+    createDashboardError(DASHBOARD_ERRORS.SEGMENT_ASSISTANT_SOURCE_INVALID),
   promotionCampaignScheduleInvalid: () =>
     createDashboardError(DASHBOARD_ERRORS.PROMOTION_CAMPAIGN_SCHEDULE_INVALID),
   campaignPromotionScheduleConflict: () =>

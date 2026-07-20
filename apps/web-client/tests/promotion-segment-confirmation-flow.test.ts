@@ -153,6 +153,53 @@ test("segment assistant keeps the selected recommendation as editable session co
   assert.equal(selected.result, null);
 });
 
+test("changing the AI recommendation clears stale conversation and refinement context", () => {
+  const first = {
+    suggestion_id: "suggestion-1",
+    segment_id: "segment-1",
+    title: "예약 직전 이탈 고객",
+    strategy_role: "예약 이탈 회수형",
+    condition_labels: [],
+    reference_labels: ["예약 시작", "예약 미완료"],
+    sample_size: 100
+  } as const;
+  const second = {
+    ...first,
+    suggestion_id: "suggestion-2",
+    segment_id: "segment-2",
+    title: "반복 탐색 고객",
+    sample_size: 138
+  } as const;
+  const current = {
+    ...selectSegmentAssistantSource(createSegmentAssistantSession(), first),
+    messages: [
+      { id: 0, role: "assistant" as const, text: INITIAL_SEGMENT_ASSISTANT_MESSAGE },
+      { id: 1, role: "user" as const, text: "상세 조회 2회 이상" }
+    ],
+    nextMessageId: 2,
+    sourceContext: {
+      suggestion_id: "suggestion-1",
+      segment_id: "segment-1",
+      title: first.title,
+      strategy_role: first.strategy_role,
+      candidate_type: "funnel_recovery",
+      sample_size: 100,
+      base_condition_labels: ["예약 시작 후 미완료"],
+      reference_labels: [...first.reference_labels],
+      suggested_refinements: []
+    }
+  };
+
+  const selected = selectSegmentAssistantSource(current, second);
+
+  assert.deepEqual(selected.messages, [
+    { id: 0, role: "assistant", text: INITIAL_SEGMENT_ASSISTANT_MESSAGE }
+  ]);
+  assert.equal(selected.nextMessageId, 1);
+  assert.equal(selected.sourceContext, null);
+  assert.equal(selected.isSourceContextLoading, true);
+});
+
 test("selection summary identifies accepted AI and directly added segments", () => {
   const accepted = suggestion("suggestion-1", "analysis-current", "accepted");
   accepted.segment_name = "예약 직전 이탈 고객";
