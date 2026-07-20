@@ -1001,7 +1001,7 @@ test("restating recommendation signals returns the same authoritative AI audienc
   assert.deepEqual(response.condition_labels, []);
 });
 
-test("natural-language source edits replace one base condition and preserve the others", async () => {
+test("natural-language source edits preserve other conditions and recompute against all eligible users", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
@@ -1015,6 +1015,7 @@ test("natural-language source edits replace one base condition and preserve the 
     }>;
     execution_scope?: string;
   }> = [];
+  const recomputedGlobalSampleSize = 80;
   const service = new DashboardQueryService(
     {
       ...emptyCampaignReader(),
@@ -1038,10 +1039,10 @@ test("natural-language source edits replace one base condition and preserve the 
         return {
           query_preview_id: "seg_query_preview_source_edit",
           generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
-          sample_size: 4,
+          sample_size: recomputedGlobalSampleSize,
           total_eligible_user_count: 613,
-          sample_ratio: 4 / 613,
-          sample_size_status: "too_small" as const,
+          sample_ratio: recomputedGlobalSampleSize / 613,
+          sample_size_status: "valid" as const,
           columns: ["user_id"],
           rows: []
         };
@@ -1093,7 +1094,7 @@ test("natural-language source edits replace one base condition and preserve the 
   );
   assert.deepEqual(response.condition_labels, ["예약 시작", "예약 완료", "호텔 상세 조회"]);
   assert.equal(response.base_audience, null);
-  assert.equal(response.preview?.sample_size, 4);
+  assert.equal(response.preview?.sample_size, recomputedGlobalSampleSize);
 });
 
 test("dashboard save segment delegates valid preview save to the segment query repository", async () => {

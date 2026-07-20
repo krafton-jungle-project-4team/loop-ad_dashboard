@@ -209,6 +209,54 @@ test("source audience membership compiles without rebuilding recommendation sign
   assert.doesNotMatch(query.generatedSql, /booking_start|booking_complete|hotel_detail_view/);
 });
 
+test("edited source conditions ignore stale recommendation membership when querying all eligible users", async () => {
+  const { planStructuredSegmentQuery } =
+    await import("../src/features/dashboard/repository/dashboard-segment-query-repository.js");
+  const { usesSourceAudienceMembership } =
+    await import("../src/features/dashboard/segment-assistant.types.js");
+  const plan = {
+    action: "segment_preview" as const,
+    execution_scope: "all_eligible_users" as const,
+    segment_name: "예약 완료 고객",
+    lookback_days: 30,
+    conditions: [
+      audienceCondition("예약 시작", "booking_start", 1, null),
+      audienceCondition("예약 완료", "booking_complete", 1, null),
+      audienceCondition("호텔 상세 조회", "hotel_detail_view", 1, null)
+    ],
+    clarification_message: null
+  };
+  const sourceAudience = {
+    suggestion_id: "suggestion-1",
+    segment_id: "segment-1",
+    candidate_type: "funnel_recovery",
+    title: "예약 직전 이탈 고객",
+    base_condition_labels: ["예약 시작 후 미완료"],
+    hard_predicate_keys: ["booking_start_without_complete"],
+    reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+    base_user_ids: ["source-user-001", "source-user-002"]
+  };
+  const baseUserIds = usesSourceAudienceMembership(plan, sourceAudience)
+    ? sourceAudience.base_user_ids
+    : [];
+  const query = planStructuredSegmentQuery(
+    "demo_project",
+    plan,
+    {
+      from: "2026-06-01T00:00:00.000Z",
+      to: "2026-07-01T00:00:00.000Z"
+    },
+    baseUserIds
+  );
+
+  assert.deepEqual(baseUserIds, []);
+  assert.deepEqual(query.queryParams, {});
+  assert.doesNotMatch(query.generatedSql, /baseUserIds|user_id IN/);
+  assert.match(query.generatedSql, /event_name = 'booking_start'/);
+  assert.match(query.generatedSql, /event_name = 'booking_complete'/);
+  assert.match(query.generatedSql, /event_name = 'hotel_detail_view'/);
+});
+
 test("source refinement contract stores exact recommendation membership with no duplicate predicates", async () => {
   const { buildCustomStructuredAudienceRule } =
     await import("../src/features/dashboard/segment-audience-v2-contract.js");
