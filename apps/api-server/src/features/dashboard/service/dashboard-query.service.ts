@@ -104,14 +104,20 @@ import {
   sanitizeCreativeHtmlRevision
 } from "./content-candidate-copy.js";
 import {
+  applySourceBaseConditionEdit,
+  buildSourceEditableConditions,
+  isSourceBaseConditionEditRequest,
   removeUnchangedSourceConditions,
   selectSourceRefinementCandidates,
   sourceBaseConditionLabels,
+  sourceConditionsEqual,
   upsertRefinementCondition
 } from "../segment-assistant-refinements.js";
-import type {
-  SegmentAssistantPlan,
-  SegmentAssistantSourceAudience
+import {
+  usesSourceAudienceMembership,
+  type SegmentAssistantAudienceCondition,
+  type SegmentAssistantPlan,
+  type SegmentAssistantSourceAudience
 } from "../segment-assistant.types.js";
 
 const AI_CREATIVE_HTML_INPUT_LIMIT_BYTES = 500_000;
@@ -491,9 +497,22 @@ export class DashboardQueryService {
     const rule = jsonObject(suggestion.rule_json);
     const audienceSpec = jsonObject(rule?.segment_audience_spec);
     const candidateType = nonEmptyString(rule?.candidate_type);
-    const baseUserIds = canonicalSourceUserIds(rule?.candidate_user_ids);
+    const legacyBaseUserIds = canonicalSourceUserIds(rule?.candidate_user_ids);
     const hardPredicateKeys = canonicalStringArray(audienceSpec?.hard_predicate_keys);
-    if (!rule || !audienceSpec || !candidateType || baseUserIds.length === 0) {
+    if (!rule || !audienceSpec || !candidateType) {
+      throw dashboardErrors.segmentAssistantSourceInvalid();
+    }
+
+    const baseUserIds = suggestion.audience_snapshot_id
+      ? canonicalSourceUserIds(
+          await this.campaignReader.listPromotionSegmentSuggestionAudienceMemberIds(
+            projectId,
+            promotionId,
+            suggestionId
+          )
+        )
+      : legacyBaseUserIds;
+    if (baseUserIds.length === 0) {
       throw dashboardErrors.segmentAssistantSourceInvalid();
     }
 
@@ -508,6 +527,7 @@ export class DashboardQueryService {
       base_condition_labels: sourceBaseConditionLabels(hardPredicateKeys),
       hard_predicate_keys: hardPredicateKeys,
       reference_labels: referenceLabels,
+      base_conditions: buildSourceEditableConditions(hardPredicateKeys, referenceLabels),
       base_user_ids: baseUserIds
     };
   }
@@ -1625,6 +1645,24 @@ export class DashboardQueryService {
       previousPlan = previousState.assistant_plan;
     }
 
+    const sourceBaseConditions = source?.base_conditions ?? [];
+    const previousPlanEditsSource = previousPlan?.execution_scope === "all_eligible_users";
+    const editingSourceBase = Boolean(
+      source &&
+      (previousPlanEditsSource ||
+        isSourceBaseConditionEditRequest(request.message, sourceBaseConditions))
+    );
+    const sourceConditionsWithPreviousRefinements =
+      source && previousPlan && !previousPlanEditsSource
+        ? applySourceBaseConditionEdit(sourceBaseConditions, previousPlan.conditions, "")
+        : sourceBaseConditions;
+    const editableCurrentPlan =
+      source && editingSourceBase
+        ? previousPlanEditsSource && previousPlan
+          ? previousPlan
+          : sourceBasePlan(source, sourceConditionsWithPreviousRefinements)
+        : previousPlan;
+
     let plan: SegmentAssistantPlan;
     if (request.refinement_key) {
       if (!source) {
@@ -1640,6 +1678,7 @@ export class DashboardQueryService {
       }
       plan = {
         action: "segment_preview",
+        execution_scope: previousPlan?.execution_scope ?? "source_audience",
         segment_name: sourceRefinementSegmentName(source.title, definition.condition.label),
         lookback_days: 30,
         conditions: upsertRefinementCondition(previousPlan?.conditions ?? [], definition.condition),
@@ -1651,16 +1690,20 @@ export class DashboardQueryService {
       }
       plan = await this.segmentAssistantAgent.plan({
         conversation: request.conversation,
-        currentPlan: previousPlan,
+        currentPlan: editableCurrentPlan,
+        editingSourceBase,
         message: request.message,
         sourceAudience: source
       });
       if (source && plan.action !== "clarification") {
-        plan = {
-          ...plan,
-          lookback_days: 30,
-          conditions: removeUnchangedSourceConditions(plan.conditions, source.reference_labels)
-        };
+        plan = editingSourceBase
+          ? sourceBaseEditPlan(plan, editableCurrentPlan?.conditions ?? [], source, request.message)
+          : {
+              ...plan,
+              execution_scope: "source_audience",
+              lookback_days: 30,
+              conditions: removeUnchangedSourceConditions(plan.conditions, source.reference_labels)
+            };
       }
     }
     if (plan.action === "clarification") {
@@ -1685,6 +1728,7 @@ export class DashboardQueryService {
       return response;
     }
 
+    const sourceMembership = usesSourceAudienceMembership(plan, source) ? source : undefined;
     const preview = await this.segmentQueryRepository.createAssistantQueryPreview(
       projectId,
       segmentAssistantNaturalLanguageQuery(request),
@@ -1713,7 +1757,7 @@ export class DashboardQueryService {
         plan.lookback_days,
         preview,
         diagnostics,
-        source,
+        sourceMembership,
         plan.conditions.length
       ),
       segment_name: segmentName,
@@ -1722,7 +1766,7 @@ export class DashboardQueryService {
       minimum_sample_size: MIN_SEGMENT_USER_COUNT,
       condition_diagnostics: diagnostics.conditionDiagnostics,
       suggested_adjustments: diagnostics.suggestedAdjustments,
-      base_audience: source ? sourceAudienceResponse(source) : null,
+      base_audience: sourceMembership ? sourceAudienceResponse(sourceMembership) : null,
       preview
     };
 
@@ -1809,6 +1853,36 @@ function segmentAssistantNaturalLanguageQuery(request: DashboardSegmentAssistant
 type ResolvedSegmentAssistantSource = SegmentAssistantSourceAudience & {
   strategy_role: string | null;
 };
+
+function sourceBasePlan(
+  source: ResolvedSegmentAssistantSource,
+  conditions: SegmentAssistantAudienceCondition[]
+): SegmentAssistantPlan {
+  return {
+    action: "segment_preview",
+    execution_scope: "all_eligible_users",
+    segment_name: source.title,
+    lookback_days: 30,
+    conditions,
+    clarification_message: null
+  };
+}
+
+function sourceBaseEditPlan(
+  planned: SegmentAssistantPlan,
+  currentConditions: SegmentAssistantAudienceCondition[],
+  source: ResolvedSegmentAssistantSource,
+  message: string
+): SegmentAssistantPlan {
+  const conditions = applySourceBaseConditionEdit(currentConditions, planned.conditions, message);
+  const restoresOriginalSource = sourceConditionsEqual(conditions, source.base_conditions ?? []);
+  return {
+    ...planned,
+    execution_scope: restoresOriginalSource ? "source_audience" : "all_eligible_users",
+    lookback_days: 30,
+    conditions: restoresOriginalSource ? [] : conditions
+  };
+}
 
 function sourceAudienceResponse(source: ResolvedSegmentAssistantSource) {
   return {

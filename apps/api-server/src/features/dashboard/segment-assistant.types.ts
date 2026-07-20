@@ -87,6 +87,7 @@ export type SegmentAssistantAudienceCondition = z.infer<
 export const SegmentAssistantPlanSchema = z
   .object({
     action: z.enum(["audience_query", "segment_preview", "clarification"]),
+    execution_scope: z.enum(["all_eligible_users", "source_audience"]).optional(),
     segment_name: z.string().trim().min(1).max(100).nullable(),
     lookback_days: z.number().int().min(1).max(365),
     conditions: z.array(SegmentAssistantAudienceConditionSchema).max(8),
@@ -111,6 +112,7 @@ export const SegmentAssistantSourceAudienceSchema = z.object({
   base_condition_labels: z.array(z.string().min(1)).max(12),
   hard_predicate_keys: z.array(z.string().min(1)).max(12),
   reference_labels: z.array(z.string().min(1)).max(12),
+  base_conditions: z.array(SegmentAssistantAudienceConditionSchema).max(8).optional(),
   base_user_ids: z.array(z.string().min(1)).min(1).max(5_000)
 });
 export type SegmentAssistantSourceAudience = z.infer<typeof SegmentAssistantSourceAudienceSchema>;
@@ -120,3 +122,10 @@ export const SegmentAssistantExecutionStateSchema = z.object({
   source_audience: SegmentAssistantSourceAudienceSchema.optional()
 });
 export type SegmentAssistantExecutionState = z.infer<typeof SegmentAssistantExecutionStateSchema>;
+
+export function usesSourceAudienceMembership(
+  plan: SegmentAssistantPlan,
+  sourceAudience?: SegmentAssistantSourceAudience
+) {
+  return Boolean(sourceAudience && plan.execution_scope !== "all_eligible_users");
+}

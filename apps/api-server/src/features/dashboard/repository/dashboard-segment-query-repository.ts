@@ -33,7 +33,8 @@ import type {
 } from "../segment-assistant.types.js";
 import {
   SEGMENT_ASSISTANT_EVENT_NAMES,
-  SegmentAssistantExecutionStateSchema
+  SegmentAssistantExecutionStateSchema,
+  usesSourceAudienceMembership
 } from "../segment-assistant.types.js";
 import {
   buildSourceRefinementCandidates,
@@ -111,12 +112,10 @@ export class DashboardSegmentQueryRepository {
       throw new Error("A clarification plan cannot be executed.");
     }
     const timeRange = timeRangeForLookbackDays(plan.lookback_days);
-    const query = planStructuredSegmentQuery(
-      projectId,
-      plan,
-      timeRange,
-      sourceAudience?.base_user_ids
-    );
+    const baseUserIds = usesSourceAudienceMembership(plan, sourceAudience)
+      ? sourceAudience?.base_user_ids
+      : undefined;
+    const query = planStructuredSegmentQuery(projectId, plan, timeRange, baseUserIds);
     log.info("segment_query_planned", {
       action: plan.action,
       conditionCount: plan.conditions.length,
@@ -147,19 +146,21 @@ export class DashboardSegmentQueryRepository {
     }
 
     const timeRange = timeRangeForLookbackDays(plan.lookback_days);
+    const usesSourceMembership = usesSourceAudienceMembership(plan, sourceAudience);
+    const baseUserIds = usesSourceMembership ? sourceAudience?.base_user_ids : undefined;
     const countsWithoutCondition = await Promise.all(
       plan.conditions.map(async (_condition, index) => {
         const conditions = plan.conditions.filter((_item, itemIndex) => itemIndex !== index);
         if (conditions.length === 0) {
-          return sourceAudience
-            ? sourceAudience.base_user_ids.length
+          return usesSourceMembership
+            ? (baseUserIds?.length ?? 0)
             : this.countEligibleUsers(projectId, timeRange);
         }
         const query = planStructuredSegmentQuery(
           projectId,
           { ...plan, conditions },
           timeRange,
-          sourceAudience?.base_user_ids
+          baseUserIds
         );
         return this.executeCountQuery(query.countSql, query.queryParams);
       })
@@ -202,7 +203,7 @@ export class DashboardSegmentQueryRepository {
         projectId,
         relaxedPlan,
         timeRange,
-        sourceAudience?.base_user_ids
+        baseUserIds
       );
       const relaxedSampleSize = await this.executeCountQuery(
         relaxedQuery.countSql,
@@ -216,7 +217,7 @@ export class DashboardSegmentQueryRepository {
       });
     }
 
-    if (!sourceAudience && plan.lookback_days < 365) {
+    if (!usesSourceMembership && plan.lookback_days < 365) {
       const expandedLookbackDays = Math.min(
         365,
         Math.max(plan.lookback_days * 2, plan.lookback_days + 30)

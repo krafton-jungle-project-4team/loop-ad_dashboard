@@ -51,6 +51,7 @@ type SegmentAssistantConversationMessage = {
 type SegmentAssistantPlanInput = {
   conversation: SegmentAssistantConversationMessage[];
   currentPlan?: SegmentAssistantPlan;
+  editingSourceBase?: boolean;
   message: string;
   sourceAudience?: SegmentAssistantSourceAudience;
 };
@@ -265,7 +266,20 @@ export function fallbackSegmentAssistantPlan(
     property_filters: propertyFilters
   });
 
-  if (
+  const replacesIncompleteWithComplete =
+    /예약\s*미완료.*(?:대신|바꿔|변경|교체).*예약\s*완료/.test(latestMessage) ||
+    /예약\s*완료(?:로|를)\s*(?:바꿔|변경|교체)/.test(latestMessage);
+  if (replacesIncompleteWithComplete) {
+    conditions.push({
+      label: destination ? `${destination} 예약 완료` : "예약 완료",
+      event_name: "booking_complete",
+      minimum_count: 1,
+      maximum_count: null,
+      destination,
+      checkin_months: [],
+      property_filters: []
+    });
+  } else if (
     /예약(을|은)?\s*(하지|안\s*한|않은)|미예약|예약\s*미완료|예약\s*완료.*(?:빼|제외)/.test(text)
   ) {
     conditions.push({
@@ -349,16 +363,25 @@ function segmentAssistantInstructions(input: SegmentAssistantPlanInput) {
   ];
   if (input.currentPlan && input.currentPlan.action !== "clarification") {
     instructions.push(
-      `Current executable refinement plan: ${JSON.stringify(input.currentPlan)}. Return the complete updated refinement list, replacing a matching event condition when the user changes its threshold.`
+      `Current executable plan: ${JSON.stringify(input.currentPlan)}. Return the complete updated condition list, preserving every unchanged condition and replacing only the condition the user changes.`
     );
   }
   if (input.sourceAudience) {
     instructions.push(
       `The authoritative base audience is the AI recommendation '${input.sourceAudience.title}' (${input.sourceAudience.base_user_ids.length} users).`,
-      `Its base predicates are ${JSON.stringify(input.sourceAudience.base_condition_labels)} and its descriptive reference signals are ${JSON.stringify(input.sourceAudience.reference_labels)}.`,
-      "The server already applies that base audience. Conditions returned by tools are refinements inside it, never a reconstruction of the base audience.",
-      "Do not emit an unchanged base predicate or descriptive reference signal as a new condition. Emit it only when the user adds a stricter threshold, destination, month, or property filter."
+      `Its base predicates are ${JSON.stringify(input.sourceAudience.base_condition_labels)} and its descriptive reference signals are ${JSON.stringify(input.sourceAudience.reference_labels)}.`
     );
+    if (input.editingSourceBase) {
+      instructions.push(
+        `The user is editing the recommendation's base conditions. The complete editable base is ${JSON.stringify(input.sourceAudience.base_conditions ?? [])}.`,
+        "Apply replacement, removal, threshold, and relaxation requests to that complete base. Return every unchanged condition together with the changed conditions."
+      );
+    } else {
+      instructions.push(
+        "The server already applies that base audience. Conditions returned by tools are refinements inside it, never a reconstruction of the base audience.",
+        "Do not emit an unchanged base predicate or descriptive reference signal as a new condition. Emit it only when the user adds a stricter threshold, destination, month, or property filter."
+      );
+    }
   }
   return instructions.join("\n");
 }

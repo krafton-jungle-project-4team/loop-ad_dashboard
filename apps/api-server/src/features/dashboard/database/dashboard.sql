@@ -1145,6 +1145,25 @@ WHERE pss.project_id = :projectId
   )
 ORDER BY pss.suggested_rank ASC, pss.created_at ASC;
 
+/* 목적: AI 추천 후보에 고정된 V2 최종 고객군 구성원을 조회합니다. */
+/* @name ListDashboardPromotionSegmentSuggestionAudienceMembers */
+SELECT
+  member.user_id AS "userId"
+FROM promotion_segment_suggestions suggestion
+JOIN segment_audience_snapshots snapshot
+  ON snapshot.snapshot_id = suggestion.audience_snapshot_id
+ AND snapshot.project_id = suggestion.project_id
+ AND snapshot.campaign_id = suggestion.campaign_id
+ AND snapshot.promotion_id = suggestion.promotion_id
+ AND snapshot.segment_id = suggestion.segment_id
+JOIN segment_audience_members member
+  ON member.snapshot_id = snapshot.snapshot_id
+WHERE suggestion.project_id = :projectId
+  AND suggestion.promotion_id = :promotionId
+  AND suggestion.suggestion_id = :suggestionId
+  AND snapshot.status = 'completed'
+ORDER BY member.user_id ASC;
+
 /* 목적: 추천 세그먼트 후보의 확정 선택을 변경하거나 후보 row를 삭제합니다. */
 /* @name DecideDashboardPromotionSegmentSuggestion */
 WITH updated AS (

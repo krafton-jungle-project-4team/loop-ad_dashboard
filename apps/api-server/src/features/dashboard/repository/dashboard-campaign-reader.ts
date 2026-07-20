@@ -93,6 +93,7 @@ import {
   insertDashboardPromotionManualSegmentDefinition,
   insertDashboardPromotionTargetSegment,
   listDashboardPromotionSegmentSuggestions,
+  listDashboardPromotionSegmentSuggestionAudienceMembers,
   listDashboardPromotionScopedSegmentDefinitions,
   listDashboardProjects,
   listDashboardCampaignAdExperiments,
@@ -436,6 +437,22 @@ export class DashboardCampaignReader {
       suggestions: rows.map(toPromotionSegmentSuggestion),
       audience_allocation_preview_context: preview.success ? preview.data : null
     };
+  }
+
+  async listPromotionSegmentSuggestionAudienceMemberIds(
+    projectId: string,
+    promotionId: string,
+    suggestionId: string
+  ): Promise<string[]> {
+    const rows = await this.db
+      .query(listDashboardPromotionSegmentSuggestionAudienceMembers, {
+        projectId,
+        promotionId,
+        suggestionId
+      })
+      .multiple();
+
+    return rows.map((row) => row.userId);
   }
 
   async listPromotionScopedSegmentDefinitions(

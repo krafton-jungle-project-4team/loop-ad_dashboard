@@ -221,6 +221,94 @@ export function sourceBaseConditionLabels(hardPredicateKeys: string[]): string[]
   return hardPredicateKeys.map((key) => HARD_PREDICATE_LABELS[key] ?? key);
 }
 
+export function buildSourceEditableConditions(
+  hardPredicateKeys: string[],
+  referenceLabels: string[]
+): SegmentAssistantAudienceCondition[] {
+  let conditions: SegmentAssistantAudienceCondition[] = [];
+  if (hardPredicateKeys.includes("booking_start_without_complete")) {
+    conditions = upsertRefinementCondition(conditions, {
+      ...eventCountCondition("booking_start", "예약 시작", 1),
+      label: "예약 시작"
+    });
+    conditions = upsertRefinementCondition(conditions, {
+      label: "예약 미완료",
+      event_name: "booking_complete",
+      minimum_count: 0,
+      maximum_count: 0,
+      destination: null,
+      checkin_months: [],
+      property_filters: []
+    });
+  }
+  if (hardPredicateKeys.includes("promotion_response")) {
+    conditions = upsertRefinementCondition(conditions, {
+      ...eventCountCondition("promotion_click", "프로모션 클릭", 1),
+      label: "프로모션 클릭"
+    });
+  }
+
+  for (const label of referenceLabels) {
+    for (const condition of editableConditionsForReferenceLabel(label)) {
+      conditions = upsertConditionPreservingOrder(conditions, condition);
+    }
+  }
+  return conditions;
+}
+
+export function isSourceBaseConditionEditRequest(
+  message: string,
+  baseConditions: SegmentAssistantAudienceCondition[]
+) {
+  if (!/(?:대신|바꿔|변경|교체|수정|완화|강화|빼|제외|삭제|없애)/.test(message)) {
+    return false;
+  }
+  const mentionedEvents = new Set(referenceLabelEvents(message));
+  return baseConditions.some((condition) => mentionedEvents.has(condition.event_name));
+}
+
+export function applySourceBaseConditionEdit(
+  currentConditions: SegmentAssistantAudienceCondition[],
+  plannedConditions: SegmentAssistantAudienceCondition[],
+  message: string
+) {
+  const removedEvents = sourceConditionRemovalEvents(message);
+  let conditions = currentConditions.filter(
+    (condition) => !removedEvents.has(condition.event_name)
+  );
+  for (const condition of plannedConditions) {
+    if (removedEvents.has(condition.event_name)) continue;
+    conditions = upsertConditionPreservingOrder(conditions, condition);
+  }
+  return conditions;
+}
+
+export function sourceConditionsEqual(
+  left: SegmentAssistantAudienceCondition[],
+  right: SegmentAssistantAudienceCondition[]
+) {
+  const normalized = (conditions: SegmentAssistantAudienceCondition[]) =>
+    conditions
+      .map((condition) =>
+        JSON.stringify({
+          checkin_months: [...condition.checkin_months].sort((a, b) => a - b),
+          destination: condition.destination,
+          event_name: condition.event_name,
+          maximum_count: condition.maximum_count,
+          minimum_count: condition.minimum_count,
+          property_filters: condition.property_filters
+            .map((filter) => ({
+              key: filter.key,
+              operator: filter.operator,
+              value: filter.value
+            }))
+            .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+        })
+      )
+      .sort();
+  return JSON.stringify(normalized(left)) === JSON.stringify(normalized(right));
+}
+
 export function upsertRefinementCondition(
   conditions: SegmentAssistantPlan["conditions"],
   nextCondition: SegmentAssistantAudienceCondition
@@ -312,6 +400,19 @@ function conditionIdentity(condition: SegmentAssistantAudienceCondition) {
   });
 }
 
+function upsertConditionPreservingOrder(
+  conditions: SegmentAssistantAudienceCondition[],
+  nextCondition: SegmentAssistantAudienceCondition
+) {
+  const nextIdentity = conditionIdentity(nextCondition);
+  const existingIndex = conditions.findIndex(
+    (condition) => conditionIdentity(condition) === nextIdentity
+  );
+  return existingIndex >= 0
+    ? conditions.map((condition, index) => (index === existingIndex ? nextCondition : condition))
+    : [...conditions, nextCondition];
+}
+
 function referenceLabelEvents(label: string): SegmentAssistantEventName[] {
   const normalized = label.replace(/\s+/g, "");
   const events: SegmentAssistantEventName[] = [];
@@ -322,11 +423,50 @@ function referenceLabelEvents(label: string): SegmentAssistantEventName[] {
   }
   if (/상세조회|숙소조회|호텔조회/.test(normalized)) events.push("hotel_detail_view");
   if (/예약시작|예약이탈/.test(normalized)) events.push("booking_start");
-  if (/예약미완료|예약완료없음|미예약/.test(normalized)) events.push("booking_complete");
+  if (/예약미완료|예약완료없음|미예약/.test(normalized)) {
+    events.push("booking_complete");
+  } else if (/예약완료/.test(normalized)) {
+    events.push("booking_complete");
+  }
   if (/프로모션반응|프로모션클릭|캠페인반응/.test(normalized)) {
     events.push("promotion_click");
   }
   return events;
+}
+
+function editableConditionsForReferenceLabel(label: string): SegmentAssistantAudienceCondition[] {
+  const conditions: SegmentAssistantAudienceCondition[] = [];
+  const minimumCount = /(?:반복|2\s*(?:회|번)|두\s*번)/.test(label) ? 2 : 1;
+  for (const eventName of referenceLabelEvents(label)) {
+    if (eventName === "booking_complete" && /미완료|완료\s*(?:없음|제외)|미예약/.test(label)) {
+      conditions.push({
+        label: "예약 미완료",
+        event_name: eventName,
+        minimum_count: 0,
+        maximum_count: 0,
+        destination: null,
+        checkin_months: [],
+        property_filters: []
+      });
+      continue;
+    }
+    const eventLabel = EVENT_PRESENTATION[eventName].label;
+    conditions.push({
+      ...eventCountCondition(eventName, eventLabel, minimumCount),
+      label: label.trim()
+    });
+  }
+  return conditions;
+}
+
+function sourceConditionRemovalEvents(message: string) {
+  if (!/(?:빼|제외|삭제|없애)/.test(message)) {
+    return new Set<SegmentAssistantEventName>();
+  }
+  if (/예약\s*완료\s*고객(?:을|를)?\s*제외/.test(message)) {
+    return new Set<SegmentAssistantEventName>();
+  }
+  return new Set(referenceLabelEvents(message));
 }
 
 function isDefaultReferenceCondition(condition: SegmentAssistantAudienceCondition) {

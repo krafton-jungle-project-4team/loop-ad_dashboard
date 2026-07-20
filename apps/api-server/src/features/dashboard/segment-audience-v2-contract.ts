@@ -2,7 +2,8 @@ import {
   SegmentAssistantExecutionStateSchema,
   SegmentAssistantPlanSchema,
   type SegmentAssistantExecutionState,
-  type SegmentAssistantPlan
+  type SegmentAssistantPlan,
+  usesSourceAudienceMembership
 } from "./segment-assistant.types.js";
 
 const CUSTOM_STRUCTURED_TEMPLATE_HASH =
@@ -27,15 +28,16 @@ const EVENT_QUERY_SIGNALS: Partial<
 export function buildCustomStructuredAudienceRule(queryParamsJson: unknown) {
   const state = parseSavedAssistantState(queryParamsJson);
   const plan = state.assistant_plan;
-  if (plan.action === "clarification" || (plan.conditions.length === 0 && !state.source_audience)) {
+  const sourceAudience = state.source_audience;
+  const usesSourceMembership = usesSourceAudienceMembership(plan, sourceAudience);
+  if (plan.action === "clarification" || (plan.conditions.length === 0 && !usesSourceMembership)) {
     throw new Error("Saved custom segments require executable structured conditions.");
   }
   if (plan.lookback_days !== CUSTOM_STRUCTURED_WINDOW_DAYS) {
     throw new Error("Saved custom segments require the active 30-day behavior window.");
   }
 
-  const sourceAudience = state.source_audience;
-  const conditionKeys = sourceAudience
+  const conditionKeys = usesSourceMembership
     ? [
         "source_audience_membership",
         ...(plan.conditions.length > 0 ? ["structured_conditions"] : [])
@@ -46,8 +48,8 @@ export function buildCustomStructuredAudienceRule(queryParamsJson: unknown) {
     segment_audience_spec: {
       schema_version: "hotel_behavior.v2",
       template_id: "custom_structured_condition",
-      template_version: sourceAudience ? 2 : 1,
-      template_semantic_hash: sourceAudience
+      template_version: usesSourceMembership ? 2 : 1,
+      template_semantic_hash: usesSourceMembership
         ? CUSTOM_SOURCE_REFINEMENT_TEMPLATE_HASH
         : CUSTOM_STRUCTURED_TEMPLATE_HASH,
       candidate_type: "custom_structured",
@@ -57,15 +59,15 @@ export function buildCustomStructuredAudienceRule(queryParamsJson: unknown) {
       parameters: {
         lookback_days: plan.lookback_days,
         conditions: plan.conditions,
-        ...(sourceAudience ? { base_user_ids: sourceAudience.base_user_ids } : {})
+        ...(usesSourceMembership ? { base_user_ids: sourceAudience?.base_user_ids } : {})
       },
-      parameter_policy_id: sourceAudience
+      parameter_policy_id: usesSourceMembership
         ? "custom_structured_parameters.v2"
         : "custom_structured_parameters.v1",
-      semantic_selection_policy_id: sourceAudience
+      semantic_selection_policy_id: usesSourceMembership
         ? "source_refinement_exact_membership.v1"
         : "exact_predicate_membership.v1",
-      semantic_anchor_policy_id: sourceAudience
+      semantic_anchor_policy_id: usesSourceMembership
         ? "source_membership_with_optional_structured_conditions.v1"
         : "structured_conditions_no_anchor.v1",
       observation_window_days: CUSTOM_STRUCTURED_WINDOW_DAYS
