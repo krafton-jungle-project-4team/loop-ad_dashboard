@@ -83,14 +83,14 @@
   --segment-action: #eeeaff;
   --segment-action-hover: #e2dcff;
   --segment-action-border: #9c8cea;
-  --sidebar: #241b2f;
-  --sidebar-foreground: #f4f0f7;
-  --sidebar-primary: #a596ff;
+  --sidebar: #ece9f1;
+  --sidebar-foreground: #30283a;
+  --sidebar-primary: #6c5fc7;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #392d48;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #463754;
-  --sidebar-ring: #a596ff;
+  --sidebar-accent: #ddd6f5;
+  --sidebar-accent-foreground: #30283a;
+  --sidebar-border: #d2cbd9;
+  --sidebar-ring: #6c5fc7;
   --radius: 0.5rem;
 }
 
