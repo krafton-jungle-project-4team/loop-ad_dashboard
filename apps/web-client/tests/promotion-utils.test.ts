@@ -17,6 +17,8 @@ import {
   promotionCreateFormToRequest,
   promotionOfferLinksAreValid,
   promotionOfferLinksMatchCatalog,
+  promotionScheduleFitsCampaign,
+  promotionScheduleInputBounds,
   promotionFormToUpdateRequest,
   promotionToFormState
 } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionUtils.js";
@@ -231,6 +233,23 @@ test("promotion automation contract defaults legacy requests to manual and valid
       scheduled_start_at: "2026-08-10T00:00:00.000Z",
       scheduled_end_at: "2026-08-01T00:00:00.000Z"
     }).success,
+    false
+  );
+});
+
+test("promotion forms default to and enforce the selected campaign window", () => {
+  const campaign = { end_date: "2099-08-31", start_date: "2099-08-01" };
+  const form = createEmptyPromotionFormState(campaign);
+
+  assert.deepEqual(promotionScheduleInputBounds(campaign), {
+    endAt: "2099-08-31T23:59",
+    startAt: "2099-08-01T00:00"
+  });
+  assert.equal(form.scheduledStartAt, "2099-08-01T00:00");
+  assert.equal(form.scheduledEndAt, "2099-08-31T23:59");
+  assert.equal(promotionScheduleFitsCampaign(form, campaign), true);
+  assert.equal(
+    promotionScheduleFitsCampaign({ ...form, scheduledStartAt: "2099-09-01T00:00" }, campaign),
     false
   );
 });

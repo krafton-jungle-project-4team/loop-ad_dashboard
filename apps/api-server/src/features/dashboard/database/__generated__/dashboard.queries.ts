@@ -813,7 +813,7 @@ export interface IInsertDashboardPromotionQuery {
   result: IInsertDashboardPromotionResult;
 }
 
-const insertDashboardPromotionIR: any = {"usedParamSet":{"promotionId":true,"channel":true,"marketingTheme":true,"goalMetric":true,"goalTargetValue":true,"goalBasis":true,"minSampleSize":true,"maxLoopCount":true,"executionMode":true,"scheduledStartAt":true,"scheduledEndAt":true,"loopIntervalUnit":true,"loopIntervalValue":true,"messageBrief":true,"offerType":true,"offerLinksIsSet":true,"offerLinksJson":true,"landingUrl":true,"landingType":true,"status":true,"projectId":true,"campaignId":true},"params":[{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":391,"b":402}]},{"name":"channel","required":false,"transform":{"type":"scalar"},"locs":[{"a":440,"b":447}]},{"name":"marketingTheme","required":false,"transform":{"type":"scalar"},"locs":[{"a":452,"b":466}]},{"name":"goalMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":471,"b":481}]},{"name":"goalTargetValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":486,"b":501}]},{"name":"goalBasis","required":false,"transform":{"type":"scalar"},"locs":[{"a":506,"b":515}]},{"name":"minSampleSize","required":false,"transform":{"type":"scalar"},"locs":[{"a":520,"b":533}]},{"name":"maxLoopCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":538,"b":550}]},{"name":"executionMode","required":false,"transform":{"type":"scalar"},"locs":[{"a":555,"b":568}]},{"name":"scheduledStartAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":573,"b":589}]},{"name":"scheduledEndAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":594,"b":608}]},{"name":"loopIntervalUnit","required":false,"transform":{"type":"scalar"},"locs":[{"a":613,"b":629}]},{"name":"loopIntervalValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":634,"b":651}]},{"name":"messageBrief","required":false,"transform":{"type":"scalar"},"locs":[{"a":656,"b":668}]},{"name":"offerType","required":false,"transform":{"type":"scalar"},"locs":[{"a":673,"b":682}]},{"name":"offerLinksIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":701,"b":716}]},{"name":"offerLinksJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":757,"b":771}]},{"name":"landingUrl","required":false,"transform":{"type":"scalar"},"locs":[{"a":811,"b":821}]},{"name":"landingType","required":false,"transform":{"type":"scalar"},"locs":[{"a":826,"b":837}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":842,"b":848}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":888,"b":897}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":921,"b":931}]}],"statement":"INSERT INTO promotions (\n  promotion_id,\n  project_id,\n  campaign_id,\n  channel,\n  marketing_theme,\n  goal_metric,\n  goal_target_value,\n  goal_basis,\n  min_sample_size,\n  max_loop_count,\n  execution_mode,\n  scheduled_start_at,\n  scheduled_end_at,\n  loop_interval_unit,\n  loop_interval_value,\n  message_brief,\n  offer_type,\n  metadata_json,\n  landing_url,\n  landing_type,\n  status\n)\nSELECT\n  :promotionId,\n  c.project_id,\n  c.campaign_id,\n  :channel,\n  :marketingTheme,\n  :goalMetric,\n  :goalTargetValue,\n  :goalBasis,\n  :minSampleSize,\n  :maxLoopCount,\n  :executionMode,\n  :scheduledStartAt,\n  :scheduledEndAt,\n  :loopIntervalUnit,\n  :loopIntervalValue,\n  :messageBrief,\n  :offerType,\n  CASE\n    WHEN :offerLinksIsSet THEN jsonb_build_object('offer_links', :offerLinksJson::jsonb)\n    ELSE '{}'::jsonb\n  END,\n  :landingUrl,\n  :landingType,\n  :status\nFROM campaigns c\nWHERE c.project_id = :projectId\n  AND c.campaign_id = :campaignId\n  AND c.status <> 'stopped'\nRETURNING promotion_id AS \"promotionId\"                            "};
+const insertDashboardPromotionIR: any = {"usedParamSet":{"promotionId":true,"channel":true,"marketingTheme":true,"goalMetric":true,"goalTargetValue":true,"goalBasis":true,"minSampleSize":true,"maxLoopCount":true,"executionMode":true,"scheduledStartAt":true,"scheduledEndAt":true,"loopIntervalUnit":true,"loopIntervalValue":true,"messageBrief":true,"offerType":true,"offerLinksIsSet":true,"offerLinksJson":true,"landingUrl":true,"landingType":true,"status":true,"projectId":true,"campaignId":true},"params":[{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":391,"b":402}]},{"name":"channel","required":false,"transform":{"type":"scalar"},"locs":[{"a":440,"b":447}]},{"name":"marketingTheme","required":false,"transform":{"type":"scalar"},"locs":[{"a":452,"b":466}]},{"name":"goalMetric","required":false,"transform":{"type":"scalar"},"locs":[{"a":471,"b":481}]},{"name":"goalTargetValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":486,"b":501}]},{"name":"goalBasis","required":false,"transform":{"type":"scalar"},"locs":[{"a":506,"b":515}]},{"name":"minSampleSize","required":false,"transform":{"type":"scalar"},"locs":[{"a":520,"b":533}]},{"name":"maxLoopCount","required":false,"transform":{"type":"scalar"},"locs":[{"a":538,"b":550}]},{"name":"executionMode","required":false,"transform":{"type":"scalar"},"locs":[{"a":555,"b":568}]},{"name":"scheduledStartAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":573,"b":589}]},{"name":"scheduledEndAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":594,"b":608}]},{"name":"loopIntervalUnit","required":false,"transform":{"type":"scalar"},"locs":[{"a":613,"b":629}]},{"name":"loopIntervalValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":634,"b":651}]},{"name":"messageBrief","required":false,"transform":{"type":"scalar"},"locs":[{"a":656,"b":668}]},{"name":"offerType","required":false,"transform":{"type":"scalar"},"locs":[{"a":673,"b":682}]},{"name":"offerLinksIsSet","required":false,"transform":{"type":"scalar"},"locs":[{"a":701,"b":716}]},{"name":"offerLinksJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":757,"b":771}]},{"name":"landingUrl","required":false,"transform":{"type":"scalar"},"locs":[{"a":811,"b":821}]},{"name":"landingType","required":false,"transform":{"type":"scalar"},"locs":[{"a":826,"b":837}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":842,"b":848}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":888,"b":897}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":921,"b":931}]}],"statement":"INSERT INTO promotions (\n  promotion_id,\n  project_id,\n  campaign_id,\n  channel,\n  marketing_theme,\n  goal_metric,\n  goal_target_value,\n  goal_basis,\n  min_sample_size,\n  max_loop_count,\n  execution_mode,\n  scheduled_start_at,\n  scheduled_end_at,\n  loop_interval_unit,\n  loop_interval_value,\n  message_brief,\n  offer_type,\n  metadata_json,\n  landing_url,\n  landing_type,\n  status\n)\nSELECT\n  :promotionId,\n  c.project_id,\n  c.campaign_id,\n  :channel,\n  :marketingTheme,\n  :goalMetric,\n  :goalTargetValue,\n  :goalBasis,\n  :minSampleSize,\n  :maxLoopCount,\n  :executionMode,\n  :scheduledStartAt,\n  :scheduledEndAt,\n  :loopIntervalUnit,\n  :loopIntervalValue,\n  :messageBrief,\n  :offerType,\n  CASE\n    WHEN :offerLinksIsSet THEN jsonb_build_object('offer_links', :offerLinksJson::jsonb)\n    ELSE '{}'::jsonb\n  END,\n  :landingUrl,\n  :landingType,\n  :status\nFROM campaigns c\nWHERE c.project_id = :projectId\n  AND c.campaign_id = :campaignId\n  AND c.status NOT IN ('completed', 'stopped')\n  AND (\n    c.end_date IS NULL\n    OR (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul' > now()\n  )\nRETURNING promotion_id AS \"promotionId\"                            "};
 
 /**
  * Query generated from SQL:
@@ -869,7 +869,11 @@ const insertDashboardPromotionIR: any = {"usedParamSet":{"promotionId":true,"cha
  * FROM campaigns c
  * WHERE c.project_id = :projectId
  *   AND c.campaign_id = :campaignId
- *   AND c.status <> 'stopped'
+ *   AND c.status NOT IN ('completed', 'stopped')
+ *   AND (
+ *     c.end_date IS NULL
+ *     OR (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul' > now()
+ *   )
  * RETURNING promotion_id AS "promotionId"                            
  * ```
  */
@@ -3677,7 +3681,7 @@ export interface IStartDashboardAdExperimentQuery {
   result: IStartDashboardAdExperimentResult;
 }
 
-const startDashboardAdExperimentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"adExperimentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":134,"b":143}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":166,"b":177}]},{"name":"adExperimentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":204,"b":218}]}],"statement":"UPDATE ad_experiments\nSET status = 'running',\n    started_at = COALESCE(started_at, now()),\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND ad_experiment_id = :adExperimentId\n  AND status IN ('planned', 'approved', 'running')\nRETURNING\n  ad_experiment_id AS \"adExperimentId\",\n  promotion_run_id AS \"promotionRunId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  channel,\n  loop_count AS \"loopCount\",\n  goal_metric AS \"goalMetric\",\n  CAST(goal_target_value AS float8) AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  status                                                        "};
+const startDashboardAdExperimentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"adExperimentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":134,"b":143}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":166,"b":177}]},{"name":"adExperimentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":204,"b":218}]}],"statement":"UPDATE ad_experiments\nSET status = 'running',\n    started_at = COALESCE(started_at, now()),\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND ad_experiment_id = :adExperimentId\n  AND status IN ('planned', 'approved', 'running')\n  AND EXISTS (\n    SELECT 1\n    FROM promotions promotion\n    JOIN campaigns campaign\n      ON campaign.project_id = promotion.project_id\n     AND campaign.campaign_id = promotion.campaign_id\n    WHERE promotion.project_id = ad_experiments.project_id\n      AND promotion.promotion_id = ad_experiments.promotion_id\n      AND promotion.status <> 'stopped'\n      AND campaign.status NOT IN ('completed', 'stopped')\n      AND (\n        GREATEST(\n          promotion.scheduled_start_at,\n          campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'\n        ) IS NULL\n        OR GREATEST(\n          promotion.scheduled_start_at,\n          campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'\n        ) <= now()\n      )\n      AND (\n        LEAST(\n          promotion.scheduled_end_at,\n          (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'\n        ) IS NULL\n        OR LEAST(\n          promotion.scheduled_end_at,\n          (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'\n        ) > now()\n      )\n  )\nRETURNING\n  ad_experiment_id AS \"adExperimentId\",\n  promotion_run_id AS \"promotionRunId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  content_id AS \"contentId\",\n  content_option_id AS \"contentOptionId\",\n  channel,\n  loop_count AS \"loopCount\",\n  goal_metric AS \"goalMetric\",\n  CAST(goal_target_value AS float8) AS \"goalTargetValue\",\n  goal_basis AS \"goalBasis\",\n  status                                                        "};
 
 /**
  * Query generated from SQL:
@@ -3690,6 +3694,37 @@ const startDashboardAdExperimentIR: any = {"usedParamSet":{"projectId":true,"pro
  *   AND promotion_id = :promotionId
  *   AND ad_experiment_id = :adExperimentId
  *   AND status IN ('planned', 'approved', 'running')
+ *   AND EXISTS (
+ *     SELECT 1
+ *     FROM promotions promotion
+ *     JOIN campaigns campaign
+ *       ON campaign.project_id = promotion.project_id
+ *      AND campaign.campaign_id = promotion.campaign_id
+ *     WHERE promotion.project_id = ad_experiments.project_id
+ *       AND promotion.promotion_id = ad_experiments.promotion_id
+ *       AND promotion.status <> 'stopped'
+ *       AND campaign.status NOT IN ('completed', 'stopped')
+ *       AND (
+ *         GREATEST(
+ *           promotion.scheduled_start_at,
+ *           campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+ *         ) IS NULL
+ *         OR GREATEST(
+ *           promotion.scheduled_start_at,
+ *           campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+ *         ) <= now()
+ *       )
+ *       AND (
+ *         LEAST(
+ *           promotion.scheduled_end_at,
+ *           (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+ *         ) IS NULL
+ *         OR LEAST(
+ *           promotion.scheduled_end_at,
+ *           (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+ *         ) > now()
+ *       )
+ *   )
  * RETURNING
  *   ad_experiment_id AS "adExperimentId",
  *   promotion_run_id AS "promotionRunId",

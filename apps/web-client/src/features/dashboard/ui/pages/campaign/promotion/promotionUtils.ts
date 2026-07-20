@@ -3,11 +3,13 @@ import {
   DashboardPromotionChannelSchema,
   DashboardPromotionGoalBasisSchema,
   DashboardPromotionGoalMetricSchema,
+  isPromotionScheduleWithinCampaign,
   normalizePromotionSegmentAudience,
   normalizePromotionSegmentPerformanceEstimate,
   normalizePromotionSegmentRankComparison,
   type DashboardCampaignPromotion,
   type DashboardCampaignSegment,
+  type DashboardCampaignSummary,
   type CreativeArtifact,
   type DashboardCreatePromotionRequest,
   type DashboardPromotionOffer,
@@ -26,6 +28,7 @@ export const promotionGoalBasisOptions = DashboardPromotionGoalBasisSchema.optio
 export const defaultPromotionLandingUrl =
   "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 export const onsiteBannerImagePollIntervalMs = 3000;
+const PROMOTION_SCHEDULE_TIME_ZONE_OFFSET = "+09:00";
 export type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 export type PromotionWorkspaceMode = "promotion" | "segment";
 export type PromotionAnalysisProgress = {
@@ -80,7 +83,10 @@ export type PromotionCreateFormState = {
   scheduledStartAt: string;
 };
 
-export function createEmptyPromotionFormState(): PromotionCreateFormState {
+export function createEmptyPromotionFormState(
+  campaign?: Pick<DashboardCampaignSummary, "start_date" | "end_date">
+): PromotionCreateFormState {
+  const scheduleBounds = promotionScheduleInputBounds(campaign);
   return {
     channel: "email",
     goalBasis: "promotion_average",
@@ -95,14 +101,16 @@ export function createEmptyPromotionFormState(): PromotionCreateFormState {
     messageBrief: "",
     minSampleSize: "1000",
     offerLinks: [],
-    scheduledEndAt: "",
-    scheduledStartAt: ""
+    scheduledEndAt: scheduleBounds.endAt,
+    scheduledStartAt: scheduleBounds.startAt
   };
 }
 
 export function promotionToFormState(
-  promotion: DashboardCampaignPromotion
+  promotion: DashboardCampaignPromotion,
+  campaign?: Pick<DashboardCampaignSummary, "start_date" | "end_date">
 ): PromotionCreateFormState {
+  const scheduleBounds = promotionScheduleInputBounds(campaign);
   return {
     channel: promotion.channel,
     goalBasis: promotion.goal_basis,
@@ -120,8 +128,8 @@ export function promotionToFormState(
       offerId: link.offer_id ?? "",
       destinationUrl: link.destination_url
     })),
-    scheduledEndAt: toDateTimeLocalValue(promotion.scheduled_end_at),
-    scheduledStartAt: toDateTimeLocalValue(promotion.scheduled_start_at)
+    scheduledEndAt: toDateTimeLocalValue(promotion.scheduled_end_at) || scheduleBounds.endAt,
+    scheduledStartAt: toDateTimeLocalValue(promotion.scheduled_start_at) || scheduleBounds.startAt
   };
 }
 
@@ -173,6 +181,22 @@ export function promotionScheduleIsValid(form: PromotionCreateFormState) {
   return Date.parse(form.scheduledEndAt) > Date.parse(form.scheduledStartAt);
 }
 
+export function promotionScheduleFitsCampaign(
+  form: PromotionCreateFormState,
+  campaign?: Pick<DashboardCampaignSummary, "start_date" | "end_date">
+) {
+  return !campaign || isPromotionScheduleWithinCampaign(promotionFormRequestFields(form), campaign);
+}
+
+export function promotionScheduleInputBounds(
+  campaign?: Pick<DashboardCampaignSummary, "start_date" | "end_date">
+) {
+  return {
+    endAt: campaign?.end_date ? `${campaign.end_date}T23:59` : "",
+    startAt: campaign?.start_date ? `${campaign.start_date}T00:00` : ""
+  };
+}
+
 export function promotionOfferLinksAreValid(form: PromotionCreateFormState) {
   if (form.channel !== "email") {
     return true;
@@ -218,7 +242,11 @@ export function isValidHttpUrl(value: string) {
 }
 
 function nullableIsoDateTime(value: string) {
-  return value ? new Date(value).toISOString() : null;
+  if (!value) {
+    return null;
+  }
+  const localDateTime = value.length === 16 ? `${value}:00` : value;
+  return new Date(`${localDateTime}${PROMOTION_SCHEDULE_TIME_ZONE_OFFSET}`).toISOString();
 }
 
 function toDateTimeLocalValue(value: string | null) {
@@ -226,8 +254,8 @@ function toDateTimeLocalValue(value: string | null) {
     return "";
   }
   const date = new Date(value);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+  const koreaTime = new Date(date.getTime() + 9 * 60 * 60 * 1_000);
+  return koreaTime.toISOString().slice(0, 16);
 }
 
 export function latestSegmentPerSegmentId(segments: DashboardCampaignSegment[]) {

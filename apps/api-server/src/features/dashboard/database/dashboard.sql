@@ -473,7 +473,11 @@ SELECT
 FROM campaigns c
 WHERE c.project_id = :projectId
   AND c.campaign_id = :campaignId
-  AND c.status <> 'stopped'
+  AND c.status NOT IN ('completed', 'stopped')
+  AND (
+    c.end_date IS NULL
+    OR (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul' > now()
+  )
 RETURNING promotion_id AS "promotionId";
 
 /* 목적: 프로모션 기본 정보를 수정합니다. */
@@ -2032,6 +2036,37 @@ WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND ad_experiment_id = :adExperimentId
   AND status IN ('planned', 'approved', 'running')
+  AND EXISTS (
+    SELECT 1
+    FROM promotions promotion
+    JOIN campaigns campaign
+      ON campaign.project_id = promotion.project_id
+     AND campaign.campaign_id = promotion.campaign_id
+    WHERE promotion.project_id = ad_experiments.project_id
+      AND promotion.promotion_id = ad_experiments.promotion_id
+      AND promotion.status <> 'stopped'
+      AND campaign.status NOT IN ('completed', 'stopped')
+      AND (
+        GREATEST(
+          promotion.scheduled_start_at,
+          campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+        ) IS NULL
+        OR GREATEST(
+          promotion.scheduled_start_at,
+          campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+        ) <= now()
+      )
+      AND (
+        LEAST(
+          promotion.scheduled_end_at,
+          (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+        ) IS NULL
+        OR LEAST(
+          promotion.scheduled_end_at,
+          (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+        ) > now()
+      )
+  )
 RETURNING
   ad_experiment_id AS "adExperimentId",
   promotion_run_id AS "promotionRunId",

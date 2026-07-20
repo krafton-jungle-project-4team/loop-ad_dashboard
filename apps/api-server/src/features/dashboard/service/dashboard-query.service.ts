@@ -74,6 +74,11 @@ import type {
   DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import {
+  isCampaignDateRangeValid,
+  isCampaignScheduleExpired,
+  isPromotionScheduleWithinCampaign
+} from "@loopad/shared";
+import {
   DashboardCampaignReader,
   DashboardFunnelReader,
   DashboardPromotionAutomationRepository,
@@ -197,6 +202,7 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ campaignId, projectId });
     log.info("started", { projectId, campaignId, request });
+    await this.validateCampaignScheduleUpdate(projectId, campaignId, request);
     const response = await this.campaignReader.updateCampaign(projectId, campaignId, request);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
@@ -229,6 +235,9 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ campaignId, projectId });
     log.info("started", { projectId, campaignId, request });
+    const campaign = await this.campaignReader.getCampaignSummary(projectId, campaignId);
+    assertCampaignExecutionWindowOpen(campaign);
+    assertPromotionScheduleWithinCampaign(request, campaign);
     const response = await this.campaignReader.createPromotion(projectId, campaignId, request);
     log.assignContext({ promotionId: response.promotion_id });
 
@@ -257,11 +266,52 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
     log.info("started", { projectId, promotionId, request });
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    const campaign = await this.campaignReader.getCampaignSummary(projectId, promotion.campaign_id);
+    assertCampaignExecutionWindowOpen(campaign);
+    assertPromotionScheduleWithinCampaign(
+      {
+        scheduled_end_at: Object.hasOwn(request, "scheduled_end_at")
+          ? request.scheduled_end_at
+          : promotion.scheduled_end_at,
+        scheduled_start_at: Object.hasOwn(request, "scheduled_start_at")
+          ? request.scheduled_start_at
+          : promotion.scheduled_start_at
+      },
+      campaign
+    );
     const response = await this.campaignReader.updatePromotion(projectId, promotionId, request);
     await this.promotionAutomationRepository?.syncPendingJobs(projectId, promotionId);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
+  }
+
+  private async validateCampaignScheduleUpdate(
+    projectId: string,
+    campaignId: string,
+    request: DashboardUpdateCampaignRequest
+  ) {
+    if (!Object.hasOwn(request, "start_date") && !Object.hasOwn(request, "end_date")) {
+      return;
+    }
+
+    const [campaign, promotions] = await Promise.all([
+      this.campaignReader.getCampaignSummary(projectId, campaignId),
+      this.campaignReader.listCampaignPromotions(projectId, campaignId)
+    ]);
+    const nextCampaignSchedule = {
+      end_date: Object.hasOwn(request, "end_date") ? request.end_date : campaign.end_date,
+      start_date: Object.hasOwn(request, "start_date") ? request.start_date : campaign.start_date
+    };
+    if (
+      !isCampaignDateRangeValid(nextCampaignSchedule.start_date, nextCampaignSchedule.end_date) ||
+      promotions.some(
+        (promotion) => !isPromotionScheduleWithinCampaign(promotion, nextCampaignSchedule)
+      )
+    ) {
+      throw dashboardErrors.campaignPromotionScheduleConflict();
+    }
   }
 
   @LogContextScope()
@@ -1587,5 +1637,27 @@ async function readContentCandidateHtml(
     return html;
   } catch (error) {
     throw dashboardErrors.contentCandidateHtmlUnavailable(error);
+  }
+}
+
+function assertCampaignExecutionWindowOpen(campaign: DashboardCampaignSummary) {
+  if (
+    campaign.status === "completed" ||
+    campaign.status === "stopped" ||
+    isCampaignScheduleExpired(campaign)
+  ) {
+    throw dashboardErrors.campaignExecutionWindowClosed();
+  }
+}
+
+function assertPromotionScheduleWithinCampaign(
+  promotion: {
+    scheduled_end_at: string | null | undefined;
+    scheduled_start_at: string | null | undefined;
+  },
+  campaign: DashboardCampaignSummary
+) {
+  if (!isPromotionScheduleWithinCampaign(promotion, campaign)) {
+    throw dashboardErrors.promotionCampaignScheduleInvalid();
   }
 }

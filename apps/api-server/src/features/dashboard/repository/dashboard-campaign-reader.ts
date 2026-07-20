@@ -4,6 +4,7 @@ import type {
   DashboardApproveContentCandidateResult,
   DashboardApproveContentCandidateRequest,
   DashboardCampaignDetail,
+  DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardContentCandidate,
@@ -172,6 +173,16 @@ export class DashboardCampaignReader {
     ]);
 
     return rows.map((row) => toCampaignSummary(row, runningCounts.get(row.campaignId)));
+  }
+
+  async listCampaignPromotions(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardCampaignPromotion[]> {
+    const rows = await this.db
+      .query(listDashboardCampaignPromotions, { campaignId, projectId })
+      .multiple();
+    return rows.map(toCampaignPromotion);
   }
 
   async preparePromotionRunEvaluationCompatibility(
@@ -946,7 +957,7 @@ export class DashboardCampaignReader {
     };
   }
 
-  private async getCampaignSummary(
+  async getCampaignSummary(
     projectId: string,
     campaignId: string
   ): Promise<DashboardCampaignSummary> {

@@ -710,6 +710,7 @@ export function CampaignWorkspacePage({
         </AlertDialogContent>
       </AlertDialog>
       <PromotionAddDialog
+        campaign={selectedCampaign}
         createIsPending={createPromotionMutation.isPending}
         onCreate={(form) => createPromotionMutation.mutate(form)}
         onOpenChange={(open) => {
@@ -722,6 +723,7 @@ export function CampaignWorkspacePage({
         query={query}
       />
       <PromotionEditDialog
+        campaign={selectedCampaign}
         isPending={updatePromotionMutation.isPending}
         onOpenChange={(open) => {
           if (!open) {

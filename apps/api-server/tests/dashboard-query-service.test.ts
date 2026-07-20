@@ -17,6 +17,19 @@ test("dashboard promotion update synchronizes pending automation jobs", async ()
   const service = new DashboardQueryService(
     {
       ...emptyCampaignReader(),
+      getCampaignSummary: async () =>
+        ({
+          end_date: "2099-12-31",
+          start_date: "2099-01-01",
+          status: "active"
+        }) as never,
+      getPromotionSummary: async (_projectId, promotionId) =>
+        ({
+          campaign_id: "campaign-a",
+          promotion_id: promotionId,
+          scheduled_end_at: null,
+          scheduled_start_at: null
+        }) as never,
       updatePromotion: async (projectId, promotionId, request) => {
         calls.push({ projectId, promotionId, request, step: "update" });
         return { promotion_id: promotionId } as never;
@@ -53,6 +66,87 @@ test("dashboard promotion update synchronizes pending automation jobs", async ()
     },
     { projectId: "project-a", promotionId: "promotion-a", step: "sync" }
   ]);
+});
+
+test("dashboard promotion update rejects a schedule outside its campaign", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  let updated = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getCampaignSummary: async () =>
+        ({
+          end_date: "2099-08-31",
+          start_date: "2099-08-01",
+          status: "active"
+        }) as never,
+      getPromotionSummary: async () =>
+        ({
+          campaign_id: "campaign-a",
+          scheduled_end_at: null,
+          scheduled_start_at: null
+        }) as never,
+      updatePromotion: async () => {
+        updated = true;
+        return {} as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  await assert.rejects(
+    () =>
+      service.updatePromotion("project-a", "promotion-a", {
+        scheduled_end_at: "2099-09-02T00:00:00.000+09:00",
+        scheduled_start_at: "2099-08-01T00:00:00.000+09:00"
+      }),
+    /프로모션 실행 기간은 캠페인 기간 안에서 설정해야 합니다/
+  );
+  assert.equal(updated, false);
+});
+
+test("dashboard campaign update rejects a range that cuts an existing promotion", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  let updated = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getCampaignSummary: async () =>
+        ({
+          end_date: "2099-08-31",
+          start_date: "2099-08-01",
+          status: "active"
+        }) as never,
+      listCampaignPromotions: async () =>
+        [
+          {
+            scheduled_end_at: "2099-08-25T23:59:00.000+09:00",
+            scheduled_start_at: "2099-08-20T00:00:00.000+09:00"
+          }
+        ] as never,
+      updateCampaign: async () => {
+        updated = true;
+        return {} as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  await assert.rejects(
+    () => service.updateCampaign("project-a", "campaign-a", { end_date: "2099-08-15" }),
+    /캠페인 기간 밖에 예약된 프로모션이 있어 기간을 변경할 수 없습니다/
+  );
+  assert.equal(updated, false);
 });
 
 test("dashboard main returns campaign summaries from the campaign reader", async () => {
