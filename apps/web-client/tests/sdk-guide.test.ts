@@ -7,7 +7,9 @@ import {
   describeEventSchemaVersion,
   eventSdkInitCode,
   eventSdkInstallCode,
-  eventSdkTrackCode
+  eventSdkTrackCode,
+  getNewlyPublishedEventNames,
+  prioritizeNewlyPublishedEvents
 } from "../src/features/dashboard/model/sdk-guide.js";
 
 test("SDK guide loads the public IIFE and initializes before login", () => {
@@ -86,6 +88,51 @@ test("event schema descriptions are generated from each self-contained version s
   assert.match(draftDescription, /이벤트 스키마 v3 초안/);
   assert.match(draftDescription, /추가: hotel_view/);
   assert.match(draftDescription, /확정 전 SDK 적용 버전은 v2/);
+});
+
+test("only events absent from the previous published version are marked as new", () => {
+  const previousSchema = {
+    schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
+    revision: 1,
+    events: [
+      trackingPlanEvent("booking_start", "before"),
+      trackingPlanEvent("booking_complete", "before")
+    ]
+  };
+  const publishedSchema = {
+    schemaVersion: SDK_TRACKING_PLAN_SCHEMA_VERSION,
+    revision: 2,
+    events: [
+      trackingPlanEvent("booking_complete", "after"),
+      trackingPlanEvent("booking_cancel", "new")
+    ]
+  };
+
+  assert.deepEqual(
+    [...getNewlyPublishedEventNames({ previousSchema, publishedSchema })],
+    ["booking_cancel"]
+  );
+  assert.deepEqual([...getNewlyPublishedEventNames({ previousSchema: null, publishedSchema })], []);
+});
+
+test("newly published events appear first without changing either group's order", () => {
+  const events = [
+    trackingPlanEvent("existing_first", "existing"),
+    trackingPlanEvent("new_first", "new"),
+    trackingPlanEvent("existing_second", "existing"),
+    trackingPlanEvent("new_second", "new")
+  ];
+
+  assert.deepEqual(
+    prioritizeNewlyPublishedEvents(events, new Set(["new_first", "new_second"])).map(
+      (event) => event.eventName
+    ),
+    ["new_first", "new_second", "existing_first", "existing_second"]
+  );
+  assert.deepEqual(
+    prioritizeNewlyPublishedEvents(events, new Set()).map((event) => event.eventName),
+    events.map((event) => event.eventName)
+  );
 });
 
 function trackingPlanEvent(eventName: string, description: string): TrackingPlanEvent {

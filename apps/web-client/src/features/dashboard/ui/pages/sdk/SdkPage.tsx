@@ -2,10 +2,9 @@ import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Check, Clipboard, Code2, Terminal, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ConnectedTrackingPlanWorkspace, TrackingPlanWorkspace } from "./TrackingPlanWorkspace.js";
+import { ConnectedTrackingPlanWorkspace } from "./TrackingPlanWorkspace.js";
 
 const scriptTagCode = String.raw`<div id="loopad-home-top-banner"></div>
 
@@ -77,20 +76,7 @@ const prerequisites = [
 ];
 
 export function SdkPage({ projectId }: { projectId: string }) {
-  return (
-    <Tabs defaultValue="preview">
-      <TabsList>
-        <TabsTrigger value="preview">기본 설정</TabsTrigger>
-        <TabsTrigger value="connected">세부 조정</TabsTrigger>
-      </TabsList>
-      <TabsContent className="mt-5" value="preview">
-        <TrackingPlanWorkspace projectId={projectId} />
-      </TabsContent>
-      <TabsContent className="mt-5" value="connected">
-        <ConnectedTrackingPlanWorkspace projectId={projectId} />
-      </TabsContent>
-    </Tabs>
-  );
+  return <ConnectedTrackingPlanWorkspace projectId={projectId} />;
 }
 
 export function AdvertisementSdkGuide() {

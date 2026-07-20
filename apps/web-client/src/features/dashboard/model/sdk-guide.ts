@@ -85,15 +85,55 @@ export function describeEventSchemaVersion({
   return `현재 이벤트 스키마 v${publishedSchema.revision} · 이벤트 ${publishedSchema.events.length}개. ${changes}`;
 }
 
+export function getNewlyPublishedEventNames({
+  previousSchema,
+  publishedSchema
+}: {
+  previousSchema: SdkPublishedSchema | null;
+  publishedSchema: SdkPublishedSchema | null;
+}): ReadonlySet<string> {
+  if (!previousSchema || !publishedSchema) return new Set();
+  return new Set(addedEventNames(previousSchema.events, publishedSchema.events));
+}
+
+export function prioritizeNewlyPublishedEvents(
+  events: readonly TrackingPlanEvent[],
+  newEventNames: ReadonlySet<string>
+): TrackingPlanEvent[] {
+  const newEvents: TrackingPlanEvent[] = [];
+  const existingEvents: TrackingPlanEvent[] = [];
+
+  for (const event of events) {
+    if (newEventNames.has(event.eventName)) {
+      newEvents.push(event);
+    } else {
+      existingEvents.push(event);
+    }
+  }
+
+  return [...newEvents, ...existingEvents];
+}
+
 function describeEventChanges(
   previousEvents: TrackingPlanEvent[],
   nextEvents: TrackingPlanEvent[]
 ): string {
+  const { added, changed, removed } = compareEventVersions(previousEvents, nextEvents);
+  const parts = [
+    formatEventNames("추가", added),
+    formatEventNames("수정", changed),
+    formatEventNames("삭제", removed)
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0 ? `${parts.join(" · ")}.` : "이전 확정본과 이벤트 계약이 같습니다.";
+}
+
+function compareEventVersions(
+  previousEvents: TrackingPlanEvent[],
+  nextEvents: TrackingPlanEvent[]
+) {
   const previousByName = new Map(previousEvents.map((event) => [event.eventName, event]));
   const nextByName = new Map(nextEvents.map((event) => [event.eventName, event]));
-  const added = nextEvents
-    .filter((event) => !previousByName.has(event.eventName))
-    .map((event) => event.eventName);
+  const added = addedEventNames(previousEvents, nextEvents);
   const removed = previousEvents
     .filter((event) => !nextByName.has(event.eventName))
     .map((event) => event.eventName);
@@ -103,12 +143,23 @@ function describeEventChanges(
       return previous !== undefined && JSON.stringify(previous) !== JSON.stringify(event);
     })
     .map((event) => event.eventName);
-  const parts = [
-    formatEventNames("추가", added),
-    formatEventNames("수정", changed),
-    formatEventNames("삭제", removed)
-  ].filter((part): part is string => part !== null);
-  return parts.length > 0 ? `${parts.join(" · ")}.` : "이전 확정본과 이벤트 계약이 같습니다.";
+  return { added, changed, removed };
+}
+
+function addedEventNames(
+  previousEvents: TrackingPlanEvent[],
+  nextEvents: TrackingPlanEvent[]
+): string[] {
+  const previousNames = new Set(previousEvents.map((event) => event.eventName));
+  const addedNames: string[] = [];
+
+  for (const event of nextEvents) {
+    if (!previousNames.has(event.eventName)) {
+      addedNames.push(event.eventName);
+    }
+  }
+
+  return addedNames;
 }
 
 function formatEventNames(label: string, eventNames: string[]): string | null {
