@@ -69,6 +69,7 @@ test("V2 confirmation only enriches Decision-created target rows", () => {
   assert.match(confirmationSql, /target\.analysis_id = :confirmationAnalysisId/);
   assert.match(confirmationSql, /target\.audience_snapshot_id IS NOT NULL/);
   assert.match(confirmationSql, /target\.allocation_plan_id IS NOT NULL/);
+  assert.match(confirmationSql, /status = 'approved'/);
   assert.doesNotMatch(confirmationSql, /INSERT INTO promotion_target_segments/);
   assert.doesNotMatch(confirmationSql, /INSERT INTO segment_vectors/);
 });

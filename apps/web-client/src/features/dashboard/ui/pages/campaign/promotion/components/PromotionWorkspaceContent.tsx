@@ -396,7 +396,7 @@ export function PromotionTabWorkspace({
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onRecommendSegments: () => void;
-  onStartGeneration: (analysisId: string) => void;
+  onStartGeneration: (analysisId: string, segmentId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   onUpdateContentCandidateCopy: (
     promotionId: string,
@@ -806,7 +806,7 @@ function PromotionSegmentDetailTab({
     nextLoopPreparationId?: string
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
-  onStartGeneration: (analysisId: string) => void;
+  onStartGeneration: (analysisId: string, segmentId: string) => void;
   onUpdateContentCandidateCopy: (
     promotionId: string,
     segmentId: string,
@@ -915,7 +915,9 @@ function PromotionSegmentDetailTab({
                   !detail.segment.analysis_id ||
                   hasGeneratedContentCandidates
                 }
-                onClick={() => onStartGeneration(detail.segment.analysis_id)}
+                onClick={() =>
+                  onStartGeneration(detail.segment.analysis_id, detail.segment.segment_id)
+                }
                 type="button"
                 variant="outline"
               >
@@ -955,9 +957,12 @@ function PromotionSegmentDetailTab({
                   );
 
                   return (
-                    <Card className="min-w-0 shadow-none" key={candidate.content_id}>
+                    <Card
+                      className="@container/candidate min-w-0 shadow-none"
+                      key={candidate.content_id}
+                    >
                       <CardHeader className="grid min-w-0 gap-3">
-                        <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="flex min-w-0 flex-col gap-3 @4xl/candidate:flex-row @4xl/candidate:items-start @4xl/candidate:justify-between">
                           <div className="grid min-w-0 gap-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="outline">
@@ -967,11 +972,11 @@ function PromotionSegmentDetailTab({
                                 {formatStatusLabel(candidate.status)}
                               </Badge>
                             </div>
-                            <CardTitle className="break-words text-base">
+                            <CardTitle className="break-keep text-base [overflow-wrap:anywhere]">
                               {contentCandidateTitle(candidate)}
                             </CardTitle>
                           </div>
-                          <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
+                          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 @4xl/candidate:w-auto @4xl/candidate:shrink-0 @4xl/candidate:justify-end">
                             <Field
                               className={buttonVariants({
                                 className: "w-auto gap-2",
@@ -1065,7 +1070,7 @@ function PromotionSegmentDetailTab({
                       </CardHeader>
                       <CardContent className="grid min-w-0 gap-4">
                         {candidate.image_url || htmlArtifact ? (
-                          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                          <div className="grid min-w-0 gap-3 @2xl/candidate:grid-cols-2">
                             {candidate.image_url ? (
                               <ContentCandidateImagePreview
                                 alt={`${contentCandidateTitle(candidate)} 이미지`}
@@ -1081,7 +1086,7 @@ function PromotionSegmentDetailTab({
                             ) : null}
                           </div>
                         ) : null}
-                        <div className="grid min-w-0 gap-3 md:grid-cols-2">
+                        <div className="grid min-w-0 gap-3 @2xl/candidate:grid-cols-2">
                           <InsightBlock
                             label="메시지"
                             value={[
@@ -1234,7 +1239,7 @@ function ContentCandidateHtmlPreview({
               </Button>
             </DialogTrigger>
           </div>
-          <DialogContent className="max-h-[65vh] max-w-xl sm:max-w-xl">
+          <DialogContent className="grid h-[calc(100svh-2rem)] w-[calc(100%-2rem)] max-w-none grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:h-[min(90svh,900px)] sm:w-[min(94vw,1440px)] sm:max-w-[min(94vw,1440px)]">
             <DialogHeader className="pr-8">
               <DialogTitle>{title}</DialogTitle>
               <DialogDescription>
@@ -1242,7 +1247,7 @@ function ContentCandidateHtmlPreview({
               </DialogDescription>
             </DialogHeader>
             <iframe
-              className="h-[min(30rem,50vh)] w-full rounded-md border bg-background"
+              className="h-full min-h-0 w-full rounded-md border bg-background"
               loading="lazy"
               referrerPolicy="no-referrer"
               sandbox="allow-scripts"

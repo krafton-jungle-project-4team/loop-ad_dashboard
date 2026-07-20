@@ -75,7 +75,7 @@ test("confirmation includes directly created segments with accepted AI suggestio
 test("segment assistant introduces both data lookup and segment creation", () => {
   assert.equal(
     INITIAL_SEGMENT_ASSISTANT_MESSAGE,
-    "고객 행동 데이터의 인원과 비율을 물어보거나, 원하는 조건의 세그먼트를 직접 만들 수 있습니다."
+    "고객 행동 데이터의 인원과 비율을 물어보거나, 원하는 조건의 고객군을 직접 만들 수 있습니다."
   );
 });
 

@@ -75,6 +75,7 @@ import {
   confirmDashboardV2PromotionSegmentSuggestions,
   decideDashboardPromotionSegmentSuggestion,
   deleteDashboardCampaign,
+  ensureDashboardPromotionTargetSegmentApproved,
   getDashboardCampaignSummary,
   getDashboardContentCandidate,
   getDashboardContentCandidateForApproval,
@@ -640,14 +641,36 @@ export class DashboardCampaignReader {
   async getPromotionGenerationResult(
     projectId: string,
     promotionId: string,
-    analysisId: string
+    analysisId: string,
+    segmentId?: string
   ): Promise<DashboardStartPromotionGenerationResult | undefined> {
     const rows = await this.db
-      .query(getDashboardPromotionGenerationResult, { analysisId, projectId, promotionId })
+      .query(getDashboardPromotionGenerationResult, {
+        analysisId,
+        projectId,
+        promotionId,
+        segmentId: segmentId ?? null
+      })
       .multiple();
     const row = rows[0];
 
     return row ? toStartPromotionGenerationResult(row) : undefined;
+  }
+
+  async ensurePromotionTargetSegmentApproved(
+    projectId: string,
+    promotionId: string,
+    analysisId: string,
+    segmentId: string
+  ): Promise<void> {
+    await this.db
+      .query(ensureDashboardPromotionTargetSegmentApproved, {
+        analysisId,
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
   }
 
   async getContentCandidate(
@@ -889,7 +912,7 @@ export class DashboardCampaignReader {
     projectId: string,
     promotionId: string,
     segmentId: string
-  ): Promise<Omit<DashboardSegmentDetail, "realtime_metrics">> {
+  ): Promise<Omit<DashboardSegmentDetail, "generation" | "realtime_metrics">> {
     const [segment, adExperiments, contentCandidates, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardPromotionSegment, { projectId, promotionId, segmentId }).single(),
       this.db

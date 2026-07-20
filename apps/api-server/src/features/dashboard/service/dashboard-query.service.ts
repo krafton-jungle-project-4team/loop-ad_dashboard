@@ -424,11 +424,20 @@ export class DashboardQueryService {
     log.info("started", { projectId, promotionId, request });
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     log.assignContext({ campaignId: promotion.campaign_id });
+    if (request.segment_id) {
+      await this.campaignReader.ensurePromotionTargetSegmentApproved(
+        projectId,
+        promotionId,
+        request.analysis_id,
+        request.segment_id
+      );
+    }
     log.info("promotion_loaded", { promotion });
     const existingGeneration = await this.campaignReader.getPromotionGenerationResult(
       projectId,
       promotionId,
-      request.analysis_id
+      request.analysis_id,
+      request.segment_id
     );
 
     const completedWithoutCandidates =
@@ -1037,13 +1046,26 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId, segmentId });
     log.info("started", { projectId, promotionId, segmentId });
-    const [detail, realtimeMetrics] = await Promise.all([
-      this.campaignReader.getSegmentDetail(projectId, promotionId, segmentId),
-      this.funnelReader.getSegmentRealtimeMetrics(projectId, promotionId, segmentId)
+    const detailPromise = this.campaignReader.getSegmentDetail(projectId, promotionId, segmentId);
+    const realtimeMetricsPromise = this.funnelReader.getSegmentRealtimeMetrics(
+      projectId,
+      promotionId,
+      segmentId
+    );
+    const detail = await detailPromise;
+    const [realtimeMetrics, generation] = await Promise.all([
+      realtimeMetricsPromise,
+      this.campaignReader.getPromotionGenerationResult(
+        projectId,
+        promotionId,
+        detail.segment.analysis_id,
+        segmentId
+      )
     ]);
 
     const response = {
       ...detail,
+      generation: generation ?? null,
       realtime_metrics: realtimeMetrics
     };
 
@@ -1279,7 +1301,7 @@ function segmentAssistantMessage(
   const counts = `최근 ${lookbackDays}일 기준 조건에 맞는 고객은 ${preview.sample_size.toLocaleString("ko-KR")}명이며, 분석 가능 사용자 ${preview.total_eligible_user_count.toLocaleString("ko-KR")}명의 ${ratio}%입니다.`;
   return action === "audience_query"
     ? counts
-    : `${counts} 조건을 확인한 뒤 이 고객군을 세그먼트로 추가할 수 있습니다.`;
+    : `${counts} 조건을 확인한 뒤 이 고객군을 후보로 추가할 수 있습니다.`;
 }
 
 async function readContentCandidateHtml(

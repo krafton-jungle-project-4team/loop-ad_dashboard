@@ -2322,7 +2322,7 @@ export interface IConfirmDashboardV2PromotionSegmentSuggestionsQuery {
   result: IConfirmDashboardV2PromotionSegmentSuggestionsResult;
 }
 
-const confirmDashboardV2PromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"sourceAnalysisId":true,"suggestionIds":true,"confirmedBy":true,"confirmationAnalysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":148,"b":157},{"a":655,"b":664},{"a":1285,"b":1294}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":186,"b":197},{"a":696,"b":707},{"a":1330,"b":1341},{"a":1499,"b":1510}]},{"name":"sourceAnalysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":225,"b":241},{"a":1376,"b":1392}]},{"name":"suggestionIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":275,"b":288}]},{"name":"confirmedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":520,"b":531}]},{"name":"confirmationAnalysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":738,"b":760}]}],"statement":"WITH selected_suggestions AS (\n  SELECT\n    pss.suggestion_id,\n    pss.segment_id\n  FROM promotion_segment_suggestions pss\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.analysis_id = :sourceAnalysisId\n    AND pss.suggestion_id = ANY(:suggestionIds)\n    AND pss.status IN ('accepted', 'confirmed')\n    AND pss.audience_snapshot_id IS NOT NULL\n),\nenriched_targets AS (\n  UPDATE promotion_target_segments target\n  SET\n    suggestion_id = selected.suggestion_id,\n    confirmed_by = :confirmedBy,\n    confirmed_at = COALESCE(target.confirmed_at, now())\n  FROM selected_suggestions selected\n  WHERE target.project_id = :projectId\n    AND target.promotion_id = :promotionId\n    AND target.analysis_id = :confirmationAnalysisId\n    AND target.segment_id = selected.segment_id\n    AND target.audience_snapshot_id IS NOT NULL\n    AND target.allocation_plan_id IS NOT NULL\n    AND target.audience_reservation_state = 'reserved'\n  RETURNING target.promotion_id, target.segment_id, target.suggestion_id\n),\nupdated_suggestions AS (\n  UPDATE promotion_segment_suggestions suggestion\n  SET\n    status = 'confirmed',\n    decided_at = COALESCE(suggestion.decided_at, now()),\n    updated_at = now()\n  FROM enriched_targets target\n  WHERE suggestion.project_id = :projectId\n    AND suggestion.promotion_id = :promotionId\n    AND suggestion.analysis_id = :sourceAnalysisId\n    AND suggestion.suggestion_id = target.suggestion_id\n  RETURNING suggestion.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\",\n  (SELECT COUNT(*)::int FROM updated_suggestions) AS \"updatedSuggestionCount\"\nFROM enriched_targets                                      "};
+const confirmDashboardV2PromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"sourceAnalysisId":true,"suggestionIds":true,"confirmedBy":true,"confirmationAnalysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":148,"b":157},{"a":680,"b":689},{"a":1310,"b":1319}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":186,"b":197},{"a":721,"b":732},{"a":1355,"b":1366},{"a":1524,"b":1535}]},{"name":"sourceAnalysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":225,"b":241},{"a":1401,"b":1417}]},{"name":"suggestionIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":275,"b":288}]},{"name":"confirmedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":520,"b":531}]},{"name":"confirmationAnalysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":763,"b":785}]}],"statement":"WITH selected_suggestions AS (\n  SELECT\n    pss.suggestion_id,\n    pss.segment_id\n  FROM promotion_segment_suggestions pss\n  WHERE pss.project_id = :projectId\n    AND pss.promotion_id = :promotionId\n    AND pss.analysis_id = :sourceAnalysisId\n    AND pss.suggestion_id = ANY(:suggestionIds)\n    AND pss.status IN ('accepted', 'confirmed')\n    AND pss.audience_snapshot_id IS NOT NULL\n),\nenriched_targets AS (\n  UPDATE promotion_target_segments target\n  SET\n    suggestion_id = selected.suggestion_id,\n    confirmed_by = :confirmedBy,\n    confirmed_at = COALESCE(target.confirmed_at, now()),\n    status = 'approved'\n  FROM selected_suggestions selected\n  WHERE target.project_id = :projectId\n    AND target.promotion_id = :promotionId\n    AND target.analysis_id = :confirmationAnalysisId\n    AND target.segment_id = selected.segment_id\n    AND target.audience_snapshot_id IS NOT NULL\n    AND target.allocation_plan_id IS NOT NULL\n    AND target.audience_reservation_state = 'reserved'\n  RETURNING target.promotion_id, target.segment_id, target.suggestion_id\n),\nupdated_suggestions AS (\n  UPDATE promotion_segment_suggestions suggestion\n  SET\n    status = 'confirmed',\n    decided_at = COALESCE(suggestion.decided_at, now()),\n    updated_at = now()\n  FROM enriched_targets target\n  WHERE suggestion.project_id = :projectId\n    AND suggestion.promotion_id = :promotionId\n    AND suggestion.analysis_id = :sourceAnalysisId\n    AND suggestion.suggestion_id = target.suggestion_id\n  RETURNING suggestion.suggestion_id\n)\nSELECT\n  (:promotionId)::varchar AS \"promotionId\",\n  COUNT(*)::int AS \"confirmedSegmentCount\",\n  (SELECT COUNT(*)::int FROM updated_suggestions) AS \"updatedSuggestionCount\"\nFROM enriched_targets                                      "};
 
 /**
  * Query generated from SQL:
@@ -2344,7 +2344,8 @@ const confirmDashboardV2PromotionSegmentSuggestionsIR: any = {"usedParamSet":{"p
  *   SET
  *     suggestion_id = selected.suggestion_id,
  *     confirmed_by = :confirmedBy,
- *     confirmed_at = COALESCE(target.confirmed_at, now())
+ *     confirmed_at = COALESCE(target.confirmed_at, now()),
+ *     status = 'approved'
  *   FROM selected_suggestions selected
  *   WHERE target.project_id = :projectId
  *     AND target.promotion_id = :promotionId
@@ -3294,6 +3295,7 @@ export interface IGetDashboardPromotionGenerationResultParams {
   analysisId?: string | null | void;
   projectId?: string | null | void;
   promotionId?: string | null | void;
+  segmentId?: string | null | void;
 }
 
 /** 'GetDashboardPromotionGenerationResult' return type */
@@ -3310,7 +3312,7 @@ export interface IGetDashboardPromotionGenerationResultQuery {
   result: IGetDashboardPromotionGenerationResultResult;
 }
 
-const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":303,"b":312}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":338,"b":349}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":374,"b":384}]}],"statement":"SELECT\n  gr.generation_id AS \"generationId\",\n  gr.promotion_id AS \"promotionId\",\n  gr.status,\n  COUNT(cc.content_id)::int AS \"contentCandidateCount\"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\n  AND jsonb_typeof(gr.input_json -> 'target_segment_ids') = 'array'\n  AND EXISTS (\n    SELECT 1\n    FROM promotion_target_segments pts\n    WHERE pts.project_id = gr.project_id\n      AND pts.promotion_id = gr.promotion_id\n      AND pts.analysis_id = gr.analysis_id\n      AND pts.status = 'approved'\n  )\n  AND jsonb_array_length(gr.input_json -> 'target_segment_ids') = (\n    SELECT COUNT(*)::int\n    FROM promotion_target_segments pts\n    WHERE pts.project_id = gr.project_id\n      AND pts.promotion_id = gr.promotion_id\n      AND pts.analysis_id = gr.analysis_id\n      AND pts.status = 'approved'\n  )\n  AND NOT EXISTS (\n    SELECT 1\n    FROM promotion_target_segments pts\n    WHERE pts.project_id = gr.project_id\n      AND pts.promotion_id = gr.promotion_id\n      AND pts.analysis_id = gr.analysis_id\n      AND pts.status = 'approved'\n      AND NOT (gr.input_json -> 'target_segment_ids' ? pts.segment_id)\n  )\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1"};
+const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"segmentId":true,"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":288,"b":297},{"a":334,"b":343},{"a":547,"b":556},{"a":628,"b":637},{"a":668,"b":677}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":375,"b":384}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":410,"b":421}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":446,"b":456}]}],"statement":"SELECT\n  gr.generation_id AS \"generationId\",\n  gr.promotion_id AS \"promotionId\",\n  gr.status,\n  COUNT(cc.content_id)::int AS \"contentCandidateCount\"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\n AND ((:segmentId)::text IS NULL OR cc.segment_id = (:segmentId)::text)\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\n  AND jsonb_typeof(gr.input_json -> 'target_segment_ids') = 'array'\n  AND (\n    (\n      (:segmentId)::text IS NOT NULL\n      AND gr.input_json -> 'target_segment_ids' ? (:segmentId)::text\n    )\n    OR (\n      (:segmentId)::text IS NULL\n      AND EXISTS (\n        SELECT 1\n        FROM promotion_target_segments pts\n        WHERE pts.project_id = gr.project_id\n          AND pts.promotion_id = gr.promotion_id\n          AND pts.analysis_id = gr.analysis_id\n          AND pts.status = 'approved'\n      )\n      AND jsonb_array_length(gr.input_json -> 'target_segment_ids') = (\n        SELECT COUNT(*)::int\n        FROM promotion_target_segments pts\n        WHERE pts.project_id = gr.project_id\n          AND pts.promotion_id = gr.promotion_id\n          AND pts.analysis_id = gr.analysis_id\n          AND pts.status = 'approved'\n      )\n      AND NOT EXISTS (\n        SELECT 1\n        FROM promotion_target_segments pts\n        WHERE pts.project_id = gr.project_id\n          AND pts.promotion_id = gr.promotion_id\n          AND pts.analysis_id = gr.analysis_id\n          AND pts.status = 'approved'\n          AND NOT (gr.input_json -> 'target_segment_ids' ? pts.segment_id)\n      )\n    )\n  )\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1"};
 
 /**
  * Query generated from SQL:
@@ -3359,6 +3361,43 @@ const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId
  * ```
  */
 export const getDashboardPromotionGenerationResult = new PreparedQuery<IGetDashboardPromotionGenerationResultParams,IGetDashboardPromotionGenerationResultResult>(getDashboardPromotionGenerationResultIR);
+
+
+/** 'EnsureDashboardPromotionTargetSegmentApproved' parameters type */
+export interface IEnsureDashboardPromotionTargetSegmentApprovedParams {
+  analysisId?: string | null | void;
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  segmentId?: string | null | void;
+}
+
+/** 'EnsureDashboardPromotionTargetSegmentApproved' return type */
+export interface IEnsureDashboardPromotionTargetSegmentApprovedResult {
+  segmentId: string;
+}
+
+/** 'EnsureDashboardPromotionTargetSegmentApproved' query type */
+export interface IEnsureDashboardPromotionTargetSegmentApprovedQuery {
+  params: IEnsureDashboardPromotionTargetSegmentApprovedParams;
+  result: IEnsureDashboardPromotionTargetSegmentApprovedResult;
+}
+
+const ensureDashboardPromotionTargetSegmentApprovedIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":76,"b":85}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":108,"b":119}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":141,"b":151}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":172,"b":181}]}],"statement":"UPDATE promotion_target_segments\nSET status = 'approved'\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND analysis_id = :analysisId\n  AND segment_id = :segmentId\n  AND status IN ('planned', 'approved')\nRETURNING segment_id AS \"segmentId\""};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE promotion_target_segments
+ * SET status = 'approved'
+ * WHERE project_id = :projectId
+ *   AND promotion_id = :promotionId
+ *   AND analysis_id = :analysisId
+ *   AND segment_id = :segmentId
+ *   AND status IN ('planned', 'approved')
+ * RETURNING segment_id AS "segmentId"
+ * ```
+ */
+export const ensureDashboardPromotionTargetSegmentApproved = new PreparedQuery<IEnsureDashboardPromotionTargetSegmentApprovedParams,IEnsureDashboardPromotionTargetSegmentApprovedResult>(ensureDashboardPromotionTargetSegmentApprovedIR);
 
 
 /** 'ListDashboardCampaignAdExperiments' parameters type */
@@ -4490,4 +4529,3 @@ const deleteFunnelDefinitionIR: any = {"usedParamSet":{"projectId":true,"funnelI
  * ```
  */
 export const deleteFunnelDefinition = new PreparedQuery<IDeleteFunnelDefinitionParams,IDeleteFunnelDefinitionResult>(deleteFunnelDefinitionIR);
-

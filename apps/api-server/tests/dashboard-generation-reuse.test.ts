@@ -39,7 +39,8 @@ test("generated promotion generation query includes the target segment guard", a
     {
       analysisId: "analysis-1",
       projectId: "project-1",
-      promotionId: "promotion-1"
+      promotionId: "promotion-1",
+      segmentId: "segment-1"
     },
     {
       query: async (sql: string, values: unknown[]) => {
@@ -52,8 +53,9 @@ test("generated promotion generation query includes the target segment guard", a
 
   assert.match(executedSql, /jsonb_array_length\(gr\.input_json -> 'target_segment_ids'\)/);
   assert.match(executedSql, /pts\.status = 'approved'/);
-  assert.match(executedSql, /gr\.project_id = \$1/);
-  assert.match(executedSql, /gr\.promotion_id = \$2/);
-  assert.match(executedSql, /gr\.analysis_id = \$3/);
-  assert.deepEqual(executedValues, ["project-1", "promotion-1", "analysis-1"]);
+  assert.match(executedSql, /cc\.segment_id = \(\$1\)::text/);
+  assert.match(executedSql, /gr\.project_id = \$2/);
+  assert.match(executedSql, /gr\.promotion_id = \$3/);
+  assert.match(executedSql, /gr\.analysis_id = \$4/);
+  assert.deepEqual(executedValues, ["segment-1", "project-1", "promotion-1", "analysis-1"]);
 });

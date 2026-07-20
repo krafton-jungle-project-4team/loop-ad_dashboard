@@ -121,7 +121,7 @@ export function SegmentCandidateAssistantPanel({
           {
             id: current.nextMessageId,
             role: "assistant",
-            text: `'${segment.segment_name}' 세그먼트를 추가했습니다. 후보 목록에서 선택해 확정할 수 있습니다.`
+            text: `'${segment.segment_name}' 고객군을 추가했습니다. 후보 목록에서 선택해 확정할 수 있습니다.`
           }
         ],
         nextMessageId: current.nextMessageId + 1
@@ -163,14 +163,14 @@ export function SegmentCandidateAssistantPanel({
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-black/10 px-4">
         <Bot aria-hidden="true" className="size-4 text-primary" />
         <h2 className="text-sm font-semibold" id="loopad-segment-assistant-title">
-          세그먼트 후보 도우미
+          고객군 후보 도우미
         </h2>
         <Button
-          aria-label="세그먼트 후보 도우미 닫기"
+          aria-label="고객군 후보 도우미 닫기"
           className="ml-auto"
           onClick={onClose}
           size="icon-sm"
-          title="세그먼트 후보 도우미 닫기"
+          title="고객군 후보 도우미 닫기"
           type="button"
           variant="ghost"
         >
@@ -221,7 +221,7 @@ export function SegmentCandidateAssistantPanel({
       <div className="shrink-0 border-t bg-background p-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
           <Textarea
-            aria-label="고객 데이터 질문 또는 세그먼트 조건"
+            aria-label="고객 데이터 질문 또는 고객군 조건"
             className="max-h-32 min-h-20 resize-none"
             disabled={isLoading}
             onChange={(event) =>
@@ -273,11 +273,11 @@ function SegmentAssistantResult({
   const isSaveable = preview.sample_size_status === "valid" && preview.sample_size > 0;
   const ratioPercent = Math.min(100, Math.max(0, preview.sample_ratio * 100));
   return (
-    <section className="grid gap-3 rounded-md border p-3" aria-label="세그먼트 조건 조회 결과">
+    <section className="grid gap-3 rounded-md border p-3" aria-label="고객군 조건 조회 결과">
       <div className="flex items-center gap-2">
         <Database aria-hidden="true" className="size-4 text-primary" />
         <h3 className="text-sm font-semibold">
-          {result.action === "audience_query" ? "고객 데이터 조회" : "세그먼트 미리보기"}
+          {result.action === "audience_query" ? "고객 데이터 조회" : "고객군 미리보기"}
         </h3>
         <Badge className="ml-auto" variant="secondary">
           최근 {result.lookback_days}일
@@ -328,7 +328,7 @@ function SegmentAssistantResult({
 
       {result.segment_name ? (
         <div className="grid gap-1 text-sm">
-          <span className="text-xs text-muted-foreground">세그먼트 이름</span>
+          <span className="text-xs text-muted-foreground">고객군 이름</span>
           <span className="font-medium [overflow-wrap:anywhere]">{result.segment_name}</span>
         </div>
       ) : null}
@@ -336,12 +336,12 @@ function SegmentAssistantResult({
       {showSaveAction ? (
         <Button disabled={!isSaveable || isSaving || isSaved} onClick={onSave} type="button">
           <Plus aria-hidden="true" />
-          {isSaved ? "추가됨" : isSaving ? "추가하고 있어요…" : "이 조건으로 세그먼트 추가"}
+          {isSaved ? "추가됨" : isSaving ? "추가하고 있어요…" : "이 조건으로 고객군 추가"}
         </Button>
       ) : null}
       {showSaveAction && !isSaveable && preview.sample_size > 0 ? (
         <p className="text-xs leading-5 text-muted-foreground">
-          현재 조건의 고객 수가 세그먼트 운영 기준보다 적습니다. 기간이나 조건을 조정해 주세요.
+          현재 조건의 고객 수가 고객군 운영 기준보다 적습니다. 기간이나 조건을 조정해 주세요.
         </p>
       ) : null}
     </section>

@@ -55,6 +55,60 @@ test("dashboard main returns campaign summaries from the campaign reader", async
   assert.equal(main.realtime_metrics.total_event_count, 0);
 });
 
+test("dashboard segment detail returns generation state for the selected segment", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const generationReads: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getSegmentDetail: async () => ({
+        segment: { analysis_id: "analysis-selected" },
+        ad_experiments: [],
+        content_candidates: [],
+        experiment_metrics: []
+      }),
+      getPromotionGenerationResult: async (projectId, promotionId, analysisId, segmentId) => {
+        generationReads.push({ analysisId, projectId, promotionId, segmentId });
+        return {
+          content_candidate_count: 0,
+          generation_id: "generation-selected",
+          promotion_id: promotionId,
+          status: "running"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    {
+      ...emptyFunnelReader(),
+      getSegmentRealtimeMetrics: async () => ({
+        ...emptyRealtimeMetrics(),
+        promotion_id: "promotion-selected",
+        segment_id: "segment-selected"
+      })
+    } as unknown as DashboardFunnelReader,
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const detail = await service.segmentDetail(
+    "project-selected",
+    "promotion-selected",
+    "segment-selected"
+  );
+
+  assert.deepEqual(generationReads, [
+    {
+      analysisId: "analysis-selected",
+      projectId: "project-selected",
+      promotionId: "promotion-selected",
+      segmentId: "segment-selected"
+    }
+  ]);
+  assert.equal(detail.generation?.generation_id, "generation-selected");
+  assert.equal(detail.generation?.status, "running");
+});
+
 test("dashboard event catalog returns collected funnel event options", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -594,6 +648,14 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
           target_segment_count: 2,
           updated_at: "2026-07-04T00:00:00.000Z"
         };
+      },
+      ensurePromotionTargetSegmentApproved: async (
+        projectId,
+        promotionId,
+        analysisId,
+        segmentId
+      ) => {
+        calls.push({ analysisId, kind: "approve-segment", projectId, promotionId, segmentId });
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
@@ -613,6 +675,7 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
 
   const response = await service.startPromotionGeneration("hotel-client-a", "promo_email_001", {
     analysis_id: "analysis_promo_email_001",
+    segment_id: "segment_email_001",
     content_option_count: 3,
     operator_instruction: null
   });
@@ -625,6 +688,13 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
       promotionId: "promo_email_001"
     },
     {
+      analysisId: "analysis_promo_email_001",
+      kind: "approve-segment",
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001",
+      segmentId: "segment_email_001"
+    },
+    {
       kind: "decision",
       request: {
         campaignId: "camp_summer_2026",
@@ -632,6 +702,7 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
         promotionId: "promo_email_001",
         request: {
           analysis_id: "analysis_promo_email_001",
+          segment_id: "segment_email_001",
           content_option_count: 3,
           operator_instruction: null
         }
