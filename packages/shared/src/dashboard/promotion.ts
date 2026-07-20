@@ -152,13 +152,13 @@ export type DashboardPromotionStatus = z.infer<typeof DashboardPromotionStatusSc
 
 const DashboardPromotionLandingUrlSchema = z.string().trim().url();
 
-const DashboardPromotionScheduleFieldsSchema = z.object({
-  execution_mode: DashboardPromotionExecutionModeSchema,
-  scheduled_start_at: z.string().datetime({ offset: true }).nullable(),
-  scheduled_end_at: z.string().datetime({ offset: true }).nullable(),
-  loop_interval_unit: DashboardPromotionLoopIntervalUnitSchema,
-  loop_interval_value: z.number().int().min(1)
-});
+type DashboardPromotionScheduleFields = {
+  execution_mode: DashboardPromotionExecutionMode;
+  scheduled_start_at: string | null;
+  scheduled_end_at: string | null;
+  loop_interval_unit: DashboardPromotionLoopIntervalUnit;
+  loop_interval_value: number;
+};
 
 export const DashboardCreatePromotionRequestSchema = z
   .object({
@@ -220,7 +220,7 @@ export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.
 export type DashboardPromotionSummary = z.infer<typeof DashboardPromotionSummarySchema>;
 
 function validatePromotionSchedule(
-  value: Partial<z.infer<typeof DashboardPromotionScheduleFieldsSchema>>,
+  value: Partial<DashboardPromotionScheduleFields>,
   context: z.RefinementCtx
 ) {
   if (
