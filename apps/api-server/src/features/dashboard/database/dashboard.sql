@@ -1813,7 +1813,7 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
   AND content_id = :contentId;
 
-/* 목적: 동일 analysis/proposition의 기존 광고 생성 결과를 조회합니다. */
+/* 목적: 동일 analysis와 현재 승인 고객군에 대응하는 기존 광고 생성 결과만 조회합니다. */
 /* @name GetDashboardPromotionGenerationResult */
 SELECT
   gr.generation_id AS "generationId",
@@ -1827,7 +1827,32 @@ LEFT JOIN content_candidates cc
 WHERE gr.project_id = :projectId
   AND gr.promotion_id = :promotionId
   AND gr.analysis_id = :analysisId
-
+  AND jsonb_typeof(gr.input_json -> 'target_segment_ids') = 'array'
+  AND EXISTS (
+    SELECT 1
+    FROM promotion_target_segments pts
+    WHERE pts.project_id = gr.project_id
+      AND pts.promotion_id = gr.promotion_id
+      AND pts.analysis_id = gr.analysis_id
+      AND pts.status = 'approved'
+  )
+  AND jsonb_array_length(gr.input_json -> 'target_segment_ids') = (
+    SELECT COUNT(*)::int
+    FROM promotion_target_segments pts
+    WHERE pts.project_id = gr.project_id
+      AND pts.promotion_id = gr.promotion_id
+      AND pts.analysis_id = gr.analysis_id
+      AND pts.status = 'approved'
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM promotion_target_segments pts
+    WHERE pts.project_id = gr.project_id
+      AND pts.promotion_id = gr.promotion_id
+      AND pts.analysis_id = gr.analysis_id
+      AND pts.status = 'approved'
+      AND NOT (gr.input_json -> 'target_segment_ids' ? pts.segment_id)
+  )
 GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
 ORDER BY gr.updated_at DESC, gr.created_at DESC
 LIMIT 1;
