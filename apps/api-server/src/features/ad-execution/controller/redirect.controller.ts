@@ -28,10 +28,13 @@ export class RedirectController {
     const startedAt = Date.now();
     const parsedParams = RedirectParamsSchema.parse(params);
     log.assignContext({ redirectId: parsedParams.redirectId });
-    log.info("started", { redirectId: parsedParams.redirectId });
+    log.info("started");
     const page = await this.redirectService.resolveRedirectPage(parsedParams.redirectId);
 
     response.type("html").send(renderRedirectPage(page));
-    log.info("completed", { durationMs: durationMs(startedAt), page });
+    log.info("completed", {
+      durationMs: durationMs(startedAt),
+      response: { contentType: "html", eventName: page.event.name }
+    });
   }
 }

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { LogContextScope, log } from "../../../infra/logger/index.js";
+import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import { adExecutionErrors } from "../ad-execution-errors.js";
 import {
   AdExecutionDomain,
@@ -26,8 +26,9 @@ export class RedirectService {
   /** redirect_id로 클릭 이벤트 payload와 이동 대상 URL을 구성합니다. */
   @LogContextScope()
   async resolveRedirectPage(redirectId: string): Promise<RedirectPageSnapshot> {
+    const startedAt = Date.now();
     log.assignContext({ redirectId });
-    log.info("started", { redirectId });
+    log.info("started");
 
     const link = await this.requireRedirectLink(redirectId);
     log.assignContext({
@@ -48,7 +49,11 @@ export class RedirectService {
       connectionUrl: `${LOOPAD_EVENT_CONNECTION_BASE_URL}/${encodeURIComponent(link.sdkKey)}`
     });
 
-    log.info("completed", { link, promotionChannel, page });
+    log.info("completed", {
+      durationMs: durationMs(startedAt),
+      response: { eventName: page.event.name },
+      promotionChannel
+    });
 
     return page;
   }
@@ -57,17 +62,17 @@ export class RedirectService {
     const link = await this.reader.findRedirectLink(redirectId);
 
     if (!link) {
-      log.warn("redirect_not_found", { redirectId });
+      log.warn("redirect_not_found");
       throw adExecutionErrors.redirectNotFound(redirectId);
     }
 
     if (link.expiresAt && link.expiresAt <= new Date()) {
-      log.warn("redirect_expired", { redirectId, link });
+      log.warn("redirect_expired", { expiresAt: link.expiresAt });
       throw adExecutionErrors.redirectExpired(redirectId);
     }
 
     if (!isHttpUrl(link.destinationUrl)) {
-      log.warn("redirect_invalid_target_url", { redirectId, link });
+      log.warn("redirect_invalid_target_url", { promotionRunId: link.promotionRunId });
       throw adExecutionErrors.redirectTargetUrlInvalid(redirectId);
     }
 
@@ -76,7 +81,10 @@ export class RedirectService {
       destinationUrl: requireValidPromotionLandingUrl(link.promotionRunId, link.destinationUrl)
     };
 
-    log.info("redirect_link_loaded", { redirectId, link: resolvedLink });
+    log.info("redirect_link_loaded", {
+      expiresAt: resolvedLink.expiresAt,
+      status: resolvedLink.status
+    });
 
     return resolvedLink;
   }
@@ -96,7 +104,10 @@ export class RedirectService {
       );
     }
 
-    log.info("redirect_channel_loaded", { adExperiment });
+    log.info("redirect_channel_loaded", {
+      channel: adExperiment.channel,
+      status: adExperiment.status
+    });
 
     return adExperiment.channel;
   }

@@ -126,16 +126,66 @@ function createLogMethod(level: LogLevel): LogMethod {
       return;
     }
 
-    pinoLogger[level]({
-      ...getLoggerContext(),
-      event,
-      ...removeUndefinedFields(record)
-    });
+    pinoLogger[level](
+      redactSecretFields({
+        ...getLoggerContext(),
+        event,
+        ...removeUndefinedFields(record)
+      })
+    );
   };
 }
 
 function removeUndefinedFields(fields: LogRecord): LogRecord {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+}
+
+function redactSecretFields(value: LogRecord): LogRecord {
+  return redactValue(value, new WeakMap<object, unknown>()) as LogRecord;
+}
+
+function redactValue(value: unknown, seen: WeakMap<object, unknown>): unknown {
+  if (Array.isArray(value)) {
+    const previous = seen.get(value);
+    if (previous) return previous;
+    const result: unknown[] = [];
+    seen.set(value, result);
+    result.push(...value.map((item) => redactValue(item, seen)));
+    return result;
+  }
+  if (!isPlainObject(value)) {
+    return value;
+  }
+
+  const previous = seen.get(value);
+  if (previous) return previous;
+  const result: LogRecord = {};
+  seen.set(value, result);
+  for (const [key, item] of Object.entries(value)) {
+    result[key] = isSecretField(key) ? "[Redacted]" : redactValue(item, seen);
+  }
+  return result;
+}
+
+function isPlainObject(value: unknown): value is LogRecord {
+  if (typeof value !== "object" || value === null) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function isSecretField(key: string) {
+  const normalized = key.replaceAll(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  return (
+    normalized === "authorization" ||
+    normalized === "cookie" ||
+    normalized.endsWith("authorizationheader") ||
+    normalized.endsWith("cookieheader") ||
+    normalized.endsWith("apikey") ||
+    normalized.endsWith("password") ||
+    normalized.endsWith("sdkkey") ||
+    normalized.endsWith("token") ||
+    normalized.endsWith("writekey")
+  );
 }
 
 function isLogLevel(value: unknown): value is LogLevel {
