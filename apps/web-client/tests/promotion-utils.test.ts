@@ -35,11 +35,16 @@ test("promotion edit maps every field exposed by the create form", () => {
     goal_basis: "all_segments",
     goal_metric: "booking_conversion_rate",
     goal_target_value: 0.25,
+    execution_mode: "automatic",
     landing_url: "https://example.com/promotion",
+    loop_interval_unit: "hour",
+    loop_interval_value: 6,
     marketing_theme: "여름 프로모션",
     max_loop_count: 5,
     message_brief: "예약 전환 프로모션",
     min_sample_size: 250,
+    scheduled_end_at: "2026-08-10T09:00:00.000Z",
+    scheduled_start_at: "2026-08-01T09:00:00.000Z",
     status: "approved"
   } as DashboardCampaignPromotion;
 
@@ -50,12 +55,17 @@ test("promotion edit maps every field exposed by the create form", () => {
     goal_basis: "all_segments",
     goal_metric: "booking_conversion_rate",
     goal_target_value: 0.25,
+    execution_mode: "automatic",
     landing_url: "https://example.com/promotion",
+    loop_interval_unit: "hour",
+    loop_interval_value: 6,
     marketing_theme: "여름 프로모션",
     max_loop_count: 5,
     message_brief: "예약 전환 프로모션",
     min_sample_size: 250,
-    offer_links: []
+    offer_links: [],
+    scheduled_end_at: "2026-08-10T09:00:00.000Z",
+    scheduled_start_at: "2026-08-01T09:00:00.000Z"
   });
 });
 
@@ -65,11 +75,16 @@ test("promotion form preserves offer links for Decision generation metadata", ()
     goal_basis: "all_segments",
     goal_metric: "booking_conversion_rate",
     goal_target_value: 0.25,
+    execution_mode: "manual",
     landing_url: "https://example.com/promotion",
+    loop_interval_unit: "day",
+    loop_interval_value: 1,
     marketing_theme: "여름 프로모션",
     max_loop_count: 5,
     message_brief: "예약 전환 프로모션",
     min_sample_size: 250,
+    scheduled_end_at: null,
+    scheduled_start_at: null,
     offer_links: [
       {
         offer_id: "jeju-ocean-breeze-006",
@@ -191,6 +206,30 @@ test("promotion offer link contract remains optional and rejects invalid entries
         { destination_url: "https://example.com/hotel/1" },
         { destination_url: "https://example.com/hotel/1" }
       ]
+    }).success,
+    false
+  );
+});
+
+test("promotion automation contract defaults legacy requests to manual and validates its window", () => {
+  const legacyRequest = {
+    channel: "sms",
+    marketing_theme: "legacy",
+    goal_metric: "inflow_rate",
+    goal_target_value: 0.1,
+    goal_basis: "promotion_average",
+    landing_url: "https://example.com/promotion"
+  };
+  const parsed = DashboardCreatePromotionRequestSchema.parse(legacyRequest);
+
+  assert.equal(parsed.execution_mode, "manual");
+  assert.equal(parsed.loop_interval_unit, "day");
+  assert.equal(parsed.loop_interval_value, 1);
+  assert.equal(
+    DashboardCreatePromotionRequestSchema.safeParse({
+      ...legacyRequest,
+      scheduled_start_at: "2026-08-10T00:00:00.000Z",
+      scheduled_end_at: "2026-08-01T00:00:00.000Z"
     }).success,
     false
   );

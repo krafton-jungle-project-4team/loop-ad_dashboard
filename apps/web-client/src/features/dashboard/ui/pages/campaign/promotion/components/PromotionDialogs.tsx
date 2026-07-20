@@ -15,6 +15,7 @@ import {
   SelectValue
 } from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@loopad/ui/shadcn/toggle-group";
 import { useEffect, useState } from "react";
 import { formatBasisLabel, formatChannelLabel } from "../../../../../model/dashboard-labels.js";
 import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
@@ -28,6 +29,7 @@ import {
   promotionGoalMetricOptions,
   promotionOfferLinksAreValid,
   promotionOfferLinksMatchCatalog,
+  promotionScheduleIsValid,
   promotionFormToUpdateRequest,
   promotionToFormState,
   type PromotionCreateFormState
@@ -64,6 +66,7 @@ export function PromotionEditDialog({
     Boolean(promotion && form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
     promotionOfferLinksAreValid(form) &&
+    promotionScheduleIsValid(form) &&
     (form.channel !== "email" ||
       (offerCatalog.isSuccess &&
         promotionOfferLinksMatchCatalog(form, offerCatalog.data.offers))) &&
@@ -130,6 +133,7 @@ export function PromotionAddDialog({
     Boolean(form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
     promotionOfferLinksAreValid(form) &&
+    promotionScheduleIsValid(form) &&
     (form.channel !== "email" ||
       (offerCatalog.isSuccess &&
         promotionOfferLinksMatchCatalog(form, offerCatalog.data.offers))) &&
@@ -238,6 +242,90 @@ function PromotionFormFields({
               ))}
             </SelectContent>
           </Select>
+        </Field>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel id={`${idPrefix}-execution-mode-label`}>반복 실행 방식</FieldLabel>
+          <ToggleGroup
+            aria-labelledby={`${idPrefix}-execution-mode-label`}
+            className="w-full"
+            onValueChange={(value) => {
+              if (value === "manual" || value === "automatic") {
+                onChange({ ...form, executionMode: value });
+              }
+            }}
+            spacing={0}
+            type="single"
+            value={form.executionMode}
+            variant="outline"
+          >
+            <ToggleGroupItem className="flex-1" value="manual">
+              수동
+            </ToggleGroupItem>
+            <ToggleGroupItem className="flex-1" value="automatic">
+              자동
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </Field>
+        {form.executionMode === "automatic" ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
+            <Field>
+              <FieldLabel htmlFor={`${idPrefix}-loop-interval-value`}>자동 평가 간격</FieldLabel>
+              <Input
+                id={`${idPrefix}-loop-interval-value`}
+                inputMode="numeric"
+                min="1"
+                onChange={(event) => onChange({ ...form, loopIntervalValue: event.target.value })}
+                type="number"
+                value={form.loopIntervalValue}
+              />
+            </Field>
+            <Field>
+              <FieldLabel id={`${idPrefix}-loop-interval-unit-label`}>단위</FieldLabel>
+              <Select
+                onValueChange={(value) => {
+                  if (value === "hour" || value === "day") {
+                    onChange({ ...form, loopIntervalUnit: value });
+                  }
+                }}
+                value={form.loopIntervalUnit}
+              >
+                <SelectTrigger
+                  aria-labelledby={`${idPrefix}-loop-interval-unit-label`}
+                  className="w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hour">시간</SelectItem>
+                  <SelectItem value="day">일</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+        ) : null}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-scheduled-start`}>실행 시작</FieldLabel>
+          <Input
+            id={`${idPrefix}-scheduled-start`}
+            onChange={(event) => onChange({ ...form, scheduledStartAt: event.target.value })}
+            type="datetime-local"
+            value={form.scheduledStartAt}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-scheduled-end`}>실행 종료</FieldLabel>
+          <Input
+            aria-invalid={!promotionScheduleIsValid(form)}
+            id={`${idPrefix}-scheduled-end`}
+            min={form.scheduledStartAt || undefined}
+            onChange={(event) => onChange({ ...form, scheduledEndAt: event.target.value })}
+            type="datetime-local"
+            value={form.scheduledEndAt}
+          />
         </Field>
       </div>
       <div className="grid gap-4 md:grid-cols-3">

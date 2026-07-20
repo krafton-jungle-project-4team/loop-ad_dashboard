@@ -32,7 +32,6 @@ import { ChevronDown, ChevronRight, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { formatDateTime, formatInteger } from "../../../../../../model/dashboard-format.js";
 import {
-  formatBasisLabel,
   formatChannelLabel,
   formatMetricLabel,
   formatStatusLabel
@@ -467,9 +466,14 @@ function ProjectExperimentTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusBadgeVariant(experiment.status)}>
-                    {formatStatusLabel(experiment.status)}
-                  </Badge>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant={statusBadgeVariant(experiment.status)}>
+                      {formatStatusLabel(experiment.status)}
+                    </Badge>
+                    <Badge variant="outline">
+                      {experiment.execution_mode === "automatic" ? "자동 반복" : "수동 반복"}
+                    </Badge>
+                  </div>
                 </TableCell>
                 <TableCell>{experiment.segment_name}</TableCell>
                 <TableCell>{formatChannelLabel(experiment.channel)}</TableCell>
@@ -541,6 +545,8 @@ function SelectedProjectExperimentDetail({
   const repeatTarget = repeatCreativeTargetForExperiment(experiments, experiment);
   const hasRepeatTarget = repeatTarget.failedSegmentIds.length > 0;
   const canPrepareRepeatCreatives =
+    experiment.execution_mode === "manual" &&
+    experiment.loop_count < experiment.max_loop_count &&
     !experiment.next_loop &&
     hasRepeatTarget &&
     (evaluation?.next_loop_required === true || evaluation?.status === "goal_not_met");
@@ -567,32 +573,43 @@ function SelectedProjectExperimentDetail({
             <Badge variant={statusBadgeVariant(experiment.status)}>
               {formatStatusLabel(experiment.status)}
             </Badge>
+            <Badge variant="outline">
+              {experiment.execution_mode === "automatic"
+                ? `자동 · ${formatInteger(experiment.loop_interval_value)}${experiment.loop_interval_unit === "hour" ? "시간" : "일"}`
+                : "수동 반복"}
+            </Badge>
           </div>
           <CardDescription>
             성과, 평가 결과, 대상 부족 이유와 다음 반복 실험을 한곳에서 볼 수 있어요.
           </CardDescription>
         </div>
         <div className="flex flex-wrap items-start gap-2">
-          <Button
-            disabled={!canPrepareRepeatCreatives || prepareRepeatCreativesIsPending}
-            onClick={() =>
-              onPrepareRepeatCreatives({
-                ...repeatTarget,
-                campaignId: experiment.campaign_id,
-                promotionId: experiment.promotion_id
-              })
-            }
-            type="button"
-          >
-            {isPreparingRepeatCreativesForSelected ? (
-              <Spinner aria-hidden="true" data-icon="inline-start" />
-            ) : (
-              <Plus aria-hidden="true" data-icon="inline-start" />
-            )}
-            {isPreparingRepeatCreativesForSelected
-              ? "다음 실험용 광고 만드는 중…"
-              : "다음 실험 실행"}
-          </Button>
+          {experiment.execution_mode === "manual" ? (
+            <Button
+              disabled={!canPrepareRepeatCreatives || prepareRepeatCreativesIsPending}
+              onClick={() =>
+                onPrepareRepeatCreatives({
+                  ...repeatTarget,
+                  campaignId: experiment.campaign_id,
+                  promotionId: experiment.promotion_id
+                })
+              }
+              type="button"
+            >
+              {isPreparingRepeatCreativesForSelected ? (
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+              ) : (
+                <Plus aria-hidden="true" data-icon="inline-start" />
+              )}
+              {isPreparingRepeatCreativesForSelected
+                ? "다음 실험용 광고 만드는 중…"
+                : "다음 실험 실행"}
+            </Button>
+          ) : (
+            <Badge className="px-3 py-2" variant="secondary">
+              자동 반복 실행 중
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="grid gap-6">
@@ -616,8 +633,8 @@ function SelectedProjectExperimentDetail({
             value={`${formatInteger(evaluation?.sample_size ?? 0)} / ${formatInteger(experiment.assignment_count)}`}
           />
           <DetailMetric
-            label="평가 기준"
-            value={formatBasisLabel(evaluation?.basis ?? experiment.goal_basis)}
+            label="반복 횟수"
+            value={`${formatInteger(experiment.loop_count)} / ${formatInteger(experiment.max_loop_count)}`}
           />
         </div>
 
@@ -687,7 +704,11 @@ function SelectedProjectExperimentDetail({
               <Alert>
                 <AlertTitle>반복 실험이 필요해요</AlertTitle>
                 <AlertDescription>
-                  이 프로모션의 타깃 고객군 광고를 새로 만들 수 있어요.
+                  {experiment.execution_mode === "automatic"
+                    ? "실패 원인 분석을 반영한 다음 광고 생성과 실행을 자동으로 진행합니다."
+                    : experiment.loop_count >= experiment.max_loop_count
+                      ? "설정한 최대 반복 횟수에 도달했습니다."
+                      : "이 프로모션의 타깃 고객군 광고를 새로 만들 수 있어요."}
                 </AlertDescription>
               </Alert>
             ) : evaluation?.next_loop_required ? (

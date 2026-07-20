@@ -64,7 +64,10 @@ export type PromotionCreateFormState = {
   goalBasis: string;
   goalMetric: DashboardCreatePromotionRequest["goal_metric"];
   goalTargetValue: string;
+  executionMode: DashboardCreatePromotionRequest["execution_mode"];
   landingUrl: string;
+  loopIntervalUnit: DashboardCreatePromotionRequest["loop_interval_unit"];
+  loopIntervalValue: string;
   marketingTheme: string;
   maxLoopCount: string;
   messageBrief: string;
@@ -73,6 +76,8 @@ export type PromotionCreateFormState = {
     offerId: string;
     destinationUrl: string;
   }>;
+  scheduledEndAt: string;
+  scheduledStartAt: string;
 };
 
 export function createEmptyPromotionFormState(): PromotionCreateFormState {
@@ -81,12 +86,17 @@ export function createEmptyPromotionFormState(): PromotionCreateFormState {
     goalBasis: "promotion_average",
     goalMetric: "inflow_rate",
     goalTargetValue: "0.1",
+    executionMode: "manual",
     landingUrl: defaultPromotionLandingUrl,
+    loopIntervalUnit: "day",
+    loopIntervalValue: "1",
     marketingTheme: "",
     maxLoopCount: "3",
     messageBrief: "",
     minSampleSize: "1000",
-    offerLinks: []
+    offerLinks: [],
+    scheduledEndAt: "",
+    scheduledStartAt: ""
   };
 }
 
@@ -98,7 +108,10 @@ export function promotionToFormState(
     goalBasis: promotion.goal_basis,
     goalMetric: promotion.goal_metric as PromotionCreateFormState["goalMetric"],
     goalTargetValue: String(promotion.goal_target_value),
+    executionMode: promotion.execution_mode,
     landingUrl: promotion.landing_url ?? "",
+    loopIntervalUnit: promotion.loop_interval_unit,
+    loopIntervalValue: String(promotion.loop_interval_value),
     marketingTheme: promotion.marketing_theme,
     maxLoopCount: String(promotion.max_loop_count),
     messageBrief: promotion.message_brief ?? "",
@@ -106,7 +119,9 @@ export function promotionToFormState(
     offerLinks: (promotion.offer_links ?? []).map((link) => ({
       offerId: link.offer_id ?? "",
       destinationUrl: link.destination_url
-    }))
+    })),
+    scheduledEndAt: toDateTimeLocalValue(promotion.scheduled_end_at),
+    scheduledStartAt: toDateTimeLocalValue(promotion.scheduled_start_at)
   };
 }
 
@@ -131,7 +146,10 @@ function promotionFormRequestFields(form: PromotionCreateFormState) {
     goal_basis: form.goalBasis as DashboardCreatePromotionRequest["goal_basis"],
     goal_metric: form.goalMetric,
     goal_target_value: nonnegativeNumber(form.goalTargetValue),
+    execution_mode: form.executionMode,
     landing_url: form.landingUrl.trim(),
+    loop_interval_unit: form.loopIntervalUnit,
+    loop_interval_value: positiveInteger(form.loopIntervalValue),
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
     message_brief: form.messageBrief.trim() || null,
@@ -142,8 +160,17 @@ function promotionFormRequestFields(form: PromotionCreateFormState) {
             destination_url: link.destinationUrl.trim(),
             offer_id: link.offerId.trim()
           }))
-        : []
+        : [],
+    scheduled_end_at: nullableIsoDateTime(form.scheduledEndAt),
+    scheduled_start_at: nullableIsoDateTime(form.scheduledStartAt)
   };
+}
+
+export function promotionScheduleIsValid(form: PromotionCreateFormState) {
+  if (!form.scheduledStartAt || !form.scheduledEndAt) {
+    return true;
+  }
+  return Date.parse(form.scheduledEndAt) > Date.parse(form.scheduledStartAt);
 }
 
 export function promotionOfferLinksAreValid(form: PromotionCreateFormState) {
@@ -188,6 +215,19 @@ export function isValidHttpUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function nullableIsoDateTime(value: string) {
+  return value ? new Date(value).toISOString() : null;
+}
+
+function toDateTimeLocalValue(value: string | null) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
 }
 
 export function latestSegmentPerSegmentId(segments: DashboardCampaignSegment[]) {
