@@ -714,6 +714,7 @@ test("dashboard segment assistant explains the measured condition that keeps a s
     {
       conversation: [],
       currentPlan: undefined,
+      editingSourceBase: false,
       message: "예약 시작을 3회 이상 한 조건을 추가해줘",
       sourceAudience: {
         suggestion_id: "suggestion-1",
@@ -722,6 +723,19 @@ test("dashboard segment assistant explains the measured condition that keeps a s
         title: "예약 직전 이탈 고객",
         strategy_role: "예약 이탈 회수형",
         base_condition_labels: ["예약 시작 후 미완료"],
+        base_conditions: [
+          segmentCondition("예약 시작", "booking_start", 1, null),
+          segmentCondition("예약 미완료", "booking_complete", 0, 0),
+          {
+            label: "숙소 검색",
+            event_name: "hotel_search",
+            minimum_count: 1,
+            maximum_count: null,
+            destination: null,
+            checkin_months: [],
+            property_filters: []
+          }
+        ],
         hard_predicate_keys: ["booking_start_without_complete"],
         reference_labels: ["숙소 검색", "예약 가능성 높음", "예약 시작"],
         base_user_ids: Array.from(
@@ -792,6 +806,54 @@ test("dashboard derives additional conditions from measured AI audience behavior
       ["ref_3333333333333333", 60]
     ]
   );
+});
+
+test("dashboard uses the V2 final audience snapshot instead of the representative candidate sample", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  const finalAudienceUserIds = Array.from(
+    { length: 100 },
+    (_, index) => `final-user-${String(index + 1).padStart(3, "0")}`
+  );
+  let analyzedUserIds: string[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () => ({}) as never,
+      listPromotionSegmentSuggestions: async () =>
+        sourceSuggestionList({
+          audienceSnapshotId: "snapshot-final-1",
+          candidateType: "funnel_recovery",
+          hardPredicateKeys: ["booking_start_without_complete"],
+          referenceLabels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+          sampleSize: 84,
+          segmentId: "segment-1",
+          suggestionId: "suggestion-1",
+          title: "예약 직전 이탈 고객"
+        }),
+      listPromotionSegmentSuggestionAudienceMemberIds: async () => finalAudienceUserIds
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      analyzeSourceRefinements: async (_projectId, source) => {
+        analyzedUserIds = source.base_user_ids;
+        return [];
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient()
+  );
+
+  const response = await service.promotionSegmentAssistantSourceContext(
+    "hotel-client-a",
+    "promo_summer",
+    "suggestion-1"
+  );
+
+  assert.equal(response.sample_size, 100);
+  assert.deepEqual(analyzedUserIds, finalAudienceUserIds);
 });
 
 test("quick refinement keeps the AI recommendation user IDs as the base audience", async () => {
@@ -937,6 +999,101 @@ test("restating recommendation signals returns the same authoritative AI audienc
   assert.equal(response.preview?.sample_size, 100);
   assert.equal(response.base_audience?.sample_size, 100);
   assert.deepEqual(response.condition_labels, []);
+});
+
+test("natural-language source edits replace one base condition and preserve the others", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  const previewPlans: Array<{
+    conditions: Array<{
+      event_name: string;
+      label: string;
+      maximum_count: number | null;
+      minimum_count: number;
+    }>;
+    execution_scope?: string;
+  }> = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () => ({}) as never,
+      listPromotionSegmentSuggestions: async () =>
+        sourceSuggestionList({
+          candidateType: "funnel_recovery",
+          hardPredicateKeys: ["booking_start_without_complete"],
+          referenceLabels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+          sampleSize: 100,
+          segmentId: "segment-1",
+          suggestionId: "suggestion-1",
+          title: "예약 직전 이탈 고객"
+        })
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      createAssistantQueryPreview: async (_projectId, _query, plan) => {
+        previewPlans.push(plan);
+        return {
+          query_preview_id: "seg_query_preview_source_edit",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 4,
+          total_eligible_user_count: 613,
+          sample_ratio: 4 / 613,
+          sample_size_status: "too_small" as const,
+          columns: ["user_id"],
+          rows: []
+        };
+      },
+      diagnoseAssistantPlan: async () => ({
+        conditionDiagnostics: [],
+        suggestedAdjustments: []
+      })
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient(),
+    {
+      plan: async () => ({
+        action: "segment_preview" as const,
+        segment_name: "예약 완료 고객",
+        lookback_days: 30,
+        conditions: [segmentCondition("예약 완료", "booking_complete", 1, null)],
+        clarification_message: null
+      })
+    } as never
+  );
+
+  const response = await service.assistPromotionSegment("hotel-client-a", "promo_summer", {
+    message: "기존 조건에서 예약 미완료 대신 예약 완료를 해봐",
+    conversation: [],
+    source_suggestion: {
+      suggestion_id: "suggestion-1",
+      segment_id: "segment-1",
+      title: "예약 직전 이탈 고객",
+      strategy_role: "예약 이탈 회수형",
+      condition_labels: [],
+      reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+      sample_size: 100
+    }
+  });
+
+  assert.equal(previewPlans[0]?.execution_scope, "all_eligible_users");
+  assert.deepEqual(
+    previewPlans[0]?.conditions.map((condition) => [
+      condition.label,
+      condition.event_name,
+      condition.minimum_count,
+      condition.maximum_count
+    ]),
+    [
+      ["예약 시작", "booking_start", 1, null],
+      ["예약 완료", "booking_complete", 1, null],
+      ["호텔 상세 조회", "hotel_detail_view", 1, null]
+    ]
+  );
+  assert.deepEqual(response.condition_labels, ["예약 시작", "예약 완료", "호텔 상세 조회"]);
+  assert.equal(response.base_audience, null);
+  assert.equal(response.preview?.sample_size, 4);
 });
 
 test("dashboard save segment delegates valid preview save to the segment query repository", async () => {
@@ -2017,6 +2174,7 @@ function segmentCondition(
 }
 
 function sourceSuggestionList(input: {
+  audienceSnapshotId?: string | null;
   candidateType: string;
   hardPredicateKeys: string[];
   referenceLabels: string[];
@@ -2028,6 +2186,7 @@ function sourceSuggestionList(input: {
   return {
     suggestions: [
       {
+        audience_snapshot_id: input.audienceSnapshotId ?? null,
         suggestion_id: input.suggestionId,
         segment_id: input.segmentId,
         segment_name: input.title,
