@@ -18,20 +18,22 @@ export function ProjectSidebarBrand({ projectId }: { projectId: string }) {
   return (
     <Link
       aria-label="프로젝트 선택으로 돌아가기"
-      className="group flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="group flex w-full items-center gap-2.5 rounded-md border border-transparent p-2 text-left transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/40"
       title="프로젝트 선택"
       to="/"
     >
       <ProjectMark />
       <div className="grid min-w-0 flex-1 leading-tight">
-        <span className="truncate text-[17px] font-semibold tracking-tight text-foreground">
+        <span className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
           {projectName}
         </span>
-        <span className="truncate text-xs text-muted-foreground">{projectDescription}</span>
+        <span className="truncate text-[11px] text-sidebar-foreground/55">
+          {projectDescription}
+        </span>
       </div>
       <ChevronRight
         aria-hidden="true"
-        className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+        className="size-4 shrink-0 text-sidebar-foreground/45 transition-transform group-hover:translate-x-0.5 group-hover:text-sidebar-primary"
       />
     </Link>
   );
@@ -41,7 +43,7 @@ export function ProjectReturnIconLink() {
   return (
     <Link
       aria-label="프로젝트 선택으로 돌아가기"
-      className="group flex size-9 shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:hidden"
+      className="group flex size-9 shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:hidden"
       title="프로젝트 선택"
       to="/"
     >
@@ -52,7 +54,7 @@ export function ProjectReturnIconLink() {
 
 function ProjectMark() {
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center">
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[#3a2e49] p-1 ring-1 ring-white/15">
       <img alt="" aria-hidden="true" className="h-auto w-full" src="/loop-ad-icon-512.png" />
     </span>
   );

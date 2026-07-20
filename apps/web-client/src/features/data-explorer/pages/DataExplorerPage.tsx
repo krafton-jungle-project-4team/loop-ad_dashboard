@@ -126,9 +126,9 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="h-full min-h-0 min-w-0 overflow-hidden bg-white">
+    <div className="h-full min-h-0 min-w-0 overflow-hidden bg-card">
       <ResizablePanelGroup
-        className="h-full min-h-0 min-w-0 overflow-hidden border-t border-black/10 bg-white"
+        className="h-full min-h-0 min-w-0 overflow-hidden border-t border-border bg-card"
         id="loopad-data-explorer-shell"
         orientation="horizontal"
       >
@@ -158,7 +158,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
               />
             </ResizablePanel>
             <ResizableHandle
-              className="bg-black/10 transition-colors hover:bg-primary/30"
+              className="bg-border transition-colors hover:bg-primary/50"
               withHandle
             />
           </>
@@ -169,7 +169,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
           defaultSize={`${mainPanelDefaultSize}%`}
           minSize="36%"
         >
-          <main className="h-full min-h-0 min-w-0 overflow-hidden bg-white">
+          <main className="h-full min-h-0 min-w-0 overflow-hidden bg-card">
             <ResizablePanelGroup
               className="h-full min-h-0 min-w-0"
               id="loopad-data-explorer-workbench"
@@ -200,12 +200,12 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
               </ResizablePanel>
 
               <ResizableHandle
-                className="bg-black/10 transition-colors hover:bg-primary/30"
+                className="bg-border transition-colors hover:bg-primary/50"
                 withHandle
               />
 
               <ResizablePanel className="min-h-0 overflow-hidden" defaultSize="58%" minSize="28%">
-                <section className="flex h-full min-h-0 min-w-0 flex-col bg-white">
+                <section className="flex h-full min-h-0 min-w-0 flex-col bg-card">
                   {queryError ? (
                     <Alert className="m-3 shrink-0" variant="destructive">
                       <AlertTitle>데이터를 불러오지 못했어요</AlertTitle>
@@ -217,7 +217,7 @@ export function DataExplorerPage({ projectId }: { projectId: string }) {
                     onValueChange={(value) => setResultTab(value as "result" | "visualization")}
                     value={resultTab}
                   >
-                    <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5">
+                    <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/45 px-4 py-2.5">
                       <TabsList className="h-8">
                         <TabsTrigger value="result">쿼리 결과</TabsTrigger>
                         <TabsTrigger value="visualization">차트로 보기</TabsTrigger>

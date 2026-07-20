@@ -127,7 +127,7 @@ export function ScopedFunnelAnalysisPanel({
 
   return (
     <Collapsible
-      className="overflow-hidden rounded-md border bg-white"
+      className="overflow-hidden rounded-md border bg-card"
       onOpenChange={setIsOpen}
       open={isOpen}
     >

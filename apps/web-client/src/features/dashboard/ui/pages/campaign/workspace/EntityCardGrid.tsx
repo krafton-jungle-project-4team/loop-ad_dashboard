@@ -317,7 +317,7 @@ function EntityAddCard({
   return (
     <Button
       className={cn(
-        "h-full w-full flex-col rounded-[18px] border-dashed whitespace-normal",
+        "h-full w-full flex-col rounded-lg border-dashed whitespace-normal",
         isCompact ? "min-h-48 gap-2 px-4" : "min-h-56 gap-3 px-6"
       )}
       disabled={action.disabled}

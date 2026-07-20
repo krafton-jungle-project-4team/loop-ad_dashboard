@@ -144,7 +144,7 @@ export function ProjectManagementDialog({
         </DialogHeader>
 
         <form
-          className="grid gap-3 rounded-lg border border-black/10 p-3"
+          className="grid gap-3 rounded-lg border border-border p-3"
           onSubmit={handleCreateProject}
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -197,7 +197,7 @@ export function ProjectManagementDialog({
             ) : null}
           </div>
 
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-black/10">
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
             {projectsQuery.isError ? (
               <Alert className="m-3" variant="destructive">
                 <AlertTitle>프로젝트 목록을 불러올 수 없어요</AlertTitle>

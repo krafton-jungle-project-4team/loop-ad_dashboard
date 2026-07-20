@@ -760,7 +760,7 @@ function SegmentSuggestionReportContent({
 
   return (
     <div className="grid gap-4 [&_[data-report-muted]]:text-foreground/85">
-      <section className="grid gap-2 rounded-lg border bg-[#fafafc] p-4">
+      <section className="grid gap-2 rounded-lg border bg-muted/45 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-medium text-foreground">{report.summary}</div>
           {confidenceLabel ? (

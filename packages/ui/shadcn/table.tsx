@@ -18,7 +18,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("bg-[#fafafc] text-muted-foreground [&_tr]:border-b", className)}
+      className={cn("bg-muted/75 text-muted-foreground [&_tr]:border-b", className)}
       {...props}
     />
   );
@@ -49,7 +49,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-[#fafafc] has-aria-expanded:bg-accent/50 data-[state=selected]:bg-accent/50",
+        "border-b transition-colors hover:bg-accent/45 has-aria-expanded:bg-accent/50 data-[state=selected]:bg-accent/60",
         className
       )}
       {...props}

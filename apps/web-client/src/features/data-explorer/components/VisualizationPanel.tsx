@@ -24,7 +24,7 @@ export function VisualizationPanel({ result }: { result: DataExplorerQueryRunRes
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3">
-      <div className="min-h-[220px] min-w-0 rounded-lg border border-black/10 p-3">
+      <div className="min-h-[220px] min-w-0 rounded-lg border border-border bg-card p-3">
         <ResponsiveContainer height="100%" width="100%">
           {spec.chart_type === "line" ? (
             <LineChart data={result.rows} margin={{ bottom: 8, left: 0, right: 16, top: 12 }}>

@@ -24,7 +24,7 @@ export function EntityWorkspaceShell({
   chrome?: ReactNode;
 }) {
   return (
-    <Card className="gap-0 overflow-hidden bg-white py-0">
+    <Card className="gap-0 overflow-hidden bg-card py-0">
       {chrome}
       <CardContent className="grid gap-6 px-6 py-6">{children}</CardContent>
     </Card>
@@ -60,7 +60,7 @@ export function EntityWorkspaceEmptyState({
       </Empty>
       <div className="grid gap-4 md:grid-cols-3">
         {guideCards.map((card) => (
-          <Card className="bg-[#fafafc]" key={card.title}>
+          <Card className="bg-muted/45" key={card.title}>
             <CardContent className="grid gap-4">
               <div className="text-primary">{card.icon}</div>
               <h3 className="text-sm font-semibold text-foreground">{card.title}</h3>

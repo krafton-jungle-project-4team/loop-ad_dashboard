@@ -86,19 +86,19 @@ export function SchemaBrowserPanel({
   };
 
   return (
-    <aside className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-[#fafafc]">
-      <div className="flex items-center gap-2 border-b border-black/10 px-4 py-4">
+    <aside className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-muted/70">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Database className="size-4 text-primary" />
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+        <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
           데이터 소스
         </div>
       </div>
 
-      <div className="border-b border-black/10 p-4">
+      <div className="border-b border-border p-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            className="h-10 bg-white pl-8"
+            className="h-9 bg-card pl-8"
             onChange={(event) => onObjectSearchChange(event.target.value)}
             placeholder="스키마나 이벤트 검색"
             value={objectSearch}
@@ -124,8 +124,8 @@ export function SchemaBrowserPanel({
                   <div key={key}>
                     <div
                       className={cn(
-                        "group mx-1 flex min-h-7 min-w-0 items-center gap-1 rounded-lg px-1.5 py-0.5",
-                        isSelected ? "bg-accent text-primary" : "hover:bg-white"
+                        "group mx-1 flex min-h-7 min-w-0 items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5",
+                        isSelected ? "border-primary/25 bg-accent text-primary" : "hover:bg-card"
                       )}
                     >
                       <Button
@@ -181,13 +181,13 @@ export function SchemaBrowserPanel({
               })}
 
               {isLoading ? (
-                <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
                   스키마를 불러오고 있어요.
                 </div>
               ) : null}
 
               {!isLoading && !objects.length ? (
-                <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
                   일치하는 테이블이 없어요.
                 </div>
               ) : null}
@@ -202,7 +202,7 @@ export function SchemaBrowserPanel({
             <div className="grid gap-px">
               {filteredEvents.map((event) => (
                 <div
-                  className="group mx-1 flex min-h-7 min-w-0 items-center gap-1 rounded-lg px-1.5 py-0.5 hover:bg-white"
+                  className="group mx-1 flex min-h-7 min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-card"
                   key={event.event_name}
                 >
                   <span aria-hidden="true" className="size-6 shrink-0" />
@@ -213,7 +213,7 @@ export function SchemaBrowserPanel({
                     type="button"
                   >
                     <Zap className="size-3 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate leading-none text-[#1d1d1f]">
+                    <span className="min-w-0 flex-1 truncate leading-none text-foreground">
                       {event.event_name}
                     </span>
                   </button>
@@ -234,13 +234,13 @@ export function SchemaBrowserPanel({
               ))}
 
               {isEventsLoading ? (
-                <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
                   이벤트를 불러오고 있어요.
                 </div>
               ) : null}
 
               {!isEventsLoading && !filteredEvents.length ? (
-                <div className="rounded border border-dashed border-black/10 bg-white p-4 text-sm text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
                   일치하는 이벤트가 없어요.
                 </div>
               ) : null}
@@ -267,7 +267,7 @@ function FolderSection({
     <Collapsible className="min-w-0" onOpenChange={onOpenChange} open={isOpen}>
       <CollapsibleTrigger asChild>
         <Button
-          className="h-8 w-full min-w-0 justify-start gap-2 px-1.5 text-left text-xs font-medium leading-none text-slate-700 shadow-none transition-none hover:bg-white"
+          className="h-8 w-full min-w-0 justify-start gap-2 px-1.5 text-left text-xs font-medium leading-none text-foreground/75 shadow-none transition-none hover:bg-card"
           type="button"
           variant="ghost"
         >
@@ -277,7 +277,7 @@ function FolderSection({
           {isOpen ? (
             <FolderOpen className="size-3.5 shrink-0 text-primary" />
           ) : (
-            <Folder className="size-3.5 shrink-0 text-slate-500" />
+            <Folder className="size-3.5 shrink-0 text-muted-foreground" />
           )}
           <span className="min-w-0 flex-1 truncate leading-none">{title}</span>
         </Button>
@@ -342,7 +342,7 @@ function ObjectColumns({
 }) {
   if (isLoading && !detail) {
     return (
-      <div className="ml-6 border-l border-black/10 px-2 py-2 text-xs text-muted-foreground">
+      <div className="ml-6 border-l border-border px-2 py-2 text-xs text-muted-foreground">
         열 정보를 불러오고 있어요.
       </div>
     );
@@ -353,10 +353,10 @@ function ObjectColumns({
   }
 
   return (
-    <div className="ml-6 grid gap-px border-l border-black/10 py-1 pl-1">
+    <div className="ml-6 grid gap-px border-l border-border py-1 pl-1">
       {detail.columns.map((column) => (
         <Button
-          className="group/column min-h-7 min-w-0 justify-start gap-2 px-2 py-1 text-left hover:bg-white"
+          className="group/column min-h-7 min-w-0 justify-start gap-2 px-2 py-1 text-left hover:bg-card"
           key={column.column_name}
           onClick={() => onBuildColumnQuery(object, column)}
           size="sm"
@@ -365,7 +365,7 @@ function ObjectColumns({
           variant="ghost"
         >
           {columnIcon(column.data_type)}
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] leading-none text-[#1d1d1f]">
+          <span className="min-w-0 flex-1 truncate font-mono text-[11px] leading-none text-foreground">
             {column.column_name}
           </span>
           <span className="max-w-28 shrink-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">

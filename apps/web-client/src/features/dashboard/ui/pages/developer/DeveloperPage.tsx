@@ -7,7 +7,7 @@ import { DeveloperWorkspace } from "../sdk/TrackingPlanWorkspace.js";
 export function DeveloperPage({ projectId }: { projectId: string }) {
   return (
     <main className="min-h-svh bg-muted/20 text-foreground">
-      <header className="border-b border-black/10 bg-background">
+      <header className="border-b border-border bg-background">
         <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 px-4 md:px-8">
           <div className="flex items-center gap-3">
             <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
