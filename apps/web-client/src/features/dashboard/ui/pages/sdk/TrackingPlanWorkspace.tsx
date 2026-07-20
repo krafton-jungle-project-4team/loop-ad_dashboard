@@ -40,7 +40,9 @@ import {
   describeEventSchemaVersion,
   eventSdkInitCode,
   eventSdkInstallCode,
-  eventSdkTrackCode
+  eventSdkTrackCode,
+  getNewlyPublishedEventNames,
+  prioritizeNewlyPublishedEvents
 } from "../../../model/sdk-guide.js";
 import {
   addTrackingPlanEvent as addStubTrackingPlanEvent,
@@ -309,17 +311,21 @@ export function DeveloperWorkspace({
     setError(null);
     try {
       const nextPlan = await publishTrackingPlan(projectId);
-      const nextSchema = await getPublishedTrackingPlanSchema(projectId);
-      const previous =
-        publishedSchema ??
-        (nextSchema.revision > 1
-          ? await getPublishedTrackingPlanSchema(projectId, nextSchema.revision - 1)
-          : null);
       setPlan(nextPlan);
-      setPublishedSchema(nextSchema);
-      setPreviousSchema(previous);
+      try {
+        const nextSchema = await getPublishedTrackingPlanSchema(projectId);
+        const previous =
+          publishedSchema ??
+          (nextSchema.revision > 1
+            ? await getPublishedTrackingPlanSchema(projectId, nextSchema.revision - 1)
+            : null);
+        setPublishedSchema(nextSchema);
+        setPreviousSchema(previous);
+      } catch {
+        setError("발급은 완료됐지만 연동 가이드를 갱신하지 못했어요. 페이지를 새로고침해 주세요.");
+      }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "새 이벤트 버전을 확정하지 못했어요.");
+      setError(cause instanceof Error ? cause.message : "이벤트 스키마를 발급하지 못했어요.");
     } finally {
       setConfirmingVersion(false);
     }
@@ -400,14 +406,11 @@ function EventVersionPanel({
           </strong>
         </div>
         <Button
+          aria-busy={confirming}
           disabled={!hasPendingChanges || plan.events.length === 0 || confirming}
           onClick={onConfirm}
         >
-          {confirming
-            ? "버전 확정 중…"
-            : plan.publishedRevision === null
-              ? "첫 버전 확정"
-              : "새 버전 확정"}
+          {confirming ? "발급 중…" : "발급"}
         </Button>
       </CardContent>
     </Card>
@@ -863,6 +866,7 @@ function DeveloperGuide({
         </TabsList>
         <TabsContent value="collection">
           <CollectionGuide
+            key={publishedSchema?.revision ?? "unpublished"}
             plan={plan}
             previousSchema={previousSchema}
             publishedSchema={publishedSchema}
@@ -883,7 +887,11 @@ function CollectionGuide({
   previousSchema: SdkPublishedSchema | null;
   publishedSchema: SdkPublishedSchema | null;
 }) {
-  const guideEvents = publishedSchema?.events ?? [];
+  const hasPendingChanges = plan.status === "draft";
+  const isPublishedGuideReady =
+    !hasPendingChanges && publishedSchema?.revision === plan.publishedRevision;
+  const newEventNames = getNewlyPublishedEventNames({ previousSchema, publishedSchema });
+  const guideEvents = prioritizeNewlyPublishedEvents(publishedSchema?.events ?? [], newEventNames);
   const [selectedEventName, setSelectedEventName] = useState(guideEvents[0]?.eventName ?? "");
   const selectedEvent =
     guideEvents.find((event) => event.eventName === selectedEventName) ?? guideEvents[0] ?? null;
@@ -891,14 +899,10 @@ function CollectionGuide({
   const initCode = eventSdkInitCode(plan.projectId, plan.sdkKey);
   const versionDescription = describeEventSchemaVersion({
     draftEvents: plan.events,
-    hasPendingChanges: plan.status === "draft",
+    hasPendingChanges,
     previousSchema,
     publishedSchema
   });
-
-  useEffect(() => {
-    setSelectedEventName(guideEvents[0]?.eventName ?? "");
-  }, [publishedSchema?.revision]);
 
   return (
     <article className="grid gap-5">
@@ -906,75 +910,77 @@ function CollectionGuide({
         <h2 className="text-2xl font-semibold">이벤트 수집 SDK 연동</h2>
       </header>
 
-      <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-        <p>
-          이벤트 스키마는 SDK 패키지와 별도로 버전 관리되며, SDK는 최신 확정본을 자동으로
-          사용합니다.
-        </p>
-        <p className="mt-2">{versionDescription}</p>
-        {plan.status === "draft" && publishedSchema ? (
-          <p className="mt-2">아래 가이드는 마지막 확정본 기준입니다.</p>
-        ) : null}
-      </div>
-
-      <GuideSection
-        description="현재 배포된 SDK 패키지 파일을 연결합니다. SDK 패키지 자체를 업데이트할 때만 스크립트 URL의 패키지 버전을 변경하세요."
-        title="1. 수집 SDK 설치"
-      >
-        <GuideCode code={installCode} />
-      </GuideSection>
-
-      <GuideSection
-        description="프로젝트 ID와 공개 write key로 SDK를 시작합니다. 별도 연결 설정이나 DB 변경은 필요하지 않습니다."
-        title="2. 프로젝트 연결"
-      >
-        <GuideCode code={initCode} />
-      </GuideSection>
-
-      <GuideSection
-        description="개발 빌드의 오른쪽 아래 LoopAd 버튼에서 SDK 상태를 확인해요."
-        title="3. SDK DevTools"
-      >
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <DebugFeature label="개요" value="프로젝트 · identity · 버전" />
-          <DebugFeature label="이벤트" value="이름 · 속성 · 발생 시각" />
-          <DebugFeature label="로그" value="수집 · 전송 · 실패 사유" />
-          <DebugFeature label="요청" value="상태 · HTTP · 크기" />
-        </div>
-      </GuideSection>
-
-      <GuideSection
-        description="마케터가 관리하는 이벤트를 고르면 속성과 전송 예제가 함께 바뀝니다."
-        title="4. 이벤트 전송"
-      >
-        {selectedEvent ? (
-          <div className="grid gap-4">
-            <Field>
-              <FieldLabel htmlFor="tracking-plan-guide-event">이벤트</FieldLabel>
-              <NativeSelect
-                id="tracking-plan-guide-event"
-                value={selectedEvent.eventName}
-                onChange={(event) => setSelectedEventName(event.target.value)}
-              >
-                {guideEvents.map((event) => (
-                  <NativeSelectOption key={event.eventName} value={event.eventName}>
-                    {event.eventName}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </Field>
-            <p className="text-sm text-muted-foreground">
-              {selectedEvent.description || "아직 등록한 설명이 없어요."}
+      {isPublishedGuideReady ? (
+        <>
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+            <p>
+              이벤트 스키마는 SDK 패키지와 별도로 버전 관리되며, SDK는 최신 확정본을 자동으로
+              사용합니다.
             </p>
-            <PropertyContract event={selectedEvent} />
-            <GuideCode code={eventSdkTrackCode(selectedEvent)} />
+            <p className="mt-2">{versionDescription}</p>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            확정된 이벤트가 없습니다. 이벤트 스키마 버전을 먼저 확정해 주세요.
-          </p>
-        )}
-      </GuideSection>
+
+          <GuideSection
+            description="현재 배포된 SDK 패키지 파일을 연결합니다. SDK 패키지 자체를 업데이트할 때만 스크립트 URL의 패키지 버전을 변경하세요."
+            title="1. 수집 SDK 설치"
+          >
+            <GuideCode code={installCode} />
+          </GuideSection>
+
+          <GuideSection
+            description="프로젝트 ID와 공개 write key로 SDK를 시작합니다. 별도 연결 설정이나 DB 변경은 필요하지 않습니다."
+            title="2. 프로젝트 연결"
+          >
+            <GuideCode code={initCode} />
+          </GuideSection>
+
+          <GuideSection
+            description="개발 빌드의 오른쪽 아래 LoopAd 버튼에서 SDK 상태를 확인해요."
+            title="3. SDK DevTools"
+          >
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <DebugFeature label="개요" value="프로젝트 · identity · 버전" />
+              <DebugFeature label="이벤트" value="이름 · 속성 · 발생 시각" />
+              <DebugFeature label="로그" value="수집 · 전송 · 실패 사유" />
+              <DebugFeature label="요청" value="상태 · HTTP · 크기" />
+            </div>
+          </GuideSection>
+
+          <GuideSection
+            description="마케터가 관리하는 이벤트를 고르면 속성과 전송 예제가 함께 바뀝니다."
+            title="4. 이벤트 전송"
+          >
+            {selectedEvent ? (
+              <div className="grid gap-4">
+                <Field>
+                  <FieldLabel htmlFor="tracking-plan-guide-event">이벤트</FieldLabel>
+                  <NativeSelect
+                    id="tracking-plan-guide-event"
+                    value={selectedEvent.eventName}
+                    onChange={(event) => setSelectedEventName(event.target.value)}
+                  >
+                    {guideEvents.map((event) => (
+                      <NativeSelectOption key={event.eventName} value={event.eventName}>
+                        {event.eventName}
+                        {newEventNames.has(event.eventName) ? " · NEW" : ""}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <p className="text-sm text-muted-foreground">
+                  {selectedEvent.description || "아직 등록한 설명이 없어요."}
+                </p>
+                <PropertyContract event={selectedEvent} />
+                <GuideCode code={eventSdkTrackCode(selectedEvent)} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                확정된 이벤트가 없습니다. 이벤트 스키마 버전을 먼저 확정해 주세요.
+              </p>
+            )}
+          </GuideSection>
+        </>
+      ) : null}
     </article>
   );
 }
