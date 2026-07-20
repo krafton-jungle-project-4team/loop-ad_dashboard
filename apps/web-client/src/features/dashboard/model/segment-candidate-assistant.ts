@@ -1,4 +1,7 @@
-import type { DashboardSegmentAssistantResponse } from "@loopad/shared";
+import type {
+  DashboardSegmentAssistantResponse,
+  DashboardSegmentAssistantSourceSuggestion
+} from "@loopad/shared";
 
 export const INITIAL_SEGMENT_ASSISTANT_MESSAGE =
   "고객 행동 데이터의 인원과 비율을 물어보거나, 원하는 조건의 고객군을 직접 만들 수 있습니다.";
@@ -18,6 +21,7 @@ export type SegmentAssistantSession = {
   messages: SegmentAssistantMessage[];
   nextMessageId: number;
   result: DashboardSegmentAssistantResponse | null;
+  sourceSuggestion: DashboardSegmentAssistantSourceSuggestion | null;
 };
 
 export type SegmentAssistantSessionStore = Record<string, SegmentAssistantSession>;
@@ -33,7 +37,24 @@ export function createSegmentAssistantSession(): SegmentAssistantSession {
     isSaving: false,
     messages: [{ id: 0, role: "assistant", text: INITIAL_SEGMENT_ASSISTANT_MESSAGE }],
     nextMessageId: 1,
-    result: null
+    result: null,
+    sourceSuggestion: null
+  };
+}
+
+export function selectSegmentAssistantSource(
+  current: SegmentAssistantSession,
+  sourceSuggestion: DashboardSegmentAssistantSourceSuggestion | null
+): SegmentAssistantSession {
+  if (current.sourceSuggestion?.suggestion_id === sourceSuggestion?.suggestion_id) {
+    return current;
+  }
+  return {
+    ...current,
+    draft: "",
+    isSaved: false,
+    result: null,
+    sourceSuggestion
   };
 }
 

@@ -1,10 +1,13 @@
-import type { DashboardSegmentAssistantResponse } from "@loopad/shared";
+import type {
+  DashboardSegmentAssistantResponse,
+  DashboardSegmentAssistantSourceSuggestion
+} from "@loopad/shared";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Database, Plus, Send, X } from "lucide-react";
+import { Bot, Database, Lightbulb, Pencil, Plus, Send, X } from "lucide-react";
 import {
   assistDashboardPromotionSegment,
   createDashboardPromotionScopedSegmentDefinition
@@ -36,10 +39,10 @@ export function SegmentCandidateAssistantPanel({
   updateSession: (updater: SegmentAssistantSessionUpdater) => void;
 }) {
   const queryClient = useQueryClient();
-  const { draft, isLoading, isSaved, isSaving, messages, result } = session;
+  const { draft, isLoading, isSaved, isSaving, messages, result, sourceSuggestion } = session;
 
-  const submit = async () => {
-    const userMessage = draft.trim();
+  const submit = async (messageOverride?: string) => {
+    const userMessage = (messageOverride ?? draft).trim();
     if (!userMessage || isLoading || !promotionId) {
       return;
     }
@@ -64,7 +67,8 @@ export function SegmentCandidateAssistantPanel({
     try {
       const response = await assistDashboardPromotionSegment(query, promotionId, {
         message: userMessage,
-        conversation
+        conversation,
+        source_suggestion: sourceSuggestion ?? undefined
       });
       updateSession((current) => ({
         ...current,
@@ -180,6 +184,13 @@ export function SegmentCandidateAssistantPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="grid gap-3">
+          {sourceSuggestion ? (
+            <SourceSuggestionContext
+              disabled={isLoading}
+              onPromptSelect={(prompt) => void submit(prompt)}
+              source={sourceSuggestion}
+            />
+          ) : null}
           {messages.map((message) => {
             if (message.role === "assistant" && message.result?.preview) {
               const isCurrentResult =
@@ -189,9 +200,11 @@ export function SegmentCandidateAssistantPanel({
                   isSaved={isCurrentResult && isSaved}
                   isSaving={isCurrentResult && isSaving}
                   key={message.id}
+                  onAdjustmentSelect={(prompt) => void submit(prompt)}
                   onSave={() => void saveSegment()}
                   result={message.result}
                   showSaveAction={isCurrentResult}
+                  suggestionsDisabled={isLoading || !isCurrentResult}
                 />
               );
             }
@@ -255,15 +268,19 @@ export function SegmentCandidateAssistantPanel({
 function SegmentAssistantResult({
   isSaved,
   isSaving,
+  onAdjustmentSelect,
   onSave,
   result,
-  showSaveAction
+  showSaveAction,
+  suggestionsDisabled
 }: {
   isSaved: boolean;
   isSaving: boolean;
+  onAdjustmentSelect: (prompt: string) => void;
   onSave: () => void;
   result: DashboardSegmentAssistantResponse;
   showSaveAction: boolean;
+  suggestionsDisabled: boolean;
 }) {
   const preview = result.preview;
   if (!preview) {
@@ -314,6 +331,10 @@ function SegmentAssistantResult({
             />
             <ResultRow label="행동 조건 부합" value={`${preview.sample_size.toLocaleString()}명`} />
             <ResultRow label="전체 대비" value={`${ratioPercent.toFixed(2)}%`} />
+            <ResultRow
+              label="고객군 운영 기준"
+              value={`${result.minimum_sample_size.toLocaleString()}명 이상`}
+            />
           </tbody>
         </table>
       </div>
@@ -333,6 +354,39 @@ function SegmentAssistantResult({
         </div>
       ) : null}
 
+      {preview.sample_size_status === "too_small" ? (
+        <SegmentConditionDiagnostics result={result} />
+      ) : null}
+
+      {result.suggested_adjustments.length > 0 ? (
+        <div className="grid gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <Lightbulb aria-hidden="true" className="size-3.5 text-primary" />
+            운영 기준을 충족하기 위한 조정안
+          </div>
+          <div className="grid gap-2">
+            {result.suggested_adjustments.map((adjustment) => (
+              <Button
+                className="h-auto min-h-9 justify-between whitespace-normal px-3 py-2 text-left"
+                disabled={suggestionsDisabled}
+                key={`${adjustment.kind}:${adjustment.label}`}
+                onClick={() => onAdjustmentSelect(adjustment.prompt)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <span className="[overflow-wrap:anywhere]">{adjustment.label}</span>
+                {adjustment.estimated_sample_size !== null ? (
+                  <Badge className="ml-2 shrink-0" variant="secondary">
+                    약 {adjustment.estimated_sample_size.toLocaleString()}명
+                  </Badge>
+                ) : null}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {showSaveAction ? (
         <Button disabled={!isSaveable || isSaving || isSaved} onClick={onSave} type="button">
           <Plus aria-hidden="true" />
@@ -341,11 +395,130 @@ function SegmentAssistantResult({
       ) : null}
       {showSaveAction && !isSaveable && preview.sample_size > 0 ? (
         <p className="text-xs leading-5 text-muted-foreground">
-          현재 조건의 고객 수가 고객군 운영 기준보다 적습니다. 기간이나 조건을 조정해 주세요.
+          현재 결과는 고객군 운영 기준을 충족하지 않아 추가할 수 없습니다. 위 조정안을 선택해 다시
+          계산해 주세요.
         </p>
       ) : null}
     </section>
   );
+}
+
+function SourceSuggestionContext({
+  disabled,
+  onPromptSelect,
+  source
+}: {
+  disabled: boolean;
+  onPromptSelect: (prompt: string) => void;
+  source: DashboardSegmentAssistantSourceSuggestion;
+}) {
+  const prompts = sourceConditionPrompts(source);
+
+  return (
+    <section className="grid gap-3 border-l-2 border-primary bg-primary/5 px-3 py-3">
+      <div className="flex items-start gap-2">
+        <Pencil aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium text-primary">수정 중인 AI 추천 고객군</p>
+          <h3 className="mt-0.5 text-sm font-semibold [overflow-wrap:anywhere]">{source.title}</h3>
+          <p className="mt-1 text-xs text-foreground/70">
+            {source.strategy_role ?? "추천 전략 후보"} · 추천 당시 대표 표본{" "}
+            {source.sample_size.toLocaleString()}명
+          </p>
+        </div>
+      </div>
+      {source.condition_labels.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {source.condition_labels.map((label) => (
+            <Badge key={label} variant="outline">
+              {label}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+      <div className="grid gap-1.5">
+        <p className="text-[11px] font-medium text-foreground/70">추가해 볼 조건</p>
+        {prompts.map((item) => (
+          <Button
+            className="h-auto justify-start whitespace-normal px-2.5 py-2 text-left text-xs"
+            disabled={disabled}
+            key={item.label}
+            onClick={() => onPromptSelect(item.prompt)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <Plus aria-hidden="true" className="shrink-0" />
+            <span className="[overflow-wrap:anywhere]">{item.label}</span>
+          </Button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SegmentConditionDiagnostics({ result }: { result: DashboardSegmentAssistantResponse }) {
+  if (result.condition_diagnostics.length === 0) {
+    return (
+      <div className="rounded-md bg-muted px-3 py-2 text-xs leading-5 text-foreground/75">
+        현재 결과는 {result.minimum_sample_size.toLocaleString()}명 운영 기준보다 작습니다. 조회
+        기간을 넓히거나 조건을 완화해 주세요.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 rounded-md bg-muted/60 p-3">
+      <p className="text-xs font-semibold">조건별 인원 제한 진단</p>
+      <div className="grid gap-1.5">
+        {result.condition_diagnostics.map((diagnostic) => (
+          <div
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-xs"
+            key={diagnostic.condition_label}
+          >
+            <span className="min-w-0 [overflow-wrap:anywhere]">
+              {diagnostic.condition_label}
+              {diagnostic.is_bottleneck ? (
+                <Badge className="ml-1.5" variant="destructive">
+                  가장 큰 제한
+                </Badge>
+              ) : null}
+            </span>
+            <span className="text-right tabular-nums text-foreground/70">
+              제외 시 {diagnostic.sample_size_without_condition.toLocaleString()}명
+              {diagnostic.recovered_user_count > 0
+                ? ` (+${diagnostic.recovered_user_count.toLocaleString()})`
+                : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function sourceConditionPrompts(source: DashboardSegmentAssistantSourceSuggestion) {
+  const conditions = source.condition_labels.join(" ");
+  const prompts: Array<{ label: string; prompt: string }> = [];
+  if (!conditions.includes("예약 완료") && !conditions.includes("미예약")) {
+    prompts.push({
+      label: "예약 완료 고객 제외",
+      prompt: "현재 고객군에서 예약 완료 고객을 제외하고 인원과 비율을 계산해줘"
+    });
+  }
+  if (!conditions.includes("상세")) {
+    prompts.push({
+      label: "호텔 상세 조회 2회 이상",
+      prompt: "현재 고객군에 호텔 상세 조회를 2회 이상 한 조건을 추가해서 인원과 비율을 계산해줘"
+    });
+  }
+  if (!conditions.includes("무료 취소")) {
+    prompts.push({
+      label: "무료 취소 혜택 관심",
+      prompt: "현재 고객군에 무료 취소 혜택을 본 조건을 추가해서 인원과 비율을 계산해줘"
+    });
+  }
+  return prompts.slice(0, 3);
 }
 
 function ResultRow({ label, value }: { label: string; value: string }) {
