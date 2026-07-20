@@ -1462,16 +1462,8 @@ export class DashboardQueryService {
     if (!this.segmentAssistantAgent) {
       throw new Error("Dashboard segment assistant agent is not configured.");
     }
-    const sourceContext = request.source_suggestion
-      ? {
-          role: "assistant" as const,
-          content: segmentAssistantSourceContext(request.source_suggestion)
-        }
-      : null;
     const plan = await this.segmentAssistantAgent.plan({
-      conversation: sourceContext
-        ? [sourceContext, ...request.conversation.slice(-11)]
-        : request.conversation,
+      conversation: request.conversation,
       message: request.message
     });
     if (plan.action === "clarification") {
@@ -1597,22 +1589,6 @@ function segmentAssistantNaturalLanguageQuery(request: DashboardSegmentAssistant
   return request.source_suggestion
     ? `${request.source_suggestion.title} 수정: ${request.message}`
     : request.message;
-}
-
-function segmentAssistantSourceContext(
-  source: NonNullable<DashboardSegmentAssistantRequest["source_suggestion"]>
-) {
-  const conditions = source.condition_labels.length
-    ? source.condition_labels.join(", ")
-    : "표시된 행동 조건 없음";
-  return [
-    "현재 사용자가 수정 중인 추천 고객군 정보입니다.",
-    `제목: ${source.title}`,
-    `전략: ${source.strategy_role ?? "추천 전략 후보"}`,
-    `현재 대표 표본: ${source.sample_size}명`,
-    `현재 조건: ${conditions}`,
-    "이후 요청은 이 고객군을 기준으로 조건을 유지, 추가, 제거하거나 완화하는 수정 요청으로 해석하세요."
-  ].join("\n");
 }
 
 async function readContentCandidateHtml(

@@ -612,6 +612,7 @@ test("dashboard segment assistant explains the measured condition that keeps a s
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
   const calls: unknown[] = [];
+  const agentInputs: unknown[] = [];
   installCountingTransactionHost();
   const service = new DashboardQueryService(
     {
@@ -658,23 +659,26 @@ test("dashboard segment assistant explains the measured condition that keeps a s
     } as unknown as DashboardSegmentQueryRepository,
     emptyDecisionClient(),
     {
-      plan: async () => ({
-        action: "segment_preview" as const,
-        segment_name: "예약 고의도 고객",
-        lookback_days: 30,
-        conditions: [
-          {
-            label: "예약 시작 3회 이상",
-            event_name: "booking_start" as const,
-            minimum_count: 3,
-            maximum_count: null,
-            destination: null,
-            checkin_months: [],
-            property_filters: []
-          }
-        ],
-        clarification_message: null
-      })
+      plan: async (input: unknown) => {
+        agentInputs.push(input);
+        return {
+          action: "segment_preview" as const,
+          segment_name: "예약 고의도 고객",
+          lookback_days: 30,
+          conditions: [
+            {
+              label: "예약 시작 3회 이상",
+              event_name: "booking_start" as const,
+              minimum_count: 3,
+              maximum_count: null,
+              destination: null,
+              checkin_months: [],
+              property_filters: []
+            }
+          ],
+          clarification_message: null
+        };
+      }
     } as never
   );
 
@@ -687,6 +691,7 @@ test("dashboard segment assistant explains the measured condition that keeps a s
       title: "예약 직전 이탈 고객",
       strategy_role: "예약 이탈 회수형",
       condition_labels: ["예약 시작", "예약 완료 없음"],
+      reference_labels: ["숙소 검색", "예약 가능성 높음", "예약 시작"],
       sample_size: 140
     }
   });
@@ -695,6 +700,12 @@ test("dashboard segment assistant explains the measured condition that keeps a s
   assert.equal(response.condition_diagnostics[0]?.condition_label, "예약 시작 3회 이상");
   assert.match(response.assistant_message, /가장 크게 제한/);
   assert.match(response.assistant_message, /180명/);
+  assert.deepEqual(agentInputs, [
+    {
+      conversation: [],
+      message: "예약 시작을 3회 이상 한 조건을 추가해줘"
+    }
+  ]);
   assert.deepEqual(calls, [
     {
       kind: "preview",

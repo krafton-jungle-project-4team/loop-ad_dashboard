@@ -87,6 +87,7 @@ export const DashboardSegmentAssistantSourceSuggestionSchema = z.object({
   title: z.string().trim().min(1).max(200),
   strategy_role: z.string().trim().min(1).max(200).nullable(),
   condition_labels: z.array(z.string().trim().min(1).max(120)).max(12),
+  reference_labels: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   sample_size: CountSchema
 });
 export type DashboardSegmentAssistantSourceSuggestion = z.infer<

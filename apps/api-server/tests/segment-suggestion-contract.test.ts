@@ -4,8 +4,24 @@ import {
   DashboardPromotionSegmentSuggestionDisplayCopySchema,
   DashboardPromotionSegmentSuggestionPerformanceEstimateSchema,
   DashboardPromotionSegmentSuggestionReportSchema,
+  DashboardSegmentAssistantSourceSuggestionSchema,
   normalizePromotionSegmentPerformanceEstimate
 } from "@loopad/shared";
+
+test("segment assistant source keeps reference labels separate from executable conditions", () => {
+  const source = DashboardSegmentAssistantSourceSuggestionSchema.parse({
+    suggestion_id: "suggestion-1",
+    segment_id: "segment-1",
+    title: "예약을 시작한 고객",
+    strategy_role: "AI 추천 고객군",
+    condition_labels: [],
+    reference_labels: ["숙소 검색", "예약 가능성 높음", "예약 시작"],
+    sample_size: 387
+  });
+
+  assert.deepEqual(source.condition_labels, []);
+  assert.deepEqual(source.reference_labels, ["숙소 검색", "예약 가능성 높음", "예약 시작"]);
+});
 
 test("segment performance estimate normalizes deterministic display values", () => {
   const estimate = normalizePromotionSegmentPerformanceEstimate({
