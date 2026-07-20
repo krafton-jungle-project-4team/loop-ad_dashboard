@@ -111,6 +111,21 @@ export type DashboardUpdateContentCandidateCopyResult = z.infer<
   typeof DashboardUpdateContentCandidateCopyResultSchema
 >;
 
+export const DashboardReviseContentCandidateHtmlRequestSchema = z.object({
+  feedback: z.string().trim().min(3).max(2000)
+});
+export type DashboardReviseContentCandidateHtmlRequest = z.infer<
+  typeof DashboardReviseContentCandidateHtmlRequestSchema
+>;
+
+export const DashboardReviseContentCandidateHtmlResultSchema =
+  DashboardUpdateContentCandidateCopyResultSchema.extend({
+    change_summary: z.string().min(1).max(500)
+  });
+export type DashboardReviseContentCandidateHtmlResult = z.infer<
+  typeof DashboardReviseContentCandidateHtmlResultSchema
+>;
+
 export const DashboardRejectContentCandidateRequestSchema = z.object({
   operator_note: z.string().nullable().optional()
 });
@@ -214,7 +229,11 @@ export const DashboardBuildPromotionRunAssignmentsResultSchema = z.object({
   ann_underfilled_user_count: CountSchema,
   skipped_existing_count: CountSchema,
   insufficient_segment_count: CountSchema,
-  status: z.string()
+  status: z.string(),
+  activation_status: z
+    .enum(["manual_start_required", "scheduled", "automatic_start_queued"])
+    .default("manual_start_required"),
+  scheduled_start_at: z.string().nullable().default(null)
 });
 export type DashboardBuildPromotionRunAssignmentsResult = z.infer<
   typeof DashboardBuildPromotionRunAssignmentsResultSchema

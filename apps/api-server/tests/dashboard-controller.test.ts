@@ -391,6 +391,9 @@ test("dashboard controller parses segment assistant requests and returns audienc
         segment_name: "최근 제주 미예약 고객",
         lookback_days: 30,
         condition_labels: ["제주 숙소 검색", "예약 완료 없음"],
+        minimum_sample_size: 100,
+        condition_diagnostics: [],
+        suggested_adjustments: [],
         preview: {
           query_preview_id: "seg_query_preview_002",
           generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
@@ -716,6 +719,11 @@ test("dashboard controller parses promotion detail analyses response", async () 
           min_sample_size: 1000,
           max_loop_count: 3,
           current_loop_count: 1,
+          execution_mode: "automatic",
+          scheduled_start_at: "2026-07-20T00:00:00.000Z",
+          scheduled_end_at: "2026-08-20T00:00:00.000Z",
+          loop_interval_unit: "day",
+          loop_interval_value: 1,
           message_brief: "기존 고객에게 캠페인 혜택을 안내합니다.",
           offer_type: null,
           landing_url: null,
@@ -894,6 +902,66 @@ test("dashboard controller sends validated copy and public origin to the edit se
     }
   ]);
   assert.equal(response.headline, "새 제목");
+});
+
+test("dashboard controller sends trimmed HTML feedback and public origin to the AI revision service", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const writes: unknown[] = [];
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    reviseContentCandidateHtml: async (
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      request,
+      publicOrigin
+    ) => {
+      writes.push({ contentId, projectId, promotionId, publicOrigin, request, segmentId });
+      return {
+        body: "새 본문",
+        change_summary: "혜택과 버튼을 위로 배치했습니다.",
+        content_id: contentId,
+        cta: "혜택 보기",
+        headline: "새 제목",
+        html_url: `${publicOrigin}/api/dashboard/v1/content.html`,
+        promotion_id: promotionId,
+        segment_id: segmentId,
+        status: "draft",
+        updated_at: "2026-07-16T00:00:00.000Z"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const response = await controller.reviseContentCandidateHtml(
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    "project-a",
+    { feedback: "  혜택과 버튼이 먼저 보이게 바꿔줘  " },
+    {
+      headers: {
+        host: "api-server:3000",
+        "x-forwarded-host": "dashboard.api.dev.loop-ad.org",
+        "x-forwarded-proto": "https"
+      },
+      protocol: "http"
+    }
+  );
+
+  assert.deepEqual(writes, [
+    {
+      contentId: "content-a",
+      projectId: "project-a",
+      promotionId: "promotion-a",
+      publicOrigin: "https://dashboard.api.dev.loop-ad.org",
+      request: { feedback: "혜택과 버튼이 먼저 보이게 바꿔줘" },
+      segmentId: "segment-a"
+    }
+  ]);
+  assert.match(response.change_summary, /버튼/);
 });
 
 test("dashboard controller starts an ad experiment before dispatch", async () => {

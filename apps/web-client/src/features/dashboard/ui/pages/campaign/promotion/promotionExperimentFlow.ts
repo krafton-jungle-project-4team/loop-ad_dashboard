@@ -28,10 +28,12 @@ export type PromotionExperimentOperations = {
 };
 
 export type PromotionExperimentLaunchResult = {
+  activationStatus: DashboardBuildPromotionRunAssignmentsResult["activation_status"];
   dispatched: boolean;
   dispatchFailed: boolean;
   failedExperimentIds: string[];
   promotionRunId: string;
+  scheduledStartAt: string | null;
   startedExperimentIds: string[];
 };
 
@@ -43,6 +45,17 @@ export async function launchPromotionExperiment(
   const { fallbackExperiment, selectedExperiments } = validateRunContract(run, input.segmentIds);
 
   const assignmentResult = await operations.buildAssignments(run.promotionRunId);
+  if (assignmentResult.activation_status !== "manual_start_required") {
+    return {
+      activationStatus: assignmentResult.activation_status,
+      dispatched: false,
+      dispatchFailed: false,
+      failedExperimentIds: [],
+      promotionRunId: run.promotionRunId,
+      scheduledStartAt: assignmentResult.scheduled_start_at,
+      startedExperimentIds: []
+    } satisfies PromotionExperimentLaunchResult;
+  }
   const fallbackRequired =
     assignmentResult.batch_has_fallback || assignmentResult.fallback_count > 0;
   let requiredExperiments = selectedExperiments;
@@ -85,10 +98,12 @@ export async function launchPromotionExperiment(
   }
 
   return {
+    activationStatus: assignmentResult.activation_status,
     dispatched: canDispatch && !dispatchFailed,
     dispatchFailed,
     failedExperimentIds,
     promotionRunId: run.promotionRunId,
+    scheduledStartAt: assignmentResult.scheduled_start_at,
     startedExperimentIds
   } satisfies PromotionExperimentLaunchResult;
 }

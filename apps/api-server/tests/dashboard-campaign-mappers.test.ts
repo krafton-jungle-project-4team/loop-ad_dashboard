@@ -54,6 +54,7 @@ test("promotion mapper exposes offer links stored in metadata", () => {
     campaignId: "campaign-1",
     channel: "email",
     currentLoopCount: 0,
+    executionMode: "automatic",
     goalBasis: "promotion_average",
     goalMetric: "inflow_rate",
     goalTargetValue: 0.1,
@@ -61,6 +62,8 @@ test("promotion mapper exposes offer links stored in metadata", () => {
     landingUrl: "https://example.com/promotion",
     latestActualValue: null,
     marketingTheme: "여름 프로모션",
+    loopIntervalUnit: "hour",
+    loopIntervalValue: 4,
     maxLoopCount: 3,
     messageBrief: null,
     minSampleSize: 100,
@@ -73,6 +76,8 @@ test("promotion mapper exposes offer links stored in metadata", () => {
     ],
     offerType: null,
     promotionId: "promotion-1",
+    scheduledEndAt: new Date("2026-08-31T00:00:00.000Z"),
+    scheduledStartAt: new Date("2026-08-01T00:00:00.000Z"),
     status: "draft",
     targetSegmentCount: 0,
     updatedAt: new Date("2026-07-10T00:00:00.000Z")
@@ -84,6 +89,9 @@ test("promotion mapper exposes offer links stored in metadata", () => {
       destination_url: "https://example.com/hotel/jeju-ocean-breeze-006"
     }
   ]);
+  assert.equal(summary.execution_mode, "automatic");
+  assert.equal(summary.loop_interval_value, 4);
+  assert.equal(summary.scheduled_start_at, "2026-08-01T00:00:00.000Z");
 });
 
 test("segment suggestion mapper preserves enriched AI metadata", () => {

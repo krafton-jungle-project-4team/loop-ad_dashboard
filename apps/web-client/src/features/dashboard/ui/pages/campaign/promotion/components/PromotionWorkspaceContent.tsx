@@ -56,7 +56,7 @@ import {
 } from "@loopad/ui/shadcn/table";
 import { BarChart3, CheckCircle2, ImageIcon, Plus, Search, Target, Users, X } from "lucide-react";
 import { useState } from "react";
-import { formatInteger } from "../../../../../model/dashboard-format.js";
+import { formatDateTime, formatInteger } from "../../../../../model/dashboard-format.js";
 import {
   formatActionLabel,
   formatBasisLabel,
@@ -159,6 +159,7 @@ export function PromotionManagementList({
                   <TableHead>프로모션</TableHead>
                   <TableHead>노출 방식</TableHead>
                   <TableHead>상태</TableHead>
+                  <TableHead>반복 실행</TableHead>
                   <TableHead>목표</TableHead>
                   <TableHead className="text-right">고객군</TableHead>
                   <TableHead className="text-right">실험</TableHead>
@@ -191,6 +192,11 @@ export function PromotionManagementList({
                       <Badge variant={statusBadgeVariant(promotion.status)}>
                         {formatStatusLabel(promotion.status)}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {promotion.execution_mode === "automatic"
+                        ? `자동 · ${formatInteger(promotion.loop_interval_value)}${promotion.loop_interval_unit === "hour" ? "시간" : "일"}`
+                        : "수동"}
                     </TableCell>
                     <TableCell>
                       {formatMetricLabel(promotion.goal_metric)} ·{" "}
@@ -231,6 +237,10 @@ export function PromotionManagementList({
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
                   <SummaryItem label="상태" value={formatStatusLabel(promotion.status)} />
+                  <SummaryItem
+                    label="반복 실행"
+                    value={promotion.execution_mode === "automatic" ? "자동" : "수동"}
+                  />
                   <SummaryItem
                     label="고객군"
                     value={formatInteger(promotion.target_segment_count)}
@@ -345,6 +355,7 @@ export function PromotionTabWorkspace({
   onDeleteConfirmedSegment,
   onLaunchExperiment,
   onRejectContentCandidate,
+  onReviseContentCandidateHtml,
   onSelectSegment,
   onRecommendSegments,
   onStartGeneration,
@@ -355,6 +366,7 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
+  reviseContentCandidateHtmlIsPending,
   scopedSegments,
   scopedSegmentsIsLoading,
   segmentView,
@@ -401,6 +413,12 @@ export function PromotionTabWorkspace({
     nextLoopPreparationId?: string
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onReviseContentCandidateHtml: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    feedback: string
+  ) => Promise<void>;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onRecommendSegments: () => void;
   onStartGeneration: (analysisId: string, segmentId: string) => void;
@@ -416,6 +434,7 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
+  reviseContentCandidateHtmlIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
   scopedSegmentsIsLoading: boolean;
   segmentView: SegmentWorkspaceView;
@@ -571,10 +590,12 @@ export function PromotionTabWorkspace({
               onContentCandidateSelectionChange={onContentCandidateSelectionChange}
               onLaunchExperiment={onLaunchExperiment}
               onRejectContentCandidate={onRejectContentCandidate}
+              onReviseContentCandidateHtml={onReviseContentCandidateHtml}
               onStartGeneration={onStartGeneration}
               onUpdateContentCandidateCopy={onUpdateContentCandidateCopy}
               promotionExperiments={promotionExperiments}
               rejectContentCandidateIsPending={rejectContentCandidateIsPending}
+              reviseContentCandidateHtmlIsPending={reviseContentCandidateHtmlIsPending}
               updateContentCandidateCopyIsPending={updateContentCandidateCopyIsPending}
               view={segmentView}
               selectedSegmentId={selectedSegmentId}
@@ -609,9 +630,23 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
                 : 0
             }
           />
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <SummaryItem label="목표 기준" value={formatBasisLabel(promotion.goal_basis)} />
             <SummaryItem label="최소 평가 대상" value={formatInteger(promotion.min_sample_size)} />
+            <SummaryItem
+              label="반복 실행"
+              value={
+                promotion.execution_mode === "automatic"
+                  ? `자동 · ${formatInteger(promotion.loop_interval_value)}${promotion.loop_interval_unit === "hour" ? "시간" : "일"}`
+                  : "수동"
+              }
+            />
+            <SummaryItem
+              label="실행 시작"
+              value={
+                promotion.scheduled_start_at ? formatDateTime(promotion.scheduled_start_at) : "즉시"
+              }
+            />
             <SummaryItem label="다음 할 일" value={formatActionLabel(promotion.next_action)} />
           </div>
         </CardContent>
@@ -781,10 +816,12 @@ function PromotionSegmentDetailTab({
   onContentCandidateSelectionChange,
   onLaunchExperiment,
   onRejectContentCandidate,
+  onReviseContentCandidateHtml,
   onStartGeneration,
   onUpdateContentCandidateCopy,
   promotionExperiments,
   rejectContentCandidateIsPending,
+  reviseContentCandidateHtmlIsPending,
   selectedSegmentId,
   updateContentCandidateCopyIsPending,
   view
@@ -813,6 +850,12 @@ function PromotionSegmentDetailTab({
     nextLoopPreparationId?: string
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onReviseContentCandidateHtml: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    feedback: string
+  ) => Promise<void>;
   onStartGeneration: (analysisId: string, segmentId: string) => void;
   onUpdateContentCandidateCopy: (
     promotionId: string,
@@ -822,6 +865,7 @@ function PromotionSegmentDetailTab({
   ) => Promise<void>;
   promotionExperiments: DashboardAdExperiment[];
   rejectContentCandidateIsPending: boolean;
+  reviseContentCandidateHtmlIsPending: boolean;
   selectedSegmentId: string;
   updateContentCandidateCopyIsPending: boolean;
   view: SegmentWorkspaceView;
@@ -1048,6 +1092,15 @@ function PromotionSegmentDetailTab({
                                   <ContentCandidateCopyEditDialog
                                     candidate={candidate}
                                     isPending={updateContentCandidateCopyIsPending}
+                                    isRevisionPending={reviseContentCandidateHtmlIsPending}
+                                    onRevise={(feedback) =>
+                                      onReviseContentCandidateHtml(
+                                        detail.segment.promotion_id,
+                                        detail.segment.segment_id,
+                                        candidate.content_id,
+                                        feedback
+                                      )
+                                    }
                                     onSave={(request) =>
                                       onUpdateContentCandidateCopy(
                                         detail.segment.promotion_id,
@@ -1370,15 +1423,20 @@ function SegmentConnectedExperimentsCard({
     launchExperimentResult?.promotionRunId === activePromotionRunId &&
     (launchExperimentResult.dispatchFailed ||
       launchExperimentResult.failedExperimentIds.length > 0);
+  const isExperimentQueued = Boolean(
+    launchExperimentResult?.promotionRunId === activePromotionRunId &&
+    launchExperimentResult.activationStatus !== "manual_start_required"
+  );
   const isExperimentRunning =
     Boolean(selectedCandidateExperiment) &&
     requiredActiveRunExperiments.length > 0 &&
     requiredActiveRunExperiments.every((experiment) => experiment.status === "running") &&
     !launchNeedsRetry;
   const canLaunchExperiment =
-    launchNeedsRetry ||
-    Boolean(approvedContentCandidate && !selectedCandidateExperiment) ||
-    hasStartableRequiredExperiment;
+    !isExperimentQueued &&
+    (launchNeedsRetry ||
+      Boolean(approvedContentCandidate && !selectedCandidateExperiment) ||
+      hasStartableRequiredExperiment);
   const resumablePromotionRunId = launchNeedsRetry
     ? activePromotionRunId
     : selectedCandidateExperiment &&
@@ -1397,7 +1455,12 @@ function SegmentConnectedExperimentsCard({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
-            disabled={launchExperimentIsPending || isExperimentRunning || !canLaunchExperiment}
+            disabled={
+              launchExperimentIsPending ||
+              isExperimentRunning ||
+              isExperimentQueued ||
+              !canLaunchExperiment
+            }
             onClick={() => {
               onLaunchExperiment(
                 detail.segment.promotion_id,
@@ -1417,13 +1480,32 @@ function SegmentConnectedExperimentsCard({
             )}
             {launchExperimentIsPending
               ? `${formatInteger(nextLoopCount)}번째 실험 준비 중…`
-              : isExperimentRunning
-                ? "실험 진행 중"
-                : `${formatInteger(nextLoopCount)}번째 실험 시작`}
+              : isExperimentQueued
+                ? launchExperimentResult?.activationStatus === "scheduled"
+                  ? "예약 실행 준비 완료"
+                  : "자동 실행 준비 완료"
+                : isExperimentRunning
+                  ? "실험 진행 중"
+                  : `${formatInteger(nextLoopCount)}번째 실험 시작`}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
+        {isExperimentQueued && launchExperimentResult ? (
+          <Alert>
+            <AlertTitle>
+              {launchExperimentResult.activationStatus === "scheduled"
+                ? "실험 실행을 예약했어요"
+                : "자동 실행을 준비했어요"}
+            </AlertTitle>
+            <AlertDescription>
+              {launchExperimentResult.activationStatus === "scheduled" &&
+              launchExperimentResult.scheduledStartAt
+                ? `${formatDateTime(launchExperimentResult.scheduledStartAt)}에 광고 실험과 발송을 자동으로 시작합니다.`
+                : "준비된 광고 실험과 발송을 서버가 자동으로 시작합니다."}
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {launchExperimentResult?.dispatchFailed ? (
           <Alert variant="destructive">
             <AlertTitle>실험은 시작했지만 광고를 보내지 못했어요</AlertTitle>

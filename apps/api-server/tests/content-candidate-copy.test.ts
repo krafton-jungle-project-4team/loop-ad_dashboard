@@ -7,7 +7,8 @@ import {
   contentCandidateHtmlUrl,
   editableCreative,
   editedCreativeMetadata,
-  rewriteCreativeHtmlCopy
+  rewriteCreativeHtmlCopy,
+  sanitizeCreativeHtmlRevision
 } from "../src/features/dashboard/service/content-candidate-copy.js";
 
 test("generated HTML copy is replaced without changing the surrounding design", () => {
@@ -63,6 +64,83 @@ test("edited creative metadata points serving to the dashboard HTML revision", (
   assert.equal(artifact.sha256, revision);
   assert.equal("storage_key" in artifact, false);
   assert.match(htmlUrl, /\/content-candidates\/content-a\/html\?/);
+});
+
+test("AI HTML revision preserves dispatch placeholders and existing resources", () => {
+  const sourceHtml = [
+    "<html><head><style>.card{color:#111}</style></head><body>",
+    '<article class="card"><h1>기존 제목</h1><p>기존 본문</p>',
+    '<a href="{{redirect_url}}">예약하기</a>',
+    '<img alt="" src="{{open_pixel_url}}"></article></body></html>'
+  ].join("");
+  const revised = sanitizeCreativeHtmlRevision({
+    copy: { headline: "새 제목", body: "새 본문", cta: "혜택 보기" },
+    revisedHtml: [
+      "<html><head><style>.card{color:#123456;padding:24px}</style></head><body>",
+      '<article class="card"><h1>새 제목</h1><p>새 본문</p>',
+      '<a href="{{redirect_url}}">혜택 보기</a>',
+      '<img alt="" src="{{open_pixel_url}}"></article></body></html>'
+    ].join(""),
+    sourceHtml
+  });
+
+  assert.match(revised, /padding:24px/);
+  assert.equal(revised.match(/\{\{redirect_url\}\}/g)?.length, 1);
+  assert.equal(revised.match(/\{\{open_pixel_url\}\}/g)?.length, 1);
+});
+
+test("AI HTML revision rejects executable markup and new external resources", () => {
+  const sourceHtml =
+    '<article><h1>제목</h1><p>본문</p><a href="{{redirect_url}}">예약</a></article>';
+  const input = {
+    copy: { headline: "제목", body: "본문", cta: "예약" },
+    sourceHtml
+  };
+
+  assert.throws(
+    () =>
+      sanitizeCreativeHtmlRevision({
+        ...input,
+        revisedHtml: `${sourceHtml}<script>alert(1)</script>`
+      }),
+    /unsafe/
+  );
+  assert.throws(
+    () =>
+      sanitizeCreativeHtmlRevision({
+        ...input,
+        revisedHtml:
+          '<article><h1>제목</h1><p>본문</p><a href="{{redirect_url}}">예약</a><img src="https://tracker.example/new"></article>'
+      }),
+    /resource URL/
+  );
+});
+
+test("AI HTML revision rejects missing or duplicated dispatch placeholders", () => {
+  const sourceHtml =
+    '<article><h1>제목</h1><p>본문</p><a href="{{redirect_url}}">예약</a></article>';
+  const base = {
+    copy: { headline: "제목", body: "본문", cta: "예약" },
+    sourceHtml
+  };
+
+  assert.throws(
+    () =>
+      sanitizeCreativeHtmlRevision({
+        ...base,
+        revisedHtml: "<article><h1>제목</h1><p>본문</p><a>예약</a></article>"
+      }),
+    /placeholder/
+  );
+  assert.throws(
+    () =>
+      sanitizeCreativeHtmlRevision({
+        ...base,
+        revisedHtml:
+          '<article><h1>제목</h1><p>본문</p><a href="{{redirect_url}}">예약</a><a href="{{redirect_url}}">다시</a></article>'
+      }),
+    /placeholder/
+  );
 });
 
 function contentCandidate(): DashboardContentCandidate {

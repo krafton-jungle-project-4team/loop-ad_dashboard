@@ -73,6 +73,24 @@ test("이미 running인 필수 실험은 중복 시작하지 않고 dispatch 준
   assert.equal(result.dispatched, true);
 });
 
+test("미래 실행은 배정까지만 마치고 서버 예약 작업에 시작과 발송을 맡긴다", async () => {
+  const { calls, operations } = createOperations({
+    experiments: [selectedExperiment(), fallbackExperiment()],
+    assignmentResult: {
+      ...assignmentResult(false),
+      activation_status: "scheduled",
+      scheduled_start_at: "2026-08-01T00:00:00.000Z"
+    }
+  });
+
+  const result = await launchPromotionExperiment({ segmentIds: ["segment-1"] }, operations);
+
+  assert.deepEqual(calls, ["create", "build:run-1"]);
+  assert.equal(result.activationStatus, "scheduled");
+  assert.equal(result.scheduledStartAt, "2026-08-01T00:00:00.000Z");
+  assert.deepEqual(result.startedExperimentIds, []);
+});
+
 test("fallback 실험 시작이 실패하면 dispatch하지 않는다", async () => {
   const { calls, operations } = createOperations({
     experiments: [selectedExperiment(), fallbackExperiment()],
@@ -264,6 +282,8 @@ function assignmentResult(hasFallback: boolean): DashboardBuildPromotionRunAssig
     ann_underfilled_user_count: 0,
     skipped_existing_count: 0,
     insufficient_segment_count: 0,
-    status: "completed"
+    status: "completed",
+    activation_status: "manual_start_required",
+    scheduled_start_at: null
   };
 }

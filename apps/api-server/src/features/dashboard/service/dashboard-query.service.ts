@@ -50,6 +50,8 @@ import type {
   DashboardPromotionSummary,
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
+  DashboardReviseContentCandidateHtmlRequest,
+  DashboardReviseContentCandidateHtmlResult,
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
@@ -72,12 +74,24 @@ import type {
   DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
 import {
+  isCampaignDateRangeValid,
+  isCampaignScheduleExpired,
+  isPromotionScheduleWithinCampaign
+} from "@loopad/shared";
+import {
   DashboardCampaignReader,
   DashboardFunnelReader,
-  DashboardSegmentQueryRepository
+  DashboardPromotionAutomationRepository,
+  DashboardSegmentQueryRepository,
+  MIN_SEGMENT_USER_COUNT,
+  type SegmentAssistantDiagnostics
 } from "../repository/index.js";
 import { dashboardErrors } from "../dashboard-errors.js";
-import { DashboardDecisionClient, DashboardSegmentAssistantAgent } from "../provider/index.js";
+import {
+  DashboardCreativeRevisionAgent,
+  DashboardDecisionClient,
+  DashboardSegmentAssistantAgent
+} from "../provider/index.js";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import {
   contentCandidateCopy,
@@ -85,8 +99,11 @@ import {
   contentCandidateHtmlUrl,
   editableCreative,
   editedCreativeMetadata,
-  rewriteCreativeHtmlCopy
+  rewriteCreativeHtmlCopy,
+  sanitizeCreativeHtmlRevision
 } from "./content-candidate-copy.js";
+
+const AI_CREATIVE_HTML_INPUT_LIMIT_BYTES = 500_000;
 
 @Injectable()
 export class DashboardQueryService {
@@ -101,7 +118,13 @@ export class DashboardQueryService {
     private readonly decisionClient: DashboardDecisionClient,
     @Optional()
     @Inject(DashboardSegmentAssistantAgent)
-    private readonly segmentAssistantAgent?: DashboardSegmentAssistantAgent
+    private readonly segmentAssistantAgent?: DashboardSegmentAssistantAgent,
+    @Optional()
+    @Inject(DashboardPromotionAutomationRepository)
+    private readonly promotionAutomationRepository?: DashboardPromotionAutomationRepository,
+    @Optional()
+    @Inject(DashboardCreativeRevisionAgent)
+    private readonly creativeRevisionAgent?: DashboardCreativeRevisionAgent
   ) {}
 
   @LogContextScope()
@@ -179,6 +202,7 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ campaignId, projectId });
     log.info("started", { projectId, campaignId, request });
+    await this.validateCampaignScheduleUpdate(projectId, campaignId, request);
     const response = await this.campaignReader.updateCampaign(projectId, campaignId, request);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
@@ -211,6 +235,9 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ campaignId, projectId });
     log.info("started", { projectId, campaignId, request });
+    const campaign = await this.campaignReader.getCampaignSummary(projectId, campaignId);
+    assertCampaignExecutionWindowOpen(campaign);
+    assertPromotionScheduleWithinCampaign(request, campaign);
     const response = await this.campaignReader.createPromotion(projectId, campaignId, request);
     log.assignContext({ promotionId: response.promotion_id });
 
@@ -239,10 +266,52 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId });
     log.info("started", { projectId, promotionId, request });
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    const campaign = await this.campaignReader.getCampaignSummary(projectId, promotion.campaign_id);
+    assertCampaignExecutionWindowOpen(campaign);
+    assertPromotionScheduleWithinCampaign(
+      {
+        scheduled_end_at: Object.hasOwn(request, "scheduled_end_at")
+          ? request.scheduled_end_at
+          : promotion.scheduled_end_at,
+        scheduled_start_at: Object.hasOwn(request, "scheduled_start_at")
+          ? request.scheduled_start_at
+          : promotion.scheduled_start_at
+      },
+      campaign
+    );
     const response = await this.campaignReader.updatePromotion(projectId, promotionId, request);
+    await this.promotionAutomationRepository?.syncPendingJobs(projectId, promotionId);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
+  }
+
+  private async validateCampaignScheduleUpdate(
+    projectId: string,
+    campaignId: string,
+    request: DashboardUpdateCampaignRequest
+  ) {
+    if (!Object.hasOwn(request, "start_date") && !Object.hasOwn(request, "end_date")) {
+      return;
+    }
+
+    const [campaign, promotions] = await Promise.all([
+      this.campaignReader.getCampaignSummary(projectId, campaignId),
+      this.campaignReader.listCampaignPromotions(projectId, campaignId)
+    ]);
+    const nextCampaignSchedule = {
+      end_date: Object.hasOwn(request, "end_date") ? request.end_date : campaign.end_date,
+      start_date: Object.hasOwn(request, "start_date") ? request.start_date : campaign.start_date
+    };
+    if (
+      !isCampaignDateRangeValid(nextCampaignSchedule.start_date, nextCampaignSchedule.end_date) ||
+      promotions.some(
+        (promotion) => !isPromotionScheduleWithinCampaign(promotion, nextCampaignSchedule)
+      )
+    ) {
+      throw dashboardErrors.campaignPromotionScheduleConflict();
+    }
   }
 
   @LogContextScope()
@@ -848,6 +917,115 @@ export class DashboardQueryService {
     return response;
   }
 
+  @LogContextScope()
+  async reviseContentCandidateHtml(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardReviseContentCandidateHtmlRequest,
+    publicOrigin: string
+  ): Promise<DashboardReviseContentCandidateHtmlResult> {
+    const startedAt = Date.now();
+    log.assignContext({ contentId, projectId, promotionId, segmentId });
+    log.info("started", {
+      contentId,
+      feedbackLength: request.feedback.length,
+      projectId,
+      promotionId,
+      segmentId
+    });
+    const candidate = await this.campaignReader.getContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId
+    );
+    if (candidate.status !== "draft") {
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+
+    const creative = editableCreative(candidate);
+    if (!creative) {
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+    if (!this.creativeRevisionAgent) {
+      throw dashboardErrors.contentCandidateHtmlRevisionFailed();
+    }
+
+    const sourceHtml = await readContentCandidateHtml(creative);
+    if (Buffer.byteLength(sourceHtml) > AI_CREATIVE_HTML_INPUT_LIMIT_BYTES) {
+      throw dashboardErrors.contentCandidateHtmlRevisionInvalid();
+    }
+
+    const currentCopy = contentCandidateCopy(candidate);
+    let revision;
+    try {
+      revision = await this.creativeRevisionAgent.revise({
+        ...currentCopy,
+        channel: candidate.channel,
+        feedback: request.feedback,
+        html: sourceHtml
+      });
+    } catch (error) {
+      throw dashboardErrors.contentCandidateHtmlRevisionFailed(error);
+    }
+
+    const nextCopy = {
+      body: revision.body,
+      cta: revision.cta,
+      headline: revision.headline
+    };
+    let revisedHtml: string;
+    try {
+      revisedHtml = sanitizeCreativeHtmlRevision({
+        copy: nextCopy,
+        revisedHtml: revision.html,
+        sourceHtml
+      });
+    } catch (error) {
+      log.warn("creative_revision_rejected", {
+        err: error,
+        outputHtmlBytes: Buffer.byteLength(revision.html)
+      });
+      throw dashboardErrors.contentCandidateHtmlRevisionInvalid(error);
+    }
+
+    const htmlRevision = contentCandidateHtmlRevision(revisedHtml);
+    const htmlUrl = contentCandidateHtmlUrl({
+      contentId,
+      origin: publicOrigin,
+      projectId,
+      promotionId,
+      revision: htmlRevision,
+      segmentId
+    });
+    const { metadataJson } = editedCreativeMetadata({
+      candidate,
+      creative,
+      html: revisedHtml,
+      htmlUrl
+    });
+    const saved = await this.campaignReader.updateContentCandidateCopy(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      nextCopy,
+      metadataJson,
+      htmlUrl
+    );
+    const response = { ...saved, change_summary: revision.change_summary };
+
+    log.info("completed", {
+      changeSummaryLength: revision.change_summary.length,
+      durationMs: durationMs(startedAt),
+      outputHtmlBytes: Buffer.byteLength(revisedHtml),
+      status: saved.status
+    });
+    return response;
+  }
+
   async contentCandidateHtml(
     projectId: string,
     promotionId: string,
@@ -908,9 +1086,22 @@ export class DashboardQueryService {
       projectId,
       promotionRunId
     });
+    const activation = this.promotionAutomationRepository
+      ? await this.promotionAutomationRepository.scheduleRunLaunch(projectId, promotionRunId)
+      : { activationStatus: "manual_start_required" as const, scheduledStartAt: null };
+    const result: DashboardBuildPromotionRunAssignmentsResult = {
+      ...response,
+      activation_status: activation.activationStatus,
+      scheduled_start_at: activation.scheduledStartAt
+    };
 
-    log.info("completed", { response, durationMs: durationMs(startedAt) });
-    return response;
+    log.info("completed", {
+      activationStatus: result.activation_status,
+      durationMs: durationMs(startedAt),
+      response: result,
+      scheduledStartAt: result.scheduled_start_at
+    });
+    return result;
   }
 
   @LogContextScope()
@@ -921,12 +1112,62 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionRunId });
     log.info("started", { projectId, promotionRunId });
+    await this.promotionAutomationRepository?.cancelPendingRunEvaluation(promotionRunId);
     await this.campaignReader.preparePromotionRunEvaluationCompatibility(projectId, promotionRunId);
     const response = await this.decisionClient.evaluatePromotionRun({ promotionRunId });
     log.assignContext({ promotionId: response.promotion_id });
+    await this.continueAutomaticPromotionLoop(projectId, promotionRunId, response);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
+  }
+
+  private async continueAutomaticPromotionLoop(
+    projectId: string,
+    promotionRunId: string,
+    evaluation: DashboardEvaluatePromotionRunResult
+  ) {
+    if (!this.promotionAutomationRepository || !evaluation.next_loop_required) {
+      return;
+    }
+    const config = await this.promotionAutomationRepository.getRunConfig(projectId, promotionRunId);
+    if (config.executionMode !== "automatic") {
+      return;
+    }
+    if (config.loopCount >= config.maxLoopCount) {
+      log.info("automatic_next_loop_skipped", {
+        loopCount: config.loopCount,
+        maxLoopCount: config.maxLoopCount,
+        reason: "max_loop_count_reached"
+      });
+      return;
+    }
+    if (config.scheduledEndAt && Date.parse(config.scheduledEndAt) <= Date.now()) {
+      log.info("automatic_next_loop_skipped", { reason: "promotion_window_closed" });
+      return;
+    }
+
+    const nextLoop = await this.decisionClient.createNextLoop({
+      promotionRunId,
+      request: {
+        content_approval_mode: "automatic",
+        failed_ad_experiment_ids: evaluation.failed_ad_experiment_ids,
+        failed_segment_ids: evaluation.failed_segment_ids,
+        operator_instruction: null
+      }
+    });
+    if (nextLoop.status !== "activated" || !nextLoop.next_promotion_run_id) {
+      throw new Error("Automatic next loop did not activate a promotion run.");
+    }
+    const assignment = await this.buildPromotionRunAssignments(
+      projectId,
+      nextLoop.next_promotion_run_id
+    );
+    log.info("automatic_next_loop_prepared", {
+      activationStatus: assignment.activation_status,
+      loopCount: nextLoop.loop_count,
+      nextPromotionRunId: nextLoop.next_promotion_run_id
+    });
   }
 
   @LogContextScope()
@@ -1213,6 +1454,7 @@ export class DashboardQueryService {
     log.assignContext({ projectId, promotionId });
     log.info("started", {
       conversationCount: request.conversation.length,
+      hasSourceSuggestion: Boolean(request.source_suggestion),
       messageLength: request.message.length
     });
     await this.campaignReader.getPromotionSummary(projectId, promotionId);
@@ -1220,8 +1462,16 @@ export class DashboardQueryService {
     if (!this.segmentAssistantAgent) {
       throw new Error("Dashboard segment assistant agent is not configured.");
     }
+    const sourceContext = request.source_suggestion
+      ? {
+          role: "assistant" as const,
+          content: segmentAssistantSourceContext(request.source_suggestion)
+        }
+      : null;
     const plan = await this.segmentAssistantAgent.plan({
-      conversation: request.conversation,
+      conversation: sourceContext
+        ? [sourceContext, ...request.conversation.slice(-11)]
+        : request.conversation,
       message: request.message
     });
     if (plan.action === "clarification") {
@@ -1233,6 +1483,9 @@ export class DashboardQueryService {
         segment_name: null,
         lookback_days: plan.lookback_days,
         condition_labels: [],
+        minimum_sample_size: MIN_SEGMENT_USER_COUNT,
+        condition_diagnostics: [],
+        suggested_adjustments: [],
         preview: null
       };
       log.info("completed", {
@@ -1244,17 +1497,33 @@ export class DashboardQueryService {
 
     const preview = await this.segmentQueryRepository.createAssistantQueryPreview(
       projectId,
-      request.message,
+      segmentAssistantNaturalLanguageQuery(request),
       plan
     );
     log.assignContext({ queryPreviewId: preview.query_preview_id });
+    const diagnostics =
+      preview.sample_size_status === "too_small"
+        ? await this.segmentQueryRepository.diagnoseAssistantPlan(
+            projectId,
+            plan,
+            preview.sample_size
+          )
+        : emptySegmentAssistantDiagnostics();
     const segmentName = plan.segment_name ?? `${plan.conditions[0]?.label ?? "맞춤 행동"} 고객`;
     const response: DashboardSegmentAssistantResponse = {
       action: plan.action,
-      assistant_message: segmentAssistantMessage(plan.action, plan.lookback_days, preview),
+      assistant_message: segmentAssistantMessage(
+        plan.action,
+        plan.lookback_days,
+        preview,
+        diagnostics
+      ),
       segment_name: segmentName,
       lookback_days: plan.lookback_days,
       condition_labels: plan.conditions.map((condition) => condition.label),
+      minimum_sample_size: MIN_SEGMENT_USER_COUNT,
+      condition_diagnostics: diagnostics.conditionDiagnostics,
+      suggested_adjustments: diagnostics.suggestedAdjustments,
       preview
     };
 
@@ -1290,7 +1559,8 @@ export class DashboardQueryService {
 function segmentAssistantMessage(
   action: "audience_query" | "segment_preview",
   lookbackDays: number,
-  preview: DashboardSegmentQueryPreview
+  preview: DashboardSegmentQueryPreview,
+  diagnostics: SegmentAssistantDiagnostics
 ) {
   if (preview.sample_size === 0) {
     return `최근 ${lookbackDays}일 기준으로 조건에 맞는 고객을 찾지 못했습니다. 조건이나 조회 기간을 조정해 보세요.`;
@@ -1299,9 +1569,50 @@ function segmentAssistantMessage(
     maximumFractionDigits: 2
   });
   const counts = `최근 ${lookbackDays}일 기준 조건에 맞는 고객은 ${preview.sample_size.toLocaleString("ko-KR")}명이며, 분석 가능 사용자 ${preview.total_eligible_user_count.toLocaleString("ko-KR")}명의 ${ratio}%입니다.`;
+  if (preview.sample_size_status === "too_small") {
+    const bottleneck = diagnostics.conditionDiagnostics.find(
+      (condition) => condition.is_bottleneck
+    );
+    const adjustment = diagnostics.suggestedAdjustments.find(
+      (item) => item.kind === "remove_condition"
+    );
+    const reason = bottleneck
+      ? ` '${bottleneck.condition_label}' 조건이 대상 범위를 가장 크게 제한하고 있습니다.`
+      : " 현재 조건은 고객군 운영 기준을 충족하지 못했습니다.";
+    const recovery = adjustment?.estimated_sample_size
+      ? ` 이 조건을 제외하면 약 ${adjustment.estimated_sample_size.toLocaleString("ko-KR")}명으로 늘어납니다.`
+      : " 아래 조정안을 선택해 다시 계산할 수 있습니다.";
+    return `${counts}${reason}${recovery}`;
+  }
   return action === "audience_query"
     ? counts
     : `${counts} 조건을 확인한 뒤 이 고객군을 후보로 추가할 수 있습니다.`;
+}
+
+function emptySegmentAssistantDiagnostics(): SegmentAssistantDiagnostics {
+  return { conditionDiagnostics: [], suggestedAdjustments: [] };
+}
+
+function segmentAssistantNaturalLanguageQuery(request: DashboardSegmentAssistantRequest) {
+  return request.source_suggestion
+    ? `${request.source_suggestion.title} 수정: ${request.message}`
+    : request.message;
+}
+
+function segmentAssistantSourceContext(
+  source: NonNullable<DashboardSegmentAssistantRequest["source_suggestion"]>
+) {
+  const conditions = source.condition_labels.length
+    ? source.condition_labels.join(", ")
+    : "표시된 행동 조건 없음";
+  return [
+    "현재 사용자가 수정 중인 추천 고객군 정보입니다.",
+    `제목: ${source.title}`,
+    `전략: ${source.strategy_role ?? "추천 전략 후보"}`,
+    `현재 대표 표본: ${source.sample_size}명`,
+    `현재 조건: ${conditions}`,
+    "이후 요청은 이 고객군을 기준으로 조건을 유지, 추가, 제거하거나 완화하는 수정 요청으로 해석하세요."
+  ].join("\n");
 }
 
 async function readContentCandidateHtml(
@@ -1326,5 +1637,27 @@ async function readContentCandidateHtml(
     return html;
   } catch (error) {
     throw dashboardErrors.contentCandidateHtmlUnavailable(error);
+  }
+}
+
+function assertCampaignExecutionWindowOpen(campaign: DashboardCampaignSummary) {
+  if (
+    campaign.status === "completed" ||
+    campaign.status === "stopped" ||
+    isCampaignScheduleExpired(campaign)
+  ) {
+    throw dashboardErrors.campaignExecutionWindowClosed();
+  }
+}
+
+function assertPromotionScheduleWithinCampaign(
+  promotion: {
+    scheduled_end_at: string | null | undefined;
+    scheduled_start_at: string | null | undefined;
+  },
+  campaign: DashboardCampaignSummary
+) {
+  if (!isPromotionScheduleWithinCampaign(promotion, campaign)) {
+    throw dashboardErrors.promotionCampaignScheduleInvalid();
   }
 }

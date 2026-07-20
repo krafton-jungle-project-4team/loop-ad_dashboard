@@ -41,6 +41,31 @@ export const DASHBOARD_ERRORS = {
     statusCode: HttpStatus.CONFLICT,
     code: "DASHBOARD_CONTENT_CANDIDATE_COPY_NOT_FOUND",
     message: "The generated HTML does not contain the selected copy."
+  },
+  CONTENT_CANDIDATE_HTML_REVISION_FAILED: {
+    statusCode: HttpStatus.BAD_GATEWAY,
+    code: "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_FAILED",
+    message: "The AI creative revision request failed."
+  },
+  CONTENT_CANDIDATE_HTML_REVISION_INVALID: {
+    statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    code: "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_INVALID",
+    message: "The AI creative revision did not pass the HTML safety contract."
+  },
+  PROMOTION_CAMPAIGN_SCHEDULE_INVALID: {
+    statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    code: "DASHBOARD_PROMOTION_CAMPAIGN_SCHEDULE_INVALID",
+    message: "프로모션 실행 기간은 캠페인 기간 안에서 설정해야 합니다."
+  },
+  CAMPAIGN_PROMOTION_SCHEDULE_CONFLICT: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_CAMPAIGN_PROMOTION_SCHEDULE_CONFLICT",
+    message: "캠페인 기간 밖에 예약된 프로모션이 있어 기간을 변경할 수 없습니다."
+  },
+  CAMPAIGN_EXECUTION_WINDOW_CLOSED: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_CAMPAIGN_EXECUTION_WINDOW_CLOSED",
+    message: "종료된 캠페인에는 프로모션을 생성하거나 수정할 수 없습니다."
   }
 } as const;
 
@@ -70,10 +95,20 @@ export const dashboardErrors = {
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_UNAVAILABLE, { cause }),
   contentCandidateCopyNotFound: () =>
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_COPY_NOT_FOUND),
+  contentCandidateHtmlRevisionFailed: (cause?: unknown) =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_REVISION_FAILED, { cause }),
+  contentCandidateHtmlRevisionInvalid: (cause?: unknown) =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_REVISION_INVALID, { cause }),
   segmentPreviewNotSaveable: () =>
     createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE),
   segmentSuggestionSelectionInvalid: () =>
-    createDashboardError(DASHBOARD_ERRORS.SEGMENT_SUGGESTION_SELECTION_INVALID)
+    createDashboardError(DASHBOARD_ERRORS.SEGMENT_SUGGESTION_SELECTION_INVALID),
+  promotionCampaignScheduleInvalid: () =>
+    createDashboardError(DASHBOARD_ERRORS.PROMOTION_CAMPAIGN_SCHEDULE_INVALID),
+  campaignPromotionScheduleConflict: () =>
+    createDashboardError(DASHBOARD_ERRORS.CAMPAIGN_PROMOTION_SCHEDULE_CONFLICT),
+  campaignExecutionWindowClosed: () =>
+    createDashboardError(DASHBOARD_ERRORS.CAMPAIGN_EXECUTION_WINDOW_CLOSED)
 } as const;
 
 function decisionRequestFailedMessage(cause: unknown) {

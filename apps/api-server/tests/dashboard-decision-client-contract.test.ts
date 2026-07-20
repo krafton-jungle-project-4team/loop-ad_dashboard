@@ -226,7 +226,11 @@ test("decision client preserves segment assignment request contract", async () =
     promotionRunId: "run/1"
   });
 
-  assert.deepEqual(result, response);
+  assert.deepEqual(result, {
+    ...response,
+    activation_status: "manual_start_required",
+    scheduled_start_at: null
+  });
   assertDecisionRequest(requests[0], {
     path: "/decision/v1/promotion-runs/run%2F1/segment-assignments/build",
     body: {}

@@ -3,11 +3,13 @@ import {
   DashboardPromotionChannelSchema,
   DashboardPromotionGoalBasisSchema,
   DashboardPromotionGoalMetricSchema,
+  isPromotionScheduleWithinCampaign,
   normalizePromotionSegmentAudience,
   normalizePromotionSegmentPerformanceEstimate,
   normalizePromotionSegmentRankComparison,
   type DashboardCampaignPromotion,
   type DashboardCampaignSegment,
+  type DashboardCampaignSummary,
   type CreativeArtifact,
   type DashboardCreatePromotionRequest,
   type DashboardPromotionOffer,
@@ -26,6 +28,7 @@ export const promotionGoalBasisOptions = DashboardPromotionGoalBasisSchema.optio
 export const defaultPromotionLandingUrl =
   "https://demo-shoppingmall.dev.loop-ad.org/search?deal=summer";
 export const onsiteBannerImagePollIntervalMs = 3000;
+const PROMOTION_SCHEDULE_TIME_ZONE_OFFSET = "+09:00";
 export type PromotionWorkspaceTab = "overview" | "segments" | "segment-detail";
 export type PromotionWorkspaceMode = "promotion" | "segment";
 export type PromotionAnalysisProgress = {
@@ -64,7 +67,10 @@ export type PromotionCreateFormState = {
   goalBasis: string;
   goalMetric: DashboardCreatePromotionRequest["goal_metric"];
   goalTargetValue: string;
+  executionMode: DashboardCreatePromotionRequest["execution_mode"];
   landingUrl: string;
+  loopIntervalUnit: DashboardCreatePromotionRequest["loop_interval_unit"];
+  loopIntervalValue: string;
   marketingTheme: string;
   maxLoopCount: string;
   messageBrief: string;
@@ -73,32 +79,47 @@ export type PromotionCreateFormState = {
     offerId: string;
     destinationUrl: string;
   }>;
+  scheduledEndAt: string;
+  scheduledStartAt: string;
 };
 
-export function createEmptyPromotionFormState(): PromotionCreateFormState {
+export function createEmptyPromotionFormState(
+  campaign?: Pick<DashboardCampaignSummary, "start_date" | "end_date">
+): PromotionCreateFormState {
+  const scheduleBounds = promotionScheduleInputBounds(campaign);
   return {
     channel: "email",
     goalBasis: "promotion_average",
     goalMetric: "inflow_rate",
     goalTargetValue: "0.1",
+    executionMode: "manual",
     landingUrl: defaultPromotionLandingUrl,
+    loopIntervalUnit: "day",
+    loopIntervalValue: "1",
     marketingTheme: "",
     maxLoopCount: "3",
     messageBrief: "",
     minSampleSize: "1000",
-    offerLinks: []
+    offerLinks: [],
+    scheduledEndAt: scheduleBounds.endAt,
+    scheduledStartAt: scheduleBounds.startAt
   };
 }
 
 export function promotionToFormState(
-  promotion: DashboardCampaignPromotion
+  promotion: DashboardCampaignPromotion,
+  campaign?: Pick<DashboardCampaignSummary, "start_date" | "end_date">
 ): PromotionCreateFormState {
+  const scheduleBounds = promotionScheduleInputBounds(campaign);
   return {
     channel: promotion.channel,
     goalBasis: promotion.goal_basis,
     goalMetric: promotion.goal_metric as PromotionCreateFormState["goalMetric"],
     goalTargetValue: String(promotion.goal_target_value),
+    executionMode: promotion.execution_mode,
     landingUrl: promotion.landing_url ?? "",
+    loopIntervalUnit: promotion.loop_interval_unit,
+    loopIntervalValue: String(promotion.loop_interval_value),
     marketingTheme: promotion.marketing_theme,
     maxLoopCount: String(promotion.max_loop_count),
     messageBrief: promotion.message_brief ?? "",
@@ -106,7 +127,9 @@ export function promotionToFormState(
     offerLinks: (promotion.offer_links ?? []).map((link) => ({
       offerId: link.offer_id ?? "",
       destinationUrl: link.destination_url
-    }))
+    })),
+    scheduledEndAt: toDateTimeLocalValue(promotion.scheduled_end_at) || scheduleBounds.endAt,
+    scheduledStartAt: toDateTimeLocalValue(promotion.scheduled_start_at) || scheduleBounds.startAt
   };
 }
 
@@ -131,7 +154,10 @@ function promotionFormRequestFields(form: PromotionCreateFormState) {
     goal_basis: form.goalBasis as DashboardCreatePromotionRequest["goal_basis"],
     goal_metric: form.goalMetric,
     goal_target_value: nonnegativeNumber(form.goalTargetValue),
+    execution_mode: form.executionMode,
     landing_url: form.landingUrl.trim(),
+    loop_interval_unit: form.loopIntervalUnit,
+    loop_interval_value: positiveInteger(form.loopIntervalValue),
     marketing_theme: form.marketingTheme.trim(),
     max_loop_count: positiveInteger(form.maxLoopCount),
     message_brief: form.messageBrief.trim() || null,
@@ -142,7 +168,32 @@ function promotionFormRequestFields(form: PromotionCreateFormState) {
             destination_url: link.destinationUrl.trim(),
             offer_id: link.offerId.trim()
           }))
-        : []
+        : [],
+    scheduled_end_at: nullableIsoDateTime(form.scheduledEndAt),
+    scheduled_start_at: nullableIsoDateTime(form.scheduledStartAt)
+  };
+}
+
+export function promotionScheduleIsValid(form: PromotionCreateFormState) {
+  if (!form.scheduledStartAt || !form.scheduledEndAt) {
+    return true;
+  }
+  return Date.parse(form.scheduledEndAt) > Date.parse(form.scheduledStartAt);
+}
+
+export function promotionScheduleFitsCampaign(
+  form: PromotionCreateFormState,
+  campaign?: Pick<DashboardCampaignSummary, "start_date" | "end_date">
+) {
+  return !campaign || isPromotionScheduleWithinCampaign(promotionFormRequestFields(form), campaign);
+}
+
+export function promotionScheduleInputBounds(
+  campaign?: Pick<DashboardCampaignSummary, "start_date" | "end_date">
+) {
+  return {
+    endAt: campaign?.end_date ? `${campaign.end_date}T23:59` : "",
+    startAt: campaign?.start_date ? `${campaign.start_date}T00:00` : ""
   };
 }
 
@@ -188,6 +239,23 @@ export function isValidHttpUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function nullableIsoDateTime(value: string) {
+  if (!value) {
+    return null;
+  }
+  const localDateTime = value.length === 16 ? `${value}:00` : value;
+  return new Date(`${localDateTime}${PROMOTION_SCHEDULE_TIME_ZONE_OFFSET}`).toISOString();
+}
+
+function toDateTimeLocalValue(value: string | null) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  const koreaTime = new Date(date.getTime() + 9 * 60 * 60 * 1_000);
+  return koreaTime.toISOString().slice(0, 16);
 }
 
 export function latestSegmentPerSegmentId(segments: DashboardCampaignSegment[]) {

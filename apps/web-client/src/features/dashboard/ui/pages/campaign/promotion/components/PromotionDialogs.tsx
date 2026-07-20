@@ -1,5 +1,6 @@
 import {
   type DashboardCampaignPromotion,
+  type DashboardCampaignSummary,
   type DashboardPromotionOffer,
   type DashboardUpdatePromotionRequest
 } from "@loopad/shared";
@@ -15,6 +16,7 @@ import {
   SelectValue
 } from "@loopad/ui/shadcn/select";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@loopad/ui/shadcn/toggle-group";
 import { useEffect, useState } from "react";
 import { formatBasisLabel, formatChannelLabel } from "../../../../../model/dashboard-labels.js";
 import type { DashboardQuery } from "../../../../../model/dashboard-types.js";
@@ -28,6 +30,9 @@ import {
   promotionGoalMetricOptions,
   promotionOfferLinksAreValid,
   promotionOfferLinksMatchCatalog,
+  promotionScheduleFitsCampaign,
+  promotionScheduleInputBounds,
+  promotionScheduleIsValid,
   promotionFormToUpdateRequest,
   promotionToFormState,
   type PromotionCreateFormState
@@ -35,6 +40,7 @@ import {
 import { PromotionOfferSelector, usePromotionOfferCatalog } from "./PromotionOfferSelector.js";
 
 export function PromotionEditDialog({
+  campaign,
   isPending,
   onOpenChange,
   onUpdate,
@@ -42,6 +48,7 @@ export function PromotionEditDialog({
   promotion,
   query
 }: {
+  campaign: DashboardCampaignSummary | undefined;
   isPending: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: (requestBody: DashboardUpdatePromotionRequest) => void;
@@ -49,21 +56,25 @@ export function PromotionEditDialog({
   promotion: DashboardCampaignPromotion | undefined;
   query: DashboardQuery;
 }) {
-  const [form, setForm] = useState<PromotionCreateFormState>(createEmptyPromotionFormState());
+  const [form, setForm] = useState<PromotionCreateFormState>(() =>
+    createEmptyPromotionFormState(campaign)
+  );
   const offerCatalog = usePromotionOfferCatalog(query, open && form.channel === "email");
 
   useEffect(() => {
     if (open && promotion) {
-      setForm(promotionToFormState(promotion));
+      setForm(promotionToFormState(promotion, campaign));
     }
-  }, [open, promotion]);
+  }, [campaign?.end_date, campaign?.start_date, open, promotion]);
   const isDirty = Boolean(
-    promotion && JSON.stringify(form) !== JSON.stringify(promotionToFormState(promotion))
+    promotion && JSON.stringify(form) !== JSON.stringify(promotionToFormState(promotion, campaign))
   );
   const canSubmit =
     Boolean(promotion && form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
     promotionOfferLinksAreValid(form) &&
+    promotionScheduleIsValid(form) &&
+    promotionScheduleFitsCampaign(form, campaign) &&
     (form.channel !== "email" ||
       (offerCatalog.isSuccess &&
         promotionOfferLinksMatchCatalog(form, offerCatalog.data.offers))) &&
@@ -80,6 +91,7 @@ export function PromotionEditDialog({
     >
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
         <PromotionFormFields
+          campaign={campaign}
           form={form}
           idPrefix="promotion-edit"
           offerCatalogErrorMessage={
@@ -105,36 +117,42 @@ export function PromotionEditDialog({
 }
 
 export function PromotionAddDialog({
+  campaign,
   createIsPending,
   onCreate,
   onOpenChange,
   open,
   query
 }: {
+  campaign: DashboardCampaignSummary | undefined;
   createIsPending: boolean;
   onCreate: (form: PromotionCreateFormState) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   query: DashboardQuery;
 }) {
-  const [form, setForm] = useState<PromotionCreateFormState>(createEmptyPromotionFormState());
+  const [form, setForm] = useState<PromotionCreateFormState>(() =>
+    createEmptyPromotionFormState(campaign)
+  );
   const offerCatalog = usePromotionOfferCatalog(query, open && form.channel === "email");
 
   useEffect(() => {
     if (open) {
-      setForm(createEmptyPromotionFormState());
+      setForm(createEmptyPromotionFormState(campaign));
     }
-  }, [open]);
+  }, [campaign?.end_date, campaign?.start_date, open]);
 
   const canSubmit =
     Boolean(form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
     promotionOfferLinksAreValid(form) &&
+    promotionScheduleIsValid(form) &&
+    promotionScheduleFitsCampaign(form, campaign) &&
     (form.channel !== "email" ||
       (offerCatalog.isSuccess &&
         promotionOfferLinksMatchCatalog(form, offerCatalog.data.offers))) &&
     !createIsPending;
-  const isDirty = JSON.stringify(form) !== JSON.stringify(createEmptyPromotionFormState());
+  const isDirty = JSON.stringify(form) !== JSON.stringify(createEmptyPromotionFormState(campaign));
 
   return (
     <DashboardFormDialog
@@ -164,6 +182,7 @@ export function PromotionAddDialog({
     >
       <div className="grid gap-6 px-5 py-5 sm:px-8 sm:py-6">
         <PromotionFormFields
+          campaign={campaign}
           form={form}
           idPrefix="promotion-create"
           offerCatalogErrorMessage={
@@ -180,6 +199,7 @@ export function PromotionAddDialog({
 }
 
 function PromotionFormFields({
+  campaign,
   form,
   idPrefix,
   offerCatalogErrorMessage,
@@ -188,6 +208,7 @@ function PromotionFormFields({
   onChange,
   onRetryOfferCatalog
 }: {
+  campaign: DashboardCampaignSummary | undefined;
   form: PromotionCreateFormState;
   idPrefix: string;
   offerCatalogErrorMessage: string | null;
@@ -196,6 +217,12 @@ function PromotionFormFields({
   onChange: (form: PromotionCreateFormState) => void;
   onRetryOfferCatalog: () => void;
 }) {
+  const scheduleBounds = promotionScheduleInputBounds(campaign);
+  const scheduledEndMin = [scheduleBounds.startAt, form.scheduledStartAt]
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+
   return (
     <div className="grid gap-4">
       <Field>
@@ -238,6 +265,95 @@ function PromotionFormFields({
               ))}
             </SelectContent>
           </Select>
+        </Field>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel id={`${idPrefix}-execution-mode-label`}>반복 실행 방식</FieldLabel>
+          <ToggleGroup
+            aria-labelledby={`${idPrefix}-execution-mode-label`}
+            className="w-full"
+            onValueChange={(value) => {
+              if (value === "manual" || value === "automatic") {
+                onChange({ ...form, executionMode: value });
+              }
+            }}
+            spacing={0}
+            type="single"
+            value={form.executionMode}
+            variant="outline"
+          >
+            <ToggleGroupItem className="flex-1" value="manual">
+              수동
+            </ToggleGroupItem>
+            <ToggleGroupItem className="flex-1" value="automatic">
+              자동
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </Field>
+        {form.executionMode === "automatic" ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
+            <Field>
+              <FieldLabel htmlFor={`${idPrefix}-loop-interval-value`}>자동 평가 간격</FieldLabel>
+              <Input
+                id={`${idPrefix}-loop-interval-value`}
+                inputMode="numeric"
+                min="1"
+                onChange={(event) => onChange({ ...form, loopIntervalValue: event.target.value })}
+                type="number"
+                value={form.loopIntervalValue}
+              />
+            </Field>
+            <Field>
+              <FieldLabel id={`${idPrefix}-loop-interval-unit-label`}>단위</FieldLabel>
+              <Select
+                onValueChange={(value) => {
+                  if (value === "hour" || value === "day") {
+                    onChange({ ...form, loopIntervalUnit: value });
+                  }
+                }}
+                value={form.loopIntervalUnit}
+              >
+                <SelectTrigger
+                  aria-labelledby={`${idPrefix}-loop-interval-unit-label`}
+                  className="w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hour">시간</SelectItem>
+                  <SelectItem value="day">일</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+        ) : null}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-scheduled-start`}>실행 시작</FieldLabel>
+          <Input
+            id={`${idPrefix}-scheduled-start`}
+            max={scheduleBounds.endAt || undefined}
+            min={scheduleBounds.startAt || undefined}
+            onChange={(event) => onChange({ ...form, scheduledStartAt: event.target.value })}
+            type="datetime-local"
+            value={form.scheduledStartAt}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-scheduled-end`}>실행 종료</FieldLabel>
+          <Input
+            aria-invalid={
+              !promotionScheduleIsValid(form) || !promotionScheduleFitsCampaign(form, campaign)
+            }
+            id={`${idPrefix}-scheduled-end`}
+            max={scheduleBounds.endAt || undefined}
+            min={scheduledEndMin || undefined}
+            onChange={(event) => onChange({ ...form, scheduledEndAt: event.target.value })}
+            type="datetime-local"
+            value={form.scheduledEndAt}
+          />
         </Field>
       </div>
       <div className="grid gap-4 md:grid-cols-3">

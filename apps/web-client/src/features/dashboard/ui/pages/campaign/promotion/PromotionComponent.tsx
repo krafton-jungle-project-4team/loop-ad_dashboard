@@ -40,6 +40,7 @@ export function PromotionWorkspace({
     promotionGenerationIsPending,
     rejectContentCandidateMutation,
     recommendPromotionSegments,
+    reviseContentCandidateHtmlMutation,
     scopedSegmentDefinitions,
     segmentDetail,
     segmentSuggestions,
@@ -150,6 +151,14 @@ export function PromotionWorkspace({
               onRejectContentCandidate={(promotionId, segmentId, contentId) =>
                 rejectContentCandidateMutation.mutate({ contentId, promotionId, segmentId })
               }
+              onReviseContentCandidateHtml={async (promotionId, segmentId, contentId, feedback) => {
+                await reviseContentCandidateHtmlMutation.mutateAsync({
+                  contentId,
+                  feedback,
+                  promotionId,
+                  segmentId
+                });
+              }}
               onSelectSegment={selectSegment}
               onRecommendSegments={recommendPromotionSegments}
               onStartGeneration={(analysisId, segmentId) =>
@@ -180,6 +189,7 @@ export function PromotionWorkspace({
               promotionAnalysisIsPending={promotionAnalysisIsPending}
               promotionGenerationIsPending={promotionGenerationIsPending}
               rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
+              reviseContentCandidateHtmlIsPending={reviseContentCandidateHtmlMutation.isPending}
               scopedSegments={scopedSegmentDefinitions.data?.segments ?? []}
               scopedSegmentsIsLoading={scopedSegmentDefinitions.isLoading}
               segmentView={query.segmentView}
@@ -205,6 +215,7 @@ export function PromotionWorkspace({
           {mode === "promotion" ? (
             <>
               <PromotionAddDialog
+                campaign={selectedCampaign}
                 createIsPending={createPromotionMutation.isPending}
                 onCreate={(form) => createPromotionMutation.mutate(form)}
                 onOpenChange={setIsAddDialogOpen}
@@ -212,6 +223,7 @@ export function PromotionWorkspace({
                 query={query}
               />
               <PromotionEditDialog
+                campaign={selectedCampaign}
                 isPending={updatePromotionMutation.isPending}
                 onOpenChange={(open) => {
                   if (!open) {

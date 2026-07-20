@@ -282,6 +282,21 @@ stopped_runs AS (
     AND status <> 'stopped'
   RETURNING promotion_run_id
 ),
+cancelled_automation_jobs AS (
+  UPDATE promotion_automation_jobs
+  SET status = 'cancelled',
+      worker_id = NULL,
+      lease_token = NULL,
+      locked_at = NULL,
+      lease_expires_at = NULL,
+      updated_at = now()
+  WHERE promotion_run_id IN (
+      SELECT promotion_run_id
+      FROM stopped_runs
+    )
+    AND status IN ('pending', 'running')
+  RETURNING job_id
+),
 stopped_experiments AS (
   UPDATE ad_experiments
   SET status = 'stopped',
@@ -307,6 +322,11 @@ SELECT
   p.min_sample_size AS "minSampleSize",
   p.max_loop_count AS "maxLoopCount",
   COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
+  p.execution_mode AS "executionMode",
+  p.scheduled_start_at AS "scheduledStartAt",
+  p.scheduled_end_at AS "scheduledEndAt",
+  p.loop_interval_unit AS "loopIntervalUnit",
+  p.loop_interval_value AS "loopIntervalValue",
   p.message_brief AS "messageBrief",
   p.offer_type AS "offerType",
   COALESCE(p.metadata_json -> 'offer_links', '[]'::jsonb) AS "offerLinks",
@@ -358,6 +378,11 @@ SELECT
   p.min_sample_size AS "minSampleSize",
   p.max_loop_count AS "maxLoopCount",
   COALESCE(MAX(pr.loop_count), 0)::int AS "currentLoopCount",
+  p.execution_mode AS "executionMode",
+  p.scheduled_start_at AS "scheduledStartAt",
+  p.scheduled_end_at AS "scheduledEndAt",
+  p.loop_interval_unit AS "loopIntervalUnit",
+  p.loop_interval_value AS "loopIntervalValue",
   p.message_brief AS "messageBrief",
   p.offer_type AS "offerType",
   COALESCE(p.metadata_json -> 'offer_links', '[]'::jsonb) AS "offerLinks",
@@ -408,6 +433,11 @@ INSERT INTO promotions (
   goal_basis,
   min_sample_size,
   max_loop_count,
+  execution_mode,
+  scheduled_start_at,
+  scheduled_end_at,
+  loop_interval_unit,
+  loop_interval_value,
   message_brief,
   offer_type,
   metadata_json,
@@ -426,6 +456,11 @@ SELECT
   :goalBasis,
   :minSampleSize,
   :maxLoopCount,
+  :executionMode,
+  :scheduledStartAt,
+  :scheduledEndAt,
+  :loopIntervalUnit,
+  :loopIntervalValue,
   :messageBrief,
   :offerType,
   CASE
@@ -438,7 +473,11 @@ SELECT
 FROM campaigns c
 WHERE c.project_id = :projectId
   AND c.campaign_id = :campaignId
-  AND c.status <> 'stopped'
+  AND c.status NOT IN ('completed', 'stopped')
+  AND (
+    c.end_date IS NULL
+    OR (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul' > now()
+  )
 RETURNING promotion_id AS "promotionId";
 
 /* 목적: 프로모션 기본 정보를 수정합니다. */
@@ -452,6 +491,17 @@ SET
   goal_basis = COALESCE(:goalBasis, goal_basis),
   min_sample_size = COALESCE(:minSampleSize, min_sample_size),
   max_loop_count = COALESCE(:maxLoopCount, max_loop_count),
+  execution_mode = COALESCE(:executionMode, execution_mode),
+  scheduled_start_at = CASE
+    WHEN :scheduledStartAtIsSet THEN :scheduledStartAt
+    ELSE scheduled_start_at
+  END,
+  scheduled_end_at = CASE
+    WHEN :scheduledEndAtIsSet THEN :scheduledEndAt
+    ELSE scheduled_end_at
+  END,
+  loop_interval_unit = COALESCE(:loopIntervalUnit, loop_interval_unit),
+  loop_interval_value = COALESCE(:loopIntervalValue, loop_interval_value),
   message_brief = CASE WHEN :messageBriefIsSet THEN :messageBrief ELSE message_brief END,
   offer_type = CASE WHEN :offerTypeIsSet THEN :offerType ELSE offer_type END,
   metadata_json = CASE
@@ -533,6 +583,21 @@ stopped_runs AS (
     AND promotion_id = :promotionId
     AND status <> 'stopped'
   RETURNING promotion_run_id
+),
+cancelled_automation_jobs AS (
+  UPDATE promotion_automation_jobs
+  SET status = 'cancelled',
+      worker_id = NULL,
+      lease_token = NULL,
+      locked_at = NULL,
+      lease_expires_at = NULL,
+      updated_at = now()
+  WHERE promotion_run_id IN (
+      SELECT promotion_run_id
+      FROM stopped_runs
+    )
+    AND status IN ('pending', 'running')
+  RETURNING job_id
 ),
 stopped_experiments AS (
   UPDATE ad_experiments
@@ -1971,6 +2036,37 @@ WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND ad_experiment_id = :adExperimentId
   AND status IN ('planned', 'approved', 'running')
+  AND EXISTS (
+    SELECT 1
+    FROM promotions promotion
+    JOIN campaigns campaign
+      ON campaign.project_id = promotion.project_id
+     AND campaign.campaign_id = promotion.campaign_id
+    WHERE promotion.project_id = ad_experiments.project_id
+      AND promotion.promotion_id = ad_experiments.promotion_id
+      AND promotion.status <> 'stopped'
+      AND campaign.status NOT IN ('completed', 'stopped')
+      AND (
+        GREATEST(
+          promotion.scheduled_start_at,
+          campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+        ) IS NULL
+        OR GREATEST(
+          promotion.scheduled_start_at,
+          campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+        ) <= now()
+      )
+      AND (
+        LEAST(
+          promotion.scheduled_end_at,
+          (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+        ) IS NULL
+        OR LEAST(
+          promotion.scheduled_end_at,
+          (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+        ) > now()
+      )
+  )
 RETURNING
   ad_experiment_id AS "adExperimentId",
   promotion_run_id AS "promotionRunId",

@@ -7,6 +7,7 @@ import type {
 import {
   createSegmentAssistantSession,
   INITIAL_SEGMENT_ASSISTANT_MESSAGE,
+  selectSegmentAssistantSource,
   segmentAssistantFailureMessage,
   segmentAssistantResponseMessage,
   segmentAssistantSessionKey,
@@ -114,7 +115,9 @@ test("segment assistant stores a query result with the assistant message", () =>
     assistant_message:
       "최근 30일 기준 조건에 맞는 고객은 10,012명이며, 분석 가능 사용자 20,312명의 49.29%입니다.",
     condition_labels: ["제주·오키나와 숙소 검색", "예약 완료 없음"],
+    condition_diagnostics: [],
     lookback_days: 30,
+    minimum_sample_size: 100,
     preview: {
       query_preview_id: "preview-1",
       sample_ratio: 0.4929,
@@ -122,7 +125,8 @@ test("segment assistant stores a query result with the assistant message", () =>
       sample_size_status: "valid",
       total_eligible_user_count: 20312
     },
-    segment_name: "제주·오키나와 숙소 검색 고객"
+    segment_name: "제주·오키나와 숙소 검색 고객",
+    suggested_adjustments: []
   } as const;
 
   assert.deepEqual(segmentAssistantResponseMessage(3, response), {
@@ -131,6 +135,21 @@ test("segment assistant stores a query result with the assistant message", () =>
     text: response.assistant_message,
     result: response
   });
+});
+
+test("segment assistant keeps the selected recommendation as editable session context", () => {
+  const source = {
+    suggestion_id: "suggestion-1",
+    segment_id: "segment-1",
+    title: "예약 직전 이탈 고객",
+    strategy_role: "예약 이탈 회수형",
+    condition_labels: ["예약 시작", "예약 완료 없음"],
+    sample_size: 142
+  } as const;
+  const selected = selectSegmentAssistantSource(createSegmentAssistantSession(), source);
+
+  assert.deepEqual(selected.sourceSuggestion, source);
+  assert.equal(selected.result, null);
 });
 
 test("selection summary identifies accepted AI and directly added segments", () => {

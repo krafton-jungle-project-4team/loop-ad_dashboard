@@ -89,6 +89,11 @@ export const DashboardCampaignPromotionSchema = z.object({
   min_sample_size: CountSchema,
   max_loop_count: CountSchema,
   current_loop_count: CountSchema,
+  execution_mode: z.enum(["manual", "automatic"]),
+  scheduled_start_at: z.string().nullable(),
+  scheduled_end_at: z.string().nullable(),
+  loop_interval_unit: z.enum(["hour", "day"]),
+  loop_interval_value: CountSchema,
   message_brief: z.string().nullable(),
   offer_type: z.string().nullable(),
   offer_links: DashboardPromotionOfferLinksSchema.default([]),
@@ -116,6 +121,14 @@ export type DashboardPromotionGoalMetric = z.infer<typeof DashboardPromotionGoal
 export const DashboardPromotionGoalBasisSchema = z.enum(["promotion_average", "all_segments"]);
 export type DashboardPromotionGoalBasis = z.infer<typeof DashboardPromotionGoalBasisSchema>;
 
+export const DashboardPromotionExecutionModeSchema = z.enum(["manual", "automatic"]);
+export type DashboardPromotionExecutionMode = z.infer<typeof DashboardPromotionExecutionModeSchema>;
+
+export const DashboardPromotionLoopIntervalUnitSchema = z.enum(["hour", "day"]);
+export type DashboardPromotionLoopIntervalUnit = z.infer<
+  typeof DashboardPromotionLoopIntervalUnitSchema
+>;
+
 export const DashboardPromotionLandingTypeSchema = z.enum([
   "search_page",
   "hotel_detail_page",
@@ -139,38 +152,60 @@ export type DashboardPromotionStatus = z.infer<typeof DashboardPromotionStatusSc
 
 const DashboardPromotionLandingUrlSchema = z.string().trim().url();
 
-export const DashboardCreatePromotionRequestSchema = z.object({
-  channel: DashboardPromotionChannelSchema,
-  marketing_theme: z.string().min(1),
-  goal_metric: DashboardPromotionGoalMetricSchema,
-  goal_target_value: z.number().nonnegative(),
-  goal_basis: DashboardPromotionGoalBasisSchema,
-  min_sample_size: z.number().int().nonnegative().default(1000),
-  max_loop_count: z.number().int().min(1).default(3),
-  message_brief: z.string().nullable().optional(),
-  offer_type: z.string().nullable().optional(),
-  offer_links: DashboardPromotionOfferLinksSchema.optional(),
-  landing_url: DashboardPromotionLandingUrlSchema,
-  landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
-  status: DashboardPromotionStatusSchema.default("draft")
-});
+type DashboardPromotionScheduleFields = {
+  execution_mode: DashboardPromotionExecutionMode;
+  scheduled_start_at: string | null;
+  scheduled_end_at: string | null;
+  loop_interval_unit: DashboardPromotionLoopIntervalUnit;
+  loop_interval_value: number;
+};
+
+export const DashboardCreatePromotionRequestSchema = z
+  .object({
+    channel: DashboardPromotionChannelSchema,
+    marketing_theme: z.string().min(1),
+    goal_metric: DashboardPromotionGoalMetricSchema,
+    goal_target_value: z.number().nonnegative(),
+    goal_basis: DashboardPromotionGoalBasisSchema,
+    min_sample_size: z.number().int().nonnegative().default(1000),
+    max_loop_count: z.number().int().min(1).default(3),
+    message_brief: z.string().nullable().optional(),
+    offer_type: z.string().nullable().optional(),
+    offer_links: DashboardPromotionOfferLinksSchema.optional(),
+    landing_url: DashboardPromotionLandingUrlSchema,
+    landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
+    status: DashboardPromotionStatusSchema.default("draft"),
+    execution_mode: DashboardPromotionExecutionModeSchema.default("manual"),
+    scheduled_start_at: z.string().datetime({ offset: true }).nullable().default(null),
+    scheduled_end_at: z.string().datetime({ offset: true }).nullable().default(null),
+    loop_interval_unit: DashboardPromotionLoopIntervalUnitSchema.default("day"),
+    loop_interval_value: z.number().int().min(1).default(1)
+  })
+  .superRefine(validatePromotionSchedule);
 export type DashboardCreatePromotionRequest = z.infer<typeof DashboardCreatePromotionRequestSchema>;
 
-export const DashboardUpdatePromotionRequestSchema = z.object({
-  channel: DashboardPromotionChannelSchema.optional(),
-  marketing_theme: z.string().min(1).optional(),
-  goal_metric: DashboardPromotionGoalMetricSchema.optional(),
-  goal_target_value: z.number().nonnegative().optional(),
-  goal_basis: DashboardPromotionGoalBasisSchema.optional(),
-  min_sample_size: z.number().int().nonnegative().optional(),
-  max_loop_count: z.number().int().min(1).optional(),
-  message_brief: z.string().nullable().optional(),
-  offer_type: z.string().nullable().optional(),
-  offer_links: DashboardPromotionOfferLinksSchema.optional(),
-  landing_url: DashboardPromotionLandingUrlSchema.optional(),
-  landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
-  status: DashboardPromotionStatusSchema.optional()
-});
+export const DashboardUpdatePromotionRequestSchema = z
+  .object({
+    channel: DashboardPromotionChannelSchema.optional(),
+    marketing_theme: z.string().min(1).optional(),
+    goal_metric: DashboardPromotionGoalMetricSchema.optional(),
+    goal_target_value: z.number().nonnegative().optional(),
+    goal_basis: DashboardPromotionGoalBasisSchema.optional(),
+    min_sample_size: z.number().int().nonnegative().optional(),
+    max_loop_count: z.number().int().min(1).optional(),
+    message_brief: z.string().nullable().optional(),
+    offer_type: z.string().nullable().optional(),
+    offer_links: DashboardPromotionOfferLinksSchema.optional(),
+    landing_url: DashboardPromotionLandingUrlSchema.optional(),
+    landing_type: DashboardPromotionLandingTypeSchema.nullable().optional(),
+    status: DashboardPromotionStatusSchema.optional(),
+    execution_mode: DashboardPromotionExecutionModeSchema.optional(),
+    scheduled_start_at: z.string().datetime({ offset: true }).nullable().optional(),
+    scheduled_end_at: z.string().datetime({ offset: true }).nullable().optional(),
+    loop_interval_unit: DashboardPromotionLoopIntervalUnitSchema.optional(),
+    loop_interval_value: z.number().int().min(1).optional()
+  })
+  .superRefine(validatePromotionSchedule);
 export type DashboardUpdatePromotionRequest = z.infer<typeof DashboardUpdatePromotionRequestSchema>;
 
 export const DashboardDeletePromotionResultSchema = z.object({
@@ -183,3 +218,20 @@ export const DashboardPromotionSummarySchema = DashboardCampaignPromotionSchema.
   campaign_id: z.string()
 });
 export type DashboardPromotionSummary = z.infer<typeof DashboardPromotionSummarySchema>;
+
+function validatePromotionSchedule(
+  value: Partial<DashboardPromotionScheduleFields>,
+  context: z.RefinementCtx
+) {
+  if (
+    value.scheduled_start_at &&
+    value.scheduled_end_at &&
+    Date.parse(value.scheduled_end_at) <= Date.parse(value.scheduled_start_at)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "scheduled_end_at must be later than scheduled_start_at",
+      path: ["scheduled_end_at"]
+    });
+  }
+}

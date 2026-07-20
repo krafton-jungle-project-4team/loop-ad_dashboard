@@ -1,4 +1,7 @@
-import type { DashboardEntitySearchResult } from "@loopad/shared";
+import type {
+  DashboardEntitySearchResult,
+  DashboardSegmentAssistantSourceSuggestion
+} from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@loopad/ui/shadcn/resizable";
 import { Separator } from "@loopad/ui/shadcn/separator";
@@ -43,6 +46,7 @@ import { entitySearchResultToDashboardPatch } from "../model/entity-search-navig
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import {
   createSegmentAssistantSession,
+  selectSegmentAssistantSource,
   segmentAssistantSessionKey,
   updateSegmentAssistantSessionStore,
   type SegmentAssistantSessionStore,
@@ -119,11 +123,22 @@ export function DashboardShell({
     }
   }, [isAssistantAvailable]);
 
+  const openSegmentCandidateAssistant = useCallback(
+    (sourceSuggestion?: DashboardSegmentAssistantSourceSuggestion) => {
+      if (assistantSessionKey) {
+        setAssistantSessions((current) =>
+          updateSegmentAssistantSessionStore(current, assistantSessionKey, (session) =>
+            selectSegmentAssistantSource(session, sourceSuggestion ?? null)
+          )
+        );
+      }
+      setIsAssistantPanelOpen(true);
+    },
+    [assistantSessionKey]
+  );
   const assistantContextValue = useMemo<DashboardAssistantContextValue>(
-    () => ({
-      openSegmentCandidateAssistant: () => setIsAssistantPanelOpen(true)
-    }),
-    []
+    () => ({ openSegmentCandidateAssistant }),
+    [openSegmentCandidateAssistant]
   );
 
   const dashboardContent = (

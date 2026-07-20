@@ -1,7 +1,10 @@
+import type { DashboardSegmentAssistantSourceSuggestion } from "@loopad/shared";
 import { createContext, useContext, type ReactNode } from "react";
 
 export type DashboardAssistantContextValue = {
-  openSegmentCandidateAssistant: () => void;
+  openSegmentCandidateAssistant: (
+    sourceSuggestion?: DashboardSegmentAssistantSourceSuggestion
+  ) => void;
 };
 
 const DashboardAssistantContext = createContext<DashboardAssistantContextValue | null>(null);

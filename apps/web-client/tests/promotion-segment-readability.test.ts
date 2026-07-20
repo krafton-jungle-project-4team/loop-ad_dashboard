@@ -21,11 +21,11 @@ test("segment candidate explanations use readable foreground contrast", () => {
 test("segment report body copy does not use muted foreground", () => {
   assert.match(
     suggestionPanelSource,
-    /<p className="text-sm leading-6 text-foreground\/80">\{report\.action_hint\}<\/p>/
+    /<p className="text-sm leading-6 text-foreground">\{report\.action_hint\}<\/p>/
   );
   assert.match(
     suggestionPanelSource,
-    /<ul className="grid gap-2 text-sm leading-6 text-foreground\/80">/
+    /<ul className="grid gap-2 text-sm leading-6 text-foreground">/
   );
   assert.doesNotMatch(
     suggestionPanelSource,

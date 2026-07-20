@@ -2,9 +2,152 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { TransactionHost } from "@nestjs-cls/transactional";
 import type { DashboardDecisionClient } from "../src/features/dashboard/provider/dashboard-decision-client.js";
+import type { DashboardCreativeRevisionAgent } from "../src/features/dashboard/provider/dashboard-creative-revision-agent.js";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
+import type { DashboardPromotionAutomationRepository } from "../src/features/dashboard/repository/dashboard-promotion-automation-repository.js";
 import type { DashboardSegmentQueryRepository } from "../src/features/dashboard/repository/dashboard-segment-query-repository.js";
+
+test("dashboard promotion update synchronizes pending automation jobs", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  const calls: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getCampaignSummary: async () =>
+        ({
+          end_date: "2099-12-31",
+          start_date: "2099-01-01",
+          status: "active"
+        }) as never,
+      getPromotionSummary: async (_projectId, promotionId) =>
+        ({
+          campaign_id: "campaign-a",
+          promotion_id: promotionId,
+          scheduled_end_at: null,
+          scheduled_start_at: null
+        }) as never,
+      updatePromotion: async (projectId, promotionId, request) => {
+        calls.push({ projectId, promotionId, request, step: "update" });
+        return { promotion_id: promotionId } as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient(),
+    undefined,
+    {
+      syncPendingJobs: async (projectId, promotionId) => {
+        calls.push({ projectId, promotionId, step: "sync" });
+        return [];
+      }
+    } as unknown as DashboardPromotionAutomationRepository
+  );
+
+  await service.updatePromotion("project-a", "promotion-a", {
+    execution_mode: "automatic",
+    loop_interval_unit: "hour",
+    loop_interval_value: 2
+  });
+
+  assert.deepEqual(calls, [
+    {
+      projectId: "project-a",
+      promotionId: "promotion-a",
+      request: {
+        execution_mode: "automatic",
+        loop_interval_unit: "hour",
+        loop_interval_value: 2
+      },
+      step: "update"
+    },
+    { projectId: "project-a", promotionId: "promotion-a", step: "sync" }
+  ]);
+});
+
+test("dashboard promotion update rejects a schedule outside its campaign", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  let updated = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getCampaignSummary: async () =>
+        ({
+          end_date: "2099-08-31",
+          start_date: "2099-08-01",
+          status: "active"
+        }) as never,
+      getPromotionSummary: async () =>
+        ({
+          campaign_id: "campaign-a",
+          scheduled_end_at: null,
+          scheduled_start_at: null
+        }) as never,
+      updatePromotion: async () => {
+        updated = true;
+        return {} as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  await assert.rejects(
+    () =>
+      service.updatePromotion("project-a", "promotion-a", {
+        scheduled_end_at: "2099-09-02T00:00:00.000+09:00",
+        scheduled_start_at: "2099-08-01T00:00:00.000+09:00"
+      }),
+    /프로모션 실행 기간은 캠페인 기간 안에서 설정해야 합니다/
+  );
+  assert.equal(updated, false);
+});
+
+test("dashboard campaign update rejects a range that cuts an existing promotion", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  let updated = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getCampaignSummary: async () =>
+        ({
+          end_date: "2099-08-31",
+          start_date: "2099-08-01",
+          status: "active"
+        }) as never,
+      listCampaignPromotions: async () =>
+        [
+          {
+            scheduled_end_at: "2099-08-25T23:59:00.000+09:00",
+            scheduled_start_at: "2099-08-20T00:00:00.000+09:00"
+          }
+        ] as never,
+      updateCampaign: async () => {
+        updated = true;
+        return {} as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  await assert.rejects(
+    () => service.updateCampaign("project-a", "campaign-a", { end_date: "2099-08-15" }),
+    /캠페인 기간 밖에 예약된 프로모션이 있어 기간을 변경할 수 없습니다/
+  );
+  assert.equal(updated, false);
+});
 
 test("dashboard main returns campaign summaries from the campaign reader", async () => {
   setRequiredEnv();
@@ -457,8 +600,108 @@ test("dashboard segment assistant executes a structured plan without calling Dec
   assert.equal(response.action, "audience_query");
   assert.equal(response.preview?.sample_size, 125);
   assert.equal(response.segment_name, "제주 숙소 검색 고객");
+  assert.equal(response.minimum_sample_size, 100);
+  assert.deepEqual(response.condition_diagnostics, []);
+  assert.deepEqual(response.suggested_adjustments, []);
   assert.equal(calls.length, 2);
   assert.deepEqual((calls[1] as { kind: string }).kind, "preview");
+});
+
+test("dashboard segment assistant explains the measured condition that keeps a segment below the minimum", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () => ({}) as never
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      createAssistantQueryPreview: async (_projectId, naturalLanguageQuery) => {
+        calls.push({ kind: "preview", naturalLanguageQuery });
+        return {
+          query_preview_id: "seg_query_preview_small",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 42,
+          total_eligible_user_count: 1000,
+          sample_ratio: 0.042,
+          sample_size_status: "too_small" as const,
+          columns: ["user_id"],
+          rows: []
+        };
+      },
+      diagnoseAssistantPlan: async () => {
+        calls.push({ kind: "diagnostics" });
+        return {
+          conditionDiagnostics: [
+            {
+              condition_label: "예약 시작 3회 이상",
+              sample_size_without_condition: 180,
+              recovered_user_count: 138,
+              is_bottleneck: true
+            }
+          ],
+          suggestedAdjustments: [
+            {
+              kind: "remove_condition" as const,
+              label: "'예약 시작 3회 이상' 조건 제외",
+              prompt: "예약 시작 3회 이상 조건을 빼고 다시 계산해줘",
+              estimated_sample_size: 180
+            }
+          ]
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient(),
+    {
+      plan: async () => ({
+        action: "segment_preview" as const,
+        segment_name: "예약 고의도 고객",
+        lookback_days: 30,
+        conditions: [
+          {
+            label: "예약 시작 3회 이상",
+            event_name: "booking_start" as const,
+            minimum_count: 3,
+            maximum_count: null,
+            destination: null,
+            checkin_months: [],
+            property_filters: []
+          }
+        ],
+        clarification_message: null
+      })
+    } as never
+  );
+
+  const response = await service.assistPromotionSegment("hotel-client-a", "promo_summer", {
+    message: "예약 시작을 3회 이상 한 조건을 추가해줘",
+    conversation: [],
+    source_suggestion: {
+      suggestion_id: "suggestion-1",
+      segment_id: "segment-1",
+      title: "예약 직전 이탈 고객",
+      strategy_role: "예약 이탈 회수형",
+      condition_labels: ["예약 시작", "예약 완료 없음"],
+      sample_size: 140
+    }
+  });
+
+  assert.equal(response.preview?.sample_size, 42);
+  assert.equal(response.condition_diagnostics[0]?.condition_label, "예약 시작 3회 이상");
+  assert.match(response.assistant_message, /가장 크게 제한/);
+  assert.match(response.assistant_message, /180명/);
+  assert.deepEqual(calls, [
+    {
+      kind: "preview",
+      naturalLanguageQuery: "예약 직전 이탈 고객 수정: 예약 시작을 3회 이상 한 조건을 추가해줘"
+    },
+    { kind: "diagnostics" }
+  ]);
 });
 
 test("dashboard save segment delegates valid preview save to the segment query repository", async () => {
@@ -921,6 +1164,80 @@ test("dashboard promotion run evaluation prepares legacy data before Decision", 
   ]);
 });
 
+test("automatic promotion evaluation creates, assigns, and queues the next failed loop", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: string[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      preparePromotionRunEvaluationCompatibility: async () => undefined
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      evaluatePromotionRun: async () => ({
+        ad_experiment_results: [],
+        failed_ad_experiment_ids: ["experiment-1"],
+        failed_segment_ids: ["segment-1"],
+        next_loop_required: true,
+        promotion_id: "promotion-1",
+        promotion_run_id: "run-1",
+        status: "goal_not_met"
+      }),
+      createNextLoop: async ({ request }) => {
+        calls.push(`next-loop:${request.content_approval_mode}`);
+        return {
+          content_approval_required: false,
+          failed_segment_ids: [],
+          loop_count: 2,
+          next_ad_experiments: [],
+          next_analysis_id: "analysis-2",
+          next_generation_id: "generation-2",
+          next_loop_preparation_id: null,
+          next_promotion_run_id: "run-2",
+          pending_content_ids: [],
+          previous_promotion_run_id: "run-1",
+          promotion_id: "promotion-1",
+          segment_ids: ["segment-1"],
+          status: "activated" as const
+        };
+      },
+      buildPromotionRunSegmentAssignments: async ({ promotionRunId }) => {
+        calls.push(`assign:${promotionRunId}`);
+        return assignmentBuildResult(promotionRunId);
+      }
+    } as unknown as DashboardDecisionClient,
+    undefined,
+    {
+      cancelPendingRunEvaluation: async () => null,
+      getRunConfig: async () => ({
+        executionMode: "automatic",
+        loopCount: 1,
+        loopIntervalUnit: "hour",
+        loopIntervalValue: 1,
+        maxLoopCount: 3,
+        projectId: "hotel-client-a",
+        promotionId: "promotion-1",
+        promotionRunId: "run-1",
+        promotionRunStatus: "running",
+        promotionStatus: "running",
+        scheduledEndAt: null,
+        scheduledStartAt: null
+      }),
+      scheduleRunLaunch: async (_projectId, promotionRunId) => {
+        calls.push(`queue:${promotionRunId}`);
+        return { activationStatus: "automatic_start_queued" as const, scheduledStartAt: null };
+      }
+    } as unknown as DashboardPromotionAutomationRepository
+  );
+
+  await service.evaluatePromotionRun("hotel-client-a", "run-1");
+
+  assert.deepEqual(calls, ["next-loop:automatic", "assign:run-2", "queue:run-2"]);
+});
+
 test("dashboard idempotently confirms V2 suggestions through Decision before enriching targets", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -1326,6 +1643,114 @@ test("dashboard copy edit saves revised HTML without calling Decision API", asyn
   assert.equal(creative.edited_html, "<h1>새 제목</h1><p>새 본문</p><a>혜택 보기</a>");
 });
 
+test("dashboard AI feedback revision validates and stores the complete HTML", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  const sourceHtml =
+    '<article><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getContentCandidate: async () =>
+        ({
+          analysis_id: "analysis-a",
+          body: "기존 본문",
+          channel: "onsite_banner",
+          content_id: "content-a",
+          content_option_id: "option-a",
+          cta: "예약하기",
+          data_evidence_json: {},
+          generation_id: "generation-a",
+          generation_prompt: null,
+          image_prompt: null,
+          image_url: null,
+          landing_url: "https://example.com",
+          message: null,
+          message_strategy: null,
+          metadata_json: {
+            creative: {
+              artifact: {
+                artifact_status: "published",
+                creative_format: "banner_html",
+                public_url: "https://assets.example.com/content-a.html"
+              },
+              edited_html: sourceHtml
+            }
+          },
+          preheader: null,
+          promotion_id: "promotion-a",
+          reason_summary: null,
+          segment_id: "segment-a",
+          status: "draft",
+          subject: null,
+          title: "기존 제목",
+          updated_at: "2026-07-16T00:00:00.000Z"
+        }) as never,
+      updateContentCandidateCopy: async (
+        _projectId,
+        promotionId,
+        segmentId,
+        contentId,
+        request,
+        metadataJson,
+        htmlUrl
+      ) => {
+        calls.push({ htmlUrl, metadataJson, request });
+        return {
+          body: request.body,
+          content_id: contentId,
+          cta: request.cta,
+          headline: request.headline,
+          html_url: htmlUrl,
+          promotion_id: promotionId,
+          segment_id: segmentId,
+          status: "draft" as const,
+          updated_at: "2026-07-16T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient(),
+    undefined,
+    undefined,
+    {
+      revise: async (input) => {
+        calls.push({ feedback: input.feedback });
+        return {
+          body: "혜택을 먼저 확인하세요",
+          change_summary: "혜택과 CTA의 시각적 우선순위를 높였습니다.",
+          cta: "혜택 보기",
+          headline: "여름 숙박 혜택",
+          html: [
+            '<article style="padding:24px"><h1>여름 숙박 혜택</h1>',
+            '<p>혜택을 먼저 확인하세요</p><a href="{{redirect_url}}">혜택 보기</a></article>'
+          ].join("")
+        };
+      }
+    } as unknown as DashboardCreativeRevisionAgent
+  );
+
+  const result = await service.reviseContentCandidateHtml(
+    "project-a",
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    { feedback: "혜택과 버튼이 먼저 보이게 바꿔줘" },
+    "https://dashboard.api.dev.loop-ad.org"
+  );
+
+  assert.equal(result.headline, "여름 숙박 혜택");
+  assert.match(result.change_summary, /시각적 우선순위/);
+  assert.deepEqual(calls[0], { feedback: "혜택과 버튼이 먼저 보이게 바꿔줘" });
+  const saved = calls[1] as { metadataJson: Record<string, unknown> };
+  const creative = saved.metadataJson.creative as Record<string, unknown>;
+  assert.match(String(creative.edited_html), /\{\{redirect_url\}\}/);
+  assert.match(String(creative.edited_html), /padding:24px/);
+});
+
 function emptyCampaignReader(): DashboardCampaignReader {
   return {
     getPromotionGenerationResult: async () => undefined,
@@ -1403,6 +1828,30 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
       throw new Error("Unexpected saveSegment call.");
     }
   } as unknown as DashboardSegmentQueryRepository;
+}
+
+function assignmentBuildResult(promotionRunId: string) {
+  return {
+    activation_status: "manual_start_required" as const,
+    ann_candidate_count: 80,
+    ann_candidate_limit: 100,
+    ann_underfilled_user_count: 0,
+    assignment_count: 40,
+    batch_has_fallback: false,
+    below_threshold_fallback_count: 0,
+    completion_scope: "current_request" as const,
+    exact_reranked_pair_count: 60,
+    fallback_count: 0,
+    insufficient_segment_count: 0,
+    invalid_user_vector_fallback_count: 0,
+    matching_mode: "hybrid",
+    no_candidate_fallback_count: 0,
+    promotion_run_id: promotionRunId,
+    scheduled_start_at: null,
+    skipped_existing_count: 0,
+    status: "completed",
+    vector_version: "v1"
+  };
 }
 
 function emptyDecisionClient(): DashboardDecisionClient {

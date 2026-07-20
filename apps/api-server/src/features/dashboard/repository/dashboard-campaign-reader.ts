@@ -4,6 +4,7 @@ import type {
   DashboardApproveContentCandidateResult,
   DashboardApproveContentCandidateRequest,
   DashboardCampaignDetail,
+  DashboardCampaignPromotion,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
   DashboardContentCandidate,
@@ -174,6 +175,16 @@ export class DashboardCampaignReader {
     return rows.map((row) => toCampaignSummary(row, runningCounts.get(row.campaignId)));
   }
 
+  async listCampaignPromotions(
+    projectId: string,
+    campaignId: string
+  ): Promise<DashboardCampaignPromotion[]> {
+    const rows = await this.db
+      .query(listDashboardCampaignPromotions, { campaignId, projectId })
+      .multiple();
+    return rows.map(toCampaignPromotion);
+  }
+
   async preparePromotionRunEvaluationCompatibility(
     projectId: string,
     promotionRunId: string
@@ -264,6 +275,11 @@ export class DashboardCampaignReader {
         landingUrl: request.landing_url ?? null,
         marketingTheme: request.marketing_theme,
         maxLoopCount: request.max_loop_count,
+        executionMode: request.execution_mode,
+        scheduledStartAt: request.scheduled_start_at,
+        scheduledEndAt: request.scheduled_end_at,
+        loopIntervalUnit: request.loop_interval_unit,
+        loopIntervalValue: request.loop_interval_value,
         messageBrief: request.message_brief ?? null,
         minSampleSize: request.min_sample_size,
         offerLinksIsSet: Object.hasOwn(request, "offer_links"),
@@ -295,6 +311,13 @@ export class DashboardCampaignReader {
         landingUrlIsSet: Object.hasOwn(request, "landing_url"),
         marketingTheme: request.marketing_theme,
         maxLoopCount: request.max_loop_count,
+        executionMode: request.execution_mode,
+        scheduledStartAt: request.scheduled_start_at ?? null,
+        scheduledStartAtIsSet: Object.hasOwn(request, "scheduled_start_at"),
+        scheduledEndAt: request.scheduled_end_at ?? null,
+        scheduledEndAtIsSet: Object.hasOwn(request, "scheduled_end_at"),
+        loopIntervalUnit: request.loop_interval_unit,
+        loopIntervalValue: request.loop_interval_value,
         messageBrief: request.message_brief ?? null,
         messageBriefIsSet: Object.hasOwn(request, "message_brief"),
         minSampleSize: request.min_sample_size,
@@ -934,7 +957,7 @@ export class DashboardCampaignReader {
     };
   }
 
-  private async getCampaignSummary(
+  async getCampaignSummary(
     projectId: string,
     campaignId: string
   ): Promise<DashboardCampaignSummary> {

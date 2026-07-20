@@ -242,16 +242,21 @@ export class DashboardDecisionClient {
     });
   }
 
-  buildPromotionRunSegmentAssignments(request: {
+  async buildPromotionRunSegmentAssignments(request: {
     projectId: string;
     promotionRunId: string;
   }): Promise<DashboardBuildPromotionRunAssignmentsResult> {
-    return requestDecisionApi({
+    const response = await requestDecisionApi({
       body: {},
       path: `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/segment-assignments/build`,
       request,
       schema: decisionSegmentAssignmentBuildResponseSchema
     });
+    return {
+      ...response,
+      activation_status: "manual_start_required",
+      scheduled_start_at: null
+    };
   }
 
   evaluatePromotionRun(request: {
