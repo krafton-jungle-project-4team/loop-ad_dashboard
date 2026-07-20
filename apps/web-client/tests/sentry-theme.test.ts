@@ -15,6 +15,10 @@ const projectSelectSource = readFileSync(
   new URL("../src/features/dashboard/ui/project/ProjectSelectPage.tsx", import.meta.url),
   "utf8"
 );
+const projectSidebarBrandSource = readFileSync(
+  new URL("../src/features/dashboard/ui/project/ProjectSidebarBrand.tsx", import.meta.url),
+  "utf8"
+);
 const sqlEditorSource = readFileSync(
   new URL("../src/features/data-explorer/components/SqlEditorPanel.tsx", import.meta.url),
   "utf8"
@@ -35,6 +39,13 @@ test("shared controls and navigation use the compact Sentry hierarchy", () => {
   assert.doesNotMatch(buttonSource, /#0071e3/);
   assert.match(dashboardShellSource, /border-sidebar-border/);
   assert.match(dashboardShellSource, /bg-sidebar-accent/);
+  assert.match(dashboardShellSource, /before:bg-sidebar-primary/);
+  assert.doesNotMatch(dashboardShellSource, /rounded-md border border-transparent text-sidebar/);
+  assert.doesNotMatch(projectSidebarBrandSource, /border border-transparent/);
+  assert.match(
+    themeSource,
+    /@layer base \{\s+\* \{\s+box-sizing: border-box;\s+border-color: var\(--border\);/
+  );
 });
 
 test("high-visibility entry and developer surfaces expose the theme", () => {

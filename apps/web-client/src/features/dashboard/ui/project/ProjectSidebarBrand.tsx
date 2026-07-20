@@ -18,7 +18,7 @@ export function ProjectSidebarBrand({ projectId }: { projectId: string }) {
   return (
     <Link
       aria-label="프로젝트 선택으로 돌아가기"
-      className="group flex w-full items-center gap-2.5 rounded-md border border-transparent p-2 text-left transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/40"
+      className="group flex w-full items-center gap-2.5 rounded-md p-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/40"
       title="프로젝트 선택"
       to="/"
     >

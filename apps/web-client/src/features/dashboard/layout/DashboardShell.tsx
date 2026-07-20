@@ -181,7 +181,7 @@ export function DashboardShell({
             } as CSSProperties
           }
         >
-          <Sidebar className="border-r border-sidebar-border" collapsible="offcanvas">
+          <Sidebar className="border-sidebar-border" collapsible="offcanvas">
             <SidebarHeader className="border-b border-sidebar-border p-3">
               <ProjectSidebarBrand projectId={projectId} />
             </SidebarHeader>
@@ -539,9 +539,9 @@ function DashboardNavigationLinkItem({
       <SidebarMenuButton
         asChild
         className={cn(
-          "rounded-md border border-transparent text-sidebar-foreground/75",
+          "relative rounded-md text-sidebar-foreground/75",
           isActive &&
-            "border-sidebar-border bg-sidebar-accent font-semibold text-sidebar-foreground"
+            "bg-sidebar-accent pl-3 font-semibold text-sidebar-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
         )}
         isActive={isActive}
         tooltip={item.label}
@@ -588,7 +588,7 @@ function SidebarResizeHandle({
       type="button"
       variant="ghost"
     >
-      <span className="h-8 w-1 rounded-full bg-border" />
+      <span className="h-8 w-0.5 rounded-full bg-transparent transition-colors group-hover/button:bg-sidebar-border group-focus-visible/button:bg-sidebar-ring" />
     </Button>
   );
 }
