@@ -28,7 +28,8 @@ test("the global palette uses Sentry-inspired purple, lavender, and ink tokens",
   assert.match(themeSource, /--background: #f7f6f9;/);
   assert.match(themeSource, /--foreground: #2b2233;/);
   assert.match(themeSource, /--primary: #6c5fc7;/);
-  assert.match(themeSource, /--sidebar: #241b2f;/);
+  assert.match(themeSource, /--sidebar: #ece9f1;/);
+  assert.match(themeSource, /--sidebar-foreground: #30283a;/);
   assert.match(themeSource, /--chart-2: #e1567c;/);
   assert.doesNotMatch(themeSource, /--primary: #1d4ed8;/);
 });

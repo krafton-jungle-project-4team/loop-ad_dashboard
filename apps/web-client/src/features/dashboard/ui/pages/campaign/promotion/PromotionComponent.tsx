@@ -46,6 +46,7 @@ export function PromotionWorkspace({
     segmentSuggestions,
     selectPromotion,
     selectSegment,
+    selectSegmentView,
     selectedCampaign,
     selectedOpenPromotion,
     selectedPromotionSegmentId,
@@ -160,6 +161,7 @@ export function PromotionWorkspace({
                 });
               }}
               onSelectSegment={selectSegment}
+              onSegmentViewChange={selectSegmentView}
               onRecommendSegments={recommendPromotionSegments}
               onStartGeneration={(analysisId, segmentId) =>
                 startGenerationMutation.mutate({
