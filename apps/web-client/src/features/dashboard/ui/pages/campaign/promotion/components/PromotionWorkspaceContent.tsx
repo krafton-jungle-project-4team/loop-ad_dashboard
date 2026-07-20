@@ -24,6 +24,13 @@ import {
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button, buttonVariants } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious
+} from "@loopad/ui/shadcn/carousel";
 import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import {
   Dialog,
@@ -942,174 +949,193 @@ function PromotionSegmentDetailTab({
                 title="광고 소재를 만들고 있어요"
               />
             ) : currentContentCandidates.length > 0 ? (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {currentContentCandidates.map((candidate) => {
-                  const htmlArtifact = contentCandidateHtmlArtifact(candidate);
-                  const hasDifferentApprovedCandidate = Boolean(
-                    approvedContentCandidate &&
-                    approvedContentCandidate.content_id !== candidate.content_id
-                  );
-                  const selectionId = `content-candidate-selection-${candidate.content_id}`;
-                  const selectionReason = contentCandidateSelectionReason(
-                    candidate.status,
-                    approveContentCandidateIsPending,
-                    hasDifferentApprovedCandidate
-                  );
+              <Carousel
+                aria-label="광고 소재 후보"
+                className="min-w-0"
+                opts={{ align: "start", loop: false }}
+              >
+                <CarouselContent className="ml-0">
+                  {currentContentCandidates.map((candidate) => {
+                    const htmlArtifact = contentCandidateHtmlArtifact(candidate);
+                    const hasDifferentApprovedCandidate = Boolean(
+                      approvedContentCandidate &&
+                      approvedContentCandidate.content_id !== candidate.content_id
+                    );
+                    const selectionId = `content-candidate-selection-${candidate.content_id}`;
+                    const selectionReason = contentCandidateSelectionReason(
+                      candidate.status,
+                      approveContentCandidateIsPending,
+                      hasDifferentApprovedCandidate
+                    );
 
-                  return (
-                    <Card
-                      className="@container/candidate min-w-0 shadow-none"
-                      key={candidate.content_id}
-                    >
-                      <CardHeader className="grid min-w-0 gap-3">
-                        <div className="flex min-w-0 flex-col gap-3 @4xl/candidate:flex-row @4xl/candidate:items-start @4xl/candidate:justify-between">
-                          <div className="grid min-w-0 gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="outline">
-                                {formatChannelLabel(candidate.channel)}
-                              </Badge>
-                              <Badge variant={statusBadgeVariant(candidate.status)}>
-                                {formatStatusLabel(candidate.status)}
-                              </Badge>
+                    return (
+                      <CarouselItem className="basis-full pl-0" key={candidate.content_id}>
+                        <Card className="@container/candidate min-w-0 shadow-none">
+                          <CardHeader className="grid min-w-0 gap-3">
+                            <div className="flex min-w-0 flex-col gap-3 @4xl/candidate:flex-row @4xl/candidate:items-start @4xl/candidate:justify-between">
+                              <div className="grid min-w-0 gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant="outline">
+                                    {formatChannelLabel(candidate.channel)}
+                                  </Badge>
+                                  <Badge variant={statusBadgeVariant(candidate.status)}>
+                                    {formatStatusLabel(candidate.status)}
+                                  </Badge>
+                                </div>
+                                <CardTitle className="break-keep text-base [overflow-wrap:anywhere]">
+                                  {contentCandidateTitle(candidate)}
+                                </CardTitle>
+                              </div>
+                              <div className="flex w-full min-w-0 flex-wrap items-center gap-2 @4xl/candidate:w-auto @4xl/candidate:shrink-0 @4xl/candidate:justify-end">
+                                <div
+                                  aria-label="광고 소재 이동"
+                                  className="mr-1 flex shrink-0 items-center gap-1 border-r pr-3"
+                                  role="group"
+                                >
+                                  <CarouselPrevious
+                                    aria-label="이전 광고 소재"
+                                    className="static inset-auto my-0 size-8 rounded-full bg-card"
+                                  />
+                                  <CarouselNext
+                                    aria-label="다음 광고 소재"
+                                    className="static inset-auto my-0 size-8 rounded-full bg-card"
+                                  />
+                                </div>
+                                <Field
+                                  className={buttonVariants({
+                                    className: "w-auto gap-2",
+                                    size: "sm",
+                                    variant: "outline"
+                                  })}
+                                  data-disabled={
+                                    approveContentCandidateIsPending ||
+                                    hasDifferentApprovedCandidate ||
+                                    candidate.status === "rejected"
+                                  }
+                                  orientation="horizontal"
+                                >
+                                  <Checkbox
+                                    aria-describedby={`${selectionId}-reason`}
+                                    aria-label={`${contentCandidateTitle(candidate)} 광고 소재 선택`}
+                                    checked={candidate.status === "approved"}
+                                    disabled={
+                                      approveContentCandidateIsPending ||
+                                      hasDifferentApprovedCandidate ||
+                                      candidate.status === "rejected"
+                                    }
+                                    id={selectionId}
+                                    onCheckedChange={(checked) =>
+                                      onContentCandidateSelectionChange(
+                                        detail.segment.promotion_id,
+                                        detail.segment.segment_id,
+                                        candidate.content_id,
+                                        checked === true
+                                      )
+                                    }
+                                  />
+                                  <FieldLabel
+                                    className="cursor-pointer text-[0.8rem] font-medium"
+                                    htmlFor={selectionId}
+                                  >
+                                    {candidate.status === "approved"
+                                      ? "광고 소재 선택됨"
+                                      : hasDifferentApprovedCandidate
+                                        ? "다른 광고 소재 선택됨"
+                                        : "광고 소재 선택"}
+                                  </FieldLabel>
+                                </Field>
+                                {htmlArtifact ? (
+                                  <ContentCandidateCopyEditDialog
+                                    candidate={candidate}
+                                    isPending={updateContentCandidateCopyIsPending}
+                                    onSave={(request) =>
+                                      onUpdateContentCandidateCopy(
+                                        detail.segment.promotion_id,
+                                        detail.segment.segment_id,
+                                        candidate.content_id,
+                                        request
+                                      )
+                                    }
+                                  />
+                                ) : null}
+                                <Button
+                                  disabled={
+                                    rejectContentCandidateIsPending ||
+                                    Boolean(approvedContentCandidate) ||
+                                    generationIsIncomplete ||
+                                    candidate.status === "approved" ||
+                                    candidate.status === "rejected"
+                                  }
+                                  onClick={() =>
+                                    onRejectContentCandidate(
+                                      detail.segment.promotion_id,
+                                      detail.segment.segment_id,
+                                      candidate.content_id
+                                    )
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  <X className="mr-2 size-4" />
+                                  {candidate.status === "rejected"
+                                    ? "광고 소재 거절됨"
+                                    : "광고 소재 거절"}
+                                </Button>
+                              </div>
                             </div>
-                            <CardTitle className="break-keep text-base [overflow-wrap:anywhere]">
-                              {contentCandidateTitle(candidate)}
-                            </CardTitle>
-                          </div>
-                          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 @4xl/candidate:w-auto @4xl/candidate:shrink-0 @4xl/candidate:justify-end">
-                            <Field
-                              className={buttonVariants({
-                                className: "w-auto gap-2",
-                                size: "sm",
-                                variant: "outline"
-                              })}
-                              data-disabled={
-                                approveContentCandidateIsPending ||
-                                hasDifferentApprovedCandidate ||
-                                candidate.status === "rejected"
-                              }
-                              orientation="horizontal"
+                            <p
+                              aria-live="polite"
+                              className="text-xs leading-5 text-muted-foreground"
+                              id={`${selectionId}-reason`}
                             >
-                              <Checkbox
-                                aria-describedby={`${selectionId}-reason`}
-                                aria-label={`${contentCandidateTitle(candidate)} 광고 소재 선택`}
-                                checked={candidate.status === "approved"}
-                                disabled={
-                                  approveContentCandidateIsPending ||
-                                  hasDifferentApprovedCandidate ||
-                                  candidate.status === "rejected"
-                                }
-                                id={selectionId}
-                                onCheckedChange={(checked) =>
-                                  onContentCandidateSelectionChange(
-                                    detail.segment.promotion_id,
-                                    detail.segment.segment_id,
-                                    candidate.content_id,
-                                    checked === true
-                                  )
-                                }
-                              />
-                              <FieldLabel
-                                className="cursor-pointer text-[0.8rem] font-medium"
-                                htmlFor={selectionId}
-                              >
-                                {candidate.status === "approved"
-                                  ? "광고 소재 선택됨"
-                                  : hasDifferentApprovedCandidate
-                                    ? "다른 광고 소재 선택됨"
-                                    : "광고 소재 선택"}
-                              </FieldLabel>
-                            </Field>
-                            {htmlArtifact ? (
-                              <ContentCandidateCopyEditDialog
-                                candidate={candidate}
-                                isPending={updateContentCandidateCopyIsPending}
-                                onSave={(request) =>
-                                  onUpdateContentCandidateCopy(
-                                    detail.segment.promotion_id,
-                                    detail.segment.segment_id,
-                                    candidate.content_id,
-                                    request
-                                  )
-                                }
-                              />
+                              {selectionReason}
+                            </p>
+                          </CardHeader>
+                          <CardContent className="grid min-w-0 gap-4">
+                            {candidate.image_url || htmlArtifact ? (
+                              <div className="grid min-w-0 gap-3 @2xl/candidate:grid-cols-2">
+                                {candidate.image_url ? (
+                                  <ContentCandidateImagePreview
+                                    alt={`${contentCandidateTitle(candidate)} 이미지`}
+                                    src={candidate.image_url}
+                                    title={contentCandidateTitle(candidate)}
+                                  />
+                                ) : null}
+                                {htmlArtifact ? (
+                                  <ContentCandidateHtmlPreview
+                                    artifact={htmlArtifact}
+                                    title={contentCandidateTitle(candidate)}
+                                  />
+                                ) : null}
+                              </div>
                             ) : null}
-                            <Button
-                              disabled={
-                                rejectContentCandidateIsPending ||
-                                Boolean(approvedContentCandidate) ||
-                                generationIsIncomplete ||
-                                candidate.status === "approved" ||
-                                candidate.status === "rejected"
-                              }
-                              onClick={() =>
-                                onRejectContentCandidate(
-                                  detail.segment.promotion_id,
-                                  detail.segment.segment_id,
-                                  candidate.content_id
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <X className="mr-2 size-4" />
-                              {candidate.status === "rejected"
-                                ? "광고 소재 거절됨"
-                                : "광고 소재 거절"}
-                            </Button>
-                          </div>
-                        </div>
-                        <p
-                          aria-live="polite"
-                          className="text-xs leading-5 text-muted-foreground"
-                          id={`${selectionId}-reason`}
-                        >
-                          {selectionReason}
-                        </p>
-                      </CardHeader>
-                      <CardContent className="grid min-w-0 gap-4">
-                        {candidate.image_url || htmlArtifact ? (
-                          <div className="grid min-w-0 gap-3 @2xl/candidate:grid-cols-2">
-                            {candidate.image_url ? (
-                              <ContentCandidateImagePreview
-                                alt={`${contentCandidateTitle(candidate)} 이미지`}
-                                src={candidate.image_url}
-                                title={contentCandidateTitle(candidate)}
+                            <div className="grid min-w-0 gap-3 @2xl/candidate:grid-cols-2">
+                              <InsightBlock
+                                label="메시지"
+                                value={[
+                                  candidate.subject,
+                                  candidate.preheader,
+                                  contentCandidateMessage(candidate)
+                                ]
+                                  .filter(Boolean)
+                                  .join("\n")}
                               />
-                            ) : null}
-                            {htmlArtifact ? (
-                              <ContentCandidateHtmlPreview
-                                artifact={htmlArtifact}
-                                title={contentCandidateTitle(candidate)}
+                              <InsightBlock
+                                label="버튼 / 연결 페이지"
+                                value={[
+                                  candidate.cta ?? "-",
+                                  candidate.landing_url ?? "연결 페이지가 없어요"
+                                ].join("\n")}
                               />
-                            ) : null}
-                          </div>
-                        ) : null}
-                        <div className="grid min-w-0 gap-3 @2xl/candidate:grid-cols-2">
-                          <InsightBlock
-                            label="메시지"
-                            value={[
-                              candidate.subject,
-                              candidate.preheader,
-                              contentCandidateMessage(candidate)
-                            ]
-                              .filter(Boolean)
-                              .join("\n")}
-                          />
-                          <InsightBlock
-                            label="버튼 / 연결 페이지"
-                            value={[
-                              candidate.cta ?? "-",
-                              candidate.landing_url ?? "연결 페이지가 없어요"
-                            ].join("\n")}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </CarouselItem>
+                    );
+                  })}
+                </CarouselContent>
+              </Carousel>
             ) : (
               <EmptyState message="아직 만든 광고 소재가 없어요." />
             )}

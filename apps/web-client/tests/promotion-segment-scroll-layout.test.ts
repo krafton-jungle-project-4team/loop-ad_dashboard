@@ -27,3 +27,13 @@ test("segment candidate tabs keep their intrinsic content height", () => {
   assert.match(workspaceSource, /<TabsContent className="flex-none" value="segments">/);
   assert.match(workspaceSource, /<TabsContent className="flex-none" value="candidates">/);
 });
+
+test("content candidates use one full-width carousel slide at a time", () => {
+  assert.match(workspaceSource, /aria-label="광고 소재 후보"/);
+  assert.match(workspaceSource, /<CarouselContent className="ml-0">/);
+  assert.match(workspaceSource, /<CarouselItem\s+className="basis-full pl-0"/);
+  assert.match(workspaceSource, /aria-label="이전 광고 소재"/);
+  assert.match(workspaceSource, /aria-label="다음 광고 소재"/);
+  assert.match(workspaceSource, /aria-label="광고 소재 이동"/);
+  assert.doesNotMatch(workspaceSource, /좌우 버튼 또는 방향키/);
+});
