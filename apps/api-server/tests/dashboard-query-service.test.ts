@@ -927,7 +927,7 @@ test("quick refinement keeps the AI recommendation user IDs as the base audience
   assert.equal(response.preview?.sample_size, 110);
 });
 
-test("restating recommendation signals returns the same authoritative AI audience", async () => {
+test("restoring the original recommendation after an edit keeps its condition labels", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
@@ -951,6 +951,33 @@ test("restating recommendation signals returns the same authoritative AI audienc
     emptyFunnelReader(),
     {
       ...emptySegmentQueryRepository(),
+      readAssistantExecutionState: async () => ({
+        assistant_plan: {
+          action: "segment_preview" as const,
+          execution_scope: "all_eligible_users" as const,
+          segment_name: "예약 완료 고객",
+          lookback_days: 30,
+          conditions: [
+            segmentCondition("예약 시작", "booking_start", 1, null),
+            segmentCondition("예약 완료", "booking_complete", 1, null),
+            segmentCondition("호텔 상세 조회", "hotel_detail_view", 1, null)
+          ],
+          clarification_message: null
+        },
+        source_audience: {
+          suggestion_id: "suggestion-1",
+          segment_id: "segment-1",
+          candidate_type: "funnel_recovery",
+          title: "예약 직전 이탈 고객",
+          base_condition_labels: ["예약 시작 후 미완료"],
+          hard_predicate_keys: ["booking_start_without_complete"],
+          reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+          base_user_ids: Array.from(
+            { length: 100 },
+            (_, index) => `user-${String(index + 1).padStart(3, "0")}`
+          )
+        }
+      }),
       createAssistantQueryPreview: async (_projectId, _query, plan) => {
         executedConditionCount = plan.conditions.length;
         return {
@@ -969,21 +996,18 @@ test("restating recommendation signals returns the same authoritative AI audienc
     {
       plan: async () => ({
         action: "segment_preview" as const,
-        segment_name: "예약 시작 미완료 상세 조회 고객",
+        segment_name: "예약 직전 이탈 고객",
         lookback_days: 30,
-        conditions: [
-          segmentCondition("예약 시작", "booking_start", 1, null),
-          segmentCondition("예약 미완료", "booking_complete", 0, 0),
-          segmentCondition("호텔 상세 조회", "hotel_detail_view", 1, null)
-        ],
+        conditions: [segmentCondition("예약 미완료", "booking_complete", 0, 0)],
         clarification_message: null
       })
     } as never
   );
 
   const response = await service.assistPromotionSegment("hotel-client-a", "promo_summer", {
-    message: "예약 시작, 예약 미완료, 호텔 상세 조회 조건으로 만들어줘",
+    message: "예약 완료를 예약 미완료로 바꿔봐",
     conversation: [],
+    previous_query_preview_id: "seg_query_preview_completed_booking",
     source_suggestion: {
       suggestion_id: "suggestion-1",
       segment_id: "segment-1",
@@ -998,7 +1022,7 @@ test("restating recommendation signals returns the same authoritative AI audienc
   assert.equal(executedConditionCount, 0);
   assert.equal(response.preview?.sample_size, 100);
   assert.equal(response.base_audience?.sample_size, 100);
-  assert.deepEqual(response.condition_labels, []);
+  assert.deepEqual(response.condition_labels, ["예약 시작", "예약 미완료", "호텔 상세 조회"]);
 });
 
 test("natural-language source edits preserve other conditions and recompute against all eligible users", async () => {
