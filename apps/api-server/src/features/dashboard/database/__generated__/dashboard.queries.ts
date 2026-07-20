@@ -1982,7 +1982,7 @@ export interface IListDashboardPromotionSegmentSuggestionsQuery {
   result: IListDashboardPromotionSegmentSuggestionsResult;
 }
 
-const listDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1073,"b":1082},{"a":1300,"b":1309}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1109,"b":1120},{"a":1345,"b":1356}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1160,"b":1170}]}],"statement":"SELECT\n  pss.suggestion_id AS \"suggestionId\",\n  pss.analysis_id AS \"analysisId\",\n  pss.audience_snapshot_id AS \"audienceSnapshotId\",\n  pa.output_json->'audience_allocation_preview_context' AS \"audienceAllocationPreviewContext\",\n  pss.campaign_id AS \"campaignId\",\n  pss.promotion_id AS \"promotionId\",\n  pss.segment_id AS \"segmentId\",\n  pss.suggested_rank AS \"suggestedRank\",\n  pss.suggestion_source AS \"suggestionSource\",\n  pss.status AS \"suggestionStatus\",\n  pss.score_json AS \"scoreJson\",\n  pss.reason_json AS \"reasonJson\",\n  pss.metadata_json AS \"metadataJson\",\n  sd.segment_name AS \"segmentName\",\n  sd.source AS \"segmentSource\",\n  sd.rule_json AS \"ruleJson\",\n  sd.profile_json AS \"profileJson\",\n  sd.sample_size AS \"sampleSize\",\n  CAST(sd.sample_ratio AS float8) AS \"sampleRatio\",\n  pss.created_at AS \"createdAt\",\n  pss.updated_at AS \"updatedAt\",\n  pss.decided_at AS \"decidedAt\"\nFROM promotion_segment_suggestions pss\nJOIN segment_definitions sd\n  ON sd.segment_id = pss.segment_id\nJOIN promotion_analyses pa\n  ON pa.analysis_id = pss.analysis_id\nWHERE pss.project_id = :projectId\n  AND pss.promotion_id = :promotionId\n  AND pss.analysis_id = COALESCE(\n    :analysisId::varchar,\n    (\n      SELECT latest.analysis_id\n      FROM promotion_segment_suggestions latest\n      WHERE latest.project_id = :projectId\n        AND latest.promotion_id = :promotionId\n      ORDER BY latest.created_at DESC, latest.analysis_id DESC\n      LIMIT 1\n    )\n  )\nORDER BY pss.suggested_rank ASC, pss.created_at ASC                                                 "};
+const listDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1073,"b":1082},{"a":1300,"b":1309}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1109,"b":1120},{"a":1345,"b":1356}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1160,"b":1170}]}],"statement":"SELECT\n  pss.suggestion_id AS \"suggestionId\",\n  pss.analysis_id AS \"analysisId\",\n  pss.audience_snapshot_id AS \"audienceSnapshotId\",\n  pa.output_json->'audience_allocation_preview_context' AS \"audienceAllocationPreviewContext\",\n  pss.campaign_id AS \"campaignId\",\n  pss.promotion_id AS \"promotionId\",\n  pss.segment_id AS \"segmentId\",\n  pss.suggested_rank AS \"suggestedRank\",\n  pss.suggestion_source AS \"suggestionSource\",\n  pss.status AS \"suggestionStatus\",\n  pss.score_json AS \"scoreJson\",\n  pss.reason_json AS \"reasonJson\",\n  pss.metadata_json AS \"metadataJson\",\n  sd.segment_name AS \"segmentName\",\n  sd.source AS \"segmentSource\",\n  sd.rule_json AS \"ruleJson\",\n  sd.profile_json AS \"profileJson\",\n  sd.sample_size AS \"sampleSize\",\n  CAST(sd.sample_ratio AS float8) AS \"sampleRatio\",\n  pss.created_at AS \"createdAt\",\n  pss.updated_at AS \"updatedAt\",\n  pss.decided_at AS \"decidedAt\"\nFROM promotion_segment_suggestions pss\nJOIN segment_definitions sd\n  ON sd.segment_id = pss.segment_id\nJOIN promotion_analyses pa\n  ON pa.analysis_id = pss.analysis_id\nWHERE pss.project_id = :projectId\n  AND pss.promotion_id = :promotionId\n  AND pss.analysis_id = COALESCE(\n    :analysisId::varchar,\n    (\n      SELECT latest.analysis_id\n      FROM promotion_segment_suggestions latest\n      WHERE latest.project_id = :projectId\n        AND latest.promotion_id = :promotionId\n      ORDER BY latest.created_at DESC, latest.analysis_id DESC\n      LIMIT 1\n    )\n  )\nORDER BY pss.suggested_rank ASC, pss.created_at ASC                                             "};
 
 /**
  * Query generated from SQL:
@@ -2028,10 +2028,54 @@ const listDashboardPromotionSegmentSuggestionsIR: any = {"usedParamSet":{"projec
  *       LIMIT 1
  *     )
  *   )
- * ORDER BY pss.suggested_rank ASC, pss.created_at ASC                                                 
+ * ORDER BY pss.suggested_rank ASC, pss.created_at ASC
  * ```
  */
 export const listDashboardPromotionSegmentSuggestions = new PreparedQuery<IListDashboardPromotionSegmentSuggestionsParams,IListDashboardPromotionSegmentSuggestionsResult>(listDashboardPromotionSegmentSuggestionsIR);
+
+
+/** 'ListDashboardPromotionSegmentSuggestionAudienceMembers' parameters type */
+export interface IListDashboardPromotionSegmentSuggestionAudienceMembersParams {
+  projectId?: string | null | void;
+  promotionId?: string | null | void;
+  suggestionId?: string | null | void;
+}
+
+/** 'ListDashboardPromotionSegmentSuggestionAudienceMembers' return type */
+export interface IListDashboardPromotionSegmentSuggestionAudienceMembersResult {
+  userId: string;
+}
+
+/** 'ListDashboardPromotionSegmentSuggestionAudienceMembers' query type */
+export interface IListDashboardPromotionSegmentSuggestionAudienceMembersQuery {
+  params: IListDashboardPromotionSegmentSuggestionAudienceMembersParams;
+  result: IListDashboardPromotionSegmentSuggestionAudienceMembersResult;
+}
+
+const listDashboardPromotionSegmentSuggestionAudienceMembersIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"suggestionId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":499,"b":508}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":542,"b":553}]},{"name":"suggestionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":588,"b":600}]}],"statement":"SELECT\n  member.user_id AS \"userId\"\nFROM promotion_segment_suggestions suggestion\nJOIN segment_audience_snapshots snapshot\n  ON snapshot.snapshot_id = suggestion.audience_snapshot_id\n AND snapshot.project_id = suggestion.project_id\n AND snapshot.campaign_id = suggestion.campaign_id\n AND snapshot.promotion_id = suggestion.promotion_id\n AND snapshot.segment_id = suggestion.segment_id\nJOIN segment_audience_members member\n  ON member.snapshot_id = snapshot.snapshot_id\nWHERE suggestion.project_id = :projectId\n  AND suggestion.promotion_id = :promotionId\n  AND suggestion.suggestion_id = :suggestionId\n  AND snapshot.status = 'completed'\nORDER BY member.user_id ASC                                                 "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   member.user_id AS "userId"
+ * FROM promotion_segment_suggestions suggestion
+ * JOIN segment_audience_snapshots snapshot
+ *   ON snapshot.snapshot_id = suggestion.audience_snapshot_id
+ *  AND snapshot.project_id = suggestion.project_id
+ *  AND snapshot.campaign_id = suggestion.campaign_id
+ *  AND snapshot.promotion_id = suggestion.promotion_id
+ *  AND snapshot.segment_id = suggestion.segment_id
+ * JOIN segment_audience_members member
+ *   ON member.snapshot_id = snapshot.snapshot_id
+ * WHERE suggestion.project_id = :projectId
+ *   AND suggestion.promotion_id = :promotionId
+ *   AND suggestion.suggestion_id = :suggestionId
+ *   AND snapshot.status = 'completed'
+ * ORDER BY member.user_id ASC
+ * ```
+ */
+export const listDashboardPromotionSegmentSuggestionAudienceMembers = new PreparedQuery<IListDashboardPromotionSegmentSuggestionAudienceMembersParams,IListDashboardPromotionSegmentSuggestionAudienceMembersResult>(listDashboardPromotionSegmentSuggestionAudienceMembersIR);
 
 
 /** 'DecideDashboardPromotionSegmentSuggestion' parameters type */
