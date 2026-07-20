@@ -1,6 +1,65 @@
 import { z } from "zod";
 import { CountSchema } from "./schema-primitives.js";
 
+const JsonNumericSchema = z
+  .union([z.number(), z.string().regex(/^\d+(?:\.\d+)?$/)])
+  .transform((value) => Number(value))
+  .pipe(z.number().finite().nonnegative());
+const JsonRateSchema = JsonNumericSchema.pipe(z.number().max(1));
+
+export const DashboardEvaluationFunnelStageSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  user_count: CountSchema,
+  conversion_rate_from_previous: JsonRateSchema.nullable(),
+  dropoff_count_from_previous: CountSchema.nullable(),
+  dropoff_rate_from_previous: JsonRateSchema.nullable()
+});
+export type DashboardEvaluationFunnelStage = z.infer<typeof DashboardEvaluationFunnelStageSchema>;
+
+export const DashboardEvaluationLargestDropoffSchema = z.object({
+  from_stage_key: z.string().min(1),
+  from_stage_label: z.string().min(1),
+  to_stage_key: z.string().min(1),
+  to_stage_label: z.string().min(1),
+  from_count: CountSchema,
+  to_count: CountSchema,
+  dropoff_count: CountSchema,
+  dropoff_rate: JsonRateSchema
+});
+export type DashboardEvaluationLargestDropoff = z.infer<
+  typeof DashboardEvaluationLargestDropoffSchema
+>;
+
+export const DashboardExperimentEvaluationDiagnosisSchema = z.object({
+  version: z.string().min(1),
+  status: z.string().min(1),
+  summary: z.string().min(1),
+  observed_bottleneck: z.string().min(1),
+  largest_dropoff: DashboardEvaluationLargestDropoffSchema.nullable(),
+  evidence: z.array(z.string().min(1)),
+  improvement_directions: z.array(z.string().min(1)),
+  gap_percentage_points: JsonNumericSchema,
+  evidence_strength: z.object({
+    level: z.enum(["unavailable", "insufficient", "limited", "sufficient"]),
+    sample_size: CountSchema,
+    reason: z.string().min(1)
+  }),
+  limitations: z.array(z.string().min(1)),
+  data_origin: z.object({
+    kind: z.enum(["observed", "demo_fixture", "mixed"]),
+    label: z.string().min(1)
+  }),
+  funnel: z.object({
+    counting_method: z.string().min(1),
+    stages: z.array(DashboardEvaluationFunnelStageSchema).min(2),
+    largest_dropoff: DashboardEvaluationLargestDropoffSchema.nullable()
+  })
+});
+export type DashboardExperimentEvaluationDiagnosis = z.infer<
+  typeof DashboardExperimentEvaluationDiagnosisSchema
+>;
+
 export const DashboardProjectExperimentLatestEvaluationSchema = z.object({
   metric: z.string(),
   target_value: z.number().nonnegative(),
@@ -12,6 +71,9 @@ export const DashboardProjectExperimentLatestEvaluationSchema = z.object({
   status: z.string(),
   feedback: z.string().nullable(),
   next_loop_required: z.boolean(),
+  evaluation_cutoff_at: z.string().nullable(),
+  window_start: z.string().nullable(),
+  diagnosis: DashboardExperimentEvaluationDiagnosisSchema.nullable(),
   created_at: z.string()
 });
 export type DashboardProjectExperimentLatestEvaluation = z.infer<

@@ -47,6 +47,7 @@ SELECT
   evaluation.status AS "evaluationStatus",
   evaluation.feedback AS "evaluationFeedback",
   evaluation.next_loop_required AS "evaluationNextLoopRequired",
+  evaluation.result_json AS "evaluationResultJson",
   evaluation.created_at AS "evaluationCreatedAt",
   next_run.promotion_run_id AS "nextPromotionRunId",
   next_run.loop_count AS "nextLoopCount",
@@ -75,11 +76,12 @@ LEFT JOIN LATERAL (
     pe.status,
     pe.feedback,
     pe.next_loop_required,
+    pe.result_json,
     pe.created_at
   FROM promotion_evaluations pe
   WHERE pe.project_id = ae.project_id
     AND pe.ad_experiment_id = ae.ad_experiment_id
-  ORDER BY pe.created_at DESC
+  ORDER BY pe.created_at DESC, pe.evaluation_id DESC
   LIMIT 1
 ) evaluation ON TRUE
 LEFT JOIN LATERAL (
