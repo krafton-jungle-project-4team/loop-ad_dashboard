@@ -316,7 +316,7 @@ export function PromotionSegmentSuggestionPanel({
       <CardFooter className="grid shrink-0 gap-4 border-t bg-muted/20 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="grid min-w-0 gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">선택한 세그먼트</span>
+            <span className="text-sm font-semibold">선택한 고객군</span>
             <Badge variant="secondary">{formatInteger(confirmableCount)}</Badge>
           </div>
           {selectedSegments.length > 0 ? (

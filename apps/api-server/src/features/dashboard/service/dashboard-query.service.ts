@@ -1301,7 +1301,7 @@ function segmentAssistantMessage(
   const counts = `최근 ${lookbackDays}일 기준 조건에 맞는 고객은 ${preview.sample_size.toLocaleString("ko-KR")}명이며, 분석 가능 사용자 ${preview.total_eligible_user_count.toLocaleString("ko-KR")}명의 ${ratio}%입니다.`;
   return action === "audience_query"
     ? counts
-    : `${counts} 조건을 확인한 뒤 이 고객군을 세그먼트로 추가할 수 있습니다.`;
+    : `${counts} 조건을 확인한 뒤 이 고객군을 후보로 추가할 수 있습니다.`;
 }
 
 async function readContentCandidateHtml(

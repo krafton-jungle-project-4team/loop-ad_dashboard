@@ -308,7 +308,7 @@ function createExperiment(
     promotion_name: "기본 프로모션",
     promotion_run_id: "run-default",
     segment_id: "segment-default",
-    segment_name: "기본 세그먼트",
+    segment_name: "기본 고객군",
     started_at: null,
     status: "planned",
     updated_at: "2026-07-12T00:00:00.000Z",
