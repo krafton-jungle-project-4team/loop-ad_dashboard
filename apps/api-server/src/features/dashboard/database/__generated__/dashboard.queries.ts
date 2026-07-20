@@ -3310,7 +3310,7 @@ export interface IGetDashboardPromotionGenerationResultQuery {
   result: IGetDashboardPromotionGenerationResultResult;
 }
 
-const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":303,"b":312}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":338,"b":349}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":374,"b":384}]}],"statement":"SELECT\n  gr.generation_id AS \"generationId\",\n  gr.promotion_id AS \"promotionId\",\n  gr.status,\n  COUNT(cc.content_id)::int AS \"contentCandidateCount\"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\n\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1                                    "};
+const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"analysisId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":303,"b":312}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":338,"b":349}]},{"name":"analysisId","required":false,"transform":{"type":"scalar"},"locs":[{"a":374,"b":384}]}],"statement":"SELECT\n  gr.generation_id AS \"generationId\",\n  gr.promotion_id AS \"promotionId\",\n  gr.status,\n  COUNT(cc.content_id)::int AS \"contentCandidateCount\"\nFROM generation_runs gr\nLEFT JOIN content_candidates cc\n  ON cc.project_id = gr.project_id\n AND cc.generation_id = gr.generation_id\nWHERE gr.project_id = :projectId\n  AND gr.promotion_id = :promotionId\n  AND gr.analysis_id = :analysisId\n  AND jsonb_typeof(gr.input_json -> 'target_segment_ids') = 'array'\n  AND EXISTS (\n    SELECT 1\n    FROM promotion_target_segments pts\n    WHERE pts.project_id = gr.project_id\n      AND pts.promotion_id = gr.promotion_id\n      AND pts.analysis_id = gr.analysis_id\n      AND pts.status = 'approved'\n  )\n  AND jsonb_array_length(gr.input_json -> 'target_segment_ids') = (\n    SELECT COUNT(*)::int\n    FROM promotion_target_segments pts\n    WHERE pts.project_id = gr.project_id\n      AND pts.promotion_id = gr.promotion_id\n      AND pts.analysis_id = gr.analysis_id\n      AND pts.status = 'approved'\n  )\n  AND NOT EXISTS (\n    SELECT 1\n    FROM promotion_target_segments pts\n    WHERE pts.project_id = gr.project_id\n      AND pts.promotion_id = gr.promotion_id\n      AND pts.analysis_id = gr.analysis_id\n      AND pts.status = 'approved'\n      AND NOT (gr.input_json -> 'target_segment_ids' ? pts.segment_id)\n  )\nGROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at\nORDER BY gr.updated_at DESC, gr.created_at DESC\nLIMIT 1"};
 
 /**
  * Query generated from SQL:
@@ -3327,10 +3327,35 @@ const getDashboardPromotionGenerationResultIR: any = {"usedParamSet":{"projectId
  * WHERE gr.project_id = :projectId
  *   AND gr.promotion_id = :promotionId
  *   AND gr.analysis_id = :analysisId
- * 
+ *   AND jsonb_typeof(gr.input_json -> 'target_segment_ids') = 'array'
+ *   AND EXISTS (
+ *     SELECT 1
+ *     FROM promotion_target_segments pts
+ *     WHERE pts.project_id = gr.project_id
+ *       AND pts.promotion_id = gr.promotion_id
+ *       AND pts.analysis_id = gr.analysis_id
+ *       AND pts.status = 'approved'
+ *   )
+ *   AND jsonb_array_length(gr.input_json -> 'target_segment_ids') = (
+ *     SELECT COUNT(*)::int
+ *     FROM promotion_target_segments pts
+ *     WHERE pts.project_id = gr.project_id
+ *       AND pts.promotion_id = gr.promotion_id
+ *       AND pts.analysis_id = gr.analysis_id
+ *       AND pts.status = 'approved'
+ *   )
+ *   AND NOT EXISTS (
+ *     SELECT 1
+ *     FROM promotion_target_segments pts
+ *     WHERE pts.project_id = gr.project_id
+ *       AND pts.promotion_id = gr.promotion_id
+ *       AND pts.analysis_id = gr.analysis_id
+ *       AND pts.status = 'approved'
+ *       AND NOT (gr.input_json -> 'target_segment_ids' ? pts.segment_id)
+ *   )
  * GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
  * ORDER BY gr.updated_at DESC, gr.created_at DESC
- * LIMIT 1                                    
+ * LIMIT 1
  * ```
  */
 export const getDashboardPromotionGenerationResult = new PreparedQuery<IGetDashboardPromotionGenerationResultParams,IGetDashboardPromotionGenerationResultResult>(getDashboardPromotionGenerationResultIR);
@@ -4465,5 +4490,4 @@ const deleteFunnelDefinitionIR: any = {"usedParamSet":{"projectId":true,"funnelI
  * ```
  */
 export const deleteFunnelDefinition = new PreparedQuery<IDeleteFunnelDefinitionParams,IDeleteFunnelDefinitionResult>(deleteFunnelDefinitionIR);
-
 
