@@ -1,6 +1,8 @@
 import {
   DASHBOARD_FALLBACK_SEGMENT_ID,
   type DashboardEvaluateAdExperimentResult,
+  type DashboardExperimentEvaluationDiagnosis,
+  type DashboardProjectExperimentLatestEvaluation,
   type DashboardProjectExperiment
 } from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
@@ -24,6 +26,7 @@ import {
   SelectValue
 } from "@loopad/ui/shadcn/select";
 import { Spinner } from "@loopad/ui/shadcn/spinner";
+import { Progress } from "@loopad/ui/shadcn/progress";
 import {
   Table,
   TableBody,
@@ -32,9 +35,23 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { ChevronDown, ChevronRight, Plus, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  FlaskConical,
+  Plus,
+  RefreshCw,
+  TrendingDown
+} from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { formatDateTime, formatInteger } from "../../../../../../model/dashboard-format.js";
+import {
+  formatDateTime,
+  formatInteger,
+  formatPercent
+} from "../../../../../../model/dashboard-format.js";
 import {
   formatChannelLabel,
   formatMetricLabel,
@@ -658,51 +675,10 @@ function SelectedProjectExperimentDetail({
           />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="grid content-start gap-3 rounded-xl border p-4">
-            <div className="grid gap-1">
-              <h3 className="font-semibold">평가 대상과 결과</h3>
-              <p className="text-sm text-muted-foreground">
-                최신 평가 결과와 계산에 쓴 대상을 보여 줘요.
-              </p>
-            </div>
-            {evaluation ? (
-              <div className="grid gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={statusBadgeVariant(evaluation.status)}>
-                    {formatStatusLabel(evaluation.status)}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    {formatDateTime(evaluation.created_at)}
-                  </span>
-                </div>
-                <dl className="grid grid-cols-2 gap-3 text-sm">
-                  <DefinitionItem label="분자" value={formatInteger(evaluation.numerator_count)} />
-                  <DefinitionItem
-                    label="분모"
-                    value={formatInteger(evaluation.denominator_count)}
-                  />
-                </dl>
-                {evaluation.status === "insufficient_data" ? (
-                  <Alert>
-                    <AlertTitle>평가 대상이 더 필요해요</AlertTitle>
-                    <AlertDescription>
-                      {evaluation.feedback ??
-                        `현재 ${formatInteger(evaluation.sample_size)}명으로는 안정적인 평가가 어려워요.`}
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {evaluation.feedback ?? "추가 안내가 없어요."}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <EmptyState message="아직 평가 결과가 없어요. 성과 평가를 시작해 주세요." />
-            )}
-          </section>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+          <EvaluationDiagnosisSection evaluation={evaluation} />
 
-          <section className="grid content-start gap-3 rounded-xl border p-4">
+          <section className="grid content-start gap-3 border-t pt-5 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
             <div className="grid gap-1">
               <h3 className="font-semibold">반복 실험</h3>
               <p className="text-sm text-muted-foreground">
@@ -748,6 +724,211 @@ function SelectedProjectExperimentDetail({
       </CardContent>
     </Card>
   );
+}
+
+function EvaluationDiagnosisSection({
+  evaluation
+}: {
+  evaluation: DashboardProjectExperimentLatestEvaluation | null;
+}) {
+  if (!evaluation) {
+    return (
+      <section className="grid content-start gap-3">
+        <h3 className="font-semibold">평가 대상과 결과</h3>
+        <EmptyState message="아직 평가 결과가 없어요. 성과 평가를 시작해 주세요." />
+      </section>
+    );
+  }
+
+  const diagnosis = evaluation.diagnosis;
+  return (
+    <section className="grid content-start gap-5">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold">평가 퍼널과 원인</h3>
+            <Badge variant={statusBadgeVariant(evaluation.status)}>
+              {formatStatusLabel(evaluation.status)}
+            </Badge>
+            {diagnosis ? <EvaluationOriginBadge diagnosis={diagnosis} /> : null}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            평가 기준 {formatDateTime(evaluation.evaluation_cutoff_at ?? evaluation.created_at)} ·
+            표본 {formatInteger(evaluation.sample_size)}명
+          </p>
+        </div>
+        {diagnosis ? <Badge variant="outline">{evidenceStrengthLabel(diagnosis)}</Badge> : null}
+      </header>
+
+      {diagnosis ? (
+        <>
+          <EvaluationFunnel diagnosis={diagnosis} />
+          <EvaluationCause diagnosis={diagnosis} />
+        </>
+      ) : evaluation.status === "insufficient_data" ? (
+        <Alert>
+          <AlertTitle>평가 대상이 더 필요해요</AlertTitle>
+          <AlertDescription>
+            {evaluation.feedback ??
+              `현재 ${formatInteger(evaluation.sample_size)}명으로는 안정적인 평가가 어려워요.`}
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="grid gap-3">
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <DefinitionItem label="분자" value={formatInteger(evaluation.numerator_count)} />
+            <DefinitionItem label="분모" value={formatInteger(evaluation.denominator_count)} />
+          </dl>
+          <p className="text-sm text-muted-foreground">
+            {evaluation.feedback ?? "추가 안내가 없어요."}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EvaluationOriginBadge({
+  diagnosis
+}: {
+  diagnosis: DashboardExperimentEvaluationDiagnosis;
+}) {
+  if (diagnosis.data_origin.kind === "demo_fixture") {
+    return (
+      <Badge className="border-amber-300 bg-amber-50 text-amber-800" variant="outline">
+        <FlaskConical aria-hidden="true" data-icon="inline-start" />
+        {diagnosis.data_origin.label}
+      </Badge>
+    );
+  }
+  if (diagnosis.data_origin.kind === "mixed") {
+    return (
+      <Badge variant="destructive">
+        <AlertTriangle aria-hidden="true" data-icon="inline-start" />
+        {diagnosis.data_origin.label}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline">
+      <Database aria-hidden="true" data-icon="inline-start" />
+      {diagnosis.data_origin.label}
+    </Badge>
+  );
+}
+
+function EvaluationFunnel({ diagnosis }: { diagnosis: DashboardExperimentEvaluationDiagnosis }) {
+  const stages = diagnosis.funnel.stages;
+  const firstStageCount = stages[0]?.user_count ?? 0;
+  const bottleneckToStage = diagnosis.largest_dropoff?.to_stage_key;
+
+  return (
+    <div
+      aria-label="광고 반응 이후 고객 행동 퍼널"
+      className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5"
+    >
+      {stages.map((stage, index) => {
+        const reachRate = firstStageCount > 0 ? (stage.user_count / firstStageCount) * 100 : 0;
+        const isBottleneck = stage.key === bottleneckToStage;
+        return (
+          <div
+            className={`grid min-h-32 content-between gap-3 border-l-2 px-3 py-2 ${
+              isBottleneck ? "border-destructive bg-destructive/5" : "border-border"
+            }`}
+            key={stage.key}
+          >
+            <div className="grid gap-1">
+              <span className="text-xs text-muted-foreground">{index + 1}단계</span>
+              <h4 className="text-sm font-semibold">{stage.label}</h4>
+            </div>
+            <div className="grid gap-2">
+              <strong className="text-2xl font-semibold tabular-nums">
+                {formatInteger(stage.user_count)}명
+              </strong>
+              <Progress aria-label={`${stage.label} 도달률`} value={reachRate} />
+              {stage.conversion_rate_from_previous === null ? (
+                <span className="text-xs text-muted-foreground">평가 기준 고객</span>
+              ) : (
+                <span
+                  className={
+                    isBottleneck
+                      ? "text-xs font-medium text-destructive"
+                      : "text-xs text-muted-foreground"
+                  }
+                >
+                  이전 단계 대비 {formatPercent(stage.conversion_rate_from_previous)} 도달
+                  {stage.dropoff_count_from_previous
+                    ? ` · ${formatInteger(stage.dropoff_count_from_previous)}명 이탈`
+                    : ""}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EvaluationCause({ diagnosis }: { diagnosis: DashboardExperimentEvaluationDiagnosis }) {
+  const isGoalMet = diagnosis.status === "goal_met";
+  const CauseIcon = isGoalMet ? CheckCircle2 : TrendingDown;
+  return (
+    <div className="grid gap-4 border-t pt-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid content-start gap-2">
+        <div className="flex items-center gap-2">
+          <CauseIcon
+            className={isGoalMet ? "size-4 text-emerald-700" : "size-4 text-destructive"}
+          />
+          <h4 className="text-sm font-semibold">
+            {isGoalMet ? "목표 달성 요약" : "가장 큰 이탈 구간"}
+          </h4>
+        </div>
+        <p className="text-sm leading-6 text-foreground">{diagnosis.summary}</p>
+        <p className="text-xs leading-5 text-muted-foreground">
+          {diagnosis.evidence_strength.reason}
+        </p>
+      </div>
+      <div className="grid content-start gap-2">
+        <h4 className="text-sm font-semibold">판단 근거</h4>
+        <ul className="grid gap-1.5 text-sm text-muted-foreground">
+          {diagnosis.evidence.map((item) => (
+            <li className="border-l-2 border-border pl-2" key={item}>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="grid content-start gap-2">
+        <h4 className="text-sm font-semibold">다음 실험에서 확인할 항목</h4>
+        <ul className="grid gap-1.5 text-sm text-muted-foreground">
+          {diagnosis.improvement_directions.map((item) => (
+            <li className="border-l-2 border-primary/40 pl-2" key={item}>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {diagnosis.limitations.length > 0 ? (
+        <p className="text-xs leading-5 text-muted-foreground lg:col-span-3">
+          {diagnosis.limitations.join(" ")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function evidenceStrengthLabel(diagnosis: DashboardExperimentEvaluationDiagnosis): string {
+  switch (diagnosis.evidence_strength.level) {
+    case "sufficient":
+      return "원인 진단 표본 확보";
+    case "limited":
+      return "원인 진단 참고 수준";
+    case "insufficient":
+      return "평가 표본 부족";
+    default:
+      return "측정 데이터 없음";
+  }
 }
 
 function ProjectExperimentPagination({
