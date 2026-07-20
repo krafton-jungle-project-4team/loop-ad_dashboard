@@ -27,6 +27,11 @@ export const DASHBOARD_ERRORS = {
     code: "DASHBOARD_DECISION_REQUEST_FAILED",
     message: "Decision API request failed."
   },
+  AD_EXPERIMENT_NOT_FOUND: {
+    statusCode: HttpStatus.NOT_FOUND,
+    code: "DASHBOARD_AD_EXPERIMENT_NOT_FOUND",
+    message: "선택한 고객군의 광고 실험을 찾을 수 없습니다."
+  },
   CONTENT_CANDIDATE_APPROVAL_LOCKED: {
     statusCode: HttpStatus.CONFLICT,
     code: "DASHBOARD_CONTENT_CANDIDATE_APPROVAL_LOCKED",
@@ -92,6 +97,7 @@ export const dashboardErrors = {
       },
       { cause }
     ),
+  adExperimentNotFound: () => createDashboardError(DASHBOARD_ERRORS.AD_EXPERIMENT_NOT_FOUND),
   contentCandidateApprovalLocked: () =>
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_APPROVAL_LOCKED),
   contentCandidateNotEditable: () =>

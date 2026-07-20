@@ -28,6 +28,7 @@ import type {
   DashboardDeletePromotionSegmentResult,
   DashboardDeleteFunnelResult,
   DashboardEventCatalog,
+  DashboardEvaluateAdExperimentResult,
   DashboardEvaluatePromotionRunResult,
   DashboardFunnel,
   DashboardFunnelList,
@@ -1259,6 +1260,47 @@ export class DashboardQueryService {
       scheduledStartAt: result.scheduled_start_at
     });
     return result;
+  }
+
+  @LogContextScope()
+  async evaluateAdExperiment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    adExperimentId: string
+  ): Promise<DashboardEvaluateAdExperimentResult> {
+    const startedAt = Date.now();
+    log.assignContext({ adExperimentId, projectId, promotionId, segmentId });
+    log.info("started", { adExperimentId, projectId, promotionId, segmentId });
+    const experiment = await this.campaignReader.findAdExperiment(
+      projectId,
+      promotionId,
+      segmentId,
+      adExperimentId
+    );
+    if (!experiment || experiment.is_fallback) {
+      log.warn("ad_experiment_not_found");
+      throw dashboardErrors.adExperimentNotFound();
+    }
+
+    log.assignContext({ promotionRunId: experiment.promotion_run_id });
+    await this.campaignReader.preparePromotionRunEvaluationCompatibility(
+      projectId,
+      experiment.promotion_run_id
+    );
+    const response = await this.decisionClient.evaluateAdExperiment({ adExperimentId });
+    if (
+      response.ad_experiment_id !== adExperimentId ||
+      response.promotion_id !== promotionId ||
+      response.promotion_run_id !== experiment.promotion_run_id ||
+      response.segment_id !== segmentId
+    ) {
+      log.warn("ad_experiment_evaluation_scope_mismatch", { response });
+      throw dashboardErrors.decisionRequestFailed();
+    }
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
   }
 
   @LogContextScope()

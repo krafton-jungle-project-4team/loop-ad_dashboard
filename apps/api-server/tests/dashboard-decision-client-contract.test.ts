@@ -265,6 +265,36 @@ test("decision client preserves promotion run evaluation request contract", asyn
   });
 });
 
+test("decision client evaluates only the requested ad experiment", async () => {
+  const response = {
+    evaluation_id: "evaluation-1",
+    ad_experiment_id: "experiment/1",
+    promotion_run_id: "run-1",
+    promotion_id: "promotion-1",
+    segment_id: "segment-1",
+    metric: "booking_conversion_rate",
+    target_value: "0.30",
+    actual_value: "0.42",
+    numerator_count: 42,
+    denominator_count: 100,
+    sample_size: 100,
+    basis: "all_segments",
+    status: "goal_met",
+    next_loop_required: false,
+    feedback: null
+  };
+  const { client, requests } = await createClientWithResponse(response);
+
+  const result = await client.evaluateAdExperiment({ adExperimentId: "experiment/1" });
+
+  assert.equal(result.actual_value, 0.42);
+  assert.equal(result.segment_id, "segment-1");
+  assertDecisionRequest(requests[0], {
+    path: "/decision/v1/ad-experiments/experiment%2F1/evaluate",
+    body: {}
+  });
+});
+
 test("decision client preserves next loop request contract", async () => {
   const response = {
     previous_promotion_run_id: "run-1",

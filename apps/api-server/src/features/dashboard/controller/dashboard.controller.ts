@@ -41,6 +41,7 @@ import {
   DashboardEntitySearchQuerySchema,
   DashboardEntitySearchResponseSchema,
   DashboardEventCatalogSchema,
+  DashboardEvaluateAdExperimentResultSchema,
   DashboardEvaluatePromotionRunResultSchema,
   DashboardFunnelListSchema,
   DashboardFunnelMetricsDateRangeSchema,
@@ -484,6 +485,24 @@ export class DashboardController {
     const requiredProjectId = requireProjectId(projectId);
     return DashboardStartAdExperimentResultSchema.parse(
       await this.dashboardQuery.startAdExperiment(requiredProjectId, promotionId, adExperimentId)
+    );
+  }
+
+  @Post("promotions/:promotion_id/segments/:segment_id/ad-experiments/:ad_experiment_id/evaluate")
+  async evaluateAdExperiment(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("ad_experiment_id") adExperimentId: string,
+    @Query("project_id") projectId: string | undefined
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    return DashboardEvaluateAdExperimentResultSchema.parse(
+      await this.dashboardQuery.evaluateAdExperiment(
+        requiredProjectId,
+        promotionId,
+        segmentId,
+        adExperimentId
+      )
     );
   }
 
