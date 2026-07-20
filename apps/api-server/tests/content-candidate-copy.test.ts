@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { DashboardContentCandidate } from "@loopad/shared";
 import {
+  applyCreativeHtmlReplacementPatch,
   contentCandidateCopy,
   contentCandidateHtmlRevision,
   contentCandidateHtmlUrl,
@@ -10,6 +11,71 @@ import {
   rewriteCreativeHtmlCopy,
   sanitizeCreativeHtmlRevision
 } from "../src/features/dashboard/service/content-candidate-copy.js";
+
+test("exact HTML replacements are applied against the original source regardless of order", () => {
+  const sourceHtml =
+    '<article style="padding:16px"><h1 style="color:#111">기존 제목</h1><a>예약하기</a></article>';
+  const revised = applyCreativeHtmlReplacementPatch(sourceHtml, [
+    { before: "예약하기", after: "혜택 보기" },
+    { before: "padding:16px", after: "padding:28px" },
+    { before: "color:#111", after: "color:#7c3aed" }
+  ]);
+
+  assert.equal(
+    revised,
+    '<article style="padding:28px"><h1 style="color:#7c3aed">기존 제목</h1><a>혜택 보기</a></article>'
+  );
+});
+
+test("exact HTML replacements reject missing, ambiguous, overlapping, and no-op patches", () => {
+  assert.throws(
+    () =>
+      applyCreativeHtmlReplacementPatch("<p>본문</p>", [{ before: "없는 문구", after: "새 문구" }]),
+    /did not match/
+  );
+  assert.throws(
+    () =>
+      applyCreativeHtmlReplacementPatch("<p>반복</p><p>반복</p>", [
+        { before: "반복", after: "변경" }
+      ]),
+    /ambiguous/
+  );
+  assert.throws(
+    () =>
+      applyCreativeHtmlReplacementPatch("abcdef", [
+        { before: "abc", after: "ABC" },
+        { before: "bc", after: "BC" }
+      ]),
+    /overlap/
+  );
+  assert.throws(
+    () =>
+      applyCreativeHtmlReplacementPatch("<p>그대로</p>", [{ before: "그대로", after: "그대로" }]),
+    /invalid/
+  );
+});
+
+test("exact HTML replacements enforce operation and byte limits", () => {
+  const sourceHtml = Array.from({ length: 13 }, (_, index) => `<i>${index}</i>`).join("");
+  assert.throws(
+    () =>
+      applyCreativeHtmlReplacementPatch(
+        sourceHtml,
+        Array.from({ length: 13 }, (_, index) => ({
+          before: `<i>${index}</i>`,
+          after: `<b>${index}</b>`
+        }))
+      ),
+    /operation count/
+  );
+  assert.throws(
+    () =>
+      applyCreativeHtmlReplacementPatch("<p>본문</p>", [
+        { before: "본문", after: "x".repeat(8_001) }
+      ]),
+    /invalid/
+  );
+});
 
 test("generated HTML copy is replaced without changing the surrounding design", () => {
   const candidate = contentCandidate();

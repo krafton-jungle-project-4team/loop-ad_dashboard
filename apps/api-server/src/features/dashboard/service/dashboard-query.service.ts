@@ -95,6 +95,7 @@ import {
 } from "../provider/index.js";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import {
+  applyCreativeHtmlReplacementPatch,
   contentCandidateCopy,
   contentCandidateHtmlRevision,
   contentCandidateHtmlUrl,
@@ -1086,37 +1087,87 @@ export class DashboardQueryService {
     }
 
     const currentCopy = contentCandidateCopy(candidate);
-    let revision;
+    const revisionInput = {
+      ...currentCopy,
+      channel: candidate.channel,
+      feedback: request.feedback,
+      html: sourceHtml
+    };
+    let plan;
     try {
-      revision = await this.creativeRevisionAgent.revise({
-        ...currentCopy,
-        channel: candidate.channel,
-        feedback: request.feedback,
-        html: sourceHtml
-      });
+      plan = await this.creativeRevisionAgent.planPatch(revisionInput);
     } catch (error) {
-      log.warn("content_candidate_html_revision_failed", { err: error });
+      log.warn("content_candidate_html_revision_failed", {
+        err: error,
+        revisionMode: "patch"
+      });
       throw dashboardErrors.contentCandidateHtmlRevisionFailed(error);
     }
 
-    const nextCopy = {
-      body: revision.body,
-      cta: revision.cta,
-      headline: revision.headline
+    let nextCopy = {
+      body: plan.body,
+      cta: plan.cta,
+      headline: plan.headline
     };
-    let revisedHtml: string;
-    try {
-      revisedHtml = sanitizeCreativeHtmlRevision({
-        copy: nextCopy,
-        revisedHtml: revision.html,
-        sourceHtml
+    let changeSummary = plan.change_summary;
+    let revisedHtml: string | undefined;
+    let fallbackReason =
+      plan.strategy === "full_revision" ? "model_requested_full_revision" : undefined;
+    let patchError: unknown;
+    if (plan.strategy === "patch") {
+      try {
+        const patchedHtml = applyCreativeHtmlReplacementPatch(sourceHtml, plan.replacements);
+        revisedHtml = sanitizeCreativeHtmlRevision({
+          copy: nextCopy,
+          revisedHtml: patchedHtml,
+          sourceHtml
+        });
+      } catch (error) {
+        patchError = error;
+        fallbackReason = "patch_validation_failed";
+      }
+    }
+
+    let revisionMode: "full_fallback" | "patch" = "patch";
+    if (!revisedHtml) {
+      log.warn("content_candidate_html_revision_patch_fallback", {
+        err: patchError,
+        fallbackReason,
+        operationCount: plan.replacements.length
       });
-    } catch (error) {
-      log.warn("content_candidate_html_revision_invalid", {
-        err: error,
-        outputHtmlBytes: Buffer.byteLength(revision.html)
-      });
-      throw dashboardErrors.contentCandidateHtmlRevisionInvalid(error);
+      let fullRevision;
+      try {
+        fullRevision = await this.creativeRevisionAgent.revise(revisionInput);
+      } catch (error) {
+        log.warn("content_candidate_html_revision_failed", {
+          err: error,
+          fallbackReason,
+          revisionMode: "full_fallback"
+        });
+        throw dashboardErrors.contentCandidateHtmlRevisionFailed(error);
+      }
+      nextCopy = {
+        body: fullRevision.body,
+        cta: fullRevision.cta,
+        headline: fullRevision.headline
+      };
+      changeSummary = fullRevision.change_summary;
+      try {
+        revisedHtml = sanitizeCreativeHtmlRevision({
+          copy: nextCopy,
+          revisedHtml: fullRevision.html,
+          sourceHtml
+        });
+      } catch (error) {
+        log.warn("content_candidate_html_revision_invalid", {
+          err: error,
+          fallbackReason,
+          outputHtmlBytes: Buffer.byteLength(fullRevision.html),
+          revisionMode: "full_fallback"
+        });
+        throw dashboardErrors.contentCandidateHtmlRevisionInvalid(error);
+      }
+      revisionMode = "full_fallback";
     }
 
     const htmlRevision = contentCandidateHtmlRevision(revisedHtml);
@@ -1143,12 +1194,15 @@ export class DashboardQueryService {
       metadataJson,
       htmlUrl
     );
-    const response = { ...saved, change_summary: revision.change_summary };
+    const response = { ...saved, change_summary: changeSummary };
 
     log.info("completed", {
-      changeSummaryLength: revision.change_summary.length,
+      changeSummaryLength: changeSummary.length,
       durationMs: durationMs(startedAt),
+      fallbackReason,
+      operationCount: plan.replacements.length,
       outputHtmlBytes: Buffer.byteLength(revisedHtml),
+      revisionMode,
       status: saved.status
     });
     return response;

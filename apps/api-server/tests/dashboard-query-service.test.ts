@@ -1878,7 +1878,7 @@ test("dashboard copy edit saves revised HTML without calling Decision API", asyn
   assert.equal(creative.edited_html, "<h1>새 제목</h1><p>새 본문</p><a>혜택 보기</a>");
 });
 
-test("dashboard AI feedback revision validates and stores the complete HTML", async () => {
+test("dashboard AI feedback revision applies and stores a validated exact-text patch", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
@@ -1952,18 +1952,24 @@ test("dashboard AI feedback revision validates and stores the complete HTML", as
     undefined,
     undefined,
     {
-      revise: async (input) => {
+      planPatch: async (input) => {
         calls.push({ feedback: input.feedback });
         return {
           body: "혜택을 먼저 확인하세요",
           change_summary: "혜택과 CTA의 시각적 우선순위를 높였습니다.",
           cta: "혜택 보기",
           headline: "여름 숙박 혜택",
-          html: [
-            '<article style="padding:24px"><h1>여름 숙박 혜택</h1>',
-            '<p>혜택을 먼저 확인하세요</p><a href="{{redirect_url}}">혜택 보기</a></article>'
-          ].join("")
+          replacements: [
+            { before: "<article>", after: '<article style="padding:24px">' },
+            { before: "기존 제목", after: "여름 숙박 혜택" },
+            { before: "기존 본문", after: "혜택을 먼저 확인하세요" },
+            { before: "예약하기", after: "혜택 보기" }
+          ],
+          strategy: "patch" as const
         };
+      },
+      revise: async () => {
+        throw new Error("Full HTML fallback should not run for a valid patch.");
       }
     } as unknown as DashboardCreativeRevisionAgent
   );
@@ -1984,6 +1990,124 @@ test("dashboard AI feedback revision validates and stores the complete HTML", as
   const creative = saved.metadataJson.creative as Record<string, unknown>;
   assert.match(String(creative.edited_html), /\{\{redirect_url\}\}/);
   assert.match(String(creative.edited_html), /padding:24px/);
+});
+
+test("dashboard AI feedback revision falls back once when a patch anchor is ambiguous", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const sourceHtml =
+    '<article><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+  let patchCalls = 0;
+  let fullRevisionCalls = 0;
+  let savedHtml = "";
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getContentCandidate: async () =>
+        ({
+          analysis_id: "analysis-a",
+          body: "기존 본문",
+          channel: "onsite_banner",
+          content_id: "content-a",
+          content_option_id: "option-a",
+          cta: "예약하기",
+          data_evidence_json: {},
+          generation_id: "generation-a",
+          generation_prompt: null,
+          image_prompt: null,
+          image_url: null,
+          landing_url: "https://example.com",
+          message: null,
+          message_strategy: null,
+          metadata_json: {
+            creative: {
+              artifact: {
+                artifact_status: "published",
+                creative_format: "banner_html",
+                public_url: "https://assets.example.com/content-a.html"
+              },
+              edited_html: sourceHtml
+            }
+          },
+          preheader: null,
+          promotion_id: "promotion-a",
+          reason_summary: null,
+          segment_id: "segment-a",
+          status: "draft",
+          subject: null,
+          title: "기존 제목",
+          updated_at: "2026-07-16T00:00:00.000Z"
+        }) as never,
+      updateContentCandidateCopy: async (
+        _projectId,
+        promotionId,
+        segmentId,
+        contentId,
+        request,
+        metadataJson,
+        htmlUrl
+      ) => {
+        const creative = metadataJson.creative as Record<string, unknown>;
+        savedHtml = String(creative.edited_html);
+        return {
+          body: request.body,
+          content_id: contentId,
+          cta: request.cta,
+          headline: request.headline,
+          html_url: htmlUrl,
+          promotion_id: promotionId,
+          segment_id: segmentId,
+          status: "draft" as const,
+          updated_at: "2026-07-16T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient(),
+    undefined,
+    undefined,
+    {
+      planPatch: async () => {
+        patchCalls += 1;
+        return {
+          body: "기존 본문",
+          change_summary: "제목 색상을 변경했습니다.",
+          cta: "예약하기",
+          headline: "기존 제목",
+          replacements: [{ before: "기존", after: "새로운" }],
+          strategy: "patch" as const
+        };
+      },
+      revise: async () => {
+        fullRevisionCalls += 1;
+        return {
+          body: "새 본문",
+          change_summary: "전체 HTML 경로로 안전하게 반영했습니다.",
+          cta: "혜택 보기",
+          headline: "새 제목",
+          html: '<article><h1>새 제목</h1><p>새 본문</p><a href="{{redirect_url}}">혜택 보기</a></article>'
+        };
+      }
+    } as unknown as DashboardCreativeRevisionAgent
+  );
+
+  const result = await service.reviseContentCandidateHtml(
+    "project-a",
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    { feedback: "전체 분위기를 바꿔줘" },
+    "https://dashboard.api.dev.loop-ad.org"
+  );
+
+  assert.equal(patchCalls, 1);
+  assert.equal(fullRevisionCalls, 1);
+  assert.equal(result.headline, "새 제목");
+  assert.match(result.change_summary, /전체 HTML 경로/);
+  assert.match(savedHtml, /새 본문/);
+  assert.match(savedHtml, /\{\{redirect_url\}\}/);
 });
 
 function emptyCampaignReader(): DashboardCampaignReader {
