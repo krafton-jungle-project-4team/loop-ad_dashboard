@@ -1,5 +1,7 @@
 import type {
+  DashboardSegmentAssistantRefinementKey,
   DashboardSegmentAssistantResponse,
+  DashboardSegmentAssistantSourceContext,
   DashboardSegmentAssistantSourceSuggestion
 } from "@loopad/shared";
 import { Badge } from "@loopad/ui/shadcn/badge";
@@ -8,9 +10,11 @@ import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bot, Database, Lightbulb, Pencil, Plus, Send, X } from "lucide-react";
+import { useEffect } from "react";
 import {
   assistDashboardPromotionSegment,
-  createDashboardPromotionScopedSegmentDefinition
+  createDashboardPromotionScopedSegmentDefinition,
+  fetchDashboardPromotionSegmentAssistantSourceContext
 } from "../api/dashboard-api.js";
 import {
   dashboardCampaignDetailQueryKey,
@@ -39,9 +43,66 @@ export function SegmentCandidateAssistantPanel({
   updateSession: (updater: SegmentAssistantSessionUpdater) => void;
 }) {
   const queryClient = useQueryClient();
-  const { draft, isLoading, isSaved, isSaving, messages, result, sourceSuggestion } = session;
+  const {
+    draft,
+    isLoading,
+    isSaved,
+    isSaving,
+    isSourceContextLoading,
+    messages,
+    result,
+    sourceContext,
+    sourceSuggestion
+  } = session;
+  const projectId = query.projectId;
+  const sourceSuggestionId = sourceSuggestion?.suggestion_id;
 
-  const submit = async (messageOverride?: string) => {
+  useEffect(() => {
+    if (!sourceSuggestionId) {
+      return;
+    }
+    if (sourceContext?.suggestion_id === sourceSuggestionId) {
+      return;
+    }
+
+    const controller = new AbortController();
+    updateSession((current) => ({ ...current, isSourceContextLoading: true }));
+    void fetchDashboardPromotionSegmentAssistantSourceContext(
+      { projectId },
+      promotionId,
+      sourceSuggestionId,
+      controller.signal
+    )
+      .then((context) => {
+        updateSession((current) =>
+          current.sourceSuggestion?.suggestion_id === context.suggestion_id
+            ? { ...current, isSourceContextLoading: false, sourceContext: context }
+            : current
+        );
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        updateSession((current) => ({
+          ...current,
+          isSourceContextLoading: false,
+          messages: [
+            ...current.messages,
+            {
+              id: current.nextMessageId,
+              role: "assistant",
+              text: segmentAssistantFailureMessage(error)
+            }
+          ],
+          nextMessageId: current.nextMessageId + 1
+        }));
+      });
+    return () => controller.abort();
+  }, [promotionId, projectId, sourceContext?.suggestion_id, sourceSuggestionId, updateSession]);
+
+  const submit = async (
+    messageOverride?: string,
+    refinementKey?: DashboardSegmentAssistantRefinementKey
+  ) => {
     const userMessage = (messageOverride ?? draft).trim();
     if (!userMessage || isLoading || !promotionId) {
       return;
@@ -68,7 +129,9 @@ export function SegmentCandidateAssistantPanel({
       const response = await assistDashboardPromotionSegment(query, promotionId, {
         message: userMessage,
         conversation,
-        source_suggestion: sourceSuggestion ?? undefined
+        source_suggestion: sourceSuggestion ?? undefined,
+        refinement_key: refinementKey,
+        previous_query_preview_id: result?.preview?.query_preview_id
       });
       updateSession((current) => ({
         ...current,
@@ -186,8 +249,10 @@ export function SegmentCandidateAssistantPanel({
         <div className="grid gap-3">
           {sourceSuggestion ? (
             <SourceSuggestionContext
+              context={sourceContext}
               disabled={isLoading}
-              onPromptSelect={(prompt) => void submit(prompt)}
+              isLoading={isSourceContextLoading}
+              onPromptSelect={(prompt, refinementKey) => void submit(prompt, refinementKey)}
               source={sourceSuggestion}
             />
           ) : null}
@@ -288,7 +353,12 @@ function SegmentAssistantResult({
   }
 
   const isSaveable = preview.sample_size_status === "valid" && preview.sample_size > 0;
-  const ratioPercent = Math.min(100, Math.max(0, preview.sample_ratio * 100));
+  const baseAudienceSize = result.base_audience?.sample_size ?? null;
+  const ratio =
+    baseAudienceSize && baseAudienceSize > 0
+      ? preview.sample_size / baseAudienceSize
+      : preview.sample_ratio;
+  const ratioPercent = Math.min(100, Math.max(0, ratio * 100));
   return (
     <section className="grid gap-3 rounded-md border p-3" aria-label="고객군 조건 조회 결과">
       <div className="flex items-center gap-2">
@@ -303,13 +373,15 @@ function SegmentAssistantResult({
 
       <div className="grid gap-3 rounded-md bg-primary/5 p-3">
         <div>
-          <p className="text-xs font-medium text-primary">조건에 맞는 고객</p>
+          <p className="text-xs font-medium text-primary">
+            {result.base_audience ? "추가 조건에 맞는 고객" : "조건에 맞는 고객"}
+          </p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">
             {preview.sample_size.toLocaleString()}명
           </p>
         </div>
         <div
-          aria-label={`분석 가능 사용자 중 ${ratioPercent.toFixed(2)}%`}
+          aria-label={`${result.base_audience ? "기준 추천 고객군" : "분석 가능 사용자"} 중 ${ratioPercent.toFixed(2)}%`}
           aria-valuemax={100}
           aria-valuemin={0}
           aria-valuenow={ratioPercent}
@@ -329,8 +401,20 @@ function SegmentAssistantResult({
               label="분석 가능 사용자"
               value={`${preview.total_eligible_user_count.toLocaleString()}명`}
             />
-            <ResultRow label="행동 조건 부합" value={`${preview.sample_size.toLocaleString()}명`} />
-            <ResultRow label="전체 대비" value={`${ratioPercent.toFixed(2)}%`} />
+            {result.base_audience ? (
+              <ResultRow
+                label="기준 AI 추천 고객군"
+                value={`${result.base_audience.sample_size.toLocaleString()}명`}
+              />
+            ) : null}
+            <ResultRow
+              label={result.base_audience ? "추가 조건 부합" : "행동 조건 부합"}
+              value={`${preview.sample_size.toLocaleString()}명`}
+            />
+            <ResultRow
+              label={result.base_audience ? "기준 고객군 대비" : "전체 대비"}
+              value={`${ratioPercent.toFixed(2)}%`}
+            />
             <ResultRow
               label="고객군 운영 기준"
               value={`${result.minimum_sample_size.toLocaleString()}명 이상`}
@@ -404,15 +488,22 @@ function SegmentAssistantResult({
 }
 
 function SourceSuggestionContext({
+  context,
   disabled,
+  isLoading,
   onPromptSelect,
   source
 }: {
+  context: DashboardSegmentAssistantSourceContext | null;
   disabled: boolean;
-  onPromptSelect: (prompt: string) => void;
+  isLoading: boolean;
+  onPromptSelect: (prompt: string, refinementKey: DashboardSegmentAssistantRefinementKey) => void;
   source: DashboardSegmentAssistantSourceSuggestion;
 }) {
-  const prompts = sourceConditionPrompts();
+  const title = context?.title ?? source.title;
+  const strategyRole = context?.strategy_role ?? source.strategy_role;
+  const sampleSize = context?.sample_size ?? source.sample_size;
+  const referenceLabels = context?.reference_labels ?? source.reference_labels ?? [];
 
   return (
     <section className="grid gap-3 border-l-2 border-primary bg-primary/5 px-3 py-3">
@@ -420,18 +511,29 @@ function SourceSuggestionContext({
         <Pencil aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="min-w-0">
           <p className="text-[11px] font-medium text-primary">참고 중인 AI 추천 고객군</p>
-          <h3 className="mt-0.5 text-sm font-semibold [overflow-wrap:anywhere]">{source.title}</h3>
+          <h3 className="mt-0.5 text-sm font-semibold [overflow-wrap:anywhere]">{title}</h3>
           <p className="mt-1 text-xs text-foreground/70">
-            {source.strategy_role ?? "추천 전략 후보"} · 추천 당시 대표 표본{" "}
-            {source.sample_size.toLocaleString()}명
+            {strategyRole ?? "추천 전략 후보"} · 추천 대상 {sampleSize.toLocaleString()}명
           </p>
         </div>
       </div>
-      {source.reference_labels?.length ? (
+      {context?.base_condition_labels.length ? (
+        <div className="grid gap-1.5">
+          <p className="text-[11px] font-medium text-foreground/70">추천 기준</p>
+          <div className="flex flex-wrap gap-1.5">
+            {context.base_condition_labels.map((label) => (
+              <Badge key={label} variant="secondary">
+                {label}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {referenceLabels.length ? (
         <div className="grid gap-1.5">
           <p className="text-[11px] font-medium text-foreground/70">추천 참고 신호</p>
           <div className="flex flex-wrap gap-1.5">
-            {source.reference_labels.map((label) => (
+            {referenceLabels.map((label) => (
               <Badge key={label} variant="outline">
                 {label}
               </Badge>
@@ -441,18 +543,34 @@ function SourceSuggestionContext({
       ) : null}
       <div className="grid gap-1.5">
         <p className="text-[11px] font-medium text-foreground/70">추가해 볼 조건</p>
-        {prompts.map((item) => (
+        {isLoading ? (
+          <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+            <Spinner className="size-3.5" />
+            추천 고객군을 분석하고 있어요
+          </div>
+        ) : null}
+        {!isLoading && context?.suggested_refinements.length === 0 ? (
+          <p className="py-1 text-xs text-muted-foreground">
+            추가로 구분되는 행동 조건이 없습니다.
+          </p>
+        ) : null}
+        {context?.suggested_refinements.map((item) => (
           <Button
-            className="h-auto justify-start whitespace-normal px-2.5 py-2 text-left text-xs"
+            className="h-auto justify-between whitespace-normal px-2.5 py-2 text-left text-xs"
             disabled={disabled}
-            key={item.label}
-            onClick={() => onPromptSelect(item.prompt)}
+            key={item.refinement_key}
+            onClick={() => onPromptSelect(item.prompt, item.refinement_key)}
             size="sm"
             type="button"
             variant="outline"
           >
-            <Plus aria-hidden="true" className="shrink-0" />
-            <span className="[overflow-wrap:anywhere]">{item.label}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Plus aria-hidden="true" className="shrink-0" />
+              <span className="[overflow-wrap:anywhere]">{item.label}</span>
+            </span>
+            <Badge className="ml-2 shrink-0" variant="secondary">
+              {item.estimated_user_count.toLocaleString()}명
+            </Badge>
           </Button>
         ))}
       </div>
@@ -498,23 +616,6 @@ function SegmentConditionDiagnostics({ result }: { result: DashboardSegmentAssis
       </div>
     </div>
   );
-}
-
-function sourceConditionPrompts() {
-  return [
-    {
-      label: "예약 완료 고객 제외",
-      prompt: "예약 완료 고객을 제외하고 인원과 비율을 계산해줘"
-    },
-    {
-      label: "호텔 상세 조회 2회 이상",
-      prompt: "호텔 상세 조회를 2회 이상 한 고객의 인원과 비율을 계산해줘"
-    },
-    {
-      label: "무료 취소 혜택 관심",
-      prompt: "무료 취소 혜택을 본 고객의 인원과 비율을 계산해줘"
-    }
-  ];
 }
 
 function ResultRow({ label, value }: { label: string; value: string }) {
