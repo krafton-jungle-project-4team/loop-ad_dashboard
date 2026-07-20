@@ -549,12 +549,7 @@ export function PromotionTabWorkspace({
                   decideIsPending={decideIsPending}
                   archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
                   onArchiveScopedSegment={onArchiveScopedSegment}
-                  onConfirmSuggestions={(segmentIds) => {
-                    void onConfirmSuggestions(segmentIds).then(
-                      () => setSegmentListTab("confirmed"),
-                      () => undefined
-                    );
-                  }}
+                  onConfirmSuggestions={onConfirmSuggestions}
                   onDecideSuggestion={onDecideSuggestion}
                   onRecommendSegments={onRecommendSegments}
                   promotionAnalysisIsPending={promotionAnalysisIsPending}

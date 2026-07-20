@@ -28,6 +28,11 @@ test("segment candidate tabs keep their intrinsic content height", () => {
   assert.match(workspaceSource, /<TabsContent className="flex-none" value="candidates">/);
 });
 
+test("confirming segment candidates keeps the candidate tab open", () => {
+  assert.match(workspaceSource, /onConfirmSuggestions=\{onConfirmSuggestions\}/);
+  assert.doesNotMatch(workspaceSource, /onConfirmSuggestions=\{\(segmentIds\).*setSegmentListTab/s);
+});
+
 test("content candidates use one full-width carousel slide at a time", () => {
   assert.match(workspaceSource, /aria-label="광고 소재 후보"/);
   assert.match(workspaceSource, /<CarouselContent className="ml-0">/);
