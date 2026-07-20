@@ -6,7 +6,7 @@ import type {
   DashboardUnapproveContentCandidateResult
 } from "@loopad/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   archiveDashboardPromotionScopedSegmentDefinition,
   approveDashboardContentCandidate,
@@ -241,50 +241,8 @@ export function usePromotionWorkspaceController({
       selectedOpenPromotion?.promotion_id ?? ""
     ),
     refetchInterval: (detailQuery) =>
-      shouldPollAsyncStatus(detailQuery.state.data?.analyses[0]?.status) ||
-      shouldPollAsyncStatus(detailQuery.state.data?.generation?.status)
-        ? 2500
-        : false
+      shouldPollAsyncStatus(detailQuery.state.data?.analyses[0]?.status) ? 2500 : false
   });
-  const generationId = promotionDetail.data?.generation?.generation_id ?? null;
-  const generationPromotionId = promotionDetail.data?.generation?.promotion_id ?? "";
-  const generationIsPending = shouldPollAsyncStatus(promotionDetail.data?.generation?.status);
-  const previousGenerationRef = useRef({ generationId: null as string | null, isPending: false });
-
-  useEffect(() => {
-    const previousGeneration = previousGenerationRef.current;
-    previousGenerationRef.current = { generationId, isPending: generationIsPending };
-
-    if (
-      !generationId ||
-      !generationPromotionId ||
-      previousGeneration.generationId !== generationId ||
-      !previousGeneration.isPending ||
-      generationIsPending
-    ) {
-      return;
-    }
-
-    void queryClient.invalidateQueries({
-      queryKey: dashboardPromotionDetailQueryKey(query.projectId, generationPromotionId)
-    });
-    if (selectedPromotionSegmentId) {
-      void queryClient.invalidateQueries({
-        queryKey: dashboardSegmentDetailQueryKey(
-          query.projectId,
-          generationPromotionId,
-          selectedPromotionSegmentId
-        )
-      });
-    }
-  }, [
-    generationId,
-    generationIsPending,
-    generationPromotionId,
-    query.projectId,
-    queryClient,
-    selectedPromotionSegmentId
-  ]);
   const selectedOpenPromotionId = selectedOpenPromotion?.promotion_id ?? "";
   const analysisProgressKey = dashboardPromotionAnalysisProgressQueryKey(
     query.projectId,
@@ -324,13 +282,14 @@ export function usePromotionWorkspaceController({
       selectedPromotionSegmentId
     ),
     refetchInterval: (segmentDetailQuery) =>
-      shouldPollAsyncStatus(promotionDetail.data?.generation?.status) ||
+      shouldPollAsyncStatus(segmentDetailQuery.state.data?.generation?.status) ||
       (selectedOpenPromotion?.channel === "onsite_banner" &&
         hasPendingOnsiteBannerImage(segmentDetailQuery.state.data))
         ? onsiteBannerImagePollIntervalMs
         : false,
     refetchIntervalInBackground: false
   });
+  const generationIsPending = shouldPollAsyncStatus(segmentDetail.data?.generation?.status);
   const segmentSuggestions = useQuery({
     enabled: Boolean(selectedOpenPromotionId && promotionDetail.isSuccess),
     queryFn: ({ signal }) =>
@@ -441,7 +400,7 @@ export function usePromotionWorkspaceController({
         queryKey: dashboardSegmentDetailQueryKey(
           query.projectId,
           variables.promotionId,
-          selectedPromotionSegmentId
+          variables.segmentId
         )
       });
     }

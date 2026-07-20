@@ -912,7 +912,7 @@ export class DashboardCampaignReader {
     projectId: string,
     promotionId: string,
     segmentId: string
-  ): Promise<Omit<DashboardSegmentDetail, "realtime_metrics">> {
+  ): Promise<Omit<DashboardSegmentDetail, "generation" | "realtime_metrics">> {
     const [segment, adExperiments, contentCandidates, experimentMetrics] = await Promise.all([
       this.db.query(getDashboardPromotionSegment, { projectId, promotionId, segmentId }).single(),
       this.db

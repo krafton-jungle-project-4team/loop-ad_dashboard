@@ -1046,13 +1046,26 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionId, segmentId });
     log.info("started", { projectId, promotionId, segmentId });
-    const [detail, realtimeMetrics] = await Promise.all([
-      this.campaignReader.getSegmentDetail(projectId, promotionId, segmentId),
-      this.funnelReader.getSegmentRealtimeMetrics(projectId, promotionId, segmentId)
+    const detailPromise = this.campaignReader.getSegmentDetail(projectId, promotionId, segmentId);
+    const realtimeMetricsPromise = this.funnelReader.getSegmentRealtimeMetrics(
+      projectId,
+      promotionId,
+      segmentId
+    );
+    const detail = await detailPromise;
+    const [realtimeMetrics, generation] = await Promise.all([
+      realtimeMetricsPromise,
+      this.campaignReader.getPromotionGenerationResult(
+        projectId,
+        promotionId,
+        detail.segment.analysis_id,
+        segmentId
+      )
     ]);
 
     const response = {
       ...detail,
+      generation: generation ?? null,
       realtime_metrics: realtimeMetrics
     };
 

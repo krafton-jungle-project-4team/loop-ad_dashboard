@@ -55,6 +55,60 @@ test("dashboard main returns campaign summaries from the campaign reader", async
   assert.equal(main.realtime_metrics.total_event_count, 0);
 });
 
+test("dashboard segment detail returns generation state for the selected segment", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const generationReads: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getSegmentDetail: async () => ({
+        segment: { analysis_id: "analysis-selected" },
+        ad_experiments: [],
+        content_candidates: [],
+        experiment_metrics: []
+      }),
+      getPromotionGenerationResult: async (projectId, promotionId, analysisId, segmentId) => {
+        generationReads.push({ analysisId, projectId, promotionId, segmentId });
+        return {
+          content_candidate_count: 0,
+          generation_id: "generation-selected",
+          promotion_id: promotionId,
+          status: "running"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    {
+      ...emptyFunnelReader(),
+      getSegmentRealtimeMetrics: async () => ({
+        ...emptyRealtimeMetrics(),
+        promotion_id: "promotion-selected",
+        segment_id: "segment-selected"
+      })
+    } as unknown as DashboardFunnelReader,
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  const detail = await service.segmentDetail(
+    "project-selected",
+    "promotion-selected",
+    "segment-selected"
+  );
+
+  assert.deepEqual(generationReads, [
+    {
+      analysisId: "analysis-selected",
+      projectId: "project-selected",
+      promotionId: "promotion-selected",
+      segmentId: "segment-selected"
+    }
+  ]);
+  assert.equal(detail.generation?.generation_id, "generation-selected");
+  assert.equal(detail.generation?.status, "running");
+});
+
 test("dashboard event catalog returns collected funnel event options", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =

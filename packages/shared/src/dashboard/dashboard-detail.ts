@@ -61,6 +61,7 @@ export type DashboardPromotionDetail = z.infer<typeof DashboardPromotionDetailSc
 
 export const DashboardSegmentDetailSchema = z.object({
   segment: DashboardCampaignSegmentSchema,
+  generation: DashboardStartPromotionGenerationResultSchema.nullable().default(null),
   ad_experiments: z.array(DashboardAdExperimentSchema),
   content_candidates: z.array(DashboardContentCandidateSchema),
   experiment_metrics: z.array(DashboardCampaignExperimentMetricSchema),
