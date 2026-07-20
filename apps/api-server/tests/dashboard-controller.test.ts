@@ -391,6 +391,9 @@ test("dashboard controller parses segment assistant requests and returns audienc
         segment_name: "최근 제주 미예약 고객",
         lookback_days: 30,
         condition_labels: ["제주 숙소 검색", "예약 완료 없음"],
+        minimum_sample_size: 100,
+        condition_diagnostics: [],
+        suggested_adjustments: [],
         preview: {
           query_preview_id: "seg_query_preview_002",
           generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",

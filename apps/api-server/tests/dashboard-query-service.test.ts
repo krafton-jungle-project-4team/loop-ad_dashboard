@@ -457,8 +457,108 @@ test("dashboard segment assistant executes a structured plan without calling Dec
   assert.equal(response.action, "audience_query");
   assert.equal(response.preview?.sample_size, 125);
   assert.equal(response.segment_name, "제주 숙소 검색 고객");
+  assert.equal(response.minimum_sample_size, 100);
+  assert.deepEqual(response.condition_diagnostics, []);
+  assert.deepEqual(response.suggested_adjustments, []);
   assert.equal(calls.length, 2);
   assert.deepEqual((calls[1] as { kind: string }).kind, "preview");
+});
+
+test("dashboard segment assistant explains the measured condition that keeps a segment below the minimum", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () => ({}) as never
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      createAssistantQueryPreview: async (_projectId, naturalLanguageQuery) => {
+        calls.push({ kind: "preview", naturalLanguageQuery });
+        return {
+          query_preview_id: "seg_query_preview_small",
+          generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+          sample_size: 42,
+          total_eligible_user_count: 1000,
+          sample_ratio: 0.042,
+          sample_size_status: "too_small" as const,
+          columns: ["user_id"],
+          rows: []
+        };
+      },
+      diagnoseAssistantPlan: async () => {
+        calls.push({ kind: "diagnostics" });
+        return {
+          conditionDiagnostics: [
+            {
+              condition_label: "예약 시작 3회 이상",
+              sample_size_without_condition: 180,
+              recovered_user_count: 138,
+              is_bottleneck: true
+            }
+          ],
+          suggestedAdjustments: [
+            {
+              kind: "remove_condition" as const,
+              label: "'예약 시작 3회 이상' 조건 제외",
+              prompt: "예약 시작 3회 이상 조건을 빼고 다시 계산해줘",
+              estimated_sample_size: 180
+            }
+          ]
+        };
+      }
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient(),
+    {
+      plan: async () => ({
+        action: "segment_preview" as const,
+        segment_name: "예약 고의도 고객",
+        lookback_days: 30,
+        conditions: [
+          {
+            label: "예약 시작 3회 이상",
+            event_name: "booking_start" as const,
+            minimum_count: 3,
+            maximum_count: null,
+            destination: null,
+            checkin_months: [],
+            property_filters: []
+          }
+        ],
+        clarification_message: null
+      })
+    } as never
+  );
+
+  const response = await service.assistPromotionSegment("hotel-client-a", "promo_summer", {
+    message: "예약 시작을 3회 이상 한 조건을 추가해줘",
+    conversation: [],
+    source_suggestion: {
+      suggestion_id: "suggestion-1",
+      segment_id: "segment-1",
+      title: "예약 직전 이탈 고객",
+      strategy_role: "예약 이탈 회수형",
+      condition_labels: ["예약 시작", "예약 완료 없음"],
+      sample_size: 140
+    }
+  });
+
+  assert.equal(response.preview?.sample_size, 42);
+  assert.equal(response.condition_diagnostics[0]?.condition_label, "예약 시작 3회 이상");
+  assert.match(response.assistant_message, /가장 크게 제한/);
+  assert.match(response.assistant_message, /180명/);
+  assert.deepEqual(calls, [
+    {
+      kind: "preview",
+      naturalLanguageQuery: "예약 직전 이탈 고객 수정: 예약 시작을 3회 이상 한 조건을 추가해줘"
+    },
+    { kind: "diagnostics" }
+  ]);
 });
 
 test("dashboard save segment delegates valid preview save to the segment query repository", async () => {

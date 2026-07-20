@@ -81,9 +81,22 @@ export type DashboardSegmentAssistantMessage = z.infer<
   typeof DashboardSegmentAssistantMessageSchema
 >;
 
+export const DashboardSegmentAssistantSourceSuggestionSchema = z.object({
+  suggestion_id: z.string().min(1),
+  segment_id: z.string().min(1),
+  title: z.string().trim().min(1).max(200),
+  strategy_role: z.string().trim().min(1).max(200).nullable(),
+  condition_labels: z.array(z.string().trim().min(1).max(120)).max(12),
+  sample_size: CountSchema
+});
+export type DashboardSegmentAssistantSourceSuggestion = z.infer<
+  typeof DashboardSegmentAssistantSourceSuggestionSchema
+>;
+
 export const DashboardSegmentAssistantRequestSchema = z.object({
   message: z.string().trim().min(1).max(2_000),
-  conversation: z.array(DashboardSegmentAssistantMessageSchema).max(12).default([])
+  conversation: z.array(DashboardSegmentAssistantMessageSchema).max(12).default([]),
+  source_suggestion: DashboardSegmentAssistantSourceSuggestionSchema.optional()
 });
 export type DashboardSegmentAssistantRequest = z.infer<
   typeof DashboardSegmentAssistantRequestSchema
@@ -96,12 +109,35 @@ export const DashboardSegmentAssistantActionSchema = z.enum([
 ]);
 export type DashboardSegmentAssistantAction = z.infer<typeof DashboardSegmentAssistantActionSchema>;
 
+export const DashboardSegmentConditionDiagnosticSchema = z.object({
+  condition_label: z.string().min(1),
+  sample_size_without_condition: CountSchema,
+  recovered_user_count: CountSchema,
+  is_bottleneck: z.boolean()
+});
+export type DashboardSegmentConditionDiagnostic = z.infer<
+  typeof DashboardSegmentConditionDiagnosticSchema
+>;
+
+export const DashboardSegmentSuggestedAdjustmentSchema = z.object({
+  kind: z.enum(["remove_condition", "relax_condition", "expand_window"]),
+  label: z.string().min(1),
+  prompt: z.string().min(1).max(500),
+  estimated_sample_size: CountSchema.nullable()
+});
+export type DashboardSegmentSuggestedAdjustment = z.infer<
+  typeof DashboardSegmentSuggestedAdjustmentSchema
+>;
+
 export const DashboardSegmentAssistantResponseSchema = z.object({
   action: DashboardSegmentAssistantActionSchema,
   assistant_message: z.string().min(1),
   segment_name: z.string().nullable(),
   lookback_days: CountSchema,
   condition_labels: z.array(z.string()),
+  minimum_sample_size: CountSchema,
+  condition_diagnostics: z.array(DashboardSegmentConditionDiagnosticSchema),
+  suggested_adjustments: z.array(DashboardSegmentSuggestedAdjustmentSchema),
   preview: DashboardSegmentQueryPreviewSchema.nullable()
 });
 export type DashboardSegmentAssistantResponse = z.infer<

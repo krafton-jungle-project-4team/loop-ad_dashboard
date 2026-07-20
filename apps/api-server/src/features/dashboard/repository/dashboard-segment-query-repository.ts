@@ -4,10 +4,12 @@ import { InjectTransaction, type Transaction } from "@nestjs-cls/transactional";
 import { Inject, Injectable } from "@nestjs/common";
 import type {
   DashboardSavedSegment,
+  DashboardSegmentConditionDiagnostic,
   DashboardSegmentQueryPreview,
   DashboardSegmentQueryPreviewRequest,
   DashboardSaveSegmentRequest,
-  DashboardSegmentSampleSizeStatus
+  DashboardSegmentSampleSizeStatus,
+  DashboardSegmentSuggestedAdjustment
 } from "@loopad/shared";
 import { CLICKHOUSE_CLIENT } from "../../../infra/database/index.js";
 import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-transactional.adapter.js";
@@ -30,7 +32,7 @@ import { serializeJsonDatabaseParameter } from "./dashboard-json-parameter.js";
 
 const PREVIEW_ROW_LIMIT = 500;
 const PREVIEW_TIMEOUT_SECONDS = 10;
-const MIN_SEGMENT_USER_COUNT = 100;
+export const MIN_SEGMENT_USER_COUNT = 100;
 const MIN_SEGMENT_RATIO = 0.005;
 
 type PreviewRow = Record<string, unknown>;
@@ -42,6 +44,11 @@ type ClickHouseJsonResponse = {
 
 type CountRow = {
   sample_size: number | string;
+};
+
+export type SegmentAssistantDiagnostics = {
+  conditionDiagnostics: DashboardSegmentConditionDiagnostic[];
+  suggestedAdjustments: DashboardSegmentSuggestedAdjustment[];
 };
 
 @Injectable()
@@ -97,6 +104,99 @@ export class DashboardSegmentQueryRepository {
       queryParamsJson: { assistant_plan: plan },
       timeRange
     });
+  }
+
+  async diagnoseAssistantPlan(
+    projectId: string,
+    plan: SegmentAssistantPlan,
+    currentSampleSize: number
+  ): Promise<SegmentAssistantDiagnostics> {
+    if (plan.action === "clarification" || plan.conditions.length === 0) {
+      return { conditionDiagnostics: [], suggestedAdjustments: [] };
+    }
+
+    const timeRange = timeRangeForLookbackDays(plan.lookback_days);
+    const countsWithoutCondition = await Promise.all(
+      plan.conditions.map(async (_condition, index) => {
+        const conditions = plan.conditions.filter((_item, itemIndex) => itemIndex !== index);
+        if (conditions.length === 0) {
+          return this.countEligibleUsers(projectId, timeRange);
+        }
+        const query = planStructuredSegmentQuery(projectId, { ...plan, conditions }, timeRange);
+        return this.executeCountQuery(query.countSql);
+      })
+    );
+    const recoveredCounts = countsWithoutCondition.map((count) =>
+      Math.max(0, count - currentSampleSize)
+    );
+    const bottleneckIndex = recoveredCounts.reduce(
+      (bestIndex, recoveredCount, index) =>
+        recoveredCount > (recoveredCounts[bestIndex] ?? -1) ? index : bestIndex,
+      0
+    );
+    const conditionDiagnostics = plan.conditions.map((condition, index) => ({
+      condition_label: condition.label,
+      sample_size_without_condition: countsWithoutCondition[index] ?? currentSampleSize,
+      recovered_user_count: recoveredCounts[index] ?? 0,
+      is_bottleneck: index === bottleneckIndex && (recoveredCounts[index] ?? 0) > 0
+    }));
+    const suggestedAdjustments: DashboardSegmentSuggestedAdjustment[] = [];
+    const bottleneck = plan.conditions[bottleneckIndex];
+    const withoutBottleneckCount = countsWithoutCondition[bottleneckIndex] ?? currentSampleSize;
+    if (bottleneck && withoutBottleneckCount > currentSampleSize) {
+      suggestedAdjustments.push({
+        kind: "remove_condition",
+        label: `'${bottleneck.label}' 조건 제외`,
+        prompt: `${bottleneck.label} 조건을 빼고 다시 계산해줘`,
+        estimated_sample_size: withoutBottleneckCount
+      });
+    }
+
+    if (bottleneck && bottleneck.minimum_count > 1) {
+      const relaxedMinimum = bottleneck.minimum_count - 1;
+      const relaxedPlan = {
+        ...plan,
+        conditions: plan.conditions.map((condition, index) =>
+          index === bottleneckIndex ? { ...condition, minimum_count: relaxedMinimum } : condition
+        )
+      };
+      const relaxedQuery = planStructuredSegmentQuery(projectId, relaxedPlan, timeRange);
+      const relaxedSampleSize = await this.executeCountQuery(relaxedQuery.countSql);
+      suggestedAdjustments.push({
+        kind: "relax_condition",
+        label: `'${bottleneck.label}' ${relaxedMinimum}회 이상으로 완화`,
+        prompt: `${bottleneck.label} 조건을 ${relaxedMinimum}회 이상으로 완화해줘`,
+        estimated_sample_size: relaxedSampleSize
+      });
+    }
+
+    if (plan.lookback_days < 365) {
+      const expandedLookbackDays = Math.min(
+        365,
+        Math.max(plan.lookback_days * 2, plan.lookback_days + 30)
+      );
+      const expandedTimeRange = timeRangeForLookbackDays(expandedLookbackDays);
+      const expandedQuery = planStructuredSegmentQuery(
+        projectId,
+        { ...plan, lookback_days: expandedLookbackDays },
+        expandedTimeRange
+      );
+      const expandedSampleSize = await this.executeCountQuery(expandedQuery.countSql);
+      suggestedAdjustments.push({
+        kind: "expand_window",
+        label: `조회 기간을 ${expandedLookbackDays}일로 확대`,
+        prompt: `조회 기간을 최근 ${expandedLookbackDays}일로 늘려서 다시 계산해줘`,
+        estimated_sample_size: expandedSampleSize
+      });
+    }
+
+    log.info("segment_condition_diagnostics_completed", {
+      bottleneckCondition: bottleneck?.label ?? null,
+      conditionCount: conditionDiagnostics.length,
+      currentSampleSize,
+      suggestedAdjustmentCount: suggestedAdjustments.length
+    });
+    return { conditionDiagnostics, suggestedAdjustments };
   }
 
   private async persistQueryPreview(input: {
