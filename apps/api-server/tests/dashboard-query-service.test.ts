@@ -1992,7 +1992,7 @@ test("dashboard AI feedback revision applies and stores a validated exact-text p
   assert.match(String(creative.edited_html), /padding:24px/);
 });
 
-test("dashboard AI feedback revision falls back once when a patch anchor is ambiguous", async () => {
+test("dashboard AI feedback revision falls back once for an invalid patch or model-requested full layout", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
     await import("../src/features/dashboard/service/dashboard-query.service.js");
@@ -2001,6 +2001,7 @@ test("dashboard AI feedback revision falls back once when a patch anchor is ambi
   let patchCalls = 0;
   let fullRevisionCalls = 0;
   let savedHtml = "";
+  let revisionStrategy: "patch_validation_failure" | "full_revision" = "patch_validation_failure";
   const service = new DashboardQueryService(
     {
       ...emptyCampaignReader(),
@@ -2071,6 +2072,16 @@ test("dashboard AI feedback revision falls back once when a patch anchor is ambi
     {
       planPatch: async () => {
         patchCalls += 1;
+        if (revisionStrategy === "full_revision") {
+          return {
+            body: "기존 본문",
+            change_summary: "전체 레이아웃 변경이 필요합니다.",
+            cta: "예약하기",
+            headline: "기존 제목",
+            replacements: [],
+            strategy: "full_revision" as const
+          };
+        }
         return {
           body: "기존 본문",
           change_summary: "제목 색상을 변경했습니다.",
@@ -2106,6 +2117,25 @@ test("dashboard AI feedback revision falls back once when a patch anchor is ambi
   assert.equal(fullRevisionCalls, 1);
   assert.equal(result.headline, "새 제목");
   assert.match(result.change_summary, /전체 HTML 경로/);
+  assert.match(savedHtml, /새 본문/);
+  assert.match(savedHtml, /\{\{redirect_url\}\}/);
+
+  revisionStrategy = "full_revision";
+  patchCalls = 0;
+  fullRevisionCalls = 0;
+  savedHtml = "";
+  const fullLayoutResult = await service.reviseContentCandidateHtml(
+    "project-a",
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    { feedback: "전체 레이아웃을 새롭게 바꿔줘" },
+    "https://dashboard.api.dev.loop-ad.org"
+  );
+
+  assert.equal(patchCalls, 1);
+  assert.equal(fullRevisionCalls, 1);
+  assert.equal(fullLayoutResult.headline, "새 제목");
   assert.match(savedHtml, /새 본문/);
   assert.match(savedHtml, /\{\{redirect_url\}\}/);
 });

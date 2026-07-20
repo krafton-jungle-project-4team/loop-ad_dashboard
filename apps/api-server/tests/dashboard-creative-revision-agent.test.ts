@@ -50,7 +50,7 @@ test("creative revision agent requests a bounded exact-text patch with low reaso
 
     assert.equal(result.strategy, "patch");
     assert.equal(result.replacements[0]?.before, "color:#111");
-    assert.equal(requestBody?.model, "gpt-5.5");
+    assert.equal(requestBody?.model, "gpt-5.6-luna");
     assert.equal(requestBody?.max_output_tokens, 8_000);
     assert.deepEqual(requestBody?.reasoning, { effort: "low" });
     assert.deepEqual(requestBody?.tool_choice, {
@@ -76,7 +76,7 @@ test("creative revision agent requests a bounded exact-text patch with low reaso
   }
 });
 
-test("full creative revision fallback preserves the complete HTML contract", async () => {
+test("full creative revision fallback uses Luna low and preserves the complete HTML contract", async () => {
   setRequiredEnv();
   const { DashboardCreativeRevisionAgent } =
     await import("../src/features/dashboard/provider/dashboard-creative-revision-agent.js");
@@ -118,9 +118,9 @@ test("full creative revision fallback preserves the complete HTML contract", asy
 
     assert.equal(result.headline, "새 제목");
     assert.match(result.change_summary, /정보 위계/);
-    assert.equal(requestBody?.model, "gpt-5.5");
+    assert.equal(requestBody?.model, "gpt-5.6-luna");
     assert.equal(requestBody?.max_output_tokens, 32_000);
-    assert.equal("reasoning" in (requestBody ?? {}), false);
+    assert.deepEqual(requestBody?.reasoning, { effort: "low" });
     assert.deepEqual(requestBody?.tool_choice, {
       type: "function",
       name: "submit_creative_revision"

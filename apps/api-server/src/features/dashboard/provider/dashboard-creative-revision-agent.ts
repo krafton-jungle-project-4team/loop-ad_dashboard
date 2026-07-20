@@ -8,7 +8,7 @@ const OPENAI_PATCH_REQUEST_TIMEOUT_MS = 30_000;
 const OPENAI_FULL_REVISION_TIMEOUT_MS = 45_000;
 const CREATIVE_PATCH_MAX_OUTPUT_TOKENS = 8_000;
 const CREATIVE_FULL_REVISION_MAX_OUTPUT_TOKENS = 32_000;
-export const CREATIVE_REVISION_MODEL = "gpt-5.5";
+export const CREATIVE_REVISION_MODEL = "gpt-5.6-luna";
 
 const OpenAiFunctionCallSchema = z
   .object({
@@ -149,6 +149,7 @@ export class DashboardCreativeRevisionAgent {
       instructions: creativeRevisionInstructions(),
       maxOutputTokens: CREATIVE_FULL_REVISION_MAX_OUTPUT_TOKENS,
       purpose: "creative_revision",
+      reasoningEffort: "low",
       timeoutMs: OPENAI_FULL_REVISION_TIMEOUT_MS,
       tool: CREATIVE_REVISION_TOOL,
       toolName: "submit_creative_revision"
