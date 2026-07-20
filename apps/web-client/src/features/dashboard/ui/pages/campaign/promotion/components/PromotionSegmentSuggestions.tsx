@@ -43,7 +43,7 @@ import {
 } from "@loopad/ui/shadcn/empty";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { BarChart3, Bot, CheckCircle2, FileText, Pencil } from "lucide-react";
+import { BarChart3, Bot, CheckCircle2, FileText } from "lucide-react";
 import { useState } from "react";
 import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
@@ -53,6 +53,7 @@ import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
   formatJsonObject,
   formatPercentValue,
+  segmentAssistantSourceSuggestion,
   segmentAudienceSummary,
   statusBadgeVariant
 } from "../promotionUtils.js";
@@ -282,17 +283,7 @@ export function PromotionSegmentSuggestionPanel({
                 key={suggestion.suggestion_id}
                 onDecideSuggestion={onDecideSuggestion}
                 onEditSuggestion={() =>
-                  openSegmentCandidateAssistant({
-                    suggestion_id: suggestion.suggestion_id,
-                    segment_id: suggestion.segment_id,
-                    title: suggestion.display_copy?.title ?? suggestion.segment_name,
-                    strategy_role:
-                      suggestion.display_copy?.strategy_role ??
-                      suggestion.display_copy?.rank_role ??
-                      null,
-                    condition_labels: suggestion.display_copy?.signal_chips ?? [],
-                    sample_size: suggestion.sample_size
-                  })
+                  openSegmentCandidateAssistant(segmentAssistantSourceSuggestion(suggestion))
                 }
                 onOpenReport={setReportSuggestion}
                 suggestion={suggestion}
@@ -469,14 +460,14 @@ function SegmentSuggestionCard({
           </Badge>
           <div className="flex shrink-0 items-center gap-2">
             <Button
-              aria-label={`${displayCopy?.title ?? suggestion.segment_name} 수정`}
+              aria-label={`${displayCopy?.title ?? suggestion.segment_name} 참고해 고객군 만들기`}
               onClick={onEditSuggestion}
               size="icon-sm"
-              title="고객군 조건 수정"
+              title="이 추천을 참고해 고객군 만들기"
               type="button"
               variant="outline"
             >
-              <Pencil aria-hidden="true" />
+              <Bot aria-hidden="true" />
             </Button>
             {suggestion.ai_report ? (
               <Button

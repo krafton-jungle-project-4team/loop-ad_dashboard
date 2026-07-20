@@ -412,14 +412,14 @@ function SourceSuggestionContext({
   onPromptSelect: (prompt: string) => void;
   source: DashboardSegmentAssistantSourceSuggestion;
 }) {
-  const prompts = sourceConditionPrompts(source);
+  const prompts = sourceConditionPrompts();
 
   return (
     <section className="grid gap-3 border-l-2 border-primary bg-primary/5 px-3 py-3">
       <div className="flex items-start gap-2">
         <Pencil aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-primary">수정 중인 AI 추천 고객군</p>
+          <p className="text-[11px] font-medium text-primary">참고 중인 AI 추천 고객군</p>
           <h3 className="mt-0.5 text-sm font-semibold [overflow-wrap:anywhere]">{source.title}</h3>
           <p className="mt-1 text-xs text-foreground/70">
             {source.strategy_role ?? "추천 전략 후보"} · 추천 당시 대표 표본{" "}
@@ -427,13 +427,16 @@ function SourceSuggestionContext({
           </p>
         </div>
       </div>
-      {source.condition_labels.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {source.condition_labels.map((label) => (
-            <Badge key={label} variant="outline">
-              {label}
-            </Badge>
-          ))}
+      {source.reference_labels?.length ? (
+        <div className="grid gap-1.5">
+          <p className="text-[11px] font-medium text-foreground/70">추천 참고 신호</p>
+          <div className="flex flex-wrap gap-1.5">
+            {source.reference_labels.map((label) => (
+              <Badge key={label} variant="outline">
+                {label}
+              </Badge>
+            ))}
+          </div>
         </div>
       ) : null}
       <div className="grid gap-1.5">
@@ -497,28 +500,21 @@ function SegmentConditionDiagnostics({ result }: { result: DashboardSegmentAssis
   );
 }
 
-function sourceConditionPrompts(source: DashboardSegmentAssistantSourceSuggestion) {
-  const conditions = source.condition_labels.join(" ");
-  const prompts: Array<{ label: string; prompt: string }> = [];
-  if (!conditions.includes("예약 완료") && !conditions.includes("미예약")) {
-    prompts.push({
+function sourceConditionPrompts() {
+  return [
+    {
       label: "예약 완료 고객 제외",
-      prompt: "현재 고객군에서 예약 완료 고객을 제외하고 인원과 비율을 계산해줘"
-    });
-  }
-  if (!conditions.includes("상세")) {
-    prompts.push({
+      prompt: "예약 완료 고객을 제외하고 인원과 비율을 계산해줘"
+    },
+    {
       label: "호텔 상세 조회 2회 이상",
-      prompt: "현재 고객군에 호텔 상세 조회를 2회 이상 한 조건을 추가해서 인원과 비율을 계산해줘"
-    });
-  }
-  if (!conditions.includes("무료 취소")) {
-    prompts.push({
+      prompt: "호텔 상세 조회를 2회 이상 한 고객의 인원과 비율을 계산해줘"
+    },
+    {
       label: "무료 취소 혜택 관심",
-      prompt: "현재 고객군에 무료 취소 혜택을 본 조건을 추가해서 인원과 비율을 계산해줘"
-    });
-  }
-  return prompts.slice(0, 3);
+      prompt: "무료 취소 혜택을 본 고객의 인원과 비율을 계산해줘"
+    }
+  ];
 }
 
 function ResultRow({ label, value }: { label: string; value: string }) {
