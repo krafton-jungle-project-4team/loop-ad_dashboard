@@ -5,6 +5,7 @@ import { PgTypedTransactionalAdapter } from "../../../infra/database/pgtyped-tra
 import {
   claimDashboardPromotionAutomationJobs,
   cancelPendingDashboardPromotionRunEvaluation,
+  completeExpiredDashboardCampaigns,
   completeDashboardPromotionAutomationJob,
   failDashboardPromotionAutomationJob,
   getDashboardPromotionRunAutomationConfig,
@@ -54,6 +55,11 @@ export type PromotionRunLaunchExperiment = {
   status: string;
 };
 
+export type CompletedCampaign = {
+  campaignId: string;
+  projectId: string;
+};
+
 @Injectable()
 export class DashboardPromotionAutomationRepository {
   constructor(
@@ -86,6 +92,16 @@ export class DashboardPromotionAutomationRepository {
       activationStatus: isFuture ? "scheduled" : "automatic_start_queued",
       scheduledStartAt
     };
+  }
+
+  async completeExpiredCampaigns(campaignLimit: number): Promise<CompletedCampaign[]> {
+    const rows = await this.db
+      .query(completeExpiredDashboardCampaigns, { campaignLimit })
+      .multiple();
+    return rows.map((row) => ({
+      campaignId: row.campaignId,
+      projectId: row.projectId
+    }));
   }
 
   async scheduleRunEvaluation(promotionRunId: string) {
@@ -200,7 +216,8 @@ function toAutomationConfig(
 ): PromotionAutomationConfig {
   if (
     (row.executionMode !== "manual" && row.executionMode !== "automatic") ||
-    (row.loopIntervalUnit !== "hour" && row.loopIntervalUnit !== "day")
+    (row.loopIntervalUnit !== "hour" && row.loopIntervalUnit !== "day") ||
+    !row.promotionStatus
   ) {
     throw new Error("Promotion automation configuration has an invalid contract.");
   }

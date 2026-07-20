@@ -11,6 +11,7 @@ import { DashboardQueryService } from "./dashboard-query.service.js";
 const AUTOMATION_POLL_INTERVAL_MS = 5_000;
 const AUTOMATION_LEASE_SECONDS = 120;
 const AUTOMATION_CLAIM_LIMIT = 5;
+const CAMPAIGN_COMPLETION_LIMIT = 20;
 
 @Injectable()
 export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy {
@@ -47,6 +48,15 @@ export class PromotionAutomationService implements OnModuleInit, OnModuleDestroy
     this.running = true;
     const startedAt = Date.now();
     try {
+      const completedCampaigns =
+        await this.repository.completeExpiredCampaigns(CAMPAIGN_COMPLETION_LIMIT);
+      for (const campaign of completedCampaigns) {
+        log.info("campaign_schedule_completed", {
+          campaignId: campaign.campaignId,
+          projectId: campaign.projectId,
+          workerId: this.workerId
+        });
+      }
       const jobs = await this.repository.claimDueJobs({
         claimLimit: AUTOMATION_CLAIM_LIMIT,
         leaseSeconds: AUTOMATION_LEASE_SECONDS,

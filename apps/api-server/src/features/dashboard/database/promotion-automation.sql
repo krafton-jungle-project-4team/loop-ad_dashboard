@@ -1,3 +1,110 @@
+/* 목적: 종료일이 지난 캠페인을 완료하고 진행 중인 모든 하위 실행을 함께 종료합니다. */
+/* @name CompleteExpiredDashboardCampaigns */
+WITH expired_campaign_candidates AS (
+  SELECT project_id, campaign_id
+  FROM campaigns
+  WHERE status NOT IN ('completed', 'stopped')
+    AND end_date IS NOT NULL
+    AND (end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul' <= now()
+  ORDER BY end_date, campaign_id
+  FOR UPDATE SKIP LOCKED
+  LIMIT (:campaignLimit)::int
+), completed_campaigns AS (
+  UPDATE campaigns campaign
+  SET status = 'completed',
+      updated_at = now()
+  FROM expired_campaign_candidates expired
+  WHERE campaign.project_id = expired.project_id
+    AND campaign.campaign_id = expired.campaign_id
+  RETURNING campaign.project_id, campaign.campaign_id
+), stopped_promotions AS (
+  UPDATE promotions promotion
+  SET status = 'stopped',
+      updated_at = now()
+  FROM completed_campaigns campaign
+  WHERE promotion.project_id = campaign.project_id
+    AND promotion.campaign_id = campaign.campaign_id
+    AND promotion.status <> 'stopped'
+  RETURNING promotion.promotion_id
+), stopped_segments AS (
+  UPDATE promotion_target_segments segment
+  SET status = 'stopped'
+  FROM completed_campaigns campaign
+  WHERE segment.project_id = campaign.project_id
+    AND segment.campaign_id = campaign.campaign_id
+    AND segment.status <> 'stopped'
+  RETURNING segment.segment_id
+), failed_generation_runs AS (
+  UPDATE generation_runs generation
+  SET status = 'failed',
+      started_at = COALESCE(generation.started_at, now()),
+      finished_at = now(),
+      next_retry_at = NULL,
+      last_error_code = 'generation_invalidated_by_campaign_end',
+      last_error_message = 'campaign ended',
+      worker_id = NULL,
+      lease_token = NULL,
+      heartbeat_at = NULL,
+      lease_expires_at = NULL,
+      updated_at = now()
+  FROM completed_campaigns campaign
+  WHERE generation.project_id = campaign.project_id
+    AND generation.campaign_id = campaign.campaign_id
+    AND generation.status IN ('requested', 'running')
+  RETURNING generation.generation_id
+), cancelled_dispatch_jobs AS (
+  UPDATE ad_dispatch_jobs dispatch
+  SET status = 'cancelled',
+      completed_at = COALESCE(dispatch.completed_at, now())
+  FROM completed_campaigns campaign
+  WHERE dispatch.project_id = campaign.project_id
+    AND dispatch.campaign_id = campaign.campaign_id
+    AND dispatch.status IN ('queued', 'scheduled', 'running')
+  RETURNING dispatch.ad_dispatch_job_id
+), stopped_runs AS (
+  UPDATE promotion_runs promotion_run
+  SET status = 'stopped',
+      ended_at = COALESCE(promotion_run.ended_at, now()),
+      updated_at = now()
+  FROM completed_campaigns campaign
+  WHERE promotion_run.project_id = campaign.project_id
+    AND promotion_run.campaign_id = campaign.campaign_id
+    AND promotion_run.status <> 'stopped'
+  RETURNING promotion_run.promotion_run_id
+), cancelled_automation_jobs AS (
+  UPDATE promotion_automation_jobs job
+  SET status = 'cancelled',
+      worker_id = NULL,
+      lease_token = NULL,
+      locked_at = NULL,
+      lease_expires_at = NULL,
+      updated_at = now()
+  WHERE job.promotion_run_id IN (
+      SELECT promotion_run.promotion_run_id
+      FROM promotion_runs promotion_run
+      JOIN completed_campaigns campaign
+        ON campaign.project_id = promotion_run.project_id
+       AND campaign.campaign_id = promotion_run.campaign_id
+    )
+    AND job.status IN ('pending', 'running')
+  RETURNING job.job_id
+), stopped_experiments AS (
+  UPDATE ad_experiments experiment
+  SET status = 'stopped',
+      ended_at = COALESCE(experiment.ended_at, now()),
+      updated_at = now()
+  FROM completed_campaigns campaign
+  WHERE experiment.project_id = campaign.project_id
+    AND experiment.campaign_id = campaign.campaign_id
+    AND experiment.status <> 'stopped'
+  RETURNING experiment.ad_experiment_id
+)
+SELECT
+  project_id AS "projectId",
+  campaign_id AS "campaignId"
+FROM completed_campaigns
+ORDER BY campaign_id;
+
 /* 목적: 배정이 끝난 실행을 자동 또는 미래 시작 작업으로 등록하고 현재 실행 정책을 반환합니다. */
 /* @name ScheduleDashboardPromotionRunLaunch */
 WITH run_config AS (
@@ -7,15 +114,25 @@ WITH run_config AS (
     pr.promotion_id,
     pr.loop_count,
     p.execution_mode,
-    p.scheduled_start_at,
-    p.scheduled_end_at,
+    GREATEST(
+      p.scheduled_start_at,
+      c.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+    ) AS scheduled_start_at,
+    LEAST(
+      p.scheduled_end_at,
+      (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+    ) AS scheduled_end_at,
     p.loop_interval_unit,
     p.loop_interval_value,
-    p.max_loop_count
+    p.max_loop_count,
+    c.status AS campaign_status
   FROM promotion_runs pr
   JOIN promotions p
     ON p.project_id = pr.project_id
    AND p.promotion_id = pr.promotion_id
+  JOIN campaigns c
+    ON c.project_id = pr.project_id
+   AND c.campaign_id = pr.campaign_id
   WHERE pr.project_id = :projectId
     AND pr.promotion_run_id = :promotionRunId
     AND p.status <> 'stopped'
@@ -39,7 +156,8 @@ WITH run_config AS (
     'pending',
     jsonb_build_object('source', 'assignment_ready')
   FROM run_config
-  WHERE (execution_mode = 'automatic' OR scheduled_start_at > now())
+  WHERE campaign_status NOT IN ('completed', 'stopped')
+    AND (execution_mode = 'automatic' OR scheduled_start_at > now())
     AND (scheduled_end_at IS NULL OR scheduled_end_at > now())
   ON CONFLICT (promotion_run_id, job_type) DO UPDATE
   SET
@@ -78,7 +196,10 @@ SELECT
   rc.loop_interval_unit AS "loopIntervalUnit",
   rc.loop_interval_value AS "loopIntervalValue",
   rc.max_loop_count AS "maxLoopCount",
-  (rc.scheduled_end_at IS NOT NULL AND rc.scheduled_end_at <= now()) AS "scheduleExpired",
+  (
+    rc.campaign_status IN ('completed', 'stopped')
+    OR (rc.scheduled_end_at IS NOT NULL AND rc.scheduled_end_at <= now())
+  ) AS "scheduleExpired",
   launch_job.job_id AS "jobId",
   launch_job.scheduled_at AS "jobScheduledAt",
   launch_job.status AS "jobStatus"
@@ -92,7 +213,10 @@ WITH run_config AS (
   SELECT
     pr.promotion_run_id,
     p.execution_mode,
-    p.scheduled_end_at,
+    LEAST(
+      p.scheduled_end_at,
+      (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+    ) AS scheduled_end_at,
     p.loop_interval_unit,
     p.loop_interval_value,
     CASE
@@ -104,8 +228,12 @@ WITH run_config AS (
   JOIN promotions p
     ON p.project_id = pr.project_id
    AND p.promotion_id = pr.promotion_id
+  JOIN campaigns c
+    ON c.project_id = pr.project_id
+   AND c.campaign_id = pr.campaign_id
   WHERE pr.promotion_run_id = :promotionRunId
     AND p.status <> 'stopped'
+    AND c.status NOT IN ('completed', 'stopped')
 )
 INSERT INTO promotion_automation_jobs (
   job_id,
@@ -149,12 +277,22 @@ WITH promotion_config AS (
   SELECT
     p.promotion_id,
     p.execution_mode,
-    p.scheduled_start_at,
-    p.scheduled_end_at,
+    GREATEST(
+      p.scheduled_start_at,
+      c.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+    ) AS scheduled_start_at,
+    LEAST(
+      p.scheduled_end_at,
+      (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+    ) AS scheduled_end_at,
     p.loop_interval_unit,
     p.loop_interval_value,
-    p.status AS promotion_status
+    p.status AS promotion_status,
+    c.status AS campaign_status
   FROM promotions p
+  JOIN campaigns c
+    ON c.project_id = p.project_id
+   AND c.campaign_id = p.campaign_id
   WHERE p.project_id = :projectId
     AND p.promotion_id = :promotionId
 )
@@ -162,6 +300,7 @@ UPDATE promotion_automation_jobs jobs
 SET
   status = CASE
     WHEN config.promotion_status = 'stopped'
+      OR config.campaign_status IN ('completed', 'stopped')
       OR (config.scheduled_end_at IS NOT NULL AND config.scheduled_end_at <= now())
       OR (
         jobs.job_type = 'launch_run'
@@ -214,17 +353,50 @@ RETURNING
 /* 목적: 여러 API 인스턴스가 같은 작업을 중복 처리하지 않도록 만료 lease를 포함해 작업을 선점합니다. */
 /* @name ClaimDashboardPromotionAutomationJobs */
 WITH candidates AS (
-  SELECT job_id
-  FROM promotion_automation_jobs
+  SELECT job.job_id
+  FROM promotion_automation_jobs job
+  JOIN promotion_runs promotion_run
+    ON promotion_run.promotion_run_id = job.promotion_run_id
+  JOIN promotions promotion
+    ON promotion.project_id = promotion_run.project_id
+   AND promotion.promotion_id = promotion_run.promotion_id
+  JOIN campaigns campaign
+    ON campaign.project_id = promotion_run.project_id
+   AND campaign.campaign_id = promotion_run.campaign_id
   WHERE (
-      status = 'pending'
-      AND scheduled_at <= now()
-    ) OR (
-      status = 'running'
-      AND lease_expires_at <= now()
+      (
+        job.status = 'pending'
+        AND job.scheduled_at <= now()
+      ) OR (
+        job.status = 'running'
+        AND job.lease_expires_at <= now()
+      )
     )
-  ORDER BY scheduled_at, created_at, job_id
-  FOR UPDATE SKIP LOCKED
+    AND promotion.status <> 'stopped'
+    AND campaign.status NOT IN ('completed', 'stopped')
+    AND (
+      job.job_type <> 'launch_run'
+      OR GREATEST(
+        promotion.scheduled_start_at,
+        campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+      ) IS NULL
+      OR GREATEST(
+        promotion.scheduled_start_at,
+        campaign.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+      ) <= now()
+    )
+    AND (
+      LEAST(
+        promotion.scheduled_end_at,
+        (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+      ) IS NULL
+      OR LEAST(
+        promotion.scheduled_end_at,
+        (campaign.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+      ) > now()
+    )
+  ORDER BY job.scheduled_at, job.created_at, job.job_id
+  FOR UPDATE OF job SKIP LOCKED
   LIMIT :claimLimit
 ), claimed AS (
   UPDATE promotion_automation_jobs jobs
@@ -255,8 +427,14 @@ SELECT
   pr.loop_count AS "loopCount",
   pr.status AS "promotionRunStatus",
   p.execution_mode AS "executionMode",
-  p.scheduled_start_at AS "scheduledStartAt",
-  p.scheduled_end_at AS "scheduledEndAt",
+  GREATEST(
+    p.scheduled_start_at,
+    c.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+  ) AS "scheduledStartAt",
+  LEAST(
+    p.scheduled_end_at,
+    (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+  ) AS "scheduledEndAt",
   p.loop_interval_unit AS "loopIntervalUnit",
   p.loop_interval_value AS "loopIntervalValue",
   p.max_loop_count AS "maxLoopCount",
@@ -267,6 +445,9 @@ JOIN promotion_runs pr
 JOIN promotions p
   ON p.project_id = pr.project_id
  AND p.promotion_id = pr.promotion_id
+JOIN campaigns c
+  ON c.project_id = pr.project_id
+ AND c.campaign_id = pr.campaign_id
 ORDER BY claimed.scheduled_at, claimed.job_id;
 
 /* 목적: lease 소유자가 처리한 자동화 작업을 완료 상태로 전환합니다. */
@@ -341,15 +522,27 @@ SELECT
   pr.loop_count AS "loopCount",
   pr.status AS "promotionRunStatus",
   p.execution_mode AS "executionMode",
-  p.scheduled_start_at AS "scheduledStartAt",
-  p.scheduled_end_at AS "scheduledEndAt",
+  GREATEST(
+    p.scheduled_start_at,
+    c.start_date::timestamp AT TIME ZONE 'Asia/Seoul'
+  ) AS "scheduledStartAt",
+  LEAST(
+    p.scheduled_end_at,
+    (c.end_date + 1)::timestamp AT TIME ZONE 'Asia/Seoul'
+  ) AS "scheduledEndAt",
   p.loop_interval_unit AS "loopIntervalUnit",
   p.loop_interval_value AS "loopIntervalValue",
   p.max_loop_count AS "maxLoopCount",
-  p.status AS "promotionStatus"
+  CASE
+    WHEN c.status IN ('completed', 'stopped') THEN 'stopped'
+    ELSE p.status
+  END AS "promotionStatus"
 FROM promotion_runs pr
 JOIN promotions p
   ON p.project_id = pr.project_id
  AND p.promotion_id = pr.promotion_id
+JOIN campaigns c
+  ON c.project_id = pr.project_id
+ AND c.campaign_id = pr.campaign_id
 WHERE pr.project_id = :projectId
   AND pr.promotion_run_id = :promotionRunId;

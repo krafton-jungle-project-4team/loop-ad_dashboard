@@ -4,6 +4,8 @@ import { test } from "node:test";
 import { Pool } from "pg";
 import { stopDashboardPromotion } from "../src/features/dashboard/database/__generated__/dashboard.queries.js";
 import {
+  claimDashboardPromotionAutomationJobs,
+  completeExpiredDashboardCampaigns,
   scheduleDashboardPromotionRunEvaluation,
   scheduleDashboardPromotionRunLaunch,
   syncPendingDashboardPromotionAutomationJobs
@@ -37,8 +39,22 @@ test(
       );
       await client.query(
         `
-          INSERT INTO campaigns (campaign_id, project_id, name, status)
-          VALUES ($1, $2, 'Automation SQL Test', 'active')
+          INSERT INTO campaigns (
+            campaign_id,
+            project_id,
+            name,
+            start_date,
+            end_date,
+            status
+          )
+          VALUES (
+            $1,
+            $2,
+            'Automation SQL Test',
+            CURRENT_DATE - 1,
+            CURRENT_DATE + 5,
+            'active'
+          )
         `,
         [campaignId, projectId]
       );
@@ -188,6 +204,49 @@ test(
       assert.equal(evaluation.status, "pending");
       assert.ok(evaluation.scheduledAt.getTime() > Date.now() + 3.5 * 60 * 60 * 1_000);
 
+      await client.query(
+        `
+          UPDATE promotions
+          SET scheduled_start_at = NULL
+          WHERE promotion_id = $1
+        `,
+        [promotionId]
+      );
+      await client.query(
+        `
+          UPDATE campaigns
+          SET start_date = CURRENT_DATE + 1
+          WHERE campaign_id = $1
+        `,
+        [campaignId]
+      );
+      await client.query(
+        `
+          UPDATE promotion_automation_jobs
+          SET scheduled_at = now() - interval '1 minute'
+          WHERE promotion_run_id = $1
+            AND job_type = 'launch_run'
+        `,
+        [promotionRunId]
+      );
+      const earlyClaims = await db
+        .query(claimDashboardPromotionAutomationJobs, {
+          claimLimit: 10,
+          leaseSeconds: 120,
+          leaseToken: randomUUID(),
+          workerId: "automation-test-worker"
+        })
+        .multiple();
+      assert.deepEqual(earlyClaims, []);
+      await client.query(
+        `
+          UPDATE campaigns
+          SET start_date = CURRENT_DATE - 1
+          WHERE campaign_id = $1
+        `,
+        [campaignId]
+      );
+
       await db.query(stopDashboardPromotion, { projectId, promotionId }).single();
       const stoppedJobs = await client.query<{ status: string }>(
         `
@@ -202,6 +261,67 @@ test(
         stoppedJobs.rows.map((row) => row.status),
         ["cancelled", "cancelled"]
       );
+
+      await client.query(
+        `
+          UPDATE promotions
+          SET
+            status = 'approved',
+            scheduled_start_at = NULL,
+            scheduled_end_at = NULL
+          WHERE promotion_id = $1
+        `,
+        [promotionId]
+      );
+      await client.query(
+        `
+          UPDATE promotion_automation_jobs
+          SET status = 'pending', completed_at = NULL
+          WHERE promotion_run_id = $1
+        `,
+        [promotionRunId]
+      );
+      await client.query(
+        `
+          UPDATE campaigns
+          SET end_date = CURRENT_DATE - 1
+          WHERE campaign_id = $1
+        `,
+        [campaignId]
+      );
+
+      const completedCampaign = await db
+        .query(completeExpiredDashboardCampaigns, { campaignLimit: 10 })
+        .single();
+      assert.equal(completedCampaign.campaignId, campaignId);
+
+      const completedState = await client.query<{
+        campaign_status: string;
+        job_statuses: string[];
+        promotion_status: string;
+      }>(
+        `
+          SELECT
+            campaign.status AS campaign_status,
+            promotion.status AS promotion_status,
+            ARRAY_AGG(job.status ORDER BY job.job_type) AS job_statuses
+          FROM campaigns campaign
+          JOIN promotions promotion
+            ON promotion.campaign_id = campaign.campaign_id
+          JOIN promotion_runs promotion_run
+            ON promotion_run.promotion_id = promotion.promotion_id
+          JOIN promotion_automation_jobs job
+            ON job.promotion_run_id = promotion_run.promotion_run_id
+          WHERE campaign.campaign_id = $1
+          GROUP BY campaign.status, promotion.status
+        `,
+        [campaignId]
+      );
+      assert.deepEqual(completedState.rows[0], {
+        campaign_status: "completed",
+        job_statuses: ["cancelled", "cancelled"],
+        promotion_status: "stopped"
+      });
     } finally {
       await client.query("ROLLBACK");
       client.release();
