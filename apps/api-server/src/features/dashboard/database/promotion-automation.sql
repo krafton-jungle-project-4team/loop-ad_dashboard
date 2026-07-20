@@ -25,7 +25,7 @@ WITH expired_campaign_candidates AS (
   WHERE promotion.project_id = campaign.project_id
     AND promotion.campaign_id = campaign.campaign_id
     AND promotion.status <> 'stopped'
-  RETURNING promotion.promotion_id
+  RETURNING promotion.project_id, promotion.campaign_id
 ), stopped_segments AS (
   UPDATE promotion_target_segments segment
   SET status = 'stopped'
@@ -33,7 +33,7 @@ WITH expired_campaign_candidates AS (
   WHERE segment.project_id = campaign.project_id
     AND segment.campaign_id = campaign.campaign_id
     AND segment.status <> 'stopped'
-  RETURNING segment.segment_id
+  RETURNING segment.project_id, segment.campaign_id
 ), failed_generation_runs AS (
   UPDATE generation_runs generation
   SET status = 'failed',
@@ -51,7 +51,7 @@ WITH expired_campaign_candidates AS (
   WHERE generation.project_id = campaign.project_id
     AND generation.campaign_id = campaign.campaign_id
     AND generation.status IN ('requested', 'running')
-  RETURNING generation.generation_id
+  RETURNING generation.project_id, generation.campaign_id
 ), cancelled_dispatch_jobs AS (
   UPDATE ad_dispatch_jobs dispatch
   SET status = 'cancelled',
@@ -60,7 +60,7 @@ WITH expired_campaign_candidates AS (
   WHERE dispatch.project_id = campaign.project_id
     AND dispatch.campaign_id = campaign.campaign_id
     AND dispatch.status IN ('queued', 'scheduled', 'running')
-  RETURNING dispatch.ad_dispatch_job_id
+  RETURNING dispatch.project_id, dispatch.campaign_id
 ), stopped_runs AS (
   UPDATE promotion_runs promotion_run
   SET status = 'stopped',
@@ -70,7 +70,7 @@ WITH expired_campaign_candidates AS (
   WHERE promotion_run.project_id = campaign.project_id
     AND promotion_run.campaign_id = campaign.campaign_id
     AND promotion_run.status <> 'stopped'
-  RETURNING promotion_run.promotion_run_id
+  RETURNING promotion_run.project_id, promotion_run.campaign_id, promotion_run.promotion_run_id
 ), cancelled_automation_jobs AS (
   UPDATE promotion_automation_jobs job
   SET status = 'cancelled',
@@ -87,7 +87,7 @@ WITH expired_campaign_candidates AS (
        AND campaign.campaign_id = promotion_run.campaign_id
     )
     AND job.status IN ('pending', 'running')
-  RETURNING job.job_id
+  RETURNING job.promotion_run_id
 ), stopped_experiments AS (
   UPDATE ad_experiments experiment
   SET status = 'stopped',
@@ -97,13 +97,57 @@ WITH expired_campaign_candidates AS (
   WHERE experiment.project_id = campaign.project_id
     AND experiment.campaign_id = campaign.campaign_id
     AND experiment.status <> 'stopped'
-  RETURNING experiment.ad_experiment_id
+  RETURNING experiment.project_id, experiment.campaign_id
 )
 SELECT
-  project_id AS "projectId",
-  campaign_id AS "campaignId"
-FROM completed_campaigns
-ORDER BY campaign_id;
+  campaign.project_id AS "projectId",
+  campaign.campaign_id AS "campaignId",
+  (
+    SELECT count(*)::int
+    FROM stopped_promotions promotion
+    WHERE promotion.project_id = campaign.project_id
+      AND promotion.campaign_id = campaign.campaign_id
+  ) AS "stoppedPromotionCount",
+  (
+    SELECT count(*)::int
+    FROM stopped_segments segment
+    WHERE segment.project_id = campaign.project_id
+      AND segment.campaign_id = campaign.campaign_id
+  ) AS "stoppedSegmentCount",
+  (
+    SELECT count(*)::int
+    FROM failed_generation_runs generation
+    WHERE generation.project_id = campaign.project_id
+      AND generation.campaign_id = campaign.campaign_id
+  ) AS "failedGenerationRunCount",
+  (
+    SELECT count(*)::int
+    FROM cancelled_dispatch_jobs dispatch
+    WHERE dispatch.project_id = campaign.project_id
+      AND dispatch.campaign_id = campaign.campaign_id
+  ) AS "cancelledDispatchJobCount",
+  (
+    SELECT count(*)::int
+    FROM stopped_runs promotion_run
+    WHERE promotion_run.project_id = campaign.project_id
+      AND promotion_run.campaign_id = campaign.campaign_id
+  ) AS "stoppedPromotionRunCount",
+  (
+    SELECT count(*)::int
+    FROM cancelled_automation_jobs job
+    JOIN promotion_runs promotion_run
+      ON promotion_run.promotion_run_id = job.promotion_run_id
+    WHERE promotion_run.project_id = campaign.project_id
+      AND promotion_run.campaign_id = campaign.campaign_id
+  ) AS "cancelledAutomationJobCount",
+  (
+    SELECT count(*)::int
+    FROM stopped_experiments experiment
+    WHERE experiment.project_id = campaign.project_id
+      AND experiment.campaign_id = campaign.campaign_id
+  ) AS "stoppedExperimentCount"
+FROM completed_campaigns campaign
+ORDER BY campaign.campaign_id;
 
 /* 목적: 배정이 끝난 실행을 자동 또는 미래 시작 작업으로 등록하고 현재 실행 정책을 반환합니다. */
 /* @name ScheduleDashboardPromotionRunLaunch */

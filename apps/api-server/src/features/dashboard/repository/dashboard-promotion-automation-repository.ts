@@ -56,8 +56,15 @@ export type PromotionRunLaunchExperiment = {
 };
 
 export type CompletedCampaign = {
+  cancelledAutomationJobCount: number;
+  cancelledDispatchJobCount: number;
   campaignId: string;
+  failedGenerationRunCount: number;
   projectId: string;
+  stoppedExperimentCount: number;
+  stoppedPromotionCount: number;
+  stoppedPromotionRunCount: number;
+  stoppedSegmentCount: number;
 };
 
 @Injectable()
@@ -99,8 +106,15 @@ export class DashboardPromotionAutomationRepository {
       .query(completeExpiredDashboardCampaigns, { campaignLimit })
       .multiple();
     return rows.map((row) => ({
+      cancelledAutomationJobCount: row.cancelledAutomationJobCount ?? 0,
+      cancelledDispatchJobCount: row.cancelledDispatchJobCount ?? 0,
       campaignId: row.campaignId,
-      projectId: row.projectId
+      failedGenerationRunCount: row.failedGenerationRunCount ?? 0,
+      projectId: row.projectId,
+      stoppedExperimentCount: row.stoppedExperimentCount ?? 0,
+      stoppedPromotionCount: row.stoppedPromotionCount ?? 0,
+      stoppedPromotionRunCount: row.stoppedPromotionRunCount ?? 0,
+      stoppedSegmentCount: row.stoppedSegmentCount ?? 0
     }));
   }
 
