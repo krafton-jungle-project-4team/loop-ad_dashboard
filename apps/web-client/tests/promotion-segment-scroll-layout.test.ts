@@ -37,3 +37,13 @@ test("content candidates use one full-width carousel slide at a time", () => {
   assert.match(workspaceSource, /aria-label="광고 소재 이동"/);
   assert.doesNotMatch(workspaceSource, /좌우 버튼 또는 방향키/);
 });
+
+test("HTML previews remain interactive and own their internal scrolling", () => {
+  assert.match(workspaceSource, /HTML 크게 보기/);
+  assert.match(workspaceSource, /scrolling="yes"/);
+  assert.doesNotMatch(workspaceSource, /pointer-events-none aspect-video/);
+  assert.doesNotMatch(
+    workspaceSource,
+    /className="group absolute inset-0 h-full w-full rounded-md p-0"/
+  );
+});

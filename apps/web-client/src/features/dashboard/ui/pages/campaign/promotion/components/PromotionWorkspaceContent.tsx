@@ -1241,29 +1241,29 @@ function ContentCandidateHtmlPreview({
     return (
       <div className="min-w-0">
         <Dialog>
-          <div className="relative min-w-0 overflow-hidden rounded-md border bg-background">
+          <div className="min-w-0 overflow-hidden rounded-md border bg-background">
+            <div className="flex items-center justify-end border-b bg-muted/30 px-2 py-1.5">
+              <DialogTrigger asChild>
+                <Button
+                  aria-label={`${title} HTML 크게 보기`}
+                  className="h-7 px-2 text-xs"
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  HTML 크게 보기
+                </Button>
+              </DialogTrigger>
+            </div>
             <iframe
-              aria-hidden="true"
-              className="pointer-events-none aspect-video w-full bg-background"
+              className="aspect-video w-full bg-background"
               loading="lazy"
               referrerPolicy="no-referrer"
               sandbox="allow-scripts"
+              scrolling="yes"
               src={artifact.public_url}
-              tabIndex={-1}
               title={`${title} HTML 축소 미리보기`}
             />
-            <DialogTrigger asChild>
-              <Button
-                aria-label={`${title} HTML 크게 보기`}
-                className="group absolute inset-0 h-full w-full rounded-md p-0"
-                type="button"
-                variant="ghost"
-              >
-                <span className="absolute inset-x-3 bottom-3 rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
-                  HTML 크게 보기
-                </span>
-              </Button>
-            </DialogTrigger>
           </div>
           <DialogContent className="grid h-[calc(100svh-2rem)] w-[calc(100%-2rem)] max-w-none grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:h-[min(90svh,900px)] sm:w-[min(94vw,1440px)] sm:max-w-[min(94vw,1440px)]">
             <DialogHeader className="pr-8">
@@ -1277,6 +1277,7 @@ function ContentCandidateHtmlPreview({
               loading="lazy"
               referrerPolicy="no-referrer"
               sandbox="allow-scripts"
+              scrolling="yes"
               src={artifact.public_url}
               title={`${title} HTML 광고 미리보기`}
             />
