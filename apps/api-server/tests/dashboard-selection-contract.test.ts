@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   DashboardConfirmSegmentSuggestionsRequestSchema,
   DashboardDecideSegmentSuggestionRequestSchema,
+  DashboardReviseContentCandidateHtmlRequestSchema,
   DashboardUnapproveContentCandidateResultSchema,
   DashboardUpdateContentCandidateCopyRequestSchema
 } from "@loopad/shared";
@@ -86,6 +87,19 @@ test("content candidate copy update trims and validates editable text", () => {
       body: "남은 객실을 특별가로 만나보세요.",
       cta: "예약하기"
     }
+  );
+});
+
+test("content candidate HTML feedback is trimmed and bounded", () => {
+  assert.deepEqual(
+    DashboardReviseContentCandidateHtmlRequestSchema.parse({
+      feedback: "  혜택과 예약 버튼이 먼저 보이게 바꿔줘  "
+    }),
+    { feedback: "혜택과 예약 버튼이 먼저 보이게 바꿔줘" }
+  );
+  assert.throws(
+    () => DashboardReviseContentCandidateHtmlRequestSchema.parse({ feedback: "  " }),
+    /too small/i
   );
 });
 

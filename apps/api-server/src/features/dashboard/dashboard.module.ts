@@ -10,7 +10,11 @@ import {
   DashboardProjectExperimentsReader,
   DashboardSegmentQueryRepository
 } from "./repository/index.js";
-import { DashboardDecisionClient, DashboardSegmentAssistantAgent } from "./provider/index.js";
+import {
+  DashboardCreativeRevisionAgent,
+  DashboardDecisionClient,
+  DashboardSegmentAssistantAgent
+} from "./provider/index.js";
 import {
   DashboardEntitySearchService,
   DashboardProjectExperimentsService,
@@ -25,6 +29,7 @@ import {
     DashboardQueryService,
     DashboardEntitySearchService,
     DashboardProjectExperimentsService,
+    DashboardCreativeRevisionAgent,
     DashboardDecisionClient,
     DashboardSegmentAssistantAgent,
     PromotionAutomationService,

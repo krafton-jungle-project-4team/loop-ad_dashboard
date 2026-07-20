@@ -50,6 +50,8 @@ import type {
   DashboardPromotionSummary,
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
+  DashboardReviseContentCandidateHtmlRequest,
+  DashboardReviseContentCandidateHtmlResult,
   DashboardSavedSegment,
   DashboardSaveSegmentRequest,
   DashboardSegmentDetail,
@@ -80,7 +82,11 @@ import {
   type SegmentAssistantDiagnostics
 } from "../repository/index.js";
 import { dashboardErrors } from "../dashboard-errors.js";
-import { DashboardDecisionClient, DashboardSegmentAssistantAgent } from "../provider/index.js";
+import {
+  DashboardCreativeRevisionAgent,
+  DashboardDecisionClient,
+  DashboardSegmentAssistantAgent
+} from "../provider/index.js";
 import { LogContextScope, durationMs, log } from "../../../infra/logger/index.js";
 import {
   contentCandidateCopy,
@@ -88,8 +94,11 @@ import {
   contentCandidateHtmlUrl,
   editableCreative,
   editedCreativeMetadata,
-  rewriteCreativeHtmlCopy
+  rewriteCreativeHtmlCopy,
+  sanitizeCreativeHtmlRevision
 } from "./content-candidate-copy.js";
+
+const AI_CREATIVE_HTML_INPUT_LIMIT_BYTES = 500_000;
 
 @Injectable()
 export class DashboardQueryService {
@@ -107,7 +116,10 @@ export class DashboardQueryService {
     private readonly segmentAssistantAgent?: DashboardSegmentAssistantAgent,
     @Optional()
     @Inject(DashboardPromotionAutomationRepository)
-    private readonly promotionAutomationRepository?: DashboardPromotionAutomationRepository
+    private readonly promotionAutomationRepository?: DashboardPromotionAutomationRepository,
+    @Optional()
+    @Inject(DashboardCreativeRevisionAgent)
+    private readonly creativeRevisionAgent?: DashboardCreativeRevisionAgent
   ) {}
 
   @LogContextScope()
@@ -852,6 +864,115 @@ export class DashboardQueryService {
     );
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  @LogContextScope()
+  async reviseContentCandidateHtml(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardReviseContentCandidateHtmlRequest,
+    publicOrigin: string
+  ): Promise<DashboardReviseContentCandidateHtmlResult> {
+    const startedAt = Date.now();
+    log.assignContext({ contentId, projectId, promotionId, segmentId });
+    log.info("started", {
+      contentId,
+      feedbackLength: request.feedback.length,
+      projectId,
+      promotionId,
+      segmentId
+    });
+    const candidate = await this.campaignReader.getContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId
+    );
+    if (candidate.status !== "draft") {
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+
+    const creative = editableCreative(candidate);
+    if (!creative) {
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+    if (!this.creativeRevisionAgent) {
+      throw dashboardErrors.contentCandidateHtmlRevisionFailed();
+    }
+
+    const sourceHtml = await readContentCandidateHtml(creative);
+    if (Buffer.byteLength(sourceHtml) > AI_CREATIVE_HTML_INPUT_LIMIT_BYTES) {
+      throw dashboardErrors.contentCandidateHtmlRevisionInvalid();
+    }
+
+    const currentCopy = contentCandidateCopy(candidate);
+    let revision;
+    try {
+      revision = await this.creativeRevisionAgent.revise({
+        ...currentCopy,
+        channel: candidate.channel,
+        feedback: request.feedback,
+        html: sourceHtml
+      });
+    } catch (error) {
+      throw dashboardErrors.contentCandidateHtmlRevisionFailed(error);
+    }
+
+    const nextCopy = {
+      body: revision.body,
+      cta: revision.cta,
+      headline: revision.headline
+    };
+    let revisedHtml: string;
+    try {
+      revisedHtml = sanitizeCreativeHtmlRevision({
+        copy: nextCopy,
+        revisedHtml: revision.html,
+        sourceHtml
+      });
+    } catch (error) {
+      log.warn("creative_revision_rejected", {
+        err: error,
+        outputHtmlBytes: Buffer.byteLength(revision.html)
+      });
+      throw dashboardErrors.contentCandidateHtmlRevisionInvalid(error);
+    }
+
+    const htmlRevision = contentCandidateHtmlRevision(revisedHtml);
+    const htmlUrl = contentCandidateHtmlUrl({
+      contentId,
+      origin: publicOrigin,
+      projectId,
+      promotionId,
+      revision: htmlRevision,
+      segmentId
+    });
+    const { metadataJson } = editedCreativeMetadata({
+      candidate,
+      creative,
+      html: revisedHtml,
+      htmlUrl
+    });
+    const saved = await this.campaignReader.updateContentCandidateCopy(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      nextCopy,
+      metadataJson,
+      htmlUrl
+    );
+    const response = { ...saved, change_summary: revision.change_summary };
+
+    log.info("completed", {
+      changeSummaryLength: revision.change_summary.length,
+      durationMs: durationMs(startedAt),
+      outputHtmlBytes: Buffer.byteLength(revisedHtml),
+      status: saved.status
+    });
     return response;
   }
 

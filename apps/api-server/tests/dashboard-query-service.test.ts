@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { TransactionHost } from "@nestjs-cls/transactional";
 import type { DashboardDecisionClient } from "../src/features/dashboard/provider/dashboard-decision-client.js";
+import type { DashboardCreativeRevisionAgent } from "../src/features/dashboard/provider/dashboard-creative-revision-agent.js";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
 import type { DashboardPromotionAutomationRepository } from "../src/features/dashboard/repository/dashboard-promotion-automation-repository.js";
@@ -1546,6 +1547,114 @@ test("dashboard copy edit saves revised HTML without calling Decision API", asyn
   assert.match(writes[0]?.htmlUrl ?? "", /dashboard\.api\.dev\.loop-ad\.org/);
   const creative = writes[0]?.metadataJson.creative as Record<string, unknown>;
   assert.equal(creative.edited_html, "<h1>새 제목</h1><p>새 본문</p><a>혜택 보기</a>");
+});
+
+test("dashboard AI feedback revision validates and stores the complete HTML", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  const sourceHtml =
+    '<article><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getContentCandidate: async () =>
+        ({
+          analysis_id: "analysis-a",
+          body: "기존 본문",
+          channel: "onsite_banner",
+          content_id: "content-a",
+          content_option_id: "option-a",
+          cta: "예약하기",
+          data_evidence_json: {},
+          generation_id: "generation-a",
+          generation_prompt: null,
+          image_prompt: null,
+          image_url: null,
+          landing_url: "https://example.com",
+          message: null,
+          message_strategy: null,
+          metadata_json: {
+            creative: {
+              artifact: {
+                artifact_status: "published",
+                creative_format: "banner_html",
+                public_url: "https://assets.example.com/content-a.html"
+              },
+              edited_html: sourceHtml
+            }
+          },
+          preheader: null,
+          promotion_id: "promotion-a",
+          reason_summary: null,
+          segment_id: "segment-a",
+          status: "draft",
+          subject: null,
+          title: "기존 제목",
+          updated_at: "2026-07-16T00:00:00.000Z"
+        }) as never,
+      updateContentCandidateCopy: async (
+        _projectId,
+        promotionId,
+        segmentId,
+        contentId,
+        request,
+        metadataJson,
+        htmlUrl
+      ) => {
+        calls.push({ htmlUrl, metadataJson, request });
+        return {
+          body: request.body,
+          content_id: contentId,
+          cta: request.cta,
+          headline: request.headline,
+          html_url: htmlUrl,
+          promotion_id: promotionId,
+          segment_id: segmentId,
+          status: "draft" as const,
+          updated_at: "2026-07-16T00:00:00.000Z"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient(),
+    undefined,
+    undefined,
+    {
+      revise: async (input) => {
+        calls.push({ feedback: input.feedback });
+        return {
+          body: "혜택을 먼저 확인하세요",
+          change_summary: "혜택과 CTA의 시각적 우선순위를 높였습니다.",
+          cta: "혜택 보기",
+          headline: "여름 숙박 혜택",
+          html: [
+            '<article style="padding:24px"><h1>여름 숙박 혜택</h1>',
+            '<p>혜택을 먼저 확인하세요</p><a href="{{redirect_url}}">혜택 보기</a></article>'
+          ].join("")
+        };
+      }
+    } as unknown as DashboardCreativeRevisionAgent
+  );
+
+  const result = await service.reviseContentCandidateHtml(
+    "project-a",
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    { feedback: "혜택과 버튼이 먼저 보이게 바꿔줘" },
+    "https://dashboard.api.dev.loop-ad.org"
+  );
+
+  assert.equal(result.headline, "여름 숙박 혜택");
+  assert.match(result.change_summary, /시각적 우선순위/);
+  assert.deepEqual(calls[0], { feedback: "혜택과 버튼이 먼저 보이게 바꿔줘" });
+  const saved = calls[1] as { metadataJson: Record<string, unknown> };
+  const creative = saved.metadataJson.creative as Record<string, unknown>;
+  assert.match(String(creative.edited_html), /\{\{redirect_url\}\}/);
+  assert.match(String(creative.edited_html), /padding:24px/);
 });
 
 function emptyCampaignReader(): DashboardCampaignReader {

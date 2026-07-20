@@ -64,6 +64,8 @@ import {
   DashboardPromotionSummarySchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
+  DashboardReviseContentCandidateHtmlRequestSchema,
+  DashboardReviseContentCandidateHtmlResultSchema,
   DashboardSavedSegmentSchema,
   DashboardSaveSegmentRequestSchema,
   DashboardSegmentAssistantRequestSchema,
@@ -351,6 +353,31 @@ export class DashboardController {
     const parsedRequest = DashboardUpdateContentCandidateCopyRequestSchema.parse(body);
     return DashboardUpdateContentCandidateCopyResultSchema.parse(
       await this.dashboardQuery.updateContentCandidateCopy(
+        requiredProjectId,
+        promotionId,
+        segmentId,
+        contentId,
+        parsedRequest,
+        dashboardRequestOrigin(request)
+      )
+    );
+  }
+
+  @Post(
+    "promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/html/revisions"
+  )
+  async reviseContentCandidateHtml(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown,
+    @Req() request: DashboardHttpRequest
+  ) {
+    const requiredProjectId = requireProjectId(projectId);
+    const parsedRequest = DashboardReviseContentCandidateHtmlRequestSchema.parse(body);
+    return DashboardReviseContentCandidateHtmlResultSchema.parse(
+      await this.dashboardQuery.reviseContentCandidateHtml(
         requiredProjectId,
         promotionId,
         segmentId,

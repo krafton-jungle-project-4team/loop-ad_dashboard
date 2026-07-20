@@ -111,6 +111,21 @@ export type DashboardUpdateContentCandidateCopyResult = z.infer<
   typeof DashboardUpdateContentCandidateCopyResultSchema
 >;
 
+export const DashboardReviseContentCandidateHtmlRequestSchema = z.object({
+  feedback: z.string().trim().min(3).max(2000)
+});
+export type DashboardReviseContentCandidateHtmlRequest = z.infer<
+  typeof DashboardReviseContentCandidateHtmlRequestSchema
+>;
+
+export const DashboardReviseContentCandidateHtmlResultSchema =
+  DashboardUpdateContentCandidateCopyResultSchema.extend({
+    change_summary: z.string().min(1).max(500)
+  });
+export type DashboardReviseContentCandidateHtmlResult = z.infer<
+  typeof DashboardReviseContentCandidateHtmlResultSchema
+>;
+
 export const DashboardRejectContentCandidateRequestSchema = z.object({
   operator_note: z.string().nullable().optional()
 });

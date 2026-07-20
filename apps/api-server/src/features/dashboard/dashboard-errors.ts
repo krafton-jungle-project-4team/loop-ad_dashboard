@@ -41,6 +41,16 @@ export const DASHBOARD_ERRORS = {
     statusCode: HttpStatus.CONFLICT,
     code: "DASHBOARD_CONTENT_CANDIDATE_COPY_NOT_FOUND",
     message: "The generated HTML does not contain the selected copy."
+  },
+  CONTENT_CANDIDATE_HTML_REVISION_FAILED: {
+    statusCode: HttpStatus.BAD_GATEWAY,
+    code: "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_FAILED",
+    message: "The AI creative revision request failed."
+  },
+  CONTENT_CANDIDATE_HTML_REVISION_INVALID: {
+    statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    code: "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_INVALID",
+    message: "The AI creative revision did not pass the HTML safety contract."
   }
 } as const;
 
@@ -70,6 +80,10 @@ export const dashboardErrors = {
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_UNAVAILABLE, { cause }),
   contentCandidateCopyNotFound: () =>
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_COPY_NOT_FOUND),
+  contentCandidateHtmlRevisionFailed: (cause?: unknown) =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_REVISION_FAILED, { cause }),
+  contentCandidateHtmlRevisionInvalid: (cause?: unknown) =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_REVISION_INVALID, { cause }),
   segmentPreviewNotSaveable: () =>
     createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE),
   segmentSuggestionSelectionInvalid: () =>
