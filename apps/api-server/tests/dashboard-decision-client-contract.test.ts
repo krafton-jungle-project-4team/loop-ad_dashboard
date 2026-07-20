@@ -32,11 +32,7 @@ test("decision client preserves promotion offer catalog request contract", async
 
   const result = await client.promotionOffers({ projectId: "project/1" });
 
-  assert.deepEqual(result, {
-    ...response,
-    activation_status: "manual_start_required",
-    scheduled_start_at: null
-  });
+  assert.deepEqual(result, response);
   const request = requests[0];
   assert.ok(request);
   const url = new URL(request.url);
@@ -230,7 +226,11 @@ test("decision client preserves segment assignment request contract", async () =
     promotionRunId: "run/1"
   });
 
-  assert.deepEqual(result, response);
+  assert.deepEqual(result, {
+    ...response,
+    activation_status: "manual_start_required",
+    scheduled_start_at: null
+  });
   assertDecisionRequest(requests[0], {
     path: "/decision/v1/promotion-runs/run%2F1/segment-assignments/build",
     body: {}
