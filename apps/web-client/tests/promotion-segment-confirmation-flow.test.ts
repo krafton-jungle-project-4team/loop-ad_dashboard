@@ -143,7 +143,8 @@ test("segment assistant keeps the selected recommendation as editable session co
     segment_id: "segment-1",
     title: "예약 직전 이탈 고객",
     strategy_role: "예약 이탈 회수형",
-    condition_labels: ["예약 시작", "예약 완료 없음"],
+    condition_labels: [],
+    reference_labels: ["예약 시작", "예약 완료 없음"],
     sample_size: 142
   } as const;
   const selected = selectSegmentAssistantSource(createSegmentAssistantSession(), source);

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   DashboardCreatePromotionRequestSchema,
   type DashboardCampaignPromotion,
+  type DashboardPromotionSegmentSuggestion,
   type DashboardSegmentDetail
 } from "@loopad/shared";
 import {
@@ -20,6 +21,7 @@ import {
   promotionScheduleFitsCampaign,
   promotionScheduleInputBounds,
   promotionFormToUpdateRequest,
+  segmentAssistantSourceSuggestion,
   promotionToFormState
 } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionUtils.js";
 
@@ -403,4 +405,24 @@ test("segment display copy preserves strategy metadata and legacy candidate cont
   assert.equal(displayCopy?.recommendation_rank, undefined);
   assert.equal(displayCopy?.rank_eligible, false);
   assert.equal(displayCopy?.minimum_primary_sample_size, 30);
+});
+
+test("segment assistant keeps recommendation chips out of executable conditions", () => {
+  const source = segmentAssistantSourceSuggestion({
+    suggestion_id: "suggestion-1",
+    segment_id: "segment-1",
+    segment_name: "예약을 시작한 고객",
+    sample_size: 387,
+    display_copy: {
+      title: "예약을 시작한 고객",
+      strategy_role: "AI 추천 고객군",
+      audience_summary: "분석 대상 1000명 중 387명",
+      signal_chips: ["숙소 검색", "예약 가능성 높음", "예약 시작"],
+      reason: "예약 전환 목표에 가까운 행동 패턴을 보인 고객군입니다.",
+      action_hint: "후보로 검토하세요."
+    }
+  } as DashboardPromotionSegmentSuggestion);
+
+  assert.deepEqual(source.condition_labels, []);
+  assert.deepEqual(source.reference_labels, ["숙소 검색", "예약 가능성 높음", "예약 시작"]);
 });

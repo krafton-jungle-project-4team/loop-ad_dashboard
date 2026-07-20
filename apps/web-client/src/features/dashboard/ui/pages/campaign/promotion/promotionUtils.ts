@@ -15,6 +15,7 @@ import {
   type DashboardPromotionOffer,
   type DashboardUpdatePromotionRequest,
   type DashboardPromotionSegmentSuggestion,
+  type DashboardSegmentAssistantSourceSuggestion,
   type DashboardSegmentDetail
 } from "@loopad/shared";
 import { formatInteger } from "../../../../model/dashboard-format.js";
@@ -298,6 +299,22 @@ export function formatPercentValue(value: number) {
 }
 
 type SegmentDisplayCopy = NonNullable<DashboardPromotionSegmentSuggestion["display_copy"]>;
+
+export function segmentAssistantSourceSuggestion(
+  suggestion: DashboardPromotionSegmentSuggestion
+): DashboardSegmentAssistantSourceSuggestion {
+  // Recommendation chips describe the candidate; they are not executable predicates.
+  return {
+    suggestion_id: suggestion.suggestion_id,
+    segment_id: suggestion.segment_id,
+    title: suggestion.display_copy?.title ?? suggestion.segment_name,
+    strategy_role:
+      suggestion.display_copy?.strategy_role ?? suggestion.display_copy?.rank_role ?? null,
+    condition_labels: [],
+    reference_labels: suggestion.display_copy?.signal_chips ?? [],
+    sample_size: suggestion.sample_size
+  };
+}
 
 export function campaignSegmentDisplayCopy(
   segment: DashboardCampaignSegment
