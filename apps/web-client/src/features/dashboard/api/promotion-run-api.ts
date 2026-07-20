@@ -10,6 +10,8 @@ import {
   DashboardNextLoopAnalysisSchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
+  DashboardReviseContentCandidateHtmlRequestSchema,
+  DashboardReviseContentCandidateHtmlResultSchema,
   DashboardStartAdExperimentResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUnapproveContentCandidateRequestSchema,
@@ -28,6 +30,8 @@ import {
   type DashboardNextLoopAnalysis,
   type DashboardRejectContentCandidateRequest,
   type DashboardRejectContentCandidateResult,
+  type DashboardReviseContentCandidateHtmlRequest,
+  type DashboardReviseContentCandidateHtmlResult,
   type DashboardStartAdExperimentResult,
   type DashboardStartNextLoopRequest,
   type DashboardUnapproveContentCandidateRequest,
@@ -104,6 +108,25 @@ export function updateDashboardContentCandidateCopy(
       body: DashboardUpdateContentCandidateCopyRequestSchema.parse(requestBody),
       errorMessage: readDashboardApiErrorMessage,
       method: "PATCH",
+      searchParams: projectSearchParams(query.projectId)
+    }
+  );
+}
+
+export function reviseDashboardContentCandidateHtml(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  requestBody: DashboardReviseContentCandidateHtmlRequest
+): Promise<DashboardReviseContentCandidateHtmlResult> {
+  return apiRequest(
+    contentCandidatePath(promotionId, segmentId, contentId, "html/revisions"),
+    DashboardReviseContentCandidateHtmlResultSchema,
+    {
+      body: DashboardReviseContentCandidateHtmlRequestSchema.parse(requestBody),
+      errorMessage: readDashboardApiErrorMessage,
+      method: "POST",
       searchParams: projectSearchParams(query.projectId)
     }
   );
@@ -221,7 +244,7 @@ function contentCandidatePath(
   promotionId: string,
   segmentId: string,
   contentId: string,
-  action: "approve" | "copy" | "reject" | "unapprove"
+  action: "approve" | "copy" | "html/revisions" | "reject" | "unapprove"
 ) {
   return `${promotionPath(promotionId)}/segments/${encodeURIComponent(segmentId)}/content-candidates/${encodeURIComponent(contentId)}/${action}`;
 }

@@ -355,6 +355,7 @@ export function PromotionTabWorkspace({
   onDeleteConfirmedSegment,
   onLaunchExperiment,
   onRejectContentCandidate,
+  onReviseContentCandidateHtml,
   onSelectSegment,
   onRecommendSegments,
   onStartGeneration,
@@ -365,6 +366,7 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
+  reviseContentCandidateHtmlIsPending,
   scopedSegments,
   scopedSegmentsIsLoading,
   segmentView,
@@ -411,6 +413,12 @@ export function PromotionTabWorkspace({
     nextLoopPreparationId?: string
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onReviseContentCandidateHtml: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    feedback: string
+  ) => Promise<void>;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onRecommendSegments: () => void;
   onStartGeneration: (analysisId: string, segmentId: string) => void;
@@ -426,6 +434,7 @@ export function PromotionTabWorkspace({
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
+  reviseContentCandidateHtmlIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
   scopedSegmentsIsLoading: boolean;
   segmentView: SegmentWorkspaceView;
@@ -581,10 +590,12 @@ export function PromotionTabWorkspace({
               onContentCandidateSelectionChange={onContentCandidateSelectionChange}
               onLaunchExperiment={onLaunchExperiment}
               onRejectContentCandidate={onRejectContentCandidate}
+              onReviseContentCandidateHtml={onReviseContentCandidateHtml}
               onStartGeneration={onStartGeneration}
               onUpdateContentCandidateCopy={onUpdateContentCandidateCopy}
               promotionExperiments={promotionExperiments}
               rejectContentCandidateIsPending={rejectContentCandidateIsPending}
+              reviseContentCandidateHtmlIsPending={reviseContentCandidateHtmlIsPending}
               updateContentCandidateCopyIsPending={updateContentCandidateCopyIsPending}
               view={segmentView}
               selectedSegmentId={selectedSegmentId}
@@ -805,10 +816,12 @@ function PromotionSegmentDetailTab({
   onContentCandidateSelectionChange,
   onLaunchExperiment,
   onRejectContentCandidate,
+  onReviseContentCandidateHtml,
   onStartGeneration,
   onUpdateContentCandidateCopy,
   promotionExperiments,
   rejectContentCandidateIsPending,
+  reviseContentCandidateHtmlIsPending,
   selectedSegmentId,
   updateContentCandidateCopyIsPending,
   view
@@ -837,6 +850,12 @@ function PromotionSegmentDetailTab({
     nextLoopPreparationId?: string
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
+  onReviseContentCandidateHtml: (
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    feedback: string
+  ) => Promise<void>;
   onStartGeneration: (analysisId: string, segmentId: string) => void;
   onUpdateContentCandidateCopy: (
     promotionId: string,
@@ -846,6 +865,7 @@ function PromotionSegmentDetailTab({
   ) => Promise<void>;
   promotionExperiments: DashboardAdExperiment[];
   rejectContentCandidateIsPending: boolean;
+  reviseContentCandidateHtmlIsPending: boolean;
   selectedSegmentId: string;
   updateContentCandidateCopyIsPending: boolean;
   view: SegmentWorkspaceView;
@@ -1072,6 +1092,15 @@ function PromotionSegmentDetailTab({
                                   <ContentCandidateCopyEditDialog
                                     candidate={candidate}
                                     isPending={updateContentCandidateCopyIsPending}
+                                    isRevisionPending={reviseContentCandidateHtmlIsPending}
+                                    onRevise={(feedback) =>
+                                      onReviseContentCandidateHtml(
+                                        detail.segment.promotion_id,
+                                        detail.segment.segment_id,
+                                        candidate.content_id,
+                                        feedback
+                                      )
+                                    }
                                     onSave={(request) =>
                                       onUpdateContentCandidateCopy(
                                         detail.segment.promotion_id,
