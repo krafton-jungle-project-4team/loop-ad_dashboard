@@ -13,13 +13,6 @@ export type ProjectExperimentFilters = {
   status: string;
 };
 
-export type RunningEvaluationRefreshResult = {
-  failedRunCount: number;
-  failureMessage: string | null;
-  succeededRunCount: number;
-  totalRunCount: number;
-};
-
 export function userVisibleProjectExperiments(
   experiments: DashboardProjectExperiment[]
 ): DashboardProjectExperiment[] {
@@ -104,16 +97,6 @@ export function projectExperimentSelectionQuery(
     selectedPromotionId: experiment.promotion_id,
     selectedSegmentId: experiment.segment_id
   };
-}
-
-export function promotionRunIdsForRunningExperiments(
-  experiments: DashboardProjectExperiment[]
-): string[] {
-  return uniqueValues(
-    experiments
-      .filter((experiment) => experiment.status === "running")
-      .map((experiment) => experiment.promotion_run_id)
-  );
 }
 
 export function failedTargetsForPromotionRun(

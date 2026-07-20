@@ -6,7 +6,6 @@ import {
   DashboardCreateNextLoopResultSchema,
   DashboardCreatePromotionRunRequestSchema,
   DashboardCreatePromotionRunResultSchema,
-  DashboardEvaluatePromotionRunResultSchema,
   DashboardNextLoopAnalysisSchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
@@ -26,7 +25,6 @@ import {
   type DashboardCreateNextLoopResult,
   type DashboardCreatePromotionRunRequest,
   type DashboardCreatePromotionRunResult,
-  type DashboardEvaluatePromotionRunResult,
   type DashboardNextLoopAnalysis,
   type DashboardRejectContentCandidateRequest,
   type DashboardRejectContentCandidateResult,
@@ -170,21 +168,6 @@ export function buildDashboardPromotionRunAssignments(
   return apiRequest(
     `${promotionRunPath(promotionRunId)}/segment-assignments/build`,
     DashboardBuildPromotionRunAssignmentsResultSchema,
-    {
-      errorMessage: readDashboardApiErrorMessage,
-      method: "POST",
-      searchParams: projectSearchParams(query.projectId)
-    }
-  );
-}
-
-export function evaluateDashboardPromotionRun(
-  query: DashboardQuery,
-  promotionRunId: string
-): Promise<DashboardEvaluatePromotionRunResult> {
-  return apiRequest(
-    `${promotionRunPath(promotionRunId)}/evaluate`,
-    DashboardEvaluatePromotionRunResultSchema,
     {
       errorMessage: readDashboardApiErrorMessage,
       method: "POST",

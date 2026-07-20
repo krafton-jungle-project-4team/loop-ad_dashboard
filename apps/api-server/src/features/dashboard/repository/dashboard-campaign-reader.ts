@@ -1,5 +1,6 @@
 import { DashboardAudienceAllocationPreviewContextSchema } from "@loopad/shared";
 import type {
+  DashboardAdExperiment,
   DashboardArchivePromotionScopedSegmentDefinitionResult,
   DashboardApproveContentCandidateResult,
   DashboardApproveContentCandidateRequest,
@@ -893,6 +894,20 @@ export class DashboardCampaignReader {
       ...toAdExperiment(row),
       status: "running"
     };
+  }
+
+  async findAdExperiment(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    adExperimentId: string
+  ): Promise<DashboardAdExperiment | null> {
+    const rows = await this.db
+      .query(listDashboardSegmentAdExperiments, { projectId, promotionId, segmentId })
+      .multiple();
+    const row = rows.find((candidate) => candidate.adExperimentId === adExperimentId);
+
+    return row ? toSegmentAdExperiment(row) : null;
   }
 
   async getCampaignDetail(

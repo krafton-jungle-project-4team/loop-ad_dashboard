@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 import {
+  DashboardEvaluateAdExperimentResultSchema,
   DashboardPromotionOfferCatalogSchema,
   type DashboardAnalyzePromotionSegmentsRequest,
   type DashboardBuildPromotionRunAssignmentsResult,
@@ -9,6 +10,7 @@ import {
   type DashboardCreateNextLoopResult,
   type DashboardCreatePromotionRunRequest,
   type DashboardCreatePromotionRunResult,
+  type DashboardEvaluateAdExperimentResult,
   type DashboardEvaluatePromotionRunResult,
   type DashboardPromotionAnalysisResult,
   type DashboardPromotionOfferCatalog,
@@ -267,6 +269,17 @@ export class DashboardDecisionClient {
       path: `/decision/v1/promotion-runs/${encodeURIComponent(request.promotionRunId)}/evaluate`,
       request,
       schema: decisionPromotionRunEvaluateResponseSchema
+    });
+  }
+
+  evaluateAdExperiment(request: {
+    adExperimentId: string;
+  }): Promise<DashboardEvaluateAdExperimentResult> {
+    return requestDecisionApi({
+      body: {},
+      path: `/decision/v1/ad-experiments/${encodeURIComponent(request.adExperimentId)}/evaluate`,
+      request,
+      schema: DashboardEvaluateAdExperimentResultSchema
     });
   }
 

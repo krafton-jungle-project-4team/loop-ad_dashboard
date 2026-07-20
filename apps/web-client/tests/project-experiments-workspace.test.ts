@@ -14,7 +14,6 @@ import {
   filterProjectExperiments,
   normalizeProjectExperimentFilters,
   paginateProjectExperiments,
-  promotionRunIdsForRunningExperiments,
   projectExperimentSelectionQuery,
   repeatCreativeTargetForExperiment,
   userVisibleProjectExperiments
@@ -107,30 +106,7 @@ test("project experiment selection persists the experiment and every ancestor id
   assert.equal(normalized.selectedAdExperimentId, "experiment-a");
 });
 
-test("running experiment evaluation targets each promotion run only once across campaigns", () => {
-  const runningExperiments = [
-    ...experiments,
-    createExperiment({
-      ad_experiment_id: "experiment-d",
-      campaign_id: "campaign-b",
-      promotion_run_id: "run-default",
-      status: "running"
-    }),
-    createExperiment({
-      ad_experiment_id: "experiment-e",
-      campaign_id: "campaign-c",
-      promotion_run_id: "run-another",
-      status: "running"
-    })
-  ];
-
-  assert.deepEqual(promotionRunIdsForRunningExperiments(runningExperiments), [
-    "run-another",
-    "run-default"
-  ]);
-});
-
-test("empty fallback ads stay hidden while their promotion run remains evaluable", () => {
+test("empty fallback ads stay hidden", () => {
   const fallbackExperiment = createExperiment({
     ad_experiment_id: "experiment-fallback",
     assignment_count: 0,
@@ -145,7 +121,6 @@ test("empty fallback ads stay hidden while their promotion run remains evaluable
     visibleExperiments.some((experiment) => experiment.ad_experiment_id === "experiment-fallback"),
     false
   );
-  assert.deepEqual(promotionRunIdsForRunningExperiments(visibleExperiments), ["run-default"]);
 });
 
 test("fallback ads with assignments are visible", () => {

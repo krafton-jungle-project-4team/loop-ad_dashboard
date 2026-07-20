@@ -1,4 +1,8 @@
-import type { DashboardProjectExperiment } from "@loopad/shared";
+import {
+  DASHBOARD_FALLBACK_SEGMENT_ID,
+  type DashboardEvaluateAdExperimentResult,
+  type DashboardProjectExperiment
+} from "@loopad/shared";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
@@ -44,35 +48,39 @@ import {
   filterProjectExperiments,
   normalizeProjectExperimentFilters,
   paginateProjectExperiments,
-  promotionRunIdsForRunningExperiments,
   projectExperimentPageSizeOptions,
   projectExperimentSelectionQuery,
   repeatCreativeTargetForExperiment,
   type RepeatCreativePreparationInput,
-  type RunningEvaluationRefreshResult,
   userVisibleProjectExperiments,
   uniqueProjectExperimentValues
 } from "../projectExperimentUtils.js";
 
 export function ProjectExperimentWorkspace({
+  evaluationRefreshError,
+  evaluationRefreshIsError,
   evaluationRefreshIsPending,
   evaluationRefreshResult,
+  evaluationRefreshTargetId,
   experiments,
   isLoading,
   onPrepareRepeatCreatives,
-  onRefreshRunningEvaluations,
+  onRefreshEvaluation,
   prepareRepeatCreativesError,
   prepareRepeatCreativesIsError,
   prepareRepeatCreativesIsPending,
   prepareRepeatCreativesVariables,
   query
 }: {
+  evaluationRefreshError: unknown;
+  evaluationRefreshIsError: boolean;
   evaluationRefreshIsPending: boolean;
-  evaluationRefreshResult: RunningEvaluationRefreshResult | null;
+  evaluationRefreshResult: DashboardEvaluateAdExperimentResult | null;
+  evaluationRefreshTargetId: string | null;
   experiments: DashboardProjectExperiment[];
   isLoading: boolean;
   onPrepareRepeatCreatives: (input: RepeatCreativePreparationInput) => void;
-  onRefreshRunningEvaluations: (promotionRunIds: string[]) => void;
+  onRefreshEvaluation: (experiment: DashboardProjectExperiment) => void;
   prepareRepeatCreativesError: unknown;
   prepareRepeatCreativesIsError: boolean;
   prepareRepeatCreativesIsPending: boolean;
@@ -188,7 +196,6 @@ export function ProjectExperimentWorkspace({
   const runningCount = visibleExperiments.filter(
     (experiment) => experiment.status === "running"
   ).length;
-  const runningPromotionRunIds = promotionRunIdsForRunningExperiments(visibleExperiments);
   const nextLoopCount = visibleExperiments.filter(
     (experiment) => experiment.latest_evaluation?.next_loop_required
   ).length;
@@ -214,48 +221,14 @@ export function ProjectExperimentWorkspace({
 
       <Card>
         <CardHeader className="gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="grid gap-1">
-              <CardTitle>프로젝트 실험 목록</CardTitle>
-              <CardDescription>
-                캠페인과 상태로 실험을 찾고 자세한 성과를 볼 수 있어요.
-              </CardDescription>
-            </div>
-            <Button
-              aria-label={evaluationRefreshIsPending ? "평가 갱신 중" : "평가 갱신"}
-              disabled={runningPromotionRunIds.length === 0 || evaluationRefreshIsPending}
-              onClick={() => onRefreshRunningEvaluations(runningPromotionRunIds)}
-              type="button"
-            >
-              {evaluationRefreshIsPending ? (
-                <Spinner aria-label="평가 갱신 중" data-icon="inline-start" />
-              ) : (
-                <RefreshCw aria-hidden="true" data-icon="inline-start" />
-              )}
-              {evaluationRefreshIsPending ? "평가 갱신 중…" : "평가 갱신"}
-            </Button>
+          <div className="grid gap-1">
+            <CardTitle>프로젝트 실험 목록</CardTitle>
+            <CardDescription>
+              캠페인과 상태로 실험을 찾고 자세한 성과를 볼 수 있어요.
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {evaluationRefreshResult && !evaluationRefreshIsPending ? (
-            <Alert
-              aria-live="polite"
-              variant={evaluationRefreshResult.failedRunCount > 0 ? "destructive" : "default"}
-            >
-              <AlertTitle>
-                {evaluationRefreshResult.failedRunCount === 0
-                  ? "진행 중 실험 평가를 갱신했어요"
-                  : evaluationRefreshResult.succeededRunCount > 0
-                    ? "일부 실험 평가를 갱신하지 못했어요"
-                    : "실험 평가를 갱신하지 못했어요"}
-              </AlertTitle>
-              <AlertDescription>
-                {evaluationRefreshResult.failedRunCount === 0
-                  ? `${formatInteger(evaluationRefreshResult.totalRunCount)}개 회차의 진행 중 실험 평가를 갱신했어요.`
-                  : evaluationRefreshFailureMessage(evaluationRefreshResult)}
-              </AlertDescription>
-            </Alert>
-          ) : null}
           {visibleExperiments.length === 0 ? (
             <EmptyState message="아직 시작한 실험이 없어요." />
           ) : (
@@ -317,9 +290,15 @@ export function ProjectExperimentWorkspace({
 
       {selectedExperiment ? (
         <SelectedProjectExperimentDetail
+          evaluationRefreshError={evaluationRefreshError}
+          evaluationRefreshIsError={evaluationRefreshIsError}
+          evaluationRefreshIsPending={evaluationRefreshIsPending}
+          evaluationRefreshResult={evaluationRefreshResult}
+          evaluationRefreshTargetId={evaluationRefreshTargetId}
           experiment={selectedExperiment}
           experiments={visibleExperiments}
           onPrepareRepeatCreatives={onPrepareRepeatCreatives}
+          onRefreshEvaluation={onRefreshEvaluation}
           prepareRepeatCreativesError={prepareRepeatCreativesError}
           prepareRepeatCreativesIsError={prepareRepeatCreativesIsError}
           prepareRepeatCreativesIsPending={prepareRepeatCreativesIsPending}
@@ -330,16 +309,7 @@ export function ProjectExperimentWorkspace({
   );
 }
 
-function evaluationRefreshFailureMessage(result: RunningEvaluationRefreshResult): string {
-  const failureMessage = result.failureMessage ?? "요청을 처리하지 못했어요.";
-  const retryGuide = failureMessage.includes("다시 시도")
-    ? ""
-    : " 버튼을 다시 눌러 다시 시도해 주세요.";
-
-  return `${formatInteger(result.succeededRunCount)}개 회차 성공, ${formatInteger(result.failedRunCount)}개 회차 실패했어요. ${failureMessage}${retryGuide}`;
-}
-
-function repeatCreativePreparationErrorMessage(error: unknown): string {
+function retryableActionErrorMessage(error: unknown): string {
   const message = toErrorMessage(error);
   return message.includes("다시 시도") ? message : `${message} 잠시 후 다시 시도해 주세요.`;
 }
@@ -525,17 +495,29 @@ function ProjectExperimentTable({
 }
 
 function SelectedProjectExperimentDetail({
+  evaluationRefreshError,
+  evaluationRefreshIsError,
+  evaluationRefreshIsPending,
+  evaluationRefreshResult,
+  evaluationRefreshTargetId,
   experiment,
   experiments,
   onPrepareRepeatCreatives,
+  onRefreshEvaluation,
   prepareRepeatCreativesError,
   prepareRepeatCreativesIsError,
   prepareRepeatCreativesIsPending,
   prepareRepeatCreativesVariables
 }: {
+  evaluationRefreshError: unknown;
+  evaluationRefreshIsError: boolean;
+  evaluationRefreshIsPending: boolean;
+  evaluationRefreshResult: DashboardEvaluateAdExperimentResult | null;
+  evaluationRefreshTargetId: string | null;
   experiment: DashboardProjectExperiment;
   experiments: DashboardProjectExperiment[];
   onPrepareRepeatCreatives: (input: RepeatCreativePreparationInput) => void;
+  onRefreshEvaluation: (experiment: DashboardProjectExperiment) => void;
   prepareRepeatCreativesError: unknown;
   prepareRepeatCreativesIsError: boolean;
   prepareRepeatCreativesIsPending: boolean;
@@ -556,6 +538,14 @@ function SelectedProjectExperimentDetail({
     ) === true;
   const isPreparingRepeatCreativesForSelected =
     prepareRepeatCreativesIsPending && isRepeatRequestForSelected;
+  const isRefreshingSelected =
+    evaluationRefreshIsPending && evaluationRefreshTargetId === experiment.ad_experiment_id;
+  const refreshedEvaluation =
+    evaluationRefreshResult?.ad_experiment_id === experiment.ad_experiment_id
+      ? evaluationRefreshResult
+      : null;
+  const refreshFailedForSelected =
+    evaluationRefreshIsError && evaluationRefreshTargetId === experiment.ad_experiment_id;
 
   return (
     <Card>
@@ -584,6 +574,22 @@ function SelectedProjectExperimentDetail({
           </CardDescription>
         </div>
         <div className="flex flex-wrap items-start gap-2">
+          {experiment.segment_id !== DASHBOARD_FALLBACK_SEGMENT_ID ? (
+            <Button
+              aria-label={`${experiment.segment_name} 평가 갱신`}
+              disabled={experiment.status !== "running" || evaluationRefreshIsPending}
+              onClick={() => onRefreshEvaluation(experiment)}
+              type="button"
+              variant="outline"
+            >
+              {isRefreshingSelected ? (
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+              ) : (
+                <RefreshCw aria-hidden="true" data-icon="inline-start" />
+              )}
+              {isRefreshingSelected ? "평가 갱신 중…" : "평가 갱신"}
+            </Button>
+          ) : null}
           {experiment.execution_mode === "manual" ? (
             <Button
               disabled={!canPrepareRepeatCreatives || prepareRepeatCreativesIsPending}
@@ -613,11 +619,25 @@ function SelectedProjectExperimentDetail({
         </div>
       </CardHeader>
       <CardContent className="grid gap-6">
+        {refreshedEvaluation && !isRefreshingSelected && !refreshFailedForSelected ? (
+          <Alert aria-live="polite">
+            <AlertTitle>{experiment.segment_name} 평가를 갱신했어요</AlertTitle>
+            <AlertDescription>이 고객군의 최신 실험 성과만 다시 계산했습니다.</AlertDescription>
+          </Alert>
+        ) : null}
+        {refreshFailedForSelected ? (
+          <Alert aria-live="polite" variant="destructive">
+            <AlertTitle>{experiment.segment_name} 평가를 갱신하지 못했어요</AlertTitle>
+            <AlertDescription>
+              {retryableActionErrorMessage(evaluationRefreshError)}
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {prepareRepeatCreativesIsError && isRepeatRequestForSelected ? (
           <Alert aria-live="polite" variant="destructive">
             <AlertTitle>다음 실험용 광고를 만들지 못했어요</AlertTitle>
             <AlertDescription>
-              {repeatCreativePreparationErrorMessage(prepareRepeatCreativesError)}
+              {retryableActionErrorMessage(prepareRepeatCreativesError)}
             </AlertDescription>
           </Alert>
         ) : null}

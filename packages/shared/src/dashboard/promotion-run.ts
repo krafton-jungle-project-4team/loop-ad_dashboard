@@ -244,6 +244,27 @@ export type DashboardEvaluatePromotionRunRequest = z.infer<
   typeof DashboardEvaluatePromotionRunRequestSchema
 >;
 
+export const DashboardEvaluateAdExperimentResultSchema = z.object({
+  evaluation_id: z.string(),
+  ad_experiment_id: z.string(),
+  promotion_run_id: z.string(),
+  promotion_id: z.string(),
+  segment_id: z.string(),
+  metric: z.string(),
+  target_value: z.coerce.number().nonnegative(),
+  actual_value: z.coerce.number().nonnegative(),
+  numerator_count: CountSchema,
+  denominator_count: CountSchema,
+  sample_size: CountSchema,
+  basis: z.string(),
+  status: z.string(),
+  next_loop_required: z.boolean(),
+  feedback: z.string().nullable()
+});
+export type DashboardEvaluateAdExperimentResult = z.infer<
+  typeof DashboardEvaluateAdExperimentResultSchema
+>;
+
 export const DashboardPromotionRunAdExperimentEvaluationSchema = z.object({
   ad_experiment_id: z.string(),
   segment_id: z.string(),

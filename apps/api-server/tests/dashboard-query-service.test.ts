@@ -1581,6 +1581,111 @@ test("dashboard promotion run evaluation prepares legacy data before Decision", 
   ]);
 });
 
+test("dashboard ad experiment evaluation refreshes only the selected segment experiment", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      findAdExperiment: async (projectId, promotionId, segmentId, adExperimentId) => {
+        calls.push({ adExperimentId, kind: "find", projectId, promotionId, segmentId });
+        return { promotion_run_id: "run-email-1" };
+      },
+      preparePromotionRunEvaluationCompatibility: async (projectId, promotionRunId) => {
+        calls.push({ kind: "prepare-legacy-data", projectId, promotionRunId });
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      evaluateAdExperiment: async (request) => {
+        calls.push({ kind: "decision", request });
+        return {
+          actual_value: 0.42,
+          ad_experiment_id: request.adExperimentId,
+          basis: "all_segments",
+          denominator_count: 100,
+          evaluation_id: "evaluation-1",
+          feedback: null,
+          metric: "booking_conversion_rate",
+          next_loop_required: false,
+          numerator_count: 42,
+          promotion_id: "promotion-1",
+          promotion_run_id: "run-email-1",
+          sample_size: 100,
+          segment_id: "segment-1",
+          status: "goal_met",
+          target_value: 0.3
+        };
+      }
+    } as unknown as DashboardDecisionClient,
+    undefined,
+    {
+      cancelPendingRunEvaluation: async () => {
+        calls.push({ kind: "unexpected-cancel" });
+        return null;
+      },
+      getRunConfig: async () => {
+        calls.push({ kind: "unexpected-run-config" });
+        throw new Error("Unexpected automatic evaluation call.");
+      }
+    } as unknown as DashboardPromotionAutomationRepository
+  );
+
+  const result = await service.evaluateAdExperiment(
+    "project-1",
+    "promotion-1",
+    "segment-1",
+    "experiment-1"
+  );
+
+  assert.equal(result.actual_value, 0.42);
+  assert.deepEqual(calls, [
+    {
+      adExperimentId: "experiment-1",
+      kind: "find",
+      projectId: "project-1",
+      promotionId: "promotion-1",
+      segmentId: "segment-1"
+    },
+    {
+      kind: "prepare-legacy-data",
+      projectId: "project-1",
+      promotionRunId: "run-email-1"
+    },
+    { kind: "decision", request: { adExperimentId: "experiment-1" } }
+  ]);
+});
+
+test("dashboard ad experiment evaluation rejects ids outside the selected segment", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      findAdExperiment: async () => null
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      evaluateAdExperiment: async () => {
+        throw new Error("Decision must not be called for an invalid segment experiment.");
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  await assert.rejects(
+    () => service.evaluateAdExperiment("project-1", "promotion-1", "segment-other", "experiment-1"),
+    (error: unknown) =>
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "DASHBOARD_AD_EXPERIMENT_NOT_FOUND"
+  );
+});
+
 test("automatic promotion evaluation creates, assigns, and queues the next failed loop", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
