@@ -213,6 +213,7 @@ export class DashboardDecisionClient {
         campaign_id: request.campaignId,
         promotion_id: request.promotionId,
         analysis_id: request.request.analysis_id,
+        segment_ids: request.request.segment_id ? [request.request.segment_id] : undefined,
         content_option_count: request.request.content_option_count ?? 3,
         operator_instruction: request.request.operator_instruction ?? null
       },

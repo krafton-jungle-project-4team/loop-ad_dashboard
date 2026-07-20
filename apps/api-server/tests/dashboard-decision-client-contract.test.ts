@@ -121,7 +121,8 @@ test("decision client preserves promotion generation request contract", async ()
     projectId: "project-1",
     promotionId: "promotion-1",
     request: {
-      analysis_id: "analysis-1"
+      analysis_id: "analysis-1",
+      segment_id: "segment-1"
     }
   });
 
@@ -139,6 +140,7 @@ test("decision client preserves promotion generation request contract", async ()
       campaign_id: "campaign-1",
       promotion_id: "promotion-1",
       analysis_id: "analysis-1",
+      segment_ids: ["segment-1"],
       content_option_count: 3,
       operator_instruction: null
     }

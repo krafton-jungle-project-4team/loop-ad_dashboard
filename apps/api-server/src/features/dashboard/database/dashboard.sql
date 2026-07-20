@@ -1375,7 +1375,8 @@ enriched_targets AS (
   SET
     suggestion_id = selected.suggestion_id,
     confirmed_by = :confirmedBy,
-    confirmed_at = COALESCE(target.confirmed_at, now())
+    confirmed_at = COALESCE(target.confirmed_at, now()),
+    status = 'approved'
   FROM selected_suggestions selected
   WHERE target.project_id = :projectId
     AND target.promotion_id = :promotionId
@@ -1824,38 +1825,59 @@ FROM generation_runs gr
 LEFT JOIN content_candidates cc
   ON cc.project_id = gr.project_id
  AND cc.generation_id = gr.generation_id
+ AND ((:segmentId)::text IS NULL OR cc.segment_id = (:segmentId)::text)
 WHERE gr.project_id = :projectId
   AND gr.promotion_id = :promotionId
   AND gr.analysis_id = :analysisId
   AND jsonb_typeof(gr.input_json -> 'target_segment_ids') = 'array'
-  AND EXISTS (
-    SELECT 1
-    FROM promotion_target_segments pts
-    WHERE pts.project_id = gr.project_id
-      AND pts.promotion_id = gr.promotion_id
-      AND pts.analysis_id = gr.analysis_id
-      AND pts.status = 'approved'
-  )
-  AND jsonb_array_length(gr.input_json -> 'target_segment_ids') = (
-    SELECT COUNT(*)::int
-    FROM promotion_target_segments pts
-    WHERE pts.project_id = gr.project_id
-      AND pts.promotion_id = gr.promotion_id
-      AND pts.analysis_id = gr.analysis_id
-      AND pts.status = 'approved'
-  )
-  AND NOT EXISTS (
-    SELECT 1
-    FROM promotion_target_segments pts
-    WHERE pts.project_id = gr.project_id
-      AND pts.promotion_id = gr.promotion_id
-      AND pts.analysis_id = gr.analysis_id
-      AND pts.status = 'approved'
-      AND NOT (gr.input_json -> 'target_segment_ids' ? pts.segment_id)
+  AND (
+    (
+      (:segmentId)::text IS NOT NULL
+      AND gr.input_json -> 'target_segment_ids' ? (:segmentId)::text
+    )
+    OR (
+      (:segmentId)::text IS NULL
+      AND EXISTS (
+        SELECT 1
+        FROM promotion_target_segments pts
+        WHERE pts.project_id = gr.project_id
+          AND pts.promotion_id = gr.promotion_id
+          AND pts.analysis_id = gr.analysis_id
+          AND pts.status = 'approved'
+      )
+      AND jsonb_array_length(gr.input_json -> 'target_segment_ids') = (
+        SELECT COUNT(*)::int
+        FROM promotion_target_segments pts
+        WHERE pts.project_id = gr.project_id
+          AND pts.promotion_id = gr.promotion_id
+          AND pts.analysis_id = gr.analysis_id
+          AND pts.status = 'approved'
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM promotion_target_segments pts
+        WHERE pts.project_id = gr.project_id
+          AND pts.promotion_id = gr.promotion_id
+          AND pts.analysis_id = gr.analysis_id
+          AND pts.status = 'approved'
+          AND NOT (gr.input_json -> 'target_segment_ids' ? pts.segment_id)
+      )
+    )
   )
 GROUP BY gr.generation_id, gr.promotion_id, gr.status, gr.updated_at, gr.created_at
 ORDER BY gr.updated_at DESC, gr.created_at DESC
 LIMIT 1;
+
+/* 목적: 확정 고객군의 이전 planned 데이터를 광고 생성 가능한 approved 상태로 맞춥니다. */
+/* @name EnsureDashboardPromotionTargetSegmentApproved */
+UPDATE promotion_target_segments
+SET status = 'approved'
+WHERE project_id = :projectId
+  AND promotion_id = :promotionId
+  AND analysis_id = :analysisId
+  AND segment_id = :segmentId
+  AND status IN ('planned', 'approved')
+RETURNING segment_id AS "segmentId";
 
 /* 목적: 캠페인에서 생성된 광고 실험 상태를 조회합니다. */
 /* @name ListDashboardCampaignAdExperiments */

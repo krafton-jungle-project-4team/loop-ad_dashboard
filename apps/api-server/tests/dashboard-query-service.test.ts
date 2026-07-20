@@ -594,6 +594,14 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
           target_segment_count: 2,
           updated_at: "2026-07-04T00:00:00.000Z"
         };
+      },
+      ensurePromotionTargetSegmentApproved: async (
+        projectId,
+        promotionId,
+        analysisId,
+        segmentId
+      ) => {
+        calls.push({ analysisId, kind: "approve-segment", projectId, promotionId, segmentId });
       }
     } as unknown as DashboardCampaignReader,
     emptyFunnelReader(),
@@ -613,6 +621,7 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
 
   const response = await service.startPromotionGeneration("hotel-client-a", "promo_email_001", {
     analysis_id: "analysis_promo_email_001",
+    segment_id: "segment_email_001",
     content_option_count: 3,
     operator_instruction: null
   });
@@ -625,6 +634,13 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
       promotionId: "promo_email_001"
     },
     {
+      analysisId: "analysis_promo_email_001",
+      kind: "approve-segment",
+      projectId: "hotel-client-a",
+      promotionId: "promo_email_001",
+      segmentId: "segment_email_001"
+    },
+    {
       kind: "decision",
       request: {
         campaignId: "camp_summer_2026",
@@ -632,6 +648,7 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
         promotionId: "promo_email_001",
         request: {
           analysis_id: "analysis_promo_email_001",
+          segment_id: "segment_email_001",
           content_option_count: 3,
           operator_instruction: null
         }

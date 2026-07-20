@@ -414,9 +414,18 @@ export function usePromotionWorkspaceController({
       });
   };
   const startGenerationMutation = useMutation({
-    mutationFn: ({ analysisId, promotionId }: { analysisId: string; promotionId: string }) =>
+    mutationFn: ({
+      analysisId,
+      promotionId,
+      segmentId
+    }: {
+      analysisId: string;
+      promotionId: string;
+      segmentId: string;
+    }) =>
       startDashboardPromotionGeneration(query, promotionId, {
         analysis_id: analysisId,
+        segment_id: segmentId,
         content_option_count: 3,
         operator_instruction: null
       }),

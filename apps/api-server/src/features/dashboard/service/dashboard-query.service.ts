@@ -424,11 +424,20 @@ export class DashboardQueryService {
     log.info("started", { projectId, promotionId, request });
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     log.assignContext({ campaignId: promotion.campaign_id });
+    if (request.segment_id) {
+      await this.campaignReader.ensurePromotionTargetSegmentApproved(
+        projectId,
+        promotionId,
+        request.analysis_id,
+        request.segment_id
+      );
+    }
     log.info("promotion_loaded", { promotion });
     const existingGeneration = await this.campaignReader.getPromotionGenerationResult(
       projectId,
       promotionId,
-      request.analysis_id
+      request.analysis_id,
+      request.segment_id
     );
 
     const completedWithoutCandidates =

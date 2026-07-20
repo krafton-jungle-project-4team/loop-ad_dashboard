@@ -75,6 +75,7 @@ import {
   confirmDashboardV2PromotionSegmentSuggestions,
   decideDashboardPromotionSegmentSuggestion,
   deleteDashboardCampaign,
+  ensureDashboardPromotionTargetSegmentApproved,
   getDashboardCampaignSummary,
   getDashboardContentCandidate,
   getDashboardContentCandidateForApproval,
@@ -640,14 +641,36 @@ export class DashboardCampaignReader {
   async getPromotionGenerationResult(
     projectId: string,
     promotionId: string,
-    analysisId: string
+    analysisId: string,
+    segmentId?: string
   ): Promise<DashboardStartPromotionGenerationResult | undefined> {
     const rows = await this.db
-      .query(getDashboardPromotionGenerationResult, { analysisId, projectId, promotionId })
+      .query(getDashboardPromotionGenerationResult, {
+        analysisId,
+        projectId,
+        promotionId,
+        segmentId: segmentId ?? null
+      })
       .multiple();
     const row = rows[0];
 
     return row ? toStartPromotionGenerationResult(row) : undefined;
+  }
+
+  async ensurePromotionTargetSegmentApproved(
+    projectId: string,
+    promotionId: string,
+    analysisId: string,
+    segmentId: string
+  ): Promise<void> {
+    await this.db
+      .query(ensureDashboardPromotionTargetSegmentApproved, {
+        analysisId,
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
   }
 
   async getContentCandidate(

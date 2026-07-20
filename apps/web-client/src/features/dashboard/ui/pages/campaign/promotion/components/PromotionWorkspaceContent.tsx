@@ -396,7 +396,7 @@ export function PromotionTabWorkspace({
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onRecommendSegments: () => void;
-  onStartGeneration: (analysisId: string) => void;
+  onStartGeneration: (analysisId: string, segmentId: string) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   onUpdateContentCandidateCopy: (
     promotionId: string,
@@ -806,7 +806,7 @@ function PromotionSegmentDetailTab({
     nextLoopPreparationId?: string
   ) => void;
   onRejectContentCandidate: (promotionId: string, segmentId: string, contentId: string) => void;
-  onStartGeneration: (analysisId: string) => void;
+  onStartGeneration: (analysisId: string, segmentId: string) => void;
   onUpdateContentCandidateCopy: (
     promotionId: string,
     segmentId: string,
@@ -915,7 +915,9 @@ function PromotionSegmentDetailTab({
                   !detail.segment.analysis_id ||
                   hasGeneratedContentCandidates
                 }
-                onClick={() => onStartGeneration(detail.segment.analysis_id)}
+                onClick={() =>
+                  onStartGeneration(detail.segment.analysis_id, detail.segment.segment_id)
+                }
                 type="button"
                 variant="outline"
               >
