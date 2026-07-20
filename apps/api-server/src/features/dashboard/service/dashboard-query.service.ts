@@ -267,6 +267,7 @@ export class DashboardQueryService {
     log.assignContext({ projectId, promotionId });
     log.info("started", { projectId, promotionId, request });
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    log.assignContext({ campaignId: promotion.campaign_id });
     const campaign = await this.campaignReader.getCampaignSummary(projectId, promotion.campaign_id);
     assertCampaignExecutionWindowOpen(campaign);
     assertPromotionScheduleWithinCampaign(
@@ -310,6 +311,10 @@ export class DashboardQueryService {
         (promotion) => !isPromotionScheduleWithinCampaign(promotion, nextCampaignSchedule)
       )
     ) {
+      log.warn("campaign_promotion_schedule_conflict", {
+        campaignSchedule: nextCampaignSchedule,
+        promotionCount: promotions.length
+      });
       throw dashboardErrors.campaignPromotionScheduleConflict();
     }
   }
@@ -633,6 +638,9 @@ export class DashboardQueryService {
 
     const sourceAnalysisId = request.analysis_id;
     if (request.suggestion_ids.length > 0 && !sourceAnalysisId) {
+      log.warn("segment_audience_source_batch_mismatch", {
+        selectedSuggestionCount: request.suggestion_ids.length
+      });
       throw dashboardErrors.decisionRequestFailed({
         detail: {
           code: "segment_audience_source_batch_mismatch",
@@ -694,6 +702,7 @@ export class DashboardQueryService {
     const totalSelectedCount = selectedSuggestions.length + selectedDirectSegments.length;
     const totalV2Count = v2SuggestionCount + v2DirectSegmentCount;
     if (totalSelectedCount === 0) {
+      log.warn("segment_suggestion_selection_empty");
       throw dashboardErrors.segmentSuggestionSelectionInvalid();
     }
     if (totalV2Count === 0) {
@@ -707,6 +716,10 @@ export class DashboardQueryService {
       return response;
     }
     if (totalV2Count !== totalSelectedCount) {
+      log.warn("segment_audience_contract_mixed", {
+        totalSelectedCount,
+        totalV2Count
+      });
       throw dashboardErrors.decisionRequestFailed({
         detail: {
           code: "segment_audience_contract_mixed",
@@ -740,6 +753,10 @@ export class DashboardQueryService {
         (target) => target.audience_snapshot_id != null && target.final_audience_count != null
       );
     if (!hasCompleteV2Targets) {
+      log.warn("segment_audience_confirmation_incomplete", {
+        requestedSegmentCount: segmentIds.length,
+        returnedSegmentCount: returnedSegmentIds.length
+      });
       throw dashboardErrors.decisionRequestFailed({
         detail: {
           code: "segment_audience_confirmation_incomplete",
@@ -874,17 +891,22 @@ export class DashboardQueryService {
       contentId
     );
     if (candidate.status !== "draft") {
+      log.warn("content_candidate_not_editable", { status: candidate.status });
       throw dashboardErrors.contentCandidateNotEditable();
     }
 
     const creative = editableCreative(candidate);
     if (!creative) {
+      log.warn("content_candidate_not_editable", { reason: "creative_missing" });
       throw dashboardErrors.contentCandidateNotEditable();
     }
 
     const sourceHtml = await readContentCandidateHtml(creative);
     const rewritten = rewriteCreativeHtmlCopy(sourceHtml, contentCandidateCopy(candidate), request);
     if (rewritten.missingFields.length > 0) {
+      log.warn("content_candidate_copy_not_found", {
+        missingFields: rewritten.missingFields
+      });
       throw dashboardErrors.contentCandidateCopyNotFound();
     }
 
@@ -942,19 +964,28 @@ export class DashboardQueryService {
       contentId
     );
     if (candidate.status !== "draft") {
+      log.warn("content_candidate_not_editable", { status: candidate.status });
       throw dashboardErrors.contentCandidateNotEditable();
     }
 
     const creative = editableCreative(candidate);
     if (!creative) {
+      log.warn("content_candidate_not_editable", { reason: "creative_missing" });
       throw dashboardErrors.contentCandidateNotEditable();
     }
     if (!this.creativeRevisionAgent) {
+      log.warn("content_candidate_html_revision_unavailable", {
+        reason: "revision_agent_unavailable"
+      });
       throw dashboardErrors.contentCandidateHtmlRevisionFailed();
     }
 
     const sourceHtml = await readContentCandidateHtml(creative);
     if (Buffer.byteLength(sourceHtml) > AI_CREATIVE_HTML_INPUT_LIMIT_BYTES) {
+      log.warn("content_candidate_html_revision_invalid", {
+        inputHtmlBytes: Buffer.byteLength(sourceHtml),
+        reason: "input_size_exceeded"
+      });
       throw dashboardErrors.contentCandidateHtmlRevisionInvalid();
     }
 
@@ -968,6 +999,7 @@ export class DashboardQueryService {
         html: sourceHtml
       });
     } catch (error) {
+      log.warn("content_candidate_html_revision_failed", { err: error });
       throw dashboardErrors.contentCandidateHtmlRevisionFailed(error);
     }
 
@@ -984,7 +1016,7 @@ export class DashboardQueryService {
         sourceHtml
       });
     } catch (error) {
-      log.warn("creative_revision_rejected", {
+      log.warn("content_candidate_html_revision_invalid", {
         err: error,
         outputHtmlBytes: Buffer.byteLength(revision.html)
       });
@@ -1026,12 +1058,16 @@ export class DashboardQueryService {
     return response;
   }
 
+  @LogContextScope()
   async contentCandidateHtml(
     projectId: string,
     promotionId: string,
     segmentId: string,
     contentId: string
   ): Promise<string> {
+    const startedAt = Date.now();
+    log.assignContext({ contentId, projectId, promotionId, segmentId });
+    log.info("started");
     const candidate = await this.campaignReader.getContentCandidate(
       projectId,
       promotionId,
@@ -1040,9 +1076,14 @@ export class DashboardQueryService {
     );
     const creative = editableCreative(candidate);
     if (!creative?.editedHtml) {
+      log.warn("content_candidate_html_not_found", { reason: "edited_html_missing" });
       throw dashboardErrors.contentCandidateHtmlUnavailable();
     }
 
+    log.info("completed", {
+      durationMs: durationMs(startedAt),
+      response: { htmlBytes: Buffer.byteLength(creative.editedHtml) }
+    });
     return creative.editedHtml;
   }
 
@@ -1622,22 +1663,69 @@ async function readContentCandidateHtml(
     return creative.editedHtml;
   }
 
+  const startedAt = Date.now();
+  const providerContext = {
+    endpoint: "public_url",
+    provider: "creative_artifact_storage",
+    storageKey: creative.artifact.storage_key
+  };
+  log.info("provider_request_prepared", providerContext);
+  let response: Response;
   try {
-    const response = await fetch(creative.artifact.public_url as string, {
+    response = await fetch(creative.artifact.public_url as string, {
       headers: { Accept: "text/html" },
       signal: AbortSignal.timeout(10_000)
     });
-    if (!response.ok) {
-      throw new Error(`HTML artifact read failed with ${response.status}.`);
-    }
-    const html = await response.text();
-    if (Buffer.byteLength(html) > 2_000_000) {
-      throw new Error("HTML artifact exceeds the 2 MB edit limit.");
-    }
-    return html;
   } catch (error) {
+    log.warn("provider_request_failed", {
+      ...providerContext,
+      durationMs: durationMs(startedAt),
+      err: error
+    });
     throw dashboardErrors.contentCandidateHtmlUnavailable(error);
   }
+  if (!response.ok) {
+    const error = new Error(`HTML artifact read failed with ${response.status}.`);
+    log.warn("provider_request_failed", {
+      ...providerContext,
+      durationMs: durationMs(startedAt),
+      err: error,
+      statusCode: response.status
+    });
+    throw dashboardErrors.contentCandidateHtmlUnavailable(error);
+  }
+
+  let html: string;
+  try {
+    html = await response.text();
+  } catch (error) {
+    log.warn("provider_response_invalid", {
+      ...providerContext,
+      durationMs: durationMs(startedAt),
+      err: error,
+      statusCode: response.status
+    });
+    throw dashboardErrors.contentCandidateHtmlUnavailable(error);
+  }
+  const responseBytes = Buffer.byteLength(html);
+  if (responseBytes > 2_000_000) {
+    const error = new Error("HTML artifact exceeds the 2 MB edit limit.");
+    log.warn("provider_response_invalid", {
+      ...providerContext,
+      durationMs: durationMs(startedAt),
+      err: error,
+      responseBytes,
+      statusCode: response.status
+    });
+    throw dashboardErrors.contentCandidateHtmlUnavailable(error);
+  }
+  log.info("provider_request_completed", {
+    ...providerContext,
+    durationMs: durationMs(startedAt),
+    responseBytes,
+    statusCode: response.status
+  });
+  return html;
 }
 
 function assertCampaignExecutionWindowOpen(campaign: DashboardCampaignSummary) {
@@ -1646,6 +1734,11 @@ function assertCampaignExecutionWindowOpen(campaign: DashboardCampaignSummary) {
     campaign.status === "stopped" ||
     isCampaignScheduleExpired(campaign)
   ) {
+    log.warn("campaign_execution_window_closed", {
+      campaignEndDate: campaign.end_date,
+      campaignStartDate: campaign.start_date,
+      campaignStatus: campaign.status
+    });
     throw dashboardErrors.campaignExecutionWindowClosed();
   }
 }
@@ -1658,6 +1751,12 @@ function assertPromotionScheduleWithinCampaign(
   campaign: DashboardCampaignSummary
 ) {
   if (!isPromotionScheduleWithinCampaign(promotion, campaign)) {
+    log.warn("promotion_campaign_schedule_invalid", {
+      campaignEndDate: campaign.end_date,
+      campaignStartDate: campaign.start_date,
+      promotionScheduledEndAt: promotion.scheduled_end_at,
+      promotionScheduledStartAt: promotion.scheduled_start_at
+    });
     throw dashboardErrors.promotionCampaignScheduleInvalid();
   }
 }

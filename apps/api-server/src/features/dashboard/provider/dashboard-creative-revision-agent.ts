@@ -48,7 +48,19 @@ export class DashboardCreativeRevisionAgent {
     });
 
     const response = await requestCreativeRevision(input);
-    const result = parseCreativeRevision(response);
+    let result: CreativeRevisionResult;
+    try {
+      result = parseCreativeRevision(response);
+    } catch (error) {
+      log.warn("provider_response_invalid", {
+        endpoint: OPENAI_RESPONSES_URL,
+        err: error,
+        model: CREATIVE_REVISION_MODEL,
+        provider: "openai",
+        purpose: "creative_revision"
+      });
+      throw error;
+    }
     log.info("creative_revision_completed", {
       durationMs: durationMs(startedAt),
       outputHtmlBytes: Buffer.byteLength(result.html),
@@ -67,6 +79,18 @@ async function requestCreativeRevision(input: {
   html: string;
 }) {
   const startedAt = Date.now();
+  const providerContext = {
+    endpoint: OPENAI_RESPONSES_URL,
+    model: CREATIVE_REVISION_MODEL,
+    provider: "openai",
+    purpose: "creative_revision"
+  };
+  log.info("provider_request_prepared", {
+    ...providerContext,
+    feedbackLength: input.feedback.length,
+    htmlBytes: Buffer.byteLength(input.html),
+    placeholderCount: placeholdersIn(input.html).length
+  });
   let response: Response;
   try {
     response = await fetch(OPENAI_RESPONSES_URL, {
@@ -102,27 +126,40 @@ async function requestCreativeRevision(input: {
       signal: AbortSignal.timeout(OPENAI_REQUEST_TIMEOUT_MS)
     });
   } catch (error) {
-    log.warn("creative_revision_provider_failed", {
+    log.warn("provider_request_failed", {
+      ...providerContext,
       durationMs: durationMs(startedAt),
-      err: error,
-      provider: "openai"
+      err: error
     });
     throw error;
   }
 
   if (!response.ok) {
-    log.warn("creative_revision_provider_failed", {
+    const error = new Error(`OpenAI creative revision request failed with ${response.status}.`);
+    log.warn("provider_request_failed", {
+      ...providerContext,
       durationMs: durationMs(startedAt),
-      provider: "openai",
+      err: error,
       statusCode: response.status
     });
-    throw new Error(`OpenAI creative revision request failed with ${response.status}.`);
+    throw error;
   }
 
-  const payload = await response.json();
-  log.info("creative_revision_provider_completed", {
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch (error) {
+    log.warn("provider_response_invalid", {
+      ...providerContext,
+      durationMs: durationMs(startedAt),
+      err: error,
+      statusCode: response.status
+    });
+    throw error;
+  }
+  log.info("provider_request_completed", {
+    ...providerContext,
     durationMs: durationMs(startedAt),
-    provider: "openai",
     statusCode: response.status
   });
   return payload;

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { captureJsonLogs } from "./log-capture.js";
 
 test("creative revision agent sends bounded context and parses the required tool result", async () => {
   setRequiredEnv();
@@ -30,14 +31,16 @@ test("creative revision agent sends bounded context and parses the required tool
   };
 
   try {
-    const result = await new DashboardCreativeRevisionAgent().revise({
-      body: "기존 본문",
-      channel: "onsite_banner",
-      cta: "예약",
-      feedback: "혜택을 더 강조해줘",
-      headline: "기존 제목",
-      html: '<h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약</a>'
-    });
+    const { logs, result } = await captureJsonLogs(() =>
+      new DashboardCreativeRevisionAgent().revise({
+        body: "기존 본문",
+        channel: "onsite_banner",
+        cta: "예약",
+        feedback: "혜택을 더 강조해줘",
+        headline: "기존 제목",
+        html: '<h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약</a>'
+      })
+    );
 
     assert.equal(result.headline, "새 제목");
     assert.match(result.change_summary, /정보 위계/);
@@ -53,6 +56,12 @@ test("creative revision agent sends bounded context and parses the required tool
     };
     assert.equal(context.feedback, "혜택을 더 강조해줘");
     assert.deepEqual(context.required_placeholders, ["{{redirect_url}}"]);
+    assert.ok(logs.some((entry) => entry.event === "provider_request_prepared"));
+    assert.ok(logs.some((entry) => entry.event === "provider_request_completed"));
+    assert.equal(
+      logs.some((entry) => "apiKey" in entry || "authorization" in entry),
+      false
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
