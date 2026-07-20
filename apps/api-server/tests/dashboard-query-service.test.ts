@@ -4,7 +4,55 @@ import { TransactionHost } from "@nestjs-cls/transactional";
 import type { DashboardDecisionClient } from "../src/features/dashboard/provider/dashboard-decision-client.js";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import type { DashboardFunnelReader } from "../src/features/dashboard/repository/dashboard-funnel-reader.js";
+import type { DashboardPromotionAutomationRepository } from "../src/features/dashboard/repository/dashboard-promotion-automation-repository.js";
 import type { DashboardSegmentQueryRepository } from "../src/features/dashboard/repository/dashboard-segment-query-repository.js";
+
+test("dashboard promotion update synchronizes pending automation jobs", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  const calls: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      updatePromotion: async (projectId, promotionId, request) => {
+        calls.push({ projectId, promotionId, request, step: "update" });
+        return { promotion_id: promotionId } as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient(),
+    undefined,
+    {
+      syncPendingJobs: async (projectId, promotionId) => {
+        calls.push({ projectId, promotionId, step: "sync" });
+        return [];
+      }
+    } as unknown as DashboardPromotionAutomationRepository
+  );
+
+  await service.updatePromotion("project-a", "promotion-a", {
+    execution_mode: "automatic",
+    loop_interval_unit: "hour",
+    loop_interval_value: 2
+  });
+
+  assert.deepEqual(calls, [
+    {
+      projectId: "project-a",
+      promotionId: "promotion-a",
+      request: {
+        execution_mode: "automatic",
+        loop_interval_unit: "hour",
+        loop_interval_value: 2
+      },
+      step: "update"
+    },
+    { projectId: "project-a", promotionId: "promotion-a", step: "sync" }
+  ]);
+});
 
 test("dashboard main returns campaign summaries from the campaign reader", async () => {
   setRequiredEnv();
@@ -1021,6 +1069,80 @@ test("dashboard promotion run evaluation prepares legacy data before Decision", 
   ]);
 });
 
+test("automatic promotion evaluation creates, assigns, and queues the next failed loop", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const calls: string[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      preparePromotionRunEvaluationCompatibility: async () => undefined
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      evaluatePromotionRun: async () => ({
+        ad_experiment_results: [],
+        failed_ad_experiment_ids: ["experiment-1"],
+        failed_segment_ids: ["segment-1"],
+        next_loop_required: true,
+        promotion_id: "promotion-1",
+        promotion_run_id: "run-1",
+        status: "goal_not_met"
+      }),
+      createNextLoop: async ({ request }) => {
+        calls.push(`next-loop:${request.content_approval_mode}`);
+        return {
+          content_approval_required: false,
+          failed_segment_ids: [],
+          loop_count: 2,
+          next_ad_experiments: [],
+          next_analysis_id: "analysis-2",
+          next_generation_id: "generation-2",
+          next_loop_preparation_id: null,
+          next_promotion_run_id: "run-2",
+          pending_content_ids: [],
+          previous_promotion_run_id: "run-1",
+          promotion_id: "promotion-1",
+          segment_ids: ["segment-1"],
+          status: "activated" as const
+        };
+      },
+      buildPromotionRunSegmentAssignments: async ({ promotionRunId }) => {
+        calls.push(`assign:${promotionRunId}`);
+        return assignmentBuildResult(promotionRunId);
+      }
+    } as unknown as DashboardDecisionClient,
+    undefined,
+    {
+      cancelPendingRunEvaluation: async () => null,
+      getRunConfig: async () => ({
+        executionMode: "automatic",
+        loopCount: 1,
+        loopIntervalUnit: "hour",
+        loopIntervalValue: 1,
+        maxLoopCount: 3,
+        projectId: "hotel-client-a",
+        promotionId: "promotion-1",
+        promotionRunId: "run-1",
+        promotionRunStatus: "running",
+        promotionStatus: "running",
+        scheduledEndAt: null,
+        scheduledStartAt: null
+      }),
+      scheduleRunLaunch: async (_projectId, promotionRunId) => {
+        calls.push(`queue:${promotionRunId}`);
+        return { activationStatus: "automatic_start_queued" as const, scheduledStartAt: null };
+      }
+    } as unknown as DashboardPromotionAutomationRepository
+  );
+
+  await service.evaluatePromotionRun("hotel-client-a", "run-1");
+
+  assert.deepEqual(calls, ["next-loop:automatic", "assign:run-2", "queue:run-2"]);
+});
+
 test("dashboard idempotently confirms V2 suggestions through Decision before enriching targets", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -1503,6 +1625,30 @@ function emptySegmentQueryRepository(): DashboardSegmentQueryRepository {
       throw new Error("Unexpected saveSegment call.");
     }
   } as unknown as DashboardSegmentQueryRepository;
+}
+
+function assignmentBuildResult(promotionRunId: string) {
+  return {
+    activation_status: "manual_start_required" as const,
+    ann_candidate_count: 80,
+    ann_candidate_limit: 100,
+    ann_underfilled_user_count: 0,
+    assignment_count: 40,
+    batch_has_fallback: false,
+    below_threshold_fallback_count: 0,
+    completion_scope: "current_request" as const,
+    exact_reranked_pair_count: 60,
+    fallback_count: 0,
+    insufficient_segment_count: 0,
+    invalid_user_vector_fallback_count: 0,
+    matching_mode: "hybrid",
+    no_candidate_fallback_count: 0,
+    promotion_run_id: promotionRunId,
+    scheduled_start_at: null,
+    skipped_existing_count: 0,
+    status: "completed",
+    vector_version: "v1"
+  };
 }
 
 function emptyDecisionClient(): DashboardDecisionClient {

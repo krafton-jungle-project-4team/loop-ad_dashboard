@@ -51,7 +51,8 @@ export const AD_DISPATCH_EMAIL_FROM_ADDRESS = "noreply@loop-ad.org";
       provide: HtmlArtifactReader,
       useClass: FetchHtmlArtifactReader
     }
-  ]
+  ],
+  exports: [PromotionDispatchService]
 })
 export class AdExecutionModule {}
 

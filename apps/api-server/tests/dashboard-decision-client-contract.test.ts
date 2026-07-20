@@ -32,7 +32,11 @@ test("decision client preserves promotion offer catalog request contract", async
 
   const result = await client.promotionOffers({ projectId: "project/1" });
 
-  assert.deepEqual(result, response);
+  assert.deepEqual(result, {
+    ...response,
+    activation_status: "manual_start_required",
+    scheduled_start_at: null
+  });
   const request = requests[0];
   assert.ok(request);
   const url = new URL(request.url);

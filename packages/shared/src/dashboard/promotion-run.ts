@@ -214,7 +214,11 @@ export const DashboardBuildPromotionRunAssignmentsResultSchema = z.object({
   ann_underfilled_user_count: CountSchema,
   skipped_existing_count: CountSchema,
   insufficient_segment_count: CountSchema,
-  status: z.string()
+  status: z.string(),
+  activation_status: z
+    .enum(["manual_start_required", "scheduled", "automatic_start_queued"])
+    .default("manual_start_required"),
+  scheduled_start_at: z.string().nullable().default(null)
 });
 export type DashboardBuildPromotionRunAssignmentsResult = z.infer<
   typeof DashboardBuildPromotionRunAssignmentsResultSchema

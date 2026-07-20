@@ -36,16 +36,22 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
             evaluationSampleSize: 100,
             evaluationStatus: "goal_not_met",
             evaluationTargetValue: 0.3,
+            executionMode: "automatic",
             goalBasis: "all_segments",
             goalMetric: "booking_conversion_rate",
             goalTargetValue: 0.3,
             loopCount: 1,
+            loopIntervalUnit: "hour",
+            loopIntervalValue: 6,
+            maxLoopCount: 3,
             nextLoopCount: 2,
             nextLoopStatus: "planned",
             nextPromotionRunId: "run_2",
             promotionId: "promotion_1",
             promotionName: "여름 재방문",
             promotionRunId: "run_1",
+            scheduledEndAt: new Date("2026-07-20T00:00:00.000Z"),
+            scheduledStartAt: new Date("2026-07-11T00:00:00.000Z"),
             segmentId: "segment_1",
             segmentName: "재방문 고객",
             startedAt: new Date("2026-07-11T00:00:00.000Z"),
@@ -67,6 +73,8 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
   assert.equal(response.experiments[0]?.assignment_count, 120);
   assert.equal(response.experiments[0]?.latest_evaluation?.actual_value, 0.24);
   assert.equal(response.experiments[0]?.latest_evaluation?.next_loop_required, true);
+  assert.equal(response.experiments[0]?.execution_mode, "automatic");
+  assert.equal(response.experiments[0]?.loop_interval_value, 6);
   assert.deepEqual(response.experiments[0]?.next_loop, {
     loop_count: 2,
     promotion_run_id: "run_2",

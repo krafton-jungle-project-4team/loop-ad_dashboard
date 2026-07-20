@@ -74,6 +74,7 @@ import type {
 import {
   DashboardCampaignReader,
   DashboardFunnelReader,
+  DashboardPromotionAutomationRepository,
   DashboardSegmentQueryRepository,
   MIN_SEGMENT_USER_COUNT,
   type SegmentAssistantDiagnostics
@@ -103,7 +104,10 @@ export class DashboardQueryService {
     private readonly decisionClient: DashboardDecisionClient,
     @Optional()
     @Inject(DashboardSegmentAssistantAgent)
-    private readonly segmentAssistantAgent?: DashboardSegmentAssistantAgent
+    private readonly segmentAssistantAgent?: DashboardSegmentAssistantAgent,
+    @Optional()
+    @Inject(DashboardPromotionAutomationRepository)
+    private readonly promotionAutomationRepository?: DashboardPromotionAutomationRepository
   ) {}
 
   @LogContextScope()
@@ -242,6 +246,7 @@ export class DashboardQueryService {
     log.assignContext({ projectId, promotionId });
     log.info("started", { projectId, promotionId, request });
     const response = await this.campaignReader.updatePromotion(projectId, promotionId, request);
+    await this.promotionAutomationRepository?.syncPendingJobs(projectId, promotionId);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
@@ -910,9 +915,22 @@ export class DashboardQueryService {
       projectId,
       promotionRunId
     });
+    const activation = this.promotionAutomationRepository
+      ? await this.promotionAutomationRepository.scheduleRunLaunch(projectId, promotionRunId)
+      : { activationStatus: "manual_start_required" as const, scheduledStartAt: null };
+    const result: DashboardBuildPromotionRunAssignmentsResult = {
+      ...response,
+      activation_status: activation.activationStatus,
+      scheduled_start_at: activation.scheduledStartAt
+    };
 
-    log.info("completed", { response, durationMs: durationMs(startedAt) });
-    return response;
+    log.info("completed", {
+      activationStatus: result.activation_status,
+      durationMs: durationMs(startedAt),
+      response: result,
+      scheduledStartAt: result.scheduled_start_at
+    });
+    return result;
   }
 
   @LogContextScope()
@@ -923,12 +941,62 @@ export class DashboardQueryService {
     const startedAt = Date.now();
     log.assignContext({ projectId, promotionRunId });
     log.info("started", { projectId, promotionRunId });
+    await this.promotionAutomationRepository?.cancelPendingRunEvaluation(promotionRunId);
     await this.campaignReader.preparePromotionRunEvaluationCompatibility(projectId, promotionRunId);
     const response = await this.decisionClient.evaluatePromotionRun({ promotionRunId });
     log.assignContext({ promotionId: response.promotion_id });
+    await this.continueAutomaticPromotionLoop(projectId, promotionRunId, response);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
+  }
+
+  private async continueAutomaticPromotionLoop(
+    projectId: string,
+    promotionRunId: string,
+    evaluation: DashboardEvaluatePromotionRunResult
+  ) {
+    if (!this.promotionAutomationRepository || !evaluation.next_loop_required) {
+      return;
+    }
+    const config = await this.promotionAutomationRepository.getRunConfig(projectId, promotionRunId);
+    if (config.executionMode !== "automatic") {
+      return;
+    }
+    if (config.loopCount >= config.maxLoopCount) {
+      log.info("automatic_next_loop_skipped", {
+        loopCount: config.loopCount,
+        maxLoopCount: config.maxLoopCount,
+        reason: "max_loop_count_reached"
+      });
+      return;
+    }
+    if (config.scheduledEndAt && Date.parse(config.scheduledEndAt) <= Date.now()) {
+      log.info("automatic_next_loop_skipped", { reason: "promotion_window_closed" });
+      return;
+    }
+
+    const nextLoop = await this.decisionClient.createNextLoop({
+      promotionRunId,
+      request: {
+        content_approval_mode: "automatic",
+        failed_ad_experiment_ids: evaluation.failed_ad_experiment_ids,
+        failed_segment_ids: evaluation.failed_segment_ids,
+        operator_instruction: null
+      }
+    });
+    if (nextLoop.status !== "activated" || !nextLoop.next_promotion_run_id) {
+      throw new Error("Automatic next loop did not activate a promotion run.");
+    }
+    const assignment = await this.buildPromotionRunAssignments(
+      projectId,
+      nextLoop.next_promotion_run_id
+    );
+    log.info("automatic_next_loop_prepared", {
+      activationStatus: assignment.activation_status,
+      loopCount: nextLoop.loop_count,
+      nextPromotionRunId: nextLoop.next_promotion_run_id
+    });
   }
 
   @LogContextScope()
