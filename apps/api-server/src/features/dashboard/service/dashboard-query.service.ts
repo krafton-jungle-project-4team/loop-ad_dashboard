@@ -1762,7 +1762,10 @@ export class DashboardQueryService {
       ),
       segment_name: segmentName,
       lookback_days: plan.lookback_days,
-      condition_labels: plan.conditions.map((condition) => condition.label),
+      condition_labels:
+        plan.conditions.length > 0
+          ? plan.conditions.map((condition) => condition.label)
+          : (sourceMembership?.reference_labels ?? []),
       minimum_sample_size: MIN_SEGMENT_USER_COUNT,
       condition_diagnostics: diagnostics.conditionDiagnostics,
       suggested_adjustments: diagnostics.suggestedAdjustments,
