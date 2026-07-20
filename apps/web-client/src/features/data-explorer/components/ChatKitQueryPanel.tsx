@@ -135,13 +135,13 @@ export function ChatKitQueryPanel({
     <aside
       className={
         showTitle
-          ? "grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white"
-          : "grid h-full min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-white"
+          ? "grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-card"
+          : "grid h-full min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-card"
       }
     >
       {showTitle ? (
-        <div className="border-b border-black/10 px-4 py-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+        <div className="border-b border-border bg-muted/40 px-4 py-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
             AI 도우미
           </div>
         </div>

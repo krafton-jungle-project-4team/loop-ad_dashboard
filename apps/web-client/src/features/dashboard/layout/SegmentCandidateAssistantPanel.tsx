@@ -161,10 +161,10 @@ export function SegmentCandidateAssistantPanel({
   return (
     <aside
       aria-labelledby="loopad-segment-assistant-title"
-      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white shadow-[-8px_0_24px_rgba(15,23,42,0.06)]"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-card shadow-[-8px_0_24px_rgb(54_45_89_/_0.1)]"
       id="loopad-dashboard-assistant-panel"
     >
-      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-black/10 px-4">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-muted/55 px-4">
         <Bot aria-hidden="true" className="size-4 text-primary" />
         <h2 className="text-sm font-semibold" id="loopad-segment-assistant-title">
           고객군 후보 도우미

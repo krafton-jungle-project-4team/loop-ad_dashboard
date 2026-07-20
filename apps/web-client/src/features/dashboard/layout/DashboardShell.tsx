@@ -181,8 +181,8 @@ export function DashboardShell({
             } as CSSProperties
           }
         >
-          <Sidebar className="border-r border-black/10" collapsible="offcanvas">
-            <SidebarHeader className="p-4">
+          <Sidebar className="border-sidebar-border" collapsible="offcanvas">
+            <SidebarHeader className="border-b border-sidebar-border p-3">
               <ProjectSidebarBrand projectId={projectId} />
             </SidebarHeader>
             <SidebarContent>
@@ -208,7 +208,7 @@ export function DashboardShell({
           </Sidebar>
 
           <SidebarInset className="h-svh min-w-0 overflow-hidden">
-            <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-black/10 bg-white/85 px-4 backdrop-blur md:px-6">
+            <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-3 border-b border-border bg-card/95 px-4 backdrop-blur md:px-5">
               <div className="flex h-full min-w-0 flex-1 items-center gap-3">
                 <ProjectReturnIconLink />
                 <SidebarTrigger className="-ml-1" />
@@ -258,7 +258,7 @@ export function DashboardShell({
                   {isAssistantVisible ? (
                     <>
                       <ResizableHandle
-                        className="bg-black/10 transition-colors hover:bg-primary/30"
+                        className="bg-border transition-colors hover:bg-primary/50"
                         withHandle
                       />
                       <ResizablePanel
@@ -279,7 +279,7 @@ export function DashboardShell({
                   aria-controls="loopad-dashboard-assistant-panel"
                   aria-expanded="false"
                   aria-label="AI 도우미 열기"
-                  className="absolute bottom-20 right-4 z-30 size-12 rounded-full shadow-lg md:bottom-6 md:right-6"
+                  className="absolute bottom-20 right-4 z-30 size-12 rounded-xl shadow-[0_8px_24px_rgb(54_45_89_/_0.28)] md:bottom-6 md:right-6"
                   onClick={() => setIsAssistantPanelOpen(true)}
                   size="icon"
                   title="AI 도우미 열기"
@@ -464,7 +464,7 @@ function MobileNavigationLink({
       asChild
       className={cn(
         "h-16 rounded-none text-xs text-muted-foreground",
-        active && "bg-primary/[0.06] text-primary"
+        active && "bg-accent text-primary"
       )}
       variant="ghost"
     >
@@ -524,7 +524,7 @@ function DashboardNavigationLinkItem({
       <SidebarMenuItem>
         <SidebarMenuButton
           aria-label={`${item.label} (아직 사용할 수 없음)`}
-          className="rounded-full text-sidebar-foreground/45"
+          className="rounded-md text-sidebar-foreground/45"
           disabled
           tooltip={item.label}
         >
@@ -539,8 +539,9 @@ function DashboardNavigationLinkItem({
       <SidebarMenuButton
         asChild
         className={cn(
-          "rounded-full text-sidebar-foreground/80",
-          isActive && "font-semibold text-primary"
+          "relative rounded-md text-sidebar-foreground/75",
+          isActive &&
+            "bg-sidebar-accent pl-3 font-semibold text-sidebar-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
         )}
         isActive={isActive}
         tooltip={item.label}
@@ -550,7 +551,9 @@ function DashboardNavigationLinkItem({
           search={(current) => getDashboardNavigationSearch(item.value, current)}
           to="/dashboard/$projectId/$tabPath"
         >
-          <span className={cn(isActive && "font-semibold text-primary")}>{item.label}</span>
+          <span className={cn(isActive && "font-semibold text-sidebar-foreground")}>
+            {item.label}
+          </span>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -585,7 +588,7 @@ function SidebarResizeHandle({
       type="button"
       variant="ghost"
     >
-      <span className="h-8 w-1 rounded-full bg-border" />
+      <span className="h-8 w-0.5 rounded-full bg-transparent transition-colors group-hover/button:bg-sidebar-border group-focus-visible/button:bg-sidebar-ring" />
     </Button>
   );
 }

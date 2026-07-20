@@ -44,9 +44,9 @@ export function CampaignPerformanceSections({
   });
 
   return (
-    <Card className="w-full min-w-0 bg-white py-5 shadow-none">
+    <Card className="w-full min-w-0 bg-card py-5 shadow-none">
       <CardHeader className="gap-1.5 px-5">
-        <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+        <CardTitle className="text-[22px] font-semibold tracking-tight text-foreground">
           캠페인 통계
         </CardTitle>
         <CardDescription>
@@ -94,7 +94,7 @@ function CampaignRealtimeTrend({ detail }: { detail: DashboardCampaignDetail }) 
 
   return (
     <section className="grid gap-3">
-      <h3 className="text-base font-semibold text-[#1d1d1f]">실시간 추이</h3>
+      <h3 className="text-base font-semibold text-foreground">실시간 추이</h3>
       <div className="grid gap-3 md:grid-cols-3">
         <SummaryItem label="목표 달성률" value={formatPercent(achievementRate)} />
         <SummaryItem label="프로모션 집계" value={formatInteger(detail.promotions.length)} />
@@ -151,7 +151,7 @@ function EvaluationOutcomePanel({
   return (
     <section className="grid gap-3">
       <div className="grid gap-1">
-        <h3 className="text-base font-semibold text-[#1d1d1f]">완료된 실험과 재실험</h3>
+        <h3 className="text-base font-semibold text-foreground">완료된 실험과 재실험</h3>
         <p className="text-sm text-muted-foreground">
           목표에 미치지 못한 고객군만 다음 반복 실험 후보로 보여 줘요.
         </p>

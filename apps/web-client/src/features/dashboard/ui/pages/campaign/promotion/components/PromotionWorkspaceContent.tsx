@@ -908,8 +908,8 @@ function PromotionSegmentDetailTab({
 
   return (
     <section className="grid gap-4">
-      <Card className="shadow-none">
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <Card className="border-primary/15 shadow-none">
+        <CardHeader className="flex flex-col gap-3 border-b bg-muted/35 pb-4 md:flex-row md:items-start md:justify-between">
           <div className="grid gap-1">
             <CardTitle>{detail.segment.segment_name}</CardTitle>
             <CardDescription>
@@ -954,7 +954,9 @@ function PromotionSegmentDetailTab({
         <section className="grid gap-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="grid gap-1">
-              <h3 className="text-base font-semibold">이 고객군의 광고 소재</h3>
+              <h3 className="border-l-2 border-primary pl-3 text-base font-semibold">
+                이 고객군의 광고 소재
+              </h3>
               <p className="text-sm text-muted-foreground">
                 이 고객군에 사용할 광고 소재 후보를 확인하고 하나를 선택해 주세요.
               </p>
@@ -1014,8 +1016,8 @@ function PromotionSegmentDetailTab({
 
                     return (
                       <CarouselItem className="basis-full pl-0" key={candidate.content_id}>
-                        <Card className="@container/candidate min-w-0 shadow-none">
-                          <CardHeader className="grid min-w-0 gap-3">
+                        <Card className="@container/candidate min-w-0 border-primary/15 shadow-none">
+                          <CardHeader className="grid min-w-0 gap-3 border-b bg-muted/30 pb-4">
                             <div className="flex min-w-0 flex-col gap-3 @4xl/candidate:flex-row @4xl/candidate:items-start @4xl/candidate:justify-between">
                               <div className="grid min-w-0 gap-2">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -1038,11 +1040,11 @@ function PromotionSegmentDetailTab({
                                 >
                                   <CarouselPrevious
                                     aria-label="이전 광고 소재"
-                                    className="static inset-auto my-0 size-8 rounded-full bg-card"
+                                    className="static inset-auto my-0 size-8 rounded-md bg-card"
                                   />
                                   <CarouselNext
                                     aria-label="다음 광고 소재"
-                                    className="static inset-auto my-0 size-8 rounded-full bg-card"
+                                    className="static inset-auto my-0 size-8 rounded-md bg-card"
                                   />
                                 </div>
                                 <Field
@@ -1583,7 +1585,7 @@ function SegmentConnectedExperimentsCard({
 
 function PromotionMetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="min-h-28 justify-between bg-[#f5f5f7] py-5">
+    <Card className="min-h-28 justify-between border-primary/10 bg-muted/45 py-5">
       <CardContent className="grid h-full content-between">
         <div className="text-sm font-medium text-muted-foreground">{label}</div>
         <div className="truncate text-2xl font-semibold text-foreground">{value}</div>
@@ -1616,7 +1618,7 @@ function experimentDisplayName(loopCount: number | null | undefined, index = 0) 
 
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border bg-muted/20 p-3">
+    <div className="rounded-md border bg-muted/45 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 truncate text-sm font-medium">{value}</div>
     </div>
@@ -1625,7 +1627,7 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
 
 function InsightBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid min-w-0 gap-1 rounded-md border bg-muted/20 p-3">
+    <div className="grid min-w-0 gap-1 rounded-md border bg-muted/45 p-3">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">
         {value || "-"}

@@ -10,7 +10,7 @@ export function DashboardMetric({
   description?: string;
 }) {
   return (
-    <Card className="min-h-36 w-full min-w-0 justify-between bg-white py-5 shadow-none" size="sm">
+    <Card className="min-h-36 w-full min-w-0 justify-between bg-card py-5 shadow-none" size="sm">
       <CardHeader className="gap-3 px-5">
         <CardDescription className="text-[15px] leading-snug text-muted-foreground">
           {label}

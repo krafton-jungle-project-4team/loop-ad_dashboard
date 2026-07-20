@@ -19,7 +19,7 @@ export function EmptyState({
   return (
     <Empty
       aria-live={loading ? "polite" : undefined}
-      className="min-h-40 rounded-[18px] border border-dashed border-black/10 bg-[#fafafc]"
+      className="min-h-40 rounded-lg border border-dashed border-border bg-muted/45"
       role={loading ? "status" : undefined}
     >
       <EmptyHeader>

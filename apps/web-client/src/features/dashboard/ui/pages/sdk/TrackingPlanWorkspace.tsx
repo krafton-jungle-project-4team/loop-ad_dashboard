@@ -351,7 +351,7 @@ export function DeveloperWorkspace({
 
   return (
     <div className="grid gap-6">
-      <header className="grid gap-2 border-b border-black/10 pb-6">
+      <header className="grid gap-2 border-b border-border pb-6">
         <h1 className="text-3xl font-semibold tracking-tight">개발자 페이지</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           버전이 명시된 SDK 설치 코드와 이벤트·광고 연동 절차를 확인합니다.
@@ -1010,7 +1010,7 @@ function GuideSection({
 
 function GuideCode({ code }: { code: string }) {
   return (
-    <pre className="overflow-auto rounded-md bg-slate-950 p-4 text-sm leading-6 text-slate-100">
+    <pre className="overflow-auto rounded-md bg-[#181421] p-4 text-sm leading-6 text-[#f4f0f7]">
       <code>{code}</code>
     </pre>
   );

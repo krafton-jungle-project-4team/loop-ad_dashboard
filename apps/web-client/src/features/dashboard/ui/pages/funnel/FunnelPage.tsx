@@ -214,10 +214,10 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
 
   return (
     <div className="grid min-h-full grid-rows-[auto_1fr] gap-6">
-      <Card className="w-full min-w-0 bg-white py-5 shadow-none">
+      <Card className="w-full min-w-0 bg-card py-5 shadow-none">
         <CardHeader className="flex flex-col gap-3 px-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid gap-1.5">
-            <CardTitle className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">
+            <CardTitle className="text-[22px] font-semibold tracking-tight text-foreground">
               사용자 경로 목록
             </CardTitle>
             <CardDescription>사용자 경로를 선택하면 단계별 전환을 볼 수 있어요.</CardDescription>
@@ -238,7 +238,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
             </Alert>
           ) : null}
           {data.funnels.length > 0 ? (
-            <div className="overflow-x-auto rounded-lg border border-black/10">
+            <div className="overflow-x-auto rounded-lg border border-border">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
@@ -345,7 +345,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
       </Card>
 
       <section
-        className="sticky bottom-[var(--dashboard-mobile-action-offset,0px)] z-10 grid self-end overflow-hidden rounded-t-2xl border border-black/10 bg-white shadow-[0_-18px_40px_rgba(15,23,42,0.14)] md:bottom-0"
+        className="sticky bottom-[var(--dashboard-mobile-action-offset,0px)] z-10 grid self-end overflow-hidden rounded-t-xl border border-border bg-card shadow-[0_-18px_40px_rgb(54_45_89_/_0.14)] md:bottom-0"
         data-testid="funnel-detail-panel"
         style={{
           gridTemplateRows: `${DETAIL_PANEL_HEADER_HEIGHT}px minmax(0, 1fr)`,
@@ -369,7 +369,7 @@ export function FunnelPage({ data, query }: { data: DashboardFunnelList; query: 
           >
             <GripHorizontal size={18} />
           </div>
-          <h2 className="min-w-0 truncate pt-1 text-lg font-semibold tracking-tight text-[#1d1d1f]">
+          <h2 className="min-w-0 truncate pt-1 text-lg font-semibold tracking-tight text-foreground">
             {selectedFunnel?.funnel_name ?? "사용자 경로 선택"}
           </h2>
           <Button

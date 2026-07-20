@@ -20,7 +20,7 @@ export function SchemaInspectorPanel({
 }) {
   if (isLoading && !detail) {
     return (
-      <div className="rounded-[18px] border border-dashed border-black/10 bg-[#fafafc] p-6 text-sm text-muted-foreground">
+      <div className="rounded-lg border border-dashed border-border bg-muted/50 p-6 text-sm text-muted-foreground">
         스키마 정보를 불러오고 있어요.
       </div>
     );
@@ -39,20 +39,20 @@ export function SchemaInspectorPanel({
             {detail.object.engine ? <Badge variant="outline">{detail.object.engine}</Badge> : null}
           </div>
           <div className="grid gap-1">
-            <h3 className="truncate text-[17px] font-semibold tracking-tight text-[#1d1d1f]">
+            <h3 className="truncate text-[17px] font-semibold tracking-tight text-foreground">
               {detail.object.object_name}
             </h3>
           </div>
         </div>
 
-        <section className="overflow-hidden rounded-[18px] border border-black/10 bg-white">
-          <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-3">
-            <h3 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">컬럼</h3>
+        <section className="overflow-hidden rounded-lg border border-border bg-card">
+          <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3">
+            <h3 className="text-[17px] font-semibold tracking-tight text-foreground">컬럼</h3>
             <Badge variant="outline">{detail.columns.length}</Badge>
           </div>
           <div className="overflow-auto">
             <Table className="min-w-[760px]">
-              <TableHeader className="bg-[#fafafc]">
+              <TableHeader className="bg-muted/75">
                 <TableRow>
                   <TableHead className="w-14">#</TableHead>
                   <TableHead>컬럼명</TableHead>

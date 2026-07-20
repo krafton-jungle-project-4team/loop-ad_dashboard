@@ -35,7 +35,7 @@ export function ProjectWelcomeScreen({
       aria-labelledby="project-welcome-title"
       className="grid min-h-[calc(100svh-9rem)] place-items-center py-6 md:py-10"
     >
-      <Card className="w-full max-w-4xl gap-8 rounded-[2rem] py-8 shadow-[0_24px_70px_rgba(15,23,42,0.08),0_2px_8px_rgba(15,23,42,0.04)] sm:py-12">
+      <Card className="w-full max-w-4xl gap-8 rounded-xl border-primary/15 py-8 shadow-[0_24px_70px_rgb(54_45_89_/_0.12),0_2px_8px_rgb(54_45_89_/_0.06)] sm:py-12">
         <CardHeader className="mx-auto w-full max-w-2xl px-6 text-center sm:px-10 lg:px-14">
           <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <Sparkles aria-hidden="true" className="size-6" />
@@ -65,7 +65,7 @@ export function ProjectWelcomeScreen({
                   variant="outline"
                 >
                   <ItemMedia
-                    className="size-9 rounded-xl bg-white text-primary shadow-sm ring-1 ring-black/5"
+                    className="size-9 rounded-lg bg-card text-primary shadow-sm ring-1 ring-border"
                     variant="icon"
                   >
                     <Icon aria-hidden="true" />

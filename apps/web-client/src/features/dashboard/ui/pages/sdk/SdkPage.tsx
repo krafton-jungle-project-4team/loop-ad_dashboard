@@ -132,13 +132,13 @@ export function AdvertisementSdkGuide() {
 
 function PageHeader() {
   return (
-    <div className="grid gap-4 border-b border-black/10 pb-6">
+    <div className="grid gap-4 border-b border-border pb-6">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">How-to guide</Badge>
         <Badge variant="secondary">광고 SDK</Badge>
       </div>
       <div className="grid gap-2">
-        <h1 className="text-[28px] font-semibold tracking-tight text-[#1d1d1f] md:text-[34px]">
+        <h1 className="text-[28px] font-semibold tracking-tight text-foreground md:text-[34px]">
           광고 SDK 연동 가이드
         </h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
@@ -152,9 +152,9 @@ function PageHeader() {
 
 function GuideSummary() {
   return (
-    <Card className="bg-white shadow-none">
+    <Card className="bg-card shadow-none">
       <CardHeader>
-        <CardTitle className="text-[20px] font-semibold tracking-tight text-[#1d1d1f]">
+        <CardTitle className="text-[20px] font-semibold tracking-tight text-foreground">
           목표
         </CardTitle>
         <CardDescription className="leading-6">
@@ -182,19 +182,19 @@ function GuideSummary() {
 
 function PrerequisitesPanel() {
   return (
-    <Card className="bg-white shadow-none">
+    <Card className="bg-card shadow-none">
       <CardHeader>
-        <CardTitle className="text-base font-semibold text-[#1d1d1f]">준비물</CardTitle>
+        <CardTitle className="text-base font-semibold text-foreground">준비물</CardTitle>
         <CardDescription>코드에 넣기 전에 프로젝트에서 준비할 값입니다.</CardDescription>
       </CardHeader>
       <CardContent>
         <dl className="grid gap-3">
           {prerequisites.map((item) => (
             <div
-              className="grid gap-1 border-b border-black/10 pb-3 last:border-0 last:pb-0"
+              className="grid gap-1 border-b border-border pb-3 last:border-0 last:pb-0"
               key={item.label}
             >
-              <dt className="text-sm font-semibold text-[#1d1d1f]">{item.label}</dt>
+              <dt className="text-sm font-semibold text-foreground">{item.label}</dt>
               <dd className="text-sm leading-5 text-muted-foreground">{item.value}</dd>
             </div>
           ))}
@@ -206,9 +206,9 @@ function PrerequisitesPanel() {
 
 function VerifyPanel() {
   return (
-    <Card className="bg-white shadow-none">
+    <Card className="bg-card shadow-none">
       <CardHeader>
-        <CardTitle className="text-base font-semibold text-[#1d1d1f]">검증</CardTitle>
+        <CardTitle className="text-base font-semibold text-foreground">검증</CardTitle>
         <CardDescription>배포 전 브라우저에서 확인할 최소 항목입니다.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -227,9 +227,9 @@ function VerifyPanel() {
 
 function TroubleshootingPanel() {
   return (
-    <Card className="bg-white shadow-none">
+    <Card className="bg-card shadow-none">
       <CardHeader>
-        <CardTitle className="text-base font-semibold text-[#1d1d1f]">문제 해결</CardTitle>
+        <CardTitle className="text-base font-semibold text-foreground">문제 해결</CardTitle>
         <CardDescription>연동이 안 된다면 아래 세 가지를 먼저 확인해 보세요.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -260,7 +260,7 @@ function SectionHeading({
       <span className="text-xs font-semibold uppercase tracking-normal text-primary">
         {eyebrow}
       </span>
-      <h2 className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">{title}</h2>
+      <h2 className="text-[22px] font-semibold tracking-tight text-foreground">{title}</h2>
       <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
     </div>
   );
@@ -280,7 +280,7 @@ function GuideStep({
   title: string;
 }) {
   return (
-    <Card className="bg-white shadow-none">
+    <Card className="bg-card shadow-none">
       <CardHeader className="gap-3">
         <div className="flex items-start gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
@@ -289,7 +289,7 @@ function GuideStep({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Icon className="size-4 text-primary" />
-              <CardTitle className="text-base font-semibold text-[#1d1d1f]">{title}</CardTitle>
+              <CardTitle className="text-base font-semibold text-foreground">{title}</CardTitle>
             </div>
             <CardDescription className="mt-1 leading-6">{body}</CardDescription>
           </div>
@@ -330,7 +330,7 @@ function CodeBlock({ code, language, title }: { code: string; language: string; 
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-black/10 bg-[#101820]">
+    <div className="overflow-hidden rounded-lg border border-[#463754] bg-[#181421]">
       <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#17212b] px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <Terminal className="size-4 shrink-0 text-[#8bb7e8]" />
@@ -357,11 +357,11 @@ function CodeBlock({ code, language, title }: { code: string; language: string; 
 
 function SummaryMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 rounded-lg border border-black/10 bg-[#fafafc] p-3">
+    <div className="grid gap-1 rounded-lg border border-border bg-muted/45 p-3">
       <span className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
         {label}
       </span>
-      <span className="break-words text-sm font-semibold text-[#1d1d1f]">{value}</span>
+      <span className="break-words text-sm font-semibold text-foreground">{value}</span>
     </div>
   );
 }
@@ -369,7 +369,7 @@ function SummaryMetric({ label, value }: { label: string; value: string }) {
 function TroubleshootingItem({ body, title }: { body: string; title: string }) {
   return (
     <div className="grid gap-1">
-      <h3 className="text-sm font-semibold text-[#1d1d1f]">{title}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <p className="text-sm leading-6 text-muted-foreground">{body}</p>
     </div>
   );

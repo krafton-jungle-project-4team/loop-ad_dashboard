@@ -80,7 +80,7 @@ function MainOverview({ data, query }: { data: DashboardMain; query: DashboardQu
 
   return (
     <div className="grid gap-6">
-      <Card className="w-full min-w-0 overflow-hidden bg-white py-0 shadow-none">
+      <Card className="w-full min-w-0 overflow-hidden bg-card py-0 shadow-none">
         <CardHeader className="border-b bg-gradient-to-br from-primary/[0.08] via-white to-white px-5 py-6 md:px-6">
           <div className="grid gap-1.5">
             <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
