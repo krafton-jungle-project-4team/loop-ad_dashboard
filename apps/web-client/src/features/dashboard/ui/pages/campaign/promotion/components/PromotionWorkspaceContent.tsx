@@ -43,6 +43,7 @@ import {
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
+import { ScrollArea } from "@loopad/ui/shadcn/scroll-area";
 import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { cn } from "@loopad/ui/shadcn/utils";
@@ -54,8 +55,18 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
-import { BarChart3, CheckCircle2, ImageIcon, Plus, Search, Target, Users, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  BarChart3,
+  CheckCircle2,
+  ImageIcon,
+  Plus,
+  Search,
+  Target,
+  Users,
+  X
+} from "lucide-react";
+import { useState } from "react";
 import { formatDateTime, formatInteger } from "../../../../../model/dashboard-format.js";
 import {
   formatActionLabel,
@@ -95,8 +106,6 @@ const promotionWorkspaceTabLabels: Record<PromotionWorkspaceTab, string> = {
   segments: "고객군 관리",
   "segment-detail": "고객군 맞춤 광고 생성"
 };
-
-type PromotionSegmentListTab = "candidates" | "confirmed" | "experiments";
 
 export function PromotionManagementList({
   filter,
@@ -455,32 +464,13 @@ export function PromotionTabWorkspace({
   updateContentCandidateCopyIsPending: boolean;
   visibleTabs: PromotionWorkspaceTab[];
 }) {
-  const [segmentListTab, setSegmentListTab] = useState<PromotionSegmentListTab>(() =>
-    segmentView === "experiments" && selectedSegmentId ? "experiments" : "candidates"
-  );
-  const [isConfirmationNavigationOpen, setIsConfirmationNavigationOpen] = useState(false);
   const activeSegments = segments.filter((segment) => segment.status !== "stopped");
   const isSegmentWorkspace =
     visibleTabs.includes("segments") || visibleTabs.includes("segment-detail");
   const showsOverviewTab = visibleTabs.includes("overview");
   const showsSegmentsTab = isSegmentWorkspace;
   const showsPromotionSummary = showsOverviewTab;
-  const candidateCount =
-    scopedSegments.length +
-    suggestions.filter(
-      (suggestion) =>
-        suggestion.suggestion_status === "suggested" || suggestion.suggestion_status === "accepted"
-    ).length;
-  const confirmedSegmentCount = latestSegmentPerSegmentId(activeSegments).length;
-
-  useEffect(() => {
-    setSegmentListTab((current) => {
-      if (segmentView === "experiments" && selectedSegmentId) {
-        return "experiments";
-      }
-      return current === "experiments" ? "candidates" : current;
-    });
-  }, [segmentView, selectedSegmentId]);
+  const showsExperimentWorkspace = segmentView === "experiments" && Boolean(selectedSegmentId);
 
   return (
     <section className="grid gap-5">
@@ -546,66 +536,19 @@ export function PromotionTabWorkspace({
         ) : null}
         {showsSegmentsTab ? (
           <TabsContent className="flex-none" value="segments">
-            <Tabs
-              className="gap-3"
-              onValueChange={(value) => {
-                const nextTab = value as PromotionSegmentListTab;
-                if (nextTab === "experiments" && !selectedSegmentId) {
-                  return;
-                }
-                setSegmentListTab(nextTab);
-                onSegmentViewChange(nextTab === "experiments" ? "experiments" : "manage");
-              }}
-              value={segmentListTab}
-            >
-              <TabsList aria-label="고객군 목록" className="w-fit">
-                <TabsTrigger value="candidates">
-                  고객군 후보
-                  <Badge variant="secondary">{formatInteger(candidateCount)}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="confirmed">
-                  확정 고객군
-                  <Badge variant="secondary">{formatInteger(confirmedSegmentCount)}</Badge>
-                </TabsTrigger>
-                <TabsTrigger disabled={!selectedSegmentId} value="experiments">
-                  실험
-                  <Badge variant="secondary">{formatInteger(promotionExperiments.length)}</Badge>
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent className="flex-none" value="candidates">
-                <PromotionSegmentSuggestionPanel
-                  audienceAllocationPreviewContext={audienceAllocationPreviewContext}
-                  confirmIsPending={confirmIsPending}
-                  decideIsPending={decideIsPending}
-                  archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
-                  onArchiveScopedSegment={onArchiveScopedSegment}
-                  onConfirmSuggestions={async (segmentIds) => {
-                    await onConfirmSuggestions(segmentIds);
-                    setIsConfirmationNavigationOpen(true);
-                  }}
-                  onDecideSuggestion={onDecideSuggestion}
-                  onRecommendSegments={onRecommendSegments}
-                  promotionAnalysisIsPending={promotionAnalysisIsPending}
-                  scopedSegments={scopedSegments}
-                  scopedSegmentsIsLoading={scopedSegmentsIsLoading}
-                  suggestions={suggestions}
-                  suggestionsIsLoading={suggestionsIsLoading}
-                />
-              </TabsContent>
-              <TabsContent className="min-h-0" value="confirmed">
-                <PromotionCurrentSegmentsPanel
-                  deleteIsPending={deleteConfirmedSegmentIsPending}
-                  onDeleteSegment={onDeleteConfirmedSegment}
-                  onSelectSegment={(promotionId, segmentId) => {
-                    setSegmentListTab("experiments");
-                    onSelectSegment(promotionId, segmentId);
-                  }}
-                  promotion={promotion}
-                  segments={activeSegments}
-                  selectedSegmentId={selectedSegmentId}
-                />
-              </TabsContent>
-              <TabsContent className="min-h-0" value="experiments">
+            {showsExperimentWorkspace ? (
+              <div className="grid gap-3">
+                <div>
+                  <Button
+                    onClick={() => onSegmentViewChange("manage")}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <ArrowLeft data-icon="inline-start" />
+                    고객군 관리로 돌아가기
+                  </Button>
+                </div>
                 <PromotionSegmentDetailTab
                   approveContentCandidateIsPending={approveContentCandidateIsPending}
                   contentCandidateHtmlEditor={contentCandidateHtmlEditor}
@@ -630,33 +573,37 @@ export function PromotionTabWorkspace({
                   launchExperimentIsPending={launchExperimentIsPending}
                   launchExperimentResult={launchExperimentResult}
                 />
-              </TabsContent>
-            </Tabs>
+              </div>
+            ) : (
+              <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(19rem,0.75fr)]">
+                <PromotionSegmentSuggestionPanel
+                  audienceAllocationPreviewContext={audienceAllocationPreviewContext}
+                  confirmIsPending={confirmIsPending}
+                  decideIsPending={decideIsPending}
+                  archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+                  onArchiveScopedSegment={onArchiveScopedSegment}
+                  onConfirmSuggestions={onConfirmSuggestions}
+                  onDecideSuggestion={onDecideSuggestion}
+                  onRecommendSegments={onRecommendSegments}
+                  promotionAnalysisIsPending={promotionAnalysisIsPending}
+                  scopedSegments={scopedSegments}
+                  scopedSegmentsIsLoading={scopedSegmentsIsLoading}
+                  suggestions={suggestions}
+                  suggestionsIsLoading={suggestionsIsLoading}
+                />
+                <PromotionCurrentSegmentsPanel
+                  deleteIsPending={deleteConfirmedSegmentIsPending}
+                  onDeleteSegment={onDeleteConfirmedSegment}
+                  onSelectSegment={onSelectSegment}
+                  promotion={promotion}
+                  segments={activeSegments}
+                  selectedSegmentId={selectedSegmentId}
+                />
+              </div>
+            )}
           </TabsContent>
         ) : null}
       </Tabs>
-      <AlertDialog
-        onOpenChange={setIsConfirmationNavigationOpen}
-        open={isConfirmationNavigationOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>고객군 확정이 완료됐어요</AlertDialogTitle>
-            <AlertDialogDescription>확정 고객군으로 이동하시겠어요?</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>아니요</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setSegmentListTab("confirmed");
-                onSegmentViewChange("manage");
-              }}
-            >
-              네, 이동할게요
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </section>
   );
 }
@@ -726,7 +673,7 @@ function PromotionCurrentSegmentsPanel({
   const [segmentToDelete, setSegmentToDelete] = useState<DashboardCampaignSegment | null>(null);
 
   return (
-    <Card className="min-h-0 overflow-hidden shadow-none xl:h-full">
+    <Card className="min-h-0 overflow-hidden shadow-none xl:h-0 xl:min-h-full">
       <CardHeader className="shrink-0 border-b">
         <div className="grid gap-1">
           <div className="flex items-center gap-2">
@@ -747,78 +694,82 @@ function PromotionCurrentSegmentsPanel({
               onDelete={setSegmentToDelete}
             />
           </div>
-          <CardDescription>광고 소재를 만들고 실험할 고객군이에요.</CardDescription>
+          <CardDescription>
+            고객군별 광고 소재와 실험을 이어갈 수 있어요.
+          </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="grid content-start gap-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-width:thin]">
-        {visibleSegments.length === 0 ? (
-          <EmptyState
-            message="후보를 선택해 확정하면 이곳에서 광고 소재와 실험을 이어갈 수 있어요."
-            title="아직 확정된 고객군이 없어요"
-          />
-        ) : null}
-        {visibleSegments.map((segment) => {
-          const isSelected = segment.segment_id === selectedSegmentId;
-          const loopCount = segmentLoopCount(segment);
-          const displayCopy = campaignSegmentDisplayCopy(segment);
-          const hiddenLoopCount = segments.filter(
-            (candidate) =>
-              candidate.segment_id === segment.segment_id &&
-              candidate.analysis_id !== segment.analysis_id
-          ).length;
-          return (
-            <Card
-              className={cn(
-                "shadow-none transition-[border-color,box-shadow]",
-                isSelected && "border-primary bg-accent/30 ring-2 ring-primary/10"
-              )}
-              key={`${segment.segment_id}:${segment.analysis_id}`}
-              size="sm"
-            >
-              <CardContent className="grid min-w-0 gap-4 sm:grid-cols-[minmax(12rem,0.8fr)_minmax(0,1.7fr)_auto] sm:items-center">
-                <div className="grid min-w-0 gap-2">
-                  <CardTitle className="text-base leading-6 font-semibold [overflow-wrap:anywhere] [word-break:keep-all]">
-                    {displayCopy?.title ?? segment.segment_name}
-                  </CardTitle>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant="secondary">{formatInteger(loopCount)}번째 실험</Badge>
-                    <Badge variant={statusBadgeVariant(segment.status)}>
-                      {formatStatusLabel(segment.status)}
-                    </Badge>
-                    {loopCount > 1 ? <Badge variant="outline">반복 실험</Badge> : null}
+      <ScrollArea className="min-h-0 flex-1">
+        <CardContent className="grid content-start gap-3 pr-4">
+          {visibleSegments.length === 0 ? (
+            <EmptyState
+              message="후보를 선택해 확정하면 이곳에서 광고 소재와 실험을 이어갈 수 있어요."
+              title="아직 확정된 고객군이 없어요"
+            />
+          ) : null}
+          {visibleSegments.map((segment) => {
+            const isSelected = segment.segment_id === selectedSegmentId;
+            const loopCount = segmentLoopCount(segment);
+            const displayCopy = campaignSegmentDisplayCopy(segment);
+            const hiddenLoopCount = segments.filter(
+              (candidate) =>
+                candidate.segment_id === segment.segment_id &&
+                candidate.analysis_id !== segment.analysis_id
+            ).length;
+            return (
+              <Card
+                className={cn(
+                  "shadow-none transition-[border-color,box-shadow]",
+                  isSelected && "border-primary bg-accent/30 ring-2 ring-primary/10"
+                )}
+                key={`${segment.segment_id}:${segment.analysis_id}`}
+                size="sm"
+              >
+                <CardContent className="grid min-w-0 gap-3">
+                  <div className="grid min-w-0 gap-2">
+                    <CardTitle className="text-base leading-6 font-semibold [overflow-wrap:anywhere] [word-break:keep-all]">
+                      {displayCopy?.title ?? segment.segment_name}
+                    </CardTitle>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="secondary">{formatInteger(loopCount)}번째 실험</Badge>
+                      <Badge variant={statusBadgeVariant(segment.status)}>
+                        {formatStatusLabel(segment.status)}
+                      </Badge>
+                      {loopCount > 1 ? <Badge variant="outline">반복 실험</Badge> : null}
+                    </div>
                   </div>
-                </div>
-                <div className="grid min-w-0 gap-1.5">
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    {segment.final_user_count !== null
-                      ? `최종 배정 사용자 ${formatInteger(segment.final_user_count)}명 · ${formatMetricLabel(segment.goal_metric)}`
-                      : (displayCopy?.audience_summary ??
-                        `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
-                          segment.sample_size
-                        )} · ${formatMetricLabel(segment.goal_metric)}`)}
-                    {hiddenLoopCount > 0
-                      ? ` · 이전 실험 ${formatInteger(hiddenLoopCount)}개 숨김`
-                      : ""}
-                  </p>
-                  {displayCopy?.reason ? (
-                    <p className="text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere] [word-break:keep-all]">
-                      {displayCopy.reason}
+                  <div className="grid min-w-0 gap-1.5 rounded-md bg-muted/45 px-3 py-2.5">
+                    <p className="text-xs font-medium leading-5 text-foreground/75">
+                      {segment.final_user_count !== null
+                        ? `최종 배정 사용자 ${formatInteger(segment.final_user_count)}명 · ${formatMetricLabel(segment.goal_metric)}`
+                        : (displayCopy?.audience_summary ??
+                          `${formatInteger(segment.estimated_size)}명 · 평가 대상 ${formatInteger(
+                            segment.sample_size
+                          )} · ${formatMetricLabel(segment.goal_metric)}`)}
+                      {hiddenLoopCount > 0
+                        ? ` · 이전 실험 ${formatInteger(hiddenLoopCount)}개 숨김`
+                        : ""}
                     </p>
-                  ) : null}
-                </div>
-                <Button
-                  className="justify-self-start whitespace-nowrap sm:justify-self-end"
-                  onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
-                  size="sm"
-                  type="button"
-                >
-                  광고 소재 · 실험
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </CardContent>
+                    {displayCopy?.reason ? (
+                      <p className="line-clamp-3 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere] [word-break:keep-all]">
+                        {displayCopy.reason}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    className="w-full whitespace-nowrap"
+                    onClick={() => onSelectSegment(promotion.promotion_id, segment.segment_id)}
+                    size="sm"
+                    type="button"
+                  >
+                    광고 소재 · 실험
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </CardContent>
+      </ScrollArea>
       <AlertDialog
         onOpenChange={(open) => {
           if (!open) {

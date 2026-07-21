@@ -20,10 +20,15 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle
 } from "@loopad/ui/shadcn/card";
+import {
+  Carousel,
+  type CarouselApi,
+  CarouselContent,
+  CarouselItem
+} from "@loopad/ui/shadcn/carousel";
 import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import {
   Dialog,
@@ -43,12 +48,18 @@ import {
 } from "@loopad/ui/shadcn/empty";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { BarChart3, Bot, CheckCircle2, FileText } from "lucide-react";
-import { useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Bot,
+  CheckCircle2,
+  FileText
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
-import { selectedSegmentSummaries } from "../../../../../model/segment-selection-summary.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
   formatJsonObject,
@@ -71,6 +82,10 @@ type SegmentAudience = NonNullable<SegmentSuggestionDisplayCopy["audience"]>;
 type SegmentCandidateDeleteTarget =
   | { id: string; kind: "scoped"; name: string }
   | { id: string; kind: "suggestion"; name: string };
+
+type SegmentCandidateSlide =
+  | { id: string; kind: "scoped"; segment: DashboardPromotionScopedSegmentDefinition }
+  | { id: string; kind: "suggestion"; suggestion: DashboardPromotionSegmentSuggestion };
 
 export function PromotionSegmentSuggestionPanel({
   audienceAllocationPreviewContext,
@@ -106,6 +121,8 @@ export function PromotionSegmentSuggestionPanel({
 }) {
   const { openSegmentCandidateAssistant } = useDashboardAssistant();
   const [deleteTarget, setDeleteTarget] = useState<SegmentCandidateDeleteTarget | null>(null);
+  const [candidateCarouselApi, setCandidateCarouselApi] = useState<CarouselApi>();
+  const [activeCandidateIndex, setActiveCandidateIndex] = useState(0);
   const [selectedScopedSegmentIds, setSelectedScopedSegmentIds] = useState<string[]>([]);
   const [reportSuggestion, setReportSuggestion] =
     useState<DashboardPromotionSegmentSuggestion | null>(null);
@@ -118,10 +135,18 @@ export function PromotionSegmentSuggestionPanel({
   ).length;
   const confirmableCount = acceptedCount + selectedScopedSegmentIds.length;
   const candidateCount = visibleSuggestions.length + scopedSegments.length;
-  const selectedSegments = selectedSegmentSummaries(
-    visibleSuggestions,
-    scopedSegments.filter((segment) => selectedScopedSegmentIds.includes(segment.segment_id))
-  );
+  const candidateSlides: SegmentCandidateSlide[] = [
+    ...scopedSegments.map((segment) => ({
+      id: `scoped:${segment.segment_id}`,
+      kind: "scoped" as const,
+      segment
+    })),
+    ...visibleSuggestions.map((suggestion) => ({
+      id: `suggestion:${suggestion.suggestion_id}`,
+      kind: "suggestion" as const,
+      suggestion
+    }))
+  ];
   const allocationPreview =
     selectedScopedSegmentIds.length > 0
       ? null
@@ -148,6 +173,25 @@ export function PromotionSegmentSuggestionPanel({
       }
     }))
   ];
+
+  useEffect(() => {
+    if (!candidateCarouselApi) {
+      return;
+    }
+
+    const updateActiveCandidate = () => {
+      setActiveCandidateIndex(candidateCarouselApi.selectedScrollSnap());
+    };
+
+    updateActiveCandidate();
+    candidateCarouselApi.on("select", updateActiveCandidate);
+    candidateCarouselApi.on("reInit", updateActiveCandidate);
+
+    return () => {
+      candidateCarouselApi.off("select", updateActiveCandidate);
+      candidateCarouselApi.off("reInit", updateActiveCandidate);
+    };
+  }, [candidateCarouselApi]);
 
   return (
     <Card className="shrink-0 shadow-none">
@@ -194,73 +238,6 @@ export function PromotionSegmentSuggestionPanel({
         {scopedSegmentsIsLoading ? (
           <EmptyState message="직접 추가한 후보를 불러오는 중이에요." />
         ) : null}
-        {scopedSegments.length > 0 ? (
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">직접 추가 고객군 후보</h3>
-              <Badge variant="secondary">{formatInteger(scopedSegments.length)}</Badge>
-            </div>
-            <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
-              {scopedSegments.map((segment) => (
-                <div
-                  className="grid gap-3 rounded-lg border bg-muted/30 p-4"
-                  key={segment.segment_id}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="grid gap-1">
-                      <div className="text-xs font-semibold text-primary">{segment.source}</div>
-                      <h3 className="text-base font-semibold">{segment.segment_name}</h3>
-                    </div>
-                    <Field
-                      className={buttonVariants({
-                        className: "w-auto gap-2",
-                        size: "sm",
-                        variant: "outline"
-                      })}
-                      data-disabled={archiveScopedSegmentIsPending}
-                      orientation="horizontal"
-                    >
-                      <Checkbox
-                        aria-label={`${segment.segment_name} 선택`}
-                        checked={selectedScopedSegmentIds.includes(segment.segment_id)}
-                        disabled={archiveScopedSegmentIsPending}
-                        id={`scoped-segment-acceptance-${segment.segment_id}`}
-                        onCheckedChange={(checked) =>
-                          setSelectedScopedSegmentIds((current) =>
-                            checked === true
-                              ? [...new Set([...current, segment.segment_id])]
-                              : current.filter((segmentId) => segmentId !== segment.segment_id)
-                          )
-                        }
-                      />
-                      <FieldLabel
-                        className="cursor-pointer font-medium"
-                        htmlFor={`scoped-segment-acceptance-${segment.segment_id}`}
-                      >
-                        선택
-                      </FieldLabel>
-                    </Field>
-                  </div>
-                  <div className="grid gap-1">
-                    <Badge className="w-fit" variant={statusBadgeVariant(segment.status)}>
-                      {formatStatusLabel(segment.status)}
-                    </Badge>
-                  </div>
-                  <div className="grid gap-2 text-sm text-muted-foreground">
-                    <div>
-                      평가 대상 {formatInteger(segment.sample_size)}명 · 비율{" "}
-                      {formatInteger(segment.sample_ratio * 100)}%
-                    </div>
-                    <div className="[overflow-wrap:anywhere] [word-break:keep-all]">
-                      {(segment.natural_language_query ?? formatJsonObject(segment.rule_json)) ||
-                        "조건 설명이 없어요."}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
         {promotionAnalysisIsPending ? (
           <EmptyState
             loading
@@ -270,26 +247,107 @@ export function PromotionSegmentSuggestionPanel({
         ) : suggestionsIsLoading ? (
           <EmptyState message="추천 후보를 불러오는 중이에요." />
         ) : null}
-        {!promotionAnalysisIsPending && visibleSuggestions.length > 0 ? (
-          <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {visibleSuggestions.map((suggestion) => (
-              <SegmentSuggestionCard
-                allocatedUserCount={
-                  suggestion.suggestion_status === "accepted"
-                    ? (allocatedUserCountBySegmentId.get(suggestion.segment_id) ?? null)
-                    : null
+        {!promotionAnalysisIsPending && !suggestionsIsLoading && candidateSlides.length > 0 ? (
+          <Carousel
+            aria-label="고객군 후보 검토"
+            className="min-w-0"
+            opts={{ align: "start", loop: false }}
+            setApi={setCandidateCarouselApi}
+          >
+            <CarouselContent className="ml-0 items-stretch">
+              {candidateSlides.map((candidate) => (
+                <CarouselItem className="flex basis-full pl-0" key={candidate.id}>
+                  {candidate.kind === "scoped" ? (
+                    <ScopedSegmentCandidateCard
+                      archiveScopedSegmentIsPending={archiveScopedSegmentIsPending}
+                      isSelected={selectedScopedSegmentIds.includes(
+                        candidate.segment.segment_id
+                      )}
+                      onSelectionChange={(selected) =>
+                        setSelectedScopedSegmentIds((current) =>
+                          selected
+                            ? [...new Set([...current, candidate.segment.segment_id])]
+                            : current.filter(
+                                (segmentId) => segmentId !== candidate.segment.segment_id
+                              )
+                        )
+                      }
+                      segment={candidate.segment}
+                    />
+                  ) : (
+                    <SegmentSuggestionCard
+                      allocatedUserCount={
+                        candidate.suggestion.suggestion_status === "accepted"
+                          ? (allocatedUserCountBySegmentId.get(
+                              candidate.suggestion.segment_id
+                            ) ?? null)
+                          : null
+                      }
+                      decideIsPending={decideIsPending}
+                      onDecideSuggestion={onDecideSuggestion}
+                      onEditSuggestion={() =>
+                        openSegmentCandidateAssistant(
+                          segmentAssistantSourceSuggestion(candidate.suggestion)
+                        )
+                      }
+                      onOpenReport={setReportSuggestion}
+                      suggestion={candidate.suggestion}
+                    />
+                  )}
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <div className="mt-3 grid gap-3 rounded-md border bg-muted/25 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <div
+                aria-label="고객군 후보 이동"
+                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3"
+                role="group"
+              >
+                <Button
+                  className="w-fit justify-self-start"
+                  disabled={!candidateCarouselApi || activeCandidateIndex === 0}
+                  onClick={() => candidateCarouselApi?.scrollPrev()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <ArrowLeft data-icon="inline-start" />
+                  이전 후보
+                </Button>
+                <span aria-live="polite" className="text-sm font-medium tabular-nums">
+                  {formatInteger(activeCandidateIndex + 1)} / {formatInteger(candidateCount)}
+                </span>
+                <Button
+                  className="w-fit justify-self-end"
+                  disabled={!candidateCarouselApi || activeCandidateIndex === candidateCount - 1}
+                  onClick={() => candidateCarouselApi?.scrollNext()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  다음 후보
+                  <ArrowRight data-icon="inline-end" />
+                </Button>
+              </div>
+              <Button
+                className="w-full sm:w-auto"
+                disabled={
+                  confirmableCount === 0 ||
+                  confirmIsPending ||
+                  decideIsPending ||
+                  archiveScopedSegmentIsPending ||
+                  suggestionsIsLoading ||
+                  scopedSegmentsIsLoading ||
+                  promotionAnalysisIsPending
                 }
-                decideIsPending={decideIsPending}
-                key={suggestion.suggestion_id}
-                onDecideSuggestion={onDecideSuggestion}
-                onEditSuggestion={() =>
-                  openSegmentCandidateAssistant(segmentAssistantSourceSuggestion(suggestion))
-                }
-                onOpenReport={setReportSuggestion}
-                suggestion={suggestion}
-              />
-            ))}
-          </div>
+                onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
+                type="button"
+              >
+                <CheckCircle2 data-icon="inline-start" />
+                {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
+              </Button>
+            </div>
+          </Carousel>
         ) : null}
         {!promotionAnalysisIsPending &&
         !suggestionsIsLoading &&
@@ -322,55 +380,6 @@ export function PromotionSegmentSuggestionPanel({
           suggestion={reportSuggestion}
         />
       </CardContent>
-      <CardFooter className="grid shrink-0 gap-4 border-t bg-muted/20 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div className="grid min-w-0 gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">선택한 고객군</span>
-            <Badge variant="secondary">{formatInteger(confirmableCount)}</Badge>
-          </div>
-          {selectedSegments.length > 0 ? (
-            <ul className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {selectedSegments.map((segment) => (
-                <li
-                  className="grid min-w-0 gap-0.5 border-l-2 border-primary pl-2"
-                  key={segment.id}
-                >
-                  <span
-                    className="truncate text-xs font-medium text-foreground"
-                    title={segment.name}
-                  >
-                    {segment.name}
-                  </span>
-                  <span
-                    className="truncate text-[11px] text-muted-foreground"
-                    title={segment.detail}
-                  >
-                    {segment.detail}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <span className="text-xs text-muted-foreground">확정할 후보를 선택해 주세요.</span>
-          )}
-        </div>
-        <Button
-          className="w-full lg:w-auto"
-          disabled={
-            confirmableCount === 0 ||
-            confirmIsPending ||
-            decideIsPending ||
-            archiveScopedSegmentIsPending ||
-            suggestionsIsLoading ||
-            scopedSegmentsIsLoading ||
-            promotionAnalysisIsPending
-          }
-          onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
-          type="button"
-        >
-          {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
-        </Button>
-      </CardFooter>
       <AlertDialog
         onOpenChange={(open) => {
           if (!open) {
@@ -412,6 +421,90 @@ export function PromotionSegmentSuggestionPanel({
   );
 }
 
+function ScopedSegmentCandidateCard({
+  archiveScopedSegmentIsPending,
+  isSelected,
+  onSelectionChange,
+  segment
+}: {
+  archiveScopedSegmentIsPending: boolean;
+  isSelected: boolean;
+  onSelectionChange: (selected: boolean) => void;
+  segment: DashboardPromotionScopedSegmentDefinition;
+}) {
+  const acceptanceId = `scoped-segment-acceptance-${segment.segment_id}`;
+
+  return (
+    <Card
+      className={cn(
+        "min-h-[30rem] w-full min-w-0 shadow-none",
+        isSelected && "border-primary bg-accent/40 ring-2 ring-primary/10"
+      )}
+    >
+      <CardHeader className="gap-4 border-b bg-muted/20">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="grid min-w-0 gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">직접 추가</Badge>
+              <Badge variant={statusBadgeVariant(segment.status)}>
+                {formatStatusLabel(segment.status)}
+              </Badge>
+            </div>
+            <CardTitle className="text-xl leading-7 [overflow-wrap:anywhere] [word-break:keep-all]">
+              {segment.segment_name}
+            </CardTitle>
+            <CardDescription>{segment.source}</CardDescription>
+          </div>
+          <Field
+            className={buttonVariants({
+              className: "w-auto gap-2",
+              size: "sm",
+              variant: "outline"
+            })}
+            data-disabled={archiveScopedSegmentIsPending}
+            orientation="horizontal"
+          >
+            <Checkbox
+              aria-label={`${segment.segment_name} 선택`}
+              checked={isSelected}
+              disabled={archiveScopedSegmentIsPending}
+              id={acceptanceId}
+              onCheckedChange={(checked) => onSelectionChange(checked === true)}
+            />
+            <FieldLabel className="cursor-pointer font-medium" htmlFor={acceptanceId}>
+              선택
+            </FieldLabel>
+          </Field>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-5 text-sm">
+        <div className="grid grid-cols-2 divide-x rounded-md bg-muted/60 py-4 text-center">
+          <AudienceStat label="평가 대상" value={segment.sample_size} />
+          <div className="grid min-w-0 gap-0.5 px-2">
+            <span className="text-[10px] leading-4 text-foreground/65">대상 비율</span>
+            <strong className="text-sm font-semibold tabular-nums text-foreground">
+              {formatInteger(segment.sample_ratio * 100)}%
+            </strong>
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <span className="text-xs font-medium text-foreground">고객군 조건</span>
+          <p className="leading-6 text-foreground/80 [overflow-wrap:anywhere] [word-break:keep-all]">
+            {(segment.natural_language_query ?? formatJsonObject(segment.rule_json)) ||
+              "조건 설명이 없어요."}
+          </p>
+        </div>
+        <div className="grid gap-2 border-l-2 border-primary bg-accent/40 px-4 py-3">
+          <span className="text-xs font-medium">검토 안내</span>
+          <p className="text-xs leading-5 text-foreground/75">
+            직접 만든 조건과 예상 대상을 확인한 뒤 선택하면 다른 후보와 함께 확정할 수 있어요.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SegmentSuggestionCard({
   allocatedUserCount,
   decideIsPending,
@@ -446,7 +539,7 @@ function SegmentSuggestionCard({
   return (
     <Card
       className={cn(
-        "min-w-0 shadow-none",
+        "min-h-[30rem] w-full min-w-0 shadow-none",
         isAccepted && "border-primary bg-accent/40 ring-2 ring-primary/10"
       )}
     >
