@@ -128,7 +128,7 @@ function ExperimentPageHeader() {
     <div className="grid gap-1">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">실험</h1>
       <p className="text-sm text-muted-foreground">
-        모든 캠페인의 실험 상태와 성과, 다음 반복 실험을 한곳에서 관리해요.
+        실험 결과를 판단하고 다음 반복 실험을 결정해요.
       </p>
     </div>
   );
