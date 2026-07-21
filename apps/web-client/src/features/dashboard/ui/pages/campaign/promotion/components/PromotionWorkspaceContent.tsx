@@ -694,7 +694,7 @@ function PromotionCurrentSegmentsPanel({
             />
           </div>
           <CardDescription>
-            선택한 후보가 이 목록에 쌓여요. 고객군별 광고 소재와 실험을 이어갈 수 있어요.
+            고객군별 광고 소재와 실험을 이어갈 수 있어요.
           </CardDescription>
         </div>
       </CardHeader>

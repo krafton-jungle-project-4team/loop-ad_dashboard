@@ -260,14 +260,6 @@ export function PromotionSegmentSuggestionPanel({
             opts={{ align: "start", loop: false }}
             setApi={setCandidateCarouselApi}
           >
-            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border bg-muted/25 px-3 py-2.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <Badge variant="outline">검토 중</Badge>
-                <span className="hidden text-xs text-muted-foreground sm:inline">
-                  한 장씩 넘기며 비교해 보세요.
-                </span>
-              </div>
-            </div>
             <CarouselContent className="ml-0 items-stretch">
               {candidateSlides.map((candidate) => (
                 <CarouselItem className="flex basis-full pl-0" key={candidate.id}>
