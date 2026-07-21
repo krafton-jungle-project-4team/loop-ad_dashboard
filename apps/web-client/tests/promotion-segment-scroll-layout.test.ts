@@ -16,6 +16,13 @@ const workspaceSource = readFileSync(
   ),
   "utf8"
 );
+const workspaceControllerSource = readFileSync(
+  new URL(
+    "../src/features/dashboard/ui/pages/campaign/promotion/usePromotionWorkspaceController.ts",
+    import.meta.url
+  ),
+  "utf8"
+);
 
 test("segment candidate panel grows to its content height so the page owns scrolling", () => {
   assert.match(suggestionPanelSource, /<Card className="shrink-0 shadow-none">/);
@@ -23,46 +30,51 @@ test("segment candidate panel grows to its content height so the page owns scrol
   assert.doesNotMatch(suggestionPanelSource, /<Card className="min-h-0(?: [^"]*)?shadow-none">/);
 });
 
-test("segment candidate tabs keep their intrinsic content height", () => {
+test("segment workspace keeps its intrinsic content height without nested workflow tabs", () => {
   assert.match(workspaceSource, /<TabsContent className="flex-none" value="segments">/);
-  assert.match(workspaceSource, /<TabsContent className="flex-none" value="candidates">/);
+  assert.doesNotMatch(workspaceSource, /<TabsContent[^>]+value="candidates">/);
+  assert.doesNotMatch(workspaceSource, /<TabsContent[^>]+value="confirmed">/);
+  assert.doesNotMatch(workspaceSource, /<TabsContent[^>]+value="experiments">/);
 });
 
-test("segment workflow connects candidates, confirmed segments, and experiments", () => {
-  assert.match(workspaceSource, /<TabsTrigger value="candidates">/);
-  assert.match(workspaceSource, /<TabsTrigger value="confirmed">/);
+test("segment workflow keeps the candidate deck beside the confirmed shortlist", () => {
   assert.match(
     workspaceSource,
-    /<TabsTrigger disabled=\{!selectedSegmentId\} value="experiments">/
+    /xl:grid-cols-\[minmax\(0,1\.65fr\)_minmax\(19rem,0\.75fr\)\]/
   );
-  assert.match(workspaceSource, /<TabsContent className="min-h-0" value="experiments">/);
+  assert.match(workspaceSource, /<PromotionSegmentSuggestionPanel/);
+  assert.match(workspaceSource, /<PromotionCurrentSegmentsPanel/);
+  assert.doesNotMatch(workspaceSource, /<TabsTrigger[^>]+value="experiments">/);
 });
 
-test("experiment workflow stays unavailable until a confirmed segment is selected", () => {
+test("experiment detail renders only after a confirmed segment is selected", () => {
   assert.match(
     workspaceSource,
-    /segmentView === "experiments" && selectedSegmentId \? "experiments" : "candidates"/
+    /const showsExperimentWorkspace = segmentView === "experiments" && Boolean\(selectedSegmentId\);/
   );
+  assert.match(workspaceSource, /고객군 관리로 돌아가기/);
+});
+
+test("confirming segment candidates keeps the combined workspace open", () => {
+  assert.match(workspaceSource, /onConfirmSuggestions=\{onConfirmSuggestions\}/);
+  assert.doesNotMatch(workspaceSource, /확정 고객군으로 이동하시겠어요\?/);
+  assert.doesNotMatch(workspaceSource, /setIsConfirmationNavigationOpen/);
+});
+
+test("selecting creative experiments opens the separate experiment detail", () => {
+  assert.match(workspaceSource, /onSelectSegment=\{onSelectSegment\}/);
   assert.match(
-    workspaceSource,
-    /if \(nextTab === "experiments" && !selectedSegmentId\) \{\s+return;/
+    workspaceControllerSource,
+    /const selectSegment = \(promotionId: string, segmentId: string\) => \{\s+setWorkspaceTab\("segment-detail"\);\s+void setDashboardQueryState\(\{\s+segmentView: "experiments"/
   );
 });
 
-test("confirming segment candidates asks before moving to confirmed segments", () => {
-  assert.match(
-    workspaceSource,
-    /await onConfirmSuggestions\(segmentIds\);\s+setIsConfirmationNavigationOpen\(true\);/
-  );
-  assert.match(workspaceSource, /확정 고객군으로 이동하시겠어요\?/);
-  assert.match(workspaceSource, /setSegmentListTab\("confirmed"\);/);
-});
-
-test("selecting creative experiments opens the experiment workflow tab", () => {
-  assert.match(
-    workspaceSource,
-    /onSelectSegment=\{\(promotionId, segmentId\) => \{\s+setSegmentListTab\("experiments"\);\s+onSelectSegment\(promotionId, segmentId\);/
-  );
+test("segment candidates use one full-width carousel slide at a time", () => {
+  assert.match(suggestionPanelSource, /aria-label="고객군 후보 검토"/);
+  assert.match(suggestionPanelSource, /<CarouselContent className="ml-0 items-stretch">/);
+  assert.match(suggestionPanelSource, /<CarouselItem className="flex basis-full pl-0"/);
+  assert.match(suggestionPanelSource, /aria-label="이전 고객군 후보"/);
+  assert.match(suggestionPanelSource, /aria-label="다음 고객군 후보"/);
 });
 
 test("content candidates use one full-width carousel slide at a time", () => {
