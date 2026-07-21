@@ -40,6 +40,14 @@ test("entity cards render a restrained accent, icon tile, and metric surface", (
   assert.match(entityCardSource, /rounded-md border border-border\/70 bg-muted\/35 p-3/);
 });
 
+test("campaign and promotion cards reserve equal title and description rows", () => {
+  assert.match(entityCardSource, /flex min-w-0 flex-nowrap items-center gap-2/);
+  assert.match(entityCardSource, /min-h-14 text-lg leading-7 group-data-\[size=sm\]\/card:text-lg/);
+  assert.match(entityCardSource, /isCompact \? "min-h-10" : "min-h-12"/);
+  assert.match(entityCardSource, /title=\{entity\.title\}/);
+  assert.match(entityCardSource, /title=\{entity\.description\}/);
+});
+
 test("entity card accents use named Mintlify palette tokens", () => {
   for (const token of ["mint", "blue", "amber", "coral"]) {
     assert.match(themeSource, new RegExp(`--entity-${token}:`));

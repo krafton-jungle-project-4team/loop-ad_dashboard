@@ -193,7 +193,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
       ) : null}
       <CardHeader className={isCompact ? "gap-2" : "gap-3"}>
         {entity.visual && visualTone && VisualIcon ? (
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-nowrap items-center gap-2">
             <span
               className={cn(
                 "flex size-8 shrink-0 items-center justify-center rounded-md border",
@@ -206,7 +206,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
               {entity.visual.label}
             </Badge>
             {entity.dateRangeLabel ? (
-              <span className="flex min-w-0 items-center gap-1.5 text-xs text-foreground/65">
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground/65">
                 <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
                 <span className="truncate tabular-nums">{entity.dateRangeLabel}</span>
               </span>
@@ -229,16 +229,25 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
           className={cn(
             "line-clamp-2 font-semibold tracking-tight",
             entity.kind === "campaign" || entity.kind === "promotion"
-              ? "text-lg group-data-[size=sm]/card:text-lg"
+              ? "min-h-14 text-lg leading-7 group-data-[size=sm]/card:text-lg"
               : isCompact
                 ? "text-base"
                 : "text-lg"
           )}
+          title={entity.title}
         >
           {entity.title}
         </CardTitle>
         {entity.description ? (
-          <CardDescription className={cn("line-clamp-2", isCompact ? "leading-5" : "leading-6")}>
+          <CardDescription
+            className={cn(
+              "line-clamp-2",
+              isCompact ? "leading-5" : "leading-6",
+              (entity.kind === "campaign" || entity.kind === "promotion") &&
+                (isCompact ? "min-h-10" : "min-h-12")
+            )}
+            title={entity.description}
+          >
             {entity.description}
           </CardDescription>
         ) : null}
