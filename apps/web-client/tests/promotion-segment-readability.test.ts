@@ -19,6 +19,14 @@ test("segment candidate explanations use readable foreground contrast", () => {
   assert.match(suggestionPanelSource, /text-sm leading-6 text-foreground\/90/);
 });
 
+test("segment candidate recommendation reasons reserve two readable rows", () => {
+  assert.match(
+    suggestionPanelSource,
+    /className="line-clamp-2 min-h-12 leading-6 \[overflow-wrap:anywhere\] \[word-break:keep-all\]"/
+  );
+  assert.match(suggestionPanelSource, /title=\{recommendationReason\}/);
+});
+
 test("segment report body copy does not use muted foreground", () => {
   assert.match(
     suggestionPanelSource,

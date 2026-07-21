@@ -425,6 +425,8 @@ function SegmentSuggestionCard({
     displayCopy?.tradeoff_summary ??
     displayCopy?.recommendation_tier_reason ??
     suggestion.ai_report?.selection_considerations?.join(" ");
+  const recommendationReason =
+    displayCopy?.reason || formatJsonObject(suggestion.reason_json) || "추천 이유가 없어요.";
   const fallbackSummary = segmentAudienceSummary(suggestion.sample_size, suggestion.sample_ratio);
 
   return (
@@ -536,10 +538,11 @@ function SegmentSuggestionCard({
         ) : null}
         <div className="grid gap-1">
           <span className="text-xs font-semibold text-foreground">추천 이유</span>
-          <p className="leading-6 [overflow-wrap:anywhere] [word-break:keep-all]">
-            {displayCopy?.reason ||
-              formatJsonObject(suggestion.reason_json) ||
-              "추천 이유가 없어요."}
+          <p
+            className="line-clamp-2 min-h-12 leading-6 [overflow-wrap:anywhere] [word-break:keep-all]"
+            title={recommendationReason}
+          >
+            {recommendationReason}
           </p>
         </div>
         <SegmentCandidateGuidance
