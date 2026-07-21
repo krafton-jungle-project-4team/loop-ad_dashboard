@@ -303,35 +303,54 @@ export function PromotionSegmentSuggestionPanel({
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <div
-              aria-label="고객군 후보 이동"
-              className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 rounded-md border bg-muted/25 px-3 py-2.5"
-              role="group"
-            >
-              <Button
-                className="w-fit justify-self-start"
-                disabled={!candidateCarouselApi || activeCandidateIndex === 0}
-                onClick={() => candidateCarouselApi?.scrollPrev()}
-                size="sm"
-                type="button"
-                variant="outline"
+            <div className="mt-3 grid gap-3 rounded-md border bg-muted/25 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <div
+                aria-label="고객군 후보 이동"
+                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3"
+                role="group"
               >
-                <ArrowLeft data-icon="inline-start" />
-                이전 후보
-              </Button>
-              <span aria-live="polite" className="text-sm font-medium tabular-nums">
-                {formatInteger(activeCandidateIndex + 1)} / {formatInteger(candidateCount)}
-              </span>
+                <Button
+                  className="w-fit justify-self-start"
+                  disabled={!candidateCarouselApi || activeCandidateIndex === 0}
+                  onClick={() => candidateCarouselApi?.scrollPrev()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <ArrowLeft data-icon="inline-start" />
+                  이전 후보
+                </Button>
+                <span aria-live="polite" className="text-sm font-medium tabular-nums">
+                  {formatInteger(activeCandidateIndex + 1)} / {formatInteger(candidateCount)}
+                </span>
+                <Button
+                  className="w-fit justify-self-end"
+                  disabled={!candidateCarouselApi || activeCandidateIndex === candidateCount - 1}
+                  onClick={() => candidateCarouselApi?.scrollNext()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  다음 후보
+                  <ArrowRight data-icon="inline-end" />
+                </Button>
+              </div>
               <Button
-                className="w-fit justify-self-end"
-                disabled={!candidateCarouselApi || activeCandidateIndex === candidateCount - 1}
-                onClick={() => candidateCarouselApi?.scrollNext()}
-                size="sm"
+                className="w-full sm:w-auto"
+                disabled={
+                  confirmableCount === 0 ||
+                  confirmIsPending ||
+                  decideIsPending ||
+                  archiveScopedSegmentIsPending ||
+                  suggestionsIsLoading ||
+                  scopedSegmentsIsLoading ||
+                  promotionAnalysisIsPending
+                }
+                onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
                 type="button"
-                variant="outline"
               >
-                다음 후보
-                <ArrowRight data-icon="inline-end" />
+                <CheckCircle2 data-icon="inline-start" />
+                {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
               </Button>
             </div>
           </Carousel>
@@ -367,7 +386,7 @@ export function PromotionSegmentSuggestionPanel({
           suggestion={reportSuggestion}
         />
       </CardContent>
-      <CardFooter className="grid shrink-0 gap-4 border-t bg-muted/20 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <CardFooter className="grid shrink-0 gap-4 border-t bg-muted/20 py-4">
         <div className="grid min-w-0 gap-2">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold">선택한 고객군</span>
@@ -399,22 +418,6 @@ export function PromotionSegmentSuggestionPanel({
             <span className="text-xs text-muted-foreground">확정할 후보를 선택해 주세요.</span>
           )}
         </div>
-        <Button
-          className="w-full lg:w-auto"
-          disabled={
-            confirmableCount === 0 ||
-            confirmIsPending ||
-            decideIsPending ||
-            archiveScopedSegmentIsPending ||
-            suggestionsIsLoading ||
-            scopedSegmentsIsLoading ||
-            promotionAnalysisIsPending
-          }
-          onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
-          type="button"
-        >
-          {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
-        </Button>
       </CardFooter>
       <AlertDialog
         onOpenChange={(open) => {
