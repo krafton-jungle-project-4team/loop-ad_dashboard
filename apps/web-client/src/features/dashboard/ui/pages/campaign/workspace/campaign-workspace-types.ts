@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
 export type CampaignWorkspaceEntityKind = "campaign" | "promotion" | "segment";
 
@@ -20,6 +21,14 @@ export type CampaignWorkspaceMetric = {
   value: ReactNode;
 };
 
+export type CampaignWorkspaceCardVisualTone = "amber" | "blue" | "coral" | "mint";
+
+export type CampaignWorkspaceCardVisual = {
+  icon: LucideIcon;
+  label: string;
+  tone: CampaignWorkspaceCardVisualTone;
+};
+
 export type CampaignWorkspaceEntityCard = {
   dateRangeLabel?: string;
   description?: string;
@@ -28,6 +37,7 @@ export type CampaignWorkspaceEntityCard = {
   metrics?: ReadonlyArray<CampaignWorkspaceMetric>;
   status?: CampaignWorkspaceStatus;
   title: string;
+  visual?: CampaignWorkspaceCardVisual;
 };
 
 export type CampaignWorkspaceEntityAction<Entity extends CampaignWorkspaceEntityCard> = {
