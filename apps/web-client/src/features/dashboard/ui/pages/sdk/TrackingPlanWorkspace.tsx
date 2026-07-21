@@ -1078,7 +1078,7 @@ function GuideSection({
 
 function GuideCode({ code }: { code: string }) {
   return (
-    <pre className="overflow-auto rounded-md bg-[#181421] p-4 text-sm leading-6 text-[#f4f0f7]">
+    <pre className="overflow-auto rounded-md bg-brand-ink-deep p-4 text-sm leading-6 text-white">
       <code>{code}</code>
     </pre>
   );

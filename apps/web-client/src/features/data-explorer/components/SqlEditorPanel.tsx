@@ -25,14 +25,14 @@ export function SqlEditorPanel({
   validation: DataExplorerSqlValidation | null;
 }) {
   return (
-    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-[#181421] text-[#f4f0f7]">
-      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/10 bg-[#241b2f] px-4 py-2.5">
+    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-brand-ink-deep text-white">
+      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/10 bg-brand-ink px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           {leftToolbar}
-          <span className="rounded bg-[#e1567c]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#f58aaa]">
+          <span className="rounded bg-brand-magenta/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-magenta-soft">
             Explore
           </span>
-          <h2 className="truncate text-sm font-semibold text-[#f4f0f7]">SQL 편집기</h2>
+          <h2 className="truncate text-sm font-semibold text-white">SQL 편집기</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button disabled={runDisabled} onClick={onRun} size="sm" type="button">
@@ -45,7 +45,7 @@ export function SqlEditorPanel({
 
       <div className="min-h-0 min-w-0 p-3">
         <Textarea
-          className="h-full min-h-[180px] resize-none border-white/15 bg-[#120f19] font-mono text-xs leading-5 text-[#f4f0f7] shadow-none caret-[#a596ff] placeholder:text-white/25 focus-visible:border-[#8b79e0] focus-visible:ring-[#8b79e0]/20"
+          className="h-full min-h-[180px] resize-none border-white/15 bg-brand-ink-deep font-mono text-xs leading-5 text-white shadow-none caret-brand-violet placeholder:text-white/25 focus-visible:border-brand-violet focus-visible:ring-brand-violet/20"
           onChange={(event) => onSqlTextChange(event.target.value)}
           placeholder="SELECT ..."
           spellCheck={false}

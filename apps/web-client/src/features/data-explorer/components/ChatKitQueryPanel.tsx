@@ -116,7 +116,7 @@ export function ChatKitQueryPanel({
       color: {
         accent: {
           level: 1,
-          primary: "#0066cc"
+          primary: "#8b2bd1"
         }
       },
       colorScheme: "light",

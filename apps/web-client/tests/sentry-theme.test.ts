@@ -24,22 +24,27 @@ const sqlEditorSource = readFileSync(
   "utf8"
 );
 
-test("the global palette uses Sentry-inspired purple, lavender, and ink tokens", () => {
-  assert.match(themeSource, /--background: #f6f5f4;/);
-  assert.match(themeSource, /--workspace-highlight: #efedf1;/);
-  assert.match(themeSource, /--foreground: #2b2233;/);
-  assert.match(themeSource, /--primary: #6c5fc7;/);
-  assert.match(themeSource, /--sidebar: #e4ddef;/);
-  assert.match(themeSource, /--sidebar-accent: #cec3f0;/);
-  assert.match(themeSource, /--sidebar-border: #c8bed5;/);
-  assert.match(themeSource, /--sidebar-foreground: #30283a;/);
-  assert.match(themeSource, /--chart-2: #e1567c;/);
+test("the global palette uses Make-inspired ink, violet, magenta, and cyan tokens", () => {
+  assert.match(themeSource, /--background: #f8f7fa;/);
+  assert.doesNotMatch(themeSource, /--workspace-highlight:/);
+  assert.match(themeSource, /--foreground: #2b0a3d;/);
+  assert.match(themeSource, /--primary: #8b2bd1;/);
+  assert.match(themeSource, /--brand-ink: #20052e;/);
+  assert.match(themeSource, /--brand-magenta: #e62c8b;/);
+  assert.match(themeSource, /--brand-cyan: #00aeb8;/);
+  assert.match(themeSource, /--sidebar: #3a104f;/);
+  assert.match(themeSource, /--sidebar-accent: #5a1c6e;/);
+  assert.match(themeSource, /--sidebar-border: #522161;/);
+  assert.match(themeSource, /--sidebar-foreground: #f9effb;/);
+  assert.match(themeSource, /--chart-2: #e62c8b;/);
+  assert.doesNotMatch(themeSource, /body::before/);
+  assert.doesNotMatch(themeSource, /dashboard-workspace-surface[^}]*radial-gradient/s);
   assert.doesNotMatch(themeSource, /--primary: #1d4ed8;/);
 });
 
-test("shared controls and navigation use the compact Sentry hierarchy", () => {
+test("shared controls and navigation use the compact Make hierarchy", () => {
   assert.match(buttonSource, /rounded-md border border-transparent/);
-  assert.match(buttonSource, /hover:bg-\[#584ab8\]/);
+  assert.match(buttonSource, /hover:bg-primary-hover/);
   assert.doesNotMatch(buttonSource, /#0071e3/);
   assert.match(dashboardShellSource, /border-sidebar-border/);
   assert.match(dashboardShellSource, /dashboard-workspace-surface/);
@@ -53,9 +58,9 @@ test("shared controls and navigation use the compact Sentry hierarchy", () => {
   );
 });
 
-test("high-visibility entry and developer surfaces expose the theme", () => {
-  assert.match(projectSelectSource, /bg-\[#21192b\]/);
+test("high-visibility entry and developer surfaces expose the Make palette", () => {
+  assert.match(projectSelectSource, /bg-brand-ink/);
   assert.match(projectSelectSource, /PROJECT MONITORING/);
-  assert.match(sqlEditorSource, /bg-\[#181421\]/);
+  assert.match(sqlEditorSource, /bg-brand-ink-deep/);
   assert.match(sqlEditorSource, />\s*Explore\s*</);
 });
