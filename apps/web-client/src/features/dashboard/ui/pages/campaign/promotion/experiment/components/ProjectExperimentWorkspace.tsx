@@ -5,10 +5,12 @@ import {
   type DashboardProjectExperimentLatestEvaluation,
   type DashboardProjectExperiment
 } from "@loopad/shared";
+import { CartesianGrid, LabelList, Line, LineChart, XAxis, YAxis } from "@loopad/ui/charts";
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,12 +38,9 @@ import {
   TableRow
 } from "@loopad/ui/shadcn/table";
 import {
-  AlertTriangle,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Database,
-  FlaskConical,
   Plus,
   RefreshCw,
   TrendingDown
@@ -750,7 +749,6 @@ function EvaluationDiagnosisSection({
             <Badge variant={statusBadgeVariant(evaluation.status)}>
               {formatStatusLabel(evaluation.status)}
             </Badge>
-            {diagnosis ? <EvaluationOriginBadge diagnosis={diagnosis} /> : null}
           </div>
           <p className="text-sm text-muted-foreground">
             평가 기준 {formatDateTime(evaluation.evaluation_cutoff_at ?? evaluation.created_at)} ·
@@ -788,84 +786,103 @@ function EvaluationDiagnosisSection({
   );
 }
 
-function EvaluationOriginBadge({
-  diagnosis
-}: {
-  diagnosis: DashboardExperimentEvaluationDiagnosis;
-}) {
-  if (diagnosis.data_origin.kind === "demo_fixture") {
-    return (
-      <Badge className="border-amber-300 bg-amber-50 text-amber-800" variant="outline">
-        <FlaskConical aria-hidden="true" data-icon="inline-start" />
-        {diagnosis.data_origin.label}
-      </Badge>
-    );
-  }
-  if (diagnosis.data_origin.kind === "mixed") {
-    return (
-      <Badge variant="destructive">
-        <AlertTriangle aria-hidden="true" data-icon="inline-start" />
-        {diagnosis.data_origin.label}
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline">
-      <Database aria-hidden="true" data-icon="inline-start" />
-      {diagnosis.data_origin.label}
-    </Badge>
-  );
-}
-
 function EvaluationFunnel({ diagnosis }: { diagnosis: DashboardExperimentEvaluationDiagnosis }) {
   const stages = diagnosis.funnel.stages;
   const firstStageCount = stages[0]?.user_count ?? 0;
   const bottleneckToStage = diagnosis.largest_dropoff?.to_stage_key;
 
+  if (stages.length === 0) {
+    return <EmptyState message="아직 표시할 고객 행동 흐름이 없어요." />;
+  }
+
   return (
-    <div
-      aria-label="광고 반응 이후 고객 행동 퍼널"
-      className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5"
-    >
-      {stages.map((stage, index) => {
-        const reachRate = firstStageCount > 0 ? (stage.user_count / firstStageCount) * 100 : 0;
-        const isBottleneck = stage.key === bottleneckToStage;
-        return (
-          <div
-            className={`grid min-h-32 content-between gap-3 border-l-2 px-3 py-2 ${
-              isBottleneck ? "border-destructive bg-destructive/5" : "border-border"
-            }`}
-            key={stage.key}
-          >
-            <div className="grid gap-1">
-              <span className="text-xs text-muted-foreground">{index + 1}단계</span>
-              <h4 className="text-sm font-semibold">{stage.label}</h4>
+    <div className="grid gap-4">
+      <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
+        <ChartContainer
+          aria-label="광고 반응 이후 단계별 고객 수 꺾은선 그래프"
+          className="h-[240px] min-h-0 min-w-[640px] w-full aspect-auto"
+          config={{
+            user_count: { color: "var(--chart-1)", label: "고객 수" }
+          }}
+          role="img"
+        >
+          <LineChart data={stages} margin={{ bottom: 12, left: 4, right: 28, top: 34 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis axisLine={false} dataKey="label" interval={0} tickLine={false} tickMargin={12} />
+            <YAxis
+              allowDecimals={false}
+              axisLine={false}
+              domain={[0, "auto"]}
+              tickLine={false}
+              tickMargin={8}
+              width={44}
+            />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Line
+              activeDot={{ r: 7 }}
+              dataKey="user_count"
+              dot={{ fill: "var(--color-user_count)", r: 5, strokeWidth: 2 }}
+              isAnimationActive={false}
+              stroke="var(--color-user_count)"
+              strokeWidth={3}
+              type="linear"
+            >
+              <LabelList
+                className="fill-foreground text-xs font-semibold"
+                dataKey="user_count"
+                formatter={(value) => `${formatInteger(Number(value ?? 0))}명`}
+                offset={12}
+                position="top"
+              />
+            </Line>
+          </LineChart>
+        </ChartContainer>
+      </div>
+
+      <div
+        aria-label="광고 반응 이후 고객 행동 퍼널 상세"
+        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5"
+      >
+        {stages.map((stage, index) => {
+          const reachRate = firstStageCount > 0 ? (stage.user_count / firstStageCount) * 100 : 0;
+          const isBottleneck = stage.key === bottleneckToStage;
+          return (
+            <div
+              className={`grid min-h-32 content-between gap-3 border-l-2 px-3 py-2 ${
+                isBottleneck ? "border-destructive bg-destructive/5" : "border-border"
+              }`}
+              key={stage.key}
+            >
+              <div className="grid gap-1">
+                <span className="text-xs text-muted-foreground">{index + 1}단계</span>
+                <h4 className="text-sm font-semibold">{stage.label}</h4>
+              </div>
+              <div className="grid gap-2">
+                <strong className="text-2xl font-semibold tabular-nums">
+                  {formatInteger(stage.user_count)}명
+                </strong>
+                <Progress aria-label={`${stage.label} 도달률`} value={reachRate} />
+                {stage.conversion_rate_from_previous === null ? (
+                  <span className="text-xs text-muted-foreground">평가 기준 고객</span>
+                ) : (
+                  <span
+                    className={
+                      isBottleneck
+                        ? "text-xs font-medium text-destructive"
+                        : "text-xs text-muted-foreground"
+                    }
+                  >
+                    이전 단계 대비 {formatPercent(stage.conversion_rate_from_previous)} 도달
+                    {stage.dropoff_count_from_previous
+                      ? ` · ${formatInteger(stage.dropoff_count_from_previous)}명 이탈`
+                      : ""}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="grid gap-2">
-              <strong className="text-2xl font-semibold tabular-nums">
-                {formatInteger(stage.user_count)}명
-              </strong>
-              <Progress aria-label={`${stage.label} 도달률`} value={reachRate} />
-              {stage.conversion_rate_from_previous === null ? (
-                <span className="text-xs text-muted-foreground">평가 기준 고객</span>
-              ) : (
-                <span
-                  className={
-                    isBottleneck
-                      ? "text-xs font-medium text-destructive"
-                      : "text-xs text-muted-foreground"
-                  }
-                >
-                  이전 단계 대비 {formatPercent(stage.conversion_rate_from_previous)} 도달
-                  {stage.dropoff_count_from_previous
-                    ? ` · ${formatInteger(stage.dropoff_count_from_previous)}명 이탈`
-                    : ""}
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
