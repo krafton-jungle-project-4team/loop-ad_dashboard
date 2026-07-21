@@ -73,8 +73,15 @@ test("segment candidates use one full-width carousel slide at a time", () => {
   assert.match(suggestionPanelSource, /aria-label="고객군 후보 검토"/);
   assert.match(suggestionPanelSource, /<CarouselContent className="ml-0 items-stretch">/);
   assert.match(suggestionPanelSource, /<CarouselItem className="flex basis-full pl-0"/);
-  assert.match(suggestionPanelSource, /aria-label="이전 고객군 후보"/);
-  assert.match(suggestionPanelSource, /aria-label="다음 고객군 후보"/);
+  assert.match(suggestionPanelSource, /aria-label="고객군 후보 이동"/);
+  assert.match(suggestionPanelSource, /이전 후보/);
+  assert.match(suggestionPanelSource, /다음 후보/);
+  assert.match(suggestionPanelSource, /candidateCarouselApi\?\.scrollPrev\(\)/);
+  assert.match(suggestionPanelSource, /candidateCarouselApi\?\.scrollNext\(\)/);
+  assert.match(
+    suggestionPanelSource,
+    /grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/
+  );
 });
 
 test("content candidates use one full-width carousel slide at a time", () => {

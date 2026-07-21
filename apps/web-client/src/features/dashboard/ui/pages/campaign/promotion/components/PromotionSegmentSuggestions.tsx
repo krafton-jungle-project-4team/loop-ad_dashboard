@@ -28,9 +28,7 @@ import {
   Carousel,
   type CarouselApi,
   CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious
+  CarouselItem
 } from "@loopad/ui/shadcn/carousel";
 import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import {
@@ -51,7 +49,14 @@ import {
 } from "@loopad/ui/shadcn/empty";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { BarChart3, Bot, CheckCircle2, FileText } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Bot,
+  CheckCircle2,
+  FileText
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
@@ -255,25 +260,12 @@ export function PromotionSegmentSuggestionPanel({
             opts={{ align: "start", loop: false }}
             setApi={setCandidateCarouselApi}
           >
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/25 px-3 py-2.5">
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border bg-muted/25 px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2">
                 <Badge variant="outline">검토 중</Badge>
-                <span className="text-sm font-medium tabular-nums">
-                  {formatInteger(activeCandidateIndex + 1)} / {formatInteger(candidateCount)}
-                </span>
                 <span className="hidden text-xs text-muted-foreground sm:inline">
                   한 장씩 넘기며 비교해 보세요.
                 </span>
-              </div>
-              <div aria-label="고객군 후보 이동" className="flex items-center gap-1" role="group">
-                <CarouselPrevious
-                  aria-label="이전 고객군 후보"
-                  className="static inset-auto my-0 rounded-md bg-card"
-                />
-                <CarouselNext
-                  aria-label="다음 고객군 후보"
-                  className="static inset-auto my-0 rounded-md bg-card"
-                />
               </div>
             </div>
             <CarouselContent className="ml-0 items-stretch">
@@ -319,6 +311,37 @@ export function PromotionSegmentSuggestionPanel({
                 </CarouselItem>
               ))}
             </CarouselContent>
+            <div
+              aria-label="고객군 후보 이동"
+              className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 rounded-md border bg-muted/25 px-3 py-2.5"
+              role="group"
+            >
+              <Button
+                className="w-fit justify-self-start"
+                disabled={!candidateCarouselApi || activeCandidateIndex === 0}
+                onClick={() => candidateCarouselApi?.scrollPrev()}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <ArrowLeft data-icon="inline-start" />
+                이전 후보
+              </Button>
+              <span aria-live="polite" className="text-sm font-medium tabular-nums">
+                {formatInteger(activeCandidateIndex + 1)} / {formatInteger(candidateCount)}
+              </span>
+              <Button
+                className="w-fit justify-self-end"
+                disabled={!candidateCarouselApi || activeCandidateIndex === candidateCount - 1}
+                onClick={() => candidateCarouselApi?.scrollNext()}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                다음 후보
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            </div>
           </Carousel>
         ) : null}
         {!promotionAnalysisIsPending &&
