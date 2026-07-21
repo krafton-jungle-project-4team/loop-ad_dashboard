@@ -21,7 +21,7 @@ export type CampaignWorkspaceMetric = {
   value: ReactNode;
 };
 
-export type CampaignWorkspaceCardVisualTone = "amber" | "blue" | "coral" | "mint";
+export type CampaignWorkspaceCardVisualTone = "amber" | "blue" | "coral" | "mint" | "neutral";
 
 export type CampaignWorkspaceCardVisual = {
   icon: LucideIcon;

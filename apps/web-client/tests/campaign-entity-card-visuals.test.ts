@@ -19,25 +19,24 @@ const workspaceSource = readFileSync(
 const themeSource = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
 
 test("campaign cards expose schedule-specific visual treatments", () => {
-  assert.match(workspaceSource, /label: "예정 캠페인", tone: "amber"/);
-  assert.match(workspaceSource, /label: "진행 중 캠페인", tone: "mint"/);
-  assert.match(workspaceSource, /label: "완료 캠페인", tone: "blue"/);
+  assert.match(workspaceSource, /label: "예정 캠페인", tone: "neutral"/);
+  assert.match(workspaceSource, /label: "진행 중 캠페인", tone: "blue"/);
+  assert.match(workspaceSource, /label: "완료 캠페인", tone: "mint"/);
   assert.match(workspaceSource, /toCampaignCard\(campaign, section\.status\)/);
 });
 
 test("campaign and promotion row icons use distinct status colors", () => {
-  assert.match(workspaceSource, /status: "scheduled",\s+tone: "amber"/);
-  assert.match(workspaceSource, /status: "in_progress",\s+tone: "mint"/);
-  assert.match(workspaceSource, /status: "preparing",\s+tone: "blue"/);
-  assert.match(workspaceSource, /status: "in_progress",\s+tone: "amber"/);
+  assert.match(workspaceSource, /status: "scheduled",\s+tone: "neutral"/);
+  assert.match(workspaceSource, /status: "preparing",\s+tone: "neutral"/);
+  assert.match(workspaceSource, /status: "in_progress",\s+tone: "blue"/);
   assert.match(workspaceSource, /status: "next_experiment",\s+tone: "coral"/);
-  assert.match(workspaceSource, /status: "completed",\s+tone: "blue"/);
   assert.match(workspaceSource, /status: "completed",\s+tone: "mint"/);
   assert.match(
     workspaceSource,
-    /blue: "border-entity-blue bg-entity-blue text-primary-foreground"/
+    /blue: "border-entity-blue\/25 bg-entity-blue-soft text-entity-blue-foreground"/
   );
   assert.match(workspaceSource, /STATUS_ICON_TONE_CLASS\[section\.tone\]/);
+  assert.match(workspaceSource, /neutral: "border-border bg-muted text-muted-foreground"/);
 });
 
 test("promotion cards expose channel-specific visual treatments", () => {

@@ -68,6 +68,11 @@ const ENTITY_VISUAL_TONE_CLASS: Record<
     accent: "bg-entity-mint",
     badge: "border-entity-mint/30 bg-entity-mint-soft text-entity-mint-foreground",
     icon: "border-entity-mint/25 bg-entity-mint-soft text-entity-mint-foreground"
+  },
+  neutral: {
+    accent: "bg-muted-foreground",
+    badge: "border-border bg-muted text-muted-foreground",
+    icon: "border-border bg-muted text-muted-foreground"
   }
 };
 

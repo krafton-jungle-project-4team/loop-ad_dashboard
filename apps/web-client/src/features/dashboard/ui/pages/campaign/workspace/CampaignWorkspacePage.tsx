@@ -114,7 +114,7 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
     icon: CalendarClock,
     label: "예정",
     status: "scheduled",
-    tone: "amber"
+    tone: "neutral"
   },
   {
     description: "종료일이 가까운 순으로 보여요.",
@@ -122,7 +122,7 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
     icon: CirclePlay,
     label: "진행 중",
     status: "in_progress",
-    tone: "mint"
+    tone: "blue"
   },
   {
     description: "최근에 종료된 순으로 보여요.",
@@ -130,7 +130,7 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
     icon: CircleCheck,
     label: "완료됨",
     status: "completed",
-    tone: "blue"
+    tone: "mint"
   }
 ];
 
@@ -148,7 +148,7 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
     icon: FlaskConical,
     label: "준비 중",
     status: "preparing",
-    tone: "blue"
+    tone: "neutral"
   },
   {
     description: "현재 실험을 실행하거나 평가하고 있어요.",
@@ -156,7 +156,7 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
     icon: CirclePlay,
     label: "진행 중",
     status: "in_progress",
-    tone: "amber"
+    tone: "blue"
   },
   {
     description: "평가 결과에 따라 다음 실험이 필요해요.",
@@ -177,16 +177,17 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
 ];
 
 const STATUS_ICON_TONE_CLASS: Record<CampaignWorkspaceCardVisualTone, string> = {
-  amber: "border-entity-amber bg-entity-amber text-primary-foreground",
-  blue: "border-entity-blue bg-entity-blue text-primary-foreground",
-  coral: "border-entity-coral bg-entity-coral text-primary-foreground",
-  mint: "border-entity-mint bg-entity-mint text-primary-foreground"
+  amber: "border-entity-amber/25 bg-entity-amber-soft text-entity-amber-foreground",
+  blue: "border-entity-blue/25 bg-entity-blue-soft text-entity-blue-foreground",
+  coral: "border-entity-coral/25 bg-entity-coral-soft text-entity-coral-foreground",
+  mint: "border-entity-mint/25 bg-entity-mint-soft text-entity-mint-foreground",
+  neutral: "border-border bg-muted text-muted-foreground"
 };
 
 const CAMPAIGN_CARD_VISUAL: Record<CampaignScheduleStatus, CampaignWorkspaceCardVisual> = {
-  scheduled: { icon: CalendarClock, label: "예정 캠페인", tone: "amber" },
-  in_progress: { icon: CirclePlay, label: "진행 중 캠페인", tone: "mint" },
-  completed: { icon: CircleCheck, label: "완료 캠페인", tone: "blue" }
+  scheduled: { icon: CalendarClock, label: "예정 캠페인", tone: "neutral" },
+  in_progress: { icon: CirclePlay, label: "진행 중 캠페인", tone: "blue" },
+  completed: { icon: CircleCheck, label: "완료 캠페인", tone: "mint" }
 };
 
 const PROMOTION_CHANNEL_VISUAL: Record<string, CampaignWorkspaceCardVisual> = {
