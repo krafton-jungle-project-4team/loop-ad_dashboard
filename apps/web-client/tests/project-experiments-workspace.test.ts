@@ -270,12 +270,16 @@ test("fresh evaluation results take precedence over stale project-list evaluatio
   });
 });
 
-test("experiment detail renders structured funnel evidence and demo provenance", () => {
+test("experiment detail renders structured funnel evidence as a line chart without provenance badges", () => {
   assert.match(workspaceSource, /평가 퍼널과 원인/);
   assert.match(workspaceSource, /가장 큰 이탈 구간/);
   assert.match(workspaceSource, /다음 실험에서 확인할 항목/);
-  assert.match(workspaceSource, /demo_fixture/);
   assert.match(workspaceSource, /diagnosis\.funnel\.stages/);
+  assert.match(workspaceSource, /<LineChart data=\{stages\}/);
+  assert.match(workspaceSource, /dataKey="user_count"/);
+  assert.match(workspaceSource, /단계별 고객 수 꺾은선 그래프/);
+  assert.doesNotMatch(workspaceSource, /EvaluationOriginBadge/);
+  assert.doesNotMatch(workspaceSource, /demo_fixture/);
 });
 
 function createExperiment(
