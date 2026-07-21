@@ -42,9 +42,20 @@ test("segment workflow keeps the candidate deck beside the confirmed shortlist",
     workspaceSource,
     /xl:grid-cols-\[minmax\(0,1\.65fr\)_minmax\(19rem,0\.75fr\)\]/
   );
+  assert.match(workspaceSource, /grid min-w-0 items-stretch gap-4/);
   assert.match(workspaceSource, /<PromotionSegmentSuggestionPanel/);
   assert.match(workspaceSource, /<PromotionCurrentSegmentsPanel/);
   assert.doesNotMatch(workspaceSource, /<TabsTrigger[^>]+value="experiments">/);
+});
+
+test("confirmed segment shortlist matches the candidate panel and scrolls internally", () => {
+  assert.match(
+    workspaceSource,
+    /<Card className="min-h-0 overflow-hidden shadow-none xl:h-0 xl:min-h-full">/
+  );
+  assert.match(workspaceSource, /<ScrollArea className="min-h-0 flex-1">/);
+  assert.match(workspaceSource, /<CardContent className="grid content-start gap-3 pr-4">/);
+  assert.doesNotMatch(workspaceSource, /xl:sticky xl:top-4/);
 });
 
 test("experiment detail renders only after a confirmed segment is selected", () => {
