@@ -39,18 +39,37 @@ test("campaign and promotion row icons use distinct status colors", () => {
   assert.match(workspaceSource, /neutral: "border-border bg-muted text-muted-foreground"/);
 });
 
-test("promotion cards expose channel-specific visual treatments", () => {
-  assert.match(workspaceSource, /email: \{ icon: Mail, label: "이메일", tone: "blue" \}/);
-  assert.match(workspaceSource, /sms: \{ icon: MessageSquareText, label: "문자", tone: "coral" \}/);
+test("promotion cards match their board status visual treatments", () => {
   assert.match(
     workspaceSource,
-    /onsite_banner: \{ icon: Megaphone, label: "온사이트 배너", tone: "mint" \}/
+    /preparing: \{ icon: FlaskConical, label: "준비 중 프로모션", tone: "neutral" \}/
   );
+  assert.match(
+    workspaceSource,
+    /in_progress: \{ icon: CirclePlay, label: "진행 중 프로모션", tone: "blue" \}/
+  );
+  assert.match(
+    workspaceSource,
+    /next_experiment: \{ icon: RefreshCw, label: "다음 실험 필요", tone: "coral" \}/
+  );
+  assert.match(
+    workspaceSource,
+    /completed: \{ icon: CircleCheck, label: "완료 프로모션", tone: "mint" \}/
+  );
+  assert.match(workspaceSource, /toPromotionCard\(promotion, section\.status\)/);
 });
 
 test("entity cards render a restrained accent, icon tile, and metric surface", () => {
   assert.match(entityCardSource, /<div aria-hidden="true" className=\{cn\("h-1 w-full"/);
   assert.match(entityCardSource, /<VisualIcon aria-hidden="true" className="size-4" \/>/);
+  assert.match(
+    entityCardSource,
+    /icon: "border-entity-coral\/45 bg-entity-coral\/15 text-entity-coral-foreground"/
+  );
+  assert.match(
+    entityCardSource,
+    /icon: "border-entity-mint\/45 bg-entity-mint\/15 text-entity-mint-foreground"/
+  );
   assert.match(entityCardSource, /rounded-md border border-border\/70 bg-muted\/35 p-3/);
 });
 

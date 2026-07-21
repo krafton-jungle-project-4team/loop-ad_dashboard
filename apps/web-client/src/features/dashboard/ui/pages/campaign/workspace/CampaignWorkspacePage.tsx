@@ -38,9 +38,6 @@ import {
   CirclePlay,
   Ellipsis,
   FlaskConical,
-  Mail,
-  Megaphone,
-  MessageSquareText,
   Plus,
   RefreshCw,
   type LucideIcon
@@ -190,10 +187,11 @@ const CAMPAIGN_CARD_VISUAL: Record<CampaignScheduleStatus, CampaignWorkspaceCard
   completed: { icon: CircleCheck, label: "완료 캠페인", tone: "mint" }
 };
 
-const PROMOTION_CHANNEL_VISUAL: Record<string, CampaignWorkspaceCardVisual> = {
-  email: { icon: Mail, label: "이메일", tone: "blue" },
-  sms: { icon: MessageSquareText, label: "문자", tone: "coral" },
-  onsite_banner: { icon: Megaphone, label: "온사이트 배너", tone: "mint" }
+const PROMOTION_CARD_VISUAL: Record<PromotionBoardStatus, CampaignWorkspaceCardVisual> = {
+  preparing: { icon: FlaskConical, label: "준비 중 프로모션", tone: "neutral" },
+  in_progress: { icon: CirclePlay, label: "진행 중 프로모션", tone: "blue" },
+  next_experiment: { icon: RefreshCw, label: "다음 실험 필요", tone: "coral" },
+  completed: { icon: CircleCheck, label: "완료 프로모션", tone: "mint" }
 };
 
 export function CampaignWorkspacePage({
@@ -620,7 +618,9 @@ export function CampaignWorkspacePage({
           </div>
           <div className="grid min-w-0 gap-4">
             {PROMOTION_BOARD_SECTIONS.map((section) => {
-              const cards = promotionsByBoardStatus[section.status].map(toPromotionCard);
+              const cards = promotionsByBoardStatus[section.status].map((promotion) =>
+                toPromotionCard(promotion, section.status)
+              );
               const StatusIcon = section.icon;
 
               return (
@@ -931,7 +931,10 @@ function formatCampaignDate(value: string | null): string {
   return `${Number(match[2])}.${Number(match[3])}`;
 }
 
-function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
+function toPromotionCard(
+  promotion: DashboardCampaignPromotion,
+  boardStatus: PromotionBoardStatus
+): PromotionCard {
   return {
     description: promotion.message_brief ?? formatChannelLabel(promotion.channel),
     id: promotion.promotion_id,
@@ -956,11 +959,7 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
     ],
     promotion,
     title: promotion.marketing_theme,
-    visual: PROMOTION_CHANNEL_VISUAL[promotion.channel] ?? {
-      icon: Megaphone,
-      label: formatChannelLabel(promotion.channel),
-      tone: "amber"
-    }
+    visual: PROMOTION_CARD_VISUAL[boardStatus]
   };
 }
 

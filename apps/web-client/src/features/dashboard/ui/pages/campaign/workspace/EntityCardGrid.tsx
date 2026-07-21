@@ -52,27 +52,27 @@ const ENTITY_VISUAL_TONE_CLASS: Record<
   amber: {
     accent: "bg-entity-amber",
     badge: "border-entity-amber/30 bg-entity-amber-soft text-entity-amber-foreground",
-    icon: "border-entity-amber/25 bg-entity-amber-soft text-entity-amber-foreground"
+    icon: "border-entity-amber/45 bg-entity-amber/15 text-entity-amber-foreground"
   },
   blue: {
     accent: "bg-entity-blue",
     badge: "border-entity-blue/30 bg-entity-blue-soft text-entity-blue-foreground",
-    icon: "border-entity-blue/25 bg-entity-blue-soft text-entity-blue-foreground"
+    icon: "border-entity-blue/45 bg-entity-blue/15 text-entity-blue-foreground"
   },
   coral: {
     accent: "bg-entity-coral",
     badge: "border-entity-coral/30 bg-entity-coral-soft text-entity-coral-foreground",
-    icon: "border-entity-coral/25 bg-entity-coral-soft text-entity-coral-foreground"
+    icon: "border-entity-coral/45 bg-entity-coral/15 text-entity-coral-foreground"
   },
   mint: {
     accent: "bg-entity-mint",
     badge: "border-entity-mint/30 bg-entity-mint-soft text-entity-mint-foreground",
-    icon: "border-entity-mint/25 bg-entity-mint-soft text-entity-mint-foreground"
+    icon: "border-entity-mint/45 bg-entity-mint/15 text-entity-mint-foreground"
   },
   neutral: {
     accent: "bg-muted-foreground",
     badge: "border-border bg-muted text-muted-foreground",
-    icon: "border-border bg-muted text-muted-foreground"
+    icon: "border-muted-foreground/30 bg-muted-foreground/10 text-foreground/65"
   }
 };
 
