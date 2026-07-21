@@ -24,6 +24,7 @@ import { ArrowRight, Check, Clock3, Ellipsis, Plus } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import type {
   CampaignWorkspaceAddAction,
+  CampaignWorkspaceCardVisualTone,
   CampaignWorkspaceEntityAction,
   CampaignWorkspaceEntityCard,
   CampaignWorkspaceEntityKind
@@ -43,6 +44,32 @@ const ENTRY_ACTION_VARIANT: Record<
   promotion: "segment-soft",
   segment: "outline-neutral"
 } as const;
+
+const ENTITY_VISUAL_TONE_CLASS: Record<
+  CampaignWorkspaceCardVisualTone,
+  { accent: string; badge: string; icon: string }
+> = {
+  amber: {
+    accent: "bg-entity-amber",
+    badge: "border-entity-amber/30 bg-entity-amber-soft text-entity-amber-foreground",
+    icon: "border-entity-amber/25 bg-entity-amber-soft text-entity-amber-foreground"
+  },
+  blue: {
+    accent: "bg-entity-blue",
+    badge: "border-entity-blue/30 bg-entity-blue-soft text-entity-blue-foreground",
+    icon: "border-entity-blue/25 bg-entity-blue-soft text-entity-blue-foreground"
+  },
+  coral: {
+    accent: "bg-entity-coral",
+    badge: "border-entity-coral/30 bg-entity-coral-soft text-entity-coral-foreground",
+    icon: "border-entity-coral/25 bg-entity-coral-soft text-entity-coral-foreground"
+  },
+  mint: {
+    accent: "bg-entity-mint",
+    badge: "border-entity-mint/30 bg-entity-mint-soft text-entity-mint-foreground",
+    icon: "border-entity-mint/25 bg-entity-mint-soft text-entity-mint-foreground"
+  }
+};
 
 const GRID_DENSITY_CLASS = {
   compact: "grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4",
@@ -148,18 +175,44 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
 }) {
   const entityKindLabel = ENTITY_KIND_LABEL[entity.kind];
   const isCompact = density === "compact";
+  const visualTone = entity.visual ? ENTITY_VISUAL_TONE_CLASS[entity.visual.tone] : null;
+  const VisualIcon = entity.visual?.icon;
 
   return (
     <Card
       className={cn(
         "h-full shadow-none transition-[border-color,box-shadow]",
         isCompact ? "min-h-48" : "min-h-56",
+        entity.visual && "pt-0",
         isSelected && "border-primary/40 ring-2 ring-primary/15"
       )}
       size={isCompact ? "sm" : "default"}
     >
+      {visualTone ? (
+        <div aria-hidden="true" className={cn("h-1 w-full", visualTone.accent)} />
+      ) : null}
       <CardHeader className={isCompact ? "gap-2" : "gap-3"}>
-        {entity.dateRangeLabel ? (
+        {entity.visual && visualTone && VisualIcon ? (
+          <div className="flex min-w-0 flex-nowrap items-center gap-2">
+            <span
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-md border",
+                visualTone.icon
+              )}
+            >
+              <VisualIcon aria-hidden="true" className="size-4" />
+            </span>
+            <Badge className={visualTone.badge} variant="outline">
+              {entity.visual.label}
+            </Badge>
+            {entity.dateRangeLabel ? (
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground/65">
+                <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
+                <span className="truncate tabular-nums">{entity.dateRangeLabel}</span>
+              </span>
+            ) : null}
+          </div>
+        ) : entity.dateRangeLabel ? (
           <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
             <span className="truncate tabular-nums">{entity.dateRangeLabel}</span>
@@ -176,16 +229,25 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
           className={cn(
             "line-clamp-2 font-semibold tracking-tight",
             entity.kind === "campaign" || entity.kind === "promotion"
-              ? "text-lg group-data-[size=sm]/card:text-lg"
+              ? "min-h-14 text-lg leading-7 group-data-[size=sm]/card:text-lg"
               : isCompact
                 ? "text-base"
                 : "text-lg"
           )}
+          title={entity.title}
         >
           {entity.title}
         </CardTitle>
         {entity.description ? (
-          <CardDescription className={cn("line-clamp-2", isCompact ? "leading-5" : "leading-6")}>
+          <CardDescription
+            className={cn(
+              "line-clamp-2",
+              isCompact ? "leading-5" : "leading-6",
+              (entity.kind === "campaign" || entity.kind === "promotion") &&
+                (isCompact ? "min-h-10" : "min-h-12")
+            )}
+            title={entity.description}
+          >
             {entity.description}
           </CardDescription>
         ) : null}
@@ -202,11 +264,16 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
 
       {entity.metrics && entity.metrics.length > 0 ? (
         <CardContent>
-          <dl className={cn("grid grid-cols-2 gap-x-4", isCompact ? "gap-y-2" : "gap-y-3")}>
+          <dl
+            className={cn(
+              "grid grid-cols-2 gap-x-4 rounded-md border border-border/70 bg-muted/35 p-3",
+              isCompact ? "gap-y-2" : "gap-y-3"
+            )}
+          >
             {entity.metrics.map((metric) => (
               <div className="flex min-w-0 flex-col gap-1" key={metric.id}>
-                <dt className="truncate text-xs text-muted-foreground">{metric.label}</dt>
-                <dd className="truncate text-sm font-semibold tabular-nums text-foreground">
+                <dt className="truncate text-xs font-medium text-foreground/65">{metric.label}</dt>
+                <dd className="truncate text-base font-semibold tabular-nums text-foreground">
                   {metric.value}
                 </dd>
               </div>

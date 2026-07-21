@@ -36,7 +36,6 @@ export function SegmentColumnDeleteMenu<Value>({
       <DropdownMenuTrigger asChild>
         <Button
           aria-label={ariaLabel}
-          className="ml-auto"
           disabled={disabled}
           size="icon-sm"
           title={ariaLabel}

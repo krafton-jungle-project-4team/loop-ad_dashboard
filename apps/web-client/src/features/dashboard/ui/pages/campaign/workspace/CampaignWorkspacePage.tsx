@@ -37,6 +37,9 @@ import {
   CirclePlay,
   Ellipsis,
   FlaskConical,
+  Mail,
+  Megaphone,
+  MessageSquareText,
   Plus,
   RefreshCw,
   type LucideIcon
@@ -77,7 +80,10 @@ import {
 import { EntityCardGrid } from "./EntityCardGrid.js";
 import { HierarchyBreadcrumbs, type CampaignHierarchyLevel } from "./HierarchyBreadcrumbs.js";
 import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
-import type { CampaignWorkspaceEntityCard } from "./campaign-workspace-types.js";
+import type {
+  CampaignWorkspaceCardVisual,
+  CampaignWorkspaceEntityCard
+} from "./campaign-workspace-types.js";
 import { groupPromotionsByBoardStatus, type PromotionBoardStatus } from "./promotionBoardStatus.js";
 
 type CampaignFormDialogState = { mode: "create" } | { campaignId: string; mode: "edit" } | null;
@@ -158,6 +164,18 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
     status: "completed"
   }
 ];
+
+const CAMPAIGN_CARD_VISUAL: Record<CampaignScheduleStatus, CampaignWorkspaceCardVisual> = {
+  scheduled: { icon: CalendarClock, label: "예정 캠페인", tone: "amber" },
+  in_progress: { icon: CirclePlay, label: "진행 중 캠페인", tone: "mint" },
+  completed: { icon: CircleCheck, label: "완료 캠페인", tone: "blue" }
+};
+
+const PROMOTION_CHANNEL_VISUAL: Record<string, CampaignWorkspaceCardVisual> = {
+  email: { icon: Mail, label: "이메일", tone: "blue" },
+  sms: { icon: MessageSquareText, label: "문자", tone: "coral" },
+  onsite_banner: { icon: Megaphone, label: "온사이트 배너", tone: "mint" }
+};
 
 export function CampaignWorkspacePage({
   data,
@@ -461,7 +479,7 @@ export function CampaignWorkspacePage({
           <div className="grid min-w-0 gap-4">
             {CAMPAIGN_SCHEDULE_SECTIONS.map((section) => {
               const cards = campaignsBySchedule[section.status].map((campaign) =>
-                toCampaignCard(campaign)
+                toCampaignCard(campaign, section.status)
               );
               const StatusIcon = section.icon;
 
@@ -835,7 +853,10 @@ function EntityColumnActionsMenu<Entity extends CampaignWorkspaceEntityCard>({
   );
 }
 
-function toCampaignCard(campaign: DashboardCampaignSummary): CampaignCard {
+function toCampaignCard(
+  campaign: DashboardCampaignSummary,
+  scheduleStatus: CampaignScheduleStatus
+): CampaignCard {
   return {
     campaign,
     dateRangeLabel: formatCampaignDateRange(campaign),
@@ -859,7 +880,8 @@ function toCampaignCard(campaign: DashboardCampaignSummary): CampaignCard {
             : formatPercent(campaign.latest_goal_achievement_rate)
       }
     ],
-    title: campaign.campaign_name
+    title: campaign.campaign_name,
+    visual: CAMPAIGN_CARD_VISUAL[scheduleStatus]
   };
 }
 
@@ -904,7 +926,12 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
       }
     ],
     promotion,
-    title: promotion.marketing_theme
+    title: promotion.marketing_theme,
+    visual: PROMOTION_CHANNEL_VISUAL[promotion.channel] ?? {
+      icon: Megaphone,
+      label: formatChannelLabel(promotion.channel),
+      tone: "amber"
+    }
   };
 }
 
