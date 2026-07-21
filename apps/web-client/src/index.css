@@ -66,7 +66,8 @@
 }
 
 :root {
-  --background: #f7f6f9;
+  --background: #f4f1f7;
+  --workspace-highlight: #ede7ff;
   --foreground: #2b2233;
   --card: #ffffff;
   --card-foreground: #2b2233;
@@ -107,13 +108,13 @@
   --entity-coral: #f55a3c;
   --entity-coral-soft: #fff0ec;
   --entity-coral-foreground: #b53b26;
-  --sidebar: #ece9f1;
+  --sidebar: #e4ddef;
   --sidebar-foreground: #30283a;
   --sidebar-primary: #6c5fc7;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ddd6f5;
+  --sidebar-accent: #cec3f0;
   --sidebar-accent-foreground: #30283a;
-  --sidebar-border: #d2cbd9;
+  --sidebar-border: #c8bed5;
   --sidebar-ring: #6c5fc7;
   --radius: 0.5rem;
 }
@@ -148,6 +149,15 @@ body::before {
   pointer-events: none;
   content: "";
   background: radial-gradient(circle at 72% -20%, rgb(108 95 199 / 14%), transparent 55%);
+}
+
+.dashboard-workspace-surface {
+  background-color: var(--background);
+  background-image: radial-gradient(
+    circle at 78% 0%,
+    var(--workspace-highlight),
+    transparent 34rem
+  );
 }
 
 h1,

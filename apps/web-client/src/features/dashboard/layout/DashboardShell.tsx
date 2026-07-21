@@ -145,8 +145,8 @@ export function DashboardShell({
     <main
       className={
         isCanvasTab
-          ? "min-h-0 min-w-0 flex-1 overflow-hidden bg-background pb-20 md:pb-0"
-          : "min-h-0 min-w-0 flex-1 overflow-auto bg-background pb-20 md:pb-0"
+          ? "dashboard-workspace-surface min-h-0 min-w-0 flex-1 overflow-hidden pb-20 md:pb-0"
+          : "dashboard-workspace-surface min-h-0 min-w-0 flex-1 overflow-auto pb-20 md:pb-0"
       }
     >
       <div

@@ -25,10 +25,13 @@ const sqlEditorSource = readFileSync(
 );
 
 test("the global palette uses Sentry-inspired purple, lavender, and ink tokens", () => {
-  assert.match(themeSource, /--background: #f7f6f9;/);
+  assert.match(themeSource, /--background: #f4f1f7;/);
+  assert.match(themeSource, /--workspace-highlight: #ede7ff;/);
   assert.match(themeSource, /--foreground: #2b2233;/);
   assert.match(themeSource, /--primary: #6c5fc7;/);
-  assert.match(themeSource, /--sidebar: #ece9f1;/);
+  assert.match(themeSource, /--sidebar: #e4ddef;/);
+  assert.match(themeSource, /--sidebar-accent: #cec3f0;/);
+  assert.match(themeSource, /--sidebar-border: #c8bed5;/);
   assert.match(themeSource, /--sidebar-foreground: #30283a;/);
   assert.match(themeSource, /--chart-2: #e1567c;/);
   assert.doesNotMatch(themeSource, /--primary: #1d4ed8;/);
@@ -39,6 +42,7 @@ test("shared controls and navigation use the compact Sentry hierarchy", () => {
   assert.match(buttonSource, /hover:bg-\[#584ab8\]/);
   assert.doesNotMatch(buttonSource, /#0071e3/);
   assert.match(dashboardShellSource, /border-sidebar-border/);
+  assert.match(dashboardShellSource, /dashboard-workspace-surface/);
   assert.match(dashboardShellSource, /bg-sidebar-accent/);
   assert.match(dashboardShellSource, /before:bg-sidebar-primary/);
   assert.doesNotMatch(dashboardShellSource, /rounded-md border border-transparent text-sidebar/);
