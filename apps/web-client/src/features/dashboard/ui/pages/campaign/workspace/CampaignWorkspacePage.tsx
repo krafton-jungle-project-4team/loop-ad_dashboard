@@ -30,6 +30,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from "@loopad/ui/shadcn/dropdown-menu";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -82,6 +83,7 @@ import { HierarchyBreadcrumbs, type CampaignHierarchyLevel } from "./HierarchyBr
 import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
 import type {
   CampaignWorkspaceCardVisual,
+  CampaignWorkspaceCardVisualTone,
   CampaignWorkspaceEntityCard
 } from "./campaign-workspace-types.js";
 import { groupPromotionsByBoardStatus, type PromotionBoardStatus } from "./promotionBoardStatus.js";
@@ -104,27 +106,31 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
   icon: LucideIcon;
   label: string;
   status: CampaignScheduleStatus;
+  tone: CampaignWorkspaceCardVisualTone;
 }> = [
   {
     description: "시작일이 가까운 순으로 보여요.",
     emptyMessage: "시작을 기다리는 캠페인이 없어요.",
     icon: CalendarClock,
     label: "예정",
-    status: "scheduled"
+    status: "scheduled",
+    tone: "amber"
   },
   {
     description: "종료일이 가까운 순으로 보여요.",
     emptyMessage: "현재 진행 중인 캠페인이 없어요.",
     icon: CirclePlay,
     label: "진행 중",
-    status: "in_progress"
+    status: "in_progress",
+    tone: "mint"
   },
   {
     description: "최근에 종료된 순으로 보여요.",
     emptyMessage: "완료된 캠페인이 없어요.",
     icon: CircleCheck,
     label: "완료됨",
-    status: "completed"
+    status: "completed",
+    tone: "blue"
   }
 ];
 
@@ -134,36 +140,48 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
   icon: LucideIcon;
   label: string;
   status: PromotionBoardStatus;
+  tone: CampaignWorkspaceCardVisualTone;
 }> = [
   {
     description: "첫 실험 실행을 기다리고 있어요.",
     emptyMessage: "준비 중인 프로모션이 없어요.",
     icon: FlaskConical,
     label: "준비 중",
-    status: "preparing"
+    status: "preparing",
+    tone: "blue"
   },
   {
     description: "현재 실험을 실행하거나 평가하고 있어요.",
     emptyMessage: "진행 중인 프로모션이 없어요.",
     icon: CirclePlay,
     label: "진행 중",
-    status: "in_progress"
+    status: "in_progress",
+    tone: "amber"
   },
   {
     description: "평가 결과에 따라 다음 실험이 필요해요.",
     emptyMessage: "다음 실험이 필요한 프로모션이 없어요.",
     icon: RefreshCw,
     label: "다음 실험 필요",
-    status: "next_experiment"
+    status: "next_experiment",
+    tone: "coral"
   },
   {
     description: "목표를 달성했거나 최대 실험 횟수를 마쳤어요.",
     emptyMessage: "완료된 프로모션이 없어요.",
     icon: CircleCheck,
     label: "완료됨",
-    status: "completed"
+    status: "completed",
+    tone: "mint"
   }
 ];
+
+const STATUS_ICON_TONE_CLASS: Record<CampaignWorkspaceCardVisualTone, string> = {
+  amber: "border-entity-amber bg-entity-amber text-primary-foreground",
+  blue: "border-entity-blue bg-entity-blue text-primary-foreground",
+  coral: "border-entity-coral bg-entity-coral text-primary-foreground",
+  mint: "border-entity-mint bg-entity-mint text-primary-foreground"
+};
 
 const CAMPAIGN_CARD_VISUAL: Record<CampaignScheduleStatus, CampaignWorkspaceCardVisual> = {
   scheduled: { icon: CalendarClock, label: "예정 캠페인", tone: "amber" },
@@ -491,7 +509,12 @@ export function CampaignWorkspacePage({
                 >
                   <div className="grid gap-1 border-b px-1 pb-3">
                     <div className="flex items-center gap-2">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">
+                      <span
+                        className={cn(
+                          "flex size-7 shrink-0 items-center justify-center rounded-md border",
+                          STATUS_ICON_TONE_CLASS[section.tone]
+                        )}
+                      >
                         <StatusIcon aria-hidden="true" className="size-4" />
                       </span>
                       <h3
@@ -607,7 +630,12 @@ export function CampaignWorkspacePage({
                 >
                   <div className="grid gap-1 border-b px-1 pb-3">
                     <div className="flex items-center gap-2">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">
+                      <span
+                        className={cn(
+                          "flex size-7 shrink-0 items-center justify-center rounded-md border",
+                          STATUS_ICON_TONE_CLASS[section.tone]
+                        )}
+                      >
                         <StatusIcon aria-hidden="true" className="size-4" />
                       </span>
                       <h3

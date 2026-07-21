@@ -25,6 +25,21 @@ test("campaign cards expose schedule-specific visual treatments", () => {
   assert.match(workspaceSource, /toCampaignCard\(campaign, section\.status\)/);
 });
 
+test("campaign and promotion row icons use distinct status colors", () => {
+  assert.match(workspaceSource, /status: "scheduled",\s+tone: "amber"/);
+  assert.match(workspaceSource, /status: "in_progress",\s+tone: "mint"/);
+  assert.match(workspaceSource, /status: "preparing",\s+tone: "blue"/);
+  assert.match(workspaceSource, /status: "in_progress",\s+tone: "amber"/);
+  assert.match(workspaceSource, /status: "next_experiment",\s+tone: "coral"/);
+  assert.match(workspaceSource, /status: "completed",\s+tone: "blue"/);
+  assert.match(workspaceSource, /status: "completed",\s+tone: "mint"/);
+  assert.match(
+    workspaceSource,
+    /blue: "border-entity-blue bg-entity-blue text-primary-foreground"/
+  );
+  assert.match(workspaceSource, /STATUS_ICON_TONE_CLASS\[section\.tone\]/);
+});
+
 test("promotion cards expose channel-specific visual treatments", () => {
   assert.match(workspaceSource, /email: \{ icon: Mail, label: "이메일", tone: "blue" \}/);
   assert.match(workspaceSource, /sms: \{ icon: MessageSquareText, label: "문자", tone: "coral" \}/);
