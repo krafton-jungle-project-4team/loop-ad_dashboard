@@ -36,15 +36,6 @@ const ENTITY_KIND_LABEL: Record<CampaignWorkspaceEntityKind, string> = {
   segment: "고객군"
 };
 
-const ENTRY_ACTION_VARIANT: Record<
-  CampaignWorkspaceEntityKind,
-  "outline-neutral" | "promotion-soft" | "segment-soft"
-> = {
-  campaign: "promotion-soft",
-  promotion: "segment-soft",
-  segment: "outline-neutral"
-} as const;
-
 const ENTITY_VISUAL_TONE_CLASS: Record<
   CampaignWorkspaceCardVisualTone,
   { accent: string; badge: string; icon: string }
@@ -302,7 +293,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
                     disabled={action.disabled}
                     onClick={() => action.onSelect(entity)}
                     type="button"
-                    variant={ENTRY_ACTION_VARIANT[entity.kind]}
+                    variant="outline-neutral"
                   >
                     {action.label}
                   </Button>
