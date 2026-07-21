@@ -25,16 +25,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@loopad/ui/shadcn/alert-dialog";
+import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
 import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { NativeSelect, NativeSelectOption } from "@loopad/ui/shadcn/native-select";
+import { ScrollArea } from "@loopad/ui/shadcn/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { Textarea } from "@loopad/ui/shadcn/textarea";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { Link } from "@tanstack/react-router";
-import { XIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   describeEventSchemaVersion,
@@ -431,40 +434,41 @@ function EventDesigner({
   run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState<"view" | "create" | "edit">("view");
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [selected, setSelected] = useState<TrackingPlanEvent | null>(null);
+  const [selectedEventName, setSelectedEventName] = useState<string | null>(
+    plan.events[0]?.eventName ?? null
+  );
+  const [query, setQuery] = useState("");
   const [eventName, setEventName] = useState("");
   const [description, setDescription] = useState("");
   const [properties, setProperties] = useState<PropertyDraft[]>([]);
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const selected =
+    plan.events.find((event) => event.eventName === selectedEventName) ?? plan.events[0] ?? null;
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleEvents = plan.events.filter((event) => {
+    if (!normalizedQuery) return true;
+    return `${event.eventName} ${event.description}`.toLowerCase().includes(normalizedQuery);
+  });
   const propertyIssues = validatePropertyDrafts(properties);
 
-  function closePanel() {
-    setPanelOpen(false);
-  }
-
   function showEvent(event: TrackingPlanEvent) {
-    setSelected(event);
+    setSelectedEventName(event.eventName);
     setMode("view");
-    setPanelOpen(true);
   }
 
   function startCreate() {
-    setSelected(null);
     setEventName("");
     setDescription("");
     setProperties([]);
     setMode("create");
-    setPanelOpen(true);
   }
 
   function startEdit(event: TrackingPlanEvent) {
-    setSelected(event);
+    setSelectedEventName(event.eventName);
     setEventName(event.eventName);
     setDescription(event.description);
     setProperties(propertiesFromSchema(event.propertiesSchema));
     setMode("edit");
-    setPanelOpen(true);
   }
 
   async function save() {
@@ -476,7 +480,7 @@ function EventDesigner({
           propertiesSchema
         })
       );
-      if (saved) closePanel();
+      if (saved) setMode("view");
       return;
     }
 
@@ -488,12 +492,15 @@ function EventDesigner({
         propertiesSchema
       })
     );
-    if (saved) closePanel();
+    if (saved) {
+      setSelectedEventName(nextEventName);
+      setMode("view");
+    }
   }
 
   async function removeEvent(event: TrackingPlanEvent) {
     const deleted = await run(() => dataSource.deleteEvent(plan.projectId, event.eventName));
-    if (deleted) closePanel();
+    if (deleted) setMode("view");
   }
 
   async function autoGenerateEvents() {
@@ -506,181 +513,236 @@ function EventDesigner({
   }
 
   const isEdit = mode === "edit" && selected !== null;
+  const selectedPropertyCount = selected
+    ? propertyContractRows(selected.propertiesSchema).length
+    : 0;
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-start justify-between gap-4">
-        <CardTitle className="text-base">이벤트 목록</CardTitle>
-        <div className="flex flex-wrap justify-end gap-2">
-          {plan.events.length === 0 ? (
-            <Button
-              disabled={autoGenerating}
-              onClick={() => void autoGenerateEvents()}
-              variant="outline"
-            >
-              {autoGenerating ? "이벤트 형식 확인 중…" : "수집 중인 이벤트로 자동 생성"}
-            </Button>
-          ) : null}
-          <Button onClick={startCreate}>이벤트 추가</Button>
-        </div>
-      </CardHeader>
-      <CardContent
-        className={`relative overflow-hidden transition-[min-height] duration-200 ${panelOpen ? "min-h-[600px]" : ""}`}
-      >
-        {plan.events.length > 0 ? (
-          <div className="overflow-hidden rounded-md border">
-            {plan.events.map((event) => (
-              <button
-                className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3 text-left last:border-b-0 hover:bg-muted/50"
-                key={event.eventName}
-                onClick={() => showEvent(event)}
-                type="button"
-              >
-                <span className="grid gap-1">
-                  <strong className="text-sm font-medium">{event.eventName}</strong>
-                  <span className="line-clamp-1 text-xs text-muted-foreground">
-                    {event.description || "설명 없음"}
-                  </span>
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  속성 {propertyContractRows(event.propertiesSchema).length}개
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-            등록한 이벤트가 없어요.
-          </p>
-        )}
-
-        <button
-          aria-label="이벤트 패널 닫기"
-          className={`absolute inset-0 z-10 bg-black/10 transition-opacity duration-200 ${panelOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
-          onClick={closePanel}
-          tabIndex={panelOpen ? 0 : -1}
-          type="button"
-        />
-        <aside
-          aria-hidden={!panelOpen}
-          aria-labelledby="tracking-plan-event-panel-title"
-          className={`absolute inset-y-0 right-0 z-20 flex w-full max-w-[650px] flex-col overflow-hidden border-l bg-popover text-sm text-popover-foreground shadow-xl transition-[transform,opacity] duration-200 ease-out ${panelOpen ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-6 opacity-0"}`}
-          data-testid="tracking-plan-event-panel"
-          inert={!panelOpen}
-          role="dialog"
-        >
-          <Button
-            aria-label="닫기"
-            className="absolute top-3 right-3 z-10"
-            onClick={closePanel}
-            size="icon-sm"
-            variant="ghost"
-          >
-            <XIcon />
-          </Button>
-          {mode === "view" && selected ? (
-            <>
-              <div className="grid gap-0.5 border-b p-4 pr-14">
-                <h2 className="text-xl font-medium" id="tracking-plan-event-panel-title">
-                  {selected.eventName}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {selected.description || "설명 없음"}
-                </p>
-              </div>
-              <div className="grid flex-1 content-start gap-5 overflow-y-auto px-4 py-5">
-                <div className="grid gap-2">
-                  <strong className="text-sm">속성 스키마</strong>
-                  <PropertyContract event={selected} />
+    <Card className="overflow-hidden py-0">
+      <CardContent className="p-0">
+        <div className="grid lg:min-h-[640px] lg:grid-cols-[minmax(280px,1fr)_minmax(0,2fr)]">
+          <section className="flex min-h-0 flex-col border-b bg-muted/20 lg:border-r lg:border-b-0">
+            <div className="grid gap-3 border-b p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-semibold">이벤트 목록</h2>
+                  <Badge variant="secondary">{plan.events.length}</Badge>
                 </div>
-              </div>
-              <div className="mt-auto flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-end">
-                <Button variant="outline" onClick={closePanel}>
-                  닫기
+                <Button onClick={startCreate} size="sm">
+                  이벤트 추가
                 </Button>
-                <Button onClick={() => startEdit(selected)}>수정</Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">삭제</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{selected.eventName} 이벤트를 삭제할까요?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        이벤트 규칙이 목록에서 제거됩니다. 삭제 후에는 되돌릴 수 없어요.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>취소</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={(event) => {
-                          event.preventDefault();
-                          void removeEvent(selected);
-                        }}
-                        variant="destructive"
-                      >
-                        이벤트 삭제
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
               </div>
-            </>
-          ) : null}
-          {mode === "create" || (mode === "edit" && selected) ? (
-            <>
-              <div className="grid gap-0.5 border-b p-4 pr-14">
-                <h2 className="text-xl font-medium" id="tracking-plan-event-panel-title">
-                  {isEdit ? `${selected?.eventName} 수정` : "이벤트 추가"}
-                </h2>
-              </div>
-              <div className="grid flex-1 content-start gap-4 overflow-y-auto px-4 py-5">
-                <Field>
-                  <FieldLabel htmlFor="tracking-plan-event-name">이벤트명</FieldLabel>
+              {plan.events.length > 0 ? (
+                <div className="relative">
+                  <SearchIcon
+                    aria-hidden="true"
+                    className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                  />
                   <Input
-                    disabled={isEdit}
-                    id="tracking-plan-event-name"
-                    value={eventName}
-                    onChange={(event) => setEventName(event.target.value)}
+                    aria-label="이벤트 검색"
+                    className="bg-background pl-9"
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="이벤트 검색"
+                    value={query}
                   />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="tracking-plan-event-description">설명</FieldLabel>
-                  <Textarea
-                    className="min-h-20"
-                    id="tracking-plan-event-description"
-                    value={description}
-                    onChange={(event) => setDescription(event.target.value)}
-                  />
-                </Field>
-                <div className="grid gap-2">
-                  <PropertyList parentDepth={0} properties={properties} onChange={setProperties} />
-                  {propertyIssues.length > 0 ? (
-                    <div className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
-                      {propertyIssues.map((issue) => (
-                        <p key={issue}>{issue}</p>
-                      ))}
-                    </div>
+                </div>
+              ) : null}
+            </div>
+
+            {plan.events.length > 0 ? (
+              <ScrollArea className="h-[320px] lg:h-[560px]">
+                <div className="grid gap-1 p-2">
+                  {visibleEvents.map((event) => {
+                    const propertyCount = propertyContractRows(event.propertiesSchema).length;
+                    const isSelected = selected?.eventName === event.eventName && mode !== "create";
+                    return (
+                      <button
+                        aria-current={isSelected ? "true" : undefined}
+                        className={cn(
+                          "grid w-full gap-1 rounded-md border border-transparent px-3 py-2.5 text-left transition-colors",
+                          isSelected
+                            ? "border-primary/25 bg-primary/10 text-foreground"
+                            : "hover:border-border hover:bg-background"
+                        )}
+                        key={event.eventName}
+                        onClick={() => showEvent(event)}
+                        type="button"
+                      >
+                        <span className="flex min-w-0 items-center justify-between gap-3">
+                          <strong className="truncate text-sm font-medium">
+                            {event.eventName}
+                          </strong>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {propertyCount}개
+                          </span>
+                        </span>
+                        <span className="line-clamp-1 text-xs text-muted-foreground">
+                          {event.description || "설명 없음"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {visibleEvents.length === 0 ? (
+                    <p className="p-6 text-center text-sm text-muted-foreground">
+                      검색 결과가 없어요.
+                    </p>
                   ) : null}
                 </div>
+              </ScrollArea>
+            ) : (
+              <div className="grid flex-1 place-items-center p-6 text-center">
+                <div className="grid justify-items-center gap-3">
+                  <div className="grid gap-1">
+                    <p className="text-sm font-medium">등록한 이벤트가 없어요.</p>
+                    <p className="text-xs text-muted-foreground">
+                      수집 데이터를 바탕으로 만들거나 직접 추가해 주세요.
+                    </p>
+                  </div>
+                  <Button
+                    disabled={autoGenerating}
+                    onClick={() => void autoGenerateEvents()}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {autoGenerating ? "이벤트 형식 확인 중…" : "수집 이벤트로 자동 생성"}
+                  </Button>
+                </div>
               </div>
-              <div className="mt-auto flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => (isEdit && selected ? showEvent(selected) : closePanel())}
-                >
-                  취소
-                </Button>
-                <Button
-                  disabled={!eventName.trim() || propertyIssues.length > 0}
-                  onClick={() => void save()}
-                >
-                  저장
-                </Button>
+            )}
+          </section>
+
+          <section className="flex min-h-[420px] min-w-0 flex-col bg-background">
+            {mode === "view" && selected ? (
+              <>
+                <div className="flex flex-col gap-4 border-b p-5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="grid min-w-0 gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="break-all text-xl font-semibold">{selected.eventName}</h2>
+                      <Badge variant="outline">속성 {selectedPropertyCount}개</Badge>
+                    </div>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      {selected.description || "설명 없음"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button onClick={() => startEdit(selected)} size="sm" variant="outline">
+                      수정
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost">
+                          삭제
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {selected.eventName} 이벤트를 삭제할까요?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            이벤트 규칙이 목록에서 제거됩니다. 삭제 후에는 되돌릴 수 없어요.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={(event) => {
+                              event.preventDefault();
+                              void removeEvent(selected);
+                            }}
+                            variant="destructive"
+                          >
+                            이벤트 삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+                <ScrollArea className="min-h-0 flex-1 lg:h-[550px]">
+                  <div className="grid gap-3 p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-semibold">속성 구조</h3>
+                      <span className="text-xs text-muted-foreground">이름 · 형식 · 필수 여부</span>
+                    </div>
+                    <PropertyContract event={selected} />
+                  </div>
+                </ScrollArea>
+              </>
+            ) : null}
+
+            {mode === "view" && !selected ? (
+              <div className="grid flex-1 place-items-center p-8 text-center">
+                <div className="grid gap-2">
+                  <p className="font-medium">이벤트를 선택해 주세요.</p>
+                  <p className="text-sm text-muted-foreground">
+                    선택한 이벤트의 설명과 속성 구조가 여기에 표시됩니다.
+                  </p>
+                </div>
               </div>
-            </>
-          ) : null}
-        </aside>
+            ) : null}
+
+            {mode === "create" || (mode === "edit" && selected) ? (
+              <>
+                <div className="grid gap-1 border-b p-5">
+                  <h2 className="text-xl font-semibold">
+                    {isEdit ? `${selected?.eventName} 수정` : "이벤트 추가"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    이벤트 설명과 수집할 속성 구조를 설정해 주세요.
+                  </p>
+                </div>
+                <ScrollArea className="min-h-0 flex-1 lg:h-[480px]">
+                  <div className="grid content-start gap-4 p-5">
+                    <Field>
+                      <FieldLabel htmlFor="tracking-plan-event-name">이벤트명</FieldLabel>
+                      <Input
+                        disabled={isEdit}
+                        id="tracking-plan-event-name"
+                        value={eventName}
+                        onChange={(event) => setEventName(event.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="tracking-plan-event-description">설명</FieldLabel>
+                      <Textarea
+                        className="min-h-20"
+                        id="tracking-plan-event-description"
+                        value={description}
+                        onChange={(event) => setDescription(event.target.value)}
+                      />
+                    </Field>
+                    <div className="grid gap-2">
+                      <PropertyList
+                        parentDepth={0}
+                        properties={properties}
+                        onChange={setProperties}
+                      />
+                      {propertyIssues.length > 0 ? (
+                        <div className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
+                          {propertyIssues.map((issue) => (
+                            <p key={issue}>{issue}</p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </ScrollArea>
+                <div className="flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-end">
+                  <Button variant="outline" onClick={() => setMode("view")}>
+                    취소
+                  </Button>
+                  <Button
+                    disabled={!eventName.trim() || propertyIssues.length > 0}
+                    onClick={() => void save()}
+                  >
+                    저장
+                  </Button>
+                </div>
+              </>
+            ) : null}
+          </section>
+        </div>
       </CardContent>
     </Card>
   );
