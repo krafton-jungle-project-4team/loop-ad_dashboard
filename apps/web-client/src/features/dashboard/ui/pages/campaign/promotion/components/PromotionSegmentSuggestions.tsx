@@ -20,7 +20,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle
 } from "@loopad/ui/shadcn/card";
@@ -61,7 +60,6 @@ import { useEffect, useState } from "react";
 import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
-import { selectedSegmentSummaries } from "../../../../../model/segment-selection-summary.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
   formatJsonObject,
@@ -149,10 +147,6 @@ export function PromotionSegmentSuggestionPanel({
       suggestion
     }))
   ];
-  const selectedSegments = selectedSegmentSummaries(
-    visibleSuggestions,
-    scopedSegments.filter((segment) => selectedScopedSegmentIds.includes(segment.segment_id))
-  );
   const allocationPreview =
     selectedScopedSegmentIds.length > 0
       ? null
@@ -386,39 +380,6 @@ export function PromotionSegmentSuggestionPanel({
           suggestion={reportSuggestion}
         />
       </CardContent>
-      <CardFooter className="grid shrink-0 gap-4 border-t bg-muted/20 py-4">
-        <div className="grid min-w-0 gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">선택한 고객군</span>
-            <Badge variant="secondary">{formatInteger(confirmableCount)}</Badge>
-          </div>
-          {selectedSegments.length > 0 ? (
-            <ul className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {selectedSegments.map((segment) => (
-                <li
-                  className="grid min-w-0 gap-0.5 border-l-2 border-primary pl-2"
-                  key={segment.id}
-                >
-                  <span
-                    className="truncate text-xs font-medium text-foreground"
-                    title={segment.name}
-                  >
-                    {segment.name}
-                  </span>
-                  <span
-                    className="truncate text-[11px] text-muted-foreground"
-                    title={segment.detail}
-                  >
-                    {segment.detail}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <span className="text-xs text-muted-foreground">확정할 후보를 선택해 주세요.</span>
-          )}
-        </div>
-      </CardFooter>
       <AlertDialog
         onOpenChange={(open) => {
           if (!open) {

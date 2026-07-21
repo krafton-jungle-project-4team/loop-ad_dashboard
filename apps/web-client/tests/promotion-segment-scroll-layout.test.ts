@@ -87,12 +87,14 @@ test("segment candidates use one full-width carousel slide at a time", () => {
 test("segment candidate footer combines navigation and confirmation", () => {
   const navigationIndex = suggestionPanelSource.indexOf('aria-label="고객군 후보 이동"');
   const confirmationIndex = suggestionPanelSource.indexOf("선택한 후보 확정", navigationIndex);
-  const summaryFooterIndex = suggestionPanelSource.indexOf("<CardFooter", navigationIndex);
+  const carouselEndIndex = suggestionPanelSource.indexOf("</Carousel>", confirmationIndex);
 
   assert.ok(navigationIndex >= 0);
   assert.ok(confirmationIndex > navigationIndex);
-  assert.ok(summaryFooterIndex > confirmationIndex);
+  assert.ok(carouselEndIndex > confirmationIndex);
   assert.match(suggestionPanelSource, /<CheckCircle2 data-icon="inline-start" \/>/);
+  assert.doesNotMatch(suggestionPanelSource, /<CardFooter/);
+  assert.doesNotMatch(suggestionPanelSource, /선택한 고객군/);
 });
 
 test("content candidates use one full-width carousel slide at a time", () => {
