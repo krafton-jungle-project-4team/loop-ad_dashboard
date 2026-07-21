@@ -43,7 +43,7 @@ import {
 } from "@loopad/ui/shadcn/empty";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { cn } from "@loopad/ui/shadcn/utils";
-import { BarChart3, Bot, CheckCircle2, FileText } from "lucide-react";
+import { BarChart3, Bot, CheckCircle2, FileText, Users } from "lucide-react";
 import { useState } from "react";
 import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
@@ -75,10 +75,12 @@ export function PromotionSegmentSuggestionPanel({
   audienceAllocationPreviewContext,
   archiveScopedSegmentIsPending,
   confirmIsPending,
+  confirmedSegmentCount,
   decideIsPending,
   onArchiveScopedSegment,
   onConfirmSuggestions,
   onDecideSuggestion,
+  onOpenConfirmedSegments,
   onRecommendSegments,
   promotionAnalysisIsPending,
   scopedSegments,
@@ -89,6 +91,7 @@ export function PromotionSegmentSuggestionPanel({
   audienceAllocationPreviewContext: DashboardAudienceAllocationPreviewContext | null;
   archiveScopedSegmentIsPending: boolean;
   confirmIsPending: boolean;
+  confirmedSegmentCount: number;
   decideIsPending: boolean;
   onArchiveScopedSegment: (segmentId: string) => void;
   onConfirmSuggestions: (segmentIds: string[]) => void;
@@ -96,6 +99,7 @@ export function PromotionSegmentSuggestionPanel({
     suggestionId: string,
     status: "suggested" | "accepted" | "dismissed"
   ) => void;
+  onOpenConfirmedSegments: () => void;
   onRecommendSegments: () => void;
   promotionAnalysisIsPending: boolean;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
@@ -155,6 +159,10 @@ export function PromotionSegmentSuggestionPanel({
           <CardDescription>사용할 고객군을 비교하고 선택해 주세요.</CardDescription>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button onClick={onOpenConfirmedSegments} size="sm" type="button" variant="outline">
+            <Users data-icon="inline-start" />
+            확정 고객군 {formatInteger(confirmedSegmentCount)}
+          </Button>
           {candidateCount > 0 || promotionAnalysisIsPending ? (
             <Button
               disabled={promotionAnalysisIsPending}
