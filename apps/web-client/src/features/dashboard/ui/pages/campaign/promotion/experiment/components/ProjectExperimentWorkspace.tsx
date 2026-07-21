@@ -9,7 +9,14 @@ import { CartesianGrid, LabelList, Line, LineChart, XAxis, YAxis } from "@loopad
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { Badge } from "@loopad/ui/shadcn/badge";
 import { Button } from "@loopad/ui/shadcn/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@loopad/ui/shadcn/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@loopad/ui/shadcn/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@loopad/ui/shadcn/chart";
 import {
   DropdownMenu,
@@ -37,6 +44,8 @@ import {
   TableHeader,
   TableRow
 } from "@loopad/ui/shadcn/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
+import { cn } from "@loopad/ui/shadcn/utils";
 import {
   CheckCircle2,
   ChevronDown,
@@ -215,32 +224,28 @@ export function ProjectExperimentWorkspace({
   const nextLoopCount = visibleExperiments.filter(
     (experiment) => experiment.latest_evaluation?.next_loop_required
   ).length;
-  const insufficientCount = visibleExperiments.filter(
-    (experiment) => experiment.latest_evaluation?.status === "insufficient_data"
-  ).length;
-  const totalAssignmentCount = visibleExperiments.reduce(
-    (total, experiment) => total + experiment.assignment_count,
-    0
-  );
+  const latestUpdatedAt = visibleExperiments.reduce<string | null>((latest, experiment) => {
+    if (!latest || Date.parse(experiment.updated_at) > Date.parse(latest)) {
+      return experiment.updated_at;
+    }
+    return latest;
+  }, null);
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <ExperimentSummaryCard label="전체 실험" value={formatInteger(visibleExperiments.length)} />
-        <ExperimentSummaryCard label="실행 중" value={formatInteger(runningCount)} />
-        <ExperimentSummaryCard label="배정 합계" value={formatInteger(totalAssignmentCount)} />
-        <ExperimentSummaryCard
-          label="후속 작업"
-          value={`반복 실험 ${formatInteger(nextLoopCount)} · 대상 부족 ${formatInteger(insufficientCount)}`}
-        />
-      </div>
+      <ExperimentOverviewStrip
+        latestUpdatedAt={latestUpdatedAt}
+        nextLoopCount={nextLoopCount}
+        runningCount={runningCount}
+        totalCount={visibleExperiments.length}
+      />
 
       <Card>
         <CardHeader className="gap-4">
           <div className="grid gap-1">
-            <CardTitle>프로젝트 실험 목록</CardTitle>
+            <CardTitle>프로젝트 실험</CardTitle>
             <CardDescription>
-              캠페인과 상태로 실험을 찾고 자세한 성과를 볼 수 있어요.
+              실험을 선택하면 아래에서 결과와 다음 행동을 확인할 수 있어요.
             </CardDescription>
           </div>
         </CardHeader>
@@ -397,7 +402,7 @@ function ProjectExperimentTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border">
-      <Table className="min-w-[1080px]">
+      <Table className="min-w-[920px]">
         <TableHeader>
           <TableRow>
             <TableHead>
@@ -421,10 +426,8 @@ function ProjectExperimentTable({
               />
             </TableHead>
             <TableHead>고객군</TableHead>
-            <TableHead>노출 방식</TableHead>
-            <TableHead className="text-right">배정</TableHead>
-            <TableHead>현황 / 목표</TableHead>
-            <TableHead>평가</TableHead>
+            <TableHead>목표 / 결과</TableHead>
+            <TableHead>판단</TableHead>
             <TableHead>업데이트</TableHead>
             <TableHead className="w-40 pl-7">상세</TableHead>
           </TableRow>
@@ -432,7 +435,7 @@ function ProjectExperimentTable({
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell className="p-4" colSpan={9}>
+              <TableCell className="p-4" colSpan={7}>
                 <EmptyState message="조건에 맞는 실험이 없어요." />
               </TableCell>
             </TableRow>
@@ -462,10 +465,6 @@ function ProjectExperimentTable({
                   </div>
                 </TableCell>
                 <TableCell>{experiment.segment_name}</TableCell>
-                <TableCell>{formatChannelLabel(experiment.channel)}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatInteger(experiment.assignment_count)}
-                </TableCell>
                 <TableCell className="tabular-nums">
                   <MetricPair
                     left={formatGoalValue(evaluation?.actual_value ?? null)}
@@ -475,29 +474,24 @@ function ProjectExperimentTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant={statusBadgeVariant(evaluation?.status ?? "not_evaluated")}>
-                      {formatStatusLabel(evaluation?.status ?? "not_evaluated")}
-                    </Badge>
-                    {evaluation?.next_loop_required ? (
-                      <Badge variant="outline">반복 실험 필요</Badge>
-                    ) : null}
-                  </div>
+                  <Badge variant={statusBadgeVariant(evaluation?.status ?? "not_evaluated")}>
+                    {formatStatusLabel(evaluation?.status ?? "not_evaluated")}
+                  </Badge>
                 </TableCell>
-                <TableCell>{formatDateTime(experiment.updated_at)}</TableCell>
+                <TableCell className="tabular-nums">
+                  {formatDateTime(experiment.updated_at)}
+                </TableCell>
                 <TableCell className="w-40">
                   <Button
                     aria-label={`${experiment.segment_name} ${experiment.loop_count}번째 반복 실험 자세히 보기`}
                     aria-expanded={isSelected}
-                    className="h-9 min-w-32 justify-between px-4"
+                    className="min-w-32 justify-between"
                     onClick={() => onSelect(experiment)}
                     size="sm"
                     type="button"
-                    variant="soft"
+                    variant={isSelected ? "soft" : "outline"}
                   >
-                    <span className="font-medium">
-                      {formatInteger(experiment.loop_count)}번째 실험
-                    </span>
+                    <span>{formatInteger(experiment.loop_count)}번째 실험</span>
                     <ChevronRight aria-hidden="true" data-icon="inline-end" />
                   </Button>
                 </TableCell>
@@ -548,6 +542,10 @@ function SelectedProjectExperimentDetail({
     !experiment.next_loop &&
     hasRepeatTarget &&
     (evaluation?.next_loop_required === true || evaluation?.status === "goal_not_met");
+  const shouldShowManualRepeatAction =
+    experiment.execution_mode === "manual" &&
+    !experiment.next_loop &&
+    (evaluation?.next_loop_required === true || evaluation?.status === "goal_not_met");
   const isRepeatRequestForSelected =
     prepareRepeatCreativesVariables?.failedAdExperimentIds.some((adExperimentId) =>
       repeatTarget.failedAdExperimentIds.includes(adExperimentId)
@@ -565,7 +563,7 @@ function SelectedProjectExperimentDetail({
 
   return (
     <Card>
-      <CardHeader className="gap-4 lg:grid-cols-[1fr_auto]">
+      <CardHeader className="gap-4 border-b lg:grid-cols-[1fr_auto]">
         <div className="grid gap-2">
           <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
             <span>{experiment.campaign_name}</span>
@@ -586,7 +584,7 @@ function SelectedProjectExperimentDetail({
             </Badge>
           </div>
           <CardDescription>
-            성과, 평가 결과, 대상 부족 이유와 다음 반복 실험을 한곳에서 볼 수 있어요.
+            {formatMetricLabel(experiment.goal_metric)}을 높이기 위한 실험 결과예요.
           </CardDescription>
         </div>
         <div className="flex flex-wrap items-start gap-2">
@@ -606,7 +604,7 @@ function SelectedProjectExperimentDetail({
               {isRefreshingSelected ? "평가 갱신 중…" : "평가 갱신"}
             </Button>
           ) : null}
-          {experiment.execution_mode === "manual" ? (
+          {shouldShowManualRepeatAction ? (
             <Button
               disabled={!canPrepareRepeatCreatives || prepareRepeatCreativesIsPending}
               onClick={() =>
@@ -625,16 +623,16 @@ function SelectedProjectExperimentDetail({
               )}
               {isPreparingRepeatCreativesForSelected
                 ? "다음 실험용 광고 만드는 중…"
-                : "다음 실험 실행"}
+                : "다음 실험 준비하기"}
             </Button>
-          ) : (
+          ) : experiment.execution_mode === "automatic" ? (
             <Badge className="px-3 py-2" variant="secondary">
               자동 반복 실행 중
             </Badge>
-          )}
+          ) : null}
         </div>
       </CardHeader>
-      <CardContent className="grid gap-6">
+      <CardContent className="grid gap-5">
         {refreshedEvaluation && !isRefreshingSelected && !refreshFailedForSelected ? (
           <Alert aria-live="polite">
             <AlertTitle>{experiment.segment_name} 평가를 갱신했어요</AlertTitle>
@@ -658,70 +656,262 @@ function SelectedProjectExperimentDetail({
           </Alert>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <DetailMetric label="목표 지표" value={formatMetricLabel(experiment.goal_metric)} />
-          <DetailMetric
-            label="현황 / 목표"
-            value={`${formatGoalValue(evaluation?.actual_value ?? null)} / ${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}`}
-          />
-          <DetailMetric
-            label="평가 대상 / 배정"
-            value={`${formatInteger(evaluation?.sample_size ?? 0)} / ${formatInteger(experiment.assignment_count)}`}
-          />
-          <DetailMetric
-            label="반복 횟수"
-            value={`${formatInteger(experiment.loop_count)} / ${formatInteger(experiment.max_loop_count)}`}
-          />
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
-          <EvaluationDiagnosisSection evaluation={evaluation} />
-
-          <section className="grid content-start gap-3 border-t pt-5 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
-            <div className="grid gap-1">
-              <h3 className="font-semibold">반복 실험</h3>
-              <p className="text-sm text-muted-foreground">
-                목표에 미치지 못한 대상의 다음 실험 준비 상태를 보여 줘요.
-              </p>
+        <Tabs defaultValue="summary">
+          <TabsList aria-label="실험 결과 보기" variant="line">
+            <TabsTrigger value="summary">요약</TabsTrigger>
+            <TabsTrigger value="funnel">사용자 경로 분석</TabsTrigger>
+            <TabsTrigger value="history">반복 이력</TabsTrigger>
+          </TabsList>
+          <TabsContent className="grid gap-4 pt-4" value="summary">
+            <ExperimentResultSummary evaluation={evaluation} experiment={experiment} />
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
+              <EvaluationSummarySection evaluation={evaluation} />
+              <NextExperimentPanel
+                evaluation={evaluation}
+                experiment={experiment}
+                hasRepeatTarget={hasRepeatTarget}
+              />
             </div>
-            {experiment.next_loop ? (
-              <div className="grid gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={statusBadgeVariant(experiment.next_loop.status)}>
-                    {formatStatusLabel(experiment.next_loop.status)}
-                  </Badge>
-                  <span className="text-sm font-medium">
-                    {formatInteger(experiment.next_loop.loop_count)}번째 반복 실험
-                  </span>
-                </div>
-              </div>
-            ) : evaluation?.next_loop_required && hasRepeatTarget ? (
-              <Alert>
-                <AlertTitle>반복 실험이 필요해요</AlertTitle>
-                <AlertDescription>
-                  {experiment.execution_mode === "automatic"
-                    ? "실패 원인 분석을 반영한 다음 광고 생성과 실행을 자동으로 진행합니다."
-                    : experiment.loop_count >= experiment.max_loop_count
-                      ? "설정한 최대 반복 횟수에 도달했습니다."
-                      : "이 프로모션의 타깃 고객군 광고를 새로 만들 수 있어요."}
-                </AlertDescription>
-              </Alert>
-            ) : evaluation?.next_loop_required ? (
-              <EmptyState message="반복 실험에 사용할 타깃 고객군이 없어요." />
-            ) : (
-              <EmptyState message="지금은 다시 실험할 대상이 없어요." />
-            )}
-          </section>
-        </div>
-
-        <dl className="grid gap-3 border-t pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
+          </TabsContent>
+          <TabsContent className="pt-4" value="funnel">
+            <EvaluationDiagnosisSection evaluation={evaluation} />
+          </TabsContent>
+          <TabsContent className="pt-4" value="history">
+            <ExperimentRepeatHistory evaluation={evaluation} experiment={experiment} />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+      <CardFooter>
+        <dl className="grid w-full gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
           <DefinitionItem label="노출 방식" value={formatChannelLabel(experiment.channel)} />
           <DefinitionItem label="시작" value={formatDateTime(experiment.started_at)} />
           <DefinitionItem label="종료" value={formatDateTime(experiment.ended_at)} />
           <DefinitionItem label="업데이트" value={formatDateTime(experiment.updated_at)} />
         </dl>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function ExperimentResultSummary({
+  evaluation,
+  experiment
+}: {
+  evaluation: DashboardProjectExperimentLatestEvaluation | null;
+  experiment: DashboardProjectExperiment;
+}) {
+  if (!evaluation) {
+    return (
+      <Alert>
+        <AlertTitle>아직 평가 결과가 없어요</AlertTitle>
+        <AlertDescription>실험 데이터가 쌓이면 목표 달성 여부를 알려 드려요.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  const isGoalMet = evaluation.status === "goal_met";
+  const resultLabel = isGoalMet
+    ? "목표 달성"
+    : evaluation.status === "goal_not_met"
+      ? "목표 미달"
+      : formatStatusLabel(evaluation.status);
+  const summary =
+    evaluation.diagnosis?.summary ??
+    evaluation.feedback ??
+    "평가 결과를 바탕으로 다음 행동을 확인해 주세요.";
+
+  return (
+    <Alert className="gap-3 px-5 py-4" variant={isGoalMet ? "default" : "destructive"}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid gap-2">
+          <span className="text-xs font-semibold">핵심 결과</span>
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <AlertTitle className="text-2xl font-semibold">{resultLabel}</AlertTitle>
+            <div className="flex items-baseline gap-2 tabular-nums text-foreground">
+              <strong className="text-2xl font-semibold">
+                {formatGoalValue(evaluation.actual_value)}
+              </strong>
+              <span className="text-muted-foreground">
+                / 목표 {formatGoalValue(evaluation.target_value ?? experiment.goal_target_value)}
+              </span>
+            </div>
+          </div>
+          <AlertDescription className="max-w-4xl text-foreground">{summary}</AlertDescription>
+        </div>
+        <Badge className="shrink-0" variant="outline">
+          표본 {formatInteger(evaluation.sample_size)}명 ·{" "}
+          {evaluation.diagnosis ? evidenceStrengthLabel(evaluation.diagnosis) : "평가 결과"}
+        </Badge>
+      </div>
+    </Alert>
+  );
+}
+
+function EvaluationSummarySection({
+  evaluation
+}: {
+  evaluation: DashboardProjectExperimentLatestEvaluation | null;
+}) {
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>사용자 경로</CardTitle>
+          {evaluation ? (
+            <span className="text-xs text-muted-foreground">
+              평가 기준 고객 {formatInteger(evaluation.sample_size)}명
+            </span>
+          ) : null}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {evaluation?.diagnosis ? (
+          <EvaluationFunnel diagnosis={evaluation.diagnosis} showStageDetails={false} />
+        ) : evaluation?.status === "insufficient_data" ? (
+          <Alert>
+            <AlertTitle>평가 대상이 더 필요해요</AlertTitle>
+            <AlertDescription>
+              {evaluation.feedback ??
+                `현재 ${formatInteger(evaluation.sample_size)}명으로는 사용자 경로를 판단하기 어려워요.`}
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <EmptyState message="아직 표시할 고객 행동 흐름이 없어요." />
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function NextExperimentPanel({
+  evaluation,
+  experiment,
+  hasRepeatTarget
+}: {
+  evaluation: DashboardProjectExperimentLatestEvaluation | null;
+  experiment: DashboardProjectExperiment;
+  hasRepeatTarget: boolean;
+}) {
+  const improvementDirections = evaluation?.diagnosis?.improvement_directions ?? [];
+
+  return (
+    <Card className="bg-primary/[0.04]" size="sm">
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>다음 실험</CardTitle>
+          {experiment.next_loop ? (
+            <Badge variant={statusBadgeVariant(experiment.next_loop.status)}>
+              {formatStatusLabel(experiment.next_loop.status)}
+            </Badge>
+          ) : evaluation?.next_loop_required ? (
+            <Badge variant="secondary">반복 필요</Badge>
+          ) : (
+            <Badge variant="outline">대기</Badge>
+          )}
+        </div>
+        <CardDescription>이번 결과를 다음 실험의 개선안으로 연결해요.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {experiment.next_loop ? (
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">준비된 실험</span>
+            <strong>{formatInteger(experiment.next_loop.loop_count)}번째 반복 실험</strong>
+          </div>
+        ) : evaluation?.next_loop_required && hasRepeatTarget ? (
+          <>
+            <div className="grid gap-1">
+              <span className="text-xs font-semibold">개선 가설</span>
+              <p className="text-sm leading-6">
+                {improvementDirections[0] ??
+                  (experiment.execution_mode === "automatic"
+                    ? "실패 원인을 반영한 광고를 자동으로 준비해요."
+                    : "실패 원인을 반영해 새로운 광고 소재를 준비해요.")}
+              </p>
+            </div>
+            {improvementDirections.length > 1 ? (
+              <ul className="grid gap-2 text-sm text-muted-foreground">
+                {improvementDirections.slice(1, 3).map((item) => (
+                  <li className="border-l-2 border-primary/40 pl-3" key={item}>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        ) : evaluation?.next_loop_required ? (
+          <p className="text-sm leading-6 text-muted-foreground">
+            반복 실험에 사용할 타깃 고객군이 없어요.
+          </p>
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            지금은 다시 실험할 대상이 없어요.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ExperimentRepeatHistory({
+  evaluation,
+  experiment
+}: {
+  evaluation: DashboardProjectExperimentLatestEvaluation | null;
+  experiment: DashboardProjectExperiment;
+}) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      <Card size="sm">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>{formatInteger(experiment.loop_count)}번째 반복 실험</CardTitle>
+            <Badge variant={statusBadgeVariant(experiment.status)}>
+              {formatStatusLabel(experiment.status)}
+            </Badge>
+          </div>
+          <CardDescription>현재 선택한 실험</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <DefinitionItem
+              label="결과 / 목표"
+              value={`${formatGoalValue(evaluation?.actual_value ?? null)} / ${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}`}
+            />
+            <DefinitionItem
+              label="평가 대상 / 배정"
+              value={`${formatInteger(evaluation?.sample_size ?? 0)} / ${formatInteger(experiment.assignment_count)}`}
+            />
+          </dl>
+        </CardContent>
+      </Card>
+      <Card size="sm">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>다음 반복</CardTitle>
+            {experiment.next_loop ? (
+              <Badge variant={statusBadgeVariant(experiment.next_loop.status)}>
+                {formatStatusLabel(experiment.next_loop.status)}
+              </Badge>
+            ) : (
+              <Badge variant="outline">준비 전</Badge>
+            )}
+          </div>
+          <CardDescription>
+            최대 {formatInteger(experiment.max_loop_count)}회 중{" "}
+            {formatInteger(experiment.loop_count)}회 진행했어요.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm leading-6 text-muted-foreground">
+            {experiment.next_loop
+              ? `${formatInteger(experiment.next_loop.loop_count)}번째 반복 실험이 준비됐어요.`
+              : evaluation?.next_loop_required
+                ? "현재 결과를 반영한 다음 실험을 준비할 수 있어요."
+                : "현재 결과에서는 추가 반복이 필요하지 않아요."}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -745,7 +935,7 @@ function EvaluationDiagnosisSection({
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold">평가 퍼널과 원인</h3>
+            <h3 className="font-semibold">사용자 경로와 이탈 원인</h3>
             <Badge variant={statusBadgeVariant(evaluation.status)}>
               {formatStatusLabel(evaluation.status)}
             </Badge>
@@ -786,7 +976,13 @@ function EvaluationDiagnosisSection({
   );
 }
 
-function EvaluationFunnel({ diagnosis }: { diagnosis: DashboardExperimentEvaluationDiagnosis }) {
+function EvaluationFunnel({
+  diagnosis,
+  showStageDetails = true
+}: {
+  diagnosis: DashboardExperimentEvaluationDiagnosis;
+  showStageDetails?: boolean;
+}) {
   const stages = diagnosis.funnel.stages;
   const firstStageCount = stages[0]?.user_count ?? 0;
   const bottleneckToStage = diagnosis.largest_dropoff?.to_stage_key;
@@ -839,50 +1035,52 @@ function EvaluationFunnel({ diagnosis }: { diagnosis: DashboardExperimentEvaluat
         </ChartContainer>
       </div>
 
-      <div
-        aria-label="광고 반응 이후 고객 행동 퍼널 상세"
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5"
-      >
-        {stages.map((stage, index) => {
-          const reachRate = firstStageCount > 0 ? (stage.user_count / firstStageCount) * 100 : 0;
-          const isBottleneck = stage.key === bottleneckToStage;
-          return (
-            <div
-              className={`grid min-h-32 content-between gap-3 border-l-2 px-3 py-2 ${
-                isBottleneck ? "border-destructive bg-destructive/5" : "border-border"
-              }`}
-              key={stage.key}
-            >
-              <div className="grid gap-1">
-                <span className="text-xs text-muted-foreground">{index + 1}단계</span>
-                <h4 className="text-sm font-semibold">{stage.label}</h4>
+      {showStageDetails ? (
+        <div
+          aria-label="광고 반응 이후 사용자 경로 상세"
+          className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5"
+        >
+          {stages.map((stage, index) => {
+            const reachRate = firstStageCount > 0 ? (stage.user_count / firstStageCount) * 100 : 0;
+            const isBottleneck = stage.key === bottleneckToStage;
+            return (
+              <div
+                className={`grid min-h-32 content-between gap-3 border-l-2 px-3 py-2 ${
+                  isBottleneck ? "border-destructive bg-destructive/5" : "border-border"
+                }`}
+                key={stage.key}
+              >
+                <div className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">{index + 1}단계</span>
+                  <h4 className="text-sm font-semibold">{stage.label}</h4>
+                </div>
+                <div className="grid gap-2">
+                  <strong className="text-2xl font-semibold tabular-nums">
+                    {formatInteger(stage.user_count)}명
+                  </strong>
+                  <Progress aria-label={`${stage.label} 도달률`} value={reachRate} />
+                  {stage.conversion_rate_from_previous === null ? (
+                    <span className="text-xs text-muted-foreground">평가 기준 고객</span>
+                  ) : (
+                    <span
+                      className={
+                        isBottleneck
+                          ? "text-xs font-medium text-destructive"
+                          : "text-xs text-muted-foreground"
+                      }
+                    >
+                      이전 단계 대비 {formatPercent(stage.conversion_rate_from_previous)} 도달
+                      {stage.dropoff_count_from_previous
+                        ? ` · ${formatInteger(stage.dropoff_count_from_previous)}명 이탈`
+                        : ""}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="grid gap-2">
-                <strong className="text-2xl font-semibold tabular-nums">
-                  {formatInteger(stage.user_count)}명
-                </strong>
-                <Progress aria-label={`${stage.label} 도달률`} value={reachRate} />
-                {stage.conversion_rate_from_previous === null ? (
-                  <span className="text-xs text-muted-foreground">평가 기준 고객</span>
-                ) : (
-                  <span
-                    className={
-                      isBottleneck
-                        ? "text-xs font-medium text-destructive"
-                        : "text-xs text-muted-foreground"
-                    }
-                  >
-                    이전 단계 대비 {formatPercent(stage.conversion_rate_from_previous)} 도달
-                    {stage.dropoff_count_from_previous
-                      ? ` · ${formatInteger(stage.dropoff_count_from_previous)}명 이탈`
-                      : ""}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1021,22 +1219,55 @@ function ProjectExperimentPagination({
   );
 }
 
-function ExperimentSummaryCard({ label, value }: { label: string; value: string }) {
+function ExperimentOverviewStrip({
+  latestUpdatedAt,
+  nextLoopCount,
+  runningCount,
+  totalCount
+}: {
+  latestUpdatedAt: string | null;
+  nextLoopCount: number;
+  runningCount: number;
+  totalCount: number;
+}) {
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-lg font-semibold">{value}</CardTitle>
-      </CardHeader>
+    <Card className="py-0" size="sm">
+      <CardContent className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <dl className="flex flex-wrap items-center gap-x-8 gap-y-3">
+          <OverviewItem label="전체" tone="primary" value={totalCount} />
+          <OverviewItem label="실행 중" tone="neutral" value={runningCount} />
+          <OverviewItem label="반복 필요" tone="destructive" value={nextLoopCount} />
+        </dl>
+        {latestUpdatedAt ? (
+          <p className="text-xs text-muted-foreground">
+            마지막 갱신 {formatDateTime(latestUpdatedAt)}
+          </p>
+        ) : null}
+      </CardContent>
     </Card>
   );
 }
 
-function DetailMetric({ label, value }: { label: string; value: string }) {
+function OverviewItem({
+  label,
+  tone,
+  value
+}: {
+  label: string;
+  tone: "destructive" | "neutral" | "primary";
+  value: number;
+}) {
+  const toneClass = {
+    destructive: "bg-destructive",
+    neutral: "bg-muted-foreground",
+    primary: "bg-primary"
+  }[tone];
+
   return (
-    <div className="grid gap-1 rounded-xl bg-muted/50 p-4">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="font-semibold">{value}</span>
+    <div className="flex items-center gap-2.5">
+      <span aria-hidden="true" className={cn("size-2 rounded-full", toneClass)} />
+      <dt className="font-medium">{label}</dt>
+      <dd className="font-semibold tabular-nums">{formatInteger(value)}</dd>
     </div>
   );
 }

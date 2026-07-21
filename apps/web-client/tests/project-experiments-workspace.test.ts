@@ -270,8 +270,8 @@ test("fresh evaluation results take precedence over stale project-list evaluatio
   });
 });
 
-test("experiment detail renders structured funnel evidence as a line chart without provenance badges", () => {
-  assert.match(workspaceSource, /평가 퍼널과 원인/);
+test("experiment detail renders structured user-path evidence as a line chart without provenance badges", () => {
+  assert.match(workspaceSource, /사용자 경로와 이탈 원인/);
   assert.match(workspaceSource, /가장 큰 이탈 구간/);
   assert.match(workspaceSource, /다음 실험에서 확인할 항목/);
   assert.match(workspaceSource, /diagnosis\.funnel\.stages/);
@@ -280,6 +280,19 @@ test("experiment detail renders structured funnel evidence as a line chart witho
   assert.match(workspaceSource, /단계별 고객 수 꺾은선 그래프/);
   assert.doesNotMatch(workspaceSource, /EvaluationOriginBadge/);
   assert.doesNotMatch(workspaceSource, /demo_fixture/);
+});
+
+test("experiment workspace prioritizes the result summary before deeper analysis", () => {
+  assert.match(workspaceSource, /ExperimentOverviewStrip/);
+  assert.match(workspaceSource, /핵심 결과/);
+  assert.match(workspaceSource, /<TabsTrigger value="summary">요약<\/TabsTrigger>/);
+  assert.match(workspaceSource, /<TabsTrigger value="funnel">사용자 경로 분석<\/TabsTrigger>/);
+  assert.match(workspaceSource, /<TabsTrigger value="history">반복 이력<\/TabsTrigger>/);
+  assert.match(workspaceSource, /NextExperimentPanel/);
+  assert.match(workspaceSource, /다음 실험 준비하기/);
+  assert.match(workspaceSource, /\{formatInteger\(experiment\.loop_count\)\}번째 실험/);
+  assert.doesNotMatch(workspaceSource, /ExperimentSummaryCard/);
+  assert.doesNotMatch(workspaceSource, /\uD37C\uB110/);
 });
 
 function createExperiment(
