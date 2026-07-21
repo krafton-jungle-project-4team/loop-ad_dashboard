@@ -184,6 +184,41 @@ test("segment assistant keeps alternative destinations in one event condition", 
   );
 });
 
+test("segment assistant fallback binds an unnamed destination refinement to its source promotion", async () => {
+  setRequiredEnv();
+  const { fallbackSegmentAssistantPlan } =
+    await import("../src/features/dashboard/provider/dashboard-segment-assistant-agent.js");
+
+  const plan = fallbackSegmentAssistantPlan("목적지 검색을 추가해줘", [], undefined, {
+    suggestion_id: "suggestion-1",
+    segment_id: "segment-1",
+    candidate_type: "funnel_recovery",
+    title: "예약 직전 이탈 고객",
+    base_condition_labels: ["예약 시작 후 미완료", "프로모션 목적지 탐색"],
+    hard_predicate_keys: ["booking_start_without_complete", "recent_destination_search"],
+    destination_ids: ["jeju", "okinawa"],
+    reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+    base_user_ids: ["source-user-001", "source-user-002"]
+  });
+
+  assert.equal(plan.conditions.length, 1);
+  assert.equal(plan.conditions[0]?.event_name, "hotel_search");
+  assert.equal(plan.conditions[0]?.destination, "jeju, okinawa");
+
+  const explicitPlan = fallbackSegmentAssistantPlan("강릉 목적지 검색을 추가해줘", [], undefined, {
+    suggestion_id: "suggestion-1",
+    segment_id: "segment-1",
+    candidate_type: "funnel_recovery",
+    title: "예약 직전 이탈 고객",
+    base_condition_labels: ["예약 시작 후 미완료", "프로모션 목적지 탐색"],
+    hard_predicate_keys: ["booking_start_without_complete", "recent_destination_search"],
+    destination_ids: ["jeju", "okinawa"],
+    reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+    base_user_ids: ["source-user-001", "source-user-002"]
+  });
+  assert.equal(explicitPlan.conditions[0]?.destination, "강릉");
+});
+
 test("source audience membership compiles without rebuilding recommendation signals", async () => {
   const { planStructuredSegmentQuery } =
     await import("../src/features/dashboard/repository/dashboard-segment-query-repository.js");
@@ -283,6 +318,48 @@ test("source refinement contract stores exact recommendation membership with no 
   assert.equal(rule.segment_audience_spec.template_version, 2);
   assert.deepEqual(rule.segment_audience_spec.hard_predicate_keys, ["source_audience_membership"]);
   assert.deepEqual(rule.segment_audience_spec.parameters.conditions, []);
+  assert.deepEqual(rule.segment_audience_spec.parameters.base_user_ids, ["user-001", "user-002"]);
+});
+
+test("source destination refinement saves exact membership and the structured destination condition", async () => {
+  const { buildCustomStructuredAudienceRule } =
+    await import("../src/features/dashboard/segment-audience-v2-contract.js");
+  const destinationCondition = {
+    label: "목적지 검색",
+    event_name: "hotel_search" as const,
+    minimum_count: 1,
+    maximum_count: null,
+    destination: "jeju, okinawa",
+    checkin_months: [],
+    property_filters: []
+  };
+  const rule = buildCustomStructuredAudienceRule({
+    assistant_plan: {
+      action: "segment_preview",
+      execution_scope: "source_audience",
+      segment_name: "목적지 검색 추가 고객",
+      lookback_days: 30,
+      conditions: [destinationCondition],
+      clarification_message: null
+    },
+    source_audience: {
+      suggestion_id: "suggestion-1",
+      segment_id: "segment-1",
+      candidate_type: "funnel_recovery",
+      title: "예약 직전 이탈 고객",
+      base_condition_labels: ["예약 시작 후 미완료", "프로모션 목적지 탐색"],
+      hard_predicate_keys: ["booking_start_without_complete", "recent_destination_search"],
+      destination_ids: ["jeju", "okinawa"],
+      reference_labels: ["예약 시작", "예약 미완료", "호텔 상세 조회"],
+      base_user_ids: ["user-001", "user-002"]
+    }
+  });
+
+  assert.deepEqual(rule.segment_audience_spec.hard_predicate_keys, [
+    "source_audience_membership",
+    "structured_conditions"
+  ]);
+  assert.deepEqual(rule.segment_audience_spec.parameters.conditions, [destinationCondition]);
   assert.deepEqual(rule.segment_audience_spec.parameters.base_user_ids, ["user-001", "user-002"]);
 });
 

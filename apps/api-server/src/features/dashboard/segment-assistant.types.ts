@@ -111,6 +111,7 @@ export const SegmentAssistantSourceAudienceSchema = z.object({
   title: z.string().min(1),
   base_condition_labels: z.array(z.string().min(1)).max(12),
   hard_predicate_keys: z.array(z.string().min(1)).max(12),
+  destination_ids: z.array(z.string().min(1)).max(12).optional(),
   reference_labels: z.array(z.string().min(1)).max(12),
   base_conditions: z.array(SegmentAssistantAudienceConditionSchema).max(8).optional(),
   base_user_ids: z.array(z.string().min(1)).min(1).max(5_000)
