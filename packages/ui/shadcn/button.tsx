@@ -15,10 +15,6 @@ const buttonVariants = cva(
           "border-input bg-card text-primary hover:border-primary/60 hover:bg-accent hover:text-accent-foreground active:border-primary active:bg-secondary aria-expanded:border-primary/60 aria-expanded:bg-accent aria-expanded:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         "outline-neutral":
           "border-input bg-background text-foreground hover:border-primary/60 hover:bg-accent hover:text-accent-foreground active:border-primary active:bg-secondary aria-expanded:border-primary/60 aria-expanded:bg-accent aria-expanded:text-accent-foreground",
-        "promotion-soft":
-          "border-promotion-action-border/60 bg-promotion-action/65 text-entity-coral-foreground hover:border-promotion-action-border hover:bg-promotion-action-hover active:bg-promotion-action-hover aria-expanded:border-promotion-action-border aria-expanded:bg-promotion-action-hover",
-        "segment-soft":
-          "border-segment-action-border/55 bg-segment-action/70 text-accent-foreground hover:border-segment-action-border hover:bg-segment-action-hover active:bg-segment-action-hover aria-expanded:border-segment-action-border aria-expanded:bg-segment-action-hover",
         secondary:
           "border-secondary bg-secondary text-secondary-foreground hover:border-primary/25 hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_9%)] active:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_14%)] aria-expanded:border-primary/25 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         soft: "border-primary/25 bg-primary/[0.08] text-primary hover:border-primary/45 hover:bg-primary/[0.14] active:bg-primary/[0.18] aria-expanded:border-primary/45 aria-expanded:bg-primary/[0.14]",

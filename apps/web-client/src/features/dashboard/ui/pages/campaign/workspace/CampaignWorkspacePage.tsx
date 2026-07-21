@@ -80,8 +80,8 @@ import { HierarchyBreadcrumbs, type CampaignHierarchyLevel } from "./HierarchyBr
 import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
 import type {
   CampaignWorkspaceCardVisual,
-  CampaignWorkspaceCardVisualTone,
-  CampaignWorkspaceEntityCard
+  CampaignWorkspaceEntityCard,
+  CampaignWorkspaceStatusTone
 } from "./campaign-workspace-types.js";
 import { groupPromotionsByBoardStatus, type PromotionBoardStatus } from "./promotionBoardStatus.js";
 
@@ -103,7 +103,7 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
   icon: LucideIcon;
   label: string;
   status: CampaignScheduleStatus;
-  tone: CampaignWorkspaceCardVisualTone;
+  tone: CampaignWorkspaceStatusTone;
 }> = [
   {
     description: "시작일이 가까운 순으로 보여요.",
@@ -119,7 +119,7 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
     icon: CirclePlay,
     label: "진행 중",
     status: "in_progress",
-    tone: "blue"
+    tone: "info"
   },
   {
     description: "최근에 종료된 순으로 보여요.",
@@ -127,7 +127,7 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
     icon: CircleCheck,
     label: "완료됨",
     status: "completed",
-    tone: "mint"
+    tone: "success"
   }
 ];
 
@@ -137,7 +137,7 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
   icon: LucideIcon;
   label: string;
   status: PromotionBoardStatus;
-  tone: CampaignWorkspaceCardVisualTone;
+  tone: CampaignWorkspaceStatusTone;
 }> = [
   {
     description: "첫 실험 실행을 기다리고 있어요.",
@@ -153,7 +153,7 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
     icon: CirclePlay,
     label: "진행 중",
     status: "in_progress",
-    tone: "blue"
+    tone: "info"
   },
   {
     description: "평가 결과에 따라 다음 실험이 필요해요.",
@@ -161,7 +161,7 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
     icon: RefreshCw,
     label: "다음 실험 필요",
     status: "next_experiment",
-    tone: "coral"
+    tone: "warning"
   },
   {
     description: "목표를 달성했거나 최대 실험 횟수를 마쳤어요.",
@@ -169,29 +169,29 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
     icon: CircleCheck,
     label: "완료됨",
     status: "completed",
-    tone: "mint"
+    tone: "success"
   }
 ];
 
-const STATUS_ICON_TONE_CLASS: Record<CampaignWorkspaceCardVisualTone, string> = {
-  amber: "border-entity-amber/25 bg-entity-amber-soft text-entity-amber-foreground",
-  blue: "border-entity-blue/25 bg-entity-blue-soft text-entity-blue-foreground",
-  coral: "border-entity-coral/25 bg-entity-coral-soft text-entity-coral-foreground",
-  mint: "border-entity-mint/25 bg-entity-mint-soft text-entity-mint-foreground",
-  neutral: "border-border bg-muted text-muted-foreground"
+const STATUS_ICON_TONE_CLASS: Record<CampaignWorkspaceStatusTone, string> = {
+  danger: "border-status-danger/30 bg-status-danger-soft text-status-danger-foreground",
+  info: "border-status-info/30 bg-status-info-soft text-status-info-foreground",
+  neutral: "border-border bg-muted text-muted-foreground",
+  success: "border-status-success/30 bg-status-success-soft text-status-success-foreground",
+  warning: "border-status-warning/30 bg-status-warning-soft text-status-warning-foreground"
 };
 
 const CAMPAIGN_CARD_VISUAL: Record<CampaignScheduleStatus, CampaignWorkspaceCardVisual> = {
   scheduled: { icon: CalendarClock, label: "예정 캠페인", tone: "neutral" },
-  in_progress: { icon: CirclePlay, label: "진행 중 캠페인", tone: "blue" },
-  completed: { icon: CircleCheck, label: "완료 캠페인", tone: "mint" }
+  in_progress: { icon: CirclePlay, label: "진행 중 캠페인", tone: "info" },
+  completed: { icon: CircleCheck, label: "완료 캠페인", tone: "success" }
 };
 
 const PROMOTION_CARD_VISUAL: Record<PromotionBoardStatus, CampaignWorkspaceCardVisual> = {
   preparing: { icon: FlaskConical, label: "준비 중 프로모션", tone: "neutral" },
-  in_progress: { icon: CirclePlay, label: "진행 중 프로모션", tone: "blue" },
-  next_experiment: { icon: RefreshCw, label: "다음 실험 필요", tone: "coral" },
-  completed: { icon: CircleCheck, label: "완료 프로모션", tone: "mint" }
+  in_progress: { icon: CirclePlay, label: "진행 중 프로모션", tone: "info" },
+  next_experiment: { icon: RefreshCw, label: "다음 실험 필요", tone: "warning" },
+  completed: { icon: CircleCheck, label: "완료 프로모션", tone: "success" }
 };
 
 export function CampaignWorkspacePage({

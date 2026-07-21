@@ -93,12 +93,26 @@ test("Make interaction colors preserve readable text and visible control boundar
   assert.ok(contrastRatio(themeColor("input"), themeColor("card")) >= 3);
 });
 
+test("semantic feedback roles preserve readable text on their soft surfaces", () => {
+  for (const role of ["info", "success", "warning", "danger"]) {
+    assert.ok(
+      contrastRatio(themeColor(`status-${role}-foreground`), themeColor(`status-${role}-soft`)) >=
+        4.5,
+      `${role} feedback text must remain readable`
+    );
+  }
+});
+
 test("shared controls and navigation use the compact Make hierarchy", () => {
   assert.match(buttonSource, /rounded-md border border-transparent/);
   assert.match(buttonSource, /hover:bg-primary-hover/);
   assert.match(buttonSource, /active:bg-primary-active/);
   assert.match(buttonSource, /border-input bg-card text-primary/);
   assert.match(badgeSource, /transition-\[color,background-color,border-color,box-shadow\]/);
+  assert.match(badgeSource, /"status-info":/);
+  assert.match(badgeSource, /"status-success":/);
+  assert.match(badgeSource, /"status-warning":/);
+  assert.match(badgeSource, /"status-danger":/);
   assert.doesNotMatch(badgeSource, /transition-all/);
   assert.match(inputSource, /hover:border-primary\/60/);
   assert.match(tabsSource, /hover:bg-accent\/55 hover:text-foreground/);

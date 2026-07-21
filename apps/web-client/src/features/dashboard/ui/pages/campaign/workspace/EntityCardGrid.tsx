@@ -21,13 +21,13 @@ import {
 } from "@loopad/ui/shadcn/dropdown-menu";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { ArrowRight, Check, Clock3, Ellipsis, Plus } from "lucide-react";
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type ComponentProps, type ReactNode } from "react";
 import type {
   CampaignWorkspaceAddAction,
-  CampaignWorkspaceCardVisualTone,
   CampaignWorkspaceEntityAction,
   CampaignWorkspaceEntityCard,
-  CampaignWorkspaceEntityKind
+  CampaignWorkspaceEntityKind,
+  CampaignWorkspaceStatusTone
 } from "./campaign-workspace-types.js";
 
 const ENTITY_KIND_LABEL: Record<CampaignWorkspaceEntityKind, string> = {
@@ -36,34 +36,29 @@ const ENTITY_KIND_LABEL: Record<CampaignWorkspaceEntityKind, string> = {
   segment: "고객군"
 };
 
-const ENTITY_VISUAL_TONE_CLASS: Record<
-  CampaignWorkspaceCardVisualTone,
-  { accent: string; badge: string; icon: string }
+const STATUS_VISUAL_TONE: Record<
+  CampaignWorkspaceStatusTone,
+  { badgeVariant: ComponentProps<typeof Badge>["variant"]; icon: string }
 > = {
-  amber: {
-    accent: "bg-entity-amber",
-    badge: "border-entity-amber/30 bg-entity-amber-soft text-entity-amber-foreground",
-    icon: "border-entity-amber/45 bg-entity-amber/15 text-entity-amber-foreground"
+  danger: {
+    badgeVariant: "status-danger",
+    icon: "border-status-danger/30 bg-status-danger-soft text-status-danger-foreground"
   },
-  blue: {
-    accent: "bg-entity-blue",
-    badge: "border-entity-blue/30 bg-entity-blue-soft text-entity-blue-foreground",
-    icon: "border-entity-blue/45 bg-entity-blue/15 text-entity-blue-foreground"
-  },
-  coral: {
-    accent: "bg-entity-coral",
-    badge: "border-entity-coral/30 bg-entity-coral-soft text-entity-coral-foreground",
-    icon: "border-entity-coral/45 bg-entity-coral/15 text-entity-coral-foreground"
-  },
-  mint: {
-    accent: "bg-entity-mint",
-    badge: "border-entity-mint/30 bg-entity-mint-soft text-entity-mint-foreground",
-    icon: "border-entity-mint/45 bg-entity-mint/15 text-entity-mint-foreground"
+  info: {
+    badgeVariant: "status-info",
+    icon: "border-status-info/30 bg-status-info-soft text-status-info-foreground"
   },
   neutral: {
-    accent: "bg-muted-foreground",
-    badge: "border-border bg-muted text-muted-foreground",
-    icon: "border-muted-foreground/30 bg-muted-foreground/10 text-foreground/65"
+    badgeVariant: "secondary",
+    icon: "border-border bg-muted text-muted-foreground"
+  },
+  success: {
+    badgeVariant: "status-success",
+    icon: "border-status-success/30 bg-status-success-soft text-status-success-foreground"
+  },
+  warning: {
+    badgeVariant: "status-warning",
+    icon: "border-status-warning/30 bg-status-warning-soft text-status-warning-foreground"
   }
 };
 
@@ -171,7 +166,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
 }) {
   const entityKindLabel = ENTITY_KIND_LABEL[entity.kind];
   const isCompact = density === "compact";
-  const visualTone = entity.visual ? ENTITY_VISUAL_TONE_CLASS[entity.visual.tone] : null;
+  const visualTone = entity.visual ? STATUS_VISUAL_TONE[entity.visual.tone] : null;
   const VisualIcon = entity.visual?.icon;
 
   return (
@@ -179,14 +174,10 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
       className={cn(
         "h-full shadow-none transition-[border-color,box-shadow]",
         isCompact ? "min-h-48" : "min-h-56",
-        entity.visual && "pt-0",
         isSelected && "border-primary/40 ring-2 ring-primary/15"
       )}
       size={isCompact ? "sm" : "default"}
     >
-      {visualTone ? (
-        <div aria-hidden="true" className={cn("h-1 w-full", visualTone.accent)} />
-      ) : null}
       <CardHeader className={isCompact ? "gap-2" : "gap-3"}>
         {entity.visual && visualTone && VisualIcon ? (
           <div className="flex min-w-0 flex-nowrap items-center gap-2">
@@ -198,9 +189,7 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
             >
               <VisualIcon aria-hidden="true" className="size-4" />
             </span>
-            <Badge className={visualTone.badge} variant="outline">
-              {entity.visual.label}
-            </Badge>
+            <Badge variant={visualTone.badgeVariant}>{entity.visual.label}</Badge>
             {entity.dateRangeLabel ? (
               <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground/65">
                 <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
