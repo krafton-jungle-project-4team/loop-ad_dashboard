@@ -3,6 +3,7 @@ import test from "node:test";
 import type {
   DashboardContentCandidate,
   DashboardReviseContentCandidateHtmlResult,
+  DashboardSaveContentCandidateHtmlResult,
   DashboardSegmentDetail
 } from "@loopad/shared";
 import { reconcileContentCandidateRevision } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionContentCandidateCache.js";
@@ -46,6 +47,31 @@ test("AI revision safely updates copy when creative metadata is absent", () => {
   assert.ok(revised);
   assert.equal(revised.content_candidates[0]?.title, "새 제목");
   assert.deepEqual(revised.content_candidates[0]?.metadata_json, {});
+});
+
+test("manual HTML save refreshes the cached preview URL", () => {
+  const target = contentCandidate("content-a", "onsite_banner");
+  const current = { content_candidates: [target] } as DashboardSegmentDetail;
+  const saved: DashboardSaveContentCandidateHtmlResult = {
+    body: "기존 본문",
+    content_id: "content-a",
+    cta: "예약하기",
+    headline: "기존 제목",
+    html: "<article>수정된 레이아웃</article>",
+    html_url: "https://dashboard.api.dev.loop-ad.org/manual.html?revision=abc",
+    promotion_id: "promotion-a",
+    revision: "a".repeat(64),
+    segment_id: "segment-a",
+    status: "draft",
+    updated_at: "2026-07-21T00:00:00.000Z"
+  };
+
+  const revised = reconcileContentCandidateRevision(current, saved);
+
+  assert.ok(revised);
+  const creative = revised.content_candidates[0]?.metadata_json.creative as Record<string, unknown>;
+  const artifact = creative.artifact as Record<string, unknown>;
+  assert.equal(artifact.public_url, saved.html_url);
 });
 
 function revision(): DashboardReviseContentCandidateHtmlResult {

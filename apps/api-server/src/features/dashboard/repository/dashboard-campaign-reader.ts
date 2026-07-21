@@ -734,20 +734,32 @@ export class DashboardCampaignReader {
     contentId: string,
     request: DashboardUpdateContentCandidateCopyRequest,
     metadataJson: Record<string, unknown>,
-    htmlUrl: string
-  ): Promise<DashboardUpdateContentCandidateCopyResult> {
+    htmlUrl: string,
+    expected: {
+      copy: DashboardUpdateContentCandidateCopyRequest;
+      metadataJson: Record<string, unknown>;
+    }
+  ): Promise<DashboardUpdateContentCandidateCopyResult | null> {
     const row = await this.db
       .query(updateDashboardContentCandidateCopy, {
         body: request.body,
         contentId,
         cta: request.cta,
+        expectedBody: expected.copy.body,
+        expectedCta: expected.copy.cta,
+        expectedHeadline: expected.copy.headline,
+        expectedMetadataJson: expected.metadataJson as unknown as Json,
         headline: request.headline,
         metadataJson: metadataJson as unknown as Json,
         projectId,
         promotionId,
         segmentId
       })
-      .single();
+      .singleOrNull();
+
+    if (!row) {
+      return null;
+    }
 
     return {
       body: row.body ?? request.body,

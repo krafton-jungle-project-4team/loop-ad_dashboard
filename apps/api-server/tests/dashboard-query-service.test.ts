@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { TransactionHost } from "@nestjs-cls/transactional";
+import type { DashboardContentCandidate } from "@loopad/shared";
+import { AppError } from "../src/app-errors.js";
+import { contentCandidateHtmlRevision } from "../src/features/dashboard/service/content-candidate-copy.js";
 import type { DashboardDecisionClient } from "../src/features/dashboard/provider/dashboard-decision-client.js";
 import type { DashboardCreativeRevisionAgent } from "../src/features/dashboard/provider/dashboard-creative-revision-agent.js";
 import type { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
@@ -2079,6 +2082,326 @@ test("dashboard content selection cancellation runs inside transaction host", as
   assert.equal(result.status, "draft");
 });
 
+test("dashboard HTML source reads the original artifact when no edited HTML exists", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const sourceHtml =
+    '<article><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+  const candidate = dashboardHtmlCandidate(null);
+  const requestedUrls: string[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    requestedUrls.push(String(input));
+    return new Response(sourceHtml, {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+      status: 200
+    });
+  };
+
+  try {
+    const service = new DashboardQueryService(
+      {
+        ...emptyCampaignReader(),
+        getContentCandidate: async () => candidate
+      } as unknown as DashboardCampaignReader,
+      emptyFunnelReader(),
+      emptySegmentQueryRepository(),
+      emptyDecisionClient()
+    );
+
+    const result = await service.contentCandidateHtmlSource(
+      "project-a",
+      "promotion-a",
+      "segment-a",
+      "content-a"
+    );
+
+    assert.equal(result.html, sourceHtml);
+    assert.equal(result.revision, contentCandidateHtmlRevision(sourceHtml));
+    assert.equal(result.updated_at, candidate.updated_at);
+    assert.deepEqual(requestedUrls, ["https://assets.example.com/content-a.html"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("dashboard HTML source prefers edited HTML without fetching the original artifact", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const editedHtml =
+    '<article><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}" style="padding:20px">예약하기</a></article>';
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("Edited HTML source must not fetch the original artifact.");
+  };
+
+  try {
+    const service = new DashboardQueryService(
+      {
+        ...emptyCampaignReader(),
+        getContentCandidate: async () => dashboardHtmlCandidate(editedHtml)
+      } as unknown as DashboardCampaignReader,
+      emptyFunnelReader(),
+      emptySegmentQueryRepository(),
+      emptyDecisionClient()
+    );
+
+    const result = await service.contentCandidateHtmlSource(
+      "project-a",
+      "promotion-a",
+      "segment-a",
+      "content-a"
+    );
+
+    assert.equal(result.html, editedHtml);
+    assert.equal(result.revision, contentCandidateHtmlRevision(editedHtml));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("dashboard HTML preview returns only canonical safe HTML and rejects invalid or oversized input", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const sourceHtml =
+    '<article><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+  const candidate = dashboardHtmlCandidate(sourceHtml);
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getContentCandidate: async () => candidate,
+      updateContentCandidateCopy: async () => {
+        throw new Error("Preview must not save HTML.");
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient(),
+    undefined,
+    undefined,
+    {
+      planPatch: async () => {
+        throw new Error("Manual HTML preview must not call AI.");
+      },
+      revise: async () => {
+        throw new Error("Manual HTML preview must not call AI.");
+      }
+    } as unknown as DashboardCreativeRevisionAgent
+  );
+  const revisedHtml =
+    '<article style="padding:24px"><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+
+  const result = await service.previewContentCandidateHtml(
+    "project-a",
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    { html: revisedHtml }
+  );
+
+  assert.equal(result.html, revisedHtml);
+  await assert.rejects(
+    () =>
+      service.previewContentCandidateHtml("project-a", "promotion-a", "segment-a", "content-a", {
+        html: `${sourceHtml}<script>alert(1)</script>`
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 422 &&
+      error.code === "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_INVALID"
+  );
+  await assert.rejects(
+    () =>
+      service.previewContentCandidateHtml("project-a", "promotion-a", "segment-a", "content-a", {
+        html: sourceHtml + " ".repeat(2_000_001)
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 422 &&
+      error.code === "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_INVALID"
+  );
+});
+
+test("dashboard manual HTML save validates the base revision and persists canonical HTML without AI", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const sourceHtml =
+    '<article><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+  const candidate = dashboardHtmlCandidate(sourceHtml);
+  const writes: unknown[] = [];
+  let simulateConcurrentWrite = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getContentCandidate: async () => candidate,
+      updateContentCandidateCopy: async (
+        projectId,
+        promotionId,
+        segmentId,
+        contentId,
+        request,
+        metadataJson,
+        htmlUrl,
+        expected
+      ) => {
+        writes.push({
+          contentId,
+          expected,
+          htmlUrl,
+          metadataJson,
+          projectId,
+          promotionId,
+          request,
+          segmentId
+        });
+        if (simulateConcurrentWrite) return null;
+        return {
+          body: request.body,
+          content_id: contentId,
+          cta: request.cta,
+          headline: request.headline,
+          html_url: htmlUrl,
+          promotion_id: promotionId,
+          segment_id: segmentId,
+          status: "draft" as const,
+          updated_at: "2026-07-21T00:00:01.000Z"
+        };
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient(),
+    undefined,
+    undefined,
+    {
+      planPatch: async () => {
+        throw new Error("Manual HTML save must not call AI.");
+      },
+      revise: async () => {
+        throw new Error("Manual HTML save must not call AI.");
+      }
+    } as unknown as DashboardCreativeRevisionAgent
+  );
+  const revisedHtml =
+    '<article style="padding:24px"><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+  const baseRevision = contentCandidateHtmlRevision(sourceHtml);
+
+  await assert.rejects(
+    () =>
+      service.saveContentCandidateHtml(
+        "project-a",
+        "promotion-a",
+        "segment-a",
+        "content-a",
+        { base_revision: "f".repeat(64), html: revisedHtml },
+        "https://dashboard.api.dev.loop-ad.org"
+      ),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 409 &&
+      error.code === "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_CONFLICT"
+  );
+  assert.equal(writes.length, 0);
+
+  await assert.rejects(
+    () =>
+      service.saveContentCandidateHtml(
+        "project-a",
+        "promotion-a",
+        "segment-a",
+        "content-a",
+        { base_revision: baseRevision, html: `${sourceHtml}<script>alert(1)</script>` },
+        "https://dashboard.api.dev.loop-ad.org"
+      ),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 422 &&
+      error.code === "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_INVALID"
+  );
+  assert.equal(writes.length, 0);
+
+  const saved = await service.saveContentCandidateHtml(
+    "project-a",
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    { base_revision: baseRevision, html: revisedHtml },
+    "https://dashboard.api.dev.loop-ad.org"
+  );
+
+  assert.equal(saved.html, revisedHtml);
+  assert.equal(saved.revision, contentCandidateHtmlRevision(revisedHtml));
+  assert.match(saved.html_url, new RegExp(`revision=${saved.revision}`));
+  assert.equal(writes.length, 1);
+  const write = writes[0] as {
+    expected: { copy: unknown; metadataJson: unknown };
+    metadataJson: Record<string, unknown>;
+  };
+  assert.deepEqual(write.expected, {
+    copy: { body: "기존 본문", cta: "예약하기", headline: "기존 제목" },
+    metadataJson: candidate.metadata_json
+  });
+  const creative = write.metadataJson.creative as Record<string, unknown>;
+  assert.equal(creative.edited_html, revisedHtml);
+
+  simulateConcurrentWrite = true;
+  await assert.rejects(
+    () =>
+      service.saveContentCandidateHtml(
+        "project-a",
+        "promotion-a",
+        "segment-a",
+        "content-a",
+        { base_revision: baseRevision, html: revisedHtml },
+        "https://dashboard.api.dev.loop-ad.org"
+      ),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 409 &&
+      error.code === "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_CONFLICT"
+  );
+});
+
+test("dashboard manual HTML save rejects non-draft candidates", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  const sourceHtml =
+    '<article><h1>기존 제목</h1><p>기존 본문</p><a href="{{redirect_url}}">예약하기</a></article>';
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getContentCandidate: async () => dashboardHtmlCandidate(sourceHtml, "approved"),
+      updateContentCandidateCopy: async () => {
+        throw new Error("Approved HTML must not be saved.");
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  await assert.rejects(
+    () =>
+      service.saveContentCandidateHtml(
+        "project-a",
+        "promotion-a",
+        "segment-a",
+        "content-a",
+        { base_revision: contentCandidateHtmlRevision(sourceHtml), html: sourceHtml },
+        "https://dashboard.api.dev.loop-ad.org"
+      ),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 409 &&
+      error.code === "DASHBOARD_CONTENT_CANDIDATE_NOT_EDITABLE"
+  );
+});
+
 test("dashboard copy edit saves revised HTML without calling Decision API", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =
@@ -2426,6 +2749,48 @@ test("dashboard AI feedback revision falls back once for an invalid patch or mod
   assert.match(savedHtml, /새 본문/);
   assert.match(savedHtml, /\{\{redirect_url\}\}/);
 });
+
+function dashboardHtmlCandidate(
+  editedHtml: string | null,
+  status = "draft"
+): DashboardContentCandidate {
+  return {
+    analysis_id: "analysis-a",
+    body: "기존 본문",
+    channel: "onsite_banner",
+    content_id: "content-a",
+    content_option_id: "option-a",
+    cta: "예약하기",
+    data_evidence_json: {},
+    generation_id: "generation-a",
+    generation_prompt: null,
+    image_prompt: null,
+    image_url: null,
+    landing_url: "https://example.com",
+    message: null,
+    message_strategy: null,
+    metadata_json: {
+      creative: {
+        artifact: {
+          artifact_status: "published",
+          creative_format: "banner_html",
+          public_url: "https://assets.example.com/content-a.html",
+          storage_key: "generated/content-a.html"
+        },
+        ...(editedHtml === null ? {} : { edited_html: editedHtml })
+      }
+    },
+    next_loop_preparation_id: null,
+    preheader: null,
+    promotion_id: "promotion-a",
+    reason_summary: null,
+    segment_id: "segment-a",
+    status,
+    subject: null,
+    title: "기존 제목",
+    updated_at: "2026-07-21T00:00:00.000Z"
+  };
+}
 
 function emptyCampaignReader(): DashboardCampaignReader {
   return {

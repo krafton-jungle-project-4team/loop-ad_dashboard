@@ -53,3 +53,29 @@ test("promotion offer catalog errors distinguish missing setup from a temporary 
     "숙소 목록을 불러올 수 없어요. 잠시 후 다시 시도해 주세요."
   );
 });
+
+test("manual HTML errors explain validation and concurrent revision conflicts", async () => {
+  const invalidHtml = dashboardErrorResponse(
+    422,
+    "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_INVALID",
+    "invalid HTML"
+  );
+  const revisionConflict = dashboardErrorResponse(
+    409,
+    "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_CONFLICT",
+    "stale revision"
+  );
+
+  assert.match(await readDashboardApiErrorMessage(invalidHtml), /HTML 안전성 검증/);
+  assert.match(await readDashboardApiErrorMessage(revisionConflict), /새 버전이 먼저 저장/);
+});
+
+function dashboardErrorResponse(status: number, code: string, message: string) {
+  return new Response(
+    JSON.stringify({
+      requestId: "request-html-edit",
+      error: { code, message, statusCode: status }
+    }),
+    { status }
+  );
+}

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type { DashboardContentCandidate } from "@loopad/shared";
+import { DashboardCampaignReader } from "../src/features/dashboard/repository/dashboard-campaign-reader.js";
 import {
   applyCreativeHtmlReplacementPatch,
   contentCandidateCopy,
@@ -130,6 +132,48 @@ test("edited creative metadata points serving to the dashboard HTML revision", (
   assert.equal(artifact.sha256, revision);
   assert.equal("storage_key" in artifact, false);
   assert.match(htmlUrl, /\/content-candidates\/content-a\/html\?/);
+});
+
+test("creative HTML persistence uses metadata and copy snapshots as a compare-and-set guard", async () => {
+  const dashboardSql = readFileSync(
+    new URL("../src/features/dashboard/database/dashboard.sql", import.meta.url),
+    "utf8"
+  );
+  const updateSql = dashboardSql.match(
+    /@name UpdateDashboardContentCandidateCopy \*\/[\s\S]*?RETURNING/
+  )?.[0];
+  assert.ok(updateSql);
+  assert.match(updateSql, /metadata_json = :expectedMetadataJson::jsonb/);
+  assert.match(updateSql, /= :expectedHeadline/);
+  assert.match(updateSql, /= :expectedBody/);
+  assert.match(updateSql, /= :expectedCta/);
+
+  let params: Record<string, unknown> | undefined;
+  const reader = new DashboardCampaignReader({
+    query: (_query: unknown, input: Record<string, unknown>) => {
+      params = input;
+      return { singleOrNull: async () => null };
+    }
+  } as never);
+  const currentCopy = { body: "현재 본문", cta: "예약", headline: "현재 제목" };
+  const currentMetadata = { creative: { edited_html: "<p>현재 본문</p>" } };
+
+  const result = await reader.updateContentCandidateCopy(
+    "project-a",
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    currentCopy,
+    { creative: { edited_html: "<p>수정 본문</p>" } },
+    "https://api.example/content.html",
+    { copy: currentCopy, metadataJson: currentMetadata }
+  );
+
+  assert.equal(result, null);
+  assert.equal(params?.expectedBody, currentCopy.body);
+  assert.equal(params?.expectedCta, currentCopy.cta);
+  assert.equal(params?.expectedHeadline, currentCopy.headline);
+  assert.deepEqual(params?.expectedMetadataJson, currentMetadata);
 });
 
 test("AI HTML revision preserves dispatch placeholders and existing resources", () => {

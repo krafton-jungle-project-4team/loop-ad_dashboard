@@ -20,13 +20,16 @@ import {
   deleteDashboardPromotionSegment,
   dispatchDashboardPromotionRun,
   fetchDashboardCampaignDetail,
+  fetchDashboardContentCandidateHtmlSource,
   fetchDashboardPromotionDetail,
   fetchDashboardPromotionScopedSegmentDefinitions,
   fetchDashboardPromotionSegmentSuggestions,
   fetchDashboardSegmentDetail,
+  previewDashboardContentCandidateHtml,
   rejectDashboardContentCandidate,
   recommendDashboardPromotionSegments,
   reviseDashboardContentCandidateHtml,
+  saveDashboardContentCandidateHtml,
   startDashboardAdExperiment,
   startDashboardPromotionGeneration,
   unapproveDashboardContentCandidate,
@@ -59,6 +62,7 @@ import {
 import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
 import { promotionSegmentConfirmationRequest } from "./promotionSegmentConfirmationFlow.js";
 import { reconcileContentCandidateRevision } from "./promotionContentCandidateCache.js";
+import type { ContentCandidateHtmlEditorActions } from "./useContentCandidateHtmlEditor.js";
 
 const promotionWorkspaceTabsByMode: Record<PromotionWorkspaceMode, PromotionWorkspaceTab[]> = {
   promotion: ["overview"],
@@ -497,6 +501,58 @@ export function usePromotionWorkspaceController({
       ]);
     }
   });
+  const saveContentCandidateHtmlMutation = useMutation({
+    mutationFn: ({
+      contentId,
+      promotionId,
+      requestBody,
+      segmentId
+    }: {
+      contentId: string;
+      promotionId: string;
+      requestBody: Parameters<typeof saveDashboardContentCandidateHtml>[4];
+      segmentId: string;
+    }) => saveDashboardContentCandidateHtml(query, promotionId, segmentId, contentId, requestBody),
+    onSuccess: (candidate) => {
+      const campaignKey = dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId);
+      const segmentKey = dashboardSegmentDetailQueryKey(
+        query.projectId,
+        candidate.promotion_id,
+        candidate.segment_id
+      );
+      queryClient.setQueryData<DashboardCampaignDetail>(campaignKey, (current) =>
+        reconcileContentCandidateRevision(current, candidate)
+      );
+      queryClient.setQueryData<DashboardSegmentDetail>(segmentKey, (current) =>
+        reconcileContentCandidateRevision(current, candidate)
+      );
+      void Promise.all([
+        queryClient.invalidateQueries({ exact: true, queryKey: campaignKey }),
+        queryClient.invalidateQueries({ exact: true, queryKey: segmentKey })
+      ]);
+    }
+  });
+  const contentCandidateHtmlEditor: ContentCandidateHtmlEditorActions = {
+    isSavePending: saveContentCandidateHtmlMutation.isPending,
+    loadSource: ({ contentId, promotionId, segmentId }, signal) =>
+      fetchDashboardContentCandidateHtmlSource(query, promotionId, segmentId, contentId, signal),
+    previewHtml: ({ contentId, promotionId, segmentId }, html, signal) =>
+      previewDashboardContentCandidateHtml(
+        query,
+        promotionId,
+        segmentId,
+        contentId,
+        { html },
+        signal
+      ),
+    saveHtml: ({ contentId, promotionId, segmentId }, requestBody) =>
+      saveContentCandidateHtmlMutation.mutateAsync({
+        contentId,
+        promotionId,
+        requestBody,
+        segmentId
+      })
+  };
   const launchPromotionExperimentMutation = useMutation({
     mutationFn: ({
       analysisId,
@@ -755,6 +811,7 @@ export function usePromotionWorkspaceController({
     approveContentCandidateMutation,
     archiveScopedSegmentMutation,
     campaignDetail,
+    contentCandidateHtmlEditor,
     confirmSuggestionsMutation,
     createPromotionMutation,
     decideSuggestionMutation,

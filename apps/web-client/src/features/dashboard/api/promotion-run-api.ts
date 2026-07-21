@@ -2,15 +2,20 @@ import {
   DashboardApproveContentCandidateRequestSchema,
   DashboardApproveContentCandidateResultSchema,
   DashboardBuildPromotionRunAssignmentsResultSchema,
+  DashboardContentCandidateHtmlSourceSchema,
   DashboardCreateNextLoopRequestSchema,
   DashboardCreateNextLoopResultSchema,
   DashboardCreatePromotionRunRequestSchema,
   DashboardCreatePromotionRunResultSchema,
   DashboardNextLoopAnalysisSchema,
+  DashboardPreviewContentCandidateHtmlRequestSchema,
+  DashboardPreviewContentCandidateHtmlResultSchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
   DashboardReviseContentCandidateHtmlRequestSchema,
   DashboardReviseContentCandidateHtmlResultSchema,
+  DashboardSaveContentCandidateHtmlRequestSchema,
+  DashboardSaveContentCandidateHtmlResultSchema,
   DashboardStartAdExperimentResultSchema,
   DashboardStartNextLoopRequestSchema,
   DashboardUnapproveContentCandidateRequestSchema,
@@ -21,15 +26,20 @@ import {
   type DashboardApproveContentCandidateRequest,
   type DashboardApproveContentCandidateResult,
   type DashboardBuildPromotionRunAssignmentsResult,
+  type DashboardContentCandidateHtmlSource,
   type DashboardCreateNextLoopRequest,
   type DashboardCreateNextLoopResult,
   type DashboardCreatePromotionRunRequest,
   type DashboardCreatePromotionRunResult,
   type DashboardNextLoopAnalysis,
+  type DashboardPreviewContentCandidateHtmlRequest,
+  type DashboardPreviewContentCandidateHtmlResult,
   type DashboardRejectContentCandidateRequest,
   type DashboardRejectContentCandidateResult,
   type DashboardReviseContentCandidateHtmlRequest,
   type DashboardReviseContentCandidateHtmlResult,
+  type DashboardSaveContentCandidateHtmlRequest,
+  type DashboardSaveContentCandidateHtmlResult,
   type DashboardStartAdExperimentResult,
   type DashboardStartNextLoopRequest,
   type DashboardUnapproveContentCandidateRequest,
@@ -125,6 +135,65 @@ export function reviseDashboardContentCandidateHtml(
       body: DashboardReviseContentCandidateHtmlRequestSchema.parse(requestBody),
       errorMessage: readDashboardApiErrorMessage,
       method: "POST",
+      searchParams: projectSearchParams(query.projectId)
+    }
+  );
+}
+
+export function fetchDashboardContentCandidateHtmlSource(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  signal?: AbortSignal
+): Promise<DashboardContentCandidateHtmlSource> {
+  return apiRequest(
+    contentCandidatePath(promotionId, segmentId, contentId, "html/source"),
+    DashboardContentCandidateHtmlSourceSchema,
+    {
+      errorMessage: readDashboardApiErrorMessage,
+      method: "GET",
+      searchParams: projectSearchParams(query.projectId),
+      signal
+    }
+  );
+}
+
+export function previewDashboardContentCandidateHtml(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  requestBody: DashboardPreviewContentCandidateHtmlRequest,
+  signal?: AbortSignal
+): Promise<DashboardPreviewContentCandidateHtmlResult> {
+  return apiRequest(
+    contentCandidatePath(promotionId, segmentId, contentId, "html/preview"),
+    DashboardPreviewContentCandidateHtmlResultSchema,
+    {
+      body: DashboardPreviewContentCandidateHtmlRequestSchema.parse(requestBody),
+      errorMessage: readDashboardApiErrorMessage,
+      method: "POST",
+      searchParams: projectSearchParams(query.projectId),
+      signal
+    }
+  );
+}
+
+export function saveDashboardContentCandidateHtml(
+  query: DashboardQuery,
+  promotionId: string,
+  segmentId: string,
+  contentId: string,
+  requestBody: DashboardSaveContentCandidateHtmlRequest
+): Promise<DashboardSaveContentCandidateHtmlResult> {
+  return apiRequest(
+    contentCandidatePath(promotionId, segmentId, contentId, "html/source"),
+    DashboardSaveContentCandidateHtmlResultSchema,
+    {
+      body: DashboardSaveContentCandidateHtmlRequestSchema.parse(requestBody),
+      errorMessage: readDashboardApiErrorMessage,
+      method: "PUT",
       searchParams: projectSearchParams(query.projectId)
     }
   );
@@ -227,7 +296,14 @@ function contentCandidatePath(
   promotionId: string,
   segmentId: string,
   contentId: string,
-  action: "approve" | "copy" | "html/revisions" | "reject" | "unapprove"
+  action:
+    | "approve"
+    | "copy"
+    | "html/preview"
+    | "html/revisions"
+    | "html/source"
+    | "reject"
+    | "unapprove"
 ) {
   return `${promotionPath(promotionId)}/segments/${encodeURIComponent(segmentId)}/content-candidates/${encodeURIComponent(contentId)}/${action}`;
 }

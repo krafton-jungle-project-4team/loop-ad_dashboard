@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DASHBOARD_CONTENT_CANDIDATE_HTML_MAX_BYTES,
   DashboardConfirmSegmentSuggestionsRequestSchema,
+  DashboardContentCandidateHtmlSourceSchema,
   DashboardDecideSegmentSuggestionRequestSchema,
+  DashboardPreviewContentCandidateHtmlRequestSchema,
+  DashboardPreviewContentCandidateHtmlResultSchema,
   DashboardReviseContentCandidateHtmlRequestSchema,
+  DashboardSaveContentCandidateHtmlRequestSchema,
+  DashboardSaveContentCandidateHtmlResultSchema,
   DashboardUnapproveContentCandidateResultSchema,
   DashboardUpdateContentCandidateCopyRequestSchema
 } from "@loopad/shared";
@@ -100,6 +106,70 @@ test("content candidate HTML feedback is trimmed and bounded", () => {
   assert.throws(
     () => DashboardReviseContentCandidateHtmlRequestSchema.parse({ feedback: "  " }),
     /too small/i
+  );
+});
+
+test("content candidate HTML source, preview, and save contracts carry a sha256 revision", () => {
+  const revision = "a".repeat(64);
+  assert.deepEqual(
+    DashboardContentCandidateHtmlSourceSchema.parse({
+      html: "<p>현재 본문</p>",
+      revision,
+      updated_at: "2026-07-21T00:00:00.000Z"
+    }),
+    {
+      html: "<p>현재 본문</p>",
+      revision,
+      updated_at: "2026-07-21T00:00:00.000Z"
+    }
+  );
+  assert.deepEqual(
+    DashboardPreviewContentCandidateHtmlRequestSchema.parse({ html: "<p>미리보기</p>" }),
+    {
+      html: "<p>미리보기</p>"
+    }
+  );
+  assert.deepEqual(
+    DashboardPreviewContentCandidateHtmlResultSchema.parse({ html: "<p>정상</p>" }),
+    {
+      html: "<p>정상</p>"
+    }
+  );
+  assert.deepEqual(
+    DashboardSaveContentCandidateHtmlRequestSchema.parse({
+      base_revision: revision,
+      html: "<p>수정 본문</p>"
+    }),
+    { base_revision: revision, html: "<p>수정 본문</p>" }
+  );
+  assert.equal(
+    DashboardSaveContentCandidateHtmlResultSchema.parse({
+      body: "본문",
+      content_id: "content-a",
+      cta: "예약",
+      headline: "제목",
+      html: "<p>정상</p>",
+      html_url: "https://api.example/content.html",
+      promotion_id: "promotion-a",
+      revision,
+      segment_id: "segment-a",
+      status: "draft",
+      updated_at: "2026-07-21T00:00:00.000Z"
+    }).revision,
+    revision
+  );
+  assert.throws(
+    () =>
+      DashboardSaveContentCandidateHtmlRequestSchema.parse({
+        base_revision: "not-a-sha256",
+        html: "<p>수정 본문</p>"
+      }),
+    /invalid/i
+  );
+  assert.throws(() =>
+    DashboardPreviewContentCandidateHtmlRequestSchema.parse({
+      html: "x".repeat(DASHBOARD_CONTENT_CANDIDATE_HTML_MAX_BYTES + 1)
+    })
   );
 });
 

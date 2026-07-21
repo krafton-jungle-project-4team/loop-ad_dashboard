@@ -16,6 +16,7 @@ import type {
   DashboardCampaignDetail,
   DashboardCampaignSegment,
   DashboardCampaignSummary,
+  DashboardContentCandidateHtmlSource,
   DashboardAttachSegmentRequest,
   DashboardCreateCampaignRequest,
   DashboardCreateProjectRequest,
@@ -49,6 +50,10 @@ import type {
   DashboardPromotionSegmentSuggestion,
   DashboardPromotionSegmentSuggestionList,
   DashboardPromotionSummary,
+  DashboardPreviewContentCandidateHtmlRequest,
+  DashboardPreviewContentCandidateHtmlResult,
+  DashboardSaveContentCandidateHtmlRequest,
+  DashboardSaveContentCandidateHtmlResult,
   DashboardRejectContentCandidateRequest,
   DashboardRejectContentCandidateResult,
   DashboardReviseContentCandidateHtmlRequest,
@@ -1020,7 +1025,8 @@ export class DashboardQueryService {
     }
 
     const sourceHtml = await readContentCandidateHtml(creative);
-    const rewritten = rewriteCreativeHtmlCopy(sourceHtml, contentCandidateCopy(candidate), request);
+    const previousCopy = contentCandidateCopy(candidate);
+    const rewritten = rewriteCreativeHtmlCopy(sourceHtml, previousCopy, request);
     if (rewritten.missingFields.length > 0) {
       log.warn("content_candidate_copy_not_found", {
         missingFields: rewritten.missingFields
@@ -1050,8 +1056,13 @@ export class DashboardQueryService {
       contentId,
       request,
       metadataJson,
-      htmlUrl
+      htmlUrl,
+      { copy: previousCopy, metadataJson: candidate.metadata_json }
     );
+    if (!response) {
+      log.warn("content_candidate_html_revision_conflict", { revisionMode: "copy" });
+      throw dashboardErrors.contentCandidateHtmlRevisionConflict();
+    }
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;
@@ -1213,8 +1224,13 @@ export class DashboardQueryService {
       contentId,
       nextCopy,
       metadataJson,
-      htmlUrl
+      htmlUrl,
+      { copy: currentCopy, metadataJson: candidate.metadata_json }
     );
+    if (!saved) {
+      log.warn("content_candidate_html_revision_conflict", { revisionMode });
+      throw dashboardErrors.contentCandidateHtmlRevisionConflict();
+    }
     const response = { ...saved, change_summary: changeSummary };
 
     log.info("completed", {
@@ -1227,6 +1243,192 @@ export class DashboardQueryService {
       status: saved.status
     });
     return response;
+  }
+
+  @LogContextScope()
+  async contentCandidateHtmlSource(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string
+  ): Promise<DashboardContentCandidateHtmlSource> {
+    const startedAt = Date.now();
+    log.assignContext({ contentId, projectId, promotionId, segmentId });
+    log.info("started");
+    const candidate = await this.campaignReader.getContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId
+    );
+    const creative = editableCreative(candidate);
+    if (!creative) {
+      log.warn("content_candidate_not_editable", { reason: "creative_missing" });
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+
+    const html = await readContentCandidateHtml(creative);
+    const response = {
+      html,
+      revision: contentCandidateHtmlRevision(html),
+      updated_at: candidate.updated_at
+    };
+    log.info("completed", {
+      durationMs: durationMs(startedAt),
+      htmlBytes: Buffer.byteLength(html),
+      revision: response.revision
+    });
+    return response;
+  }
+
+  @LogContextScope()
+  async previewContentCandidateHtml(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardPreviewContentCandidateHtmlRequest
+  ): Promise<DashboardPreviewContentCandidateHtmlResult> {
+    const startedAt = Date.now();
+    log.assignContext({ contentId, projectId, promotionId, segmentId });
+    log.info("started", { inputHtmlBytes: Buffer.byteLength(request.html) });
+    const candidate = await this.campaignReader.getContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId
+    );
+    const creative = editableCreative(candidate);
+    if (!creative) {
+      log.warn("content_candidate_not_editable", { reason: "creative_missing" });
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+
+    const sourceHtml = await readContentCandidateHtml(creative);
+    let html: string;
+    try {
+      html = sanitizeCreativeHtmlRevision({
+        copy: contentCandidateCopy(candidate),
+        revisedHtml: request.html,
+        sourceHtml
+      });
+    } catch (error) {
+      log.warn("content_candidate_html_revision_invalid", {
+        err: error,
+        inputHtmlBytes: Buffer.byteLength(request.html),
+        revisionMode: "preview"
+      });
+      throw dashboardErrors.contentCandidateHtmlRevisionInvalid(error);
+    }
+
+    log.info("completed", {
+      durationMs: durationMs(startedAt),
+      outputHtmlBytes: Buffer.byteLength(html),
+      revisionMode: "preview"
+    });
+    return { html };
+  }
+
+  @LogContextScope()
+  async saveContentCandidateHtml(
+    projectId: string,
+    promotionId: string,
+    segmentId: string,
+    contentId: string,
+    request: DashboardSaveContentCandidateHtmlRequest,
+    publicOrigin: string
+  ): Promise<DashboardSaveContentCandidateHtmlResult> {
+    const startedAt = Date.now();
+    log.assignContext({ contentId, projectId, promotionId, segmentId });
+    log.info("started", {
+      baseRevision: request.base_revision,
+      inputHtmlBytes: Buffer.byteLength(request.html)
+    });
+    const candidate = await this.campaignReader.getContentCandidate(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId
+    );
+    if (candidate.status !== "draft") {
+      log.warn("content_candidate_not_editable", { status: candidate.status });
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+
+    const creative = editableCreative(candidate);
+    if (!creative) {
+      log.warn("content_candidate_not_editable", { reason: "creative_missing" });
+      throw dashboardErrors.contentCandidateNotEditable();
+    }
+
+    const sourceHtml = await readContentCandidateHtml(creative);
+    const currentRevision = contentCandidateHtmlRevision(sourceHtml);
+    if (request.base_revision !== currentRevision) {
+      log.warn("content_candidate_html_revision_conflict", {
+        baseRevision: request.base_revision,
+        currentRevision,
+        revisionMode: "manual_html"
+      });
+      throw dashboardErrors.contentCandidateHtmlRevisionConflict();
+    }
+
+    const copy = contentCandidateCopy(candidate);
+    let html: string;
+    try {
+      html = sanitizeCreativeHtmlRevision({
+        copy,
+        revisedHtml: request.html,
+        sourceHtml
+      });
+    } catch (error) {
+      log.warn("content_candidate_html_revision_invalid", {
+        err: error,
+        inputHtmlBytes: Buffer.byteLength(request.html),
+        revisionMode: "manual_html"
+      });
+      throw dashboardErrors.contentCandidateHtmlRevisionInvalid(error);
+    }
+
+    const revision = contentCandidateHtmlRevision(html);
+    const htmlUrl = contentCandidateHtmlUrl({
+      contentId,
+      origin: publicOrigin,
+      projectId,
+      promotionId,
+      revision,
+      segmentId
+    });
+    const { metadataJson } = editedCreativeMetadata({
+      candidate,
+      creative,
+      html,
+      htmlUrl
+    });
+    const saved = await this.campaignReader.updateContentCandidateCopy(
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      copy,
+      metadataJson,
+      htmlUrl,
+      { copy, metadataJson: candidate.metadata_json }
+    );
+    if (!saved) {
+      log.warn("content_candidate_html_revision_conflict", {
+        baseRevision: request.base_revision,
+        revisionMode: "manual_html"
+      });
+      throw dashboardErrors.contentCandidateHtmlRevisionConflict();
+    }
+
+    log.info("completed", {
+      durationMs: durationMs(startedAt),
+      outputHtmlBytes: Buffer.byteLength(html),
+      revision,
+      revisionMode: "manual_html"
+    });
+    return { ...saved, html, revision };
   }
 
   @LogContextScope()
