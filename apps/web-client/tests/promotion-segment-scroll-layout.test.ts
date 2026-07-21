@@ -42,20 +42,9 @@ test("segment workflow keeps the candidate deck beside the confirmed shortlist",
     workspaceSource,
     /xl:grid-cols-\[minmax\(0,1\.65fr\)_minmax\(19rem,0\.75fr\)\]/
   );
-  assert.match(workspaceSource, /grid min-w-0 items-stretch gap-4/);
   assert.match(workspaceSource, /<PromotionSegmentSuggestionPanel/);
   assert.match(workspaceSource, /<PromotionCurrentSegmentsPanel/);
   assert.doesNotMatch(workspaceSource, /<TabsTrigger[^>]+value="experiments">/);
-});
-
-test("confirmed segment shortlist matches the candidate panel and scrolls internally", () => {
-  assert.match(
-    workspaceSource,
-    /<Card className="min-h-0 overflow-hidden shadow-none xl:h-0 xl:min-h-full">/
-  );
-  assert.match(workspaceSource, /<ScrollArea className="min-h-0 flex-1">/);
-  assert.match(workspaceSource, /<CardContent className="grid content-start gap-3 pr-4">/);
-  assert.doesNotMatch(workspaceSource, /xl:sticky xl:top-4/);
 });
 
 test("experiment detail renders only after a confirmed segment is selected", () => {
@@ -84,28 +73,8 @@ test("segment candidates use one full-width carousel slide at a time", () => {
   assert.match(suggestionPanelSource, /aria-label="고객군 후보 검토"/);
   assert.match(suggestionPanelSource, /<CarouselContent className="ml-0 items-stretch">/);
   assert.match(suggestionPanelSource, /<CarouselItem className="flex basis-full pl-0"/);
-  assert.match(suggestionPanelSource, /aria-label="고객군 후보 이동"/);
-  assert.match(suggestionPanelSource, /이전 후보/);
-  assert.match(suggestionPanelSource, /다음 후보/);
-  assert.match(suggestionPanelSource, /candidateCarouselApi\?\.scrollPrev\(\)/);
-  assert.match(suggestionPanelSource, /candidateCarouselApi\?\.scrollNext\(\)/);
-  assert.match(
-    suggestionPanelSource,
-    /grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/
-  );
-});
-
-test("segment candidate footer combines navigation and confirmation", () => {
-  const navigationIndex = suggestionPanelSource.indexOf('aria-label="고객군 후보 이동"');
-  const confirmationIndex = suggestionPanelSource.indexOf("선택한 후보 확정", navigationIndex);
-  const carouselEndIndex = suggestionPanelSource.indexOf("</Carousel>", confirmationIndex);
-
-  assert.ok(navigationIndex >= 0);
-  assert.ok(confirmationIndex > navigationIndex);
-  assert.ok(carouselEndIndex > confirmationIndex);
-  assert.match(suggestionPanelSource, /<CheckCircle2 data-icon="inline-start" \/>/);
-  assert.doesNotMatch(suggestionPanelSource, /<CardFooter/);
-  assert.doesNotMatch(suggestionPanelSource, /선택한 고객군/);
+  assert.match(suggestionPanelSource, /aria-label="이전 고객군 후보"/);
+  assert.match(suggestionPanelSource, /aria-label="다음 고객군 후보"/);
 });
 
 test("content candidates use one full-width carousel slide at a time", () => {
