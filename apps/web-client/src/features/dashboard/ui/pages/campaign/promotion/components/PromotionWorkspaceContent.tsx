@@ -44,7 +44,13 @@ import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { Progress } from "@loopad/ui/shadcn/progress";
 import { ScrollArea } from "@loopad/ui/shadcn/scroll-area";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@loopad/ui/shadcn/sheet";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle
+} from "@loopad/ui/shadcn/sheet";
 import { Spinner } from "@loopad/ui/shadcn/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@loopad/ui/shadcn/tabs";
 import { cn } from "@loopad/ui/shadcn/utils";
@@ -67,7 +73,7 @@ import {
   Users,
   X
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { formatDateTime, formatInteger } from "../../../../../model/dashboard-format.js";
 import {
   formatActionLabel,
@@ -631,7 +637,10 @@ export function PromotionTabWorkspace({
         ) : null}
       </Tabs>
       <Sheet onOpenChange={setIsConfirmedSegmentsOpen} open={isConfirmedSegmentsOpen}>
-        <SheetContent className="gap-0 p-0 data-[side=right]:w-[92vw] data-[side=right]:sm:max-w-xl">
+        <SheetContent
+          className="gap-0 p-0 data-[side=right]:w-[92vw] data-[side=right]:sm:max-w-xl"
+          showCloseButton={false}
+        >
           <SheetTitle className="sr-only">확정 고객군</SheetTitle>
           <SheetDescription className="sr-only">
             광고 소재와 실험을 이어갈 확정 고객군 목록
@@ -639,8 +648,19 @@ export function PromotionTabWorkspace({
           <ScrollArea className="min-h-0 flex-1">
             <div className="p-4">
               <PromotionCurrentSegmentsPanel
-                className="[&_[data-slot=card-header]]:pr-12"
                 deleteIsPending={deleteConfirmedSegmentIsPending}
+                headerTrailingAction={
+                  <SheetClose asChild>
+                    <Button
+                      aria-label="확정 고객군 닫기"
+                      size="icon-sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <X aria-hidden="true" data-icon="inline-start" />
+                    </Button>
+                  </SheetClose>
+                }
                 onDeleteSegment={onDeleteConfirmedSegment}
                 onSelectSegment={(promotionId, segmentId) => {
                   setIsConfirmedSegmentsOpen(false);
@@ -730,6 +750,7 @@ function PromotionOverviewTab({ promotion }: { promotion: DashboardCampaignPromo
 function PromotionCurrentSegmentsPanel({
   className,
   deleteIsPending,
+  headerTrailingAction,
   onDeleteSegment,
   onSelectSegment,
   promotion,
@@ -738,6 +759,7 @@ function PromotionCurrentSegmentsPanel({
 }: {
   className?: string;
   deleteIsPending: boolean;
+  headerTrailingAction?: ReactNode;
   onDeleteSegment: (promotionId: string, segmentId: string) => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   promotion: DashboardCampaignPromotion;
@@ -750,10 +772,15 @@ function PromotionCurrentSegmentsPanel({
   return (
     <Card className={cn("min-h-0 overflow-hidden shadow-none xl:h-full", className)}>
       <CardHeader className="shrink-0 border-b">
-        <div className="grid gap-1">
-          <div className="flex items-center gap-2">
-            <CardTitle>확정 고객군</CardTitle>
-            <Badge variant="secondary">{formatInteger(visibleSegments.length)}</Badge>
+        <div className="flex items-start justify-between gap-3">
+          <div className="grid min-w-0 gap-1">
+            <div className="flex items-center gap-2">
+              <CardTitle>확정 고객군</CardTitle>
+              <Badge variant="secondary">{formatInteger(visibleSegments.length)}</Badge>
+            </div>
+            <CardDescription>광고 소재를 만들고 실험할 고객군이에요.</CardDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
             <SegmentColumnDeleteMenu
               ariaLabel="확정 고객군 작업"
               disabled={deleteIsPending}
@@ -768,8 +795,8 @@ function PromotionCurrentSegmentsPanel({
               label="확정 고객군"
               onDelete={setSegmentToDelete}
             />
+            {headerTrailingAction}
           </div>
-          <CardDescription>광고 소재를 만들고 실험할 고객군이에요.</CardDescription>
         </div>
       </CardHeader>
       <CardContent className="grid content-start gap-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-width:thin]">

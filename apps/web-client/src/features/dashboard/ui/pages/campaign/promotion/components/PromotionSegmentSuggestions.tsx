@@ -159,10 +159,6 @@ export function PromotionSegmentSuggestionPanel({
           <CardDescription>사용할 고객군을 비교하고 선택해 주세요.</CardDescription>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button onClick={onOpenConfirmedSegments} size="sm" type="button" variant="outline">
-            <Users data-icon="inline-start" />
-            확정 고객군 {formatInteger(confirmedSegmentCount)}
-          </Button>
           {candidateCount > 0 || promotionAnalysisIsPending ? (
             <Button
               disabled={promotionAnalysisIsPending}
@@ -344,24 +340,36 @@ export function PromotionSegmentSuggestionPanel({
             {formatInteger(confirmableCount)}개 선택
           </strong>
         </p>
-        <Button
-          className="w-full sm:w-auto"
-          disabled={
-            confirmableCount === 0 ||
-            confirmIsPending ||
-            decideIsPending ||
-            archiveScopedSegmentIsPending ||
-            suggestionsIsLoading ||
-            scopedSegmentsIsLoading ||
-            promotionAnalysisIsPending
-          }
-          onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
-          size="sm"
-          type="button"
-        >
-          <CheckCircle2 data-icon="inline-start" />
-          {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button
+            className="w-full sm:w-auto"
+            onClick={onOpenConfirmedSegments}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <Users data-icon="inline-start" />
+            확정 고객군 {formatInteger(confirmedSegmentCount)}개 보기
+          </Button>
+          <Button
+            className="w-full sm:w-auto"
+            disabled={
+              confirmableCount === 0 ||
+              confirmIsPending ||
+              decideIsPending ||
+              archiveScopedSegmentIsPending ||
+              suggestionsIsLoading ||
+              scopedSegmentsIsLoading ||
+              promotionAnalysisIsPending
+            }
+            onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
+            size="sm"
+            type="button"
+          >
+            <CheckCircle2 data-icon="inline-start" />
+            {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
+          </Button>
+        </div>
       </CardFooter>
       <AlertDialog
         onOpenChange={(open) => {

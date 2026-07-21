@@ -53,11 +53,22 @@ test("confirmed segments open in a contextual sheet instead of peer tabs", () =>
   assert.match(workspaceSource, /<Sheet onOpenChange=\{setIsConfirmedSegmentsOpen\}/);
   assert.match(
     workspaceSource,
-    /<SheetContent className="gap-0 p-0 data-\[side=right\]:w-\[92vw\] data-\[side=right\]:sm:max-w-xl">/
+    /<SheetContent\s+className="gap-0 p-0 data-\[side=right\]:w-\[92vw\] data-\[side=right\]:sm:max-w-xl"\s+showCloseButton=\{false\}/
   );
   assert.match(workspaceSource, /<CardContent className="grid min-w-0 gap-3">/);
   assert.match(workspaceSource, /className="w-full justify-center whitespace-nowrap"/);
-  assert.match(suggestionPanelSource, /확정 고객군 \{formatInteger\(confirmedSegmentCount\)\}/);
+  assert.match(
+    suggestionPanelSource,
+    /<CardFooter className="flex shrink-0 flex-col gap-3 border-t bg-muted\/20 py-3 sm:flex-row sm:items-center sm:justify-between">[\s\S]*?후보 \{formatInteger\(candidateCount\)\}개 중[\s\S]*?<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">[\s\S]*?<Button\s+className="w-full sm:w-auto"[\s\S]*?variant="outline"[\s\S]*?<Users data-icon="inline-start" \/>[\s\S]*?확정 고객군 \{formatInteger\(confirmedSegmentCount\)\}개 보기[\s\S]*?선택한 후보 확정/
+  );
+  assert.match(
+    workspaceSource,
+    /headerTrailingAction=\{[\s\S]*?<SheetClose asChild>[\s\S]*?aria-label="확정 고객군 닫기"[\s\S]*?<X aria-hidden="true" data-icon="inline-start" \/>[\s\S]*?<\/SheetClose>/
+  );
+  assert.match(
+    workspaceSource,
+    /<div className="flex shrink-0 items-center gap-1">[\s\S]*?<SegmentColumnDeleteMenu[\s\S]*?\{headerTrailingAction\}/
+  );
 });
 
 test("experiment workflow returns to candidates with an explicit action", () => {
