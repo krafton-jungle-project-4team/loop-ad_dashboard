@@ -25,8 +25,8 @@ const sqlEditorSource = readFileSync(
 );
 
 test("the global palette uses Sentry-inspired purple, lavender, and ink tokens", () => {
-  assert.match(themeSource, /--background: #f4f1f7;/);
-  assert.match(themeSource, /--workspace-highlight: #ede7ff;/);
+  assert.match(themeSource, /--background: #f6f5f4;/);
+  assert.match(themeSource, /--workspace-highlight: #efedf1;/);
   assert.match(themeSource, /--foreground: #2b2233;/);
   assert.match(themeSource, /--primary: #6c5fc7;/);
   assert.match(themeSource, /--sidebar: #e4ddef;/);

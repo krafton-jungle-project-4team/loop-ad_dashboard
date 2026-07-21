@@ -66,8 +66,8 @@
 }
 
 :root {
-  --background: #f4f1f7;
-  --workspace-highlight: #ede7ff;
+  --background: #f6f5f4;
+  --workspace-highlight: #efedf1;
   --foreground: #2b2233;
   --card: #ffffff;
   --card-foreground: #2b2233;
@@ -148,7 +148,7 @@ body::before {
   height: 260px;
   pointer-events: none;
   content: "";
-  background: radial-gradient(circle at 72% -20%, rgb(108 95 199 / 14%), transparent 55%);
+  background: radial-gradient(circle at 72% -20%, rgb(108 95 199 / 7%), transparent 55%);
 }
 
 .dashboard-workspace-surface {
