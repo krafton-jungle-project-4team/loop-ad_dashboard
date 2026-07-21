@@ -289,22 +289,20 @@ export function isPresentString(value: string | null | undefined): value is stri
 }
 
 export function statusBadgeVariant(status: string): BadgeVariant {
-  if (
-    status === "goal_met" ||
-    status === "approved" ||
-    status === "running" ||
-    status === "active"
-  ) {
-    return "secondary";
+  if (status === "goal_met" || status === "approved") {
+    return "status-success";
   }
 
-  if (
-    status === "goal_not_met" ||
-    status === "insufficient_data" ||
-    status === "failed" ||
-    status === "rejected"
-  ) {
-    return "destructive";
+  if (status === "running" || status === "active") {
+    return "status-info";
+  }
+
+  if (status === "goal_not_met" || status === "failed" || status === "rejected") {
+    return "status-danger";
+  }
+
+  if (status === "insufficient_data" || status === "near_goal" || status === "not_evaluated") {
+    return "status-warning";
   }
 
   return "outline";

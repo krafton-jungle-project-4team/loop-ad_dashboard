@@ -30,6 +30,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from "@loopad/ui/shadcn/dropdown-menu";
+import { cn } from "@loopad/ui/shadcn/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -37,9 +38,6 @@ import {
   CirclePlay,
   Ellipsis,
   FlaskConical,
-  Mail,
-  Megaphone,
-  MessageSquareText,
   Plus,
   RefreshCw,
   type LucideIcon
@@ -82,7 +80,8 @@ import { HierarchyBreadcrumbs, type CampaignHierarchyLevel } from "./HierarchyBr
 import { groupCampaignsBySchedule, type CampaignScheduleStatus } from "./campaignSchedule.js";
 import type {
   CampaignWorkspaceCardVisual,
-  CampaignWorkspaceEntityCard
+  CampaignWorkspaceEntityCard,
+  CampaignWorkspaceStatusTone
 } from "./campaign-workspace-types.js";
 import { groupPromotionsByBoardStatus, type PromotionBoardStatus } from "./promotionBoardStatus.js";
 
@@ -104,27 +103,31 @@ const CAMPAIGN_SCHEDULE_SECTIONS: ReadonlyArray<{
   icon: LucideIcon;
   label: string;
   status: CampaignScheduleStatus;
+  tone: CampaignWorkspaceStatusTone;
 }> = [
   {
     description: "시작일이 가까운 순으로 보여요.",
     emptyMessage: "시작을 기다리는 캠페인이 없어요.",
     icon: CalendarClock,
     label: "예정",
-    status: "scheduled"
+    status: "scheduled",
+    tone: "neutral"
   },
   {
     description: "종료일이 가까운 순으로 보여요.",
     emptyMessage: "현재 진행 중인 캠페인이 없어요.",
     icon: CirclePlay,
     label: "진행 중",
-    status: "in_progress"
+    status: "in_progress",
+    tone: "info"
   },
   {
     description: "최근에 종료된 순으로 보여요.",
     emptyMessage: "완료된 캠페인이 없어요.",
     icon: CircleCheck,
     label: "완료됨",
-    status: "completed"
+    status: "completed",
+    tone: "success"
   }
 ];
 
@@ -134,47 +137,61 @@ const PROMOTION_BOARD_SECTIONS: ReadonlyArray<{
   icon: LucideIcon;
   label: string;
   status: PromotionBoardStatus;
+  tone: CampaignWorkspaceStatusTone;
 }> = [
   {
     description: "첫 실험 실행을 기다리고 있어요.",
     emptyMessage: "준비 중인 프로모션이 없어요.",
     icon: FlaskConical,
     label: "준비 중",
-    status: "preparing"
+    status: "preparing",
+    tone: "neutral"
   },
   {
     description: "현재 실험을 실행하거나 평가하고 있어요.",
     emptyMessage: "진행 중인 프로모션이 없어요.",
     icon: CirclePlay,
     label: "진행 중",
-    status: "in_progress"
+    status: "in_progress",
+    tone: "info"
   },
   {
     description: "평가 결과에 따라 다음 실험이 필요해요.",
     emptyMessage: "다음 실험이 필요한 프로모션이 없어요.",
     icon: RefreshCw,
     label: "다음 실험 필요",
-    status: "next_experiment"
+    status: "next_experiment",
+    tone: "warning"
   },
   {
     description: "목표를 달성했거나 최대 실험 횟수를 마쳤어요.",
     emptyMessage: "완료된 프로모션이 없어요.",
     icon: CircleCheck,
     label: "완료됨",
-    status: "completed"
+    status: "completed",
+    tone: "success"
   }
 ];
 
-const CAMPAIGN_CARD_VISUAL: Record<CampaignScheduleStatus, CampaignWorkspaceCardVisual> = {
-  scheduled: { icon: CalendarClock, label: "예정 캠페인", tone: "amber" },
-  in_progress: { icon: CirclePlay, label: "진행 중 캠페인", tone: "mint" },
-  completed: { icon: CircleCheck, label: "완료 캠페인", tone: "blue" }
+const STATUS_ICON_TONE_CLASS: Record<CampaignWorkspaceStatusTone, string> = {
+  danger: "border-status-danger/30 bg-status-danger-soft text-status-danger-foreground",
+  info: "border-status-info/30 bg-status-info-soft text-status-info-foreground",
+  neutral: "border-border bg-muted text-muted-foreground",
+  success: "border-status-success/30 bg-status-success-soft text-status-success-foreground",
+  warning: "border-status-warning/30 bg-status-warning-soft text-status-warning-foreground"
 };
 
-const PROMOTION_CHANNEL_VISUAL: Record<string, CampaignWorkspaceCardVisual> = {
-  email: { icon: Mail, label: "이메일", tone: "blue" },
-  sms: { icon: MessageSquareText, label: "문자", tone: "coral" },
-  onsite_banner: { icon: Megaphone, label: "온사이트 배너", tone: "mint" }
+const CAMPAIGN_CARD_VISUAL: Record<CampaignScheduleStatus, CampaignWorkspaceCardVisual> = {
+  scheduled: { icon: CalendarClock, label: "예정 캠페인", tone: "neutral" },
+  in_progress: { icon: CirclePlay, label: "진행 중 캠페인", tone: "info" },
+  completed: { icon: CircleCheck, label: "완료 캠페인", tone: "success" }
+};
+
+const PROMOTION_CARD_VISUAL: Record<PromotionBoardStatus, CampaignWorkspaceCardVisual> = {
+  preparing: { icon: FlaskConical, label: "준비 중 프로모션", tone: "neutral" },
+  in_progress: { icon: CirclePlay, label: "진행 중 프로모션", tone: "info" },
+  next_experiment: { icon: RefreshCw, label: "다음 실험 필요", tone: "warning" },
+  completed: { icon: CircleCheck, label: "완료 프로모션", tone: "success" }
 };
 
 export function CampaignWorkspacePage({
@@ -491,7 +508,12 @@ export function CampaignWorkspacePage({
                 >
                   <div className="grid gap-1 border-b px-1 pb-3">
                     <div className="flex items-center gap-2">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">
+                      <span
+                        className={cn(
+                          "flex size-7 shrink-0 items-center justify-center rounded-md border",
+                          STATUS_ICON_TONE_CLASS[section.tone]
+                        )}
+                      >
                         <StatusIcon aria-hidden="true" className="size-4" />
                       </span>
                       <h3
@@ -596,7 +618,9 @@ export function CampaignWorkspacePage({
           </div>
           <div className="grid min-w-0 gap-4">
             {PROMOTION_BOARD_SECTIONS.map((section) => {
-              const cards = promotionsByBoardStatus[section.status].map(toPromotionCard);
+              const cards = promotionsByBoardStatus[section.status].map((promotion) =>
+                toPromotionCard(promotion, section.status)
+              );
               const StatusIcon = section.icon;
 
               return (
@@ -607,7 +631,12 @@ export function CampaignWorkspacePage({
                 >
                   <div className="grid gap-1 border-b px-1 pb-3">
                     <div className="flex items-center gap-2">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">
+                      <span
+                        className={cn(
+                          "flex size-7 shrink-0 items-center justify-center rounded-md border",
+                          STATUS_ICON_TONE_CLASS[section.tone]
+                        )}
+                      >
                         <StatusIcon aria-hidden="true" className="size-4" />
                       </span>
                       <h3
@@ -902,7 +931,10 @@ function formatCampaignDate(value: string | null): string {
   return `${Number(match[2])}.${Number(match[3])}`;
 }
 
-function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
+function toPromotionCard(
+  promotion: DashboardCampaignPromotion,
+  boardStatus: PromotionBoardStatus
+): PromotionCard {
   return {
     description: promotion.message_brief ?? formatChannelLabel(promotion.channel),
     id: promotion.promotion_id,
@@ -927,11 +959,7 @@ function toPromotionCard(promotion: DashboardCampaignPromotion): PromotionCard {
     ],
     promotion,
     title: promotion.marketing_theme,
-    visual: PROMOTION_CHANNEL_VISUAL[promotion.channel] ?? {
-      icon: Megaphone,
-      label: formatChannelLabel(promotion.channel),
-      tone: "amber"
-    }
+    visual: PROMOTION_CARD_VISUAL[boardStatus]
   };
 }
 

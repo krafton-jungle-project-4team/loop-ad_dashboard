@@ -525,14 +525,17 @@ export function pickJsonNumber(value: Record<string, unknown>, keys: string[]) {
 }
 
 export function statusBadgeVariant(status: string) {
-  if (status.includes("goal_met") || status === "active" || status === "running") {
-    return "default" as const;
+  if (status.includes("goal_met") || status === "approved") {
+    return "status-success" as const;
+  }
+  if (status === "active" || status === "running") {
+    return "status-info" as const;
   }
   if (status.includes("not_met") || status === "failed" || status === "stopped") {
-    return "destructive" as const;
+    return "status-danger" as const;
   }
   if (status.includes("insufficient") || status.includes("near")) {
-    return "secondary" as const;
+    return "status-warning" as const;
   }
   return "outline" as const;
 }

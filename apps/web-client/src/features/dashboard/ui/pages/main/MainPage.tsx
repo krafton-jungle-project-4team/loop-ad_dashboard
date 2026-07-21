@@ -388,7 +388,9 @@ function CampaignListRow({
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant="secondary">{formatStatusLabel(campaign.status)}</Badge>
+        <Badge variant={campaignStatusBadgeVariant(campaign.status)}>
+          {formatStatusLabel(campaign.status)}
+        </Badge>
       </TableCell>
       <TableCell>{formatPeriod(campaign)}</TableCell>
       <TableCell className="text-right tabular-nums">
@@ -406,7 +408,9 @@ function CampaignListRow({
           : formatPercent(campaign.latest_goal_achievement_rate)}
       </TableCell>
       <TableCell>
-        <Badge variant="outline">{formatActionLabel(campaign.next_action)}</Badge>
+        <Badge variant={campaignActionBadgeVariant(campaign.next_action)}>
+          {formatActionLabel(campaign.next_action)}
+        </Badge>
       </TableCell>
     </TableRow>
   );
@@ -515,6 +519,17 @@ function realtimeEventCount(metrics: DashboardRealtimeMetrics, eventName: string
 
 function formatPercentValue(value: number) {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+function campaignStatusBadgeVariant(status: string) {
+  if (status === "active" || status === "running") return "status-info" as const;
+  if (status === "completed" || status === "approved") return "status-success" as const;
+  if (status === "failed" || status === "stopped") return "status-danger" as const;
+  return "secondary" as const;
+}
+
+function campaignActionBadgeVariant(action: string) {
+  return ["monitor", "none"].includes(action) ? ("outline" as const) : ("status-warning" as const);
 }
 
 function formatTimeBucketLabel(value: string) {

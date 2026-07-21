@@ -804,7 +804,7 @@ function NextExperimentPanel({
               {formatStatusLabel(experiment.next_loop.status)}
             </Badge>
           ) : evaluation?.next_loop_required ? (
-            <Badge variant="secondary">반복 필요</Badge>
+            <Badge variant="status-warning">반복 필요</Badge>
           ) : (
             <Badge variant="outline">대기</Badge>
           )}

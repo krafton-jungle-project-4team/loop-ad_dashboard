@@ -5,27 +5,23 @@ import { Slot } from "radix-ui";
 import { cn } from "@loopad/ui/shadcn/utils";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity,transform,box-shadow] outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity,transform,box-shadow] outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-60 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "border-primary bg-primary text-primary-foreground shadow-[0_1px_2px_rgb(43_34_51_/_0.18)] hover:bg-[#584ab8]",
+          "border-primary bg-primary text-primary-foreground shadow-[0_1px_2px_rgb(32_5_46_/_0.22)] hover:border-primary-hover hover:bg-primary-hover active:border-primary-active active:bg-primary-active",
         outline:
-          "border-border bg-card text-primary hover:border-primary/30 hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-input bg-card text-primary hover:border-primary/60 hover:bg-accent hover:text-accent-foreground active:border-primary active:bg-secondary aria-expanded:border-primary/60 aria-expanded:bg-accent aria-expanded:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         "outline-neutral":
-          "border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
-        "promotion-soft":
-          "border-border bg-background text-foreground hover:border-promotion-action-border hover:bg-promotion-action aria-expanded:border-promotion-action-border aria-expanded:bg-promotion-action",
-        "segment-soft":
-          "border-border bg-background text-foreground hover:border-segment-action-border hover:bg-segment-action aria-expanded:border-segment-action-border aria-expanded:bg-segment-action",
+          "border-input bg-background text-foreground hover:border-primary/60 hover:bg-accent hover:text-accent-foreground active:border-primary active:bg-secondary aria-expanded:border-primary/60 aria-expanded:bg-accent aria-expanded:text-accent-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
-        soft: "border-primary/20 bg-primary/[0.07] text-primary hover:border-primary/30 hover:bg-primary/[0.12] aria-expanded:border-primary/30 aria-expanded:bg-primary/[0.12]",
+          "border-secondary bg-secondary text-secondary-foreground hover:border-primary/25 hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_9%)] active:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_14%)] aria-expanded:border-primary/25 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+        soft: "border-primary/25 bg-primary/[0.08] text-primary hover:border-primary/45 hover:bg-primary/[0.14] active:bg-primary/[0.18] aria-expanded:border-primary/45 aria-expanded:bg-primary/[0.14]",
         ghost:
           "text-foreground/80 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "border-destructive/25 bg-destructive/10 text-destructive hover:border-destructive/45 hover:bg-destructive/15 active:bg-destructive/20 focus-visible:border-destructive/60 focus-visible:ring-destructive/30 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline"
       },
       size: {

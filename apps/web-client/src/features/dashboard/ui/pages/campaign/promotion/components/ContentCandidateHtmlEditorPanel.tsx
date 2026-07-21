@@ -199,7 +199,7 @@ function ValidationBadge({ status }: { status: HtmlValidationStatus }) {
     return <Badge variant="destructive">수정 필요</Badge>;
   }
   if (status === "valid") {
-    return <Badge variant="secondary">검증 완료</Badge>;
+    return <Badge variant="status-success">검증 완료</Badge>;
   }
   return <Badge variant="outline">불러오는 중</Badge>;
 }

@@ -5,6 +5,10 @@ export type CampaignWorkspaceEntityKind = "campaign" | "promotion" | "segment";
 
 export type CampaignWorkspaceBadgeVariant =
   | "default"
+  | "status-info"
+  | "status-success"
+  | "status-warning"
+  | "status-danger"
   | "secondary"
   | "destructive"
   | "outline"
@@ -21,12 +25,12 @@ export type CampaignWorkspaceMetric = {
   value: ReactNode;
 };
 
-export type CampaignWorkspaceCardVisualTone = "amber" | "blue" | "coral" | "mint";
+export type CampaignWorkspaceStatusTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 export type CampaignWorkspaceCardVisual = {
   icon: LucideIcon;
   label: string;
-  tone: CampaignWorkspaceCardVisualTone;
+  tone: CampaignWorkspaceStatusTone;
 };
 
 export type CampaignWorkspaceEntityCard = {

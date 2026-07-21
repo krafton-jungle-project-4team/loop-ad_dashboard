@@ -316,10 +316,10 @@ function CodeBlock({ code, language, title }: { code: string; language: string; 
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[#463754] bg-[#181421]">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#17212b] px-3 py-2">
+    <div className="overflow-hidden rounded-lg border border-brand-violet/35 bg-brand-ink-deep">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-brand-ink px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <Terminal className="size-4 shrink-0 text-[#8bb7e8]" />
+          <Terminal className="size-4 shrink-0 text-brand-cyan" />
           <span className="truncate text-xs font-semibold text-white">{title}</span>
           <Badge className="bg-white/10 text-white hover:bg-white/10">{language}</Badge>
         </div>
@@ -334,7 +334,7 @@ function CodeBlock({ code, language, title }: { code: string; language: string; 
           {copied ? "복사됨" : "복사"}
         </Button>
       </div>
-      <pre className="max-h-[520px] overflow-auto p-4 text-[13px] leading-6 text-[#e6edf3]">
+      <pre className="max-h-[520px] overflow-auto p-4 text-[13px] leading-6 text-white/90">
         <code>{code}</code>
       </pre>
     </div>
