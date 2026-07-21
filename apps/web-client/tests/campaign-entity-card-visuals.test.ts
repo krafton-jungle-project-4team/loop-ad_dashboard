@@ -63,9 +63,13 @@ test("promotion cards use neutral, info, warning, and success roles", () => {
   assert.match(workspaceSource, /toPromotionCard\(promotion, section\.status\)/);
 });
 
-test("entity cards keep neutral surfaces and limit status color to badges and icons", () => {
-  assert.doesNotMatch(entityCardSource, /h-1 w-full/);
-  assert.doesNotMatch(entityCardSource, /entity\.visual && "pt-0"/);
+test("entity cards use semantic status color for their top line, badge, and icon", () => {
+  assert.match(entityCardSource, /entity\.visual && "overflow-hidden pt-0"/);
+  assert.match(entityCardSource, /className=\{cn\("h-1 w-full", visualTone\.accent\)\}/);
+  assert.match(entityCardSource, /accent: "bg-status-info"/);
+  assert.match(entityCardSource, /accent: "bg-status-warning"/);
+  assert.match(entityCardSource, /accent: "bg-status-success"/);
+  assert.match(entityCardSource, /accent: "bg-muted-foreground"/);
   assert.match(entityCardSource, /<VisualIcon aria-hidden="true" className="size-4" \/>/);
   assert.match(
     entityCardSource,

@@ -38,25 +38,30 @@ const ENTITY_KIND_LABEL: Record<CampaignWorkspaceEntityKind, string> = {
 
 const STATUS_VISUAL_TONE: Record<
   CampaignWorkspaceStatusTone,
-  { badgeVariant: ComponentProps<typeof Badge>["variant"]; icon: string }
+  { accent: string; badgeVariant: ComponentProps<typeof Badge>["variant"]; icon: string }
 > = {
   danger: {
+    accent: "bg-status-danger",
     badgeVariant: "status-danger",
     icon: "border-status-danger/30 bg-status-danger-soft text-status-danger-foreground"
   },
   info: {
+    accent: "bg-status-info",
     badgeVariant: "status-info",
     icon: "border-status-info/30 bg-status-info-soft text-status-info-foreground"
   },
   neutral: {
+    accent: "bg-muted-foreground",
     badgeVariant: "secondary",
     icon: "border-border bg-muted text-muted-foreground"
   },
   success: {
+    accent: "bg-status-success",
     badgeVariant: "status-success",
     icon: "border-status-success/30 bg-status-success-soft text-status-success-foreground"
   },
   warning: {
+    accent: "bg-status-warning",
     badgeVariant: "status-warning",
     icon: "border-status-warning/30 bg-status-warning-soft text-status-warning-foreground"
   }
@@ -174,10 +179,14 @@ function EntityCard<Entity extends CampaignWorkspaceEntityCard>({
       className={cn(
         "h-full shadow-none transition-[border-color,box-shadow]",
         isCompact ? "min-h-48" : "min-h-56",
+        entity.visual && "overflow-hidden pt-0",
         isSelected && "border-primary/40 ring-2 ring-primary/15"
       )}
       size={isCompact ? "sm" : "default"}
     >
+      {visualTone ? (
+        <div aria-hidden="true" className={cn("h-1 w-full", visualTone.accent)} />
+      ) : null}
       <CardHeader className={isCompact ? "gap-2" : "gap-3"}>
         {entity.visual && visualTone && VisualIcon ? (
           <div className="flex min-w-0 flex-nowrap items-center gap-2">
