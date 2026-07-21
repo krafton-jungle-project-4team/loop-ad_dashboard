@@ -62,6 +62,11 @@ export const DASHBOARD_ERRORS = {
     code: "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_INVALID",
     message: "The AI creative revision did not pass the HTML safety contract."
   },
+  CONTENT_CANDIDATE_HTML_REVISION_CONFLICT: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_CONFLICT",
+    message: "The content candidate HTML changed before this revision was saved."
+  },
   PROMOTION_CAMPAIGN_SCHEDULE_INVALID: {
     statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
     code: "DASHBOARD_PROMOTION_CAMPAIGN_SCHEDULE_INVALID",
@@ -110,6 +115,8 @@ export const dashboardErrors = {
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_REVISION_FAILED, { cause }),
   contentCandidateHtmlRevisionInvalid: (cause?: unknown) =>
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_REVISION_INVALID, { cause }),
+  contentCandidateHtmlRevisionConflict: () =>
+    createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_HTML_REVISION_CONFLICT),
   segmentPreviewNotSaveable: () =>
     createDashboardError(DASHBOARD_ERRORS.SEGMENT_PREVIEW_NOT_SAVEABLE),
   segmentSuggestionSelectionInvalid: () =>

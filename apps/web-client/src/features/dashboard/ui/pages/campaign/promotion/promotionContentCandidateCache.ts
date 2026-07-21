@@ -1,15 +1,15 @@
 import type {
   DashboardCampaignDetail,
   DashboardContentCandidate,
-  DashboardReviseContentCandidateHtmlResult,
-  DashboardSegmentDetail
+  DashboardSegmentDetail,
+  DashboardUpdateContentCandidateCopyResult
 } from "@loopad/shared";
 
 type ContentCandidateDetail = DashboardCampaignDetail | DashboardSegmentDetail;
 
 export function reconcileContentCandidateRevision<Detail extends ContentCandidateDetail>(
   detail: Detail | undefined,
-  revision: DashboardReviseContentCandidateHtmlResult
+  revision: DashboardUpdateContentCandidateCopyResult
 ): Detail | undefined {
   if (!detail) return detail;
 
@@ -25,7 +25,7 @@ export function reconcileContentCandidateRevision<Detail extends ContentCandidat
 
 function revisedContentCandidate(
   candidate: DashboardContentCandidate,
-  revision: DashboardReviseContentCandidateHtmlResult
+  revision: DashboardUpdateContentCandidateCopyResult
 ): DashboardContentCandidate {
   return {
     ...candidate,

@@ -126,6 +126,58 @@ export type DashboardReviseContentCandidateHtmlResult = z.infer<
   typeof DashboardReviseContentCandidateHtmlResultSchema
 >;
 
+export const DASHBOARD_CONTENT_CANDIDATE_HTML_MAX_BYTES = 2_000_000;
+
+const DashboardContentCandidateHtmlRevisionSchema = z.string().regex(/^[a-f0-9]{64}$/);
+const DashboardContentCandidateEditableHtmlSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (html) =>
+      new TextEncoder().encode(html).byteLength <= DASHBOARD_CONTENT_CANDIDATE_HTML_MAX_BYTES,
+    "HTML exceeds the 2 MB edit limit."
+  );
+
+export const DashboardContentCandidateHtmlSourceSchema = z.object({
+  html: DashboardContentCandidateEditableHtmlSchema,
+  revision: DashboardContentCandidateHtmlRevisionSchema,
+  updated_at: z.string()
+});
+export type DashboardContentCandidateHtmlSource = z.infer<
+  typeof DashboardContentCandidateHtmlSourceSchema
+>;
+
+export const DashboardSaveContentCandidateHtmlRequestSchema = z.object({
+  html: DashboardContentCandidateEditableHtmlSchema,
+  base_revision: DashboardContentCandidateHtmlRevisionSchema
+});
+export type DashboardSaveContentCandidateHtmlRequest = z.infer<
+  typeof DashboardSaveContentCandidateHtmlRequestSchema
+>;
+
+export const DashboardSaveContentCandidateHtmlResultSchema =
+  DashboardUpdateContentCandidateCopyResultSchema.extend({
+    html: DashboardContentCandidateEditableHtmlSchema,
+    revision: DashboardContentCandidateHtmlRevisionSchema
+  });
+export type DashboardSaveContentCandidateHtmlResult = z.infer<
+  typeof DashboardSaveContentCandidateHtmlResultSchema
+>;
+
+export const DashboardPreviewContentCandidateHtmlRequestSchema = z.object({
+  html: DashboardContentCandidateEditableHtmlSchema
+});
+export type DashboardPreviewContentCandidateHtmlRequest = z.infer<
+  typeof DashboardPreviewContentCandidateHtmlRequestSchema
+>;
+
+export const DashboardPreviewContentCandidateHtmlResultSchema = z.object({
+  html: DashboardContentCandidateEditableHtmlSchema
+});
+export type DashboardPreviewContentCandidateHtmlResult = z.infer<
+  typeof DashboardPreviewContentCandidateHtmlResultSchema
+>;
+
 export const DashboardRejectContentCandidateRequestSchema = z.object({
   operator_note: z.string().nullable().optional()
 });

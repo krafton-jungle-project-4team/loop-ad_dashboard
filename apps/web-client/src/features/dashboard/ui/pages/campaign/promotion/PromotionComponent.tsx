@@ -27,6 +27,7 @@ export function PromotionWorkspace({
     approveContentCandidateMutation,
     archiveScopedSegmentMutation,
     campaignDetail,
+    contentCandidateHtmlEditor,
     confirmSuggestionsMutation,
     createPromotionMutation,
     decideSuggestionMutation,
@@ -106,6 +107,7 @@ export function PromotionWorkspace({
             <PromotionTabWorkspace
               approveContentCandidateIsPending={approveContentCandidateMutation.isPending}
               archiveScopedSegmentIsPending={archiveScopedSegmentMutation.isPending}
+              contentCandidateHtmlEditor={contentCandidateHtmlEditor}
               confirmIsPending={confirmSuggestionsMutation.isPending}
               decideIsPending={decideSuggestionMutation.isPending}
               deleteConfirmedSegmentIsPending={deleteConfirmedSegmentMutation.isPending}

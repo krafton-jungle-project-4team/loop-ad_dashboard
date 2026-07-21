@@ -3956,6 +3956,10 @@ export interface IUpdateDashboardContentCandidateCopyParams {
   body?: string | null | void;
   contentId?: string | null | void;
   cta?: string | null | void;
+  expectedBody?: string | null | void;
+  expectedCta?: string | null | void;
+  expectedHeadline?: string | null | void;
+  expectedMetadataJson?: Json | null | void;
   headline?: string | null | void;
   metadataJson?: Json | null | void;
   projectId?: string | null | void;
@@ -3981,7 +3985,7 @@ export interface IUpdateDashboardContentCandidateCopyQuery {
   result: IUpdateDashboardContentCandidateCopyResult;
 }
 
-const updateDashboardContentCandidateCopyIR: any = {"usedParamSet":{"headline":true,"body":true,"cta":true,"metadataJson":true,"projectId":true,"promotionId":true,"segmentId":true,"contentId":true},"params":[{"name":"headline","required":false,"transform":{"type":"scalar"},"locs":[{"a":73,"b":81},{"a":154,"b":162}]},{"name":"body","required":false,"transform":{"type":"scalar"},"locs":[{"a":191,"b":195}]},{"name":"cta","required":false,"transform":{"type":"scalar"},"locs":[{"a":208,"b":211}]},{"name":"metadataJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":234,"b":246}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":298,"b":307}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":330,"b":341}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":362,"b":371}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":392,"b":401}]}],"statement":"UPDATE content_candidates\nSET subject = CASE WHEN channel = 'email' THEN :headline ELSE subject END,\n    title = CASE WHEN channel = 'onsite_banner' THEN :headline ELSE title END,\n    body = :body,\n    cta = :cta,\n    metadata_json = :metadataJson::jsonb,\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND content_id = :contentId\n  AND status = 'draft'\nRETURNING\n  content_id AS \"contentId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  CASE WHEN channel = 'email' THEN subject ELSE title END AS headline,\n  body,\n  cta,\n  status,\n  updated_at AS \"updatedAt\"                                           "};
+const updateDashboardContentCandidateCopyIR: any = {"usedParamSet":{"headline":true,"body":true,"cta":true,"metadataJson":true,"projectId":true,"promotionId":true,"segmentId":true,"contentId":true,"expectedMetadataJson":true,"expectedHeadline":true,"expectedBody":true,"expectedCta":true},"params":[{"name":"headline","required":false,"transform":{"type":"scalar"},"locs":[{"a":73,"b":81},{"a":154,"b":162}]},{"name":"body","required":false,"transform":{"type":"scalar"},"locs":[{"a":191,"b":195}]},{"name":"cta","required":false,"transform":{"type":"scalar"},"locs":[{"a":208,"b":211}]},{"name":"metadataJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":234,"b":246}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":298,"b":307}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":330,"b":341}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":362,"b":371}]},{"name":"contentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":392,"b":401}]},{"name":"expectedMetadataJson","required":false,"transform":{"type":"scalar"},"locs":[{"a":448,"b":468}]},{"name":"expectedHeadline","required":false,"transform":{"type":"scalar"},"locs":[{"a":555,"b":571}]},{"name":"expectedBody","required":false,"transform":{"type":"scalar"},"locs":[{"a":600,"b":612}]},{"name":"expectedCta","required":false,"transform":{"type":"scalar"},"locs":[{"a":640,"b":651}]}],"statement":"UPDATE content_candidates\nSET subject = CASE WHEN channel = 'email' THEN :headline ELSE subject END,\n    title = CASE WHEN channel = 'onsite_banner' THEN :headline ELSE title END,\n    body = :body,\n    cta = :cta,\n    metadata_json = :metadataJson::jsonb,\n    updated_at = now()\nWHERE project_id = :projectId\n  AND promotion_id = :promotionId\n  AND segment_id = :segmentId\n  AND content_id = :contentId\n  AND status = 'draft'\n  AND metadata_json = :expectedMetadataJson::jsonb\n  AND COALESCE(CASE WHEN channel = 'email' THEN subject ELSE title END, '') = :expectedHeadline\n  AND COALESCE(body, '') = :expectedBody\n  AND COALESCE(cta, '') = :expectedCta\nRETURNING\n  content_id AS \"contentId\",\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\",\n  CASE WHEN channel = 'email' THEN subject ELSE title END AS headline,\n  body,\n  cta,\n  status,\n  updated_at AS \"updatedAt\""};
 
 /**
  * Query generated from SQL:
@@ -3998,6 +4002,10 @@ const updateDashboardContentCandidateCopyIR: any = {"usedParamSet":{"headline":t
  *   AND segment_id = :segmentId
  *   AND content_id = :contentId
  *   AND status = 'draft'
+ *   AND metadata_json = :expectedMetadataJson::jsonb
+ *   AND COALESCE(CASE WHEN channel = 'email' THEN subject ELSE title END, '') = :expectedHeadline
+ *   AND COALESCE(body, '') = :expectedBody
+ *   AND COALESCE(cta, '') = :expectedCta
  * RETURNING
  *   content_id AS "contentId",
  *   promotion_id AS "promotionId",

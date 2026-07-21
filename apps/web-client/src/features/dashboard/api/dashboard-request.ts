@@ -57,6 +57,16 @@ function dashboardApiErrorMessage(code: string, message: string) {
       return "광고를 보여 줄 대상이 아직 없어요. 광고 소재를 선택한 뒤 다시 시도해 주세요.";
     case "PROMOTION_RUN_NOT_FOUND":
       return "실행할 광고 실험을 찾지 못했어요. 광고 소재를 선택한 뒤 다시 시도해 주세요.";
+    case "DASHBOARD_CONTENT_CANDIDATE_NOT_EDITABLE":
+      return "임시 저장 상태의 광고만 수정할 수 있어요. 최신 광고 상태를 다시 불러와 주세요.";
+    case "DASHBOARD_CONTENT_CANDIDATE_HTML_UNAVAILABLE":
+      return "편집할 HTML을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
+    case "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_FAILED":
+      return "AI 디자인 수정을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.";
+    case "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_INVALID":
+      return "HTML 안전성 검증을 통과하지 못했어요. script, 외부 자원, 이벤트 핸들러 등을 확인해 주세요.";
+    case "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_CONFLICT":
+      return "다른 수정으로 새 버전이 먼저 저장됐어요. 창을 닫고 최신 HTML을 다시 불러와 주세요.";
     case "UNSUPPORTED_DISPATCH_CHANNEL":
       return "지금은 이메일과 문자 광고만 보낼 수 있어요.";
     case "segment_audience_source_batch_mismatch":

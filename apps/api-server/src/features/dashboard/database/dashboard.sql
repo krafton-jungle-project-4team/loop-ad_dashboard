@@ -2183,6 +2183,10 @@ WHERE project_id = :projectId
   AND segment_id = :segmentId
   AND content_id = :contentId
   AND status = 'draft'
+  AND metadata_json = :expectedMetadataJson::jsonb
+  AND COALESCE(CASE WHEN channel = 'email' THEN subject ELSE title END, '') = :expectedHeadline
+  AND COALESCE(body, '') = :expectedBody
+  AND COALESCE(cta, '') = :expectedCta
 RETURNING
   content_id AS "contentId",
   promotion_id AS "promotionId",

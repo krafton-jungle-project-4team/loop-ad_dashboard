@@ -1012,6 +1012,121 @@ test("dashboard controller sends trimmed HTML feedback and public origin to the 
   assert.match(response.change_summary, /버튼/);
 });
 
+test("dashboard controller validates HTML source, preview, and manual save requests", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const calls: unknown[] = [];
+  const revision = "a".repeat(64);
+  const canonicalHtml = "<article><h1>제목</h1><p>본문</p><a>예약</a></article>";
+  const controller = new DashboardController({
+    ...emptyDashboardQuery(),
+    contentCandidateHtmlSource: async (projectId, promotionId, segmentId, contentId) => {
+      calls.push({ contentId, projectId, promotionId, segmentId, type: "source" });
+      return {
+        html: canonicalHtml,
+        revision,
+        updated_at: "2026-07-21T00:00:00.000Z"
+      };
+    },
+    previewContentCandidateHtml: async (projectId, promotionId, segmentId, contentId, request) => {
+      calls.push({ contentId, projectId, promotionId, request, segmentId, type: "preview" });
+      return { html: canonicalHtml };
+    },
+    saveContentCandidateHtml: async (
+      projectId,
+      promotionId,
+      segmentId,
+      contentId,
+      request,
+      publicOrigin
+    ) => {
+      calls.push({
+        contentId,
+        projectId,
+        promotionId,
+        publicOrigin,
+        request,
+        segmentId,
+        type: "save"
+      });
+      return {
+        body: "본문",
+        content_id: contentId,
+        cta: "예약",
+        headline: "제목",
+        html: canonicalHtml,
+        html_url: `${publicOrigin}/api/dashboard/v1/content.html`,
+        promotion_id: promotionId,
+        revision,
+        segment_id: segmentId,
+        status: "draft" as const,
+        updated_at: "2026-07-21T00:00:00.000Z"
+      };
+    }
+  } as unknown as DashboardQueryService);
+
+  const source = await controller.contentCandidateHtmlSource(
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    "project-a"
+  );
+  const preview = await controller.previewContentCandidateHtml(
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    "project-a",
+    { html: canonicalHtml }
+  );
+  const saved = await controller.saveContentCandidateHtml(
+    "promotion-a",
+    "segment-a",
+    "content-a",
+    "project-a",
+    { base_revision: revision, html: canonicalHtml },
+    {
+      headers: {
+        host: "api-server:3000",
+        "x-forwarded-host": "dashboard.api.dev.loop-ad.org",
+        "x-forwarded-proto": "https"
+      },
+      protocol: "http"
+    }
+  );
+
+  assert.equal(source.revision, revision);
+  assert.equal(preview.html, canonicalHtml);
+  assert.equal(saved.html, canonicalHtml);
+  assert.equal(saved.revision, revision);
+  assert.deepEqual(calls, [
+    {
+      contentId: "content-a",
+      projectId: "project-a",
+      promotionId: "promotion-a",
+      segmentId: "segment-a",
+      type: "source"
+    },
+    {
+      contentId: "content-a",
+      projectId: "project-a",
+      promotionId: "promotion-a",
+      request: { html: canonicalHtml },
+      segmentId: "segment-a",
+      type: "preview"
+    },
+    {
+      contentId: "content-a",
+      projectId: "project-a",
+      promotionId: "promotion-a",
+      publicOrigin: "https://dashboard.api.dev.loop-ad.org",
+      request: { base_revision: revision, html: canonicalHtml },
+      segmentId: "segment-a",
+      type: "save"
+    }
+  ]);
+});
+
 test("dashboard controller starts an ad experiment before dispatch", async () => {
   setRequiredEnv();
   const { DashboardController } =

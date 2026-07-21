@@ -85,6 +85,7 @@ import {
   type PromotionWorkspaceTab
 } from "../promotionUtils.js";
 import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow.js";
+import type { ContentCandidateHtmlEditorActions } from "../useContentCandidateHtmlEditor.js";
 import { PromotionSegmentSuggestionPanel } from "./PromotionSegmentSuggestions.js";
 import { SegmentColumnDeleteMenu } from "./SegmentColumnDeleteMenu.js";
 import { ContentCandidateCopyEditDialog } from "./ContentCandidateCopyEditDialog.js";
@@ -342,6 +343,7 @@ export function PromotionTabWorkspace({
   archiveScopedSegmentIsPending,
   approveContentCandidateIsPending,
   confirmIsPending,
+  contentCandidateHtmlEditor,
   decideIsPending,
   deleteConfirmedSegmentIsPending,
   launchExperimentError,
@@ -386,6 +388,7 @@ export function PromotionTabWorkspace({
   archiveScopedSegmentIsPending: boolean;
   approveContentCandidateIsPending: boolean;
   confirmIsPending: boolean;
+  contentCandidateHtmlEditor: ContentCandidateHtmlEditorActions;
   decideIsPending: boolean;
   deleteConfirmedSegmentIsPending: boolean;
   launchExperimentError: Error | null;
@@ -605,6 +608,7 @@ export function PromotionTabWorkspace({
               <TabsContent className="min-h-0" value="experiments">
                 <PromotionSegmentDetailTab
                   approveContentCandidateIsPending={approveContentCandidateIsPending}
+                  contentCandidateHtmlEditor={contentCandidateHtmlEditor}
                   detail={selectedSegmentDetail}
                   generationIsPending={promotionGenerationIsPending}
                   isError={selectedSegmentDetailIsError}
@@ -853,6 +857,7 @@ function PromotionCurrentSegmentsPanel({
 
 function PromotionSegmentDetailTab({
   approveContentCandidateIsPending,
+  contentCandidateHtmlEditor,
   detail,
   generationIsPending,
   isError,
@@ -875,6 +880,7 @@ function PromotionSegmentDetailTab({
   view
 }: {
   approveContentCandidateIsPending: boolean;
+  contentCandidateHtmlEditor: ContentCandidateHtmlEditorActions;
   detail: DashboardSegmentDetail | undefined;
   generationIsPending: boolean;
   isError: boolean;
@@ -1141,6 +1147,7 @@ function PromotionSegmentDetailTab({
                                 {htmlArtifact ? (
                                   <ContentCandidateCopyEditDialog
                                     candidate={candidate}
+                                    contentCandidateHtmlEditor={contentCandidateHtmlEditor}
                                     isPending={updateContentCandidateCopyIsPending}
                                     isRevisionPending={reviseContentCandidateHtmlIsPending}
                                     onRevise={(feedback) =>

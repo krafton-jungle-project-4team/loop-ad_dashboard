@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req
 } from "@nestjs/common";
@@ -22,6 +23,7 @@ import {
   DashboardCampaignDetailSchema,
   DashboardCampaignSegmentSchema,
   DashboardCampaignSummarySchema,
+  DashboardContentCandidateHtmlSourceSchema,
   DashboardConfirmSegmentSuggestionsRequestSchema,
   DashboardConfirmSegmentSuggestionsResultSchema,
   DashboardCreateNextLoopRequestSchema,
@@ -63,6 +65,10 @@ import {
   DashboardPromotionSegmentSuggestionListSchema,
   DashboardPromotionSegmentSuggestionSchema,
   DashboardPromotionSummarySchema,
+  DashboardPreviewContentCandidateHtmlRequestSchema,
+  DashboardPreviewContentCandidateHtmlResultSchema,
+  DashboardSaveContentCandidateHtmlRequestSchema,
+  DashboardSaveContentCandidateHtmlResultSchema,
   DashboardRejectContentCandidateRequestSchema,
   DashboardRejectContentCandidateResultSchema,
   DashboardReviseContentCandidateHtmlRequestSchema,
@@ -381,6 +387,66 @@ export class DashboardController {
     return DashboardReviseContentCandidateHtmlResultSchema.parse(
       await this.dashboardQuery.reviseContentCandidateHtml(
         requiredProjectId,
+        promotionId,
+        segmentId,
+        contentId,
+        parsedRequest,
+        dashboardRequestOrigin(request)
+      )
+    );
+  }
+
+  @Get("promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/html/source")
+  @Header("Cache-Control", "no-store")
+  async contentCandidateHtmlSource(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined
+  ) {
+    return DashboardContentCandidateHtmlSourceSchema.parse(
+      await this.dashboardQuery.contentCandidateHtmlSource(
+        requireProjectId(projectId),
+        promotionId,
+        segmentId,
+        contentId
+      )
+    );
+  }
+
+  @Post("promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/html/preview")
+  async previewContentCandidateHtml(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown
+  ) {
+    const parsedRequest = DashboardPreviewContentCandidateHtmlRequestSchema.parse(body);
+    return DashboardPreviewContentCandidateHtmlResultSchema.parse(
+      await this.dashboardQuery.previewContentCandidateHtml(
+        requireProjectId(projectId),
+        promotionId,
+        segmentId,
+        contentId,
+        parsedRequest
+      )
+    );
+  }
+
+  @Put("promotions/:promotion_id/segments/:segment_id/content-candidates/:content_id/html/source")
+  async saveContentCandidateHtml(
+    @Param("promotion_id") promotionId: string,
+    @Param("segment_id") segmentId: string,
+    @Param("content_id") contentId: string,
+    @Query("project_id") projectId: string | undefined,
+    @Body() body: unknown,
+    @Req() request: DashboardHttpRequest
+  ) {
+    const parsedRequest = DashboardSaveContentCandidateHtmlRequestSchema.parse(body);
+    return DashboardSaveContentCandidateHtmlResultSchema.parse(
+      await this.dashboardQuery.saveContentCandidateHtml(
+        requireProjectId(projectId),
         promotionId,
         segmentId,
         contentId,

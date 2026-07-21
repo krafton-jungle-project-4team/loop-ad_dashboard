@@ -2,7 +2,7 @@ import { createApiSuccessResponseSchema } from "@loopad/shared";
 import { z } from "zod";
 import { dashboardConfig } from "../../features/dashboard/model/dashboard-config.js";
 
-type HttpMethod = "DELETE" | "GET" | "PATCH" | "POST";
+type HttpMethod = "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
 
 type ApiSearchParamValue = boolean | number | string | null | undefined;
 
