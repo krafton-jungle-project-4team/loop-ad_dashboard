@@ -23,6 +23,24 @@ test("segment candidate panel grows to its content height so the page owns scrol
   assert.doesNotMatch(suggestionPanelSource, /<Card className="min-h-0(?: [^"]*)?shadow-none">/);
 });
 
+test("segment candidate footer stays compact and exposes one confirmation action", () => {
+  assert.match(
+    suggestionPanelSource,
+    /<CardFooter className="flex shrink-0 flex-col gap-3 border-t bg-muted\/20 py-3/
+  );
+  assert.match(suggestionPanelSource, /후보 \{formatInteger\(candidateCount\)\}개 중/);
+  assert.match(suggestionPanelSource, /<CheckCircle2 data-icon="inline-start" \/>/);
+  assert.doesNotMatch(suggestionPanelSource, /선택한 고객군/);
+});
+
+test("selected candidate cards have a strong card-level state", () => {
+  assert.match(
+    suggestionPanelSource,
+    /border-primary bg-accent\/60 ring-2 ring-primary\/30 shadow-sm/
+  );
+  assert.match(suggestionPanelSource, /\{isAccepted \? <Badge>선택됨<\/Badge> : null\}/);
+});
+
 test("segment candidate tabs keep their intrinsic content height", () => {
   assert.match(workspaceSource, /<TabsContent className="flex-none" value="segments">/);
   assert.match(workspaceSource, /<TabsContent className="flex-none" value="candidates">/);
