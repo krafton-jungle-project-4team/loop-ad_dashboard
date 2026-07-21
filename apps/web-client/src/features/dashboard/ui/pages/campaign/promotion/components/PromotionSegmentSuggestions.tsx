@@ -20,6 +20,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle
 } from "@loopad/ui/shadcn/card";
@@ -27,7 +28,9 @@ import {
   Carousel,
   type CarouselApi,
   CarouselContent,
-  CarouselItem
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious
 } from "@loopad/ui/shadcn/carousel";
 import { Checkbox } from "@loopad/ui/shadcn/checkbox";
 import {
@@ -48,18 +51,12 @@ import {
 } from "@loopad/ui/shadcn/empty";
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { cn } from "@loopad/ui/shadcn/utils";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BarChart3,
-  Bot,
-  CheckCircle2,
-  FileText
-} from "lucide-react";
+import { BarChart3, Bot, CheckCircle2, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
+import { selectedSegmentSummaries } from "../../../../../model/segment-selection-summary.js";
 import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
   formatJsonObject,
@@ -147,6 +144,10 @@ export function PromotionSegmentSuggestionPanel({
       suggestion
     }))
   ];
+  const selectedSegments = selectedSegmentSummaries(
+    visibleSuggestions,
+    scopedSegments.filter((segment) => selectedScopedSegmentIds.includes(segment.segment_id))
+  );
   const allocationPreview =
     selectedScopedSegmentIds.length > 0
       ? null
@@ -254,6 +255,27 @@ export function PromotionSegmentSuggestionPanel({
             opts={{ align: "start", loop: false }}
             setApi={setCandidateCarouselApi}
           >
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/25 px-3 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <Badge variant="outline">검토 중</Badge>
+                <span className="text-sm font-medium tabular-nums">
+                  {formatInteger(activeCandidateIndex + 1)} / {formatInteger(candidateCount)}
+                </span>
+                <span className="hidden text-xs text-muted-foreground sm:inline">
+                  한 장씩 넘기며 비교해 보세요.
+                </span>
+              </div>
+              <div aria-label="고객군 후보 이동" className="flex items-center gap-1" role="group">
+                <CarouselPrevious
+                  aria-label="이전 고객군 후보"
+                  className="static inset-auto my-0 rounded-md bg-card"
+                />
+                <CarouselNext
+                  aria-label="다음 고객군 후보"
+                  className="static inset-auto my-0 rounded-md bg-card"
+                />
+              </div>
+            </div>
             <CarouselContent className="ml-0 items-stretch">
               {candidateSlides.map((candidate) => (
                 <CarouselItem className="flex basis-full pl-0" key={candidate.id}>
@@ -297,56 +319,6 @@ export function PromotionSegmentSuggestionPanel({
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <div className="mt-3 grid gap-3 rounded-md border bg-muted/25 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-              <div
-                aria-label="고객군 후보 이동"
-                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3"
-                role="group"
-              >
-                <Button
-                  className="w-fit justify-self-start"
-                  disabled={!candidateCarouselApi || activeCandidateIndex === 0}
-                  onClick={() => candidateCarouselApi?.scrollPrev()}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <ArrowLeft data-icon="inline-start" />
-                  이전 후보
-                </Button>
-                <span aria-live="polite" className="text-sm font-medium tabular-nums">
-                  {formatInteger(activeCandidateIndex + 1)} / {formatInteger(candidateCount)}
-                </span>
-                <Button
-                  className="w-fit justify-self-end"
-                  disabled={!candidateCarouselApi || activeCandidateIndex === candidateCount - 1}
-                  onClick={() => candidateCarouselApi?.scrollNext()}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  다음 후보
-                  <ArrowRight data-icon="inline-end" />
-                </Button>
-              </div>
-              <Button
-                className="w-full sm:w-auto"
-                disabled={
-                  confirmableCount === 0 ||
-                  confirmIsPending ||
-                  decideIsPending ||
-                  archiveScopedSegmentIsPending ||
-                  suggestionsIsLoading ||
-                  scopedSegmentsIsLoading ||
-                  promotionAnalysisIsPending
-                }
-                onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
-                type="button"
-              >
-                <CheckCircle2 data-icon="inline-start" />
-                {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
-              </Button>
-            </div>
           </Carousel>
         ) : null}
         {!promotionAnalysisIsPending &&
@@ -380,6 +352,55 @@ export function PromotionSegmentSuggestionPanel({
           suggestion={reportSuggestion}
         />
       </CardContent>
+      <CardFooter className="grid shrink-0 gap-4 border-t bg-muted/20 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="grid min-w-0 gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">선택한 고객군</span>
+            <Badge variant="secondary">{formatInteger(confirmableCount)}</Badge>
+          </div>
+          {selectedSegments.length > 0 ? (
+            <ul className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {selectedSegments.map((segment) => (
+                <li
+                  className="grid min-w-0 gap-0.5 border-l-2 border-primary pl-2"
+                  key={segment.id}
+                >
+                  <span
+                    className="truncate text-xs font-medium text-foreground"
+                    title={segment.name}
+                  >
+                    {segment.name}
+                  </span>
+                  <span
+                    className="truncate text-[11px] text-muted-foreground"
+                    title={segment.detail}
+                  >
+                    {segment.detail}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className="text-xs text-muted-foreground">확정할 후보를 선택해 주세요.</span>
+          )}
+        </div>
+        <Button
+          className="w-full lg:w-auto"
+          disabled={
+            confirmableCount === 0 ||
+            confirmIsPending ||
+            decideIsPending ||
+            archiveScopedSegmentIsPending ||
+            suggestionsIsLoading ||
+            scopedSegmentsIsLoading ||
+            promotionAnalysisIsPending
+          }
+          onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
+          type="button"
+        >
+          {confirmIsPending ? "후보 확정 중…" : `선택한 후보 확정 (${confirmableCount})`}
+        </Button>
+      </CardFooter>
       <AlertDialog
         onOpenChange={(open) => {
           if (!open) {
