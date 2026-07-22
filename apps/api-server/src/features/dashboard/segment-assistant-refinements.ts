@@ -263,7 +263,7 @@ export function isSourceBaseConditionEditRequest(
   if (!/(?:대신|바꿔|변경|교체|수정|완화|강화|빼|제외|삭제|없애)/.test(message)) {
     return false;
   }
-  const mentionedEvents = new Set(referenceLabelEvents(message));
+  const mentionedEvents = new Set(sourceReferenceLabelEvents(message));
   return baseConditions.some((condition) => mentionedEvents.has(condition.event_name));
 }
 
@@ -283,12 +283,42 @@ export function applySourceBaseConditionEdit(
   message: string
 ) {
   const removedEvents = sourceConditionRemovalEvents(message);
+  const bookingReplacement = bookingCompletionReplacement(message);
+  const currentBookingCondition = currentConditions.find(
+    (condition) => condition.event_name === "booking_complete"
+  );
   let conditions = currentConditions.filter(
-    (condition) => !removedEvents.has(condition.event_name)
+    (condition) =>
+      !removedEvents.has(condition.event_name) &&
+      !(bookingReplacement && condition.event_name === "booking_complete")
   );
   for (const condition of plannedConditions) {
     if (removedEvents.has(condition.event_name)) continue;
-    conditions = upsertConditionPreservingOrder(conditions, condition);
+    if (
+      bookingReplacement &&
+      condition.event_name === "booking_complete" &&
+      !matchesBookingCompletionReplacement(condition, bookingReplacement)
+    ) {
+      continue;
+    }
+    const nextCondition =
+      bookingReplacement && condition.event_name === "booking_complete"
+        ? preserveConditionScope(condition, currentBookingCondition)
+        : condition;
+    conditions = upsertConditionPreservingOrder(conditions, nextCondition);
+  }
+  if (
+    bookingReplacement &&
+    !conditions.some(
+      (condition) =>
+        condition.event_name === "booking_complete" &&
+        matchesBookingCompletionReplacement(condition, bookingReplacement)
+    )
+  ) {
+    conditions = upsertConditionPreservingOrder(
+      conditions,
+      bookingReplacementCondition(bookingReplacement, currentBookingCondition)
+    );
   }
   return conditions;
 }
@@ -332,7 +362,9 @@ export function removeUnchangedSourceConditions(
   conditions: SegmentAssistantPlan["conditions"],
   referenceLabels: string[]
 ): SegmentAssistantPlan["conditions"] {
-  const referencedEvents = new Set(referenceLabels.flatMap((label) => referenceLabelEvents(label)));
+  const referencedEvents = new Set(
+    referenceLabels.flatMap((label) => sourceReferenceLabelEvents(label))
+  );
   return conditions.filter((condition) => {
     if (!referencedEvents.has(condition.event_name)) {
       return true;
@@ -423,7 +455,7 @@ function upsertConditionPreservingOrder(
     : [...conditions, nextCondition];
 }
 
-function referenceLabelEvents(label: string): SegmentAssistantEventName[] {
+export function sourceReferenceLabelEvents(label: string): SegmentAssistantEventName[] {
   const normalized = label.replace(/\s+/g, "");
   const events: SegmentAssistantEventName[] = [];
   if (
@@ -447,7 +479,7 @@ function referenceLabelEvents(label: string): SegmentAssistantEventName[] {
 function editableConditionsForReferenceLabel(label: string): SegmentAssistantAudienceCondition[] {
   const conditions: SegmentAssistantAudienceCondition[] = [];
   const minimumCount = /(?:반복|2\s*(?:회|번)|두\s*번)/.test(label) ? 2 : 1;
-  for (const eventName of referenceLabelEvents(label)) {
+  for (const eventName of sourceReferenceLabelEvents(label)) {
     if (eventName === "booking_complete" && /미완료|완료\s*(?:없음|제외)|미예약/.test(label)) {
       conditions.push({
         label: "예약 미완료",
@@ -476,7 +508,70 @@ function sourceConditionRemovalEvents(message: string) {
   if (/예약\s*완료\s*고객(?:을|를)?\s*제외/.test(message)) {
     return new Set<SegmentAssistantEventName>();
   }
-  return new Set(referenceLabelEvents(message));
+  return new Set(sourceReferenceLabelEvents(message));
+}
+
+type BookingCompletionReplacement = "complete" | "incomplete";
+
+function bookingCompletionReplacement(message: string): BookingCompletionReplacement | null {
+  if (/예약\s*(?:시작\s*후\s*)?미완료.*예약\s*완료/.test(message)) {
+    return "complete";
+  }
+  if (/예약\s*완료.*예약\s*(?:시작\s*후\s*)?미완료/.test(message)) {
+    return "incomplete";
+  }
+  return null;
+}
+
+function matchesBookingCompletionReplacement(
+  condition: SegmentAssistantAudienceCondition,
+  replacement: BookingCompletionReplacement
+) {
+  return replacement === "complete"
+    ? condition.minimum_count >= 1 && condition.maximum_count === null
+    : condition.minimum_count === 0 && condition.maximum_count === 0;
+}
+
+function bookingReplacementCondition(
+  replacement: BookingCompletionReplacement,
+  currentCondition?: SegmentAssistantAudienceCondition
+): SegmentAssistantAudienceCondition {
+  return {
+    ...preserveConditionScope(
+      {
+        label: replacement === "complete" ? "예약 완료" : "예약 미완료",
+        event_name: "booking_complete",
+        minimum_count: replacement === "complete" ? 1 : 0,
+        maximum_count: replacement === "complete" ? null : 0,
+        destination: null,
+        checkin_months: [],
+        property_filters: []
+      },
+      currentCondition
+    ),
+    label: replacement === "complete" ? "예약 완료" : "예약 미완료",
+    minimum_count: replacement === "complete" ? 1 : 0,
+    maximum_count: replacement === "complete" ? null : 0
+  };
+}
+
+function preserveConditionScope(
+  condition: SegmentAssistantAudienceCondition,
+  currentCondition?: SegmentAssistantAudienceCondition
+): SegmentAssistantAudienceCondition {
+  if (!currentCondition) return condition;
+  return {
+    ...condition,
+    destination: condition.destination ?? currentCondition.destination,
+    checkin_months:
+      condition.checkin_months.length > 0
+        ? condition.checkin_months
+        : currentCondition.checkin_months,
+    property_filters:
+      condition.property_filters.length > 0
+        ? condition.property_filters
+        : currentCondition.property_filters
+  };
 }
 
 function isDefaultReferenceCondition(condition: SegmentAssistantAudienceCondition) {

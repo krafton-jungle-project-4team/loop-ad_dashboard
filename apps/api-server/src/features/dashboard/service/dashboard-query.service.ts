@@ -119,6 +119,7 @@ import {
   selectSourceRefinementCandidates,
   sourceBaseConditionLabels,
   sourceConditionsEqual,
+  sourceReferenceLabelEvents,
   upsertRefinementCondition
 } from "../segment-assistant-refinements.js";
 import {
@@ -2077,7 +2078,7 @@ export class DashboardQueryService {
       ),
       segment_name: segmentName,
       lookback_days: plan.lookback_days,
-      condition_labels: effectiveSegmentConditionLabels(plan, sourceMembership),
+      condition_labels: effectiveSegmentConditionLabels(plan, source),
       minimum_sample_size: MIN_SEGMENT_USER_COUNT,
       condition_diagnostics: diagnostics.conditionDiagnostics,
       suggested_adjustments: diagnostics.suggestedAdjustments,
@@ -2176,9 +2177,67 @@ function effectiveSegmentConditionLabels(
   if (!source) {
     return groupedConditionLabels(plan.conditions);
   }
+  if (plan.execution_scope === "all_eligible_users") {
+    return editedSourceReferenceLabels(source.reference_labels, plan.conditions);
+  }
   const baseConditions = source.base_conditions ?? [];
   const effectiveConditions = applySourceBaseConditionEdit(baseConditions, plan.conditions, "");
   return groupedConditionLabels(effectiveConditions, source.reference_labels);
+}
+
+function editedSourceReferenceLabels(
+  referenceLabels: string[],
+  conditions: SegmentAssistantPlan["conditions"]
+) {
+  const hasBookingStart = conditions.some(
+    (condition) => condition.event_name === "booking_start" && condition.minimum_count >= 1
+  );
+  const hasBookingComplete = conditions.some(
+    (condition) =>
+      condition.event_name === "booking_complete" &&
+      condition.minimum_count >= 1 &&
+      condition.maximum_count === null
+  );
+  const hasNoBookingComplete = conditions.some(
+    (condition) =>
+      condition.event_name === "booking_complete" &&
+      condition.minimum_count === 0 &&
+      condition.maximum_count === 0
+  );
+  const representedEvents = new Set<string>();
+  const labels = referenceLabels.flatMap((label) => {
+    const events = sourceReferenceLabelEvents(label);
+    const isBookingLabel = events.some(
+      (eventName) => eventName === "booking_start" || eventName === "booking_complete"
+    );
+    if (!isBookingLabel) {
+      if (
+        !events.some((eventName) =>
+          conditions.some((condition) => condition.event_name === eventName)
+        )
+      ) {
+        return [];
+      }
+      events.forEach((eventName) => representedEvents.add(eventName));
+      return [label];
+    }
+
+    representedEvents.add("booking_start");
+    representedEvents.add("booking_complete");
+    if (hasBookingComplete) return ["예약 완료"];
+    if (hasBookingStart && hasNoBookingComplete) return ["예약 시작 후 미완료"];
+    if (hasNoBookingComplete) return ["예약 미완료"];
+    if (hasBookingStart) return ["예약 시작"];
+    return [];
+  });
+
+  for (const condition of conditions) {
+    if (!representedEvents.has(condition.event_name)) {
+      labels.push(condition.label);
+      representedEvents.add(condition.event_name);
+    }
+  }
+  return uniqueConditionLabels(labels);
 }
 
 function groupedConditionLabels(
