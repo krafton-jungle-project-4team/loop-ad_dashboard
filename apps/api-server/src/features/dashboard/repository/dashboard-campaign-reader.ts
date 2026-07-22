@@ -111,6 +111,8 @@ import {
   listDashboardSegmentExperimentMetrics,
   markDashboardSegmentQueryPreviewSaved,
   rejectDashboardContentCandidate,
+  releaseDashboardPromotionAllocationPlan,
+  releaseDashboardPromotionTargetAudience,
   startDashboardAdExperiment,
   stopDashboardPromotion,
   stopDashboardPromotionTargetSegment,
@@ -409,6 +411,21 @@ export class DashboardCampaignReader {
     const row = await this.db
       .query(stopDashboardPromotionTargetSegment, { projectId, promotionId, segmentId })
       .single();
+
+    await this.db
+      .query(releaseDashboardPromotionTargetAudience, {
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .single();
+    await this.db
+      .query(releaseDashboardPromotionAllocationPlan, {
+        projectId,
+        promotionId,
+        segmentId
+      })
+      .multiple();
 
     if (!row.promotionId || !row.segmentId) {
       throw new Error("Stopped promotion segment response is missing its identity.");

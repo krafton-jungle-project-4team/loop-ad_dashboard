@@ -143,7 +143,7 @@ test("V2 confirmation generated query binds parameters at valid SQL positions", 
   ]);
 });
 
-test("removing a target segment preserves snapshot history and invalidates legacy generation scope", () => {
+test("removing a target segment stops downstream work and releases its audience reservation", () => {
   const dashboardSql = readFileSync(
     new URL("../src/features/dashboard/database/dashboard.sql", import.meta.url),
     "utf8"
@@ -173,27 +173,33 @@ test("removing a target segment preserves snapshot history and invalidates legac
   );
   assert.match(
     stopSegmentSql,
-    /releasable_snapshot_plan AS \([\s\S]*plan\.status = 'finalized'[\s\S]*NOT EXISTS \([\s\S]*promotion_run_target_bindings/
+    /stopped_snapshot_target AS \([\s\S]*UPDATE promotion_target_segments pts[\s\S]*SET status = 'stopped'/
   );
   assert.match(
     stopSegmentSql,
-    /advanced_snapshot_exclusion_revision AS \([\s\S]*advance_promotion_audience_exclusion_revision/
+    /@name ReleaseDashboardPromotionTargetAudience[\s\S]*advance_promotion_audience_exclusion_revision/
   );
   assert.match(
     stopSegmentSql,
-    /released_snapshot_exclusion_members AS \([\s\S]*SET state = 'released'[\s\S]*excluded\.state = 'reserved'/
+    /released_exclusion_members AS \([\s\S]*SET state = 'released'[\s\S]*excluded\.state IN \('reserved', 'consumed'\)/
   );
   assert.match(
     stopSegmentSql,
-    /updated_snapshot_plan_targets AS \([\s\S]*THEN 'stopped'[\s\S]*THEN 'planned'[\s\S]*THEN 'released'/
+    /excluded\.target_analysis_id = advanced\.analysis_id[\s\S]*excluded\.final_snapshot_id = advanced\.audience_snapshot_id/
   );
   assert.match(
     stopSegmentSql,
-    /released_snapshot_allocation_plans AS \([\s\S]*SET status = 'released'/
+    /released_target AS \([\s\S]*SET audience_reservation_state = 'released'/
   );
-  assert.doesNotMatch(
+  assert.match(
     stopSegmentSql,
-    /promotion_audience_exclusion_members[\s\S]*state = 'consumed'[\s\S]*state = 'released'/
+    /@name ReleaseDashboardPromotionAllocationPlan[\s\S]*plan\.status IN \('finalized', 'locked'\)/
   );
-  assert.match(stopSegmentSql, /FROM updated_snapshot_plan_targets/);
+  assert.match(
+    stopSegmentSql,
+    /other\.status <> 'stopped'[\s\S]*other\.audience_reservation_state <> 'released'/
+  );
+  assert.doesNotMatch(stopSegmentSql, /DELETE FROM promotion_run_target_bindings/);
+  assert.doesNotMatch(stopSegmentSql, /DELETE FROM ad_experiment_units/);
+  assert.doesNotMatch(stopSegmentSql, /DELETE FROM user_segment_assignments/);
 });
