@@ -197,6 +197,10 @@ test("removing a target segment stops downstream work and releases its audience 
   );
   assert.match(
     stopSegmentSql,
+    /promotion_run_target_bindings binding[\s\S]*binding\.allocation_plan_id = plan\.allocation_plan_id/
+  );
+  assert.match(
+    stopSegmentSql,
     /other\.status <> 'stopped'[\s\S]*other\.audience_reservation_state <> 'released'/
   );
   assert.doesNotMatch(stopSegmentSql, /DELETE FROM promotion_run_target_bindings/);

@@ -2969,7 +2969,7 @@ export interface IReleaseDashboardPromotionAllocationPlanQuery {
   result: IReleaseDashboardPromotionAllocationPlanResult;
 }
 
-const releaseDashboardPromotionAllocationPlanIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":261,"b":270}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":304,"b":315}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":347,"b":356}]}],"statement":"UPDATE segment_audience_allocation_plans plan\nSET status = 'released',\n    locked_at = NULL,\n    released_at = now()\nWHERE plan.allocation_plan_id IN (\n    SELECT target.allocation_plan_id\n    FROM promotion_target_segments target\n    WHERE target.project_id = :projectId\n      AND target.promotion_id = :promotionId\n      AND target.segment_id = :segmentId\n      AND target.status = 'stopped'\n      AND target.audience_reservation_state = 'released'\n)\n  AND plan.status IN ('finalized', 'locked')\n  AND NOT EXISTS (\n    SELECT 1\n    FROM promotion_target_segments other\n    WHERE other.allocation_plan_id = plan.allocation_plan_id\n      AND (\n        other.status <> 'stopped'\n        OR other.audience_reservation_state <> 'released'\n      )\n  )\nRETURNING plan.allocation_plan_id AS \"allocationPlanId\"                                                  "};
+const releaseDashboardPromotionAllocationPlanIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":261,"b":270}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":304,"b":315}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":347,"b":356}]}],"statement":"UPDATE segment_audience_allocation_plans plan\nSET status = 'released',\n    locked_at = NULL,\n    released_at = now()\nWHERE plan.allocation_plan_id IN (\n    SELECT target.allocation_plan_id\n    FROM promotion_target_segments target\n    WHERE target.project_id = :projectId\n      AND target.promotion_id = :promotionId\n      AND target.segment_id = :segmentId\n      AND target.status = 'stopped'\n      AND target.audience_reservation_state = 'released'\n)\n  AND plan.status IN ('finalized', 'locked')\n  AND NOT EXISTS (\n    SELECT 1\n    FROM promotion_run_target_bindings binding\n    WHERE binding.allocation_plan_id = plan.allocation_plan_id\n  )\n  AND NOT EXISTS (\n    SELECT 1\n    FROM promotion_target_segments other\n    WHERE other.allocation_plan_id = plan.allocation_plan_id\n      AND (\n        other.status <> 'stopped'\n        OR other.audience_reservation_state <> 'released'\n      )\n  )\nRETURNING plan.allocation_plan_id AS \"allocationPlanId\"                                                  "};
 
 /**
  * Query generated from SQL:
@@ -2988,6 +2988,11 @@ const releaseDashboardPromotionAllocationPlanIR: any = {"usedParamSet":{"project
  *       AND target.audience_reservation_state = 'released'
  * )
  *   AND plan.status IN ('finalized', 'locked')
+ *   AND NOT EXISTS (
+ *     SELECT 1
+ *     FROM promotion_run_target_bindings binding
+ *     WHERE binding.allocation_plan_id = plan.allocation_plan_id
+ *   )
  *   AND NOT EXISTS (
  *     SELECT 1
  *     FROM promotion_target_segments other

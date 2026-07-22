@@ -1866,6 +1866,11 @@ WHERE plan.allocation_plan_id IN (
   AND plan.status IN ('finalized', 'locked')
   AND NOT EXISTS (
     SELECT 1
+    FROM promotion_run_target_bindings binding
+    WHERE binding.allocation_plan_id = plan.allocation_plan_id
+  )
+  AND NOT EXISTS (
+    SELECT 1
     FROM promotion_target_segments other
     WHERE other.allocation_plan_id = plan.allocation_plan_id
       AND (
