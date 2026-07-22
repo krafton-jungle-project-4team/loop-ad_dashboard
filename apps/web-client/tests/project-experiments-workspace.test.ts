@@ -289,6 +289,10 @@ test("experiment workspace prioritizes the result summary before deeper analysis
   assert.match(workspaceSource, /<TabsTrigger value="funnel">사용자 경로 분석<\/TabsTrigger>/);
   assert.match(workspaceSource, /<TabsTrigger value="history">반복 이력<\/TabsTrigger>/);
   assert.match(workspaceSource, /NextExperimentPanel/);
+  assert.match(workspaceSource, /AudienceIntentAnalysisSection/);
+  assert.match(workspaceSource, /AI 원인 분석/);
+  assert.match(workspaceSource, /관측 기반 가설/);
+  assert.match(workspaceSource, /다음 세그먼트 가설/);
   assert.match(workspaceSource, /다음 실험 준비하기/);
   assert.match(workspaceSource, /\{formatInteger\(experiment\.loop_count\)\}번째 실험/);
   assert.doesNotMatch(workspaceSource, /ExperimentSummaryCard/);

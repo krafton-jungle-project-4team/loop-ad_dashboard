@@ -2174,14 +2174,40 @@ function effectiveSegmentConditionLabels(
   source: ResolvedSegmentAssistantSource | undefined
 ) {
   if (!source) {
-    return uniqueConditionLabels(plan.conditions.map((condition) => condition.label));
+    return groupedConditionLabels(plan.conditions);
   }
   const baseConditions = source.base_conditions ?? [];
   const effectiveConditions = applySourceBaseConditionEdit(baseConditions, plan.conditions, "");
+  return groupedConditionLabels(effectiveConditions, source.reference_labels);
+}
+
+function groupedConditionLabels(
+  conditions: SegmentAssistantPlan["conditions"],
+  fallbackLabels: string[] = []
+) {
+  const hasBookingStart = conditions.some(
+    (condition) => condition.event_name === "booking_start" && condition.minimum_count >= 1
+  );
+  const hasNoBookingComplete = conditions.some(
+    (condition) => condition.event_name === "booking_complete" && condition.maximum_count === 0
+  );
   const labels =
-    effectiveConditions.length > 0
-      ? effectiveConditions.map((condition) => condition.label)
-      : source.reference_labels;
+    conditions.length > 0
+      ? conditions
+          .filter(
+            (condition) =>
+              !(
+                hasBookingStart &&
+                hasNoBookingComplete &&
+                (condition.event_name === "booking_start" ||
+                  condition.event_name === "booking_complete")
+              )
+          )
+          .map((condition) => condition.label)
+      : fallbackLabels;
+  if (hasBookingStart && hasNoBookingComplete) {
+    labels.push("예약 시작 후 미완료");
+  }
   return uniqueConditionLabels(labels);
 }
 

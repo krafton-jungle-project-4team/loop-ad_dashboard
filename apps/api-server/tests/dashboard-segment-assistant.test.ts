@@ -54,6 +54,62 @@ test("segment assistant turns a bare repeated-behavior condition into a free seg
   assert.equal(plan.conditions[1]?.maximum_count, 0);
 });
 
+test("segment assistant keeps age, repeated destination detail, and booking abandonment executable", async () => {
+  setRequiredEnv();
+  const { fallbackSegmentAssistantPlan } =
+    await import("../src/features/dashboard/provider/dashboard-segment-assistant-agent.js");
+
+  const plan = fallbackSegmentAssistantPlan(
+    "20대와 30대 중 제주 또는 오키나와 숙소 상세를 2회 이상 보고 예약을 시작했지만 미완료한 고객은 몇 명이야?"
+  );
+
+  assert.equal(plan.action, "audience_query");
+  assert.deepEqual(
+    plan.conditions.map((condition) => ({
+      destination: condition.destination,
+      eventName: condition.event_name,
+      label: condition.label,
+      maximumCount: condition.maximum_count,
+      minimumCount: condition.minimum_count,
+      propertyFilters: condition.property_filters
+    })),
+    [
+      {
+        destination: "제주, 오키나와",
+        eventName: "hotel_detail_view",
+        label: "제주, 오키나와 숙소 상세 조회",
+        maximumCount: null,
+        minimumCount: 2,
+        propertyFilters: []
+      },
+      {
+        destination: "제주, 오키나와",
+        eventName: "booking_start",
+        label: "예약 시작",
+        maximumCount: null,
+        minimumCount: 1,
+        propertyFilters: []
+      },
+      {
+        destination: "제주, 오키나와",
+        eventName: "booking_complete",
+        label: "제주, 오키나와 예약 완료 없음",
+        maximumCount: 0,
+        minimumCount: 0,
+        propertyFilters: []
+      },
+      {
+        destination: null,
+        eventName: "page_view",
+        label: "20~30대",
+        maximumCount: null,
+        minimumCount: 1,
+        propertyFilters: [{ key: "age_group", operator: "in", value: "20대, 30대" }]
+      }
+    ]
+  );
+});
+
 test("segment assistant asks for clarification when no supported condition can be inferred", async () => {
   setRequiredEnv();
   const { fallbackSegmentAssistantPlan } =
@@ -130,6 +186,39 @@ test("structured segment conditions compile to whitelisted read-only ClickHouse 
   assert.doesNotMatch(query.generatedSql, /\b(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE)\b/i);
   assert.doesNotMatch(query.generatedSql, /LIMIT 500/);
   assert.match(query.previewSql, /LIMIT 500$/);
+});
+
+test("structured segment query compiles multi-value age groups without free-form SQL", async () => {
+  const { planStructuredSegmentQuery } =
+    await import("../src/features/dashboard/repository/dashboard-segment-query-repository.js");
+  const query = planStructuredSegmentQuery(
+    "demo_project",
+    {
+      action: "segment_preview",
+      segment_name: "20~30대 고객",
+      lookback_days: 30,
+      conditions: [
+        {
+          label: "20~30대",
+          event_name: "page_view",
+          minimum_count: 1,
+          maximum_count: null,
+          destination: null,
+          checkin_months: [],
+          property_filters: [{ key: "age_group", operator: "in", value: "30대, 20대" }]
+        }
+      ],
+      clarification_message: null
+    },
+    {
+      from: "2026-06-01T00:00:00.000Z",
+      to: "2026-07-01T00:00:00.000Z"
+    }
+  );
+
+  assert.match(query.generatedSql, /lowerUTF8\(.+age_group.+\) IN \(/s);
+  assert.match(query.generatedSql, /lowerUTF8\('30대'\)/);
+  assert.match(query.generatedSql, /lowerUTF8\('20대'\)/);
 });
 
 test("structured segment destination conditions match Korean and source-data aliases", async () => {

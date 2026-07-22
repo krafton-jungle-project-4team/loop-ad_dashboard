@@ -50,14 +50,17 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Lightbulb,
   Plus,
   RefreshCw,
+  Sparkles,
   TrendingDown
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import {
   formatDateTime,
   formatInteger,
+  formatMoney,
   formatPercent
 } from "../../../../../../model/dashboard-format.js";
 import {
@@ -664,6 +667,7 @@ function SelectedProjectExperimentDetail({
           </TabsList>
           <TabsContent className="grid gap-4 pt-4" value="summary">
             <ExperimentResultSummary evaluation={evaluation} experiment={experiment} />
+            <AudienceIntentAnalysisSection evaluation={evaluation} />
             <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
               <EvaluationSummarySection evaluation={evaluation} />
               <NextExperimentPanel
@@ -690,6 +694,107 @@ function SelectedProjectExperimentDetail({
         </dl>
       </CardFooter>
     </Card>
+  );
+}
+
+function AudienceIntentAnalysisSection({
+  evaluation
+}: {
+  evaluation: DashboardProjectExperimentLatestEvaluation | null;
+}) {
+  const analysis = evaluation?.diagnosis?.audience_intent_analysis;
+  if (!analysis) {
+    return null;
+  }
+
+  const cohort = analysis.cohort_comparison;
+  const bookingValue = analysis.booking_value_comparison;
+
+  return (
+    <section
+      aria-labelledby="audience-intent-analysis-title"
+      className="grid gap-5 border-y bg-muted/20 px-1 py-5 sm:px-4"
+    >
+      <header className="grid gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Sparkles aria-hidden="true" className="size-4 text-primary" />
+          <span className="text-sm font-semibold text-primary">AI 원인 분석</span>
+          <Badge variant="outline">관측 기반 가설</Badge>
+        </div>
+        <h3 className="text-lg font-semibold" id="audience-intent-analysis-title">
+          {analysis.title}
+        </h3>
+        <div className="grid max-w-5xl gap-2 text-sm leading-6 text-foreground">
+          {analysis.paragraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
+      </header>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid content-start gap-2 border-l-2 border-primary/50 pl-3">
+          <h4 className="text-sm font-semibold">현재 예약 의도 차이</h4>
+          <dl className="grid gap-1 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">반복 상세 조회 고객</dt>
+              <dd className="font-semibold tabular-nums">
+                {formatPercent(cohort.repeat_view_conversion_rate)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">그 외 고객</dt>
+              <dd className="font-semibold tabular-nums">
+                {formatPercent(cohort.comparison_conversion_rate)}
+              </dd>
+            </div>
+          </dl>
+          <p className="text-xs leading-5 text-muted-foreground">
+            실험 전 {formatInteger(cohort.lookback_days)}일 행동을 기준으로 비교했습니다.
+          </p>
+        </div>
+
+        <div className="grid content-start gap-2 border-l-2 border-border pl-3">
+          <h4 className="text-sm font-semibold">예약 단계 금액</h4>
+          {bookingValue ? (
+            <dl className="grid gap-1 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">예약 이탈 고객 중앙값</dt>
+                <dd className="font-semibold tabular-nums">
+                  {formatMoney(bookingValue.abandoned_median_revenue)}원
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">예약 완료 고객 중앙값</dt>
+                <dd className="font-semibold tabular-nums">
+                  {formatMoney(bookingValue.completed_median_revenue)}원
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground">
+              비교할 수 있는 예약 금액 표본이 아직 충분하지 않습니다.
+            </p>
+          )}
+        </div>
+
+        <div className="grid content-start gap-3 border-l-2 border-primary/50 pl-3">
+          <div className="flex items-center gap-2">
+            <Lightbulb aria-hidden="true" className="size-4 text-primary" />
+            <h4 className="text-sm font-semibold">다음 세그먼트 가설</h4>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {analysis.next_segment_hypothesis.condition_labels.map((label) => (
+              <Badge key={label} variant="outline">
+                {label}
+              </Badge>
+            ))}
+          </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            {analysis.next_segment_hypothesis.validation_note}
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 

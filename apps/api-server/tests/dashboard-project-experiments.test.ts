@@ -35,6 +35,37 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
             evaluationNumeratorCount: 24,
             evaluationResultJson: {
               diagnosis: {
+                audience_intent_analysis: {
+                  version: "dec.audience-intent-analysis.v1",
+                  title: "초기 고객군 안에서 현재 예약 의도의 차이가 확인됐습니다",
+                  paragraphs: ["반복 조회 고객의 예약 가능성이 더 높게 관측됐습니다."],
+                  cohort_comparison: {
+                    lookback_days: 30,
+                    repeat_detail_minimum_count: 2,
+                    repeat_view_user_count: 40,
+                    repeat_view_booking_count: 8,
+                    repeat_view_conversion_rate: "0.200000",
+                    comparison_user_count: 60,
+                    comparison_booking_count: 3,
+                    comparison_conversion_rate: "0.050000"
+                  },
+                  booking_value_comparison: {
+                    currency: "KRW",
+                    abandoned_user_count: 20,
+                    completed_user_count: 11,
+                    abandoned_median_revenue: "720000",
+                    completed_median_revenue: "510000"
+                  },
+                  next_segment_hypothesis: {
+                    lookback_days: 30,
+                    condition_labels: [
+                      "20~30대",
+                      "최근 30일 제주·오키나와 숙소 상세 2회 이상",
+                      "예약 시작 후 미완료"
+                    ],
+                    validation_note: "다음 실험에서 검증할 가설입니다."
+                  }
+                },
                 data_origin: { kind: "demo_fixture", label: "시연 데이터" },
                 evidence: ["광고 반응 고객 100명 중 예약 완료 24명"],
                 evidence_strength: {
@@ -89,7 +120,7 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
                 observed_bottleneck: "hotel_detail_view_to_booking_start",
                 status: "goal_not_met",
                 summary: "숙소 상세 조회 이후 예약 시작 전 이탈이 가장 큽니다.",
-                version: "dec.evaluation-diagnosis.v2"
+                version: "dec.evaluation-diagnosis.v3"
               },
               evaluation_cutoff_at: "2026-07-11T01:00:00.000Z",
               window_start: "2026-07-10T01:00:00.000Z"
@@ -141,6 +172,11 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
   assert.equal(
     response.experiments[0]?.latest_evaluation?.diagnosis?.data_origin.kind,
     "demo_fixture"
+  );
+  assert.equal(
+    response.experiments[0]?.latest_evaluation?.diagnosis?.audience_intent_analysis
+      ?.cohort_comparison.repeat_view_conversion_rate,
+    0.2
   );
   assert.equal(
     response.experiments[0]?.latest_evaluation?.evaluation_cutoff_at,

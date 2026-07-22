@@ -31,6 +31,37 @@ export type DashboardEvaluationLargestDropoff = z.infer<
   typeof DashboardEvaluationLargestDropoffSchema
 >;
 
+export const DashboardAudienceIntentAnalysisSchema = z.object({
+  version: z.string().min(1),
+  title: z.string().min(1),
+  paragraphs: z.array(z.string().min(1)).min(1),
+  cohort_comparison: z.object({
+    lookback_days: CountSchema,
+    repeat_detail_minimum_count: CountSchema,
+    repeat_view_user_count: CountSchema,
+    repeat_view_booking_count: CountSchema,
+    repeat_view_conversion_rate: JsonRateSchema,
+    comparison_user_count: CountSchema,
+    comparison_booking_count: CountSchema,
+    comparison_conversion_rate: JsonRateSchema
+  }),
+  booking_value_comparison: z
+    .object({
+      currency: z.string().min(1),
+      abandoned_user_count: CountSchema,
+      completed_user_count: CountSchema,
+      abandoned_median_revenue: JsonNumericSchema,
+      completed_median_revenue: JsonNumericSchema
+    })
+    .nullable(),
+  next_segment_hypothesis: z.object({
+    lookback_days: CountSchema,
+    condition_labels: z.array(z.string().min(1)).min(1),
+    validation_note: z.string().min(1)
+  })
+});
+export type DashboardAudienceIntentAnalysis = z.infer<typeof DashboardAudienceIntentAnalysisSchema>;
+
 export const DashboardExperimentEvaluationDiagnosisSchema = z.object({
   version: z.string().min(1),
   status: z.string().min(1),
@@ -50,6 +81,7 @@ export const DashboardExperimentEvaluationDiagnosisSchema = z.object({
     kind: z.enum(["observed", "demo_fixture", "mixed"]),
     label: z.string().min(1)
   }),
+  audience_intent_analysis: DashboardAudienceIntentAnalysisSchema.nullish(),
   funnel: z.object({
     counting_method: z.string().min(1),
     stages: z.array(DashboardEvaluationFunnelStageSchema).min(2),
