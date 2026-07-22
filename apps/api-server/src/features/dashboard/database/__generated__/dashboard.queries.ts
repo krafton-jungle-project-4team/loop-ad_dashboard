@@ -178,7 +178,7 @@ export interface IListDashboardCampaignSummariesQuery {
   result: IListDashboardCampaignSummariesResult;
 }
 
-const listDashboardCampaignSummariesIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1552,"b":1561}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COALESCE(MAX(p.max_loop_count), 0)::int AS \"maxLoopCount\",\n  COALESCE(MAX(pr.loop_count), 0)::int AS \"currentLoopCount\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n    WHERE ae.segment_id <> 'seg_existing_all'\n  )::int AS \"adExperimentCount\",\n  CAST(MAX(pe.actual_value) AS float8) AS \"latestGoalAchievementRate\",\n  CASE\n    WHEN c.status = 'draft' THEN 'campaign_start'\n    WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'\n    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n      WHERE ae.segment_id <> 'seg_existing_all'\n    ) = 0 THEN 'approve_content'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'\n    ELSE 'monitor'\n  END AS \"nextAction\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.campaign_id = c.campaign_id\nLEFT JOIN promotion_runs pr\n  ON pr.campaign_id = c.campaign_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.campaign_id = c.campaign_id\nLEFT JOIN ad_experiments ae\n  ON ae.campaign_id = c.campaign_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.campaign_id = c.campaign_id\n AND pe.ad_experiment_id IS NOT NULL\n AND pe.segment_id <> 'seg_existing_all'\nWHERE c.project_id = :projectId\n  AND c.status <> 'stopped'\n\nGROUP BY c.campaign_id\nORDER BY c.updated_at DESC, c.created_at DESC                                      "};
+const listDashboardCampaignSummariesIR: any = {"usedParamSet":{"projectId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1786,"b":1795}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COALESCE(MAX(p.max_loop_count), 0)::int AS \"maxLoopCount\",\n  COALESCE(MAX(pr.loop_count), 0)::int AS \"currentLoopCount\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n    WHERE ae.segment_id <> 'seg_existing_all'\n  )::int AS \"adExperimentCount\",\n  CAST(MAX(pe.actual_value) AS float8) AS \"latestGoalAchievementRate\",\n  CASE\n    WHEN c.status = 'draft' THEN 'campaign_start'\n    WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'\n    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n      WHERE ae.segment_id <> 'seg_existing_all'\n    ) = 0 THEN 'approve_content'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'\n    ELSE 'monitor'\n  END AS \"nextAction\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.project_id = c.project_id\n AND p.campaign_id = c.campaign_id\n AND p.status <> 'stopped'\nLEFT JOIN promotion_runs pr\n  ON pr.project_id = p.project_id\n AND pr.promotion_id = p.promotion_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.project_id = p.project_id\n AND pts.promotion_id = p.promotion_id\n AND pts.status <> 'stopped'\nLEFT JOIN ad_experiments ae\n  ON ae.project_id = p.project_id\n AND ae.promotion_id = p.promotion_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.project_id = p.project_id\n AND pe.promotion_id = p.promotion_id\n AND pe.ad_experiment_id IS NOT NULL\n AND pe.segment_id <> 'seg_existing_all'\nWHERE c.project_id = :projectId\n  AND c.status <> 'stopped'\n\nGROUP BY c.campaign_id\nORDER BY c.updated_at DESC, c.created_at DESC                                      "};
 
 /**
  * Query generated from SQL:
@@ -212,15 +212,22 @@ const listDashboardCampaignSummariesIR: any = {"usedParamSet":{"projectId":true}
  *   c.updated_at AS "updatedAt"
  * FROM campaigns c
  * LEFT JOIN promotions p
- *   ON p.campaign_id = c.campaign_id
+ *   ON p.project_id = c.project_id
+ *  AND p.campaign_id = c.campaign_id
+ *  AND p.status <> 'stopped'
  * LEFT JOIN promotion_runs pr
- *   ON pr.campaign_id = c.campaign_id
+ *   ON pr.project_id = p.project_id
+ *  AND pr.promotion_id = p.promotion_id
  * LEFT JOIN promotion_target_segments pts
- *   ON pts.campaign_id = c.campaign_id
+ *   ON pts.project_id = p.project_id
+ *  AND pts.promotion_id = p.promotion_id
+ *  AND pts.status <> 'stopped'
  * LEFT JOIN ad_experiments ae
- *   ON ae.campaign_id = c.campaign_id
+ *   ON ae.project_id = p.project_id
+ *  AND ae.promotion_id = p.promotion_id
  * LEFT JOIN promotion_evaluations pe
- *   ON pe.campaign_id = c.campaign_id
+ *   ON pe.project_id = p.project_id
+ *  AND pe.promotion_id = p.promotion_id
  *  AND pe.ad_experiment_id IS NOT NULL
  *  AND pe.segment_id <> 'seg_existing_all'
  * WHERE c.project_id = :projectId
@@ -264,7 +271,7 @@ export interface IGetDashboardCampaignSummaryQuery {
   result: IGetDashboardCampaignSummaryResult;
 }
 
-const getDashboardCampaignSummaryIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1552,"b":1561}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1585,"b":1595}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COALESCE(MAX(p.max_loop_count), 0)::int AS \"maxLoopCount\",\n  COALESCE(MAX(pr.loop_count), 0)::int AS \"currentLoopCount\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n    WHERE ae.segment_id <> 'seg_existing_all'\n  )::int AS \"adExperimentCount\",\n  CAST(MAX(pe.actual_value) AS float8) AS \"latestGoalAchievementRate\",\n  CASE\n    WHEN c.status = 'draft' THEN 'campaign_start'\n    WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'\n    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n      WHERE ae.segment_id <> 'seg_existing_all'\n    ) = 0 THEN 'approve_content'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'\n    ELSE 'monitor'\n  END AS \"nextAction\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.campaign_id = c.campaign_id\nLEFT JOIN promotion_runs pr\n  ON pr.campaign_id = c.campaign_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.campaign_id = c.campaign_id\nLEFT JOIN ad_experiments ae\n  ON ae.campaign_id = c.campaign_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.campaign_id = c.campaign_id\n AND pe.ad_experiment_id IS NOT NULL\n AND pe.segment_id <> 'seg_existing_all'\nWHERE c.project_id = :projectId\n  AND c.campaign_id = :campaignId\n  AND c.status <> 'stopped'\n\nGROUP BY c.campaign_id                              "};
+const getDashboardCampaignSummaryIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1786,"b":1795}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1819,"b":1829}]}],"statement":"SELECT\n  c.campaign_id AS \"campaignId\",\n  c.name AS \"campaignName\",\n  c.objective,\n  c.primary_metric AS \"primaryMetric\",\n  c.status,\n  c.start_date AS \"startDate\",\n  c.end_date AS \"endDate\",\n  COALESCE(MAX(p.max_loop_count), 0)::int AS \"maxLoopCount\",\n  COALESCE(MAX(pr.loop_count), 0)::int AS \"currentLoopCount\",\n  COUNT(DISTINCT p.promotion_id)::int AS \"promotionCount\",\n  COUNT(DISTINCT pts.segment_id)::int AS \"segmentCount\",\n  COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n    WHERE ae.segment_id <> 'seg_existing_all'\n  )::int AS \"adExperimentCount\",\n  CAST(MAX(pe.actual_value) AS float8) AS \"latestGoalAchievementRate\",\n  CASE\n    WHEN c.status = 'draft' THEN 'campaign_start'\n    WHEN COUNT(DISTINCT p.promotion_id) = 0 THEN 'create_promotion'\n    WHEN COUNT(DISTINCT pts.segment_id) = 0 THEN 'attach_segment'\n    WHEN COUNT(DISTINCT ae.ad_experiment_id) FILTER (\n      WHERE ae.segment_id <> 'seg_existing_all'\n    ) = 0 THEN 'approve_content'\n    WHEN COUNT(*) FILTER (WHERE pe.next_loop_required) > 0 THEN 'next_loop'\n    ELSE 'monitor'\n  END AS \"nextAction\",\n  c.updated_at AS \"updatedAt\"\nFROM campaigns c\nLEFT JOIN promotions p\n  ON p.project_id = c.project_id\n AND p.campaign_id = c.campaign_id\n AND p.status <> 'stopped'\nLEFT JOIN promotion_runs pr\n  ON pr.project_id = p.project_id\n AND pr.promotion_id = p.promotion_id\nLEFT JOIN promotion_target_segments pts\n  ON pts.project_id = p.project_id\n AND pts.promotion_id = p.promotion_id\n AND pts.status <> 'stopped'\nLEFT JOIN ad_experiments ae\n  ON ae.project_id = p.project_id\n AND ae.promotion_id = p.promotion_id\nLEFT JOIN promotion_evaluations pe\n  ON pe.project_id = p.project_id\n AND pe.promotion_id = p.promotion_id\n AND pe.ad_experiment_id IS NOT NULL\n AND pe.segment_id <> 'seg_existing_all'\nWHERE c.project_id = :projectId\n  AND c.campaign_id = :campaignId\n  AND c.status <> 'stopped'\n\nGROUP BY c.campaign_id                              "};
 
 /**
  * Query generated from SQL:
@@ -298,15 +305,22 @@ const getDashboardCampaignSummaryIR: any = {"usedParamSet":{"projectId":true,"ca
  *   c.updated_at AS "updatedAt"
  * FROM campaigns c
  * LEFT JOIN promotions p
- *   ON p.campaign_id = c.campaign_id
+ *   ON p.project_id = c.project_id
+ *  AND p.campaign_id = c.campaign_id
+ *  AND p.status <> 'stopped'
  * LEFT JOIN promotion_runs pr
- *   ON pr.campaign_id = c.campaign_id
+ *   ON pr.project_id = p.project_id
+ *  AND pr.promotion_id = p.promotion_id
  * LEFT JOIN promotion_target_segments pts
- *   ON pts.campaign_id = c.campaign_id
+ *   ON pts.project_id = p.project_id
+ *  AND pts.promotion_id = p.promotion_id
+ *  AND pts.status <> 'stopped'
  * LEFT JOIN ad_experiments ae
- *   ON ae.campaign_id = c.campaign_id
+ *   ON ae.project_id = p.project_id
+ *  AND ae.promotion_id = p.promotion_id
  * LEFT JOIN promotion_evaluations pe
- *   ON pe.campaign_id = c.campaign_id
+ *   ON pe.project_id = p.project_id
+ *  AND pe.promotion_id = p.promotion_id
  *  AND pe.ad_experiment_id IS NOT NULL
  *  AND pe.segment_id <> 'seg_existing_all'
  * WHERE c.project_id = :projectId

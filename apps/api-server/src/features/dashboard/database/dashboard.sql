@@ -84,15 +84,22 @@ SELECT
   c.updated_at AS "updatedAt"
 FROM campaigns c
 LEFT JOIN promotions p
-  ON p.campaign_id = c.campaign_id
+  ON p.project_id = c.project_id
+ AND p.campaign_id = c.campaign_id
+ AND p.status <> 'stopped'
 LEFT JOIN promotion_runs pr
-  ON pr.campaign_id = c.campaign_id
+  ON pr.project_id = p.project_id
+ AND pr.promotion_id = p.promotion_id
 LEFT JOIN promotion_target_segments pts
-  ON pts.campaign_id = c.campaign_id
+  ON pts.project_id = p.project_id
+ AND pts.promotion_id = p.promotion_id
+ AND pts.status <> 'stopped'
 LEFT JOIN ad_experiments ae
-  ON ae.campaign_id = c.campaign_id
+  ON ae.project_id = p.project_id
+ AND ae.promotion_id = p.promotion_id
 LEFT JOIN promotion_evaluations pe
-  ON pe.campaign_id = c.campaign_id
+  ON pe.project_id = p.project_id
+ AND pe.promotion_id = p.promotion_id
  AND pe.ad_experiment_id IS NOT NULL
  AND pe.segment_id <> 'seg_existing_all'
 WHERE c.project_id = :projectId
@@ -132,15 +139,22 @@ SELECT
   c.updated_at AS "updatedAt"
 FROM campaigns c
 LEFT JOIN promotions p
-  ON p.campaign_id = c.campaign_id
+  ON p.project_id = c.project_id
+ AND p.campaign_id = c.campaign_id
+ AND p.status <> 'stopped'
 LEFT JOIN promotion_runs pr
-  ON pr.campaign_id = c.campaign_id
+  ON pr.project_id = p.project_id
+ AND pr.promotion_id = p.promotion_id
 LEFT JOIN promotion_target_segments pts
-  ON pts.campaign_id = c.campaign_id
+  ON pts.project_id = p.project_id
+ AND pts.promotion_id = p.promotion_id
+ AND pts.status <> 'stopped'
 LEFT JOIN ad_experiments ae
-  ON ae.campaign_id = c.campaign_id
+  ON ae.project_id = p.project_id
+ AND ae.promotion_id = p.promotion_id
 LEFT JOIN promotion_evaluations pe
-  ON pe.campaign_id = c.campaign_id
+  ON pe.project_id = p.project_id
+ AND pe.promotion_id = p.promotion_id
  AND pe.ad_experiment_id IS NOT NULL
  AND pe.segment_id <> 'seg_existing_all'
 WHERE c.project_id = :projectId
