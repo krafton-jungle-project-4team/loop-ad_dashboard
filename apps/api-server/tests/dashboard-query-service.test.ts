@@ -929,11 +929,7 @@ test("quick refinement keeps the AI recommendation user IDs as the base audience
   assert.equal(call.source.base_user_ids.length, 140);
   assert.equal(response.base_audience?.sample_size, 140);
   assert.equal(response.preview?.sample_size, 110);
-  assert.deepEqual(response.condition_labels, [
-    "예약 시작",
-    "예약 미완료",
-    "호텔 상세 조회 2회 이상"
-  ]);
+  assert.deepEqual(response.condition_labels, ["호텔 상세 조회 2회 이상", "예약 시작 후 미완료"]);
 });
 
 test("natural-language source refinement keeps base labels and binds promotion destinations", async () => {
@@ -1031,10 +1027,9 @@ test("natural-language source refinement keeps base labels and binds promotion d
   assert.deepEqual(previewCalls[0]?.source.destination_ids, ["jeju", "okinawa"]);
   assert.equal(previewCalls[0]?.source.base_user_ids.length, 100);
   assert.deepEqual(response.condition_labels, [
-    "예약 시작",
-    "예약 미완료",
     "호텔 상세 조회",
-    "목적지 검색"
+    "목적지 검색",
+    "예약 시작 후 미완료"
   ]);
   assert.equal(response.base_audience?.sample_size, 100);
   assert.equal(response.preview?.sample_size, 60);
@@ -1141,7 +1136,7 @@ test("removing the last source refinement restores the complete base audience", 
   assert.deepEqual(executedPlan?.conditions, []);
   assert.equal(response.preview?.sample_size, 100);
   assert.equal(response.base_audience?.sample_size, 100);
-  assert.deepEqual(response.condition_labels, ["예약 시작", "예약 미완료", "호텔 상세 조회"]);
+  assert.deepEqual(response.condition_labels, ["호텔 상세 조회", "예약 시작 후 미완료"]);
 });
 
 test("restoring the original recommendation after an edit keeps its condition labels", async () => {
@@ -1239,7 +1234,7 @@ test("restoring the original recommendation after an edit keeps its condition la
   assert.equal(executedConditionCount, 0);
   assert.equal(response.preview?.sample_size, 100);
   assert.equal(response.base_audience?.sample_size, 100);
-  assert.deepEqual(response.condition_labels, ["예약 시작", "예약 미완료", "호텔 상세 조회"]);
+  assert.deepEqual(response.condition_labels, ["호텔 상세 조회", "예약 시작 후 미완료"]);
 });
 
 test("natural-language source edits preserve other conditions and recompute against all eligible users", async () => {

@@ -44,7 +44,7 @@ export const SEGMENT_ASSISTANT_PROPERTY_KEYS = [
 export const SegmentAssistantPropertyFilterSchema = z
   .object({
     key: z.enum(SEGMENT_ASSISTANT_PROPERTY_KEYS),
-    operator: z.enum(["equals", "contains", "exists", "gte", "lte"]),
+    operator: z.enum(["equals", "in", "contains", "exists", "gte", "lte"]),
     value: z.string().trim().min(1).max(200)
   })
   .superRefine((filter, context) => {
@@ -58,8 +58,26 @@ export const SegmentAssistantPropertyFilterSchema = z
         path: ["value"]
       });
     }
+    if (filter.operator === "in" && splitPropertyFilterValues(filter.value).length < 2) {
+      context.addIssue({
+        code: "custom",
+        message: "in filters require at least two values",
+        path: ["value"]
+      });
+    }
   });
 export type SegmentAssistantPropertyFilter = z.infer<typeof SegmentAssistantPropertyFilterSchema>;
+
+function splitPropertyFilterValues(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(/\s*(?:,|，|\/|·|또는|혹은)\s*/u)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  ];
+}
 
 export const SegmentAssistantAudienceConditionSchema = z
   .object({

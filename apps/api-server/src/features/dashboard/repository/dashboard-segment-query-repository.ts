@@ -736,6 +736,15 @@ function propertyFilterPredicate(filter: SegmentAssistantPropertyFilter) {
   if (filter.operator === "contains") {
     return `positionCaseInsensitiveUTF8(${extracted}, ${sqlString(normalizedValue)}) > 0`;
   }
+  if (filter.operator === "in") {
+    const values = propertyFilterValues(normalizedValue);
+    if (values.length < 2) {
+      throw new Error(`Structured segment property filter '${filter.key}' needs alternatives.`);
+    }
+    return `lowerUTF8(${extracted}) IN (${values
+      .map((value) => `lowerUTF8(${sqlString(value)})`)
+      .join(", ")})`;
+  }
   if (filter.operator === "gte" || filter.operator === "lte") {
     const numericValue = Number(normalizedValue);
     if (!Number.isFinite(numericValue)) {
@@ -752,6 +761,17 @@ function propertyFilterPredicate(filter: SegmentAssistantPropertyFilter) {
     return `toUInt8OrZero(${extracted}) = ${expected}`;
   }
   return `lowerUTF8(${extracted}) = lowerUTF8(${sqlString(normalizedValue)})`;
+}
+
+function propertyFilterValues(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(/\s*(?:,|，|\/|·|또는|혹은)\s*/u)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  ];
 }
 
 function isSegmentAssistantEventName(value: string): value is SegmentAssistantEventName {

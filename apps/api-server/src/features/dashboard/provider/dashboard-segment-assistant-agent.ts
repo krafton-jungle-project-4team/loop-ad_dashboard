@@ -228,6 +228,12 @@ export function fallbackSegmentAssistantPlan(
   const destination =
     inferDestination(text) ?? inferImplicitSourceDestination(text, sourceAudience?.destination_ids);
   const propertyFilters = inferPropertyFilters(text);
+  const profileFilters = propertyFilters.filter((filter) =>
+    ["age_group", "gender", "region"].includes(filter.key)
+  );
+  const behaviorFilters = propertyFilters.filter(
+    (filter) => !["age_group", "gender", "region"].includes(filter.key)
+  );
   let conditions: SegmentAssistantAudienceCondition[] = [];
   const repeated = /반복|여러\s*번|두\s*번|2\s*(회|번)/.test(text);
   const minimumCount = repeated ? 2 : inferExplicitMinimumCount(text);
@@ -239,7 +245,7 @@ export function fallbackSegmentAssistantPlan(
     maximum_count: null,
     destination,
     checkin_months: inferCheckinMonths(text),
-    property_filters: propertyFilters
+    property_filters: behaviorFilters
   });
   addConditionForKeywords(conditions, text, ["상세", "조회"], {
     label: destination ? `${destination} 숙소 상세 조회` : "숙소 상세 조회",
@@ -248,9 +254,9 @@ export function fallbackSegmentAssistantPlan(
     maximum_count: null,
     destination,
     checkin_months: inferCheckinMonths(text),
-    property_filters: propertyFilters
+    property_filters: behaviorFilters
   });
-  addConditionForKeywords(conditions, text, ["예약 시작", "예약 이탈"], {
+  addConditionForKeywords(conditions, text, ["예약 시작", "예약을 시작", "예약 이탈"], {
     label: "예약 시작",
     event_name: "booking_start",
     minimum_count: 1,
@@ -266,7 +272,7 @@ export function fallbackSegmentAssistantPlan(
     maximum_count: null,
     destination: null,
     checkin_months: [],
-    property_filters: propertyFilters
+    property_filters: behaviorFilters
   });
 
   const replacesIncompleteWithComplete =
@@ -283,7 +289,7 @@ export function fallbackSegmentAssistantPlan(
       property_filters: []
     });
   } else if (
-    /예약(을|은)?\s*(하지|안\s*한|않은)|미예약|예약\s*미완료|예약\s*완료.*(?:빼|제외)/.test(text)
+    /예약(을|은)?\s*(하지|안\s*한|않은)|미예약|미완료|예약\s*완료.*(?:빼|제외)/.test(text)
   ) {
     conditions.push({
       label: destination ? `${destination} 예약 완료 없음` : "예약 완료 없음",
@@ -306,15 +312,27 @@ export function fallbackSegmentAssistantPlan(
     });
   }
 
-  if (conditions.length === 0 && propertyFilters.length > 0) {
+  if (conditions.length === 0 && behaviorFilters.length > 0) {
     conditions.push({
-      label: propertyFilters.map((filter) => `${filter.key} ${filter.value}`).join(", "),
+      label: behaviorFilters.map((filter) => `${filter.key} ${filter.value}`).join(", "),
       event_name: "page_view",
       minimum_count: 1,
       maximum_count: null,
       destination,
       checkin_months: inferCheckinMonths(text),
-      property_filters: propertyFilters
+      property_filters: behaviorFilters
+    });
+  }
+
+  if (profileFilters.length > 0) {
+    conditions.push({
+      label: profileConditionLabel(profileFilters),
+      event_name: "page_view",
+      minimum_count: 1,
+      maximum_count: null,
+      destination: null,
+      checkin_months: [],
+      property_filters: profileFilters
     });
   }
 
@@ -359,6 +377,7 @@ function segmentAssistantInstructions(input: SegmentAssistantPlanInput) {
     "For users who did not book, add booking_complete with minimum_count 0 and maximum_count 0.",
     "Apply a named destination to the relevant search/detail/booking conditions.",
     "When multiple destinations are alternatives, put them in one destination string separated by commas. Do not create duplicate event conditions for each destination.",
+    "Represent multiple age groups such as 20대 and 30대 as one page_view condition with an age_group property filter using operator 'in' and a comma-separated value. Do not attach age_group to hotel behavior events.",
     `Allowed events: ${SEGMENT_ASSISTANT_EVENT_NAMES.join(", ")}.`,
     `Allowed property filters: ${SEGMENT_ASSISTANT_PROPERTY_KEYS.join(", ")}.`,
     "Do not invent events, properties, user attributes, or observed counts.",
@@ -472,9 +491,17 @@ function inferPropertyFilters(text: string): SegmentAssistantPropertyFilter[] {
   if (/조식/.test(text)) {
     filters.push({ key: "breakfast_included", operator: "equals", value: "true" });
   }
-  const ageGroup = text.match(/(10대|20대|30대|40대|50대|60대(?:\s*이상)?)/)?.[1];
-  if (ageGroup) {
-    filters.push({ key: "age_group", operator: "equals", value: ageGroup });
+  const ageGroups = [
+    ...new Set(
+      [...text.matchAll(/(10대|20대|30대|40대|50대|60대(?:\s*이상)?)/g)].map((match) => match[1]!)
+    )
+  ];
+  if (ageGroups.length > 0) {
+    filters.push({
+      key: "age_group",
+      operator: ageGroups.length > 1 ? "in" : "equals",
+      value: ageGroups.join(", ")
+    });
   }
   if (/여성/.test(text)) {
     filters.push({ key: "gender", operator: "equals", value: "female" });
@@ -482,6 +509,21 @@ function inferPropertyFilters(text: string): SegmentAssistantPropertyFilter[] {
     filters.push({ key: "gender", operator: "equals", value: "male" });
   }
   return filters;
+}
+
+function profileConditionLabel(filters: SegmentAssistantPropertyFilter[]) {
+  const ageFilter = filters.find((filter) => filter.key === "age_group");
+  if (ageFilter) {
+    const ages = ageFilter.value
+      .split(/\s*,\s*/u)
+      .map((value) => value.replace(/대$/, ""))
+      .filter(Boolean);
+    if (ages.length === 2) {
+      return `${ages[0]}~${ages[1]}대`;
+    }
+    return `${ages.join("·")}대`;
+  }
+  return filters.map((filter) => `${filter.key} ${filter.value}`).join(", ");
 }
 
 function isAudienceQuestion(text: string) {
@@ -528,7 +570,7 @@ const conditionParameters = {
           key: { type: "string", enum: SEGMENT_ASSISTANT_PROPERTY_KEYS },
           operator: {
             type: "string",
-            enum: ["equals", "contains", "exists", "gte", "lte"]
+            enum: ["equals", "in", "contains", "exists", "gte", "lte"]
           },
           value: { type: "string" }
         },
