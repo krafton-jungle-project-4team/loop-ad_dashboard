@@ -2587,14 +2587,15 @@ export interface IStopDashboardPromotionTargetSegmentQuery {
   result: IStopDashboardPromotionTargetSegmentResult;
 }
 
-const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":189,"b":198}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":223,"b":234}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":257,"b":266}]}],"statement":"WITH target_segment AS (\n  SELECT project_id, promotion_id, segment_id, analysis_id,\n         audience_snapshot_id, allocation_plan_id\n  FROM promotion_target_segments\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND segment_id = :segmentId\n    AND status <> 'stopped'\n),\nlegacy_target AS (\n  SELECT *\n  FROM target_segment\n  WHERE audience_snapshot_id IS NULL\n),\nsnapshot_target AS (\n  SELECT *\n  FROM target_segment\n  WHERE audience_snapshot_id IS NOT NULL\n),\ninvalidated_generation_runs AS (\n  UPDATE generation_runs gr\n  SET status = 'failed',\n      started_at = COALESCE(gr.started_at, now()),\n      finished_at = now(),\n      next_retry_at = NULL,\n      last_error_code = 'generation_invalidated_by_segment_change',\n      last_error_message = 'promotion target segments changed after generation',\n      worker_id = NULL,\n      lease_token = NULL,\n      heartbeat_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  FROM legacy_target target\n  WHERE gr.project_id = target.project_id\n    AND gr.promotion_id = target.promotion_id\n    AND gr.analysis_id = target.analysis_id\n    AND gr.status <> 'failed'\n  RETURNING gr.generation_id\n),\narchived_generation_content_candidates AS (\n  UPDATE content_candidates cc\n  SET status = 'archived',\n      updated_at = now()\n  FROM generation_runs gr,\n       legacy_target target,\n       (SELECT count(*) FROM invalidated_generation_runs) dependency\n  WHERE gr.project_id = target.project_id\n    AND gr.promotion_id = target.promotion_id\n    AND gr.analysis_id = target.analysis_id\n    AND cc.project_id = gr.project_id\n    AND cc.generation_id = gr.generation_id\n    AND cc.segment_id <> target.segment_id\n    AND cc.status IN ('draft', 'approved', 'active')\n  RETURNING cc.content_id\n),\ndeleted_dispatch_jobs AS (\n  DELETE FROM ad_dispatch_jobs adj\n  USING legacy_target target,\n        (SELECT count(*) FROM archived_generation_content_candidates) dependency\n  WHERE adj.project_id = target.project_id\n    AND adj.promotion_id = target.promotion_id\n    AND adj.ad_experiment_id IN (\n      SELECT ae.ad_experiment_id\n      FROM ad_experiments ae\n      WHERE ae.project_id = target.project_id\n        AND ae.promotion_id = target.promotion_id\n        AND ae.segment_id = target.segment_id\n    )\n  RETURNING adj.ad_dispatch_job_id\n),\ndeleted_promotion_evaluations AS (\n  DELETE FROM promotion_evaluations pe\n  USING legacy_target target,\n        (SELECT count(*) FROM deleted_dispatch_jobs) dependency\n  WHERE pe.project_id = target.project_id\n    AND pe.promotion_id = target.promotion_id\n    AND pe.segment_id = target.segment_id\n  RETURNING pe.promotion_run_id\n),\ndeleted_ad_experiments AS (\n  DELETE FROM ad_experiments ae\n  USING legacy_target target,\n        (SELECT count(*) FROM deleted_promotion_evaluations) dependency\n  WHERE ae.project_id = target.project_id\n    AND ae.promotion_id = target.promotion_id\n    AND ae.segment_id = target.segment_id\n  RETURNING ae.ad_experiment_id\n),\ndeleted_content_candidates AS (\n  DELETE FROM content_candidates cc\n  USING legacy_target target,\n        (SELECT count(*) FROM deleted_ad_experiments) dependency\n  WHERE cc.project_id = target.project_id\n    AND cc.promotion_id = target.promotion_id\n    AND cc.segment_id = target.segment_id\n  RETURNING cc.content_id\n),\ndeleted_target_segment AS (\n  DELETE FROM promotion_target_segments pts\n  USING legacy_target target,\n        (SELECT count(*) FROM deleted_content_candidates) dependency\n  WHERE pts.project_id = target.project_id\n    AND pts.promotion_id = target.promotion_id\n    AND pts.segment_id = target.segment_id\n  RETURNING pts.promotion_id, pts.segment_id, 'stopped'::text AS status\n),\ncancelled_snapshot_dispatch_jobs AS (\n  UPDATE ad_dispatch_jobs adj\n  SET status = 'cancelled',\n      completed_at = COALESCE(adj.completed_at, now())\n  FROM snapshot_target target\n  WHERE adj.project_id = target.project_id\n    AND adj.promotion_id = target.promotion_id\n    AND adj.status IN ('queued', 'scheduled', 'running')\n    AND adj.ad_experiment_id IN (\n      SELECT ae.ad_experiment_id\n      FROM ad_experiments ae\n      WHERE ae.project_id = target.project_id\n        AND ae.promotion_id = target.promotion_id\n        AND ae.segment_id = target.segment_id\n    )\n  RETURNING adj.ad_dispatch_job_id\n),\nstopped_snapshot_experiments AS (\n  UPDATE ad_experiments ae\n  SET status = 'stopped',\n      ended_at = COALESCE(ae.ended_at, now()),\n      updated_at = now()\n  FROM snapshot_target target,\n       (SELECT count(*) FROM cancelled_snapshot_dispatch_jobs) dependency\n  WHERE ae.project_id = target.project_id\n    AND ae.promotion_id = target.promotion_id\n    AND ae.segment_id = target.segment_id\n    AND ae.status <> 'stopped'\n  RETURNING ae.promotion_run_id\n),\nstopped_snapshot_runs AS (\n  UPDATE promotion_runs pr\n  SET status = 'stopped',\n      ended_at = COALESCE(pr.ended_at, now()),\n      updated_at = now()\n  FROM snapshot_target target,\n       (SELECT count(*) FROM stopped_snapshot_experiments) dependency\n  WHERE pr.project_id = target.project_id\n    AND pr.promotion_id = target.promotion_id\n    AND pr.promotion_run_id IN (\n      SELECT promotion_run_id\n      FROM stopped_snapshot_experiments\n    )\n    AND pr.status <> 'stopped'\n    AND NOT EXISTS (\n      SELECT 1\n      FROM ad_experiments other\n      WHERE other.promotion_run_id = pr.promotion_run_id\n        AND other.segment_id <> target.segment_id\n        AND other.status <> 'stopped'\n    )\n  RETURNING pr.promotion_run_id\n),\ncancelled_snapshot_automation_jobs AS (\n  UPDATE promotion_automation_jobs paj\n  SET status = 'cancelled',\n      worker_id = NULL,\n      lease_token = NULL,\n      locked_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  WHERE paj.promotion_run_id IN (\n      SELECT promotion_run_id\n      FROM stopped_snapshot_runs\n    )\n    AND paj.status IN ('pending', 'running')\n  RETURNING paj.job_id\n),\narchived_snapshot_content_candidates AS (\n  UPDATE content_candidates cc\n  SET status = 'archived',\n      updated_at = now()\n  FROM snapshot_target target,\n       (SELECT count(*) FROM cancelled_snapshot_automation_jobs) dependency\n  WHERE cc.project_id = target.project_id\n    AND cc.promotion_id = target.promotion_id\n    AND cc.segment_id = target.segment_id\n    AND cc.status IN ('draft', 'approved', 'active')\n  RETURNING cc.content_id\n),\narchived_snapshot_segment_definitions AS (\n  UPDATE segment_definitions sd\n  SET status = 'archived',\n      updated_at = now()\n  FROM snapshot_target target,\n       (SELECT count(*) FROM archived_snapshot_content_candidates) dependency\n  WHERE sd.project_id = target.project_id\n    AND sd.promotion_id = target.promotion_id\n    AND sd.segment_id = target.segment_id\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n  RETURNING sd.segment_id\n),\nstopped_snapshot_target_segment AS (\n  UPDATE promotion_target_segments pts\n  SET status = 'stopped'\n  FROM snapshot_target target,\n       (SELECT count(*) FROM archived_snapshot_segment_definitions) dependency\n  WHERE pts.project_id = target.project_id\n    AND pts.promotion_id = target.promotion_id\n    AND pts.segment_id = target.segment_id\n  RETURNING pts.promotion_id, pts.segment_id, pts.status\n),\nadvanced_snapshot_exclusion_revision AS (\n  SELECT advance_promotion_audience_exclusion_revision(target.promotion_id)\n      AS revision\n  FROM snapshot_target target,\n       (SELECT count(*) FROM stopped_snapshot_target_segment) dependency\n  WHERE target.allocation_plan_id IS NOT NULL\n    AND EXISTS (\n      SELECT 1\n      FROM promotion_audience_exclusion_members excluded\n      WHERE excluded.project_id = target.project_id\n        AND excluded.promotion_id = target.promotion_id\n        AND excluded.target_analysis_id = target.analysis_id\n        AND excluded.segment_id = target.segment_id\n        AND excluded.allocation_plan_id = target.allocation_plan_id\n        AND excluded.state IN ('reserved', 'consumed')\n    )\n)\nSELECT promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status\nFROM deleted_target_segment\nUNION ALL\nSELECT promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status\nFROM stopped_snapshot_target_segment,\n     (SELECT count(*) FROM advanced_snapshot_exclusion_revision) dependency                                                  "};
+const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":true,"promotionId":true,"segmentId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":226,"b":235}]},{"name":"promotionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":260,"b":271}]},{"name":"segmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":294,"b":303},{"a":10292,"b":10301}]}],"statement":"WITH target_segment AS (\n  SELECT project_id, promotion_id, segment_id, analysis_id,\n         audience_snapshot_id, allocation_plan_id,\n         audience_reservation_state\n  FROM promotion_target_segments\n  WHERE project_id = :projectId\n    AND promotion_id = :promotionId\n    AND segment_id = :segmentId\n    AND status <> 'stopped'\n),\nlegacy_target AS (\n  SELECT *\n  FROM target_segment\n  WHERE audience_snapshot_id IS NULL\n),\nsnapshot_target AS (\n  SELECT *\n  FROM target_segment\n  WHERE audience_snapshot_id IS NOT NULL\n),\ninvalidated_generation_runs AS (\n  UPDATE generation_runs gr\n  SET status = 'failed',\n      started_at = COALESCE(gr.started_at, now()),\n      finished_at = now(),\n      next_retry_at = NULL,\n      last_error_code = 'generation_invalidated_by_segment_change',\n      last_error_message = 'promotion target segments changed after generation',\n      worker_id = NULL,\n      lease_token = NULL,\n      heartbeat_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  FROM legacy_target target\n  WHERE gr.project_id = target.project_id\n    AND gr.promotion_id = target.promotion_id\n    AND gr.analysis_id = target.analysis_id\n    AND gr.status <> 'failed'\n  RETURNING gr.generation_id\n),\narchived_generation_content_candidates AS (\n  UPDATE content_candidates cc\n  SET status = 'archived',\n      updated_at = now()\n  FROM generation_runs gr,\n       legacy_target target,\n       (SELECT count(*) FROM invalidated_generation_runs) dependency\n  WHERE gr.project_id = target.project_id\n    AND gr.promotion_id = target.promotion_id\n    AND gr.analysis_id = target.analysis_id\n    AND cc.project_id = gr.project_id\n    AND cc.generation_id = gr.generation_id\n    AND cc.segment_id <> target.segment_id\n    AND cc.status IN ('draft', 'approved', 'active')\n  RETURNING cc.content_id\n),\ndeleted_dispatch_jobs AS (\n  DELETE FROM ad_dispatch_jobs adj\n  USING legacy_target target,\n        (SELECT count(*) FROM archived_generation_content_candidates) dependency\n  WHERE adj.project_id = target.project_id\n    AND adj.promotion_id = target.promotion_id\n    AND adj.ad_experiment_id IN (\n      SELECT ae.ad_experiment_id\n      FROM ad_experiments ae\n      WHERE ae.project_id = target.project_id\n        AND ae.promotion_id = target.promotion_id\n        AND ae.segment_id = target.segment_id\n    )\n  RETURNING adj.ad_dispatch_job_id\n),\ndeleted_promotion_evaluations AS (\n  DELETE FROM promotion_evaluations pe\n  USING legacy_target target,\n        (SELECT count(*) FROM deleted_dispatch_jobs) dependency\n  WHERE pe.project_id = target.project_id\n    AND pe.promotion_id = target.promotion_id\n    AND pe.segment_id = target.segment_id\n  RETURNING pe.promotion_run_id\n),\ndeleted_ad_experiments AS (\n  DELETE FROM ad_experiments ae\n  USING legacy_target target,\n        (SELECT count(*) FROM deleted_promotion_evaluations) dependency\n  WHERE ae.project_id = target.project_id\n    AND ae.promotion_id = target.promotion_id\n    AND ae.segment_id = target.segment_id\n  RETURNING ae.ad_experiment_id\n),\ndeleted_content_candidates AS (\n  DELETE FROM content_candidates cc\n  USING legacy_target target,\n        (SELECT count(*) FROM deleted_ad_experiments) dependency\n  WHERE cc.project_id = target.project_id\n    AND cc.promotion_id = target.promotion_id\n    AND cc.segment_id = target.segment_id\n  RETURNING cc.content_id\n),\ndeleted_target_segment AS (\n  DELETE FROM promotion_target_segments pts\n  USING legacy_target target,\n        (SELECT count(*) FROM deleted_content_candidates) dependency\n  WHERE pts.project_id = target.project_id\n    AND pts.promotion_id = target.promotion_id\n    AND pts.segment_id = target.segment_id\n  RETURNING pts.promotion_id, pts.segment_id, 'stopped'::text AS status\n),\ncancelled_snapshot_dispatch_jobs AS (\n  UPDATE ad_dispatch_jobs adj\n  SET status = 'cancelled',\n      completed_at = COALESCE(adj.completed_at, now())\n  FROM snapshot_target target\n  WHERE adj.project_id = target.project_id\n    AND adj.promotion_id = target.promotion_id\n    AND adj.status IN ('queued', 'scheduled', 'running')\n    AND adj.ad_experiment_id IN (\n      SELECT ae.ad_experiment_id\n      FROM ad_experiments ae\n      WHERE ae.project_id = target.project_id\n        AND ae.promotion_id = target.promotion_id\n        AND ae.segment_id = target.segment_id\n    )\n  RETURNING adj.ad_dispatch_job_id\n),\nstopped_snapshot_experiments AS (\n  UPDATE ad_experiments ae\n  SET status = 'stopped',\n      ended_at = COALESCE(ae.ended_at, now()),\n      updated_at = now()\n  FROM snapshot_target target,\n       (SELECT count(*) FROM cancelled_snapshot_dispatch_jobs) dependency\n  WHERE ae.project_id = target.project_id\n    AND ae.promotion_id = target.promotion_id\n    AND ae.segment_id = target.segment_id\n    AND ae.status <> 'stopped'\n  RETURNING ae.promotion_run_id\n),\nstopped_snapshot_runs AS (\n  UPDATE promotion_runs pr\n  SET status = 'stopped',\n      ended_at = COALESCE(pr.ended_at, now()),\n      updated_at = now()\n  FROM snapshot_target target,\n       (SELECT count(*) FROM stopped_snapshot_experiments) dependency\n  WHERE pr.project_id = target.project_id\n    AND pr.promotion_id = target.promotion_id\n    AND pr.promotion_run_id IN (\n      SELECT promotion_run_id\n      FROM stopped_snapshot_experiments\n    )\n    AND pr.status <> 'stopped'\n    AND NOT EXISTS (\n      SELECT 1\n      FROM ad_experiments other\n      WHERE other.promotion_run_id = pr.promotion_run_id\n        AND other.segment_id <> target.segment_id\n        AND other.status <> 'stopped'\n    )\n  RETURNING pr.promotion_run_id\n),\ncancelled_snapshot_automation_jobs AS (\n  UPDATE promotion_automation_jobs paj\n  SET status = 'cancelled',\n      worker_id = NULL,\n      lease_token = NULL,\n      locked_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  WHERE paj.promotion_run_id IN (\n      SELECT promotion_run_id\n      FROM stopped_snapshot_runs\n    )\n    AND paj.status IN ('pending', 'running')\n  RETURNING paj.job_id\n),\narchived_snapshot_content_candidates AS (\n  UPDATE content_candidates cc\n  SET status = 'archived',\n      updated_at = now()\n  FROM snapshot_target target,\n       (SELECT count(*) FROM cancelled_snapshot_automation_jobs) dependency\n  WHERE cc.project_id = target.project_id\n    AND cc.promotion_id = target.promotion_id\n    AND cc.segment_id = target.segment_id\n    AND cc.status IN ('draft', 'approved', 'active')\n  RETURNING cc.content_id\n),\narchived_snapshot_segment_definitions AS (\n  UPDATE segment_definitions sd\n  SET status = 'archived',\n      updated_at = now()\n  FROM snapshot_target target,\n       (SELECT count(*) FROM archived_snapshot_content_candidates) dependency\n  WHERE sd.project_id = target.project_id\n    AND sd.promotion_id = target.promotion_id\n    AND sd.segment_id = target.segment_id\n    AND sd.source IN ('custom_chatkit', 'manual_rule')\n    AND sd.status = 'active'\n  RETURNING sd.segment_id\n),\nreleasable_snapshot_plan AS (\n  SELECT DISTINCT\n    target.project_id,\n    target.promotion_id,\n    target.allocation_plan_id\n  FROM snapshot_target target\n  JOIN segment_audience_allocation_plans plan\n    ON plan.allocation_plan_id = target.allocation_plan_id\n  CROSS JOIN (SELECT count(*) FROM archived_snapshot_segment_definitions) dependency\n  WHERE target.audience_reservation_state = 'reserved'\n    AND plan.status = 'finalized'\n    AND NOT EXISTS (\n      SELECT 1\n      FROM promotion_run_target_bindings binding\n      WHERE binding.allocation_plan_id = target.allocation_plan_id\n    )\n),\nadvanced_snapshot_exclusion_revision AS (\n  SELECT\n    releasable.project_id,\n    releasable.promotion_id,\n    releasable.allocation_plan_id,\n    advance_promotion_audience_exclusion_revision(releasable.promotion_id)\n      AS revision\n  FROM releasable_snapshot_plan releasable\n),\nreleased_snapshot_exclusion_members AS (\n  UPDATE promotion_audience_exclusion_members excluded\n  SET state = 'released',\n      revision = advanced.revision,\n      consumed_at = NULL,\n      released_at = now()\n  FROM advanced_snapshot_exclusion_revision advanced\n  WHERE excluded.project_id = advanced.project_id\n    AND excluded.promotion_id = advanced.promotion_id\n    AND excluded.allocation_plan_id = advanced.allocation_plan_id\n    AND excluded.state = 'reserved'\n  RETURNING excluded.allocation_plan_id\n),\nupdated_snapshot_plan_targets AS (\n  UPDATE promotion_target_segments pts\n  SET status = CASE\n        WHEN pts.analysis_id = target.analysis_id\n          AND pts.segment_id = target.segment_id\n        THEN 'stopped'\n        WHEN releasable.allocation_plan_id IS NOT NULL\n          AND pts.status = 'approved'\n        THEN 'planned'\n        ELSE pts.status\n      END,\n      audience_reservation_state = CASE\n        WHEN releasable.allocation_plan_id IS NOT NULL\n        THEN 'released'\n        ELSE pts.audience_reservation_state\n      END\n  FROM snapshot_target target\n  LEFT JOIN releasable_snapshot_plan releasable\n    ON releasable.project_id = target.project_id\n   AND releasable.promotion_id = target.promotion_id\n   AND releasable.allocation_plan_id = target.allocation_plan_id\n  CROSS JOIN (SELECT count(*) FROM released_snapshot_exclusion_members) dependency\n  WHERE pts.project_id = target.project_id\n    AND pts.promotion_id = target.promotion_id\n    AND (\n      (\n        pts.analysis_id = target.analysis_id\n        AND pts.segment_id = target.segment_id\n      )\n      OR (\n        releasable.allocation_plan_id IS NOT NULL\n        AND pts.allocation_plan_id = releasable.allocation_plan_id\n      )\n    )\n  RETURNING\n    pts.promotion_id,\n    pts.segment_id,\n    pts.status,\n    pts.allocation_plan_id\n),\nreleased_snapshot_allocation_plans AS (\n  UPDATE segment_audience_allocation_plans plan\n  SET status = 'released',\n      locked_at = NULL,\n      released_at = now()\n  FROM releasable_snapshot_plan releasable,\n       (SELECT count(*) FROM updated_snapshot_plan_targets) dependency\n  WHERE plan.allocation_plan_id = releasable.allocation_plan_id\n    AND plan.status = 'finalized'\n  RETURNING plan.allocation_plan_id\n)\nSELECT promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status\nFROM deleted_target_segment\nUNION ALL\nSELECT promotion_id AS \"promotionId\", segment_id AS \"segmentId\", status\nFROM updated_snapshot_plan_targets,\n     (SELECT count(*) FROM released_snapshot_allocation_plans) dependency\nWHERE segment_id = :segmentId                                                  "};
 
 /**
  * Query generated from SQL:
  * ```
  * WITH target_segment AS (
  *   SELECT project_id, promotion_id, segment_id, analysis_id,
- *          audience_snapshot_id, allocation_plan_id
+ *          audience_snapshot_id, allocation_plan_id,
+ *          audience_reservation_state
  *   FROM promotion_target_segments
  *   WHERE project_id = :projectId
  *     AND promotion_id = :promotionId
@@ -2791,39 +2792,103 @@ const stopDashboardPromotionTargetSegmentIR: any = {"usedParamSet":{"projectId":
  *     AND sd.status = 'active'
  *   RETURNING sd.segment_id
  * ),
- * stopped_snapshot_target_segment AS (
- *   UPDATE promotion_target_segments pts
- *   SET status = 'stopped'
- *   FROM snapshot_target target,
- *        (SELECT count(*) FROM archived_snapshot_segment_definitions) dependency
- *   WHERE pts.project_id = target.project_id
- *     AND pts.promotion_id = target.promotion_id
- *     AND pts.segment_id = target.segment_id
- *   RETURNING pts.promotion_id, pts.segment_id, pts.status
+ * releasable_snapshot_plan AS (
+ *   SELECT DISTINCT
+ *     target.project_id,
+ *     target.promotion_id,
+ *     target.allocation_plan_id
+ *   FROM snapshot_target target
+ *   JOIN segment_audience_allocation_plans plan
+ *     ON plan.allocation_plan_id = target.allocation_plan_id
+ *   CROSS JOIN (SELECT count(*) FROM archived_snapshot_segment_definitions) dependency
+ *   WHERE target.audience_reservation_state = 'reserved'
+ *     AND plan.status = 'finalized'
+ *     AND NOT EXISTS (
+ *       SELECT 1
+ *       FROM promotion_run_target_bindings binding
+ *       WHERE binding.allocation_plan_id = target.allocation_plan_id
+ *     )
  * ),
  * advanced_snapshot_exclusion_revision AS (
- *   SELECT advance_promotion_audience_exclusion_revision(target.promotion_id)
+ *   SELECT
+ *     releasable.project_id,
+ *     releasable.promotion_id,
+ *     releasable.allocation_plan_id,
+ *     advance_promotion_audience_exclusion_revision(releasable.promotion_id)
  *       AS revision
- *   FROM snapshot_target target,
- *        (SELECT count(*) FROM stopped_snapshot_target_segment) dependency
- *   WHERE target.allocation_plan_id IS NOT NULL
- *     AND EXISTS (
- *       SELECT 1
- *       FROM promotion_audience_exclusion_members excluded
- *       WHERE excluded.project_id = target.project_id
- *         AND excluded.promotion_id = target.promotion_id
- *         AND excluded.target_analysis_id = target.analysis_id
- *         AND excluded.segment_id = target.segment_id
- *         AND excluded.allocation_plan_id = target.allocation_plan_id
- *         AND excluded.state IN ('reserved', 'consumed')
+ *   FROM releasable_snapshot_plan releasable
+ * ),
+ * released_snapshot_exclusion_members AS (
+ *   UPDATE promotion_audience_exclusion_members excluded
+ *   SET state = 'released',
+ *       revision = advanced.revision,
+ *       consumed_at = NULL,
+ *       released_at = now()
+ *   FROM advanced_snapshot_exclusion_revision advanced
+ *   WHERE excluded.project_id = advanced.project_id
+ *     AND excluded.promotion_id = advanced.promotion_id
+ *     AND excluded.allocation_plan_id = advanced.allocation_plan_id
+ *     AND excluded.state = 'reserved'
+ *   RETURNING excluded.allocation_plan_id
+ * ),
+ * updated_snapshot_plan_targets AS (
+ *   UPDATE promotion_target_segments pts
+ *   SET status = CASE
+ *         WHEN pts.analysis_id = target.analysis_id
+ *           AND pts.segment_id = target.segment_id
+ *         THEN 'stopped'
+ *         WHEN releasable.allocation_plan_id IS NOT NULL
+ *           AND pts.status = 'approved'
+ *         THEN 'planned'
+ *         ELSE pts.status
+ *       END,
+ *       audience_reservation_state = CASE
+ *         WHEN releasable.allocation_plan_id IS NOT NULL
+ *         THEN 'released'
+ *         ELSE pts.audience_reservation_state
+ *       END
+ *   FROM snapshot_target target
+ *   LEFT JOIN releasable_snapshot_plan releasable
+ *     ON releasable.project_id = target.project_id
+ *    AND releasable.promotion_id = target.promotion_id
+ *    AND releasable.allocation_plan_id = target.allocation_plan_id
+ *   CROSS JOIN (SELECT count(*) FROM released_snapshot_exclusion_members) dependency
+ *   WHERE pts.project_id = target.project_id
+ *     AND pts.promotion_id = target.promotion_id
+ *     AND (
+ *       (
+ *         pts.analysis_id = target.analysis_id
+ *         AND pts.segment_id = target.segment_id
+ *       )
+ *       OR (
+ *         releasable.allocation_plan_id IS NOT NULL
+ *         AND pts.allocation_plan_id = releasable.allocation_plan_id
+ *       )
  *     )
+ *   RETURNING
+ *     pts.promotion_id,
+ *     pts.segment_id,
+ *     pts.status,
+ *     pts.allocation_plan_id
+ * ),
+ * released_snapshot_allocation_plans AS (
+ *   UPDATE segment_audience_allocation_plans plan
+ *   SET status = 'released',
+ *       locked_at = NULL,
+ *       released_at = now()
+ *   FROM releasable_snapshot_plan releasable,
+ *        (SELECT count(*) FROM updated_snapshot_plan_targets) dependency
+ *   WHERE plan.allocation_plan_id = releasable.allocation_plan_id
+ *     AND plan.status = 'finalized'
+ *   RETURNING plan.allocation_plan_id
  * )
  * SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
  * FROM deleted_target_segment
  * UNION ALL
  * SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
- * FROM stopped_snapshot_target_segment,
- *      (SELECT count(*) FROM advanced_snapshot_exclusion_revision) dependency
+ * FROM updated_snapshot_plan_targets,
+ *      (SELECT count(*) FROM released_snapshot_allocation_plans) dependency
+ * WHERE segment_id = :segmentId
  * ```
  */
 export const stopDashboardPromotionTargetSegment = new PreparedQuery<IStopDashboardPromotionTargetSegmentParams,IStopDashboardPromotionTargetSegmentResult>(stopDashboardPromotionTargetSegmentIR);

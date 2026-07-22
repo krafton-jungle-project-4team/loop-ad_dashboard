@@ -1521,7 +1521,8 @@ RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 /* @name StopDashboardPromotionTargetSegment */
 WITH target_segment AS (
   SELECT project_id, promotion_id, segment_id, analysis_id,
-         audience_snapshot_id, allocation_plan_id
+         audience_snapshot_id, allocation_plan_id,
+         audience_reservation_state
   FROM promotion_target_segments
   WHERE project_id = :projectId
     AND promotion_id = :promotionId
@@ -1718,39 +1719,103 @@ archived_snapshot_segment_definitions AS (
     AND sd.status = 'active'
   RETURNING sd.segment_id
 ),
-stopped_snapshot_target_segment AS (
-  UPDATE promotion_target_segments pts
-  SET status = 'stopped'
-  FROM snapshot_target target,
-       (SELECT count(*) FROM archived_snapshot_segment_definitions) dependency
-  WHERE pts.project_id = target.project_id
-    AND pts.promotion_id = target.promotion_id
-    AND pts.segment_id = target.segment_id
-  RETURNING pts.promotion_id, pts.segment_id, pts.status
+releasable_snapshot_plan AS (
+  SELECT DISTINCT
+    target.project_id,
+    target.promotion_id,
+    target.allocation_plan_id
+  FROM snapshot_target target
+  JOIN segment_audience_allocation_plans plan
+    ON plan.allocation_plan_id = target.allocation_plan_id
+  CROSS JOIN (SELECT count(*) FROM archived_snapshot_segment_definitions) dependency
+  WHERE target.audience_reservation_state = 'reserved'
+    AND plan.status = 'finalized'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM promotion_run_target_bindings binding
+      WHERE binding.allocation_plan_id = target.allocation_plan_id
+    )
 ),
 advanced_snapshot_exclusion_revision AS (
-  SELECT advance_promotion_audience_exclusion_revision(target.promotion_id)
+  SELECT
+    releasable.project_id,
+    releasable.promotion_id,
+    releasable.allocation_plan_id,
+    advance_promotion_audience_exclusion_revision(releasable.promotion_id)
       AS revision
-  FROM snapshot_target target,
-       (SELECT count(*) FROM stopped_snapshot_target_segment) dependency
-  WHERE target.allocation_plan_id IS NOT NULL
-    AND EXISTS (
-      SELECT 1
-      FROM promotion_audience_exclusion_members excluded
-      WHERE excluded.project_id = target.project_id
-        AND excluded.promotion_id = target.promotion_id
-        AND excluded.target_analysis_id = target.analysis_id
-        AND excluded.segment_id = target.segment_id
-        AND excluded.allocation_plan_id = target.allocation_plan_id
-        AND excluded.state IN ('reserved', 'consumed')
+  FROM releasable_snapshot_plan releasable
+),
+released_snapshot_exclusion_members AS (
+  UPDATE promotion_audience_exclusion_members excluded
+  SET state = 'released',
+      revision = advanced.revision,
+      consumed_at = NULL,
+      released_at = now()
+  FROM advanced_snapshot_exclusion_revision advanced
+  WHERE excluded.project_id = advanced.project_id
+    AND excluded.promotion_id = advanced.promotion_id
+    AND excluded.allocation_plan_id = advanced.allocation_plan_id
+    AND excluded.state = 'reserved'
+  RETURNING excluded.allocation_plan_id
+),
+updated_snapshot_plan_targets AS (
+  UPDATE promotion_target_segments pts
+  SET status = CASE
+        WHEN pts.analysis_id = target.analysis_id
+          AND pts.segment_id = target.segment_id
+        THEN 'stopped'
+        WHEN releasable.allocation_plan_id IS NOT NULL
+          AND pts.status = 'approved'
+        THEN 'planned'
+        ELSE pts.status
+      END,
+      audience_reservation_state = CASE
+        WHEN releasable.allocation_plan_id IS NOT NULL
+        THEN 'released'
+        ELSE pts.audience_reservation_state
+      END
+  FROM snapshot_target target
+  LEFT JOIN releasable_snapshot_plan releasable
+    ON releasable.project_id = target.project_id
+   AND releasable.promotion_id = target.promotion_id
+   AND releasable.allocation_plan_id = target.allocation_plan_id
+  CROSS JOIN (SELECT count(*) FROM released_snapshot_exclusion_members) dependency
+  WHERE pts.project_id = target.project_id
+    AND pts.promotion_id = target.promotion_id
+    AND (
+      (
+        pts.analysis_id = target.analysis_id
+        AND pts.segment_id = target.segment_id
+      )
+      OR (
+        releasable.allocation_plan_id IS NOT NULL
+        AND pts.allocation_plan_id = releasable.allocation_plan_id
+      )
     )
+  RETURNING
+    pts.promotion_id,
+    pts.segment_id,
+    pts.status,
+    pts.allocation_plan_id
+),
+released_snapshot_allocation_plans AS (
+  UPDATE segment_audience_allocation_plans plan
+  SET status = 'released',
+      locked_at = NULL,
+      released_at = now()
+  FROM releasable_snapshot_plan releasable,
+       (SELECT count(*) FROM updated_snapshot_plan_targets) dependency
+  WHERE plan.allocation_plan_id = releasable.allocation_plan_id
+    AND plan.status = 'finalized'
+  RETURNING plan.allocation_plan_id
 )
 SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
 FROM deleted_target_segment
 UNION ALL
 SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
-FROM stopped_snapshot_target_segment,
-     (SELECT count(*) FROM advanced_snapshot_exclusion_revision) dependency;
+FROM updated_snapshot_plan_targets,
+     (SELECT count(*) FROM released_snapshot_allocation_plans) dependency
+WHERE segment_id = :segmentId;
 
 /* 목적: 목표 미달 세그먼트만 대상으로 next-loop 분석 요청을 생성합니다. */
 /* @name InsertDashboardNextLoopAnalysis */
