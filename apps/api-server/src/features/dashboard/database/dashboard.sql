@@ -1517,15 +1517,25 @@ WHERE project_id = :projectId
   AND status <> 'stopped'
 RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 
-/* 목적: 프로모션 세그먼트와 하위 실험 실행 단위를 물리 삭제합니다. */
+/* 목적: 프로모션 세그먼트를 제거하고 스냅샷 기반 실행 이력은 중지 상태로 보존합니다. */
 /* @name StopDashboardPromotionTargetSegment */
 WITH target_segment AS (
-  SELECT project_id, promotion_id, segment_id, analysis_id
+  SELECT project_id, promotion_id, segment_id, analysis_id, audience_snapshot_id
   FROM promotion_target_segments
   WHERE project_id = :projectId
     AND promotion_id = :promotionId
     AND segment_id = :segmentId
-    AND audience_snapshot_id IS NULL
+    AND status <> 'stopped'
+),
+legacy_target AS (
+  SELECT *
+  FROM target_segment
+  WHERE audience_snapshot_id IS NULL
+),
+snapshot_target AS (
+  SELECT *
+  FROM target_segment
+  WHERE audience_snapshot_id IS NOT NULL
 ),
 invalidated_generation_runs AS (
   UPDATE generation_runs gr
@@ -1540,7 +1550,7 @@ invalidated_generation_runs AS (
       heartbeat_at = NULL,
       lease_expires_at = NULL,
       updated_at = now()
-  FROM target_segment target
+  FROM legacy_target target
   WHERE gr.project_id = target.project_id
     AND gr.promotion_id = target.promotion_id
     AND gr.analysis_id = target.analysis_id
@@ -1552,7 +1562,7 @@ archived_generation_content_candidates AS (
   SET status = 'archived',
       updated_at = now()
   FROM generation_runs gr,
-       target_segment target,
+       legacy_target target,
        (SELECT count(*) FROM invalidated_generation_runs) dependency
   WHERE gr.project_id = target.project_id
     AND gr.promotion_id = target.promotion_id
@@ -1565,7 +1575,7 @@ archived_generation_content_candidates AS (
 ),
 deleted_dispatch_jobs AS (
   DELETE FROM ad_dispatch_jobs adj
-  USING target_segment target,
+  USING legacy_target target,
         (SELECT count(*) FROM archived_generation_content_candidates) dependency
   WHERE adj.project_id = target.project_id
     AND adj.promotion_id = target.promotion_id
@@ -1580,7 +1590,7 @@ deleted_dispatch_jobs AS (
 ),
 deleted_promotion_evaluations AS (
   DELETE FROM promotion_evaluations pe
-  USING target_segment target,
+  USING legacy_target target,
         (SELECT count(*) FROM deleted_dispatch_jobs) dependency
   WHERE pe.project_id = target.project_id
     AND pe.promotion_id = target.promotion_id
@@ -1589,7 +1599,7 @@ deleted_promotion_evaluations AS (
 ),
 deleted_ad_experiments AS (
   DELETE FROM ad_experiments ae
-  USING target_segment target,
+  USING legacy_target target,
         (SELECT count(*) FROM deleted_promotion_evaluations) dependency
   WHERE ae.project_id = target.project_id
     AND ae.promotion_id = target.promotion_id
@@ -1598,7 +1608,7 @@ deleted_ad_experiments AS (
 ),
 deleted_content_candidates AS (
   DELETE FROM content_candidates cc
-  USING target_segment target,
+  USING legacy_target target,
         (SELECT count(*) FROM deleted_ad_experiments) dependency
   WHERE cc.project_id = target.project_id
     AND cc.promotion_id = target.promotion_id
@@ -1607,15 +1617,121 @@ deleted_content_candidates AS (
 ),
 deleted_target_segment AS (
   DELETE FROM promotion_target_segments pts
-  USING target_segment target,
+  USING legacy_target target,
         (SELECT count(*) FROM deleted_content_candidates) dependency
   WHERE pts.project_id = target.project_id
     AND pts.promotion_id = target.promotion_id
     AND pts.segment_id = target.segment_id
   RETURNING pts.promotion_id, pts.segment_id, 'stopped'::text AS status
+),
+cancelled_snapshot_dispatch_jobs AS (
+  UPDATE ad_dispatch_jobs adj
+  SET status = 'cancelled',
+      completed_at = COALESCE(adj.completed_at, now())
+  FROM snapshot_target target
+  WHERE adj.project_id = target.project_id
+    AND adj.promotion_id = target.promotion_id
+    AND adj.status IN ('queued', 'scheduled', 'running')
+    AND adj.ad_experiment_id IN (
+      SELECT ae.ad_experiment_id
+      FROM ad_experiments ae
+      WHERE ae.project_id = target.project_id
+        AND ae.promotion_id = target.promotion_id
+        AND ae.segment_id = target.segment_id
+    )
+  RETURNING adj.ad_dispatch_job_id
+),
+stopped_snapshot_experiments AS (
+  UPDATE ad_experiments ae
+  SET status = 'stopped',
+      ended_at = COALESCE(ae.ended_at, now()),
+      updated_at = now()
+  FROM snapshot_target target,
+       (SELECT count(*) FROM cancelled_snapshot_dispatch_jobs) dependency
+  WHERE ae.project_id = target.project_id
+    AND ae.promotion_id = target.promotion_id
+    AND ae.segment_id = target.segment_id
+    AND ae.status <> 'stopped'
+  RETURNING ae.promotion_run_id
+),
+stopped_snapshot_runs AS (
+  UPDATE promotion_runs pr
+  SET status = 'stopped',
+      ended_at = COALESCE(pr.ended_at, now()),
+      updated_at = now()
+  FROM snapshot_target target,
+       (SELECT count(*) FROM stopped_snapshot_experiments) dependency
+  WHERE pr.project_id = target.project_id
+    AND pr.promotion_id = target.promotion_id
+    AND pr.promotion_run_id IN (
+      SELECT promotion_run_id
+      FROM stopped_snapshot_experiments
+    )
+    AND pr.status <> 'stopped'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM ad_experiments other
+      WHERE other.promotion_run_id = pr.promotion_run_id
+        AND other.segment_id <> target.segment_id
+        AND other.status <> 'stopped'
+    )
+  RETURNING pr.promotion_run_id
+),
+cancelled_snapshot_automation_jobs AS (
+  UPDATE promotion_automation_jobs paj
+  SET status = 'cancelled',
+      worker_id = NULL,
+      lease_token = NULL,
+      locked_at = NULL,
+      lease_expires_at = NULL,
+      updated_at = now()
+  WHERE paj.promotion_run_id IN (
+      SELECT promotion_run_id
+      FROM stopped_snapshot_runs
+    )
+    AND paj.status IN ('pending', 'running')
+  RETURNING paj.job_id
+),
+archived_snapshot_content_candidates AS (
+  UPDATE content_candidates cc
+  SET status = 'archived',
+      updated_at = now()
+  FROM snapshot_target target,
+       (SELECT count(*) FROM cancelled_snapshot_automation_jobs) dependency
+  WHERE cc.project_id = target.project_id
+    AND cc.promotion_id = target.promotion_id
+    AND cc.segment_id = target.segment_id
+    AND cc.status IN ('draft', 'approved', 'active')
+  RETURNING cc.content_id
+),
+archived_snapshot_segment_definitions AS (
+  UPDATE segment_definitions sd
+  SET status = 'archived',
+      updated_at = now()
+  FROM snapshot_target target,
+       (SELECT count(*) FROM archived_snapshot_content_candidates) dependency
+  WHERE sd.project_id = target.project_id
+    AND sd.promotion_id = target.promotion_id
+    AND sd.segment_id = target.segment_id
+    AND sd.source IN ('custom_chatkit', 'manual_rule')
+    AND sd.status = 'active'
+  RETURNING sd.segment_id
+),
+stopped_snapshot_target_segment AS (
+  UPDATE promotion_target_segments pts
+  SET status = 'stopped'
+  FROM snapshot_target target,
+       (SELECT count(*) FROM archived_snapshot_segment_definitions) dependency
+  WHERE pts.project_id = target.project_id
+    AND pts.promotion_id = target.promotion_id
+    AND pts.segment_id = target.segment_id
+  RETURNING pts.promotion_id, pts.segment_id, pts.status
 )
 SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
-FROM deleted_target_segment;
+FROM deleted_target_segment
+UNION ALL
+SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
+FROM stopped_snapshot_target_segment;
 
 /* 목적: 목표 미달 세그먼트만 대상으로 next-loop 분석 요청을 생성합니다. */
 /* @name InsertDashboardNextLoopAnalysis */

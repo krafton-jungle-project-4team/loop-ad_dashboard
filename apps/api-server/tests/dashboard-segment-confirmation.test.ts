@@ -143,7 +143,7 @@ test("V2 confirmation generated query binds parameters at valid SQL positions", 
   ]);
 });
 
-test("removing a target segment invalidates its generation scope", () => {
+test("removing a target segment preserves snapshot history and invalidates legacy generation scope", () => {
   const dashboardSql = readFileSync(
     new URL("../src/features/dashboard/database/dashboard.sql", import.meta.url),
     "utf8"
@@ -154,8 +154,10 @@ test("removing a target segment invalidates its generation scope", () => {
 
   assert.match(
     stopSegmentSql,
-    /SELECT project_id, promotion_id, segment_id, analysis_id\s+FROM promotion_target_segments/
+    /SELECT project_id, promotion_id, segment_id, analysis_id, audience_snapshot_id\s+FROM promotion_target_segments/
   );
+  assert.match(stopSegmentSql, /legacy_target AS \([\s\S]*audience_snapshot_id IS NULL/);
+  assert.match(stopSegmentSql, /snapshot_target AS \([\s\S]*audience_snapshot_id IS NOT NULL/);
   assert.match(stopSegmentSql, /UPDATE generation_runs gr[\s\S]*SET status = 'failed'/);
   assert.match(stopSegmentSql, /last_error_code = 'generation_invalidated_by_segment_change'/);
   assert.match(stopSegmentSql, /worker_id = NULL,[\s\S]*lease_expires_at = NULL/);
@@ -165,4 +167,13 @@ test("removing a target segment invalidates its generation scope", () => {
   );
   assert.match(stopSegmentSql, /cc\.generation_id = gr\.generation_id/);
   assert.match(stopSegmentSql, /cc\.segment_id <> target\.segment_id/);
+  assert.match(
+    stopSegmentSql,
+    /stopped_snapshot_experiments AS \([\s\S]*UPDATE ad_experiments ae[\s\S]*SET status = 'stopped'/
+  );
+  assert.match(
+    stopSegmentSql,
+    /stopped_snapshot_target_segment AS \([\s\S]*UPDATE promotion_target_segments pts[\s\S]*SET status = 'stopped'/
+  );
+  assert.match(stopSegmentSql, /FROM stopped_snapshot_target_segment/);
 });

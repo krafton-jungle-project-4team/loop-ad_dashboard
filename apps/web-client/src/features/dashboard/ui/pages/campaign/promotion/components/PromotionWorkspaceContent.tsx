@@ -785,13 +785,11 @@ function PromotionCurrentSegmentsPanel({
               ariaLabel="확정 고객군 작업"
               disabled={deleteIsPending}
               emptyLabel="관리할 고객군이 없어요"
-              items={visibleSegments
-                .filter((segment) => segment.audience_snapshot_id === null)
-                .map((segment) => ({
-                  id: `${segment.segment_id}:${segment.analysis_id}`,
-                  label: campaignSegmentDisplayCopy(segment)?.title ?? segment.segment_name,
-                  value: segment
-                }))}
+              items={visibleSegments.map((segment) => ({
+                id: `${segment.segment_id}:${segment.analysis_id}`,
+                label: campaignSegmentDisplayCopy(segment)?.title ?? segment.segment_name,
+                value: segment
+              }))}
               label="확정 고객군"
               onDelete={setSegmentToDelete}
             />

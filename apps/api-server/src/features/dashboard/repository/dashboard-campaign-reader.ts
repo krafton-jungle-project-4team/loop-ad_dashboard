@@ -410,6 +410,10 @@ export class DashboardCampaignReader {
       .query(stopDashboardPromotionTargetSegment, { projectId, promotionId, segmentId })
       .single();
 
+    if (!row.promotionId || !row.segmentId) {
+      throw new Error("Stopped promotion segment response is missing its identity.");
+    }
+
     return {
       promotion_id: row.promotionId,
       segment_id: row.segmentId,
