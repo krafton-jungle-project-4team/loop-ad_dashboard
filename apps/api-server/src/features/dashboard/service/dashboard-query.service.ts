@@ -2211,6 +2211,9 @@ function editedSourceReferenceLabels(
       (eventName) => eventName === "booking_start" || eventName === "booking_complete"
     );
     if (!isBookingLabel) {
+      if (events.length === 0) {
+        return [label];
+      }
       if (
         !events.some((eventName) =>
           conditions.some((condition) => condition.event_name === eventName)

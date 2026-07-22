@@ -459,7 +459,9 @@ export function sourceReferenceLabelEvents(label: string): SegmentAssistantEvent
   const normalized = label.replace(/\s+/g, "");
   const events: SegmentAssistantEventName[] = [];
   if (
-    /숙소(?:검색|탐색)|호텔(?:검색|탐색)|목적지(?:검색|탐색)|여행지탐색|반복탐색/.test(normalized)
+    /숙소(?:검색|탐색)|호텔(?:검색|탐색)|목적지(?:검색|탐색)|여행지탐색|반복탐색|중(?:한곳|하나|두곳)(?:검색|탐색)/.test(
+      normalized
+    )
   ) {
     events.push("hotel_search");
   }
