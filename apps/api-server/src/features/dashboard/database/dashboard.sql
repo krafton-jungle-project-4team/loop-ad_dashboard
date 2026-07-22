@@ -90,6 +90,7 @@ LEFT JOIN promotions p
 LEFT JOIN promotion_runs pr
   ON pr.project_id = p.project_id
  AND pr.promotion_id = p.promotion_id
+ AND pr.status <> 'stopped'
 LEFT JOIN promotion_target_segments pts
   ON pts.project_id = p.project_id
  AND pts.promotion_id = p.promotion_id
@@ -97,10 +98,11 @@ LEFT JOIN promotion_target_segments pts
 LEFT JOIN ad_experiments ae
   ON ae.project_id = p.project_id
  AND ae.promotion_id = p.promotion_id
+ AND ae.status <> 'stopped'
 LEFT JOIN promotion_evaluations pe
   ON pe.project_id = p.project_id
  AND pe.promotion_id = p.promotion_id
- AND pe.ad_experiment_id IS NOT NULL
+ AND pe.ad_experiment_id = ae.ad_experiment_id
  AND pe.segment_id <> 'seg_existing_all'
 WHERE c.project_id = :projectId
   AND c.status <> 'stopped'
@@ -145,6 +147,7 @@ LEFT JOIN promotions p
 LEFT JOIN promotion_runs pr
   ON pr.project_id = p.project_id
  AND pr.promotion_id = p.promotion_id
+ AND pr.status <> 'stopped'
 LEFT JOIN promotion_target_segments pts
   ON pts.project_id = p.project_id
  AND pts.promotion_id = p.promotion_id
@@ -152,10 +155,11 @@ LEFT JOIN promotion_target_segments pts
 LEFT JOIN ad_experiments ae
   ON ae.project_id = p.project_id
  AND ae.promotion_id = p.promotion_id
+ AND ae.status <> 'stopped'
 LEFT JOIN promotion_evaluations pe
   ON pe.project_id = p.project_id
  AND pe.promotion_id = p.promotion_id
- AND pe.ad_experiment_id IS NOT NULL
+ AND pe.ad_experiment_id = ae.ad_experiment_id
  AND pe.segment_id <> 'seg_existing_all'
 WHERE c.project_id = :projectId
   AND c.campaign_id = :campaignId
@@ -364,14 +368,21 @@ SELECT
   p.updated_at AS "updatedAt"
 FROM promotions p
 LEFT JOIN promotion_runs pr
-  ON pr.promotion_id = p.promotion_id
+  ON pr.project_id = p.project_id
+ AND pr.promotion_id = p.promotion_id
+ AND pr.status <> 'stopped'
 LEFT JOIN promotion_target_segments pts
-  ON pts.promotion_id = p.promotion_id
+  ON pts.project_id = p.project_id
+ AND pts.promotion_id = p.promotion_id
+ AND pts.status <> 'stopped'
 LEFT JOIN ad_experiments ae
-  ON ae.promotion_id = p.promotion_id
+  ON ae.project_id = p.project_id
+ AND ae.promotion_id = p.promotion_id
+ AND ae.status <> 'stopped'
 LEFT JOIN promotion_evaluations pe
-  ON pe.promotion_id = p.promotion_id
- AND pe.ad_experiment_id IS NOT NULL
+  ON pe.project_id = p.project_id
+ AND pe.promotion_id = p.promotion_id
+ AND pe.ad_experiment_id = ae.ad_experiment_id
  AND pe.segment_id <> 'seg_existing_all'
 WHERE p.project_id = :projectId
   AND p.campaign_id = :campaignId
@@ -420,17 +431,25 @@ SELECT
   p.updated_at AS "updatedAt"
 FROM promotions p
 LEFT JOIN promotion_runs pr
-  ON pr.promotion_id = p.promotion_id
+  ON pr.project_id = p.project_id
+ AND pr.promotion_id = p.promotion_id
+ AND pr.status <> 'stopped'
 LEFT JOIN promotion_target_segments pts
-  ON pts.promotion_id = p.promotion_id
+  ON pts.project_id = p.project_id
+ AND pts.promotion_id = p.promotion_id
+ AND pts.status <> 'stopped'
 LEFT JOIN ad_experiments ae
-  ON ae.promotion_id = p.promotion_id
+  ON ae.project_id = p.project_id
+ AND ae.promotion_id = p.promotion_id
+ AND ae.status <> 'stopped'
 LEFT JOIN promotion_evaluations pe
-  ON pe.promotion_id = p.promotion_id
- AND pe.ad_experiment_id IS NOT NULL
+  ON pe.project_id = p.project_id
+ AND pe.promotion_id = p.promotion_id
+ AND pe.ad_experiment_id = ae.ad_experiment_id
  AND pe.segment_id <> 'seg_existing_all'
 WHERE p.project_id = :projectId
   AND p.promotion_id = :promotionId
+  AND p.status <> 'stopped'
 
 GROUP BY p.promotion_id;
 
@@ -671,13 +690,19 @@ LEFT JOIN segment_definitions sd
 LEFT JOIN segment_audience_snapshots audience_snapshot
   ON audience_snapshot.snapshot_id = pts.audience_snapshot_id
 JOIN promotions p
-  ON p.promotion_id = pts.promotion_id
+  ON p.project_id = pts.project_id
+ AND p.promotion_id = pts.promotion_id
+ AND p.status <> 'stopped'
 LEFT JOIN ad_experiments ae
-  ON ae.promotion_id = pts.promotion_id
+  ON ae.project_id = pts.project_id
+ AND ae.promotion_id = pts.promotion_id
  AND ae.segment_id = pts.segment_id
+ AND ae.status <> 'stopped'
 LEFT JOIN promotion_evaluations pe
-  ON pe.promotion_id = pts.promotion_id
+  ON pe.project_id = pts.project_id
+ AND pe.promotion_id = pts.promotion_id
  AND pe.segment_id = pts.segment_id
+ AND pe.ad_experiment_id = ae.ad_experiment_id
 WHERE pts.project_id = :projectId
   AND pts.campaign_id = :campaignId
   AND pts.status <> 'stopped'
@@ -757,13 +782,19 @@ LEFT JOIN segment_definitions sd
 LEFT JOIN segment_audience_snapshots audience_snapshot
   ON audience_snapshot.snapshot_id = pts.audience_snapshot_id
 JOIN promotions p
-  ON p.promotion_id = pts.promotion_id
+  ON p.project_id = pts.project_id
+ AND p.promotion_id = pts.promotion_id
+ AND p.status <> 'stopped'
 LEFT JOIN ad_experiments ae
-  ON ae.promotion_id = pts.promotion_id
+  ON ae.project_id = pts.project_id
+ AND ae.promotion_id = pts.promotion_id
  AND ae.segment_id = pts.segment_id
+ AND ae.status <> 'stopped'
 LEFT JOIN promotion_evaluations pe
-  ON pe.promotion_id = pts.promotion_id
+  ON pe.project_id = pts.project_id
+ AND pe.promotion_id = pts.promotion_id
  AND pe.segment_id = pts.segment_id
+ AND pe.ad_experiment_id = ae.ad_experiment_id
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
   AND pts.status <> 'stopped'
@@ -843,13 +874,19 @@ LEFT JOIN segment_definitions sd
 LEFT JOIN segment_audience_snapshots audience_snapshot
   ON audience_snapshot.snapshot_id = pts.audience_snapshot_id
 JOIN promotions p
-  ON p.promotion_id = pts.promotion_id
+  ON p.project_id = pts.project_id
+ AND p.promotion_id = pts.promotion_id
+ AND p.status <> 'stopped'
 LEFT JOIN ad_experiments ae
-  ON ae.promotion_id = pts.promotion_id
+  ON ae.project_id = pts.project_id
+ AND ae.promotion_id = pts.promotion_id
  AND ae.segment_id = pts.segment_id
+ AND ae.status <> 'stopped'
 LEFT JOIN promotion_evaluations pe
-  ON pe.promotion_id = pts.promotion_id
+  ON pe.project_id = pts.project_id
+ AND pe.promotion_id = pts.promotion_id
  AND pe.segment_id = pts.segment_id
+ AND pe.ad_experiment_id = ae.ad_experiment_id
 WHERE pts.project_id = :projectId
   AND pts.promotion_id = :promotionId
   AND pts.segment_id = :segmentId
@@ -1865,84 +1902,111 @@ ORDER BY updated_at DESC, created_at DESC;
 /* 목적: 캠페인 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardCampaignExperimentMetrics */
 SELECT
-  promotion_id AS "promotionId",
-  promotion_run_id AS "promotionRunId",
-  ad_experiment_id AS "adExperimentId",
-  segment_id AS "segmentId",
-  content_id AS "contentId",
-  content_option_id AS "contentOptionId",
-  metric,
-  CAST(target_value AS float8) AS "targetValue",
-  CAST(actual_value AS float8) AS "actualValue",
-  numerator_count AS "numeratorCount",
-  denominator_count AS "denominatorCount",
-  sample_size AS "sampleSize",
-  basis,
-  status,
-  feedback,
-  next_loop_required AS "nextLoopRequired",
-  result_json AS "resultJson",
-  created_at AS "createdAt"
-FROM promotion_evaluations
-WHERE project_id = :projectId
-  AND campaign_id = :campaignId
+  pe.promotion_id AS "promotionId",
+  pe.promotion_run_id AS "promotionRunId",
+  pe.ad_experiment_id AS "adExperimentId",
+  pe.segment_id AS "segmentId",
+  pe.content_id AS "contentId",
+  pe.content_option_id AS "contentOptionId",
+  pe.metric,
+  CAST(pe.target_value AS float8) AS "targetValue",
+  CAST(pe.actual_value AS float8) AS "actualValue",
+  pe.numerator_count AS "numeratorCount",
+  pe.denominator_count AS "denominatorCount",
+  pe.sample_size AS "sampleSize",
+  pe.basis,
+  pe.status,
+  pe.feedback,
+  pe.next_loop_required AS "nextLoopRequired",
+  pe.result_json AS "resultJson",
+  pe.created_at AS "createdAt"
+FROM promotion_evaluations pe
+JOIN promotion_runs pr
+  ON pr.project_id = pe.project_id
+ AND pr.promotion_run_id = pe.promotion_run_id
+ AND pr.status <> 'stopped'
+LEFT JOIN ad_experiments ae
+  ON ae.project_id = pe.project_id
+ AND ae.ad_experiment_id = pe.ad_experiment_id
+ AND ae.status <> 'stopped'
+WHERE pe.project_id = :projectId
+  AND pe.campaign_id = :campaignId
+  AND (pe.ad_experiment_id IS NULL OR ae.ad_experiment_id IS NOT NULL)
 
-ORDER BY created_at DESC;
+ORDER BY pe.created_at DESC;
 
 /* 목적: 프로모션 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardPromotionExperimentMetrics */
 SELECT
-  promotion_id AS "promotionId",
-  promotion_run_id AS "promotionRunId",
-  ad_experiment_id AS "adExperimentId",
-  segment_id AS "segmentId",
-  content_id AS "contentId",
-  content_option_id AS "contentOptionId",
-  metric,
-  CAST(target_value AS float8) AS "targetValue",
-  CAST(actual_value AS float8) AS "actualValue",
-  numerator_count AS "numeratorCount",
-  denominator_count AS "denominatorCount",
-  sample_size AS "sampleSize",
-  basis,
-  status,
-  feedback,
-  next_loop_required AS "nextLoopRequired",
-  result_json AS "resultJson",
-  created_at AS "createdAt"
-FROM promotion_evaluations
-WHERE project_id = :projectId
-  AND promotion_id = :promotionId
+  pe.promotion_id AS "promotionId",
+  pe.promotion_run_id AS "promotionRunId",
+  pe.ad_experiment_id AS "adExperimentId",
+  pe.segment_id AS "segmentId",
+  pe.content_id AS "contentId",
+  pe.content_option_id AS "contentOptionId",
+  pe.metric,
+  CAST(pe.target_value AS float8) AS "targetValue",
+  CAST(pe.actual_value AS float8) AS "actualValue",
+  pe.numerator_count AS "numeratorCount",
+  pe.denominator_count AS "denominatorCount",
+  pe.sample_size AS "sampleSize",
+  pe.basis,
+  pe.status,
+  pe.feedback,
+  pe.next_loop_required AS "nextLoopRequired",
+  pe.result_json AS "resultJson",
+  pe.created_at AS "createdAt"
+FROM promotion_evaluations pe
+JOIN promotion_runs pr
+  ON pr.project_id = pe.project_id
+ AND pr.promotion_run_id = pe.promotion_run_id
+ AND pr.status <> 'stopped'
+LEFT JOIN ad_experiments ae
+  ON ae.project_id = pe.project_id
+ AND ae.ad_experiment_id = pe.ad_experiment_id
+ AND ae.status <> 'stopped'
+WHERE pe.project_id = :projectId
+  AND pe.promotion_id = :promotionId
+  AND (pe.ad_experiment_id IS NULL OR ae.ad_experiment_id IS NOT NULL)
 
-ORDER BY created_at DESC;
+ORDER BY pe.created_at DESC;
 
 /* 목적: 특정 세그먼트의 실험 지표 목록을 조회합니다. */
 /* @name ListDashboardSegmentExperimentMetrics */
 SELECT
-  promotion_id AS "promotionId",
-  promotion_run_id AS "promotionRunId",
-  ad_experiment_id AS "adExperimentId",
-  segment_id AS "segmentId",
-  content_id AS "contentId",
-  content_option_id AS "contentOptionId",
-  metric,
-  CAST(target_value AS float8) AS "targetValue",
-  CAST(actual_value AS float8) AS "actualValue",
-  numerator_count AS "numeratorCount",
-  denominator_count AS "denominatorCount",
-  sample_size AS "sampleSize",
-  basis,
-  status,
-  feedback,
-  next_loop_required AS "nextLoopRequired",
-  result_json AS "resultJson",
-  created_at AS "createdAt"
-FROM promotion_evaluations
-WHERE project_id = :projectId
-  AND promotion_id = :promotionId
-  AND segment_id = :segmentId
+  pe.promotion_id AS "promotionId",
+  pe.promotion_run_id AS "promotionRunId",
+  pe.ad_experiment_id AS "adExperimentId",
+  pe.segment_id AS "segmentId",
+  pe.content_id AS "contentId",
+  pe.content_option_id AS "contentOptionId",
+  pe.metric,
+  CAST(pe.target_value AS float8) AS "targetValue",
+  CAST(pe.actual_value AS float8) AS "actualValue",
+  pe.numerator_count AS "numeratorCount",
+  pe.denominator_count AS "denominatorCount",
+  pe.sample_size AS "sampleSize",
+  pe.basis,
+  pe.status,
+  pe.feedback,
+  pe.next_loop_required AS "nextLoopRequired",
+  pe.result_json AS "resultJson",
+  pe.created_at AS "createdAt"
+FROM promotion_evaluations pe
+JOIN promotion_runs pr
+  ON pr.project_id = pe.project_id
+ AND pr.promotion_run_id = pe.promotion_run_id
+ AND pr.status <> 'stopped'
+LEFT JOIN ad_experiments ae
+  ON ae.project_id = pe.project_id
+ AND ae.ad_experiment_id = pe.ad_experiment_id
+ AND ae.status <> 'stopped'
+WHERE pe.project_id = :projectId
+  AND pe.promotion_id = :promotionId
+  AND pe.segment_id = :segmentId
+  AND (pe.ad_experiment_id IS NULL OR ae.ad_experiment_id IS NOT NULL)
 
-ORDER BY created_at DESC;
+ORDER BY pe.created_at DESC;
 
 /* 목적: 캠페인 단위 Email/SMS 발송 상태를 조회합니다. */
 /* @name GetDashboardCampaignDeliveryStatus */
@@ -1953,10 +2017,19 @@ SELECT
   0::int AS "openedCount",
   0::int AS "bouncedCount",
   COALESCE(SUM(failed_count), 0)::int AS "failedCount"
-FROM ad_dispatch_jobs
-WHERE project_id = :projectId
-  AND campaign_id = :campaignId
-  AND channel IN ('email', 'sms');
+FROM ad_dispatch_jobs adj
+JOIN promotion_runs pr
+  ON pr.project_id = adj.project_id
+ AND pr.promotion_run_id = adj.promotion_run_id
+ AND pr.status <> 'stopped'
+LEFT JOIN ad_experiments ae
+  ON ae.project_id = adj.project_id
+ AND ae.ad_experiment_id = adj.ad_experiment_id
+ AND ae.status <> 'stopped'
+WHERE adj.project_id = :projectId
+  AND adj.campaign_id = :campaignId
+  AND adj.channel IN ('email', 'sms')
+  AND (adj.ad_experiment_id IS NULL OR ae.ad_experiment_id IS NOT NULL);
 
 /* 목적: 프로모션 단위 Email/SMS 발송 상태를 조회합니다. */
 /* @name GetDashboardPromotionDeliveryStatus */
@@ -1967,10 +2040,19 @@ SELECT
   0::int AS "openedCount",
   0::int AS "bouncedCount",
   COALESCE(SUM(failed_count), 0)::int AS "failedCount"
-FROM ad_dispatch_jobs
-WHERE project_id = :projectId
-  AND promotion_id = :promotionId
-  AND channel IN ('email', 'sms');
+FROM ad_dispatch_jobs adj
+JOIN promotion_runs pr
+  ON pr.project_id = adj.project_id
+ AND pr.promotion_run_id = adj.promotion_run_id
+ AND pr.status <> 'stopped'
+LEFT JOIN ad_experiments ae
+  ON ae.project_id = adj.project_id
+ AND ae.ad_experiment_id = adj.ad_experiment_id
+ AND ae.status <> 'stopped'
+WHERE adj.project_id = :projectId
+  AND adj.promotion_id = :promotionId
+  AND adj.channel IN ('email', 'sms')
+  AND (adj.ad_experiment_id IS NULL OR ae.ad_experiment_id IS NOT NULL);
 
 /* 목적: 세그먼트 단위 Email/SMS 발송 상태를 조회합니다. */
 /* @name GetDashboardSegmentDeliveryStatus */
@@ -1983,7 +2065,9 @@ SELECT
   COALESCE(SUM(adj.failed_count), 0)::int AS "failedCount"
 FROM ad_dispatch_jobs adj
 JOIN ad_experiments ae
-  ON ae.ad_experiment_id = adj.ad_experiment_id
+  ON ae.project_id = adj.project_id
+ AND ae.ad_experiment_id = adj.ad_experiment_id
+ AND ae.status <> 'stopped'
 WHERE adj.project_id = :projectId
   AND adj.promotion_id = :promotionId
   AND ae.segment_id = :segmentId
@@ -1999,7 +2083,9 @@ SELECT
   COALESCE(SUM(adj.failed_count), 0)::int AS "failedCount"
 FROM ad_dispatch_jobs adj
 JOIN ad_experiments ae
-  ON ae.ad_experiment_id = adj.ad_experiment_id
+  ON ae.project_id = adj.project_id
+ AND ae.ad_experiment_id = adj.ad_experiment_id
+ AND ae.status <> 'stopped'
 WHERE adj.project_id = :projectId
   AND adj.promotion_id = :promotionId
   AND adj.channel IN ('email', 'sms')
@@ -2035,6 +2121,7 @@ SELECT
 FROM content_candidates
 WHERE project_id = :projectId
   AND campaign_id = :campaignId
+  AND status <> 'archived'
 
 ORDER BY updated_at DESC, created_at DESC;
 
@@ -2077,6 +2164,7 @@ FROM content_candidates
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND segment_id = :segmentId
+  AND status <> 'archived'
 
 ORDER BY updated_at DESC, created_at DESC;
 
@@ -2110,7 +2198,8 @@ FROM content_candidates
 WHERE project_id = :projectId
   AND promotion_id = :promotionId
   AND segment_id = :segmentId
-  AND content_id = :contentId;
+  AND content_id = :contentId
+  AND status <> 'archived';
 
 /* 목적: 동일 analysis와 현재 승인 고객군에 대응하는 기존 광고 생성 결과만 조회합니다. */
 /* @name GetDashboardPromotionGenerationResult */
@@ -2200,6 +2289,7 @@ LEFT JOIN user_segment_assignments usa
  AND usa.ad_experiment_id = ae.ad_experiment_id
 WHERE ae.project_id = :projectId
   AND ae.campaign_id = :campaignId
+  AND ae.status <> 'stopped'
 GROUP BY
   ae.ad_experiment_id,
   ae.promotion_run_id,
@@ -2241,6 +2331,7 @@ LEFT JOIN user_segment_assignments usa
 WHERE ae.project_id = :projectId
   AND ae.promotion_id = :promotionId
   AND ae.segment_id = :segmentId
+  AND ae.status <> 'stopped'
 GROUP BY
   ae.ad_experiment_id,
   ae.promotion_run_id,
