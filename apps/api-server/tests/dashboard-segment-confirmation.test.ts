@@ -154,7 +154,7 @@ test("removing a target segment preserves snapshot history and invalidates legac
 
   assert.match(
     stopSegmentSql,
-    /SELECT project_id, promotion_id, segment_id, analysis_id, audience_snapshot_id\s+FROM promotion_target_segments/
+    /SELECT project_id, promotion_id, segment_id, analysis_id,\s+audience_snapshot_id, allocation_plan_id\s+FROM promotion_target_segments/
   );
   assert.match(stopSegmentSql, /legacy_target AS \([\s\S]*audience_snapshot_id IS NULL/);
   assert.match(stopSegmentSql, /snapshot_target AS \([\s\S]*audience_snapshot_id IS NOT NULL/);
@@ -175,5 +175,10 @@ test("removing a target segment preserves snapshot history and invalidates legac
     stopSegmentSql,
     /stopped_snapshot_target_segment AS \([\s\S]*UPDATE promotion_target_segments pts[\s\S]*SET status = 'stopped'/
   );
+  assert.match(
+    stopSegmentSql,
+    /advanced_snapshot_exclusion_revision AS \([\s\S]*advance_promotion_audience_exclusion_revision/
+  );
+  assert.match(stopSegmentSql, /excluded\.state IN \('reserved', 'consumed'\)/);
   assert.match(stopSegmentSql, /FROM stopped_snapshot_target_segment/);
 });

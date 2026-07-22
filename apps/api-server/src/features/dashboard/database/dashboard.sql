@@ -1520,7 +1520,8 @@ RETURNING promotion_id AS "promotionId", segment_id AS "segmentId";
 /* 목적: 프로모션 세그먼트를 제거하고 스냅샷 기반 실행 이력은 중지 상태로 보존합니다. */
 /* @name StopDashboardPromotionTargetSegment */
 WITH target_segment AS (
-  SELECT project_id, promotion_id, segment_id, analysis_id, audience_snapshot_id
+  SELECT project_id, promotion_id, segment_id, analysis_id,
+         audience_snapshot_id, allocation_plan_id
   FROM promotion_target_segments
   WHERE project_id = :projectId
     AND promotion_id = :promotionId
@@ -1726,12 +1727,30 @@ stopped_snapshot_target_segment AS (
     AND pts.promotion_id = target.promotion_id
     AND pts.segment_id = target.segment_id
   RETURNING pts.promotion_id, pts.segment_id, pts.status
+),
+advanced_snapshot_exclusion_revision AS (
+  SELECT advance_promotion_audience_exclusion_revision(target.promotion_id)
+      AS revision
+  FROM snapshot_target target,
+       (SELECT count(*) FROM stopped_snapshot_target_segment) dependency
+  WHERE target.allocation_plan_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM promotion_audience_exclusion_members excluded
+      WHERE excluded.project_id = target.project_id
+        AND excluded.promotion_id = target.promotion_id
+        AND excluded.target_analysis_id = target.analysis_id
+        AND excluded.segment_id = target.segment_id
+        AND excluded.allocation_plan_id = target.allocation_plan_id
+        AND excluded.state IN ('reserved', 'consumed')
+    )
 )
 SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
 FROM deleted_target_segment
 UNION ALL
 SELECT promotion_id AS "promotionId", segment_id AS "segmentId", status
-FROM stopped_snapshot_target_segment;
+FROM stopped_snapshot_target_segment,
+     (SELECT count(*) FROM advanced_snapshot_exclusion_revision) dependency;
 
 /* 목적: 목표 미달 세그먼트만 대상으로 next-loop 분석 요청을 생성합니다. */
 /* @name InsertDashboardNextLoopAnalysis */
