@@ -97,6 +97,7 @@ LEFT JOIN LATERAL (
   LIMIT 1
 ) next_run ON TRUE
 WHERE ae.project_id = :projectId
+  AND ae.status <> 'stopped'
   AND c.status <> 'stopped'
   AND p.status <> 'stopped'
 ORDER BY ae.updated_at DESC, ae.created_at DESC, ae.ad_experiment_id ASC;

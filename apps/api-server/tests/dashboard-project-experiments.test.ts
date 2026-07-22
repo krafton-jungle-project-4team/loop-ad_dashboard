@@ -1,10 +1,26 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type { Transaction } from "@nestjs-cls/transactional";
 import { DashboardCampaignSummarySchema } from "@loopad/shared";
 import type { PgTypedTransactionalAdapter } from "../src/infra/database/pgtyped-transactional.adapter.js";
 import type { DashboardQueryService } from "../src/features/dashboard/service/dashboard-query.service.js";
 import type { DashboardProjectExperimentsService } from "../src/features/dashboard/service/dashboard-project-experiments.service.js";
+
+test("project experiments query excludes stopped experiments", () => {
+  const sql = readFileSync(
+    new URL(
+      "../src/features/dashboard/database/project-experiments.sql",
+      import.meta.url
+    ),
+    "utf8"
+  );
+
+  assert.match(
+    sql,
+    /WHERE ae\.project_id = :projectId\s+AND ae\.status <> 'stopped'/
+  );
+});
 
 test("project experiments reader maps hierarchy, latest evaluation, and next loop", async () => {
   setRequiredEnv();
