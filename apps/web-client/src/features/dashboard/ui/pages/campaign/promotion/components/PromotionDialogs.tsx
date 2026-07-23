@@ -6,7 +6,7 @@ import {
 } from "@loopad/shared";
 import { Button } from "@loopad/ui/shadcn/button";
 import { DialogClose, DialogFooter } from "@loopad/ui/shadcn/dialog";
-import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
+import { Field, FieldError, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import {
   Select,
@@ -30,6 +30,8 @@ import {
   promotionGoalMetricOptions,
   promotionOfferLinksAreValid,
   promotionOfferLinksMatchCatalog,
+  promotionFormNumericValidation,
+  promotionNumericFieldsAreValid,
   promotionScheduleFitsCampaign,
   promotionScheduleInputBounds,
   promotionScheduleIsValid,
@@ -73,6 +75,7 @@ export function PromotionEditDialog({
     Boolean(promotion && form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
     promotionOfferLinksAreValid(form) &&
+    promotionNumericFieldsAreValid(form) &&
     promotionScheduleIsValid(form) &&
     promotionScheduleFitsCampaign(form, campaign) &&
     (form.channel !== "email" ||
@@ -146,6 +149,7 @@ export function PromotionAddDialog({
     Boolean(form.marketingTheme.trim()) &&
     isValidHttpUrl(form.landingUrl) &&
     promotionOfferLinksAreValid(form) &&
+    promotionNumericFieldsAreValid(form) &&
     promotionScheduleIsValid(form) &&
     promotionScheduleFitsCampaign(form, campaign) &&
     (form.channel !== "email" ||
@@ -222,6 +226,7 @@ function PromotionFormFields({
     .filter(Boolean)
     .sort()
     .at(-1);
+  const numericValidation = promotionFormNumericValidation(form);
 
   return (
     <div className="grid gap-4">
@@ -296,13 +301,25 @@ function PromotionFormFields({
             <Field>
               <FieldLabel htmlFor={`${idPrefix}-loop-interval-value`}>자동 평가 간격</FieldLabel>
               <Input
+                aria-describedby={
+                  !numericValidation.loopIntervalValue
+                    ? `${idPrefix}-loop-interval-value-error`
+                    : undefined
+                }
+                aria-invalid={!numericValidation.loopIntervalValue}
                 id={`${idPrefix}-loop-interval-value`}
                 inputMode="numeric"
                 min="1"
                 onChange={(event) => onChange({ ...form, loopIntervalValue: event.target.value })}
+                step="1"
                 type="number"
                 value={form.loopIntervalValue}
               />
+              {!numericValidation.loopIntervalValue ? (
+                <FieldError id={`${idPrefix}-loop-interval-value-error`}>
+                  1 이상의 정수를 입력해 주세요.
+                </FieldError>
+              ) : null}
             </Field>
             <Field>
               <FieldLabel id={`${idPrefix}-loop-interval-unit-label`}>단위</FieldLabel>
@@ -383,15 +400,24 @@ function PromotionFormFields({
         <Field>
           <FieldLabel htmlFor={`${idPrefix}-goal`}>목표값</FieldLabel>
           <Input
+            aria-describedby={
+              !numericValidation.goalTargetValue ? `${idPrefix}-goal-error` : undefined
+            }
+            aria-invalid={!numericValidation.goalTargetValue}
             id={`${idPrefix}-goal`}
             inputMode="decimal"
-            min="0"
+            min="0.001"
             name={`${idPrefix}GoalTargetValue`}
             onChange={(event) => onChange({ ...form, goalTargetValue: event.target.value })}
             step="0.001"
             type="number"
             value={form.goalTargetValue}
           />
+          {!numericValidation.goalTargetValue ? (
+            <FieldError id={`${idPrefix}-goal-error`}>
+              0보다 큰 숫자를 입력해 주세요.
+            </FieldError>
+          ) : null}
         </Field>
         <Field>
           <FieldLabel id={`${idPrefix}-goal-basis-label`}>목표 기준</FieldLabel>
@@ -416,26 +442,46 @@ function PromotionFormFields({
         <Field>
           <FieldLabel htmlFor={`${idPrefix}-sample`}>최소 평가 대상</FieldLabel>
           <Input
+            aria-describedby={
+              !numericValidation.minSampleSize ? `${idPrefix}-sample-error` : undefined
+            }
+            aria-invalid={!numericValidation.minSampleSize}
             id={`${idPrefix}-sample`}
             inputMode="numeric"
-            min="0"
+            min="1"
             name={`${idPrefix}MinSampleSize`}
             onChange={(event) => onChange({ ...form, minSampleSize: event.target.value })}
+            step="1"
             type="number"
             value={form.minSampleSize}
           />
+          {!numericValidation.minSampleSize ? (
+            <FieldError id={`${idPrefix}-sample-error`}>
+              1 이상의 정수를 입력해 주세요.
+            </FieldError>
+          ) : null}
         </Field>
         <Field>
           <FieldLabel htmlFor={`${idPrefix}-loop`}>최대 반복 횟수</FieldLabel>
           <Input
+            aria-describedby={
+              !numericValidation.maxLoopCount ? `${idPrefix}-loop-error` : undefined
+            }
+            aria-invalid={!numericValidation.maxLoopCount}
             id={`${idPrefix}-loop`}
             inputMode="numeric"
             min="1"
             name={`${idPrefix}MaxLoopCount`}
             onChange={(event) => onChange({ ...form, maxLoopCount: event.target.value })}
+            step="1"
             type="number"
             value={form.maxLoopCount}
           />
+          {!numericValidation.maxLoopCount ? (
+            <FieldError id={`${idPrefix}-loop-error`}>
+              1 이상의 정수를 입력해 주세요.
+            </FieldError>
+          ) : null}
         </Field>
       </div>
       <Field>

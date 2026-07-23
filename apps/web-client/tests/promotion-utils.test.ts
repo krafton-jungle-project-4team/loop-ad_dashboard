@@ -16,6 +16,8 @@ import {
   nextExperimentLoopCount,
   normalizeSegmentDisplayCopy,
   promotionCreateFormToRequest,
+  promotionFormNumericValidation,
+  promotionNumericFieldsAreValid,
   promotionOfferLinksAreValid,
   promotionOfferLinksMatchCatalog,
   promotionScheduleFitsCampaign,
@@ -71,6 +73,67 @@ test("promotion edit maps every field exposed by the create form", () => {
     scheduled_end_at: "2026-08-10T09:00:00.000Z",
     scheduled_start_at: "2026-08-01T09:00:00.000Z"
   });
+});
+
+test("promotion numeric fields require a positive target and positive integers", () => {
+  const form = createEmptyPromotionFormState();
+
+  assert.deepEqual(promotionFormNumericValidation(form), {
+    goalTargetValue: true,
+    loopIntervalValue: true,
+    maxLoopCount: true,
+    minSampleSize: true
+  });
+  assert.equal(promotionNumericFieldsAreValid(form), true);
+
+  for (const goalTargetValue of ["", "0", "-0.1", "Infinity"]) {
+    assert.equal(
+      promotionFormNumericValidation({ ...form, goalTargetValue }).goalTargetValue,
+      false
+    );
+  }
+  assert.equal(
+    promotionFormNumericValidation({ ...form, goalTargetValue: "0.001" }).goalTargetValue,
+    true
+  );
+
+  for (const invalidInteger of ["", "0", "-1", "1.5", "Infinity"]) {
+    assert.equal(
+      promotionNumericFieldsAreValid({ ...form, minSampleSize: invalidInteger }),
+      false
+    );
+    assert.equal(
+      promotionNumericFieldsAreValid({ ...form, maxLoopCount: invalidInteger }),
+      false
+    );
+  }
+});
+
+test("automatic promotion intervals require a positive integer", () => {
+  const form = createEmptyPromotionFormState();
+
+  assert.equal(
+    promotionNumericFieldsAreValid({ ...form, executionMode: "manual", loopIntervalValue: "" }),
+    true
+  );
+  for (const loopIntervalValue of ["", "0", "-1", "1.5", "Infinity"]) {
+    assert.equal(
+      promotionNumericFieldsAreValid({
+        ...form,
+        executionMode: "automatic",
+        loopIntervalValue
+      }),
+      false
+    );
+  }
+  assert.equal(
+    promotionNumericFieldsAreValid({
+      ...form,
+      executionMode: "automatic",
+      loopIntervalValue: "2"
+    }),
+    true
+  );
 });
 
 test("promotion form preserves offer links for Decision generation metadata", () => {

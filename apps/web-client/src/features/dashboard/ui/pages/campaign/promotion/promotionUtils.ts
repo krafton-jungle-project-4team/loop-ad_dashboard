@@ -149,6 +149,20 @@ export function promotionFormToUpdateRequest(
   return promotionFormRequestFields(form);
 }
 
+export function promotionFormNumericValidation(form: PromotionCreateFormState) {
+  return {
+    goalTargetValue: positiveNumberInputIsValid(form.goalTargetValue),
+    loopIntervalValue:
+      form.executionMode !== "automatic" || positiveIntegerInputIsValid(form.loopIntervalValue),
+    maxLoopCount: positiveIntegerInputIsValid(form.maxLoopCount),
+    minSampleSize: positiveIntegerInputIsValid(form.minSampleSize)
+  };
+}
+
+export function promotionNumericFieldsAreValid(form: PromotionCreateFormState) {
+  return Object.values(promotionFormNumericValidation(form)).every(Boolean);
+}
+
 function promotionFormRequestFields(form: PromotionCreateFormState) {
   return {
     channel: form.channel as DashboardCreatePromotionRequest["channel"],
@@ -579,4 +593,20 @@ export function nonnegativeNumber(value: string): number {
 export function positiveInteger(value: string): number {
   const numberValue = Math.trunc(Number(value));
   return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : 1;
+}
+
+function positiveNumberInputIsValid(value: string) {
+  if (!value.trim()) {
+    return false;
+  }
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0;
+}
+
+function positiveIntegerInputIsValid(value: string) {
+  if (!value.trim()) {
+    return false;
+  }
+  const numberValue = Number(value);
+  return Number.isInteger(numberValue) && numberValue >= 1;
 }
