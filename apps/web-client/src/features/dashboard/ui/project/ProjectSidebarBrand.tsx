@@ -54,7 +54,7 @@ export function ProjectReturnIconLink() {
 
 function ProjectMark() {
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-sidebar-accent p-1 ring-1 ring-white/15">
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-transparent p-0.5">
       <img alt="" aria-hidden="true" className="h-auto w-full" src="/loop-ad-icon.svg" />
     </span>
   );
