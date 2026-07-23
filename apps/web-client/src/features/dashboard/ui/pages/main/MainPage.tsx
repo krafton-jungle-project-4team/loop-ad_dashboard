@@ -373,7 +373,7 @@ function CampaignListRow({
             params={{ projectId, tabPath: "campaigns" }}
             search={(current) => ({
               ...current,
-              campaignView: "overview",
+              campaignView: "performance",
               selectedCampaignId: campaign.campaign_id,
               selectedPromotionId: "",
               selectedSegmentId: ""
