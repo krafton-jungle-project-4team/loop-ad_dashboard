@@ -414,9 +414,7 @@ function PromotionFormFields({
             value={form.goalTargetValue}
           />
           {!numericValidation.goalTargetValue ? (
-            <FieldError id={`${idPrefix}-goal-error`}>
-              0보다 큰 숫자를 입력해 주세요.
-            </FieldError>
+            <FieldError id={`${idPrefix}-goal-error`}>0보다 큰 숫자를 입력해 주세요.</FieldError>
           ) : null}
         </Field>
         <Field>
@@ -456,9 +454,7 @@ function PromotionFormFields({
             value={form.minSampleSize}
           />
           {!numericValidation.minSampleSize ? (
-            <FieldError id={`${idPrefix}-sample-error`}>
-              1 이상의 정수를 입력해 주세요.
-            </FieldError>
+            <FieldError id={`${idPrefix}-sample-error`}>1 이상의 정수를 입력해 주세요.</FieldError>
           ) : null}
         </Field>
         <Field>
@@ -478,9 +474,7 @@ function PromotionFormFields({
             value={form.maxLoopCount}
           />
           {!numericValidation.maxLoopCount ? (
-            <FieldError id={`${idPrefix}-loop-error`}>
-              1 이상의 정수를 입력해 주세요.
-            </FieldError>
+            <FieldError id={`${idPrefix}-loop-error`}>1 이상의 정수를 입력해 주세요.</FieldError>
           ) : null}
         </Field>
       </div>

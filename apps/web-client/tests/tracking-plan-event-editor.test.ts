@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const workspaceSource = readFileSync(
-  new URL(
-    "../src/features/dashboard/ui/pages/sdk/TrackingPlanWorkspace.tsx",
-    import.meta.url
-  ),
+  new URL("../src/features/dashboard/ui/pages/sdk/TrackingPlanWorkspace.tsx", import.meta.url),
   "utf8"
 );
 
@@ -18,10 +15,7 @@ test("switching events with an unsaved draft asks before discarding it", () => {
   );
   assert.match(workspaceSource, /<AlertDialogTitle>변경사항을 버릴까요\?<\/AlertDialogTitle>/);
   assert.match(workspaceSource, /<AlertDialogCancel>계속 작성<\/AlertDialogCancel>/);
-  assert.match(
-    workspaceSource,
-    /<AlertDialogAction onClick=\{discardDraftAndShowPendingEvent\}>/
-  );
+  assert.match(workspaceSource, /<AlertDialogAction onClick=\{discardDraftAndShowPendingEvent\}>/);
 });
 
 test("event saves are locked while a create or update request is pending", () => {

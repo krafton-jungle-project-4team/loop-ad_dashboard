@@ -98,14 +98,8 @@ test("promotion numeric fields require a positive target and positive integers",
   );
 
   for (const invalidInteger of ["", "0", "-1", "1.5", "Infinity"]) {
-    assert.equal(
-      promotionNumericFieldsAreValid({ ...form, minSampleSize: invalidInteger }),
-      false
-    );
-    assert.equal(
-      promotionNumericFieldsAreValid({ ...form, maxLoopCount: invalidInteger }),
-      false
-    );
+    assert.equal(promotionNumericFieldsAreValid({ ...form, minSampleSize: invalidInteger }), false);
+    assert.equal(promotionNumericFieldsAreValid({ ...form, maxLoopCount: invalidInteger }), false);
   }
 });
 

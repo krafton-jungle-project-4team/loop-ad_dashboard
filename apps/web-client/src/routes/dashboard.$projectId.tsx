@@ -72,9 +72,7 @@ function DashboardProjectExistenceGate({
       <main className="grid min-h-svh place-items-center bg-background p-6">
         <Alert className="max-w-lg" variant="destructive">
           <AlertTitle>
-            {projectsQuery.isError
-              ? "프로젝트를 확인하지 못했어요"
-              : "프로젝트를 찾지 못했어요"}
+            {projectsQuery.isError ? "프로젝트를 확인하지 못했어요" : "프로젝트를 찾지 못했어요"}
           </AlertTitle>
           <AlertDescription className="grid gap-3">
             <span>
