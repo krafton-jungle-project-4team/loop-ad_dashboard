@@ -52,6 +52,7 @@ import { EmptyState } from "../../../../shared/EmptyState.js";
 import {
   formatJsonObject,
   formatPercentValue,
+  mutationErrorMessage,
   segmentAssistantSourceSuggestion,
   segmentAudienceSummary,
   statusBadgeVariant
@@ -94,7 +95,7 @@ export function PromotionSegmentSuggestionPanel({
   confirmedSegmentCount: number;
   decideIsPending: boolean;
   onArchiveScopedSegment: (segmentId: string) => void;
-  onConfirmSuggestions: (segmentIds: string[]) => void;
+  onConfirmSuggestions: (segmentIds: string[]) => Promise<void>;
   onDecideSuggestion: (
     suggestionId: string,
     status: "suggested" | "accepted" | "dismissed"
@@ -108,6 +109,7 @@ export function PromotionSegmentSuggestionPanel({
   suggestionsIsLoading: boolean;
 }) {
   const { openSegmentCandidateAssistant } = useDashboardAssistant();
+  const [confirmErrorMessage, setConfirmErrorMessage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SegmentCandidateDeleteTarget | null>(null);
   const [selectedScopedSegmentIds, setSelectedScopedSegmentIds] = useState<string[]>([]);
   const [reportSuggestion, setReportSuggestion] =
@@ -362,7 +364,13 @@ export function PromotionSegmentSuggestionPanel({
               scopedSegmentsIsLoading ||
               promotionAnalysisIsPending
             }
-            onClick={() => onConfirmSuggestions(selectedScopedSegmentIds)}
+            onClick={async () => {
+              try {
+                await onConfirmSuggestions(selectedScopedSegmentIds);
+              } catch (error) {
+                setConfirmErrorMessage(mutationErrorMessage(error));
+              }
+            }}
             size="sm"
             type="button"
           >
@@ -405,6 +413,24 @@ export function PromotionSegmentSuggestionPanel({
             >
               고객군 후보 삭제
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmErrorMessage(null);
+          }
+        }}
+        open={Boolean(confirmErrorMessage)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>고객군을 확정하지 못했어요</AlertDialogTitle>
+            <AlertDialogDescription>{confirmErrorMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setConfirmErrorMessage(null)}>확인</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

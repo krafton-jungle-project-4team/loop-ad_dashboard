@@ -76,7 +76,7 @@ function dashboardApiErrorMessage(code: string, message: string) {
     case "segment_audience_segment_already_confirmed":
       return "이미 이 프로모션에서 사용 중인 고객군이에요.";
     case "segment_audience_allocation_empty":
-      return "현재 조합에서는 최종 배정 사용자가 없는 고객군이 있어요. 선택을 바꿔 주세요.";
+      return "배정 가능한 사용자가 0명이에요. 다른 후보를 선택해 주세요.";
     case "segment_audience_exclusion_conflict":
       return "동시에 다른 고객군이 확정됐어요. 최신 후보를 불러온 뒤 다시 시도해 주세요.";
     case "promotion_offer_catalog_not_found":

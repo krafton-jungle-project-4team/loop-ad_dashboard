@@ -43,7 +43,7 @@ import {
 import { apiRequest } from "../../../shared/api/http-client.js";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 import { fetchDashboardResource } from "./dashboard-resource-api.js";
-import { projectSearchParams } from "./dashboard-request.js";
+import { projectSearchParams, readDashboardApiErrorMessage } from "./dashboard-request.js";
 
 const PROMOTIONS_PATH = "/dashboard/v1/promotions";
 
@@ -213,6 +213,7 @@ export function confirmDashboardPromotionSegmentSuggestions(
     DashboardConfirmSegmentSuggestionsResultSchema,
     {
       body: DashboardConfirmSegmentSuggestionsRequestSchema.parse(requestBody),
+      errorMessage: readDashboardApiErrorMessage,
       method: "POST",
       searchParams: projectSearchParams(query.projectId)
     }
