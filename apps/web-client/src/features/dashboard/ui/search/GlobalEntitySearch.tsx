@@ -71,7 +71,7 @@ export function GlobalEntitySearch({
           <Button
             aria-expanded={isOpen}
             aria-label={placeholder}
-            className="min-w-0 flex-1 justify-start"
+            className="min-w-0 flex-1 justify-start gap-3"
             disabled={isDisabled}
             role="combobox"
             size="sm"
