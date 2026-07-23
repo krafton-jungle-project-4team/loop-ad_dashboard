@@ -38,7 +38,7 @@ import { Textarea } from "@loopad/ui/shadcn/textarea";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { Link } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   describeEventSchemaVersion,
   eventSdkInitCode,
@@ -259,7 +259,12 @@ function TrackingPlanEditorWorkspace({
           {error}
         </p>
       ) : null}
-      <EventDesigner dataSource={dataSource} plan={plan} run={run} />
+      <EventDesigner
+        clearError={() => setError(null)}
+        dataSource={dataSource}
+        plan={plan}
+        run={run}
+      />
     </div>
   );
 }
@@ -425,10 +430,12 @@ function formatEventRevision(revision: number | null) {
 }
 
 function EventDesigner({
+  clearError,
   dataSource,
   plan,
   run
 }: {
+  clearError: () => void;
   dataSource: TrackingPlanDataSource;
   plan: TrackingPlan;
   run: (action: () => Promise<TrackingPlan>) => Promise<boolean>;
@@ -442,6 +449,12 @@ function EventDesigner({
   const [description, setDescription] = useState("");
   const [properties, setProperties] = useState<PropertyDraft[]>([]);
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const [initialDraftSignature, setInitialDraftSignature] = useState(() =>
+    trackingPlanEventDraftSignature("", "", [])
+  );
+  const [pendingEventName, setPendingEventName] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const selected =
     plan.events.find((event) => event.eventName === selectedEventName) ?? plan.events[0] ?? null;
   const normalizedQuery = query.trim().toLowerCase();
@@ -450,51 +463,99 @@ function EventDesigner({
     return `${event.eventName} ${event.description}`.toLowerCase().includes(normalizedQuery);
   });
   const propertyIssues = validatePropertyDrafts(properties);
+  const hasUnsavedChanges =
+    mode !== "view" &&
+    initialDraftSignature !== trackingPlanEventDraftSignature(eventName, description, properties);
 
-  function showEvent(event: TrackingPlanEvent) {
+  function resetDraft() {
+    setEventName("");
+    setDescription("");
+    setProperties([]);
+    setInitialDraftSignature(trackingPlanEventDraftSignature("", "", []));
+  }
+
+  function switchToEvent(event: TrackingPlanEvent) {
+    clearError();
+    resetDraft();
     setSelectedEventName(event.eventName);
     setMode("view");
   }
 
+  function showEvent(event: TrackingPlanEvent) {
+    if (hasUnsavedChanges) {
+      setPendingEventName(event.eventName);
+      return;
+    }
+    switchToEvent(event);
+  }
+
+  function discardDraftAndShowPendingEvent() {
+    const event = plan.events.find((candidate) => candidate.eventName === pendingEventName);
+    setPendingEventName(null);
+    if (event) switchToEvent(event);
+  }
+
   function startCreate() {
-    setEventName("");
-    setDescription("");
-    setProperties([]);
+    clearError();
+    resetDraft();
     setMode("create");
   }
 
   function startEdit(event: TrackingPlanEvent) {
+    clearError();
+    const nextProperties = propertiesFromSchema(event.propertiesSchema);
     setSelectedEventName(event.eventName);
     setEventName(event.eventName);
     setDescription(event.description);
-    setProperties(propertiesFromSchema(event.propertiesSchema));
+    setProperties(nextProperties);
+    setInitialDraftSignature(
+      trackingPlanEventDraftSignature(event.eventName, event.description, nextProperties)
+    );
     setMode("edit");
   }
 
+  function cancelEditing() {
+    clearError();
+    resetDraft();
+    setMode("view");
+  }
+
   async function save() {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
     const propertiesSchema = schemaFromProperties(properties);
-    if (mode === "edit" && selected) {
+    try {
+      if (mode === "edit" && selected) {
+        const saved = await run(() =>
+          dataSource.updateEvent(plan.projectId, selected.eventName, {
+            description,
+            propertiesSchema
+          })
+        );
+        if (saved) {
+          resetDraft();
+          setMode("view");
+        }
+        return;
+      }
+
+      const nextEventName = eventName.trim();
       const saved = await run(() =>
-        dataSource.updateEvent(plan.projectId, selected.eventName, {
+        dataSource.addEvent(plan.projectId, {
+          eventName: nextEventName,
           description,
           propertiesSchema
         })
       );
-      if (saved) setMode("view");
-      return;
-    }
-
-    const nextEventName = eventName.trim();
-    const saved = await run(() =>
-      dataSource.addEvent(plan.projectId, {
-        eventName: nextEventName,
-        description,
-        propertiesSchema
-      })
-    );
-    if (saved) {
-      setSelectedEventName(nextEventName);
-      setMode("view");
+      if (saved) {
+        resetDraft();
+        setSelectedEventName(nextEventName);
+        setMode("view");
+      }
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   }
 
@@ -528,7 +589,7 @@ function EventDesigner({
                   <h2 className="font-semibold">이벤트 목록</h2>
                   <Badge variant="secondary">{plan.events.length}</Badge>
                 </div>
-                <Button onClick={startCreate} size="sm">
+                <Button disabled={mode !== "view" || saving} onClick={startCreate} size="sm">
                   이벤트 추가
                 </Button>
               </div>
@@ -564,6 +625,7 @@ function EventDesigner({
                             ? "border-primary/25 bg-primary/10 text-foreground"
                             : "hover:border-border hover:bg-background"
                         )}
+                        disabled={saving}
                         key={event.eventName}
                         onClick={() => showEvent(event)}
                         type="button"
@@ -729,20 +791,43 @@ function EventDesigner({
                   </div>
                 </ScrollArea>
                 <div className="flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-end">
-                  <Button variant="outline" onClick={() => setMode("view")}>
+                  <Button disabled={saving} variant="outline" onClick={cancelEditing}>
                     취소
                   </Button>
                   <Button
-                    disabled={!eventName.trim() || propertyIssues.length > 0}
+                    aria-busy={saving}
+                    disabled={saving || !eventName.trim() || propertyIssues.length > 0}
                     onClick={() => void save()}
                   >
-                    저장
+                    {saving ? "저장 중…" : "저장"}
                   </Button>
                 </div>
               </>
             ) : null}
           </section>
         </div>
+        <AlertDialog
+          open={pendingEventName !== null}
+          onOpenChange={(open) => {
+            if (!open) setPendingEventName(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>변경사항을 버릴까요?</AlertDialogTitle>
+              <AlertDialogDescription>
+                저장하지 않은 이벤트 내용은 사라져요. 계속 작성하거나 변경사항을 버리고 다른
+                이벤트로 이동할 수 있어요.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>계속 작성</AlertDialogCancel>
+              <AlertDialogAction onClick={discardDraftAndShowPendingEvent}>
+                변경사항 버리기
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
@@ -1119,6 +1204,18 @@ function schemaFromProperties(properties: PropertyDraft[]): TrackingPlanJsonSche
       .filter((property) => property.required)
       .map((property) => property.name.trim())
   };
+}
+
+function trackingPlanEventDraftSignature(
+  eventName: string,
+  description: string,
+  properties: PropertyDraft[]
+) {
+  return JSON.stringify({
+    description,
+    eventName,
+    propertiesSchema: schemaFromProperties(properties)
+  });
 }
 
 function propertiesFromSchema(schema: TrackingPlanJsonSchema): PropertyDraft[] {
