@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="9 9 82 82" fill="none">
+  <g id="icon" stroke-width="10" fill="none">
+    <path id="ringLeft" d="M14 50 a24 24 0 1 0 48 0 a24 24 0 1 0 -48 0" stroke="#FF8A5B"></path>
+    <path id="ringRight" d="M38 50 a24 24 0 1 0 48 0 a24 24 0 1 0 -48 0" stroke="#13CFC4"></path>
+    <path id="weave" d="M42.17 26.36 A24 24 0 0 1 56.38 34.57" stroke="#FF8A5B" stroke-linecap="round"></path>
+  </g>
+</svg>

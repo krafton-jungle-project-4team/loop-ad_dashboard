@@ -448,7 +448,16 @@ function ProjectExperimentTable({
             const isSelected = experiment.ad_experiment_id === selectedExperimentId;
 
             return (
-              <TableRow aria-selected={isSelected} key={experiment.ad_experiment_id}>
+              <TableRow
+                aria-selected={isSelected}
+                className={cn(
+                  "[&>td:first-child]:border-l-[3px] [&>td:first-child]:border-l-transparent",
+                  isSelected
+                    ? "bg-primary/[0.06]! [&>td:first-child]:border-l-primary"
+                    : "bg-transparent!"
+                )}
+                key={experiment.ad_experiment_id}
+              >
                 <TableCell>
                   <div className="grid min-w-52 gap-0.5">
                     <span className="font-medium">{experiment.campaign_name}</span>

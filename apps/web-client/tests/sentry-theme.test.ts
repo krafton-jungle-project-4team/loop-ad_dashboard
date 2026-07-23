@@ -132,7 +132,7 @@ test("shared controls and navigation use the compact Make hierarchy", () => {
 });
 
 test("high-visibility entry and developer surfaces expose the Make palette", () => {
-  assert.match(projectSelectSource, /bg-\[#28242e\]/);
+  assert.match(projectSelectSource, /bg-\[#eee8f3\]/);
   assert.match(projectSelectSource, /PROJECT MONITORING/);
   assert.match(sqlEditorSource, /bg-brand-ink-deep/);
   assert.match(sqlEditorSource, />\s*Explore\s*</);

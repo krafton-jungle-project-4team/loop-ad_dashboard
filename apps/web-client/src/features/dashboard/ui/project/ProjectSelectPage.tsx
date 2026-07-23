@@ -8,18 +8,18 @@ import { Skeleton } from "@loopad/ui/shadcn/skeleton";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Gauge, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { fetchDashboardProjects } from "../../api/dashboard-api.js";
 import { dashboardProjectsQueryKey } from "../../model/dashboard-query-keys.js";
 import { ProjectManagementDialog } from "./ProjectManagementDialog.js";
 
 const PROJECT_ACCENT_CLASSES = [
-  "bg-[#756a7d]",
-  "bg-[#61777c]",
-  "bg-[#806f68]",
-  "bg-[#68786e]",
-  "bg-[#6c7087]",
-  "bg-[#806b76]"
+  "bg-[#8c6f9a]",
+  "bg-[#5f7f88]",
+  "bg-[#8d716c]",
+  "bg-[#6e8173]",
+  "bg-[#70789b]",
+  "bg-[#8e6e82]"
 ];
 
 export function ProjectSelectPage() {
@@ -30,20 +30,15 @@ export function ProjectSelectPage() {
   const projects = projectsQuery.data?.projects ?? [];
 
   return (
-    <main className="min-h-svh bg-[#28242e] text-[#f7f4f8]">
+    <main className="min-h-svh bg-[#eee8f3] text-[#2f2635]">
       <div className="mx-auto flex min-h-svh w-full max-w-7xl flex-col px-5 py-5 sm:px-8">
-        <header className="flex items-center justify-between border-b border-white/10 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-md bg-[#756a7d] text-white ring-1 ring-white/15">
-              <Gauge size={20} />
-            </div>
-            <div className="grid leading-tight">
-              <span className="text-base font-semibold tracking-tight">loop-ad</span>
-              <span className="text-[11px] text-white/45">PROJECT MONITORING</span>
-            </div>
+        <header className="flex items-center justify-between border-b border-[#d8cfe0] pb-4">
+          <div className="grid gap-0.5 leading-tight">
+            <img alt="LoopAd" className="h-7 w-auto" src="/loop-ad-full.svg" />
+            <span className="text-[11px] text-[#786f7f]">PROJECT MONITORING</span>
           </div>
           <Badge
-            className="border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/[0.04]"
+            className="border-[#d1c5da] bg-white/55 text-[#5f5367] hover:bg-white/55"
             variant="outline"
           >
             WORKSPACES
@@ -52,13 +47,13 @@ export function ProjectSelectPage() {
 
         <section className="flex flex-1 flex-col justify-center gap-8 py-12">
           <div className="grid max-w-3xl gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#c6b8cd]">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7d638d]">
               Projects / Overview
             </span>
             <h1 className="text-4xl font-semibold tracking-[-0.035em] sm:text-6xl">
               어떤 프로젝트를 볼까요?
             </h1>
-            <p className="max-w-2xl text-sm leading-6 text-white/50 sm:text-base">
+            <p className="max-w-2xl text-sm leading-6 text-[#6f6575] sm:text-base">
               프로젝트를 선택하면 캠페인과 실험 현황을 볼 수 있어요.
             </p>
           </div>
@@ -80,11 +75,11 @@ export function ProjectSelectPage() {
               trigger={
                 <Button
                   aria-label="프로젝트 관리"
-                  className="group min-h-40 rounded-lg border-dashed border-white/15 bg-white/[0.035] p-4 text-white/75 shadow-none hover:border-[#9688a0] hover:bg-white/[0.065] hover:text-white"
+                  className="group min-h-40 rounded-lg border-dashed border-[#cfc2d8] bg-[#f8f5fa] p-4 text-[#5e5365] shadow-none hover:border-[#9e84ad] hover:bg-white hover:text-[#3b3041]"
                   type="button"
                   variant="outline"
                 >
-                  <span className="flex size-12 items-center justify-center rounded-md bg-white/[0.07] text-white/50 ring-1 ring-white/10 transition-colors group-hover:bg-[#756a7d] group-hover:text-white">
+                  <span className="flex size-12 items-center justify-center rounded-md bg-[#e3d8ea] text-[#705e79] ring-1 ring-[#d2c5db] transition-colors group-hover:bg-[#8c6f9a] group-hover:text-white">
                     <Pencil size={22} />
                   </span>
                   <span className="text-xs font-semibold uppercase tracking-wider">
@@ -105,11 +100,11 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
 
   return (
     <Link
-      className="group block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a998b2]"
+      className="group block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#896f99]"
       params={{ projectId: project.project_id }}
       to="/dashboard/$projectId"
     >
-      <Card className="min-h-40 border-white/[0.08] bg-[#34303b] p-0 text-[#f7f4f8] shadow-none transition-[border-color,transform,box-shadow] group-hover:-translate-y-0.5 group-hover:border-[#9688a0]/60 group-hover:shadow-[0_10px_30px_rgb(10_8_14_/_0.2)]">
+      <Card className="min-h-40 border-[#d8cfe0] bg-[#fbf9fc] p-0 text-[#2f2635] shadow-none transition-[border-color,transform,box-shadow] group-hover:-translate-y-0.5 group-hover:border-[#a98bb8] group-hover:shadow-[0_12px_30px_rgb(67_46_76_/_0.13)]">
         <CardContent className="grid h-full grid-cols-[auto_minmax(0,1fr)] items-center gap-4 p-4 text-left">
           <Avatar className="size-14 rounded-md" size="lg">
             <AvatarFallback
@@ -122,9 +117,9 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
             <span className="truncate text-base font-semibold tracking-tight">
               {project.project_name}
             </span>
-            <span className="truncate text-xs text-white/40">{project.domain}</span>
+            <span className="truncate text-xs text-[#796f7e]">{project.domain}</span>
             <Badge
-              className="mt-1 bg-white/[0.07] text-[#d2c8d7] hover:bg-white/[0.07]"
+              className="mt-1 bg-[#eee6f2] text-[#6f577c] hover:bg-[#eee6f2]"
               variant="secondary"
             >
               {project.status === "active" ? "활성" : "비활성"}
@@ -138,12 +133,12 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
 
 function ProjectCardSkeletons() {
   return Array.from({ length: 4 }, (_, index) => (
-    <Card className="min-h-40 border-white/[0.08] bg-[#34303b] p-0" key={index}>
+    <Card className="min-h-40 border-[#d8cfe0] bg-[#fbf9fc] p-0" key={index}>
       <CardContent className="grid grid-cols-[auto_1fr] items-center gap-4 p-4">
-        <Skeleton className="size-14 rounded-md bg-white/[0.07]" />
+        <Skeleton className="size-14 rounded-md bg-[#ded4e5]" />
         <div className="grid gap-3">
-          <Skeleton className="h-5 w-24 bg-white/[0.07]" />
-          <Skeleton className="h-4 w-32 bg-white/[0.07]" />
+          <Skeleton className="h-5 w-24 bg-[#ded4e5]" />
+          <Skeleton className="h-4 w-32 bg-[#ded4e5]" />
         </div>
       </CardContent>
     </Card>

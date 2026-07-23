@@ -36,7 +36,7 @@ test("segment candidate footer stays compact and exposes one confirmation action
 test("selected candidate cards have a strong card-level state", () => {
   assert.match(
     suggestionPanelSource,
-    /border-primary bg-accent\/60 ring-2 ring-primary\/30 shadow-sm/
+    /border-primary bg-accent\/20 ring-2 ring-primary\/30 shadow-sm/
   );
   assert.match(suggestionPanelSource, /\{isAccepted \? <Badge>선택됨<\/Badge> : null\}/);
 });
