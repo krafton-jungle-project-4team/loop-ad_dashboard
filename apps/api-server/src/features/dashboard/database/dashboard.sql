@@ -297,7 +297,7 @@ stopped_runs AS (
       updated_at = now()
   WHERE project_id = :projectId
     AND campaign_id = :campaignId
-    AND status <> 'stopped'
+    AND status IN ('planned', 'approved', 'running', 'evaluating')
   RETURNING promotion_run_id
 ),
 cancelled_automation_jobs AS (
@@ -310,7 +310,9 @@ cancelled_automation_jobs AS (
       updated_at = now()
   WHERE promotion_run_id IN (
       SELECT promotion_run_id
-      FROM stopped_runs
+      FROM promotion_runs
+      WHERE project_id = :projectId
+        AND campaign_id = :campaignId
     )
     AND status IN ('pending', 'running')
   RETURNING job_id
@@ -327,6 +329,20 @@ stopped_experiments AS (
 )
 SELECT campaign_id AS "campaignId", 'deleted'::text AS status
 FROM stopped_campaign;
+
+/* 목적: 캠페인 중지 후 활성 고객 예약을 해제해야 하는 스냅샷 고객군을 조회합니다. */
+/* @name ListDashboardStoppedCampaignAudienceTargetsForRelease */
+SELECT
+  promotion_id AS "promotionId",
+  segment_id AS "segmentId"
+FROM promotion_target_segments
+WHERE project_id = :projectId
+  AND campaign_id = :campaignId
+  AND status = 'stopped'
+  AND audience_snapshot_id IS NOT NULL
+  AND audience_reservation_state IN ('reserved', 'consumed')
+ORDER BY promotion_id, segment_id
+FOR UPDATE;
 
 /* 목적: 캠페인에 연결된 프로모션 요약 목록을 조회합니다. */
 /* @name ListDashboardCampaignPromotions */

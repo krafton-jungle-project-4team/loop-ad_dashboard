@@ -459,7 +459,7 @@ export interface IDeleteDashboardCampaignQuery {
   result: IDeleteDashboardCampaignResult;
 }
 
-const deleteDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":118,"b":127},{"a":306,"b":315},{"a":510,"b":519},{"a":745,"b":754},{"a":1082,"b":1091},{"a":1334,"b":1343},{"a":1904,"b":1913},{"a":2176,"b":2185},{"a":2466,"b":2475},{"a":3113,"b":3122}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":151,"b":161},{"a":339,"b":349},{"a":543,"b":553},{"a":778,"b":788},{"a":1115,"b":1125},{"a":1367,"b":1377},{"a":1937,"b":1947},{"a":2209,"b":2219},{"a":2499,"b":2509},{"a":3146,"b":3156}]}],"statement":"WITH stopped_campaign AS (\n  UPDATE campaigns\n  SET status = 'stopped',\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n  RETURNING campaign_id\n),\nstopped_promotions AS (\n  UPDATE promotions\n  SET status = 'stopped',\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status <> 'stopped'\n  RETURNING promotion_id\n),\nstopped_segments AS (\n  UPDATE promotion_target_segments\n  SET status = 'stopped'\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status <> 'stopped'\n  RETURNING segment_id\n),\narchived_segment_definitions AS (\n  UPDATE segment_definitions\n  SET status = 'archived',\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND source IN ('custom_chatkit', 'manual_rule')\n    AND status = 'active'\n  RETURNING segment_id\n),\ndismissed_suggestions AS (\n  UPDATE promotion_segment_suggestions\n  SET status = 'dismissed',\n      decided_at = COALESCE(decided_at, now()),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('suggested', 'accepted')\n  RETURNING suggestion_id\n),\narchived_content_candidates AS (\n  UPDATE content_candidates\n  SET status = 'archived',\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('draft', 'approved', 'active')\n  RETURNING content_id\n),\nfailed_generation_runs AS (\n  UPDATE generation_runs\n  SET status = 'failed',\n      started_at = COALESCE(started_at, now()),\n      finished_at = now(),\n      next_retry_at = NULL,\n      last_error_code = 'generation_invalidated_by_campaign_stop',\n      last_error_message = 'campaign stopped',\n      worker_id = NULL,\n      lease_token = NULL,\n      heartbeat_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('requested', 'running')\n  RETURNING generation_id\n),\ncancelled_dispatch_jobs AS (\n  UPDATE ad_dispatch_jobs\n  SET status = 'cancelled',\n      completed_at = COALESCE(completed_at, now())\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('queued', 'scheduled', 'running')\n  RETURNING ad_dispatch_job_id\n),\nstopped_runs AS (\n  UPDATE promotion_runs\n  SET status = 'stopped',\n      ended_at = COALESCE(ended_at, now()),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status <> 'stopped'\n  RETURNING promotion_run_id\n),\ncancelled_automation_jobs AS (\n  UPDATE promotion_automation_jobs\n  SET status = 'cancelled',\n      worker_id = NULL,\n      lease_token = NULL,\n      locked_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  WHERE promotion_run_id IN (\n      SELECT promotion_run_id\n      FROM stopped_runs\n    )\n    AND status IN ('pending', 'running')\n  RETURNING job_id\n),\nstopped_experiments AS (\n  UPDATE ad_experiments\n  SET status = 'stopped',\n      ended_at = COALESCE(ended_at, now()),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status <> 'stopped'\n  RETURNING ad_experiment_id\n)\nSELECT campaign_id AS \"campaignId\", 'deleted'::text AS status\nFROM stopped_campaign                                     "};
+const deleteDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":118,"b":127},{"a":306,"b":315},{"a":510,"b":519},{"a":745,"b":754},{"a":1082,"b":1091},{"a":1334,"b":1343},{"a":1904,"b":1913},{"a":2176,"b":2185},{"a":2466,"b":2475},{"a":2945,"b":2954},{"a":3228,"b":3237}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":151,"b":161},{"a":339,"b":349},{"a":543,"b":553},{"a":778,"b":788},{"a":1115,"b":1125},{"a":1367,"b":1377},{"a":1937,"b":1947},{"a":2209,"b":2219},{"a":2499,"b":2509},{"a":2982,"b":2992},{"a":3261,"b":3271}]}],"statement":"WITH stopped_campaign AS (\n  UPDATE campaigns\n  SET status = 'stopped',\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n  RETURNING campaign_id\n),\nstopped_promotions AS (\n  UPDATE promotions\n  SET status = 'stopped',\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status <> 'stopped'\n  RETURNING promotion_id\n),\nstopped_segments AS (\n  UPDATE promotion_target_segments\n  SET status = 'stopped'\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status <> 'stopped'\n  RETURNING segment_id\n),\narchived_segment_definitions AS (\n  UPDATE segment_definitions\n  SET status = 'archived',\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND source IN ('custom_chatkit', 'manual_rule')\n    AND status = 'active'\n  RETURNING segment_id\n),\ndismissed_suggestions AS (\n  UPDATE promotion_segment_suggestions\n  SET status = 'dismissed',\n      decided_at = COALESCE(decided_at, now()),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('suggested', 'accepted')\n  RETURNING suggestion_id\n),\narchived_content_candidates AS (\n  UPDATE content_candidates\n  SET status = 'archived',\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('draft', 'approved', 'active')\n  RETURNING content_id\n),\nfailed_generation_runs AS (\n  UPDATE generation_runs\n  SET status = 'failed',\n      started_at = COALESCE(started_at, now()),\n      finished_at = now(),\n      next_retry_at = NULL,\n      last_error_code = 'generation_invalidated_by_campaign_stop',\n      last_error_message = 'campaign stopped',\n      worker_id = NULL,\n      lease_token = NULL,\n      heartbeat_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('requested', 'running')\n  RETURNING generation_id\n),\ncancelled_dispatch_jobs AS (\n  UPDATE ad_dispatch_jobs\n  SET status = 'cancelled',\n      completed_at = COALESCE(completed_at, now())\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('queued', 'scheduled', 'running')\n  RETURNING ad_dispatch_job_id\n),\nstopped_runs AS (\n  UPDATE promotion_runs\n  SET status = 'stopped',\n      ended_at = COALESCE(ended_at, now()),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status IN ('planned', 'approved', 'running', 'evaluating')\n  RETURNING promotion_run_id\n),\ncancelled_automation_jobs AS (\n  UPDATE promotion_automation_jobs\n  SET status = 'cancelled',\n      worker_id = NULL,\n      lease_token = NULL,\n      locked_at = NULL,\n      lease_expires_at = NULL,\n      updated_at = now()\n  WHERE promotion_run_id IN (\n      SELECT promotion_run_id\n      FROM promotion_runs\n      WHERE project_id = :projectId\n        AND campaign_id = :campaignId\n    )\n    AND status IN ('pending', 'running')\n  RETURNING job_id\n),\nstopped_experiments AS (\n  UPDATE ad_experiments\n  SET status = 'stopped',\n      ended_at = COALESCE(ended_at, now()),\n      updated_at = now()\n  WHERE project_id = :projectId\n    AND campaign_id = :campaignId\n    AND status <> 'stopped'\n  RETURNING ad_experiment_id\n)\nSELECT campaign_id AS \"campaignId\", 'deleted'::text AS status\nFROM stopped_campaign                                                    "};
 
 /**
  * Query generated from SQL:
@@ -552,7 +552,7 @@ const deleteDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campai
  *       updated_at = now()
  *   WHERE project_id = :projectId
  *     AND campaign_id = :campaignId
- *     AND status <> 'stopped'
+ *     AND status IN ('planned', 'approved', 'running', 'evaluating')
  *   RETURNING promotion_run_id
  * ),
  * cancelled_automation_jobs AS (
@@ -565,7 +565,9 @@ const deleteDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campai
  *       updated_at = now()
  *   WHERE promotion_run_id IN (
  *       SELECT promotion_run_id
- *       FROM stopped_runs
+ *       FROM promotion_runs
+ *       WHERE project_id = :projectId
+ *         AND campaign_id = :campaignId
  *     )
  *     AND status IN ('pending', 'running')
  *   RETURNING job_id
@@ -585,6 +587,45 @@ const deleteDashboardCampaignIR: any = {"usedParamSet":{"projectId":true,"campai
  * ```
  */
 export const deleteDashboardCampaign = new PreparedQuery<IDeleteDashboardCampaignParams,IDeleteDashboardCampaignResult>(deleteDashboardCampaignIR);
+
+
+/** 'ListDashboardStoppedCampaignAudienceTargetsForRelease' parameters type */
+export interface IListDashboardStoppedCampaignAudienceTargetsForReleaseParams {
+  campaignId?: string | null | void;
+  projectId?: string | null | void;
+}
+
+/** 'ListDashboardStoppedCampaignAudienceTargetsForRelease' return type */
+export interface IListDashboardStoppedCampaignAudienceTargetsForReleaseResult {
+  promotionId: string;
+  segmentId: string;
+}
+
+/** 'ListDashboardStoppedCampaignAudienceTargetsForRelease' query type */
+export interface IListDashboardStoppedCampaignAudienceTargetsForReleaseQuery {
+  params: IListDashboardStoppedCampaignAudienceTargetsForReleaseParams;
+  result: IListDashboardStoppedCampaignAudienceTargetsForReleaseResult;
+}
+
+const listDashboardStoppedCampaignAudienceTargetsForReleaseIR: any = {"usedParamSet":{"projectId":true,"campaignId":true},"params":[{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":118,"b":127}]},{"name":"campaignId","required":false,"transform":{"type":"scalar"},"locs":[{"a":149,"b":159}]}],"statement":"SELECT\n  promotion_id AS \"promotionId\",\n  segment_id AS \"segmentId\"\nFROM promotion_target_segments\nWHERE project_id = :projectId\n  AND campaign_id = :campaignId\n  AND status = 'stopped'\n  AND audience_snapshot_id IS NOT NULL\n  AND audience_reservation_state IN ('reserved', 'consumed')\nORDER BY promotion_id, segment_id\nFOR UPDATE                                     "};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   promotion_id AS "promotionId",
+ *   segment_id AS "segmentId"
+ * FROM promotion_target_segments
+ * WHERE project_id = :projectId
+ *   AND campaign_id = :campaignId
+ *   AND status = 'stopped'
+ *   AND audience_snapshot_id IS NOT NULL
+ *   AND audience_reservation_state IN ('reserved', 'consumed')
+ * ORDER BY promotion_id, segment_id
+ * FOR UPDATE
+ * ```
+ */
+export const listDashboardStoppedCampaignAudienceTargetsForRelease = new PreparedQuery<IListDashboardStoppedCampaignAudienceTargetsForReleaseParams,IListDashboardStoppedCampaignAudienceTargetsForReleaseResult>(listDashboardStoppedCampaignAudienceTargetsForReleaseIR);
 
 
 /** 'ListDashboardCampaignPromotions' parameters type */

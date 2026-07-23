@@ -103,6 +103,7 @@ import {
   listDashboardCampaignExperimentMetrics,
   listDashboardCampaignPromotions,
   listDashboardCampaignSegments,
+  listDashboardStoppedCampaignAudienceTargetsForRelease,
   listDashboardPromotionAnalyses,
   listDashboardPromotionExperimentMetrics,
   listDashboardPromotionSegments,
@@ -255,6 +256,29 @@ export class DashboardCampaignReader {
     campaignId: string
   ): Promise<DashboardDeleteCampaignResult> {
     const row = await this.db.query(deleteDashboardCampaign, { campaignId, projectId }).single();
+    const targets = await this.db
+      .query(listDashboardStoppedCampaignAudienceTargetsForRelease, {
+        campaignId,
+        projectId
+      })
+      .multiple();
+
+    for (const target of targets) {
+      await this.db
+        .query(releaseDashboardPromotionTargetAudience, {
+          projectId,
+          promotionId: target.promotionId,
+          segmentId: target.segmentId
+        })
+        .single();
+      await this.db
+        .query(releaseDashboardPromotionAllocationPlan, {
+          projectId,
+          promotionId: target.promotionId,
+          segmentId: target.segmentId
+        })
+        .multiple();
+    }
 
     return {
       campaign_id: row.campaignId,
