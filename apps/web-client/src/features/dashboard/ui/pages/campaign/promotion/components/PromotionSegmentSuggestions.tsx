@@ -207,7 +207,7 @@ export function PromotionSegmentSuggestionPanel({
                   <div
                     className={cn(
                       "grid gap-3 rounded-lg border bg-muted/30 p-4",
-                      isSelected && "border-primary bg-accent/60 ring-2 ring-primary/30 shadow-sm"
+                      isSelected && "border-primary bg-accent/20 ring-2 ring-primary/30 shadow-sm"
                     )}
                     key={segment.segment_id}
                   >
@@ -449,7 +449,7 @@ function SegmentSuggestionCard({
     <Card
       className={cn(
         "min-w-0 shadow-none",
-        isAccepted && "border-primary bg-accent/60 ring-2 ring-primary/30 shadow-sm"
+        isAccepted && "border-primary bg-accent/20 ring-2 ring-primary/30 shadow-sm"
       )}
     >
       <CardHeader className="gap-3">
