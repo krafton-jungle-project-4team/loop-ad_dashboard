@@ -12,7 +12,7 @@ export const OFFER_SETS = {
   lastcall: {
     offer_set_id: "summer-lastcall",
     expected_catalog_id: "black-friday-hotels-lastcall",
-    expected_catalog_version: "v3"
+    expected_catalog_version: "v4"
   }
 } as const;
 

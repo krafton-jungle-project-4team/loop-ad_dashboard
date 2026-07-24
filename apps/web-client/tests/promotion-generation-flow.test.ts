@@ -20,9 +20,12 @@ test("last-call offer set is used only for the created segment's confirmed analy
       segment_id: "segment-created",
       content_option_count: 3,
       operator_instruction: null,
-      ...OFFER_SETS.lastcall
+      offer_set_id: "summer-lastcall",
+      expected_catalog_id: "black-friday-hotels-lastcall",
+      expected_catalog_version: "v4"
     }
   );
+  assert.equal(OFFER_SETS.lastcall.expected_catalog_version, "v4");
 });
 
 test("existing segments and stale analyses keep the existing generation contract", () => {
