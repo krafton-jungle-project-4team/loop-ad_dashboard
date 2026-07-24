@@ -81,9 +81,11 @@ export function PromotionSegmentSuggestionPanel({
   onArchiveScopedSegment,
   onConfirmSuggestions,
   onDecideSuggestion,
+  onDismissRecommendationError,
   onOpenConfirmedSegments,
   onRecommendSegments,
   promotionAnalysisIsPending,
+  recommendationErrorMessage,
   scopedSegments,
   scopedSegmentsIsLoading,
   suggestions,
@@ -100,9 +102,11 @@ export function PromotionSegmentSuggestionPanel({
     suggestionId: string,
     status: "suggested" | "accepted" | "dismissed"
   ) => void;
+  onDismissRecommendationError: () => void;
   onOpenConfirmedSegments: () => void;
   onRecommendSegments: () => void;
   promotionAnalysisIsPending: boolean;
+  recommendationErrorMessage: string | null;
   scopedSegments: DashboardPromotionScopedSegmentDefinition[];
   scopedSegmentsIsLoading: boolean;
   suggestions: DashboardPromotionSegmentSuggestion[];
@@ -431,6 +435,24 @@ export function PromotionSegmentSuggestionPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setConfirmErrorMessage(null)}>확인</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            onDismissRecommendationError();
+          }
+        }}
+        open={Boolean(recommendationErrorMessage)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>AI가 고객군 후보를 찾지 못했어요</AlertDialogTitle>
+            <AlertDialogDescription>{recommendationErrorMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={onDismissRecommendationError}>확인</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

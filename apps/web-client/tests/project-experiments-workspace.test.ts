@@ -299,6 +299,22 @@ test("experiment workspace prioritizes the result summary before deeper analysis
   assert.doesNotMatch(workspaceSource, /\uD37C\uB110/);
 });
 
+test("experiment metrics show the target before the result", () => {
+  assert.match(
+    workspaceSource,
+    /left=\{formatGoalValue\(\s*evaluation\?\.target_value \?\? experiment\.goal_target_value\s*\)\}\s*right=\{formatGoalValue\(evaluation\?\.actual_value \?\? null\)\}/
+  );
+  assert.match(
+    workspaceSource,
+    /목표 \{formatGoalValue\(evaluation\.target_value \?\? experiment\.goal_target_value\)\}[\s\S]*?\/ 결과 \{formatGoalValue\(evaluation\.actual_value\)\}/
+  );
+  assert.match(
+    workspaceSource,
+    /label="목표 \/ 결과"\s*value=\{`\$\{formatGoalValue\(evaluation\?\.target_value \?\? experiment\.goal_target_value\)\} \/ \$\{formatGoalValue\(evaluation\?\.actual_value \?\? null\)\}`\}/
+  );
+  assert.doesNotMatch(workspaceSource, /label="결과 \/ 목표"/);
+});
+
 function createExperiment(
   overrides: Partial<DashboardProjectExperiment>
 ): DashboardProjectExperiment {

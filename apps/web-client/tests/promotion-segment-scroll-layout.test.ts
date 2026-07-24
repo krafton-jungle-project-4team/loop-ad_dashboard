@@ -88,6 +88,18 @@ test("confirming segment candidates asks before opening confirmed segments", () 
   assert.match(workspaceSource, /setIsConfirmedSegmentsOpen\(true\);/);
 });
 
+test("empty Decision recommendations open a dismissible explanation dialog", () => {
+  assert.match(suggestionPanelSource, /AI가 고객군 후보를 찾지 못했어요/);
+  assert.match(
+    suggestionPanelSource,
+    /open=\{Boolean\(recommendationErrorMessage\)\}[\s\S]*?<AlertDialogDescription>\{recommendationErrorMessage\}<\/AlertDialogDescription>/
+  );
+  assert.match(
+    suggestionPanelSource,
+    /<AlertDialogAction onClick=\{onDismissRecommendationError\}>확인<\/AlertDialogAction>/
+  );
+});
+
 test("selecting creative experiments closes the sheet and opens the experiment workspace", () => {
   assert.match(
     workspaceSource,

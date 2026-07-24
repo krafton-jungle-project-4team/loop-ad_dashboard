@@ -479,10 +479,8 @@ function ProjectExperimentTable({
                 <TableCell>{experiment.segment_name}</TableCell>
                 <TableCell className="tabular-nums">
                   <MetricPair
-                    left={formatGoalValue(evaluation?.actual_value ?? null)}
-                    right={formatGoalValue(
-                      evaluation?.target_value ?? experiment.goal_target_value
-                    )}
+                    left={formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}
+                    right={formatGoalValue(evaluation?.actual_value ?? null)}
                   />
                 </TableCell>
                 <TableCell>
@@ -843,10 +841,10 @@ function ExperimentResultSummary({
             <AlertTitle className="text-2xl font-semibold">{resultLabel}</AlertTitle>
             <div className="flex items-baseline gap-2 tabular-nums text-foreground">
               <strong className="text-2xl font-semibold">
-                {formatGoalValue(evaluation.actual_value)}
+                목표 {formatGoalValue(evaluation.target_value ?? experiment.goal_target_value)}
               </strong>
               <span className="text-muted-foreground">
-                / 목표 {formatGoalValue(evaluation.target_value ?? experiment.goal_target_value)}
+                / 결과 {formatGoalValue(evaluation.actual_value)}
               </span>
             </div>
           </div>
@@ -988,8 +986,8 @@ function ExperimentRepeatHistory({
         <CardContent>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <DefinitionItem
-              label="결과 / 목표"
-              value={`${formatGoalValue(evaluation?.actual_value ?? null)} / ${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}`}
+              label="목표 / 결과"
+              value={`${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)} / ${formatGoalValue(evaluation?.actual_value ?? null)}`}
             />
             <DefinitionItem
               label="평가 대상 / 배정"
