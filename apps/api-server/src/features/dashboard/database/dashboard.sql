@@ -44,6 +44,23 @@ RETURNING
   created_at AS "createdAt",
   updated_at AS "updatedAt";
 
+/* 목적: 보관되지 않은 프로젝트의 이름만 수정합니다. */
+/* @name UpdateDashboardProject */
+UPDATE projects
+SET
+  project_name = :projectName,
+  updated_at = now()
+WHERE project_id = :projectId
+  AND status <> 'archived'
+RETURNING
+  project_id AS "projectId",
+  project_name AS "projectName",
+  domain,
+  write_key AS "writeKey",
+  status,
+  created_at AS "createdAt",
+  updated_at AS "updatedAt";
+
 /* 목적: FK가 연결된 프로젝트를 물리 삭제하지 않고 보관 상태로 전환합니다. */
 /* @name ArchiveDashboardProject */
 UPDATE projects

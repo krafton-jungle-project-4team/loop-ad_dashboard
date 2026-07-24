@@ -41,6 +41,7 @@ import type {
   DashboardUpdateContentCandidateCopyRequest,
   DashboardUpdateContentCandidateCopyResult,
   DashboardUpdateCampaignRequest,
+  DashboardUpdateProjectRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
@@ -119,6 +120,7 @@ import {
   stopDashboardPromotionTargetSegment,
   updateDashboardCampaign,
   updateDashboardContentCandidateCopy,
+  updateDashboardProject,
   updateDashboardPromotion,
   updateDashboardPromotionTargetSegment,
   unapproveDashboardContentCandidate,
@@ -158,6 +160,24 @@ export class DashboardCampaignReader {
         writeKey: `wk_${randomUUID().replace(/-/g, "")}`
       })
       .single();
+
+    return toProject(row);
+  }
+
+  async updateProject(
+    projectId: string,
+    request: DashboardUpdateProjectRequest
+  ): Promise<DashboardProject> {
+    const row = await this.db
+      .query(updateDashboardProject, {
+        projectId,
+        projectName: request.project_name
+      })
+      .singleOrNull();
+
+    if (!row) {
+      throw dashboardErrors.projectNotFound();
+    }
 
     return toProject(row);
   }

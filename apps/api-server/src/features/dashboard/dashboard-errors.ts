@@ -7,6 +7,11 @@ export const DASHBOARD_ERRORS = {
     code: "DASHBOARD_PROJECT_ID_REQUIRED",
     message: "project_id query param is required."
   },
+  PROJECT_NOT_FOUND: {
+    statusCode: HttpStatus.NOT_FOUND,
+    code: "DASHBOARD_PROJECT_NOT_FOUND",
+    message: "Project was not found."
+  },
   SEGMENT_PREVIEW_NOT_SAVEABLE: {
     statusCode: HttpStatus.CONFLICT,
     code: "DASHBOARD_SEGMENT_PREVIEW_NOT_SAVEABLE",
@@ -103,6 +108,7 @@ export function createDashboardError(
 
 export const dashboardErrors = {
   projectIdRequired: () => createDashboardError(DASHBOARD_ERRORS.PROJECT_ID_REQUIRED),
+  projectNotFound: () => createDashboardError(DASHBOARD_ERRORS.PROJECT_NOT_FOUND),
   decisionRequestFailed: (cause?: unknown) =>
     createDomainError(
       {

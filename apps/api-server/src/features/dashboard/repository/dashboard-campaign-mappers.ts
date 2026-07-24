@@ -46,11 +46,12 @@ import type {
   IListDashboardSegmentContentCandidatesResult,
   IListDashboardSegmentExperimentMetricsResult,
   IRejectDashboardContentCandidateResult,
-  IStartDashboardAdExperimentResult
+  IStartDashboardAdExperimentResult,
+  IUpdateDashboardProjectResult
 } from "../database/__generated__/dashboard.queries.js";
 
 export function toProject(
-  row: IInsertDashboardProjectResult | IListDashboardProjectsResult
+  row: IInsertDashboardProjectResult | IListDashboardProjectsResult | IUpdateDashboardProjectResult
 ): DashboardProject {
   return {
     created_at: row.createdAt.toISOString(),

@@ -115,6 +115,53 @@ const insertDashboardProjectIR: any = {"usedParamSet":{"projectId":true,"project
 export const insertDashboardProject = new PreparedQuery<IInsertDashboardProjectParams,IInsertDashboardProjectResult>(insertDashboardProjectIR);
 
 
+/** 'UpdateDashboardProject' parameters type */
+export interface IUpdateDashboardProjectParams {
+  projectId?: string | null | void;
+  projectName?: string | null | void;
+}
+
+/** 'UpdateDashboardProject' return type */
+export interface IUpdateDashboardProjectResult {
+  createdAt: Date;
+  domain: string;
+  projectId: string;
+  projectName: string;
+  status: string;
+  updatedAt: Date;
+  writeKey: string;
+}
+
+/** 'UpdateDashboardProject' query type */
+export interface IUpdateDashboardProjectQuery {
+  params: IUpdateDashboardProjectParams;
+  result: IUpdateDashboardProjectResult;
+}
+
+const updateDashboardProjectIR: any = {"usedParamSet":{"projectName":true,"projectId":true},"params":[{"name":"projectName","required":false,"transform":{"type":"scalar"},"locs":[{"a":37,"b":48}]},{"name":"projectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":91,"b":100}]}],"statement":"UPDATE projects\nSET\n  project_name = :projectName,\n  updated_at = now()\nWHERE project_id = :projectId\n  AND status <> 'archived'\nRETURNING\n  project_id AS \"projectId\",\n  project_name AS \"projectName\",\n  domain,\n  write_key AS \"writeKey\",\n  status,\n  created_at AS \"createdAt\",\n  updated_at AS \"updatedAt\""};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE projects
+ * SET
+ *   project_name = :projectName,
+ *   updated_at = now()
+ * WHERE project_id = :projectId
+ *   AND status <> 'archived'
+ * RETURNING
+ *   project_id AS "projectId",
+ *   project_name AS "projectName",
+ *   domain,
+ *   write_key AS "writeKey",
+ *   status,
+ *   created_at AS "createdAt",
+ *   updated_at AS "updatedAt"
+ * ```
+ */
+export const updateDashboardProject = new PreparedQuery<IUpdateDashboardProjectParams,IUpdateDashboardProjectResult>(updateDashboardProjectIR);
+
+
 /** 'ArchiveDashboardProject' parameters type */
 export interface IArchiveDashboardProjectParams {
   projectId?: string | null | void;

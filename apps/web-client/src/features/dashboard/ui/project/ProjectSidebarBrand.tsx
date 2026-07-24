@@ -13,7 +13,6 @@ export function ProjectSidebarBrand({ projectId }: { projectId: string }) {
     (project) => project.project_id === projectId
   );
   const projectName = currentProject?.project_name ?? "프로젝트";
-  const projectDescription = currentProject?.domain ?? "프로젝트 선택으로 돌아가기";
 
   return (
     <Link
@@ -23,14 +22,9 @@ export function ProjectSidebarBrand({ projectId }: { projectId: string }) {
       to="/"
     >
       <ProjectMark />
-      <div className="grid min-w-0 flex-1 leading-tight">
-        <span className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
-          {projectName}
-        </span>
-        <span className="truncate text-[11px] text-sidebar-foreground/55">
-          {projectDescription}
-        </span>
-      </div>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
+        {projectName}
+      </span>
       <ChevronRight
         aria-hidden="true"
         className="size-4 shrink-0 text-sidebar-foreground/45 transition-transform group-hover:translate-x-0.5 group-hover:text-sidebar-primary"
