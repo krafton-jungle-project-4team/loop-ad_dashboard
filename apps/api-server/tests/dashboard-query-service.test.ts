@@ -719,6 +719,7 @@ test("dashboard segment assistant explains the measured condition that keeps a s
       currentPlan: undefined,
       editingSourceBase: false,
       message: "예약 시작을 3회 이상 한 조건을 추가해줘",
+      promotionOfferIds: [],
       sourceAudience: {
         suggestion_id: "suggestion-1",
         segment_id: "segment-1",
