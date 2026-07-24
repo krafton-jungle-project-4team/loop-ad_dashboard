@@ -3,6 +3,19 @@ import { CountSchema, JsonObjectSchema } from "./schema-primitives.js";
 
 export const DASHBOARD_FALLBACK_SEGMENT_ID = "seg_existing_all";
 
+export const OFFER_SETS = {
+  base: {
+    offer_set_id: "summer-base",
+    expected_catalog_id: "black-friday-hotels",
+    expected_catalog_version: "v2"
+  },
+  lastcall: {
+    offer_set_id: "summer-lastcall",
+    expected_catalog_id: "black-friday-hotels-lastcall",
+    expected_catalog_version: "v3"
+  }
+} as const;
+
 export const DashboardContentCandidateSchema = z.object({
   content_id: z.string(),
   content_option_id: z.string(),
@@ -31,12 +44,45 @@ export const DashboardContentCandidateSchema = z.object({
 });
 export type DashboardContentCandidate = z.infer<typeof DashboardContentCandidateSchema>;
 
-export const DashboardStartPromotionGenerationRequestSchema = z.object({
-  analysis_id: z.string().min(1),
-  segment_id: z.string().min(1).optional(),
-  content_option_count: z.number().int().min(1).max(10).optional(),
-  operator_instruction: z.string().nullable().optional()
-});
+export const DashboardStartPromotionGenerationRequestSchema = z
+  .object({
+    analysis_id: z.string().min(1),
+    segment_id: z.string().min(1).optional(),
+    content_option_count: z.number().int().min(1).max(10).optional(),
+    operator_instruction: z.string().nullable().optional(),
+    offer_set_id: z.literal(OFFER_SETS.lastcall.offer_set_id).optional(),
+    expected_catalog_id: z.literal(OFFER_SETS.lastcall.expected_catalog_id).optional(),
+    expected_catalog_version: z.literal(OFFER_SETS.lastcall.expected_catalog_version).optional()
+  })
+  .superRefine((request, context) => {
+    const offerSetFields = [
+      "offer_set_id",
+      "expected_catalog_id",
+      "expected_catalog_version"
+    ] as const;
+    const hasOfferSetRequest = offerSetFields.some((field) => request[field] !== undefined);
+    if (!hasOfferSetRequest) {
+      return;
+    }
+
+    if (!request.segment_id) {
+      context.addIssue({
+        code: "custom",
+        message: "segment_id is required for offer-set generation",
+        path: ["segment_id"]
+      });
+    }
+
+    for (const field of offerSetFields) {
+      if (request[field] === undefined) {
+        context.addIssue({
+          code: "custom",
+          message: `${field} is required for offer-set generation`,
+          path: [field]
+        });
+      }
+    }
+  });
 export type DashboardStartPromotionGenerationRequest = z.infer<
   typeof DashboardStartPromotionGenerationRequestSchema
 >;

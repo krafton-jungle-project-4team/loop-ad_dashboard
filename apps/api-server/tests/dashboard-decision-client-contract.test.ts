@@ -147,6 +147,45 @@ test("decision client preserves promotion generation request contract", async ()
   });
 });
 
+test("decision client forwards the V3 offer-set contract and browser idempotency key", async () => {
+  const { client, requests } = await createClientWithResponse({
+    generation_id: "generation-v3-1",
+    promotion_id: "promotion-1",
+    status: "queued"
+  });
+
+  await client.startPromotionGeneration({
+    campaignId: "campaign-1",
+    idempotencyKey: "dashboard-v3-generation:request-1",
+    projectId: "project-1",
+    promotionId: "promotion-1",
+    request: {
+      analysis_id: "analysis-1",
+      segment_id: "segment-lastcall-1",
+      offer_set_id: "summer-lastcall",
+      expected_catalog_id: "black-friday-hotels-lastcall",
+      expected_catalog_version: "v3"
+    }
+  });
+
+  assertDecisionRequest(requests[0], {
+    path: "/decision/v1/promotions/promotion-1/generation",
+    idempotencyKey: "dashboard-v3-generation:request-1",
+    body: {
+      project_id: "project-1",
+      campaign_id: "campaign-1",
+      promotion_id: "promotion-1",
+      analysis_id: "analysis-1",
+      segment_ids: ["segment-lastcall-1"],
+      content_option_count: 3,
+      operator_instruction: null,
+      offer_set_id: "summer-lastcall",
+      expected_catalog_id: "black-friday-hotels-lastcall",
+      expected_catalog_version: "v3"
+    }
+  });
+});
+
 test("decision client preserves promotion run request contract", async () => {
   const response = promotionRunResponse();
   const { client, requests } = await createClientWithResponse(response);
@@ -510,6 +549,42 @@ test("decision client preserves provider error status and detail", async () => {
   );
 });
 
+test("decision client does not fall back when V3 offer-set generation fails", async () => {
+  setRequiredEnv();
+  const { DashboardDecisionClient } =
+    await import("../src/features/dashboard/provider/dashboard-decision-client.js");
+  let requestCount = 0;
+  globalThis.fetch = async () => {
+    requestCount += 1;
+    return new Response(JSON.stringify({ detail: "V3 catalog is unavailable" }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" }
+    });
+  };
+
+  await assert.rejects(
+    () =>
+      new DashboardDecisionClient().startPromotionGeneration({
+        campaignId: "campaign-1",
+        idempotencyKey: "dashboard-v3-generation:request-3",
+        projectId: "project-1",
+        promotionId: "promotion-1",
+        request: {
+          analysis_id: "analysis-1",
+          segment_id: "segment-lastcall-1",
+          offer_set_id: "summer-lastcall",
+          expected_catalog_id: "black-friday-hotels-lastcall",
+          expected_catalog_version: "v3"
+        }
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 503 &&
+      error.code === "DASHBOARD_DECISION_REQUEST_FAILED"
+  );
+  assert.equal(requestCount, 1);
+});
+
 test("decision client preserves structured Segment Audience errors", async () => {
   setRequiredEnv();
   const { DashboardDecisionClient } =
@@ -565,7 +640,12 @@ async function createClientWithResponse(body: unknown) {
 
 function assertDecisionRequest(
   request: CapturedRequest | undefined,
-  expected: { body: unknown; hasIdempotencyKey?: boolean; path: string }
+  expected: {
+    body: unknown;
+    hasIdempotencyKey?: boolean;
+    idempotencyKey?: string;
+    path: string;
+  }
 ) {
   assert.ok(request);
   const url = new URL(request.url);
@@ -579,7 +659,9 @@ function assertDecisionRequest(
     "Content-Type": "application/json",
     "X-Loop-Ad-Internal-Key": "test-internal-key"
   });
-  if (expected.hasIdempotencyKey) {
+  if (expected.idempotencyKey !== undefined) {
+    assert.equal(idempotencyKey, expected.idempotencyKey);
+  } else if (expected.hasIdempotencyKey) {
     assert.match(
       idempotencyKey ?? "",
       /^dashboard-generation:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/

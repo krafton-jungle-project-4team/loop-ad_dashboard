@@ -5,6 +5,9 @@ import {
   Delete,
   Get,
   Header,
+  Headers,
+  HttpCode,
+  HttpStatus,
   Inject,
   Param,
   Patch,
@@ -665,15 +668,22 @@ export class DashboardController {
   }
 
   @Post("promotions/:promotion_id/generation")
+  @HttpCode(HttpStatus.ACCEPTED)
   async startPromotionGeneration(
     @Param("promotion_id") promotionId: string,
     @Query("project_id") projectId: string | undefined,
-    @Body() body: unknown
+    @Body() body: unknown,
+    @Headers("idempotency-key") idempotencyKey?: string
   ) {
     const requiredProjectId = requireProjectId(projectId);
     const request = DashboardStartPromotionGenerationRequestSchema.parse(body ?? {});
     return DashboardStartPromotionGenerationResultSchema.parse(
-      await this.dashboardQuery.startPromotionGeneration(requiredProjectId, promotionId, request)
+      await this.dashboardQuery.startPromotionGeneration(
+        requiredProjectId,
+        promotionId,
+        request,
+        idempotencyKey
+      )
     );
   }
 
