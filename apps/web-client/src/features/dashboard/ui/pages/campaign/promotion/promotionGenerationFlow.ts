@@ -11,11 +11,13 @@ export function buildPromotionGenerationRequest({
   analysisId,
   confirmedCreatedSegmentAnalysisId,
   createdSegmentId,
+  regenerate = false,
   segmentId
 }: {
   analysisId: string;
   confirmedCreatedSegmentAnalysisId: string | null;
   createdSegmentId: string | null;
+  regenerate?: boolean;
   segmentId: string;
 }): DashboardStartPromotionGenerationRequest {
   const isConfirmedCreatedSegment =
@@ -26,6 +28,7 @@ export function buildPromotionGenerationRequest({
     segment_id: segmentId,
     content_option_count: 3,
     operator_instruction: null,
+    ...(regenerate ? { regenerate: true } : {}),
     ...(isConfirmedCreatedSegment ? OFFER_SETS.lastcall : {})
   };
 }
@@ -63,6 +66,7 @@ function promotionGenerationRequestSignature(
     request.segment_id ?? null,
     request.content_option_count ?? null,
     request.operator_instruction ?? null,
+    request.regenerate ?? false,
     request.offer_set_id ?? null,
     request.expected_catalog_id ?? null,
     request.expected_catalog_version ?? null

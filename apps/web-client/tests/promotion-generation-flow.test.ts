@@ -75,3 +75,29 @@ test("generation retries preserve a key until the request changes or succeeds", 
   tracker.complete();
   assert.equal(tracker.idempotencyKey("promotion-1", changedTargetRequest), "key-3");
 });
+
+test("regeneration uses a distinct request signature and a fresh key after completion", () => {
+  let keyCount = 0;
+  const tracker = createPromotionGenerationAttemptTracker(() => `key-${++keyCount}`);
+  const originalRequest = buildPromotionGenerationRequest({
+    analysisId: "analysis-1",
+    confirmedCreatedSegmentAnalysisId: null,
+    createdSegmentId: null,
+    segmentId: "segment-1"
+  });
+  const regenerationRequest = buildPromotionGenerationRequest({
+    analysisId: "analysis-1",
+    confirmedCreatedSegmentAnalysisId: null,
+    createdSegmentId: null,
+    regenerate: true,
+    segmentId: "segment-1"
+  });
+
+  assert.equal(regenerationRequest.regenerate, true);
+  assert.equal(tracker.idempotencyKey("promotion-1", originalRequest), "key-1");
+  assert.equal(tracker.idempotencyKey("promotion-1", regenerationRequest), "key-2");
+  assert.equal(tracker.idempotencyKey("promotion-1", regenerationRequest), "key-2");
+
+  tracker.complete();
+  assert.equal(tracker.idempotencyKey("promotion-1", regenerationRequest), "key-3");
+});

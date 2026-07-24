@@ -402,16 +402,19 @@ export function usePromotionWorkspaceController({
     mutationFn: ({
       analysisId,
       promotionId,
+      regenerate,
       segmentId
     }: {
       analysisId: string;
       promotionId: string;
+      regenerate: boolean;
       segmentId: string;
     }) => {
       const request = buildPromotionGenerationRequest({
         analysisId,
         confirmedCreatedSegmentAnalysisId: createdSegmentAnalysisId,
         createdSegmentId,
+        regenerate,
         segmentId
       });
       return startDashboardPromotionGeneration(

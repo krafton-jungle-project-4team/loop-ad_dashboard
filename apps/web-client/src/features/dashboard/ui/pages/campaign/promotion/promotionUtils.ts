@@ -464,6 +464,12 @@ export function activeContentCandidates(
   );
 }
 
+export function allContentCandidatesAreRejected(
+  candidates: DashboardSegmentDetail["content_candidates"]
+) {
+  return candidates.length > 0 && candidates.every((candidate) => candidate.status === "rejected");
+}
+
 export function nextExperimentLoopCount(
   detail: DashboardSegmentDetail,
   resumablePromotionRunId?: string | null

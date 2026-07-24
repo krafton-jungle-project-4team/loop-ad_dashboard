@@ -87,6 +87,7 @@ import { EmptyState } from "../../../../shared/EmptyState.js";
 import { EntityWorkspaceEmptyState } from "../../../../shared/EntityWorkspace.js";
 import {
   activeContentCandidates,
+  allContentCandidatesAreRejected,
   campaignSegmentDisplayCopy,
   canStartAdExperiment,
   formatGoalValue,
@@ -451,7 +452,7 @@ export function PromotionTabWorkspace({
   onSegmentViewChange: (view: "manage" | "experiments") => void;
   onSelectSegment: (promotionId: string, segmentId: string) => void;
   onRecommendSegments: () => void;
-  onStartGeneration: (analysisId: string, segmentId: string) => void;
+  onStartGeneration: (analysisId: string, segmentId: string, regenerate: boolean) => void;
   onTabChange: (tab: PromotionWorkspaceTab) => void;
   onUpdateContentCandidateCopy: (
     promotionId: string,
@@ -981,7 +982,7 @@ function PromotionSegmentDetailTab({
     contentId: string,
     feedback: string
   ) => Promise<void>;
-  onStartGeneration: (analysisId: string, segmentId: string) => void;
+  onStartGeneration: (analysisId: string, segmentId: string, regenerate: boolean) => void;
   onUpdateContentCandidateCopy: (
     promotionId: string,
     segmentId: string,
@@ -1029,12 +1030,16 @@ function PromotionSegmentDetailTab({
   const approvedContentCandidate = currentContentCandidates.find(
     (candidate) => candidate.status === "approved"
   );
-  const hasGeneratedContentCandidates = currentContentCandidates.length > 0;
+  const allCandidatesAreRejected = allContentCandidatesAreRejected(currentContentCandidates);
+  const selectableContentCandidates = currentContentCandidates.filter(
+    (candidate) => candidate.status !== "rejected"
+  );
+  const hasSelectableContentCandidates = selectableContentCandidates.length > 0;
   const contentCandidatesAreReady =
-    hasGeneratedContentCandidates &&
-    currentContentCandidates.every(contentCandidateIsReadyForSelection);
+    hasSelectableContentCandidates &&
+    selectableContentCandidates.every(contentCandidateIsReadyForSelection);
   const generationIsIncomplete =
-    generationIsPending || (hasGeneratedContentCandidates && !contentCandidatesAreReady);
+    generationIsPending || (hasSelectableContentCandidates && !contentCandidatesAreReady);
   const generationChannelIsUnsupported = offerSetGenerationChannelIsUnsupported(
     isOfferSetGenerationTarget,
     promotionChannel
@@ -1103,11 +1108,15 @@ function PromotionSegmentDetailTab({
                 disabled={
                   generationIsPending ||
                   !detail.segment.analysis_id ||
-                  hasGeneratedContentCandidates ||
+                  hasSelectableContentCandidates ||
                   generationChannelIsUnsupported
                 }
                 onClick={() =>
-                  onStartGeneration(detail.segment.analysis_id, detail.segment.segment_id)
+                  onStartGeneration(
+                    detail.segment.analysis_id,
+                    detail.segment.segment_id,
+                    allCandidatesAreRejected
+                  )
                 }
                 type="button"
                 variant="outline"
@@ -1119,9 +1128,11 @@ function PromotionSegmentDetailTab({
                 )}
                 {generationIsIncomplete
                   ? "광고 소재 만드는 중…"
-                  : hasGeneratedContentCandidates
-                    ? "광고 소재 생성 완료"
-                    : "광고 소재 만들기"}
+                  : allCandidatesAreRejected
+                    ? "광고 소재 다시 만들기"
+                    : hasSelectableContentCandidates
+                      ? "광고 소재 생성 완료"
+                      : "광고 소재 만들기"}
               </Button>
             </div>
           </div>

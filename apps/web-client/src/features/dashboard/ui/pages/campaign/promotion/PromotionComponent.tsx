@@ -171,10 +171,11 @@ export function PromotionWorkspace({
               onSelectSegment={selectSegment}
               onSegmentViewChange={selectSegmentView}
               onRecommendSegments={recommendPromotionSegments}
-              onStartGeneration={(analysisId, segmentId) =>
+              onStartGeneration={(analysisId, segmentId, regenerate) =>
                 startGenerationMutation.mutate({
                   analysisId,
                   promotionId: selectedOpenPromotion.promotion_id,
+                  regenerate,
                   segmentId
                 })
               }
