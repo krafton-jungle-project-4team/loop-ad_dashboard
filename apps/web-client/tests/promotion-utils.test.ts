@@ -8,6 +8,7 @@ import {
 } from "@loopad/shared";
 import {
   activeContentCandidates,
+  allContentCandidatesAreRejected,
   canStartAdExperiment,
   contentCandidateHtmlArtifact,
   contentCandidateIsReadyForSelection,
@@ -368,6 +369,24 @@ test("offer-set creative selection does not fall back when its generation is unk
   } as DashboardSegmentDetail;
 
   assert.deepEqual(activeContentCandidates(detail, undefined, true), []);
+});
+
+test("creative regeneration is available only when every current candidate was rejected", () => {
+  assert.equal(allContentCandidatesAreRejected([]), false);
+  assert.equal(
+    allContentCandidatesAreRejected([
+      { status: "rejected" },
+      { status: "rejected" }
+    ] as DashboardSegmentDetail["content_candidates"]),
+    true
+  );
+  assert.equal(
+    allContentCandidatesAreRejected([
+      { status: "rejected" },
+      { status: "draft" }
+    ] as DashboardSegmentDetail["content_candidates"]),
+    false
+  );
 });
 
 test("creative title never exposes an internal content id", () => {
