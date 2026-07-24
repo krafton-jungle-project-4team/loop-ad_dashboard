@@ -1605,6 +1605,15 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
           updated_at: "2026-07-04T00:00:00.000Z"
         };
       },
+      getPromotionGenerationResult: async () => {
+        calls.push({ kind: "read-generation" });
+        return {
+          content_candidate_count: 3,
+          generation_id: "generation_v2_existing",
+          promotion_id: "promo_email_001",
+          status: "completed"
+        };
+      },
       ensurePromotionTargetSegmentApproved: async (
         projectId,
         promotionId,
@@ -1629,12 +1638,20 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
     } as unknown as DashboardDecisionClient
   );
 
-  const response = await service.startPromotionGeneration("hotel-client-a", "promo_email_001", {
-    analysis_id: "analysis_promo_email_001",
-    segment_id: "segment_email_001",
-    content_option_count: 3,
-    operator_instruction: null
-  });
+  const response = await service.startPromotionGeneration(
+    "hotel-client-a",
+    "promo_email_001",
+    {
+      analysis_id: "analysis_promo_email_001",
+      segment_id: "segment_email_001",
+      content_option_count: 3,
+      operator_instruction: null,
+      offer_set_id: "summer-lastcall",
+      expected_catalog_id: "black-friday-hotels-lastcall",
+      expected_catalog_version: "v3"
+    },
+    "dashboard-v3-generation:request-1"
+  );
 
   assert.equal(response.generation_id, "generation_promo_email_001");
   assert.deepEqual(calls, [
@@ -1654,17 +1671,100 @@ test("dashboard promotion generation resolves campaign and calls decision API cl
       kind: "decision",
       request: {
         campaignId: "camp_summer_2026",
+        idempotencyKey: "dashboard-v3-generation:request-1",
         projectId: "hotel-client-a",
         promotionId: "promo_email_001",
         request: {
           analysis_id: "analysis_promo_email_001",
           segment_id: "segment_email_001",
           content_option_count: 3,
-          operator_instruction: null
+          operator_instruction: null,
+          offer_set_id: "summer-lastcall",
+          expected_catalog_id: "black-friday-hotels-lastcall",
+          expected_catalog_version: "v3"
         }
       }
     }
   ]);
+});
+
+test("dashboard offer-set generation requires a browser idempotency key", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  let promotionRead = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () => {
+        promotionRead = true;
+        return { campaign_id: "camp_summer_2026", channel: "email" } as never;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  await assert.rejects(
+    () =>
+      service.startPromotionGeneration("hotel-client-a", "promo_email_001", {
+        analysis_id: "analysis_promo_email_001",
+        segment_id: "segment_email_001",
+        offer_set_id: "summer-lastcall",
+        expected_catalog_id: "black-friday-hotels-lastcall",
+        expected_catalog_version: "v3"
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 400 &&
+      error.code === "DASHBOARD_OFFER_SET_GENERATION_IDEMPOTENCY_KEY_REQUIRED"
+  );
+  assert.equal(promotionRead, false);
+});
+
+test("dashboard offer-set generation rejects non-email promotions with conflict", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  let segmentApproved = false;
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () =>
+        ({
+          campaign_id: "camp_summer_2026",
+          channel: "onsite_banner"
+        }) as never,
+      ensurePromotionTargetSegmentApproved: async () => {
+        segmentApproved = true;
+      }
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    emptyDecisionClient()
+  );
+
+  await assert.rejects(
+    () =>
+      service.startPromotionGeneration(
+        "hotel-client-a",
+        "promo_banner_001",
+        {
+          analysis_id: "analysis_promo_banner_001",
+          segment_id: "segment_banner_001",
+          offer_set_id: "summer-lastcall",
+          expected_catalog_id: "black-friday-hotels-lastcall",
+          expected_catalog_version: "v3"
+        },
+        "dashboard-v3-generation:request-2"
+      ),
+    (error) =>
+      error instanceof AppError &&
+      error.statusCode === 409 &&
+      error.code === "DASHBOARD_OFFER_SET_GENERATION_CHANNEL_UNSUPPORTED"
+  );
+  assert.equal(segmentApproved, false);
 });
 
 test("dashboard promotion generation retries when existing result is failed", async () => {

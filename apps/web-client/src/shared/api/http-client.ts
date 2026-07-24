@@ -9,6 +9,7 @@ type ApiSearchParamValue = boolean | number | string | null | undefined;
 export type ApiRequestOptions = {
   body?: unknown;
   errorMessage?: (response: Response) => Promise<string> | string;
+  headers?: HeadersInit;
   method: HttpMethod;
   searchParams?: Record<string, ApiSearchParamValue> | URLSearchParams;
   signal?: AbortSignal;
@@ -38,12 +39,16 @@ export async function apiRequest<T>(
   const url = new URL(`${dashboardConfig.apiBaseUrl}${path}`, window.location.origin);
   appendSearchParams(url, options.searchParams);
   const hasBody = options.body !== undefined;
+  const headers = new Headers(options.headers);
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  if (hasBody && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   const response = await fetch(url, {
     body: hasBody ? JSON.stringify(options.body) : undefined,
-    headers: {
-      Accept: "application/json",
-      ...(hasBody ? { "Content-Type": "application/json" } : {})
-    },
+    headers,
     method: options.method,
     signal: options.signal
   });

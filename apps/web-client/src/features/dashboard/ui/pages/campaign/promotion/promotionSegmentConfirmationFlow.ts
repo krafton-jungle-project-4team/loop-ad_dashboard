@@ -1,4 +1,5 @@
 import type {
+  DashboardConfirmSegmentSuggestionsResult,
   DashboardConfirmSegmentSuggestionsRequest,
   DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
@@ -27,4 +28,15 @@ export function promotionSegmentConfirmationRequest(
       .filter((suggestion) => suggestion.analysis_id === analysisId)
       .map((suggestion) => suggestion.suggestion_id)
   };
+}
+
+export function confirmedCreatedSegmentTarget(
+  result: DashboardConfirmSegmentSuggestionsResult,
+  manualSegmentIds: string[],
+  createdSegmentId: string | null
+) {
+  if (!createdSegmentId || !manualSegmentIds.includes(createdSegmentId)) {
+    return null;
+  }
+  return result.target_segments.find((segment) => segment.segment_id === createdSegmentId) ?? null;
 }

@@ -619,13 +619,24 @@ export class DashboardQueryService {
   async startPromotionGeneration(
     projectId: string,
     promotionId: string,
-    request: DashboardStartPromotionGenerationRequest
+    request: DashboardStartPromotionGenerationRequest,
+    idempotencyKey?: string
   ): Promise<DashboardStartPromotionGenerationResult> {
     const startedAt = Date.now();
     log.assignContext({ analysisId: request.analysis_id, projectId, promotionId });
     log.info("started", { projectId, promotionId, request });
+    const isOfferSetGeneration =
+      request.offer_set_id !== undefined ||
+      request.expected_catalog_id !== undefined ||
+      request.expected_catalog_version !== undefined;
+    if (isOfferSetGeneration && !idempotencyKey?.trim()) {
+      throw dashboardErrors.offerSetGenerationIdempotencyKeyRequired();
+    }
     const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
     log.assignContext({ campaignId: promotion.campaign_id });
+    if (isOfferSetGeneration && promotion.channel !== "email") {
+      throw dashboardErrors.offerSetGenerationChannelUnsupported();
+    }
     if (request.segment_id) {
       await this.campaignReader.ensurePromotionTargetSegmentApproved(
         projectId,
@@ -635,12 +646,21 @@ export class DashboardQueryService {
       );
     }
     log.info("promotion_loaded", { promotion });
-    const existingGeneration = await this.campaignReader.getPromotionGenerationResult(
-      projectId,
-      promotionId,
-      request.analysis_id,
-      request.segment_id
-    );
+    const existingGeneration = isOfferSetGeneration
+      ? undefined
+      : await this.campaignReader.getPromotionGenerationResult(
+          projectId,
+          promotionId,
+          request.analysis_id,
+          request.segment_id
+        );
+    if (isOfferSetGeneration) {
+      log.info("promotion_generation_reuse_bypassed", {
+        expectedCatalogId: request.expected_catalog_id,
+        expectedCatalogVersion: request.expected_catalog_version,
+        offerSetId: request.offer_set_id
+      });
+    }
 
     const completedWithoutCandidates =
       existingGeneration?.status === "completed" &&
@@ -662,6 +682,7 @@ export class DashboardQueryService {
 
     const response = await this.decisionClient.startPromotionGeneration({
       campaignId: promotion.campaign_id,
+      ...(idempotencyKey ? { idempotencyKey } : {}),
       projectId,
       promotionId,
       request

@@ -205,6 +205,7 @@ export class DashboardDecisionClient {
 
   startPromotionGeneration(request: {
     campaignId: string;
+    idempotencyKey?: string;
     projectId: string;
     promotionId: string;
     request: DashboardStartPromotionGenerationRequest;
@@ -217,9 +218,12 @@ export class DashboardDecisionClient {
         analysis_id: request.request.analysis_id,
         segment_ids: request.request.segment_id ? [request.request.segment_id] : undefined,
         content_option_count: request.request.content_option_count ?? 3,
-        operator_instruction: request.request.operator_instruction ?? null
+        operator_instruction: request.request.operator_instruction ?? null,
+        offer_set_id: request.request.offer_set_id,
+        expected_catalog_id: request.request.expected_catalog_id,
+        expected_catalog_version: request.request.expected_catalog_version
       },
-      idempotencyKey: `dashboard-generation:${randomUUID()}`,
+      idempotencyKey: request.idempotencyKey ?? `dashboard-generation:${randomUUID()}`,
       path: `/decision/v1/promotions/${encodeURIComponent(request.promotionId)}/generation`,
       request,
       schema: decisionPromotionGenerationResponseSchema

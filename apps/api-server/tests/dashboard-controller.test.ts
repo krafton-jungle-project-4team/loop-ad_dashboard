@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { HTTP_CODE_METADATA } from "@nestjs/common/constants";
 import { z } from "zod";
 import { AppError } from "../src/app-errors.js";
 import type { DashboardQueryService } from "../src/features/dashboard/service/dashboard-query.service.js";
@@ -714,8 +715,8 @@ test("dashboard controller parses promotion generation request before delegating
   const writes: unknown[] = [];
   const controller = new DashboardController({
     ...emptyDashboardQuery(),
-    startPromotionGeneration: async (projectId, promotionId, request) => {
-      writes.push({ projectId, promotionId, request });
+    startPromotionGeneration: async (projectId, promotionId, request, idempotencyKey) => {
+      writes.push({ idempotencyKey, projectId, promotionId, request });
       return {
         content_candidate_count: 3,
         generation_id: "generation_promo_email_001",
@@ -725,25 +726,75 @@ test("dashboard controller parses promotion generation request before delegating
     }
   } as unknown as DashboardQueryService);
 
-  const response = await controller.startPromotionGeneration("promo_email_001", "hotel-client-a", {
-    analysis_id: "analysis_promo_email_001",
-    content_option_count: 3,
-    operator_instruction: null
-  });
+  const response = await controller.startPromotionGeneration(
+    "promo_email_001",
+    "hotel-client-a",
+    {
+      analysis_id: "analysis_promo_email_001",
+      segment_id: "segment_lastcall_001",
+      content_option_count: 3,
+      operator_instruction: null,
+      offer_set_id: "summer-lastcall",
+      expected_catalog_id: "black-friday-hotels-lastcall",
+      expected_catalog_version: "v3"
+    },
+    "dashboard-v3-generation:request-1"
+  );
 
   assert.deepEqual(writes, [
     {
+      idempotencyKey: "dashboard-v3-generation:request-1",
       projectId: "hotel-client-a",
       promotionId: "promo_email_001",
       request: {
         analysis_id: "analysis_promo_email_001",
+        segment_id: "segment_lastcall_001",
         content_option_count: 3,
-        operator_instruction: null
+        operator_instruction: null,
+        offer_set_id: "summer-lastcall",
+        expected_catalog_id: "black-friday-hotels-lastcall",
+        expected_catalog_version: "v3"
       }
     }
   ]);
   assert.equal(response.generation_id, "generation_promo_email_001");
   assert.equal(response.content_candidate_count, 3);
+  assert.equal(
+    Reflect.getMetadata(HTTP_CODE_METADATA, DashboardController.prototype.startPromotionGeneration),
+    202
+  );
+});
+
+test("dashboard controller requires a single segment and complete catalog contract for offer-set generation", async () => {
+  setRequiredEnv();
+  const { DashboardController } =
+    await import("../src/features/dashboard/controller/dashboard.controller.js");
+  const controller = new DashboardController(emptyDashboardQuery());
+
+  await assert.rejects(
+    () =>
+      controller.startPromotionGeneration("promo_email_001", "hotel-client-a", {
+        analysis_id: "analysis_promo_email_001",
+        offer_set_id: "summer-lastcall",
+        expected_catalog_id: "black-friday-hotels-lastcall",
+        expected_catalog_version: "v3"
+      }),
+    (error) =>
+      error instanceof z.ZodError && error.issues.some((issue) => issue.path[0] === "segment_id")
+  );
+
+  await assert.rejects(
+    () =>
+      controller.startPromotionGeneration("promo_email_001", "hotel-client-a", {
+        analysis_id: "analysis_promo_email_001",
+        segment_id: "segment_lastcall_001",
+        offer_set_id: "summer-lastcall"
+      }),
+    (error) =>
+      error instanceof z.ZodError &&
+      error.issues.some((issue) => issue.path[0] === "expected_catalog_id") &&
+      error.issues.some((issue) => issue.path[0] === "expected_catalog_version")
+  );
 });
 
 test("dashboard controller parses promotion detail analyses response", async () => {

@@ -102,6 +102,7 @@ import {
   mutationErrorMessage,
   type PromotionWorkspaceTab
 } from "../promotionUtils.js";
+import { offerSetGenerationChannelIsUnsupported } from "../promotionGenerationFlow.js";
 import type { PromotionExperimentLaunchResult } from "../promotionExperimentFlow.js";
 import type { ContentCandidateHtmlEditorActions } from "../useContentCandidateHtmlEditor.js";
 import { PromotionSegmentSuggestionPanel } from "./PromotionSegmentSuggestions.js";
@@ -387,6 +388,8 @@ export function PromotionTabWorkspace({
   promotionExperiments,
   promotionAnalysisErrorMessage,
   promotionAnalysisIsPending,
+  promotionGenerationErrorMessage,
+  promotionGenerationId,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
   reviseContentCandidateHtmlIsPending,
@@ -398,6 +401,7 @@ export function PromotionTabWorkspace({
   selectedSegmentDetailIsError,
   selectedSegmentDetailIsLoading,
   selectedSegmentId,
+  selectedSegmentIsOfferSetGenerationTarget,
   suggestions,
   audienceAllocationPreviewContext,
   suggestionsIsLoading,
@@ -459,6 +463,8 @@ export function PromotionTabWorkspace({
   promotionExperiments: DashboardAdExperiment[];
   promotionAnalysisErrorMessage: string | null;
   promotionAnalysisIsPending: boolean;
+  promotionGenerationErrorMessage: string | null;
+  promotionGenerationId?: string;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
   reviseContentCandidateHtmlIsPending: boolean;
@@ -470,6 +476,7 @@ export function PromotionTabWorkspace({
   selectedSegmentDetailIsError: boolean;
   selectedSegmentDetailIsLoading: boolean;
   selectedSegmentId: string;
+  selectedSegmentIsOfferSetGenerationTarget: boolean;
   suggestions: DashboardPromotionSegmentSuggestion[];
   audienceAllocationPreviewContext: DashboardAudienceAllocationPreviewContext | null;
   suggestionsIsLoading: boolean;
@@ -616,6 +623,8 @@ export function PromotionTabWorkspace({
                     approveContentCandidateIsPending={approveContentCandidateIsPending}
                     contentCandidateHtmlEditor={contentCandidateHtmlEditor}
                     detail={selectedSegmentDetail}
+                    generationErrorMessage={promotionGenerationErrorMessage}
+                    generationId={promotionGenerationId}
                     generationIsPending={promotionGenerationIsPending}
                     isError={selectedSegmentDetailIsError}
                     isLoading={selectedSegmentDetailIsLoading}
@@ -627,12 +636,14 @@ export function PromotionTabWorkspace({
                     onReviseContentCandidateHtml={onReviseContentCandidateHtml}
                     onStartGeneration={onStartGeneration}
                     onUpdateContentCandidateCopy={onUpdateContentCandidateCopy}
+                    promotionChannel={promotion.channel}
                     promotionExperiments={promotionExperiments}
                     rejectContentCandidateIsPending={rejectContentCandidateIsPending}
                     reviseContentCandidateHtmlIsPending={reviseContentCandidateHtmlIsPending}
                     updateContentCandidateCopyIsPending={updateContentCandidateCopyIsPending}
                     view={segmentView}
                     selectedSegmentId={selectedSegmentId}
+                    isOfferSetGenerationTarget={selectedSegmentIsOfferSetGenerationTarget}
                     launchExperimentIsPending={launchExperimentIsPending}
                     launchExperimentResult={launchExperimentResult}
                   />
@@ -912,7 +923,10 @@ function PromotionSegmentDetailTab({
   approveContentCandidateIsPending,
   contentCandidateHtmlEditor,
   detail,
+  generationErrorMessage,
+  generationId,
   generationIsPending,
+  isOfferSetGenerationTarget,
   isError,
   isLoading,
   launchExperimentError,
@@ -925,6 +939,7 @@ function PromotionSegmentDetailTab({
   onReviseContentCandidateHtml,
   onStartGeneration,
   onUpdateContentCandidateCopy,
+  promotionChannel,
   promotionExperiments,
   rejectContentCandidateIsPending,
   reviseContentCandidateHtmlIsPending,
@@ -935,7 +950,10 @@ function PromotionSegmentDetailTab({
   approveContentCandidateIsPending: boolean;
   contentCandidateHtmlEditor: ContentCandidateHtmlEditorActions;
   detail: DashboardSegmentDetail | undefined;
+  generationErrorMessage: string | null;
+  generationId?: string;
   generationIsPending: boolean;
+  isOfferSetGenerationTarget: boolean;
   isError: boolean;
   isLoading: boolean;
   launchExperimentError: Error | null;
@@ -970,6 +988,7 @@ function PromotionSegmentDetailTab({
     contentId: string,
     request: DashboardUpdateContentCandidateCopyRequest
   ) => Promise<void>;
+  promotionChannel: string;
   promotionExperiments: DashboardAdExperiment[];
   rejectContentCandidateIsPending: boolean;
   reviseContentCandidateHtmlIsPending: boolean;
@@ -1001,7 +1020,11 @@ function PromotionSegmentDetailTab({
     );
   }
 
-  const currentContentCandidates = activeContentCandidates(detail);
+  const currentContentCandidates = activeContentCandidates(
+    detail,
+    generationId,
+    isOfferSetGenerationTarget
+  );
   const latestMetric = detail.experiment_metrics[0];
   const approvedContentCandidate = currentContentCandidates.find(
     (candidate) => candidate.status === "approved"
@@ -1012,6 +1035,10 @@ function PromotionSegmentDetailTab({
     currentContentCandidates.every(contentCandidateIsReadyForSelection);
   const generationIsIncomplete =
     generationIsPending || (hasGeneratedContentCandidates && !contentCandidatesAreReady);
+  const generationChannelIsUnsupported = offerSetGenerationChannelIsUnsupported(
+    isOfferSetGenerationTarget,
+    promotionChannel
+  );
 
   return (
     <section className="grid gap-4">
@@ -1070,10 +1097,14 @@ function PromotionSegmentDetailTab({
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
+                aria-describedby={
+                  generationChannelIsUnsupported ? "promotion-generation-channel-help" : undefined
+                }
                 disabled={
                   generationIsPending ||
                   !detail.segment.analysis_id ||
-                  hasGeneratedContentCandidates
+                  hasGeneratedContentCandidates ||
+                  generationChannelIsUnsupported
                 }
                 onClick={() =>
                   onStartGeneration(detail.segment.analysis_id, detail.segment.segment_id)
@@ -1094,6 +1125,18 @@ function PromotionSegmentDetailTab({
               </Button>
             </div>
           </div>
+          {generationChannelIsUnsupported ? (
+            <p className="text-sm text-muted-foreground" id="promotion-generation-channel-help">
+              추가 할인 광고 소재는 이메일 프로모션에서만 만들 수 있어요. 현재 노출 방식은{" "}
+              {formatChannelLabel(promotionChannel)}입니다.
+            </p>
+          ) : null}
+          {generationErrorMessage ? (
+            <Alert variant="destructive">
+              <AlertTitle>광고 소재를 만들지 못했어요</AlertTitle>
+              <AlertDescription>{generationErrorMessage}</AlertDescription>
+            </Alert>
+          ) : null}
           <div className="grid gap-3">
             {generationIsIncomplete ? (
               <EmptyState

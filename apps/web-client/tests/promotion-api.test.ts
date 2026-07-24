@@ -70,6 +70,44 @@ test("manual HTML errors explain validation and concurrent revision conflicts", 
   assert.match(await readDashboardApiErrorMessage(revisionConflict), /새 버전이 먼저 저장/);
 });
 
+test("offer-set generation errors explain local request requirements", async () => {
+  const unsupportedChannel = dashboardErrorResponse(
+    400,
+    "DASHBOARD_OFFER_SET_GENERATION_CHANNEL_UNSUPPORTED",
+    "email only"
+  );
+  const missingIdempotencyKey = dashboardErrorResponse(
+    400,
+    "DASHBOARD_OFFER_SET_GENERATION_IDEMPOTENCY_KEY_REQUIRED",
+    "missing key"
+  );
+
+  assert.match(await readDashboardApiErrorMessage(unsupportedChannel), /이메일 프로모션/);
+  assert.match(await readDashboardApiErrorMessage(missingIdempotencyKey), /페이지를 새로고침/);
+});
+
+test("upstream offer-set conflicts and outages preserve their actionable messages", async () => {
+  const conflict = dashboardErrorResponse(
+    409,
+    "offer_set_catalog_version_conflict",
+    "요청한 V3 카탈로그가 활성 버전과 일치하지 않습니다."
+  );
+  const unavailable = dashboardErrorResponse(
+    503,
+    "offer_set_catalog_unavailable",
+    "V3 카탈로그를 일시적으로 불러올 수 없습니다."
+  );
+
+  assert.equal(
+    await readDashboardApiErrorMessage(conflict),
+    "요청한 V3 카탈로그가 활성 버전과 일치하지 않습니다."
+  );
+  assert.equal(
+    await readDashboardApiErrorMessage(unavailable),
+    "V3 카탈로그를 일시적으로 불러올 수 없습니다."
+  );
+});
+
 function dashboardErrorResponse(status: number, code: string, message: string) {
   return new Response(
     JSON.stringify({

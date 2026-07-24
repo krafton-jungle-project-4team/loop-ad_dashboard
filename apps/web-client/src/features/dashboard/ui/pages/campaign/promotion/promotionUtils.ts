@@ -448,10 +448,19 @@ export function contentCandidateIsReadyForSelection(
   return Boolean(htmlArtifact?.artifact_status === "published" && htmlArtifact.public_url);
 }
 
-export function activeContentCandidates(detail: DashboardSegmentDetail) {
+export function activeContentCandidates(
+  detail: DashboardSegmentDetail,
+  generationId?: string,
+  requireGenerationId = false
+) {
+  if (requireGenerationId && !generationId) {
+    return [];
+  }
   return detail.content_candidates.filter(
     (candidate) =>
-      candidate.analysis_id === detail.segment.analysis_id && candidate.status !== "archived"
+      candidate.analysis_id === detail.segment.analysis_id &&
+      candidate.status !== "archived" &&
+      (!generationId || candidate.generation_id === generationId)
   );
 }
 

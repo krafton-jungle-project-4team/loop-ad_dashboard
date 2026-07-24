@@ -70,6 +70,10 @@ function dashboardApiErrorMessage(code: string, message: string) {
       return "HTML 안전성 검증을 통과하지 못했어요. script, 외부 자원, 이벤트 핸들러 등을 확인해 주세요.";
     case "DASHBOARD_CONTENT_CANDIDATE_HTML_REVISION_CONFLICT":
       return "다른 수정으로 새 버전이 먼저 저장됐어요. 창을 닫고 최신 HTML을 다시 불러와 주세요.";
+    case "DASHBOARD_OFFER_SET_GENERATION_CHANNEL_UNSUPPORTED":
+      return "추가 할인 광고 소재는 이메일 프로모션에서만 만들 수 있어요.";
+    case "DASHBOARD_OFFER_SET_GENERATION_IDEMPOTENCY_KEY_REQUIRED":
+      return "광고 소재 생성 요청을 식별하지 못했어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
     case "UNSUPPORTED_DISPATCH_CHANNEL":
       return "지금은 이메일과 문자 광고만 보낼 수 있어요.";
     case "segment_audience_source_batch_mismatch":

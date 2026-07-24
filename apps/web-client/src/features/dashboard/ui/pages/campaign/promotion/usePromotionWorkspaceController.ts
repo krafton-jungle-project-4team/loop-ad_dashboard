@@ -46,6 +46,7 @@ import {
   dashboardSegmentDetailQueryKey
 } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
+import { useDashboardAssistant } from "../../../../layout/DashboardAssistantContext.js";
 import { noActiveSegmentCandidatesErrorMessage } from "../../../../api/dashboard-request.js";
 import {
   defaultPromotionAnalysisProgress,
@@ -61,7 +62,14 @@ import {
   type PromotionWorkspaceTab
 } from "./promotionUtils.js";
 import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
-import { promotionSegmentConfirmationRequest } from "./promotionSegmentConfirmationFlow.js";
+import {
+  buildPromotionGenerationRequest,
+  createPromotionGenerationAttemptTracker
+} from "./promotionGenerationFlow.js";
+import {
+  confirmedCreatedSegmentTarget,
+  promotionSegmentConfirmationRequest
+} from "./promotionSegmentConfirmationFlow.js";
 import { reconcileContentCandidateRevision } from "./promotionContentCandidateCache.js";
 import type { ContentCandidateHtmlEditorActions } from "./useContentCandidateHtmlEditor.js";
 
@@ -86,6 +94,9 @@ export function usePromotionWorkspaceController({
 }) {
   const queryClient = useQueryClient();
   const [, setDashboardQueryState] = useDashboardQueryState();
+  const { createdSegmentAnalysisId, createdSegmentId, recordCreatedSegmentConfirmation } =
+    useDashboardAssistant();
+  const [generationAttemptTracker] = useState(createPromotionGenerationAttemptTracker);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPromotionId, setEditingPromotionId] = useState<string | null>(null);
   const requestedSegmentTab: PromotionWorkspaceTab =
@@ -396,13 +407,20 @@ export function usePromotionWorkspaceController({
       analysisId: string;
       promotionId: string;
       segmentId: string;
-    }) =>
-      startDashboardPromotionGeneration(query, promotionId, {
-        analysis_id: analysisId,
-        segment_id: segmentId,
-        content_option_count: 3,
-        operator_instruction: null
-      }),
+    }) => {
+      const request = buildPromotionGenerationRequest({
+        analysisId,
+        confirmedCreatedSegmentAnalysisId: createdSegmentAnalysisId,
+        createdSegmentId,
+        segmentId
+      });
+      return startDashboardPromotionGeneration(
+        query,
+        promotionId,
+        request,
+        generationAttemptTracker.idempotencyKey(promotionId, request)
+      );
+    },
     onSuccess: async (_generation, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
@@ -418,6 +436,7 @@ export function usePromotionWorkspaceController({
           variables.segmentId
         )
       });
+      generationAttemptTracker.complete();
     }
   });
   const approveContentCandidateMutation = useMutation<
@@ -716,7 +735,15 @@ export function usePromotionWorkspaceController({
           manualSegmentIds
         )
       ),
-    onSuccess: async () => {
+    onSuccess: async (result, manualSegmentIds) => {
+      const confirmedCreatedSegment = confirmedCreatedSegmentTarget(
+        result,
+        manualSegmentIds,
+        createdSegmentId
+      );
+      if (confirmedCreatedSegment) {
+        recordCreatedSegmentConfirmation(confirmedCreatedSegment.segment_id, result.analysis_id);
+      }
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       await queryClient.invalidateQueries({
         queryKey: dashboardCampaignDetailQueryKey(query.projectId, selectedCampaignId)
@@ -729,9 +756,9 @@ export function usePromotionWorkspaceController({
         )
       });
       await setDashboardQueryState({
-        segmentView: "manage",
+        segmentView: confirmedCreatedSegment ? "experiments" : "manage",
         selectedAdExperimentId: "",
-        selectedSegmentId: ""
+        selectedSegmentId: confirmedCreatedSegment?.segment_id ?? ""
       });
     }
   });
@@ -813,6 +840,22 @@ export function usePromotionWorkspaceController({
       selectedSegmentId: segmentView === "experiments" ? selectedPromotionSegmentId : ""
     });
   };
+  const generationTargetsSelectedSegment =
+    startGenerationMutation.variables?.promotionId === selectedOpenPromotionId &&
+    startGenerationMutation.variables.segmentId === selectedPromotionSegmentId &&
+    startGenerationMutation.variables.analysisId === segmentDetail.data?.segment.analysis_id;
+  const selectedSegmentIsOfferSetGenerationTarget =
+    createdSegmentId === selectedPromotionSegmentId &&
+    createdSegmentAnalysisId === segmentDetail.data?.segment.analysis_id;
+  const selectedPromotionGenerationId = generationTargetsSelectedSegment
+    ? (startGenerationMutation.data?.generation_id ??
+      (startGenerationMutation.isError ? undefined : segmentDetail.data?.generation?.generation_id))
+    : segmentDetail.data?.generation?.generation_id;
+  const promotionGenerationErrorMessage =
+    generationTargetsSelectedSegment && startGenerationMutation.isError
+      ? mutationErrorMessage(startGenerationMutation.error)
+      : null;
+
   return {
     activeAnalysisId,
     analysisProgress,
@@ -836,6 +879,8 @@ export function usePromotionWorkspaceController({
         : null,
     promotionAnalysisIsPending:
       recommendSegmentsMutation.isPending || analysisProgress.data.status === "pending",
+    promotionGenerationErrorMessage,
+    promotionGenerationId: selectedPromotionGenerationId,
     promotionGenerationIsPending: startGenerationMutation.isPending || generationIsPending,
     rejectContentCandidateMutation,
     scopedSegmentDefinitions,
@@ -846,6 +891,7 @@ export function usePromotionWorkspaceController({
     selectSegmentView,
     selectedCampaign,
     selectedOpenPromotion,
+    selectedSegmentIsOfferSetGenerationTarget,
     selectedPromotionSegmentId,
     selectedPromotionSegments,
     setIsAddDialogOpen,

@@ -27,6 +27,16 @@ export const DASHBOARD_ERRORS = {
     code: "DASHBOARD_DECISION_REQUEST_FAILED",
     message: "Decision API request failed."
   },
+  OFFER_SET_GENERATION_CHANNEL_UNSUPPORTED: {
+    statusCode: HttpStatus.CONFLICT,
+    code: "DASHBOARD_OFFER_SET_GENERATION_CHANNEL_UNSUPPORTED",
+    message: "Offer-set generation is only supported for email promotions."
+  },
+  OFFER_SET_GENERATION_IDEMPOTENCY_KEY_REQUIRED: {
+    statusCode: HttpStatus.BAD_REQUEST,
+    code: "DASHBOARD_OFFER_SET_GENERATION_IDEMPOTENCY_KEY_REQUIRED",
+    message: "Idempotency-Key header is required for offer-set generation."
+  },
   AD_EXPERIMENT_NOT_FOUND: {
     statusCode: HttpStatus.NOT_FOUND,
     code: "DASHBOARD_AD_EXPERIMENT_NOT_FOUND",
@@ -102,6 +112,10 @@ export const dashboardErrors = {
       },
       { cause }
     ),
+  offerSetGenerationChannelUnsupported: () =>
+    createDashboardError(DASHBOARD_ERRORS.OFFER_SET_GENERATION_CHANNEL_UNSUPPORTED),
+  offerSetGenerationIdempotencyKeyRequired: () =>
+    createDashboardError(DASHBOARD_ERRORS.OFFER_SET_GENERATION_IDEMPOTENCY_KEY_REQUIRED),
   adExperimentNotFound: () => createDashboardError(DASHBOARD_ERRORS.AD_EXPERIMENT_NOT_FOUND),
   contentCandidateApprovalLocked: () =>
     createDashboardError(DASHBOARD_ERRORS.CONTENT_CANDIDATE_APPROVAL_LOCKED),
