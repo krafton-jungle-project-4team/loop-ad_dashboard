@@ -107,6 +107,7 @@ import {
   contentCandidateHtmlUrl,
   editableCreative,
   editedCreativeMetadata,
+  prepareCreativeOfferPriceRevision,
   rewriteCreativeHtmlCopy,
   sanitizeCreativeHtmlRevision
 } from "./content-candidate-copy.js";
@@ -1138,9 +1139,24 @@ export class DashboardQueryService {
     }
 
     const sourceHtml = await readContentCandidateHtml(creative);
-    if (Buffer.byteLength(sourceHtml) > AI_CREATIVE_HTML_INPUT_LIMIT_BYTES) {
+    let priceRevision;
+    try {
+      priceRevision = prepareCreativeOfferPriceRevision({
+        creative: creative.creative,
+        feedback: request.feedback,
+        html: sourceHtml
+      });
+    } catch (error) {
       log.warn("content_candidate_html_revision_invalid", {
-        inputHtmlBytes: Buffer.byteLength(sourceHtml),
+        err: error,
+        reason: "offer_price_contract_unavailable"
+      });
+      throw dashboardErrors.contentCandidateHtmlRevisionInvalid(error);
+    }
+    const revisionSourceHtml = priceRevision.html;
+    if (Buffer.byteLength(revisionSourceHtml) > AI_CREATIVE_HTML_INPUT_LIMIT_BYTES) {
+      log.warn("content_candidate_html_revision_invalid", {
+        inputHtmlBytes: Buffer.byteLength(revisionSourceHtml),
         reason: "input_size_exceeded"
       });
       throw dashboardErrors.contentCandidateHtmlRevisionInvalid();
@@ -1151,7 +1167,7 @@ export class DashboardQueryService {
       ...currentCopy,
       channel: candidate.channel,
       feedback: request.feedback,
-      html: sourceHtml
+      html: revisionSourceHtml
     };
     let plan;
     try {
@@ -1176,10 +1192,18 @@ export class DashboardQueryService {
     let patchError: unknown;
     if (plan.strategy === "patch") {
       try {
-        const patchedHtml = applyCreativeHtmlReplacementPatch(sourceHtml, plan.replacements);
-        revisedHtml = sanitizeCreativeHtmlRevision({
+        const patchedHtml = applyCreativeHtmlReplacementPatch(
+          revisionSourceHtml,
+          plan.replacements
+        );
+        const sanitizedHtml = sanitizeCreativeHtmlRevision({
           copy: nextCopy,
           revisedHtml: patchedHtml,
+          sourceHtml: revisionSourceHtml
+        });
+        revisedHtml = sanitizeCreativeHtmlRevision({
+          copy: nextCopy,
+          revisedHtml: priceRevision.restore(sanitizedHtml),
           sourceHtml
         });
       } catch (error) {
@@ -1213,9 +1237,14 @@ export class DashboardQueryService {
       };
       changeSummary = fullRevision.change_summary;
       try {
-        revisedHtml = sanitizeCreativeHtmlRevision({
+        const sanitizedHtml = sanitizeCreativeHtmlRevision({
           copy: nextCopy,
           revisedHtml: fullRevision.html,
+          sourceHtml: revisionSourceHtml
+        });
+        revisedHtml = sanitizeCreativeHtmlRevision({
+          copy: nextCopy,
+          revisedHtml: priceRevision.restore(sanitizedHtml),
           sourceHtml
         });
       } catch (error) {
@@ -1267,6 +1296,8 @@ export class DashboardQueryService {
       fallbackReason,
       operationCount: plan.replacements.length,
       outputHtmlBytes: Buffer.byteLength(revisedHtml),
+      priceDisplayMode: priceRevision.priceDisplayMode,
+      protectedOfferCount: priceRevision.protectedOfferCount,
       revisionMode,
       status: saved.status
     });
