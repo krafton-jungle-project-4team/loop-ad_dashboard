@@ -137,3 +137,7 @@ test("high-visibility entry and developer surfaces expose the Make palette", () 
   assert.match(sqlEditorSource, /bg-brand-ink-deep/);
   assert.match(sqlEditorSource, />\s*Explore\s*</);
 });
+
+test("project cards center their content within the reserved card height", () => {
+  assert.equal(projectSelectSource.match(/min-h-40 justify-center/g)?.length, 2);
+});

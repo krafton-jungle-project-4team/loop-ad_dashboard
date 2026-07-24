@@ -104,8 +104,8 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
       params={{ projectId: project.project_id }}
       to="/dashboard/$projectId"
     >
-      <Card className="min-h-40 border-[#d8cfe0] bg-[#fbf9fc] p-0 text-[#2f2635] shadow-none transition-[border-color,transform,box-shadow] group-hover:-translate-y-0.5 group-hover:border-[#a98bb8] group-hover:shadow-[0_12px_30px_rgb(67_46_76_/_0.13)]">
-        <CardContent className="grid h-full grid-cols-[auto_minmax(0,1fr)] items-center gap-4 p-4 text-left">
+      <Card className="min-h-40 justify-center border-[#d8cfe0] bg-[#fbf9fc] p-0 text-[#2f2635] shadow-none transition-[border-color,transform,box-shadow] group-hover:-translate-y-0.5 group-hover:border-[#a98bb8] group-hover:shadow-[0_12px_30px_rgb(67_46_76_/_0.13)]">
+        <CardContent className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 p-4 text-left">
           <Avatar className="size-14 rounded-md" size="lg">
             <AvatarFallback
               className={cn("rounded-md text-xl font-semibold uppercase text-white", accentClass)}
@@ -133,7 +133,7 @@ function ProjectCard({ index, project }: { index: number; project: DashboardProj
 
 function ProjectCardSkeletons() {
   return Array.from({ length: 4 }, (_, index) => (
-    <Card className="min-h-40 border-[#d8cfe0] bg-[#fbf9fc] p-0" key={index}>
+    <Card className="min-h-40 justify-center border-[#d8cfe0] bg-[#fbf9fc] p-0" key={index}>
       <CardContent className="grid grid-cols-[auto_1fr] items-center gap-4 p-4">
         <Skeleton className="size-14 rounded-md bg-[#ded4e5]" />
         <div className="grid gap-3">
