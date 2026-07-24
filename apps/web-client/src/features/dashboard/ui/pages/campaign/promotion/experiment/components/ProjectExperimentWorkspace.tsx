@@ -429,7 +429,7 @@ function ProjectExperimentTable({
               />
             </TableHead>
             <TableHead>고객군</TableHead>
-            <TableHead>목표 / 결과</TableHead>
+            <TableHead>실험결과 / 목표</TableHead>
             <TableHead>판단</TableHead>
             <TableHead>업데이트</TableHead>
             <TableHead className="w-40 pl-7">상세</TableHead>
@@ -479,8 +479,10 @@ function ProjectExperimentTable({
                 <TableCell>{experiment.segment_name}</TableCell>
                 <TableCell className="tabular-nums">
                   <MetricPair
-                    left={formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}
-                    right={formatGoalValue(evaluation?.actual_value ?? null)}
+                    left={formatGoalValue(evaluation?.actual_value ?? null)}
+                    right={formatGoalValue(
+                      evaluation?.target_value ?? experiment.goal_target_value
+                    )}
                   />
                 </TableCell>
                 <TableCell>
@@ -841,10 +843,10 @@ function ExperimentResultSummary({
             <AlertTitle className="text-2xl font-semibold">{resultLabel}</AlertTitle>
             <div className="flex items-baseline gap-2 tabular-nums text-foreground">
               <strong className="text-2xl font-semibold">
-                목표 {formatGoalValue(evaluation.target_value ?? experiment.goal_target_value)}
+                실험결과 {formatGoalValue(evaluation.actual_value)}
               </strong>
               <span className="text-muted-foreground">
-                / 결과 {formatGoalValue(evaluation.actual_value)}
+                / 목표 {formatGoalValue(evaluation.target_value ?? experiment.goal_target_value)}
               </span>
             </div>
           </div>
@@ -986,8 +988,8 @@ function ExperimentRepeatHistory({
         <CardContent>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <DefinitionItem
-              label="목표 / 결과"
-              value={`${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)} / ${formatGoalValue(evaluation?.actual_value ?? null)}`}
+              label="실험결과 / 목표"
+              value={`${formatGoalValue(evaluation?.actual_value ?? null)} / ${formatGoalValue(evaluation?.target_value ?? experiment.goal_target_value)}`}
             />
             <DefinitionItem
               label="평가 대상 / 배정"

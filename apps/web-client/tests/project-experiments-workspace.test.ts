@@ -299,20 +299,20 @@ test("experiment workspace prioritizes the result summary before deeper analysis
   assert.doesNotMatch(workspaceSource, /\uD37C\uB110/);
 });
 
-test("experiment metrics show the target before the result", () => {
+test("experiment metrics show the experiment result before the target", () => {
   assert.match(
     workspaceSource,
-    /left=\{formatGoalValue\(\s*evaluation\?\.target_value \?\? experiment\.goal_target_value\s*\)\}\s*right=\{formatGoalValue\(evaluation\?\.actual_value \?\? null\)\}/
+    /left=\{formatGoalValue\(evaluation\?\.actual_value \?\? null\)\}\s*right=\{formatGoalValue\(\s*evaluation\?\.target_value \?\? experiment\.goal_target_value\s*\)\}/
   );
   assert.match(
     workspaceSource,
-    /목표 \{formatGoalValue\(evaluation\.target_value \?\? experiment\.goal_target_value\)\}[\s\S]*?\/ 결과 \{formatGoalValue\(evaluation\.actual_value\)\}/
+    /실험결과 \{formatGoalValue\(evaluation\.actual_value\)\}[\s\S]*?\/ 목표 \{formatGoalValue\(evaluation\.target_value \?\? experiment\.goal_target_value\)\}/
   );
   assert.match(
     workspaceSource,
-    /label="목표 \/ 결과"\s*value=\{`\$\{formatGoalValue\(evaluation\?\.target_value \?\? experiment\.goal_target_value\)\} \/ \$\{formatGoalValue\(evaluation\?\.actual_value \?\? null\)\}`\}/
+    /label="실험결과 \/ 목표"\s*value=\{`\$\{formatGoalValue\(evaluation\?\.actual_value \?\? null\)\} \/ \$\{formatGoalValue\(evaluation\?\.target_value \?\? experiment\.goal_target_value\)\}`\}/
   );
-  assert.doesNotMatch(workspaceSource, /label="결과 \/ 목표"/);
+  assert.doesNotMatch(workspaceSource, />목표 \/ 결과</);
 });
 
 function createExperiment(
