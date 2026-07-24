@@ -96,6 +96,7 @@ import {
   DashboardUpdateContentCandidateCopyResultSchema,
   getDashboardCreateCampaignRequestSchema,
   DashboardUpdateFunnelRequestSchema,
+  DashboardUpdateProjectRequestSchema,
   DashboardUpdatePromotionRequestSchema,
   DashboardUpdatePromotionSegmentRequestSchema
 } from "@loopad/shared";
@@ -127,6 +128,14 @@ export class DashboardController {
   async createProject(@Body() body: unknown) {
     const request = DashboardCreateProjectRequestSchema.parse(body);
     return DashboardProjectSchema.parse(await this.dashboardQuery.createProject(request));
+  }
+
+  @Patch("projects/:project_id")
+  async updateProject(@Param("project_id") projectId: string, @Body() body: unknown) {
+    const request = DashboardUpdateProjectRequestSchema.parse(body);
+    return DashboardProjectSchema.parse(
+      await this.dashboardQuery.updateProject(projectId, request)
+    );
   }
 
   @Delete("projects/:project_id")

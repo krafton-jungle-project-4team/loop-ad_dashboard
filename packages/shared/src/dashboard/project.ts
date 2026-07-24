@@ -26,6 +26,13 @@ export const DashboardCreateProjectRequestSchema = z.object({
 });
 export type DashboardCreateProjectRequest = z.infer<typeof DashboardCreateProjectRequestSchema>;
 
+export const DashboardUpdateProjectRequestSchema = z
+  .object({
+    project_name: z.string().trim().min(1).max(255)
+  })
+  .strict();
+export type DashboardUpdateProjectRequest = z.infer<typeof DashboardUpdateProjectRequestSchema>;
+
 export const DashboardDeleteProjectResultSchema = z.object({
   project_id: z.string(),
   status: z.literal("archived")

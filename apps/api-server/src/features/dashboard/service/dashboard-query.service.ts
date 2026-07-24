@@ -77,6 +77,7 @@ import type {
   DashboardUpdateContentCandidateCopyRequest,
   DashboardUpdateContentCandidateCopyResult,
   DashboardUpdateFunnelRequest,
+  DashboardUpdateProjectRequest,
   DashboardUpdatePromotionRequest,
   DashboardUpdatePromotionSegmentRequest
 } from "@loopad/shared";
@@ -187,6 +188,21 @@ export class DashboardQueryService {
     log.info("started", { request });
     const response = await this.campaignReader.createProject(request);
     log.assignContext({ projectId: response.project_id });
+
+    log.info("completed", { response, durationMs: durationMs(startedAt) });
+    return response;
+  }
+
+  @LogContextScope()
+  @Transactional()
+  async updateProject(
+    projectId: string,
+    request: DashboardUpdateProjectRequest
+  ): Promise<DashboardProject> {
+    const startedAt = Date.now();
+    log.assignContext({ projectId });
+    log.info("started", { projectId, request });
+    const response = await this.campaignReader.updateProject(projectId, request);
 
     log.info("completed", { response, durationMs: durationMs(startedAt) });
     return response;

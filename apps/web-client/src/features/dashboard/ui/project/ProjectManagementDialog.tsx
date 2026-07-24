@@ -25,8 +25,8 @@ import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { Input } from "@loopad/ui/shadcn/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2 } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   createDashboardProject,
   deleteDashboardProject,
@@ -41,6 +41,7 @@ import {
   markProjectTutorialPending
 } from "../../model/project-setup-progress.js";
 import { useBeforeUnloadWarning } from "../shared/use-before-unload-warning.js";
+import { ProjectNameEditDialog } from "./ProjectNameEditDialog.js";
 
 type ProjectFormState = {
   domain: string;
@@ -61,7 +62,9 @@ export function ProjectManagementDialog({
 }) {
   const [form, setForm] = useState<ProjectFormState>(emptyProjectForm);
   const [open, setOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<DashboardProject | null>(null);
   const [pendingDeleteProjectId, setPendingDeleteProjectId] = useState<string | null>(null);
+  const editTriggerRef = useRef<HTMLButtonElement | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const projectsQuery = useQuery({
@@ -126,11 +129,21 @@ export function ProjectManagementDialog({
     setPendingDeleteProjectId(project.project_id);
   }
 
+  function requestProjectEdit(project: DashboardProject) {
+    setEditingProject(project);
+  }
+
+  function closeProjectEdit() {
+    setEditingProject(null);
+    requestAnimationFrame(() => editTriggerRef.current?.focus());
+  }
+
   return (
     <Dialog
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
         if (!nextOpen) {
+          setEditingProject(null);
           setPendingDeleteProjectId(null);
         }
       }}
@@ -140,7 +153,7 @@ export function ProjectManagementDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>프로젝트 관리</DialogTitle>
-          <DialogDescription>프로젝트를 만들거나 삭제할 수 있어요.</DialogDescription>
+          <DialogDescription>프로젝트를 만들고, 수정하거나 삭제할 수 있어요.</DialogDescription>
         </DialogHeader>
 
         <form
@@ -239,16 +252,31 @@ export function ProjectManagementDialog({
                         </div>
                         <p className="truncate text-xs text-muted-foreground">{project.domain}</p>
                       </div>
-                      <Button
-                        aria-label={`${project.project_name} 프로젝트 삭제`}
-                        disabled={isDeleting}
-                        onClick={() => requestProjectDelete(project)}
-                        size="icon-sm"
-                        type="button"
-                        variant="destructive"
-                      >
-                        <Trash2 />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          aria-label={`${project.project_name} 프로젝트 이름 수정`}
+                          disabled={deleteProjectMutation.isPending}
+                          onClick={(event) => {
+                            editTriggerRef.current = event.currentTarget;
+                            requestProjectEdit(project);
+                          }}
+                          size="icon-sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Pencil data-icon="inline-start" />
+                        </Button>
+                        <Button
+                          aria-label={`${project.project_name} 프로젝트 삭제`}
+                          disabled={isDeleting}
+                          onClick={() => requestProjectDelete(project)}
+                          size="icon-sm"
+                          type="button"
+                          variant="destructive"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -309,6 +337,10 @@ export function ProjectManagementDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {editingProject ? (
+        <ProjectNameEditDialog onClose={closeProjectEdit} project={editingProject} />
+      ) : null}
     </Dialog>
   );
 }
