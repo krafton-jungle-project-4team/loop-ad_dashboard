@@ -1931,6 +1931,77 @@ test("dashboard promotion generation reuses a completed result with candidates",
   assert.deepEqual(response, existingGeneration);
 });
 
+test("dashboard promotion regeneration bypasses a completed result with candidates", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  let existingGenerationRead = false;
+  const decisionRequests: unknown[] = [];
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      ensurePromotionTargetSegmentApproved: async () => undefined,
+      getPromotionGenerationResult: async () => {
+        existingGenerationRead = true;
+        return {
+          content_candidate_count: 3,
+          generation_id: "generation_completed",
+          promotion_id: "promo_banner_001",
+          status: "completed"
+        };
+      },
+      getPromotionSummary: async () =>
+        ({
+          campaign_id: "camp_summer_2026",
+          channel: "onsite_banner"
+        }) as never
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    emptySegmentQueryRepository(),
+    {
+      startPromotionGeneration: async (request) => {
+        decisionRequests.push(request);
+        return {
+          content_candidate_count: 3,
+          generation_id: "generation_regenerated",
+          promotion_id: request.promotionId,
+          status: "queued"
+        };
+      }
+    } as unknown as DashboardDecisionClient
+  );
+
+  const response = await service.startPromotionGeneration(
+    "hotel-client-a",
+    "promo_banner_001",
+    {
+      analysis_id: "analysis_promo_banner_001",
+      segment_id: "segment_banner_001",
+      content_option_count: 3,
+      operator_instruction: null,
+      regenerate: true
+    },
+    "dashboard-generation:regenerate-1"
+  );
+
+  assert.equal(existingGenerationRead, false);
+  assert.equal(response.generation_id, "generation_regenerated");
+  assert.equal(decisionRequests.length, 1);
+  assert.deepEqual(decisionRequests[0], {
+    campaignId: "camp_summer_2026",
+    idempotencyKey: "dashboard-generation:regenerate-1",
+    projectId: "hotel-client-a",
+    promotionId: "promo_banner_001",
+    request: {
+      analysis_id: "analysis_promo_banner_001",
+      segment_id: "segment_banner_001",
+      content_option_count: 3,
+      operator_instruction: null,
+      regenerate: true
+    }
+  });
+});
+
 test("dashboard promotion run evaluation prepares legacy data before Decision", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =

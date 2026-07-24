@@ -50,6 +50,7 @@ export const DashboardStartPromotionGenerationRequestSchema = z
     segment_id: z.string().min(1).optional(),
     content_option_count: z.number().int().min(1).max(10).optional(),
     operator_instruction: z.string().nullable().optional(),
+    regenerate: z.boolean().optional(),
     offer_set_id: z.literal(OFFER_SETS.lastcall.offer_set_id).optional(),
     expected_catalog_id: z.literal(OFFER_SETS.lastcall.expected_catalog_id).optional(),
     expected_catalog_version: z.literal(OFFER_SETS.lastcall.expected_catalog_version).optional()

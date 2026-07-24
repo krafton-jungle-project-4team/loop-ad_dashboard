@@ -646,7 +646,8 @@ export class DashboardQueryService {
       );
     }
     log.info("promotion_loaded", { promotion });
-    const existingGeneration = isOfferSetGeneration
+    const shouldBypassGenerationReuse = isOfferSetGeneration || request.regenerate === true;
+    const existingGeneration = shouldBypassGenerationReuse
       ? undefined
       : await this.campaignReader.getPromotionGenerationResult(
           projectId,
@@ -654,11 +655,12 @@ export class DashboardQueryService {
           request.analysis_id,
           request.segment_id
         );
-    if (isOfferSetGeneration) {
+    if (shouldBypassGenerationReuse) {
       log.info("promotion_generation_reuse_bypassed", {
         expectedCatalogId: request.expected_catalog_id,
         expectedCatalogVersion: request.expected_catalog_version,
-        offerSetId: request.offer_set_id
+        offerSetId: request.offer_set_id,
+        reason: request.regenerate === true ? "explicit_regeneration" : "offer_set"
       });
     }
 
