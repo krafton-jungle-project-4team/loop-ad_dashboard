@@ -46,6 +46,8 @@ import { entitySearchResultToDashboardPatch } from "../model/entity-search-navig
 import type { DashboardQuery, DashboardTab } from "../model/dashboard-types.js";
 import {
   createSegmentAssistantSession,
+  persistSegmentAssistantSessionTargets,
+  readSegmentAssistantSessionTargets,
   selectSegmentAssistantSource,
   segmentAssistantSessionKey,
   updateSegmentAssistantSessionStore,
@@ -81,7 +83,9 @@ export function DashboardShell({
   const { handleResizeStart, resetWidth, sidebarWidth } = useResizableSidebarWidth();
   const { isDashboardUnlocked, isLoading, isTabAllowed, stage } = useProjectOnboarding();
   const [isAssistantPanelOpen, setIsAssistantPanelOpen] = useState(false);
-  const [assistantSessions, setAssistantSessions] = useState<SegmentAssistantSessionStore>({});
+  const [assistantSessions, setAssistantSessions] = useState<SegmentAssistantSessionStore>(
+    readSegmentAssistantSessionTargets
+  );
   const [headerSlotElement, setHeaderSlotElement] = useState<HTMLDivElement | null>(null);
   const [dashboardQuery] = useDashboardQueryState();
   const isCompactViewport = useCompactViewport();
@@ -118,6 +122,10 @@ export function DashboardShell({
   );
 
   useEffect(() => {
+    persistSegmentAssistantSessionTargets(assistantSessions);
+  }, [assistantSessions]);
+
+  useEffect(() => {
     if (!isAssistantAvailable) {
       setIsAssistantPanelOpen(false);
     }
@@ -136,9 +144,34 @@ export function DashboardShell({
     },
     [assistantSessionKey]
   );
+  const recordCreatedSegmentConfirmation = useCallback(
+    (segmentId: string, analysisId: string) => {
+      if (!assistantSessionKey) {
+        return;
+      }
+      setAssistantSessions((current) =>
+        updateSegmentAssistantSessionStore(current, assistantSessionKey, (session) =>
+          session.createdSegmentId === segmentId
+            ? { ...session, createdSegmentAnalysisId: analysisId }
+            : session
+        )
+      );
+    },
+    [assistantSessionKey]
+  );
   const assistantContextValue = useMemo<DashboardAssistantContextValue>(
-    () => ({ openSegmentCandidateAssistant }),
-    [openSegmentCandidateAssistant]
+    () => ({
+      createdSegmentAnalysisId: assistantSession.createdSegmentAnalysisId,
+      createdSegmentId: assistantSession.createdSegmentId,
+      openSegmentCandidateAssistant,
+      recordCreatedSegmentConfirmation
+    }),
+    [
+      assistantSession.createdSegmentAnalysisId,
+      assistantSession.createdSegmentId,
+      openSegmentCandidateAssistant,
+      recordCreatedSegmentConfirmation
+    ]
   );
 
   const dashboardContent = (

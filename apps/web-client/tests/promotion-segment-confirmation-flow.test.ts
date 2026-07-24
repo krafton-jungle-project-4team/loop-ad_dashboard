@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type {
+  DashboardConfirmSegmentSuggestionsResult,
   DashboardPromotionScopedSegmentDefinition,
   DashboardPromotionSegmentSuggestion
 } from "@loopad/shared";
 import {
   createSegmentAssistantSession,
   INITIAL_SEGMENT_ASSISTANT_MESSAGE,
+  persistSegmentAssistantSessionTargets,
+  readSegmentAssistantSessionTargets,
   selectSegmentAssistantSource,
   segmentAssistantFailureMessage,
   segmentAssistantResponseMessage,
@@ -14,7 +17,10 @@ import {
   updateSegmentAssistantSessionStore
 } from "../src/features/dashboard/model/segment-candidate-assistant.js";
 import { selectedSegmentSummaries } from "../src/features/dashboard/model/segment-selection-summary.js";
-import { promotionSegmentConfirmationRequest } from "../src/features/dashboard/ui/pages/campaign/promotion/promotionSegmentConfirmationFlow.js";
+import {
+  confirmedCreatedSegmentTarget,
+  promotionSegmentConfirmationRequest
+} from "../src/features/dashboard/ui/pages/campaign/promotion/promotionSegmentConfirmationFlow.js";
 
 test("confirmation sends only accepted suggestions from the selected analysis", () => {
   const request = promotionSegmentConfirmationRequest(
@@ -73,6 +79,19 @@ test("confirmation includes directly created segments with accepted AI suggestio
   });
 });
 
+test("confirmation result keeps the created segment tied to its returned analysis", () => {
+  const result = {
+    analysis_id: "analysis-confirmed",
+    target_segments: [{ segment_id: "segment-ai" }, { segment_id: "segment-created" }]
+  } as DashboardConfirmSegmentSuggestionsResult;
+
+  assert.equal(
+    confirmedCreatedSegmentTarget(result, ["segment-created"], "segment-created")?.segment_id,
+    "segment-created"
+  );
+  assert.equal(confirmedCreatedSegmentTarget(result, [], "segment-created"), null);
+});
+
 test("segment assistant introduces both data lookup and segment creation", () => {
   assert.equal(
     INITIAL_SEGMENT_ASSISTANT_MESSAGE,
@@ -107,6 +126,45 @@ test("segment assistant preserves an independent session for each promotion", ()
   assert.deepEqual(createSegmentAssistantSession().messages, [
     { id: 0, role: "assistant", text: INITIAL_SEGMENT_ASSISTANT_MESSAGE }
   ]);
+});
+
+test("segment assistant session preserves the created segment through confirmation", () => {
+  const key = segmentAssistantSessionKey("demo_project", "promotion-1");
+  let store = updateSegmentAssistantSessionStore({}, key, (session) => ({
+    ...session,
+    createdSegmentId: "segment-created"
+  }));
+  store = updateSegmentAssistantSessionStore(store, key, (session) =>
+    session.createdSegmentId === "segment-created"
+      ? { ...session, createdSegmentAnalysisId: "analysis-confirmed" }
+      : session
+  );
+
+  assert.equal(store[key]?.createdSegmentId, "segment-created");
+  assert.equal(store[key]?.createdSegmentAnalysisId, "analysis-confirmed");
+});
+
+test("segment assistant generation target survives a dashboard remount", () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    }
+  };
+  const key = segmentAssistantSessionKey("project-1", "promotion-1");
+  const store = updateSegmentAssistantSessionStore({}, key, (session) => ({
+    ...session,
+    createdSegmentAnalysisId: "analysis-confirmed",
+    createdSegmentId: "segment-created"
+  }));
+
+  persistSegmentAssistantSessionTargets(store, storage);
+  const restored = readSegmentAssistantSessionTargets(storage);
+
+  assert.equal(restored[key]?.createdSegmentId, "segment-created");
+  assert.equal(restored[key]?.createdSegmentAnalysisId, "analysis-confirmed");
+  assert.deepEqual(restored[key]?.messages, createSegmentAssistantSession().messages);
 });
 
 test("segment assistant stores a query result with the assistant message", () => {

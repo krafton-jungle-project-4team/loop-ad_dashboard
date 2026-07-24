@@ -137,7 +137,8 @@ export function analyzeDashboardPromotionSegments(
 export function startDashboardPromotionGeneration(
   query: DashboardQuery,
   promotionId: string,
-  requestBody: DashboardStartPromotionGenerationRequest
+  requestBody: DashboardStartPromotionGenerationRequest,
+  idempotencyKey: string
 ): Promise<DashboardStartPromotionGenerationResult> {
   return apiRequest(
     `${PROMOTIONS_PATH}/${encodeURIComponent(promotionId)}/generation`,
@@ -145,6 +146,7 @@ export function startDashboardPromotionGeneration(
     {
       body: DashboardStartPromotionGenerationRequestSchema.parse(requestBody),
       errorMessage: readDashboardApiErrorMessage,
+      headers: { "Idempotency-Key": idempotencyKey },
       method: "POST",
       searchParams: projectSearchParams(query.projectId)
     }

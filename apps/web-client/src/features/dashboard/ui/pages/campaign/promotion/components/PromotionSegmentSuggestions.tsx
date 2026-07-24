@@ -44,7 +44,7 @@ import {
 import { Field, FieldLabel } from "@loopad/ui/shadcn/field";
 import { cn } from "@loopad/ui/shadcn/utils";
 import { BarChart3, Bot, CheckCircle2, FileText, Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDashboardAssistant } from "../../../../../layout/DashboardAssistantContext.js";
 import { formatInteger } from "../../../../../model/dashboard-format.js";
 import { formatStatusLabel } from "../../../../../model/dashboard-labels.js";
@@ -112,12 +112,27 @@ export function PromotionSegmentSuggestionPanel({
   suggestions: DashboardPromotionSegmentSuggestion[];
   suggestionsIsLoading: boolean;
 }) {
-  const { openSegmentCandidateAssistant } = useDashboardAssistant();
+  const { createdSegmentAnalysisId, createdSegmentId, openSegmentCandidateAssistant } =
+    useDashboardAssistant();
   const [confirmErrorMessage, setConfirmErrorMessage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SegmentCandidateDeleteTarget | null>(null);
   const [selectedScopedSegmentIds, setSelectedScopedSegmentIds] = useState<string[]>([]);
   const [reportSuggestion, setReportSuggestion] =
     useState<DashboardPromotionSegmentSuggestion | null>(null);
+
+  useEffect(() => {
+    if (
+      createdSegmentAnalysisId ||
+      !createdSegmentId ||
+      !scopedSegments.some((segment) => segment.segment_id === createdSegmentId)
+    ) {
+      return;
+    }
+    setSelectedScopedSegmentIds((current) =>
+      current.length === 1 && current[0] === createdSegmentId ? current : [createdSegmentId]
+    );
+  }, [createdSegmentAnalysisId, createdSegmentId, scopedSegments]);
+
   const visibleSuggestions = suggestions.filter(
     (suggestion) =>
       suggestion.suggestion_status === "suggested" || suggestion.suggestion_status === "accepted"

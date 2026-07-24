@@ -15,6 +15,8 @@ export type SegmentAssistantMessage = {
 };
 
 export type SegmentAssistantSession = {
+  createdSegmentAnalysisId: string | null;
+  createdSegmentId: string | null;
   draft: string;
   isLoading: boolean;
   isSourceContextLoading: boolean;
@@ -31,9 +33,14 @@ export type SegmentAssistantSessionStore = Record<string, SegmentAssistantSessio
 export type SegmentAssistantSessionUpdater = (
   current: SegmentAssistantSession
 ) => SegmentAssistantSession;
+type SegmentAssistantTargetStorage = Pick<Storage, "getItem" | "setItem">;
+
+const SEGMENT_ASSISTANT_TARGETS_STORAGE_KEY = "loopad.dashboard.segmentAssistantTargets.v1";
 
 export function createSegmentAssistantSession(): SegmentAssistantSession {
   return {
+    createdSegmentAnalysisId: null,
+    createdSegmentId: null,
     draft: "",
     isLoading: false,
     isSourceContextLoading: false,
@@ -97,6 +104,96 @@ export function updateSegmentAssistantSessionStore(
     ...store,
     [key]: updater(store[key] ?? createSegmentAssistantSession())
   };
+}
+
+export function readSegmentAssistantSessionTargets(
+  storage?: SegmentAssistantTargetStorage | null
+): SegmentAssistantSessionStore {
+  const resolvedStorage = resolveTargetStorage(storage);
+  if (!resolvedStorage) {
+    return {};
+  }
+
+  try {
+    const raw = resolvedStorage.getItem(SEGMENT_ASSISTANT_TARGETS_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(value).flatMap(([key, target]) => {
+        const parsedTarget = parseSegmentAssistantTarget(target);
+        return parsedTarget ? [[key, { ...createSegmentAssistantSession(), ...parsedTarget }]] : [];
+      })
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function persistSegmentAssistantSessionTargets(
+  store: SegmentAssistantSessionStore,
+  storage?: SegmentAssistantTargetStorage | null
+) {
+  const resolvedStorage = resolveTargetStorage(storage);
+  if (!resolvedStorage) {
+    return;
+  }
+
+  const targets = Object.fromEntries(
+    Object.entries(store).flatMap(([key, session]) =>
+      session.createdSegmentId
+        ? [
+            [
+              key,
+              {
+                createdSegmentAnalysisId: session.createdSegmentAnalysisId,
+                createdSegmentId: session.createdSegmentId
+              }
+            ]
+          ]
+        : []
+    )
+  );
+
+  try {
+    resolvedStorage.setItem(SEGMENT_ASSISTANT_TARGETS_STORAGE_KEY, JSON.stringify(targets));
+  } catch {
+    // Browser storage can be unavailable or full. The in-memory session still remains usable.
+  }
+}
+
+function parseSegmentAssistantTarget(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const target = value as Record<string, unknown>;
+  const createdSegmentId = target.createdSegmentId;
+  const createdSegmentAnalysisId = target.createdSegmentAnalysisId;
+  if (typeof createdSegmentId !== "string" || createdSegmentId.length === 0) {
+    return null;
+  }
+  if (createdSegmentAnalysisId !== null && typeof createdSegmentAnalysisId !== "string") {
+    return null;
+  }
+  return { createdSegmentAnalysisId, createdSegmentId };
+}
+
+function resolveTargetStorage(
+  storage: SegmentAssistantTargetStorage | null | undefined
+): SegmentAssistantTargetStorage | null {
+  if (storage !== undefined) {
+    return storage;
+  }
+  try {
+    return typeof globalThis.localStorage === "undefined" ? null : globalThis.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 export function segmentAssistantFailureMessage(_error: unknown) {

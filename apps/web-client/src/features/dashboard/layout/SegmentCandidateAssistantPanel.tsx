@@ -181,6 +181,8 @@ export function SegmentCandidateAssistantPanel({
       });
       updateSession((current) => ({
         ...current,
+        createdSegmentAnalysisId: null,
+        createdSegmentId: segment.segment_id,
         isSaved: true,
         isSaving: false,
         messages: [
