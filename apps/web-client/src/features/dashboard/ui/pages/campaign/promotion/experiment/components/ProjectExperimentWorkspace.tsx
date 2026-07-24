@@ -676,7 +676,7 @@ function SelectedProjectExperimentDetail({
           </TabsList>
           <TabsContent className="grid gap-4 pt-4" value="summary">
             <ExperimentResultSummary evaluation={evaluation} experiment={experiment} />
-            <AudienceIntentAnalysisSection evaluation={evaluation} />
+            <EvaluationCauseAnalysisSection evaluation={evaluation} />
             <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
               <EvaluationSummarySection evaluation={evaluation} />
               <NextExperimentPanel
@@ -706,11 +706,108 @@ function SelectedProjectExperimentDetail({
   );
 }
 
-function AudienceIntentAnalysisSection({
+function EvaluationCauseAnalysisSection({
   evaluation
 }: {
   evaluation: DashboardProjectExperimentLatestEvaluation | null;
 }) {
+  const priceAnalysis = evaluation?.diagnosis?.price_abandonment_analysis;
+  if (priceAnalysis) {
+    const price = priceAnalysis.price_abandonment;
+    return (
+      <section
+        aria-labelledby="price-abandonment-analysis-title"
+        className="grid gap-5 border-y bg-muted/20 px-1 py-5 sm:px-4"
+      >
+        <header className="grid gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Sparkles aria-hidden="true" className="size-4 text-primary" />
+            <span className="text-sm font-semibold text-primary">AI 원인 분석</span>
+            <Badge variant="outline">관측 기반 가설</Badge>
+          </div>
+          <h3 className="text-lg font-semibold" id="price-abandonment-analysis-title">
+            {priceAnalysis.title}
+          </h3>
+          <div className="grid max-w-5xl gap-2 text-sm leading-6 text-foreground">
+            {priceAnalysis.paragraphs.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+        </header>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid content-start gap-2 border-l-2 border-primary/50 pl-3">
+            <h4 className="text-sm font-semibold">
+              1박 가격 {formatMoney(price.nightly_price_threshold)}원 초과
+            </h4>
+            <dl className="grid gap-1 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">예약 시작 고객</dt>
+                <dd className="font-semibold tabular-nums">
+                  {formatInteger(price.booking_start_user_count)}명
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">예약 미완료 고객</dt>
+                <dd className="font-semibold tabular-nums">
+                  {formatInteger(price.booking_abandon_user_count)}명
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">예약 완료 고객</dt>
+                <dd className="font-semibold tabular-nums">
+                  {formatInteger(price.booking_complete_user_count)}명
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="grid content-start gap-2 border-l-2 border-border pl-3">
+            <h4 className="text-sm font-semibold">관측된 1박 가격</h4>
+            {price.booking_abandon_median_nightly_price !== null &&
+            price.booking_complete_median_nightly_price !== null ? (
+              <dl className="grid gap-1 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">예약 미완료 고객 중앙값</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {formatMoney(price.booking_abandon_median_nightly_price)}원
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">예약 완료 고객 중앙값</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {formatMoney(price.booking_complete_median_nightly_price)}원
+                  </dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="text-sm leading-6 text-muted-foreground">
+                비교할 수 있는 1박 가격 표본이 아직 충분하지 않습니다.
+              </p>
+            )}
+          </div>
+
+          <div className="grid content-start gap-3 border-l-2 border-primary/50 pl-3">
+            <div className="flex items-center gap-2">
+              <Lightbulb aria-hidden="true" className="size-4 text-primary" />
+              <h4 className="text-sm font-semibold">다음 세그먼트 가설</h4>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {priceAnalysis.next_segment_hypothesis.condition_labels.map((label) => (
+                <Badge key={label} variant="outline">
+                  {label}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {priceAnalysis.next_segment_hypothesis.validation_note}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   const analysis = evaluation?.diagnosis?.audience_intent_analysis;
   if (!analysis) {
     return null;

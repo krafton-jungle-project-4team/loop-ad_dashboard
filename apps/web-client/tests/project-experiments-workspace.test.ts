@@ -289,7 +289,10 @@ test("experiment workspace prioritizes the result summary before deeper analysis
   assert.match(workspaceSource, /<TabsTrigger value="funnel">사용자 경로 분석<\/TabsTrigger>/);
   assert.match(workspaceSource, /<TabsTrigger value="history">반복 이력<\/TabsTrigger>/);
   assert.match(workspaceSource, /NextExperimentPanel/);
-  assert.match(workspaceSource, /AudienceIntentAnalysisSection/);
+  assert.match(workspaceSource, /EvaluationCauseAnalysisSection/);
+  assert.match(workspaceSource, /price_abandonment_analysis/);
+  assert.match(workspaceSource, /1박 가격/);
+  assert.match(workspaceSource, /예약 미완료 고객 중앙값/);
   assert.match(workspaceSource, /AI 원인 분석/);
   assert.match(workspaceSource, /관측 기반 가설/);
   assert.match(workspaceSource, /다음 세그먼트 가설/);

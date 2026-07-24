@@ -110,6 +110,73 @@ test("segment assistant keeps age, repeated destination detail, and booking aban
   );
 });
 
+test("segment assistant binds the high-price abandonment query to selected promotion offers", async () => {
+  setRequiredEnv();
+  const { fallbackSegmentAssistantPlan } =
+    await import("../src/features/dashboard/provider/dashboard-segment-assistant-agent.js");
+
+  const plan = fallbackSegmentAssistantPlan(
+    "최근 7일 동안 20·30대 중 제주 또는 오키나와 프로모션 숙소의 1박 가격이 20만 원을 초과했고, 예약시작했지만 예약하지 않은 고객은 몇 명이야?",
+    [],
+    undefined,
+    undefined,
+    ["okinawa-chatan-sunset-018", "jeju-aewol-sunset-007"]
+  );
+
+  assert.equal(plan.action, "audience_query");
+  assert.equal(plan.lookback_days, 7);
+  assert.deepEqual(plan.conditions, [
+    {
+      label: "제주·오키나와 프로모션 숙소 1박 가격 20만 원 초과 예약 시작",
+      event_name: "booking_start",
+      minimum_count: 1,
+      maximum_count: null,
+      destination: "제주, 오키나와",
+      checkin_months: [],
+      property_filters: [
+        {
+          key: "hotel_id",
+          operator: "in",
+          value: "jeju-aewol-sunset-007,okinawa-chatan-sunset-018"
+        },
+        { key: "price", operator: "gte", value: "200001" }
+      ]
+    },
+    {
+      label: "제주·오키나와 프로모션 숙소 예약 완료 없음",
+      event_name: "booking_complete",
+      minimum_count: 0,
+      maximum_count: 0,
+      destination: "제주, 오키나와",
+      checkin_months: [],
+      property_filters: [
+        {
+          key: "hotel_id",
+          operator: "in",
+          value: "jeju-aewol-sunset-007,okinawa-chatan-sunset-018"
+        }
+      ]
+    },
+    {
+      label: "20~30대",
+      event_name: "page_view",
+      minimum_count: 1,
+      maximum_count: null,
+      destination: null,
+      checkin_months: [],
+      property_filters: [{ key: "age_group", operator: "in", value: "20대,30대" }]
+    }
+  ]);
+
+  const { buildCustomStructuredAudienceRule } =
+    await import("../src/features/dashboard/segment-audience-v2-contract.js");
+  const rule = buildCustomStructuredAudienceRule({ assistant_plan: plan });
+  assert.equal(rule.segment_audience_spec.template_version, 1);
+  assert.equal(rule.segment_audience_spec.observation_window_days, 7);
+  assert.equal(rule.segment_audience_spec.parameters.lookback_days, 7);
+  assert.deepEqual(rule.segment_audience_spec.parameters.conditions, plan.conditions);
+});
+
 test("segment assistant asks for clarification when no supported condition can be inferred", async () => {
   setRequiredEnv();
   const { fallbackSegmentAssistantPlan } =
@@ -548,8 +615,8 @@ test("booking completion replacement preserves unchanged source conditions in fa
     ]),
     [
       ["booking_start", 1, null],
-      ["hotel_detail_view", 1, null],
-      ["booking_complete", 1, null]
+      ["booking_complete", 1, null],
+      ["hotel_detail_view", 1, null]
     ]
   );
 });

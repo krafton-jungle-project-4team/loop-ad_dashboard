@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   SegmentAssistantExecutionStateSchema,
   SegmentAssistantPlanSchema,
@@ -6,11 +7,8 @@ import {
   usesSourceAudienceMembership
 } from "./segment-assistant.types.js";
 
-const CUSTOM_STRUCTURED_TEMPLATE_HASH =
-  "165d6dbaf584f1042941cce1ad218f216d8d086f8a8990ab918a2a4feb024d39";
-const CUSTOM_SOURCE_REFINEMENT_TEMPLATE_HASH =
-  "f7268670dd9a6446f1250860cb535d3ce4da06b0759575361344db3fa459bad5";
-const CUSTOM_STRUCTURED_WINDOW_DAYS = 30;
+const CUSTOM_STRUCTURED_MIN_WINDOW_DAYS = 1;
+const CUSTOM_STRUCTURED_MAX_WINDOW_DAYS = 365;
 
 const EVENT_QUERY_SIGNALS: Partial<
   Record<SegmentAssistantPlan["conditions"][number]["event_name"], string>
@@ -33,10 +31,6 @@ export function buildCustomStructuredAudienceRule(queryParamsJson: unknown) {
   if (plan.action === "clarification" || (plan.conditions.length === 0 && !usesSourceMembership)) {
     throw new Error("Saved custom segments require executable structured conditions.");
   }
-  if (plan.lookback_days !== CUSTOM_STRUCTURED_WINDOW_DAYS) {
-    throw new Error("Saved custom segments require the active 30-day behavior window.");
-  }
-
   const conditionKeys = usesSourceMembership
     ? [
         "source_audience_membership",
@@ -49,9 +43,10 @@ export function buildCustomStructuredAudienceRule(queryParamsJson: unknown) {
       schema_version: "hotel_behavior.v2",
       template_id: "custom_structured_condition",
       template_version: usesSourceMembership ? 2 : 1,
-      template_semantic_hash: usesSourceMembership
-        ? CUSTOM_SOURCE_REFINEMENT_TEMPLATE_HASH
-        : CUSTOM_STRUCTURED_TEMPLATE_HASH,
+      template_semantic_hash: customStructuredTemplateHash(
+        usesSourceMembership ? 2 : 1,
+        plan.lookback_days
+      ),
       candidate_type: "custom_structured",
       condition_keys: conditionKeys,
       query_signal_keys: customQuerySignalKeys(plan),
@@ -70,9 +65,41 @@ export function buildCustomStructuredAudienceRule(queryParamsJson: unknown) {
       semantic_anchor_policy_id: usesSourceMembership
         ? "source_membership_with_optional_structured_conditions.v1"
         : "structured_conditions_no_anchor.v1",
-      observation_window_days: CUSTOM_STRUCTURED_WINDOW_DAYS
+      observation_window_days: plan.lookback_days
     }
   };
+}
+
+function customStructuredTemplateHash(templateVersion: 1 | 2, windowDays: number) {
+  if (
+    !Number.isInteger(windowDays) ||
+    windowDays < CUSTOM_STRUCTURED_MIN_WINDOW_DAYS ||
+    windowDays > CUSTOM_STRUCTURED_MAX_WINDOW_DAYS
+  ) {
+    throw new Error("Custom structured window must be between 1 and 365 days.");
+  }
+  const semantics =
+    templateVersion === 1
+      ? {
+          candidate_type: "custom_structured",
+          conditions: "allowlisted_event_property_count_conjunction",
+          schema_version: "hotel_behavior.v2",
+          selection: "exact_predicate_membership_vector_tiebreak_only",
+          template_id: "custom_structured_condition",
+          template_version: 1,
+          window_days: windowDays
+        }
+      : {
+          base_membership: "canonical_source_suggestion_user_ids",
+          candidate_type: "custom_structured",
+          conditions: "optional_allowlisted_event_property_count_conjunction",
+          schema_version: "hotel_behavior.v2",
+          selection: "source_membership_with_optional_exact_predicate_membership",
+          template_id: "custom_structured_condition",
+          template_version: 2,
+          window_days: windowDays
+        };
+  return createHash("sha256").update(JSON.stringify(semantics), "utf8").digest("hex");
 }
 
 function parseSavedAssistantState(queryParamsJson: unknown): SegmentAssistantExecutionState {

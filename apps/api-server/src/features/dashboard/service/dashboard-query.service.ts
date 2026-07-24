@@ -1916,7 +1916,7 @@ export class DashboardQueryService {
       hasSourceSuggestion: Boolean(request.source_suggestion),
       messageLength: request.message.length
     });
-    await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
 
     const source = request.source_suggestion
       ? await this.resolveSegmentAssistantSource(
@@ -2008,6 +2008,9 @@ export class DashboardQueryService {
         currentPlan: editableCurrentPlan,
         editingSourceBase,
         message: request.message,
+        promotionOfferIds: (promotion.offer_links ?? []).flatMap((offer) =>
+          offer.offer_id ? [offer.offer_id] : []
+        ),
         sourceAudience: source
       });
       if (source && plan.action !== "clarification") {
@@ -2225,12 +2228,27 @@ function editedSourceReferenceLabels(
       return [label];
     }
 
-    representedEvents.add("booking_start");
-    representedEvents.add("booking_complete");
-    if (hasBookingComplete) return ["예약 완료"];
-    if (hasBookingStart && hasNoBookingComplete) return ["예약 시작 후 미완료"];
-    if (hasNoBookingComplete) return ["예약 미완료"];
-    if (hasBookingStart) return ["예약 시작"];
+    if (hasBookingComplete) {
+      representedEvents.add("booking_complete");
+      if (hasBookingStart) {
+        representedEvents.add("booking_start");
+        return ["예약 시작", "예약 완료"];
+      }
+      return ["예약 완료"];
+    }
+    if (hasBookingStart && hasNoBookingComplete) {
+      representedEvents.add("booking_start");
+      representedEvents.add("booking_complete");
+      return ["예약 시작 후 미완료"];
+    }
+    if (hasNoBookingComplete) {
+      representedEvents.add("booking_complete");
+      return ["예약 미완료"];
+    }
+    if (hasBookingStart) {
+      representedEvents.add("booking_start");
+      return ["예약 시작"];
+    }
     return [];
   });
 

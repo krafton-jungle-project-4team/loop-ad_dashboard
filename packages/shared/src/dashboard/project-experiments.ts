@@ -62,6 +62,29 @@ export const DashboardAudienceIntentAnalysisSchema = z.object({
 });
 export type DashboardAudienceIntentAnalysis = z.infer<typeof DashboardAudienceIntentAnalysisSchema>;
 
+export const DashboardPriceAbandonmentAnalysisSchema = z.object({
+  version: z.string().min(1),
+  title: z.string().min(1),
+  paragraphs: z.array(z.string().min(1)).min(1),
+  price_abandonment: z.object({
+    currency: z.string().min(1),
+    nightly_price_threshold: JsonNumericSchema,
+    booking_start_user_count: CountSchema,
+    booking_abandon_user_count: CountSchema,
+    booking_complete_user_count: CountSchema,
+    booking_abandon_median_nightly_price: JsonNumericSchema.nullable(),
+    booking_complete_median_nightly_price: JsonNumericSchema.nullable()
+  }),
+  next_segment_hypothesis: z.object({
+    lookback_days: CountSchema,
+    condition_labels: z.array(z.string().min(1)).min(1),
+    validation_note: z.string().min(1)
+  })
+});
+export type DashboardPriceAbandonmentAnalysis = z.infer<
+  typeof DashboardPriceAbandonmentAnalysisSchema
+>;
+
 export const DashboardExperimentEvaluationDiagnosisSchema = z.object({
   version: z.string().min(1),
   status: z.string().min(1),
@@ -82,6 +105,7 @@ export const DashboardExperimentEvaluationDiagnosisSchema = z.object({
     label: z.string().min(1)
   }),
   audience_intent_analysis: DashboardAudienceIntentAnalysisSchema.nullish(),
+  price_abandonment_analysis: DashboardPriceAbandonmentAnalysisSchema.nullish(),
   funnel: z.object({
     counting_method: z.string().min(1),
     stages: z.array(DashboardEvaluationFunnelStageSchema).min(2),
