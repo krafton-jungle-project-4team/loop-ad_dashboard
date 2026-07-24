@@ -10,6 +10,7 @@ import {
   contentCandidateHtmlUrl,
   editableCreative,
   editedCreativeMetadata,
+  prepareCreativeOfferPriceRevision,
   rewriteCreativeHtmlCopy,
   sanitizeCreativeHtmlRevision
 } from "../src/features/dashboard/service/content-candidate-copy.js";
@@ -253,6 +254,91 @@ test("AI HTML revision rejects missing or duplicated dispatch placeholders", () 
   );
 });
 
+test("AI HTML revision restores canonical three-tier offer prices from legacy HTML", () => {
+  const revision = prepareCreativeOfferPriceRevision({
+    creative: creativeWithCanonicalOfferPrices(),
+    feedback:
+      "추가 할인을 강조하기 위해 프로모션 종료 D-3와 10% 추가 할인을 강조하고, 정상가를 추가해줘",
+    html: [
+      "<article>",
+      "<h3>Jeju Ocean Breeze Resort</h3>",
+      "<span>프로모션가 278,000원</span>",
+      "<span>추가 할인가 250,200원 / 박</span>",
+      "</article>"
+    ].join("")
+  });
+
+  assert.equal(revision.priceDisplayMode, "all_price_tiers");
+  assert.equal(revision.protectedOfferCount, 1);
+  assert.match(revision.html, /\{\{loopad_offer_price_block_1\}\}/);
+
+  const restored = revision.restore(revision.html.replace("<h3>", '<h3 style="color:#ef476f">'));
+  assert.match(restored, /정상가 342,000원/);
+  assert.match(restored, /프로모션가 278,000원/);
+  assert.match(restored, /10% 추가 할인가 250,200원 \/ 박/);
+  assert.match(restored, /data-loopad-price-offer-id="jeju-ocean-breeze-006"/);
+  assert.match(restored, /white-space:nowrap/);
+  assert.doesNotMatch(restored, /300,000원|225,180원/);
+});
+
+test("AI HTML revision replaces drifted edited prices with the canonical offer contract", () => {
+  const revision = prepareCreativeOfferPriceRevision({
+    creative: creativeWithCanonicalOfferPrices(),
+    feedback: "D-3 문구를 더 강조해줘",
+    html: [
+      "<article>",
+      "<h3>Jeju Ocean Breeze Resort</h3>",
+      '<div data-loopad-price-contract="offer-price.v1"',
+      ' data-loopad-price-offer-id="jeju-ocean-breeze-006"',
+      ' data-loopad-price-display-mode="all_price_tiers">',
+      "<span>정상가 300,000원</span>",
+      "<span>프로모션가 278,000원</span>",
+      "<span>10% 추가 할인가 250,200원 / 박</span>",
+      "</div>",
+      "</article>"
+    ].join("")
+  });
+
+  const restored = revision.restore(revision.html);
+  assert.equal(revision.priceDisplayMode, "all_price_tiers");
+  assert.match(restored, /정상가 342,000원/);
+  assert.match(restored, /프로모션가 278,000원/);
+  assert.match(restored, /10% 추가 할인가 250,200원 \/ 박/);
+  assert.doesNotMatch(restored, /300,000원/);
+});
+
+test("AI HTML revision keeps normal price hidden until the operator requests it", () => {
+  const revision = prepareCreativeOfferPriceRevision({
+    creative: creativeWithCanonicalOfferPrices(),
+    feedback: "CTA 문구를 더 강하게 바꿔줘",
+    html: [
+      "<article>",
+      "<h3>Jeju Ocean Breeze Resort</h3>",
+      "<span>프로모션가 278,000원</span>",
+      "<span>추가 할인가 250,200원 / 박</span>",
+      "</article>"
+    ].join("")
+  });
+
+  const restored = revision.restore(revision.html);
+  assert.equal(revision.priceDisplayMode, "promotion_and_final");
+  assert.doesNotMatch(restored, /정상가 342,000원/);
+  assert.match(restored, /프로모션가 278,000원/);
+  assert.match(restored, /10% 추가 할인가 250,200원 \/ 박/);
+});
+
+test("AI HTML revision refuses to edit an offer whose canonical price block is missing", () => {
+  assert.throws(
+    () =>
+      prepareCreativeOfferPriceRevision({
+        creative: creativeWithCanonicalOfferPrices(),
+        feedback: "제목 색상을 바꿔줘",
+        html: "<article><h3>Jeju Ocean Breeze Resort</h3></article>"
+      }),
+    /price block was not found/
+  );
+});
+
 function contentCandidate(): DashboardContentCandidate {
   return {
     analysis_id: "analysis-a",
@@ -287,5 +373,21 @@ function contentCandidate(): DashboardContentCandidate {
     subject: null,
     title: "기존 제목",
     updated_at: "2026-07-16T00:00:00.000Z"
+  };
+}
+
+function creativeWithCanonicalOfferPrices(): Record<string, unknown> {
+  return {
+    offers: [
+      {
+        additional_discount_rate_percent: 10,
+        hotel_name: "Jeju Ocean Breeze Resort",
+        offer_id: "jeju-ocean-breeze-006",
+        original_price_per_night: 342_000,
+        promotion_price_per_night: 278_000,
+        sale_price_per_night: 250_200
+      }
+    ],
+    price_display_mode: "promotion_and_final"
   };
 }
