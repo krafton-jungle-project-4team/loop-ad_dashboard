@@ -287,6 +287,9 @@ export function applySourceBaseConditionEdit(
   const currentBookingCondition = currentConditions.find(
     (condition) => condition.event_name === "booking_complete"
   );
+  const currentBookingIndex = currentConditions.findIndex(
+    (condition) => condition.event_name === "booking_complete"
+  );
   let conditions = currentConditions.filter(
     (condition) =>
       !removedEvents.has(condition.event_name) &&
@@ -315,10 +318,26 @@ export function applySourceBaseConditionEdit(
         matchesBookingCompletionReplacement(condition, bookingReplacement)
     )
   ) {
-    conditions = upsertConditionPreservingOrder(
-      conditions,
-      bookingReplacementCondition(bookingReplacement, currentBookingCondition)
+    const replacement = bookingReplacementCondition(bookingReplacement, currentBookingCondition);
+    const insertionIndex = Math.min(Math.max(currentBookingIndex, 0), conditions.length);
+    conditions = [
+      ...conditions.slice(0, insertionIndex),
+      replacement,
+      ...conditions.slice(insertionIndex)
+    ];
+  } else if (bookingReplacement && currentBookingIndex >= 0) {
+    const replacementIndex = conditions.findIndex(
+      (condition) =>
+        condition.event_name === "booking_complete" &&
+        matchesBookingCompletionReplacement(condition, bookingReplacement)
     );
+    if (replacementIndex >= 0 && replacementIndex !== currentBookingIndex) {
+      const [replacement] = conditions.splice(replacementIndex, 1);
+      if (replacement) {
+        const insertionIndex = Math.min(currentBookingIndex, conditions.length);
+        conditions.splice(insertionIndex, 0, replacement);
+      }
+    }
   }
   return conditions;
 }
@@ -353,9 +372,7 @@ export function upsertRefinementCondition(
   conditions: SegmentAssistantPlan["conditions"],
   nextCondition: SegmentAssistantAudienceCondition
 ): SegmentAssistantPlan["conditions"] {
-  const nextIdentity = conditionIdentity(nextCondition);
-  const retained = conditions.filter((condition) => conditionIdentity(condition) !== nextIdentity);
-  return [...retained, nextCondition];
+  return upsertConditionPreservingOrder(conditions, nextCondition);
 }
 
 export function removeUnchangedSourceConditions(

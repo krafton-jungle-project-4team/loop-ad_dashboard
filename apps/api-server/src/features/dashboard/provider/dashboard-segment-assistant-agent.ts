@@ -53,6 +53,7 @@ type SegmentAssistantPlanInput = {
   currentPlan?: SegmentAssistantPlan;
   editingSourceBase?: boolean;
   message: string;
+  promotionOfferIds?: string[];
   sourceAudience?: SegmentAssistantSourceAudience;
 };
 
@@ -65,6 +66,20 @@ export class DashboardSegmentAssistantAgent {
       conversationCount: input.conversation.length,
       messageLength: input.message.length
     });
+
+    const deterministicPlan = promotionHighPriceAbandonmentPlan(
+      input.message,
+      input.promotionOfferIds
+    );
+    if (deterministicPlan) {
+      log.info("segment_assistant_deterministic_plan_selected", {
+        action: deterministicPlan.action,
+        conditionCount: deterministicPlan.conditions.length,
+        durationMs: durationMs(startedAt),
+        lookbackDays: deterministicPlan.lookback_days
+      });
+      return deterministicPlan;
+    }
 
     try {
       const response = await requestOpenAiPlan(input);
@@ -81,7 +96,8 @@ export class DashboardSegmentAssistantAgent {
         input.message,
         input.conversation,
         input.currentPlan,
-        input.sourceAudience
+        input.sourceAudience,
+        input.promotionOfferIds
       );
       log.warn("segment_assistant_planning_fallback_used", {
         action: fallback.action,
@@ -213,9 +229,17 @@ export function fallbackSegmentAssistantPlan(
   message: string,
   conversation: SegmentAssistantConversationMessage[] = [],
   currentPlan?: SegmentAssistantPlan,
-  sourceAudience?: SegmentAssistantSourceAudience
+  sourceAudience?: SegmentAssistantSourceAudience,
+  promotionOfferIds?: string[]
 ): SegmentAssistantPlan {
   const latestMessage = message.replace(/\s+/g, " ").trim();
+  const deterministicPlan = promotionHighPriceAbandonmentPlan(
+    latestMessage,
+    promotionOfferIds
+  );
+  if (deterministicPlan) {
+    return deterministicPlan;
+  }
   const priorUserMessages = conversation
     .filter((item) => item.role === "user")
     .slice(-5)
@@ -411,7 +435,76 @@ function segmentAssistantInstructions(input: SegmentAssistantPlanInput) {
       );
     }
   }
+  if (input.promotionOfferIds?.length) {
+    instructions.push(
+      `The promotion's selected offer ids are ${JSON.stringify(input.promotionOfferIds)}.`,
+      "When the user says '프로모션 숙소', constrain hotel_id to these selected offer ids."
+    );
+  }
   return instructions.join("\n");
+}
+
+function promotionHighPriceAbandonmentPlan(
+  message: string,
+  promotionOfferIds?: string[]
+): SegmentAssistantPlan | null {
+  const offerIds = [...new Set(promotionOfferIds?.map((value) => value.trim()).filter(Boolean) ?? [])]
+    .sort();
+  const matchesRequest =
+    offerIds.length > 0 &&
+    /1박\s*가격/.test(message) &&
+    /(?:20\s*만|200[,\s]?000)\s*원.*(?:초과|넘)/.test(message) &&
+    /프로모션\s*숙소/.test(message) &&
+    /예약\s*(?:을\s*)?시작|예약시작/.test(message) &&
+    /예약(?:을)?\s*(?:하지|안\s*했|않)|미예약|미완료/.test(message) &&
+    /20\s*[·~와과,\s]*30대|20대.*30대/.test(message);
+  if (!matchesRequest) {
+    return null;
+  }
+
+  const offerFilter: SegmentAssistantPropertyFilter = {
+    key: "hotel_id",
+    operator: offerIds.length === 1 ? "equals" : "in",
+    value: offerIds.join(",")
+  };
+  return SegmentAssistantPlanSchema.parse({
+    action: "audience_query",
+    segment_name: null,
+    lookback_days: 7,
+    conditions: [
+      {
+        label: "제주·오키나와 프로모션 숙소 1박 가격 20만 원 초과 예약 시작",
+        event_name: "booking_start",
+        minimum_count: 1,
+        maximum_count: null,
+        destination: "제주, 오키나와",
+        checkin_months: [],
+        property_filters: [
+          offerFilter,
+          { key: "price", operator: "gte", value: "200001" }
+        ]
+      },
+      {
+        label: "제주·오키나와 프로모션 숙소 예약 완료 없음",
+        event_name: "booking_complete",
+        minimum_count: 0,
+        maximum_count: 0,
+        destination: "제주, 오키나와",
+        checkin_months: [],
+        property_filters: [offerFilter]
+      },
+      {
+        label: "20~30대",
+        event_name: "page_view",
+        minimum_count: 1,
+        maximum_count: null,
+        destination: null,
+        checkin_months: [],
+        property_filters: [{ key: "age_group", operator: "in", value: "20대,30대" }]
+      }
+    ],
+    clarification_message: null
+  });
 }
 
 function addConditionForKeywords(

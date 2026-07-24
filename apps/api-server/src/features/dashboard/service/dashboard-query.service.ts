@@ -1916,7 +1916,7 @@ export class DashboardQueryService {
       hasSourceSuggestion: Boolean(request.source_suggestion),
       messageLength: request.message.length
     });
-    await this.campaignReader.getPromotionSummary(projectId, promotionId);
+    const promotion = await this.campaignReader.getPromotionSummary(projectId, promotionId);
 
     const source = request.source_suggestion
       ? await this.resolveSegmentAssistantSource(
@@ -2008,6 +2008,9 @@ export class DashboardQueryService {
         currentPlan: editableCurrentPlan,
         editingSourceBase,
         message: request.message,
+        promotionOfferIds: (promotion.offer_links ?? []).flatMap((offer) =>
+          offer.offer_id ? [offer.offer_id] : []
+        ),
         sourceAudience: source
       });
       if (source && plan.action !== "clarification") {
