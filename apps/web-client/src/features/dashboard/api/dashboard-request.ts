@@ -1,6 +1,9 @@
 import { apiFailureResponseSchema } from "@loopad/shared";
 import type { DashboardQuery } from "../model/dashboard-types.js";
 
+export const noActiveSegmentCandidatesErrorMessage =
+  "현재 프로모션 조건에 맞는 고객군 후보가 없어 결과를 만들지 못했어요. 조건을 조정한 뒤 다시 시도해 주세요.";
+
 export function projectSearchParams(projectId: string) {
   return new URLSearchParams({ project_id: projectId });
 }
@@ -83,6 +86,10 @@ function dashboardApiErrorMessage(code: string, message: string) {
       return "프로모션에 사용할 숙소 목록이 아직 준비되지 않았어요.";
     case "promotion_offer_catalog_unavailable":
       return "숙소 목록을 불러올 수 없어요. 잠시 후 다시 시도해 주세요.";
+    case "DASHBOARD_DECISION_REQUEST_FAILED":
+      return message.includes("no active segment candidates matched analysis request")
+        ? noActiveSegmentCandidatesErrorMessage
+        : message;
     default:
       return message;
   }

@@ -33,10 +33,12 @@ export function PromotionWorkspace({
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
+    dismissPromotionAnalysisError,
     editingPromotionId,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
     openPromotions,
+    promotionAnalysisErrorMessage,
     promotionAnalysisIsPending,
     promotionGenerationIsPending,
     rejectContentCandidateMutation,
@@ -134,6 +136,7 @@ export function PromotionWorkspace({
               onDeleteConfirmedSegment={(promotionId, segmentId) =>
                 deleteConfirmedSegmentMutation.mutate({ promotionId, segmentId })
               }
+              onDismissPromotionAnalysisError={dismissPromotionAnalysisError}
               onLaunchExperiment={(
                 promotionId,
                 segmentId,
@@ -191,6 +194,7 @@ export function PromotionWorkspace({
                 (experiment) => experiment.promotion_id === selectedOpenPromotion.promotion_id
               )}
               promotionAnalysisIsPending={promotionAnalysisIsPending}
+              promotionAnalysisErrorMessage={promotionAnalysisErrorMessage}
               promotionGenerationIsPending={promotionGenerationIsPending}
               rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
               reviseContentCandidateHtmlIsPending={reviseContentCandidateHtmlMutation.isPending}

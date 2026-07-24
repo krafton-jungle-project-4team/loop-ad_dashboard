@@ -46,6 +46,7 @@ import {
   dashboardSegmentDetailQueryKey
 } from "../../../../model/dashboard-query-keys.js";
 import type { DashboardQuery } from "../../../../model/dashboard-types.js";
+import { noActiveSegmentCandidatesErrorMessage } from "../../../../api/dashboard-request.js";
 import {
   defaultPromotionAnalysisProgress,
   hasPendingOnsiteBannerImage,
@@ -378,6 +379,13 @@ export function usePromotionWorkspaceController({
           status: "error"
         });
       });
+  };
+  const dismissPromotionAnalysisError = () => {
+    queryClient.setQueryData<PromotionAnalysisProgress>(analysisProgressKey, (current) => ({
+      ...(current ?? defaultPromotionAnalysisProgress),
+      errorMessage: null,
+      status: current?.status === "error" ? "idle" : (current?.status ?? "idle")
+    }));
   };
   const startGenerationMutation = useMutation({
     mutationFn: ({
@@ -817,10 +825,15 @@ export function usePromotionWorkspaceController({
     decideSuggestionMutation,
     deleteConfirmedSegmentMutation,
     deletePromotionMutation,
+    dismissPromotionAnalysisError,
     editingPromotionId,
     isAddDialogOpen,
     launchPromotionExperimentMutation,
     openPromotions,
+    promotionAnalysisErrorMessage:
+      analysisProgress.data.errorMessage === noActiveSegmentCandidatesErrorMessage
+        ? analysisProgress.data.errorMessage
+        : null,
     promotionAnalysisIsPending:
       recommendSegmentsMutation.isPending || analysisProgress.data.status === "pending",
     promotionGenerationIsPending: startGenerationMutation.isPending || generationIsPending,

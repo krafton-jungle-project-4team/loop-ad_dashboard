@@ -373,6 +373,7 @@ export function PromotionTabWorkspace({
   onConfirmSuggestions,
   onDecideSuggestion,
   onDeleteConfirmedSegment,
+  onDismissPromotionAnalysisError,
   onLaunchExperiment,
   onRejectContentCandidate,
   onReviseContentCandidateHtml,
@@ -384,6 +385,7 @@ export function PromotionTabWorkspace({
   onUpdateContentCandidateCopy,
   promotion,
   promotionExperiments,
+  promotionAnalysisErrorMessage,
   promotionAnalysisIsPending,
   promotionGenerationIsPending,
   rejectContentCandidateIsPending,
@@ -426,6 +428,7 @@ export function PromotionTabWorkspace({
     status: "suggested" | "accepted" | "dismissed"
   ) => void;
   onDeleteConfirmedSegment: (promotionId: string, segmentId: string) => void;
+  onDismissPromotionAnalysisError: () => void;
   onLaunchExperiment: (
     promotionId: string,
     segmentId: string,
@@ -454,6 +457,7 @@ export function PromotionTabWorkspace({
   ) => Promise<void>;
   promotion: DashboardCampaignPromotion;
   promotionExperiments: DashboardAdExperiment[];
+  promotionAnalysisErrorMessage: string | null;
   promotionAnalysisIsPending: boolean;
   promotionGenerationIsPending: boolean;
   rejectContentCandidateIsPending: boolean;
@@ -573,9 +577,11 @@ export function PromotionTabWorkspace({
                     setIsConfirmationNavigationOpen(true);
                   }}
                   onDecideSuggestion={onDecideSuggestion}
+                  onDismissRecommendationError={onDismissPromotionAnalysisError}
                   onOpenConfirmedSegments={() => setIsConfirmedSegmentsOpen(true)}
                   onRecommendSegments={onRecommendSegments}
                   promotionAnalysisIsPending={promotionAnalysisIsPending}
+                  recommendationErrorMessage={promotionAnalysisErrorMessage}
                   scopedSegments={scopedSegments}
                   scopedSegmentsIsLoading={scopedSegmentsIsLoading}
                   suggestions={suggestions}
