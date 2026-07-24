@@ -40,6 +40,8 @@ export function PromotionWorkspace({
     openPromotions,
     promotionAnalysisErrorMessage,
     promotionAnalysisIsPending,
+    promotionGenerationErrorMessage,
+    promotionGenerationId,
     promotionGenerationIsPending,
     rejectContentCandidateMutation,
     recommendPromotionSegments,
@@ -52,6 +54,7 @@ export function PromotionWorkspace({
     selectSegmentView,
     selectedCampaign,
     selectedOpenPromotion,
+    selectedSegmentIsOfferSetGenerationTarget,
     selectedPromotionSegmentId,
     selectedPromotionSegments,
     setIsAddDialogOpen,
@@ -195,6 +198,8 @@ export function PromotionWorkspace({
               )}
               promotionAnalysisIsPending={promotionAnalysisIsPending}
               promotionAnalysisErrorMessage={promotionAnalysisErrorMessage}
+              promotionGenerationErrorMessage={promotionGenerationErrorMessage}
+              promotionGenerationId={promotionGenerationId}
               promotionGenerationIsPending={promotionGenerationIsPending}
               rejectContentCandidateIsPending={rejectContentCandidateMutation.isPending}
               reviseContentCandidateHtmlIsPending={reviseContentCandidateHtmlMutation.isPending}
@@ -206,6 +211,7 @@ export function PromotionWorkspace({
               selectedSegmentDetailIsError={segmentDetail.isError}
               selectedSegmentDetailIsLoading={segmentDetail.isLoading}
               selectedSegmentId={selectedPromotionSegmentId}
+              selectedSegmentIsOfferSetGenerationTarget={selectedSegmentIsOfferSetGenerationTarget}
               launchExperimentIsPending={launchPromotionExperimentMutation.isPending}
               launchExperimentError={launchPromotionExperimentMutation.error}
               launchExperimentIsError={launchPromotionExperimentMutation.isError}

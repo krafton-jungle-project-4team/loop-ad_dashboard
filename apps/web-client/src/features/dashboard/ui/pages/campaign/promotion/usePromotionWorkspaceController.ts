@@ -848,8 +848,9 @@ export function usePromotionWorkspaceController({
     createdSegmentId === selectedPromotionSegmentId &&
     createdSegmentAnalysisId === segmentDetail.data?.segment.analysis_id;
   const selectedPromotionGenerationId = generationTargetsSelectedSegment
-    ? startGenerationMutation.data?.generation_id
-    : undefined;
+    ? (startGenerationMutation.data?.generation_id ??
+      (startGenerationMutation.isError ? undefined : segmentDetail.data?.generation?.generation_id))
+    : segmentDetail.data?.generation?.generation_id;
   const promotionGenerationErrorMessage =
     generationTargetsSelectedSegment && startGenerationMutation.isError
       ? mutationErrorMessage(startGenerationMutation.error)

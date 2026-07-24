@@ -329,6 +329,47 @@ test("creative selection only uses candidates from the segment's active analysis
   );
 });
 
+test("creative selection can target the generation returned by the start request", () => {
+  const detail = {
+    content_candidates: [
+      {
+        analysis_id: "analysis_repeat",
+        content_id: "content_previous",
+        generation_id: "generation-previous",
+        status: "draft"
+      },
+      {
+        analysis_id: "analysis_repeat",
+        content_id: "content_current",
+        generation_id: "generation-current",
+        status: "draft"
+      }
+    ],
+    segment: { analysis_id: "analysis_repeat" }
+  } as DashboardSegmentDetail;
+
+  assert.deepEqual(
+    activeContentCandidates(detail, "generation-current").map((candidate) => candidate.content_id),
+    ["content_current"]
+  );
+});
+
+test("offer-set creative selection does not fall back when its generation is unknown", () => {
+  const detail = {
+    content_candidates: [
+      {
+        analysis_id: "analysis_repeat",
+        content_id: "content_previous",
+        generation_id: "generation-previous",
+        status: "draft"
+      }
+    ],
+    segment: { analysis_id: "analysis_repeat" }
+  } as DashboardSegmentDetail;
+
+  assert.deepEqual(activeContentCandidates(detail, undefined, true), []);
+});
+
 test("creative title never exposes an internal content id", () => {
   const candidate = {
     body: null,
