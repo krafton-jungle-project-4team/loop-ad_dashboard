@@ -610,6 +610,89 @@ test("dashboard segment assistant executes a structured plan without calling Dec
   assert.deepEqual((calls[1] as { kind: string }).kind, "preview");
 });
 
+test("dashboard segment assistant keeps every executable property filter in condition labels", async () => {
+  setRequiredEnv();
+  const { DashboardQueryService } =
+    await import("../src/features/dashboard/service/dashboard-query.service.js");
+  installCountingTransactionHost();
+  const service = new DashboardQueryService(
+    {
+      ...emptyCampaignReader(),
+      getPromotionSummary: async () => ({}) as never
+    } as unknown as DashboardCampaignReader,
+    emptyFunnelReader(),
+    {
+      ...emptySegmentQueryRepository(),
+      createAssistantQueryPreview: async () => ({
+        query_preview_id: "seg_query_preview_high_price",
+        generated_sql: "SELECT user_id FROM funnel_step_events LIMIT 500",
+        sample_size: 103,
+        total_eligible_user_count: 242,
+        sample_ratio: 103 / 242,
+        sample_size_status: "valid" as const,
+        columns: ["user_id"],
+        rows: []
+      })
+    } as unknown as DashboardSegmentQueryRepository,
+    emptyDecisionClient(),
+    {
+      plan: async () => ({
+        action: "audience_query" as const,
+        segment_name: null,
+        lookback_days: 7,
+        conditions: [
+          {
+            label: "프로모션 숙소 고가 예약 시작",
+            event_name: "booking_start" as const,
+            minimum_count: 1,
+            maximum_count: null,
+            destination: "jeju, okinawa",
+            checkin_months: [],
+            property_filters: [
+              { key: "hotel_id" as const, operator: "in" as const, value: "hotel-1,hotel-2" },
+              { key: "price" as const, operator: "gte" as const, value: "200001" }
+            ]
+          },
+          {
+            label: "예약 완료 없음",
+            event_name: "booking_complete" as const,
+            minimum_count: 0,
+            maximum_count: 0,
+            destination: "jeju, okinawa",
+            checkin_months: [],
+            property_filters: []
+          },
+          {
+            label: "20~30대",
+            event_name: "page_view" as const,
+            minimum_count: 1,
+            maximum_count: null,
+            destination: null,
+            checkin_months: [],
+            property_filters: [
+              { key: "age_group" as const, operator: "in" as const, value: "20대,30대" }
+            ]
+          }
+        ],
+        clarification_message: null
+      })
+    } as never
+  );
+
+  const response = await service.assistPromotionSegment("hotel-client-a", "promo_summer", {
+    message:
+      "최근 7일 동안 20·30대 중 프로모션 숙소의 1박 가격이 20만 원을 초과했고 예약을 시작했지만 완료하지 않은 고객은 몇 명이야?",
+    conversation: []
+  });
+
+  assert.deepEqual(response.condition_labels, [
+    "20~30대",
+    "예약 시작 후 미완료",
+    "프로모션 대상 숙소",
+    "가격 20만원 초과"
+  ]);
+});
+
 test("dashboard segment assistant explains the measured condition that keeps a segment below the minimum", async () => {
   setRequiredEnv();
   const { DashboardQueryService } =

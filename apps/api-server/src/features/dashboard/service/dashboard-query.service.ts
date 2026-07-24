@@ -126,6 +126,7 @@ import {
   usesSourceAudienceMembership,
   type SegmentAssistantAudienceCondition,
   type SegmentAssistantPlan,
+  type SegmentAssistantPropertyFilter,
   type SegmentAssistantSourceAudience
 } from "../segment-assistant.types.js";
 
@@ -2258,7 +2259,7 @@ function editedSourceReferenceLabels(
       representedEvents.add(condition.event_name);
     }
   }
-  return uniqueConditionLabels(labels);
+  return uniqueConditionLabels([...labels, ...propertyFilterConditionLabels(conditions)]);
 }
 
 function groupedConditionLabels(
@@ -2288,11 +2289,129 @@ function groupedConditionLabels(
   if (hasBookingStart && hasNoBookingComplete) {
     labels.push("예약 시작 후 미완료");
   }
-  return uniqueConditionLabels(labels);
+  return uniqueConditionLabels([...labels, ...propertyFilterConditionLabels(conditions)]);
 }
 
 function uniqueConditionLabels(labels: string[]) {
-  return [...new Set(labels.map((label) => label.trim()).filter(Boolean))];
+  const unique = new Map<string, string>();
+  for (const label of labels.map((item) => item.trim()).filter(Boolean)) {
+    const key = label.replace(/\s+/g, "").replace(/[~～]/g, "·").replace(/[，,]/g, "·");
+    if (!unique.has(key)) {
+      unique.set(key, label);
+    }
+  }
+  return [...unique.values()];
+}
+
+function propertyFilterConditionLabels(conditions: SegmentAssistantPlan["conditions"]) {
+  return conditions.flatMap((condition) =>
+    condition.property_filters.map(segmentAssistantPropertyFilterLabel)
+  );
+}
+
+function segmentAssistantPropertyFilterLabel(filter: SegmentAssistantPropertyFilter) {
+  if (filter.key === "age_group") {
+    const values = splitSegmentAssistantFilterValues(filter.value);
+    if (values.length === 2 && values.every((value) => /^\d+대$/.test(value))) {
+      return `${values[0]?.replace(/대$/, "")}~${values[1]}`;
+    }
+    return values.length > 1 ? values.join("·") : (values[0] ?? "연령 조건");
+  }
+  if (filter.key === "gender") {
+    const value = filter.value.toLowerCase();
+    return value === "female" ? "여성" : value === "male" ? "남성" : `성별 ${filter.value}`;
+  }
+  if (filter.key === "hotel_id") {
+    return filter.operator === "in" ? "프로모션 대상 숙소" : `숙소 ${filter.value}`;
+  }
+  if (filter.key === "price" || filter.key === "revenue") {
+    const subject = filter.key === "price" ? "가격" : "숙박 총액";
+    const numericValue = Number(filter.value);
+    if (Number.isFinite(numericValue)) {
+      const isStrictGreaterThan =
+        filter.operator === "gte" &&
+        Number.isInteger(numericValue) &&
+        numericValue > 0 &&
+        numericValue % 10_000 === 1;
+      const displayValue = isStrictGreaterThan ? numericValue - 1 : numericValue;
+      const operator =
+        filter.operator === "gte"
+          ? isStrictGreaterThan
+            ? "초과"
+            : "이상"
+          : filter.operator === "lte"
+            ? "이하"
+            : filter.operator === "equals"
+              ? ""
+              : segmentAssistantFilterOperatorLabel(filter.operator);
+      return `${subject} ${formatKoreanCurrency(displayValue)}${operator ? ` ${operator}` : ""}`;
+    }
+  }
+
+  const subject: Record<SegmentAssistantPropertyFilter["key"], string> = {
+    deal: "할인·특가",
+    free_cancellation: "무료 취소",
+    breakfast_included: "조식 포함",
+    age_group: "연령",
+    gender: "성별",
+    region: "지역",
+    preferred_category: "선호 카테고리",
+    user_segment: "사용자 분류",
+    adult_count: "성인 인원",
+    child_count: "아동 인원",
+    rooms: "객실 수",
+    hotel_id: "숙소",
+    hotel_name: "숙소명",
+    hotel_city: "숙소 도시",
+    hotel_country: "숙소 국가",
+    hotel_market: "숙소 권역",
+    hotel_cluster: "숙소 군집",
+    hotel_star_rating: "호텔 등급",
+    hotel_guest_rating: "고객 평점",
+    price: "가격",
+    property_type: "숙소 유형",
+    room_type: "객실 유형",
+    revenue: "숙박 총액"
+  };
+  if (
+    ["deal", "free_cancellation", "breakfast_included"].includes(filter.key) &&
+    (filter.operator === "exists" || filter.value.toLowerCase() === "true")
+  ) {
+    return subject[filter.key];
+  }
+  const values = splitSegmentAssistantFilterValues(filter.value).join("·");
+  return `${subject[filter.key]} ${values} ${segmentAssistantFilterOperatorLabel(filter.operator)}`;
+}
+
+function splitSegmentAssistantFilterValues(value: string) {
+  return value
+    .split(/\s*(?:,|，|\/|·|또는|혹은)\s*/u)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function segmentAssistantFilterOperatorLabel(operator: SegmentAssistantPropertyFilter["operator"]) {
+  switch (operator) {
+    case "equals":
+      return "일치";
+    case "in":
+      return "중 하나";
+    case "contains":
+      return "포함";
+    case "exists":
+      return "있음";
+    case "gte":
+      return "이상";
+    case "lte":
+      return "이하";
+  }
+}
+
+function formatKoreanCurrency(value: number) {
+  if (value >= 10_000 && value % 10_000 === 0) {
+    return `${value / 10_000}만원`;
+  }
+  return `${Math.round(value).toLocaleString("ko-KR")}원`;
 }
 
 function bindImplicitSourceDestination(
