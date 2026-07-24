@@ -82,6 +82,31 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
                     validation_note: "다음 실험에서 검증할 가설입니다."
                   }
                 },
+                price_abandonment_analysis: {
+                  version: "dec.price-abandonment-analysis.v1",
+                  title: "높은 1박 가격이 예약 완료에 부담이 되었을 가능성이 있습니다",
+                  paragraphs: [
+                    "1박 가격이 20만 원을 초과한 숙소에서 예약 이탈이 관측됐습니다."
+                  ],
+                  price_abandonment: {
+                    currency: "KRW",
+                    nightly_price_threshold: "200000",
+                    booking_start_user_count: 142,
+                    booking_abandon_user_count: 103,
+                    booking_complete_user_count: 39,
+                    booking_abandon_median_nightly_price: "278000",
+                    booking_complete_median_nightly_price: "196000"
+                  },
+                  next_segment_hypothesis: {
+                    lookback_days: 7,
+                    condition_labels: [
+                      "20·30대",
+                      "최근 7일 제주·오키나와 프로모션 숙소 1박 20만 원 초과",
+                      "예약 시작 후 미완료"
+                    ],
+                    validation_note: "다음 실험에서 검증할 가설입니다."
+                  }
+                },
                 data_origin: { kind: "demo_fixture", label: "시연 데이터" },
                 evidence: ["광고 반응 고객 100명 중 예약 완료 24명"],
                 evidence_strength: {
@@ -193,6 +218,11 @@ test("project experiments reader maps hierarchy, latest evaluation, and next loo
     response.experiments[0]?.latest_evaluation?.diagnosis?.audience_intent_analysis
       ?.cohort_comparison.repeat_view_conversion_rate,
     0.2
+  );
+  assert.equal(
+    response.experiments[0]?.latest_evaluation?.diagnosis?.price_abandonment_analysis
+      ?.price_abandonment.booking_abandon_user_count,
+    103
   );
   assert.equal(
     response.experiments[0]?.latest_evaluation?.evaluation_cutoff_at,
