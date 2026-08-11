@@ -1,6 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@loopad/ui/shadcn/alert";
 import { createFileRoute, Navigate, useParams } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { lazy, useMemo } from "react";
 import { createRouteBoundaryOptions } from "../app/route-boundary.js";
 import {
   getCanonicalDashboardPath,
@@ -15,9 +15,22 @@ import type { DashboardQuery, DashboardTab } from "../features/dashboard/model/d
 import { useSuspenseDashboardResources } from "../features/dashboard/model/use-dashboard-resources.js";
 import { DashboardPanelRenderer } from "../features/dashboard/ui/DashboardRenderer.js";
 import { LoadingState } from "../features/dashboard/ui/LoadingState.js";
-import { ExperimentComponent } from "../features/dashboard/ui/pages/campaign/promotion/experiment/ExperimentComponent.js";
-import { DataExplorerDashboardPage } from "../features/dashboard/ui/pages/data-explorer/DataExplorerDashboardPage.js";
-import { SdkPage } from "../features/dashboard/ui/pages/sdk/SdkPage.js";
+
+const ExperimentComponent = lazy(() =>
+  import("../features/dashboard/ui/pages/campaign/promotion/experiment/ExperimentComponent.js").then(
+    (module) => ({ default: module.ExperimentComponent })
+  )
+);
+const DataExplorerDashboardPage = lazy(() =>
+  import("../features/dashboard/ui/pages/data-explorer/DataExplorerDashboardPage.js").then(
+    (module) => ({ default: module.DataExplorerDashboardPage })
+  )
+);
+const SdkPage = lazy(() =>
+  import("../features/dashboard/ui/pages/sdk/SdkPage.js").then((module) => ({
+    default: module.SdkPage
+  }))
+);
 
 const routeBoundaryOptions = createRouteBoundaryOptions({
   pendingComponent: DashboardRoutePending,

@@ -1,11 +1,37 @@
 import type { DashboardPageResource, DashboardQuery } from "../model/dashboard-types.js";
-import { CampaignManagementPage } from "./pages/campaign/CampaignManagementPage.js";
-import { CampaignPerformancePage } from "./pages/campaign/CampaignPerformancePage.js";
-import { PromotionManagementPage } from "./pages/campaign/promotion/PromotionManagementPage.js";
-import { SegmentManagementPage } from "./pages/campaign/promotion/SegmentManagementPage.js";
-import { ExperimentManagementPage } from "./pages/campaign/promotion/experiment/ExperimentManagementPage.js";
-import { FunnelPage } from "./pages/funnel/FunnelPage.js";
-import { MainPage } from "./pages/main/MainPage.js";
+import { lazy } from "react";
+
+const CampaignManagementPage = lazy(() =>
+  import("./pages/campaign/CampaignManagementPage.js").then((module) => ({
+    default: module.CampaignManagementPage
+  }))
+);
+const CampaignPerformancePage = lazy(() =>
+  import("./pages/campaign/CampaignPerformancePage.js").then((module) => ({
+    default: module.CampaignPerformancePage
+  }))
+);
+const PromotionManagementPage = lazy(() =>
+  import("./pages/campaign/promotion/PromotionManagementPage.js").then((module) => ({
+    default: module.PromotionManagementPage
+  }))
+);
+const SegmentManagementPage = lazy(() =>
+  import("./pages/campaign/promotion/SegmentManagementPage.js").then((module) => ({
+    default: module.SegmentManagementPage
+  }))
+);
+const ExperimentManagementPage = lazy(() =>
+  import("./pages/campaign/promotion/experiment/ExperimentManagementPage.js").then((module) => ({
+    default: module.ExperimentManagementPage
+  }))
+);
+const FunnelPage = lazy(() =>
+  import("./pages/funnel/FunnelPage.js").then((module) => ({ default: module.FunnelPage }))
+);
+const MainPage = lazy(() =>
+  import("./pages/main/MainPage.js").then((module) => ({ default: module.MainPage }))
+);
 
 export function DashboardPanelRenderer({
   query,
