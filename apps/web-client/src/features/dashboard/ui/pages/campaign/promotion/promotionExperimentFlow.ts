@@ -119,6 +119,11 @@ function validateRunContract(run: PromotionRunLaunchTarget, requestedSegmentIds:
     throw new Error("만든 실험의 고객군 범위가 요청과 달라요. 다시 시도해 주세요.");
   }
 
+  const experimentIds = run.experiments.map((experiment) => experiment.adExperimentId);
+  if (new Set(experimentIds).size !== experimentIds.length) {
+    throw new Error("광고 실험 ID가 중복되어 있어요. 다시 시도해 주세요.");
+  }
+
   const fallbackExperiments = run.experiments.filter(
     (experiment) => experiment.isFallback && experiment.segmentId === DASHBOARD_FALLBACK_SEGMENT_ID
   );
