@@ -4,16 +4,16 @@ Decision의 `rcg-run-consumer.v1` 원본 HTTP status/body를 로컬 서버에서
 
 ## 고정 revision과 제출 범위
 
-| 항목                        | 고정 값                                                                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Decision producer           | `9ace3b6ef5d1aaa7851d7ffbb180f1802f5c7008`                                                                                            |
-| producer source SHA-256     | `2b83b5433f7271559ffb23fc69b1d3221850816abcc3505e068ba649fcba19f1`                                                                    |
-| Dashboard base              | [fix PR #246](https://github.com/krafton-jungle-project-4team/loop-ad_dashboard/pull/246), `b77b90165682e4dc9bb63bf93b04f19133e2965d` |
-| PR base / head              | `fix/reject-duplicate-experiment-identity` / `feat/run-consumer-integration`                                                          |
-| fixed Data Contract         | `0ec2cef0290f4659ad21ccc1dd2a20df2801ff50`                                                                                            |
-| 독립 baseline expected hash | `0fb6c279a84c65e585cc17edaa0103288f952a7061cb5c4d4de0711814f6c2f9`                                                                    |
+| 항목                        | 고정 값                                                                                                                                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Decision producer           | `9ace3b6ef5d1aaa7851d7ffbb180f1802f5c7008`                                                                                                                                                          |
+| producer source SHA-256     | `2b83b5433f7271559ffb23fc69b1d3221850816abcc3505e068ba649fcba19f1`                                                                                                                                  |
+| Dashboard prerequisite      | merged [fix PR #246](https://github.com/krafton-jungle-project-4team/loop-ad_dashboard/pull/246), head `b77b90165682e4dc9bb63bf93b04f19133e2965d`, merge `7d4a8a231e102eaaf6e6eae816902cbd45e1abcb` |
+| PR base / head              | `main` / `feat/run-consumer-integration`                                                                                                                                                            |
+| fixed Data Contract         | `0ec2cef0290f4659ad21ccc1dd2a20df2801ff50`                                                                                                                                                          |
+| 독립 baseline expected hash | `0fb6c279a84c65e585cc17edaa0103288f952a7061cb5c4d4de0711814f6c2f9`                                                                                                                                  |
 
-[pins.json](../../tools/run-consumer-gate/pins.json)이 실행 기준이다. runner는 시작과 종료 시 #246이 OPEN이며 같은 head인지 확인한다. 변경·merge를 발견하면 중단하고 현재 metadata를 기록하며 자동 rebase/retarget하지 않는다. CI의 실제 checkout SHA, PR head/base SHA, dirty 여부, Node/npm 버전, source 파일 hash는 `inputs.json`에 기록한다. PR head와 GitHub의 임시 merge checkout은 구분한다.
+[pins.json](../../tools/run-consumer-gate/pins.json)이 실행 기준이다. runner는 시작과 종료 시 #246이 정확한 head와 merge commit으로 `main`에 MERGED됐는지 확인한다. pull request CI에서는 target이 `main`인지, base가 #246 merge commit을 포함하는지, 임시 merge checkout이 base와 PR head를 모두 포함하는지도 검사한다. CI의 실제 checkout SHA, PR head/base SHA, dirty 여부, Node/npm 버전, source 파일 hash는 `inputs.json`에 기록한다. PR head와 GitHub의 임시 merge checkout은 구분한다.
 
 이 PR의 production 변경은 기존 hook 반환식을 순수 함수로 추출하고 호출하도록 연결한 두 파일뿐이다. 반환식의 AST가 고정 base의 원래 식과 같고, 실제 hook의 `createRun`이 그 함수를 호출하는지 테스트한다. 이 wiring 검사는 실제 HTTP consumer 검사를 보완하며 대체하지 않는다. ID 중복 거절은 base의 #246 변경이다.
 
@@ -84,7 +84,7 @@ python3 -B tools/run-consumer-gate/verify.py /tmp/downloaded-artifact \
   --producer-checkout /private/tmp/rcg-decision-producer-9ace3b6
 ```
 
-[CI workflow](../../.github/workflows/run-consumer-gate.yml)는 고정 fix branch 대상 PR에만 실행되며, 관련 40개 테스트·workspace/consumer typecheck 이후 같은 Gate command를 실행한다. artifact는 실패 시에도 생성된 구조화 근거를 14일 보관한다. 실제 CI head/checkout/run/artifact hash는 PR 본문과 Decision E-17 문서 PR에 기록한다.
+[CI workflow](../../.github/workflows/run-consumer-gate.yml)는 `main` 대상 PR에 실행되며, 관련 40개 테스트·workspace/consumer typecheck 이후 같은 Gate command를 실행한다. artifact는 실패 시에도 생성된 구조화 근거를 14일 보관한다. 실제 CI head/checkout/run/artifact hash는 PR 본문과 Decision E-17 문서 PR에 기록한다.
 
 ## 검토 범위와 한계
 
@@ -93,6 +93,6 @@ python3 -B tools/run-consumer-gate/verify.py /tmp/downloaded-artifact \
 3. **Contract impact:** #246 이후 추가 API/DTO/ID/status/table/event 동작 변경은 없다. PR diff의 production 변경은 기존 변환식 추출뿐이다.
 4. **Existing-data compatibility:** Decision baseline writer의 고정 row를 후보 reader로 재사용한 RCG-08 원본을 독립 expected와 대조하고 실제 consumer에 전달한다.
 5. **Required verification:** RCC fixed/latest 각 34, consumer controls 23, 관련 테스트 40, typecheck, CI artifact 재검증. source wiring만으로 integration을 대신하지 않는다.
-6. **Merge order:** #246을 먼저 merge할 필요 없이 그 정확한 commit 위에서 검증한다. #246/3B/Decision 문서 PR 모두 자동 merge하지 않으며 base 변경 시 먼저 차이를 보고한다.
+6. **Merge order:** 먼저 merge된 #246의 정확한 head와 merge commit을 포함한 `main` 기준으로 이 PR을 검증한다. 3B/Decision 문서 PR은 자동 merge하지 않으며 base 변경 시 provenance 검사를 다시 통과해야 한다.
 7. **Rollback boundary:** 이 PR revert는 테스트 도구와 동작 보존 추출만 되돌린다. #246의 중복 ID 거절과 producer/DB row는 변경하지 않는다.
 8. **Excluded local context:** `AGENTS.md`, `agent/`, 기존 중단 worktree와 private local evidence. 기존 3B 및 Decision 중간 문서는 별도로 보존하고 완료된 조합은 별도 E-17 문서 PR에 추가한다.

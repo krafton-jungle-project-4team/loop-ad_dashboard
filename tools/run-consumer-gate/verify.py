@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 sys.dont_write_bytecode = True
 from controls import MUTATIONS
 from report import digest, validate_lane, verify_inventory, verdict
-from run import PINS, producer_validator
+from run import PINS, producer_validator, validate_base_metadata, validate_ci_fields
 
 
 def verify(root, checkout):
@@ -20,7 +20,11 @@ def verify(root, checkout):
     validate_bundle = producer_validator(checkout)
     for name in ('base-status-start.json', 'base-status-end.json'):
         base = json.loads((root / name).read_text())
-        assert base['state'] == 'OPEN' and base['mergedAt'] is None and base['headRefOid'] == PINS['dashboard_fix_sha']
+        validate_base_metadata(base)
+    ci = inputs['ci']
+    validate_ci_fields(ci)
+    if ci['GITHUB_SHA']:
+        assert inputs['dashboard_checkout_sha'] == ci['GITHUB_SHA']
     parent = json.loads((root / 'producer-result.json').read_text())
     for lane in ('fixed', 'latest'):
         if lane == 'latest' and result['latest_status'] == 'WARN_UNVERIFIED' and not (root / 'latest-input.json').exists(): continue

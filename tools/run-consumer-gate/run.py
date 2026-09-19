@@ -31,11 +31,30 @@ def command(args, cwd=ROOT, timeout=120, log=None, env=None):
     return subprocess.check_output(args, cwd=cwd, timeout=timeout, text=True, env=env).strip()
 
 
+def validate_base_metadata(value):
+    merge_commit = value.get('mergeCommit') or {}
+    assert (value['state'] == 'MERGED' and value['mergedAt'] is not None
+        and value['headRefOid'] == PINS['dashboard_fix_sha']
+        and value['headRefName'] == PINS['dashboard_fix_branch']
+        and value['baseRefName'] == PINS['dashboard_target_branch']
+        and merge_commit.get('oid') == PINS['dashboard_fix_merge_sha']), 'PR #246 changed: ' + json.dumps(value)
+    return value
+
+
 def check_base():
     value = json.loads(command(['gh', 'pr', 'view', '246', '--repo', 'krafton-jungle-project-4team/loop-ad_dashboard',
-        '--json', 'state,mergedAt,headRefName,headRefOid,baseRefName,url']))
-    assert value['state'] == 'OPEN' and value['mergedAt'] is None and value['headRefOid'] == PINS['dashboard_fix_sha'] and value['headRefName'] == PINS['dashboard_fix_branch'], 'PR #246 changed: ' + json.dumps(value)
-    return value
+        '--json', 'state,mergedAt,mergeCommit,headRefName,headRefOid,baseRefName,url']))
+    return validate_base_metadata(value)
+
+
+def validate_ci_fields(ci):
+    pr_context = (ci['GITHUB_BASE_REF'], ci['RCC_PR_HEAD'], ci['RCC_PR_BASE'])
+    assert all(pr_context) or not any(pr_context), 'partial pull request context; stop'
+    if all(pr_context):
+        assert ci['GITHUB_BASE_REF'] == PINS['dashboard_target_branch'], 'CI target branch changed; stop'
+        assert all(len(value) == 40 and all(character in '0123456789abcdef' for character in value)
+            for value in (ci['RCC_PR_HEAD'], ci['RCC_PR_BASE'])), 'invalid pull request SHA; stop'
+    return bool(all(pr_context))
 
 
 def producer_validator(checkout):
@@ -91,8 +110,14 @@ def run(args):
     try:
         write(output / 'base-status-start.json', check_base())
         command(['git', 'merge-base', '--is-ancestor', PINS['dashboard_fix_sha'], 'HEAD'])
-        ci = {key: os.environ.get(key, '') for key in ('GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA', 'GITHUB_REF', 'RCC_PR_HEAD', 'RCC_PR_BASE')}
-        if ci['RCC_PR_BASE']: assert ci['RCC_PR_BASE'] == PINS['dashboard_fix_sha'], 'CI base changed; stop'
+        ci = {key: os.environ.get(key, '') for key in ('GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT',
+            'GITHUB_SHA', 'GITHUB_REF', 'GITHUB_BASE_REF', 'RCC_PR_HEAD', 'RCC_PR_BASE')}
+        if validate_ci_fields(ci):
+            command(['git', 'merge-base', '--is-ancestor', PINS['dashboard_fix_merge_sha'], ci['RCC_PR_BASE']])
+            command(['git', 'merge-base', '--is-ancestor', ci['RCC_PR_BASE'], 'HEAD'])
+            command(['git', 'merge-base', '--is-ancestor', ci['RCC_PR_HEAD'], 'HEAD'])
+        if ci['GITHUB_SHA']:
+            assert command(['git', 'rev-parse', 'HEAD']) == ci['GITHUB_SHA'], 'CI checkout SHA differs; stop'
         inputs = dict(pins=PINS, dashboard_checkout_sha=command(['git', 'rev-parse', 'HEAD']),
             dashboard_dirty=bool(command(['git', 'status', '--porcelain'])), ci=ci,
             node_version=command(['node', '--version']), npm_version=command(['npm', '--version']), **fingerprint())
