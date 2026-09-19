@@ -62,6 +62,7 @@ import {
   type PromotionWorkspaceTab
 } from "./promotionUtils.js";
 import { launchPromotionExperiment } from "./promotionExperimentFlow.js";
+import { promotionRunLaunchTarget } from "./promotionRunLaunchTarget.js";
 import {
   buildPromotionGenerationRequest,
   createPromotionGenerationAttemptTracker
@@ -615,17 +616,7 @@ export function usePromotionWorkspaceController({
               loop_count: loopCount ?? 1,
               next_loop_preparation_id: nextLoopPreparationId
             });
-            return {
-              experiments: run.ad_experiments.map((experiment) => ({
-                adExperimentId: experiment.ad_experiment_id,
-                channel: experiment.channel,
-                isFallback: experiment.is_fallback,
-                segmentId: experiment.segment_id,
-                status: experiment.status
-              })),
-              promotionRunId: run.promotion_run_id,
-              segmentIds: run.segment_ids
-            };
+            return promotionRunLaunchTarget(run);
           },
           dispatch: dispatchDashboardPromotionRun,
           startExperiment: (adExperimentId) =>

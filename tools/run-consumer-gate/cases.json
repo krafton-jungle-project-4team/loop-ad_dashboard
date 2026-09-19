@@ -1,0 +1,39 @@
+{
+  "RCC-01": ["original", "next-loop-request"],
+  "RCC-02": [
+    "RCG-02-first",
+    "RCG-02-retry",
+    "RCG-10-A",
+    "RCG-10-B",
+    "RCG-11-B",
+    "RCG-12-A",
+    "RCG-12-reverse-A"
+  ],
+  "RCC-03": ["baseline"],
+  "RCC-04": [
+    "malformed-dto",
+    "wrong-scope",
+    "duplicate-scope",
+    "missing-experiment",
+    "duplicate-row",
+    "duplicate-identity",
+    "invalid-fallback",
+    "duplicate-fallback"
+  ],
+  "RCC-05": ["RCG-11-A", "RCG-12-B", "RCG-12-reverse-B"],
+  "RCC-06": [
+    "scheduled",
+    "start-failure",
+    "dispatch-failure",
+    "email",
+    "sms",
+    "onsite",
+    "already-running",
+    "fallback-required",
+    "fallback-count",
+    "unused-fallback",
+    "missing-required-fallback",
+    "unstartable",
+    "build-failure"
+  ]
+}
