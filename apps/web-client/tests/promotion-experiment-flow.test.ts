@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import type { DashboardBuildPromotionRunAssignmentsResult } from "@loopad/shared";
+import type {
+  DashboardBuildPromotionRunAssignmentsResult,
+  DashboardCreatePromotionRunResult
+} from "@loopad/shared";
 import {
   launchPromotionExperiment,
   type PromotionExperimentOperations
@@ -154,6 +158,98 @@ test("Run 응답에 범위 밖 일반 실험이 있으면 배정 전에 실패�
   assert.deepEqual(calls, ["create"]);
 });
 
+for (const scenario of [
+  { status: "planned", scheduled: false },
+  { status: "running", scheduled: false },
+  { status: "goal_met", scheduled: false },
+  { status: "insufficient_data", scheduled: false },
+  { status: "planned", scheduled: true }
+]) {
+  test(`서로 다른 고객군의 실험 ID가 중복되면 배정 전에 거절한다 (${scenario.status}, scheduled=${scenario.scheduled})`, async () => {
+    const { calls, operations } = createOperations({
+      experiments: [
+        { ...selectedExperiment(), status: scenario.status },
+        {
+          ...otherSegmentExperiment(),
+          adExperimentId: selectedExperiment().adExperimentId,
+          status: scenario.status
+        }
+      ],
+      segmentIds: ["segment-1", "segment-2"],
+      assignmentResult: {
+        ...assignmentResult(false),
+        activation_status: scenario.scheduled ? "scheduled" : "manual_start_required",
+        scheduled_start_at: scenario.scheduled ? "2026-08-01T00:00:00.000Z" : null
+      }
+    });
+
+    await assert.rejects(
+      () => launchPromotionExperiment({ segmentIds: ["segment-1", "segment-2"] }, operations),
+      /광고 실험 ID가 중복되어 있어요/
+    );
+    // createRun completed; build/start/dispatch must all remain uncalled.
+    assert.deepEqual(calls, ["create"]);
+  });
+}
+
+test("사용하지 않는 fallback도 선택 실험과 ID가 같으면 배정 전에 거절한다", async () => {
+  const { calls, operations } = createOperations({
+    experiments: [
+      selectedExperiment(),
+      { ...fallbackExperiment(), adExperimentId: selectedExperiment().adExperimentId }
+    ],
+    assignmentResult: assignmentResult(false)
+  });
+
+  await assert.rejects(
+    () => launchPromotionExperiment({ segmentIds: ["segment-1"] }, operations),
+    /광고 실험 ID가 중복되어 있어요/
+  );
+  assert.deepEqual(calls, ["create"]);
+});
+
+test("기존 Decision 응답 fixture의 고유 ID와 같은 run 재사용을 허용한다", async () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("../../../docs/contracts/decision-promotion-run-response.v1.json", import.meta.url),
+      "utf8"
+    )
+  ) as DashboardCreatePromotionRunResult;
+  const { calls, operations } = createOperations({
+    experiments: fixture.ad_experiments.map((experiment) => ({
+      adExperimentId: experiment.ad_experiment_id,
+      channel: experiment.channel,
+      isFallback: experiment.is_fallback,
+      segmentId: experiment.segment_id,
+      status: experiment.status
+    })),
+    promotionRunId: fixture.promotion_run_id,
+    segmentIds: fixture.segment_ids,
+    assignmentResult: {
+      ...assignmentResult(true),
+      promotion_run_id: fixture.promotion_run_id
+    }
+  });
+  const expectedCalls = [
+    "create",
+    `build:${fixture.promotion_run_id}`,
+    ...fixture.ad_experiments.map((experiment) => `start:${experiment.ad_experiment_id}`),
+    `dispatch:${fixture.promotion_run_id}`
+  ];
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    calls.length = 0;
+    const result = await launchPromotionExperiment({ segmentIds: fixture.segment_ids }, operations);
+    assert.deepEqual(calls, expectedCalls);
+    assert.equal(result.promotionRunId, fixture.promotion_run_id);
+    assert.deepEqual(
+      result.startedExperimentIds,
+      fixture.ad_experiments.map((experiment) => experiment.ad_experiment_id)
+    );
+    assert.equal(result.dispatched, true);
+  }
+});
+
 test("다음 루프의 복수 고객군과 fallback 실험을 함께 시작한다", async () => {
   const { calls, operations } = createOperations({
     assignmentResult: assignmentResult(true),
@@ -202,6 +298,7 @@ function createOperations(input: {
     status: string;
   }>;
   segmentIds?: string[];
+  promotionRunId?: string;
   startFailureId?: string;
 }) {
   const calls: string[] = [];
@@ -214,7 +311,7 @@ function createOperations(input: {
       calls.push("create");
       return {
         experiments: input.experiments,
-        promotionRunId: "run-1",
+        promotionRunId: input.promotionRunId ?? "run-1",
         segmentIds: input.segmentIds ?? ["segment-1"]
       };
     },
