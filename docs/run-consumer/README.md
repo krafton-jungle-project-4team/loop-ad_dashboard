@@ -75,7 +75,7 @@ bash scripts/run-consumer-gate.sh /tmp/rcc-reuse-output \
 
 새 producer 실행은 새 run ID와 manifest hash를 만든다. 기존 hash를 새 실행에 재사용하지 않는다. 해시는 byte/provenance 일치 검사이며 발행자 신원 서명이 아니다. 생성 command, pinned checkout, CI run을 함께 검토한다.
 
-출력에는 전체 판정 `result.json`, 입력 `inputs.json`, producer 결과, 원본 `bundles/{fixed,latest}`, baseline expected/provenance, consumer `{fixed,latest}`의 case별 JSON·파생 body·JUnit, `controls`, 전체 artifact inventory/hash가 포함된다. 원시 서버 log·credentials·환경 전체는 CI artifact에 넣지 않는다. 실행 실패 진단은 출력 경로 옆 `-diagnostics`에 분리하고 업로드 대상에서 제외한다. 준비가 실패한 case나 JUnit을 만들어내지 않는다.
+출력에는 전체 판정 `result.json`, 입력 `inputs.json`, producer 결과, 원본 `bundles/{fixed,latest}`, baseline expected/provenance, consumer `{fixed,latest}`의 case별 JSON·파생 body·JUnit, `controls`, 전체 artifact inventory/hash가 포함된다. 원시 서버 log·credentials·환경 전체는 CI artifact에 넣지 않는다. producer 전체 출력은 출력 경로 옆 `-producer`에 보존하며 업로드 대상에서 제외한다. Docker가 생성한 보존 산출물을 host-owned 임시 checkout/log 디렉터리의 자동 삭제 대상에 넣지 않는다. 임시 디렉터리 정리 후에 최종 판정을 쓰며 정리 실패는 JSON도 INCOMPLETE가 된다. 실행 실패 진단은 `-diagnostics`에 분리한다. 준비가 실패한 case나 JUnit을 만들어내지 않는다.
 
 다운로드한 artifact는 아래처럼 **서비스 재실행 없이** 다시 검증한다. 원래 실행 머신의 절대 경로가 달라도 artifact 내부 상대 경로를 기준으로 검사한다.
 

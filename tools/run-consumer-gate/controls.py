@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import xml.etree.ElementTree as ET
-from report import validate_lane, verdict
+from report import validate_lane, verdict, finalize_report, verify_inventory
 
 MUTATIONS = ('missing-result', 'zero-cases', 'missing-case', 'duplicate-case', 'skip',
              'wrong-lane', 'wrong-producer', 'wrong-manifest', 'cleanup', 'missing-junit',
@@ -56,7 +56,16 @@ def run_controls(lane_root, expected_input, output):
         reports.append({'id': f'latest-pass-cannot-mask-{fixed}', 'passed': verdict(fixed, 'PASS', True)[0] == fixed})
     for latest in ('WARN_DRIFT', 'WARN_UNVERIFIED'):
         reports.append({'id': f'latest-warning-{latest}', 'passed': verdict('PASS', latest, True) == ('PASS', 0)})
-    reports.append({'id': 'common-failure', 'passed': verdict('PASS', 'PASS', False) == ('INCOMPLETE', 2)})
+    with tempfile.TemporaryDirectory(prefix='rcc-cleanup-control-') as directory:
+        result = {'status': 'PASS', 'exit_code': 0, 'cleanup_ok': True}
+        def denied_cleanup():
+            raise PermissionError('synthetic scratch cleanup failure')
+        finalize_report(directory, result, denied_cleanup)
+        saved = json.loads((Path(directory) / 'result.json').read_text())
+        reports.append({'id': 'common-failure', 'passed':
+            verdict('PASS', 'PASS', False) == ('INCOMPLETE', 2)
+            and saved['status'] == 'INCOMPLETE' and saved['exit_code'] == 2
+            and saved['cleanup_ok'] is False and verify_inventory(directory) == 1})
     assert len(reports) == 23
     data = {'status': 'PASS' if all(row['passed'] for row in reports) else 'FAIL', 'cases': reports}
     (output / 'result.json').write_text(json.dumps(data, indent=2) + '\n')

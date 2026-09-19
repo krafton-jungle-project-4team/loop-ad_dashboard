@@ -100,3 +100,14 @@ def verify_inventory(root):
         path = safe_file(root, name)
         assert digest(path) == metadata['sha256'] and path.stat().st_size == metadata['bytes']
     return len(files)
+
+
+def finalize_report(root, result, cleanup):
+    """Publish a verdict only after scratch cleanup, including cleanup failures."""
+    try:
+        cleanup()
+    except OSError as error:
+        result.update(status='INCOMPLETE', exit_code=2, cleanup_ok=False, reason=f'scratch cleanup failed: {error}')
+    (Path(root) / 'result.json').write_text(json.dumps(result, indent=2, sort_keys=True) + '\n')
+    write_inventory(root)
+    verify_inventory(root)
