@@ -16,7 +16,6 @@ jobs:
     timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
-      RCC_OUTPUT: ${{ runner.temp }}/run-consumer-gate
       RCC_PR_HEAD: ${{ github.event.pull_request.head.sha }}
       RCC_PR_BASE: ${{ github.event.pull_request.base.sha }}
     steps:
@@ -40,9 +39,13 @@ jobs:
           npm run typecheck
           node_modules/.bin/tsc -p tools/run-consumer-gate/tsconfig.json
       - name: Pinned producer and fixed/latest consumer gate
+        env:
+          RCC_OUTPUT: ${{ runner.temp }}/run-consumer-gate
         shell: bash
         run: bash scripts/run-consumer-gate.sh "$RCC_OUTPUT"
       - name: Report latest warning lane
+        env:
+          RCC_OUTPUT: ${{ runner.temp }}/run-consumer-gate
         if: ${{ always() }}
         shell: bash
         run: |
