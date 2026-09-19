@@ -1,0 +1,11 @@
+{
+  "decision_repository": "https://github.com/krafton-jungle-project-4team/loop-ad_decision.git",
+  "decision_sha": "9ace3b6ef5d1aaa7851d7ffbb180f1802f5c7008",
+  "decision_source_sha256": "2b83b5433f7271559ffb23fc69b1d3221850816abcc3505e068ba649fcba19f1",
+  "dashboard_fix_sha": "b77b90165682e4dc9bb63bf93b04f19133e2965d",
+  "dashboard_fix_branch": "fix/reject-duplicate-experiment-identity",
+  "dashboard_fix_merge_sha": "7d4a8a231e102eaaf6e6eae816902cbd45e1abcb",
+  "dashboard_target_branch": "main",
+  "fixed_contract_sha": "0ec2cef0290f4659ad21ccc1dd2a20df2801ff50",
+  "baseline_expected_sha256": "0fb6c279a84c65e585cc17edaa0103288f952a7061cb5c4d4de0711814f6c2f9"
+}

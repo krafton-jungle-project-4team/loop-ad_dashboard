@@ -1,0 +1,66 @@
+name: Run Consumer Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  consumer-required:
+    name: Fixed consumer (required)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RCC_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+      RCC_PR_BASE: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - name: Checkout Dashboard candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 25.2.1
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Related regressions and typecheck
+        shell: bash
+        run: |
+          npm run build -w @loopad/shared
+          node --import tsx --test apps/web-client/tests/promotion-experiment-flow.test.ts apps/api-server/tests/dashboard-decision-client-contract.test.ts apps/web-client/tests/promotion-run-launch-target.test.ts
+          npm run typecheck
+          node_modules/.bin/tsc -p tools/run-consumer-gate/tsconfig.json
+      - name: Pinned producer and fixed/latest consumer gate
+        env:
+          RCC_OUTPUT: ${{ runner.temp }}/run-consumer-gate
+        shell: bash
+        run: bash scripts/run-consumer-gate.sh "$RCC_OUTPUT"
+      - name: Report latest warning lane
+        env:
+          RCC_OUTPUT: ${{ runner.temp }}/run-consumer-gate
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ['RCC_OUTPUT']) / 'result.json'
+          value = json.loads(path.read_text()).get('latest_status') if path.is_file() else 'WARN_UNVERIFIED'
+          print('Latest consumer: PASS' if value == 'PASS' else f'::warning title=Latest consumer::{value}')
+          PY
+      - name: Preserve structured consumer and producer evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: run-consumer-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: error
+          path: ${{ runner.temp }}/run-consumer-gate/
