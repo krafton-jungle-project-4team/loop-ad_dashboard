@@ -6,8 +6,8 @@ Decision의 `rcg-run-consumer.v1` 원본 HTTP status/body를 로컬 서버에서
 
 | 항목                        | 고정 값                                                                                                                                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Decision producer           | `9ace3b6ef5d1aaa7851d7ffbb180f1802f5c7008`                                                                                                                                                          |
-| producer source SHA-256     | `2b83b5433f7271559ffb23fc69b1d3221850816abcc3505e068ba649fcba19f1`                                                                                                                                  |
+| Decision producer           | [`4ee89c5c894098e87e71edd1c50d64c69b5664e2`](https://github.com/krafton-jungle-project-4team/loop-ad_decision/pull/402)                                                                                |
+| producer source SHA-256     | `dd998267361ddd0a878586832e7e661a7f240fd2b9ccdce458410ac8a8466995`                                                                                                                                  |
 | Dashboard prerequisite      | merged [fix PR #246](https://github.com/krafton-jungle-project-4team/loop-ad_dashboard/pull/246), head `b77b90165682e4dc9bb63bf93b04f19133e2965d`, merge `7d4a8a231e102eaaf6e6eae816902cbd45e1abcb` |
 | PR base / head              | `main` / `feat/run-consumer-integration`                                                                                                                                                            |
 | fixed Data Contract         | `0ec2cef0290f4659ad21ccc1dd2a20df2801ff50`                                                                                                                                                          |
